@@ -1,0 +1,25 @@
+# Project research data — not part of the framework
+adbp/
+*/findings/*
+!*/findings/.gitkeep
+*/results.tsv
+*/run.log
+*/reports/*
+!*/reports/.gitkeep
+
+# OMC / Claude internal state
+**/.omc/
+**/.claude/audit.log
+
+# Node
+node_modules/
+dashboard/frontend/dist/
+
+# Python
+*.pyc
+__pycache__/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
