@@ -266,7 +266,14 @@ See `QUICKSTART.md` for the full reference including Wave 2 generation, session 
 - Python 3.10+ with `reportlab`, `uvicorn`, `fastapi`
 - Node.js 18+ (dashboard frontend)
 - [System-Recall](https://github.com/Nerfherder16/System-Recall) (optional — enables cross-session agent memory)
-- Exa / Firecrawl MCP servers (optional — enables live web research for regulatory and competitive agents)
+- **Exa** (`exa-mcp-server`) — cloud API, key from [exa.ai](https://exa.ai). Enables semantic web search for regulatory and competitive agents.
+- **Firecrawl** (`firecrawl-mcp`) — self-hostable ([github.com/mendableai/firecrawl](https://github.com/mendableai/firecrawl)) or cloud. Point `FIRECRAWL_API_URL` at your instance. Enables deep page scraping for regulatory text, fee schedules, and competitor data.
+
+---
+
+## Acknowledgments
+
+BrickLayer is influenced by Andrej Karpathy's insight that the most productive use of a language model isn't answering questions — it's running in a tight feedback loop where each output becomes the next input. The idea that you can give an LLM a simulator, a question bank, and a write-back mechanism, then walk away while it maps the failure surface of a complex system, is a direct expression of that principle.
 
 ---
 
