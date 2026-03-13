@@ -41,3 +41,6 @@ Q8.4	HEALTHY	_findings_cache.pop() added to correct_finding() — cache invalida
 Q9.1	FAILURE	onboard.py never copied analyze.py or created reports/ — all onboarded projects lacked PDF report capability	2026-03-13T00:00:00Z
 Q9.2	FAILURE	bricklayer/analyze.py missing; IndexError on empty verdict in analyze.py line 409	2026-03-13T00:00:00Z
 Q9.3	HEALTHY	analyze.py copy + reports/ mkdir added to onboard.py; analyze.py empty-verdict guard fixed; PDF generates cleanly	2026-03-13T00:00:00Z
+Q10.1	HEALTHY	template/questions.md parses 17 questions correctly in table format; Q5.7 fix confirmed	2026-03-13T00:00:00Z
+Q10.2	HEALTHY	_bounded_glob uses os.walk followlinks=False (default); symlink loops impossible	2026-03-13T00:00:00Z
+Q10.3	HEALTHY	all 43 findings have non-empty titles; parse_findings_index robust across full campaign	2026-03-13T00:00:00Z

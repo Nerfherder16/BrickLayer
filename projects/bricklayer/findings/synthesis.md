@@ -1,7 +1,7 @@
 # BrickLayer Campaign Synthesis — Bricklayer
 **Date**: 2026-03-13
-**Questions run**: 42 (Q1.1–Q9.3)
-**Waves completed**: 9
+**Questions run**: 45 (Q1.1–Q10.3)
+**Waves completed**: 10
 
 ---
 
@@ -51,8 +51,11 @@
 | Q9.1 | Correctness | FAILURE | onboard.py never copied analyze.py or created reports/ for new projects |
 | Q9.2 | Correctness | FAILURE | bricklayer/analyze.py missing; IndexError on empty verdict in analyze.py line 409 |
 | Q9.3 | Agent | HEALTHY | analyze.py copy + reports/ mkdir added to onboard.py; empty-verdict guard fixed |
+| Q10.1 | Correctness | HEALTHY | template/questions.md parses 17 questions in table format; Q5.7 fix confirmed |
+| Q10.2 | Correctness | HEALTHY | _bounded_glob followlinks=False (default); symlink loops impossible |
+| Q10.3 | Correctness | HEALTHY | All 43 findings have non-empty titles; parse_findings_index robust |
 
-**FAILURE: 12 | WARNING: 8 | INCONCLUSIVE: 0 | HEALTHY: 22**
+**FAILURE: 12 | WARNING: 8 | INCONCLUSIVE: 0 | HEALTHY: 25**
 
 ---
 
@@ -87,6 +90,9 @@
 ### Wave 9 (Q9.3)
 17. **Q9.3** — `onboard.py`: `shutil.copy(analyze.py)` + `reports.mkdir()` added to project creation block; `projects/bricklayer/analyze.py` backfilled manually. `analyze.py` line 409 guarded against empty verdict with `_vwords[0] if _vwords else "UNKNOWN"`.
 
+### Wave 10 — Exhaustion Probe (Q10.1–Q10.3)
+All three questions returned HEALTHY — no new fixes required. Wave 10 confirms the campaign boundary.
+
 ---
 
 ## Remaining Open Issues
@@ -109,18 +115,20 @@
 
 | Metric | Value |
 |--------|-------|
-| Total questions | 42 |
-| Waves | 9 |
+| Total questions | 45 |
+| Waves | 10 |
 | FAILURE (fixed) | 12 / 12 |
 | WARNING (documented) | 8 |
-| HEALTHY | 22 |
+| HEALTHY | 25 |
 | INCONCLUSIVE | 0 |
 | Tests added | 24 (0 → 24) |
-| Commits | 8 |
+| Commits | 9 |
 | Files modified | 11 |
 
 ---
 
 ## Key Findings Pattern
 
-The autosearch framework had **no automated tests**, **no security review**, and **incomplete onboarding** before this campaign. The most severe cluster of issues was in the dashboard backend (path traversal + CORS + hardcoded paths) and the detect_stack function (silent data corruption + unbounded filesystem traversal). A second cluster emerged late: the PDF report workflow was entirely broken for onboarded projects (missing analyze.py copy + latent IndexError in the PDF generator). All 12 FAILURE items have been fixed. The 8 WARNING items are all LOW risk, documented, and acceptable for a homelab developer tool. The campaign is complete — question bank exhausted.
+The autosearch framework had **no automated tests**, **no security review**, and **incomplete onboarding** before this campaign. The most severe cluster of issues was in the dashboard backend (path traversal + CORS + hardcoded paths) and the detect_stack function (silent data corruption + unbounded filesystem traversal). A second cluster emerged late: the PDF report workflow was entirely broken for onboarded projects (missing analyze.py copy + latent IndexError in the PDF generator). All 12 FAILURE items have been fixed. The 8 WARNING items are all LOW risk, documented, and acceptable for a homelab developer tool.
+
+Wave 10 (exhaustion probe) confirmed no new bugs in three targeted areas: template question parsing, symlink safety in _bounded_glob, and findings title robustness. **Campaign complete — 45 questions, 10 waves, question bank exhausted.**

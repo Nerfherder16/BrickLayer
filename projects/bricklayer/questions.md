@@ -429,6 +429,40 @@ Status is tracked in results.tsv — do not edit manually.
 
 ---
 
+## Q9.1 [CORRECTNESS] onboard.py does not copy analyze.py to new projects
+**Mode**: correctness
+**Target**: onboard.py
+**Hypothesis**: `onboard.py` creates `findings/`, `docs/`, `results.tsv`, `prepare.md`, and `questions.md` but never copies `analyze.py` or creates `reports/`. Any project created via the launcher has no PDF report generation capability.
+**Test**: `grep -n "analyze\|reports" C:/Users/trg16/Dev/autosearch/onboard.py | head -10`
+**Verdict threshold**:
+- HEALTHY: analyze.py is copied and reports/ is created during onboarding
+- FAILURE: analyze.py not copied — `python analyze.py` would fail with FileNotFoundError
+
+---
+
+## Q9.2 [CORRECTNESS] bricklayer project missing analyze.py
+**Mode**: correctness
+**Target**: projects/bricklayer/
+**Hypothesis**: The bricklayer project (created by the campaign runner, not onboard.py) has no `analyze.py`. `python analyze.py` from the bricklayer directory fails.
+**Test**: `ls C:/Users/trg16/Dev/autosearch/projects/bricklayer/` — confirm analyze.py absent.
+**Verdict threshold**:
+- HEALTHY: analyze.py exists and `python projects/bricklayer/analyze.py` completes
+- FAILURE: File missing
+
+---
+
+## Q9.3 [AGENT] Fix onboard.py to copy analyze.py and create reports/
+**Mode**: agent
+**Target**: onboard.py
+**Agent**: forge
+**Hypothesis**: Adding two lines to `onboard.py`'s project creation block — `shutil.copy(TEMPLATE_DIR / "analyze.py", project_dir / "analyze.py")` and `(project_dir / "reports").mkdir(exist_ok=True)` — makes the report workflow complete for all future projects.
+**Test**: After fix, `grep -n "analyze\|reports" C:/Users/trg16/Dev/autosearch/onboard.py | head -5` — should show both lines; also copy analyze.py to bricklayer manually and run it.
+**Verdict threshold**:
+- HEALTHY: Both lines added; template analyze.py copied correctly; reports/ created; onboard.py imports cleanly
+- FAILURE: Missing one of the two additions or introduces an import error
+
+---
+
 ## Q8.1 [CORRECTNESS] mypy on dashboard backend (resolve Q2.4)
 **Mode**: correctness
 **Target**: dashboard/backend/main.py
@@ -486,3 +520,37 @@ Status is tracked in results.tsv — do not edit manually.
 - HEALTHY: Warning printed to stderr when BASE_URL != "none" and API_KEY is the default placeholder
 - WARNING: Logic added but warning goes to stdout (acceptable)
 - FAILURE: No warning added, or fix introduces traceback
+
+## Q10.1 [CORRECTNESS] template/questions.md parses correctly in table format
+**Mode**: correctness
+**Target**: template/questions.md
+**Hypothesis**: The template ships with a table-format questions.md. After the Q5.7 parse_questions fix, this format is supported. A new project copied from template should have its questions visible in the dashboard immediately.
+**Test**: `parse_questions(Path('template'))` — should return all 17 placeholder questions with correct id/status/title fields.
+**Verdict threshold**:
+- HEALTHY: 17 questions returned with non-empty ids and PENDING status
+- FAILURE: 0 questions returned — template invisible to dashboard
+
+---
+
+## Q10.2 [CORRECTNESS] _bounded_glob symlink safety
+**Mode**: correctness
+**Target**: onboard.py
+**Hypothesis**: `os.walk` defaults to `followlinks=False`. A symlink pointing to a parent directory cannot cause infinite recursion in `_bounded_glob`. Adversarial project structures with symlink loops are safe.
+**Test**: `grep -n "followlinks" onboard.py` — should show no followlinks=True; `os.walk` default is False.
+**Verdict threshold**:
+- HEALTHY: `followlinks` absent or explicitly False — symlink loops impossible
+- FAILURE: `followlinks=True` present — infinite loop risk
+
+---
+
+## Q10.3 [CORRECTNESS] parse_findings_index never returns empty title
+**Mode**: correctness
+**Target**: dashboard/backend/main.py
+**Hypothesis**: All 43 findings in bricklayer/findings/ have a `**Title**:` or `# Title` line that produces a non-empty title field. A malformed finding with no title would render as a blank entry in the dashboard.
+**Test**: Call `parse_findings_index(Path('projects/bricklayer'))` and check for any f['title'] == ''.
+**Verdict threshold**:
+- HEALTHY: All findings have non-empty titles
+- WARNING: 1-3 findings have empty titles
+- FAILURE: >3 findings have empty titles
+
+---
