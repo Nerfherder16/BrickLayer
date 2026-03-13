@@ -184,6 +184,10 @@ def run_commit_reviewer(diff: str) -> tuple[list[str], list[str], list[str]]:
             continue
         code = line[1:]  # strip leading +
 
+        # Lines with # noqa or # noqa: secrets skip all pattern checks
+        if re.search(r"#\s*noqa", code):
+            continue
+
         for pattern, desc in _BLOCK_PATTERNS:
             if re.search(pattern, code):
                 blocks.append(f"  [{current_file}] {desc}")
