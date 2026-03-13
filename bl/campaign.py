@@ -13,7 +13,7 @@ import subprocess
 import sys
 
 from bl.config import cfg
-from bl.findings import update_results_tsv, write_finding
+from bl.findings import classify_failure_type, update_results_tsv, write_finding
 from bl.questions import get_question_by_id, get_next_pending, parse_questions
 from bl.runners import run_question
 from bl.runners.agent import _strip_frontmatter
@@ -31,8 +31,13 @@ def run_and_record(question: dict) -> dict:
         file=sys.stderr,
     )
     result = run_question(question)
+    failure_type = classify_failure_type(result, question["mode"])
+    if failure_type:
+        result["failure_type"] = failure_type
     finding_path = write_finding(question, result)
-    update_results_tsv(question["id"], result["verdict"], result["summary"])
+    update_results_tsv(
+        question["id"], result["verdict"], result["summary"], failure_type
+    )
     print(json.dumps(result, indent=2))
     print(f"\nFinding written to: {finding_path}", file=sys.stderr)
     print(f"Verdict: {result['verdict']}", file=sys.stderr)
