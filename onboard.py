@@ -18,6 +18,7 @@ Usage:
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -174,6 +175,33 @@ def _prompt(label: str, default: str = "") -> str:
     return val if val else default
 
 
+_EXCLUDE_DIRS = {
+    ".git",
+    "node_modules",
+    "vendor",
+    ".venv",
+    "__pycache__",
+    ".mypy_cache",
+}
+
+
+def _bounded_glob(root: Path, pattern: str, max_depth: int = 4) -> bool:
+    """Return True if any file matching pattern exists within max_depth levels of root.
+
+    Skips common vendor/tool directories to avoid traversing the entire tree.
+    """
+    for dirpath, dirnames, filenames in os.walk(root):
+        depth = len(Path(dirpath).relative_to(root).parts)
+        if depth >= max_depth:
+            dirnames.clear()
+        else:
+            dirnames[:] = [d for d in dirnames if d not in _EXCLUDE_DIRS]
+        for fname in filenames:
+            if Path(fname).match(pattern):
+                return True
+    return False
+
+
 def detect_stack(repo_path: Path) -> list[str]:
     """Auto-detect tech stack from repo files."""
     stack = []
@@ -259,13 +287,13 @@ def detect_stack(repo_path: Path) -> list[str]:
         stack.append("Go")
 
     # Kotlin / Android / KMP
-    if any(repo_path.rglob("build.gradle.kts")) or any(repo_path.rglob("*.kt")):
+    if _bounded_glob(repo_path, "build.gradle.kts") or _bounded_glob(repo_path, "*.kt"):
         stack.append("Kotlin")
-        if any(repo_path.rglob("AndroidManifest.xml")):
+        if _bounded_glob(repo_path, "AndroidManifest.xml"):
             stack.append("Android")
 
     # Swift / iOS
-    if any(repo_path.glob("*.xcodeproj")) or any(repo_path.rglob("*.swift")):
+    if any(repo_path.glob("*.xcodeproj")) or _bounded_glob(repo_path, "*.swift"):
         stack.append("Swift/iOS")
 
     # Infrastructure
@@ -273,7 +301,7 @@ def detect_stack(repo_path: Path) -> list[str]:
         repo_path / "docker-compose.yaml"
     ).exists():
         stack.append("Docker Compose")
-    if any(repo_path.rglob("*.tf")):
+    if _bounded_glob(repo_path, "*.tf"):
         stack.append("Terraform")
 
     return list(dict.fromkeys(stack))  # deduplicate preserving order
@@ -318,7 +346,6 @@ def cmd_list() -> None:
 
 def run_scout(project_cfg: dict, questions_path: Path) -> bool:
     """Run the Scout agent to generate tailored questions for a new project."""
-    import os
     import shutil as _shutil
 
     scout_path = AUTOSEARCH_ROOT / "agents" / "scout.md"

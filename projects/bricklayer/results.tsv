@@ -14,3 +14,19 @@ Q4.1	HEALTHY	Path traversal + CORS + hardcoded path fixed in dashboard/backend/m
 Q4.2	HEALTHY	4 silent except swallows replaced with stderr warnings in onboard.py + bricklayer_launcher.pyw — commit b2a18a3	2026-03-13T00:00:00Z
 Q4.3	HEALTHY	19 tests written covering detect_stack, parse_questions, run_simulation, evaluate — all pass — commit ecdc767	2026-03-13T00:00:00Z
 Q4.4	HEALTHY	Optional[str] → str|None migration, from typing import Optional removed — commit 98f45fc	2026-03-13T00:00:00Z
+Q5.1	FAILURE	prepare.md runner path wrong (python simulate.py vs python recall/simulate.py) — fixed in 82f3647	2026-03-13T00:00:00Z
+Q5.2	FAILURE	recall/simulate.py sys.stdout at module level not guarded by __main__ — fixed in 82f3647	2026-03-13T00:00:00Z
+Q5.3	HEALTHY	template/analyze.py handles missing results.tsv gracefully (0 results message, exit 0)	2026-03-13T00:00:00Z
+Q5.4	WARNING	get_project_path startswith() → is_relative_to() fixed; server still binds 0.0.0.0 (CORS mitigates browser attacks)	2026-03-13T00:00:00Z
+Q5.5	WARNING	No file lock on results.tsv; campaign is sequential so risk low — documented	2026-03-13T00:00:00Z
+Q5.6	HEALTHY	template/simulate.py revenue placeholder → ops_cost*1.5, baseline now HEALTHY — commit 2b27996	2026-03-13T00:00:00Z
+Q5.7	HEALTHY	parse_questions supports block format (23 questions); add_question writes block format with max-based IDs — commit efd7cfd	2026-03-13T00:00:00Z
+Q5.8	HEALTHY	docs content wrapped in <docs>...</docs> XML delimiters in run_scout — commit efd7cfd	2026-03-13T00:00:00Z
+Q6.1	WARNING	recall/simulate.py API_KEY hardcoded as placeholder; overridden by project.json but no warning when live URL set	2026-03-13T00:00:00Z
+Q6.2	FAILURE	detect_stack() uses unbounded rglob() on 4 patterns with no depth limit or exclusion of .git/node_modules	2026-03-13T00:00:00Z
+Q6.3	WARNING	parse_findings_index() reads all .md files on every GET /api/findings with no caching	2026-03-13T00:00:00Z
+Q6.4	WARNING	dashboard start.sh still binds to 0.0.0.0; CORS restricted but non-browser clients can reach mutation routes	2026-03-13T00:00:00Z
+Q6.5	HEALTHY	python recall/simulate.py --project bricklayer --list loads all 23 questions correctly	2026-03-13T00:00:00Z
+Q6.6	HEALTHY	_bounded_glob() helper added; all 4 rglob calls bounded to depth 4 with .git/node_modules exclusions; 19 tests pass	2026-03-13T00:00:00Z
+Q6.7	HEALTHY	start.sh default host changed to 127.0.0.1; DASHBOARD_HOST env var for opt-in LAN exposure	2026-03-13T00:00:00Z
+Q6.8	HEALTHY	API key warning added to simulate.py __main__ block; fires when BASE_URL is live and key is default placeholder	2026-03-13T00:00:00Z

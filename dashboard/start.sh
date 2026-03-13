@@ -13,7 +13,8 @@ echo "Frontend: http://localhost:3100"
 echo ""
 
 # Start backend
-cd "$SCRIPT_DIR/backend" && AUTOSEARCH_PROJECT="$PROJECT" uvicorn main:app --host 0.0.0.0 --port 8100 --reload &
+HOST=${DASHBOARD_HOST:-127.0.0.1}
+cd "$SCRIPT_DIR/backend" && AUTOSEARCH_PROJECT="$PROJECT" uvicorn main:app --host "$HOST" --port 8100 --reload &
 BACKEND_PID=$!
 
 # Start frontend

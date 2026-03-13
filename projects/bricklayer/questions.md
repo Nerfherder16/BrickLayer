@@ -291,3 +291,42 @@ Status is tracked in results.tsv — do not edit manually.
 **Verdict threshold**:
 - HEALTHY: docs_content wrapped in `<docs>` XML tags in the prompt string
 - FAILURE: No delimiter present after fix attempt
+
+---
+
+## Q6.6 [AGENT] Fix unbounded rglob calls in detect_stack
+**Mode**: agent
+**Target**: onboard.py
+**Agent**: perf-optimizer
+**Hypothesis**: `detect_stack()` uses 4 unbounded `rglob()` calls with no depth limit and no exclusion of `.git`, `node_modules`, `vendor`, `.venv`. On large repos this traverses the entire tree for each pattern, making onboarding slow. Adding depth limits and exclusions will bound the worst-case scan time.
+**Test**: After fix, `grep -n "rglob\|glob" C:/Users/trg16/Dev/autosearch/onboard.py | head -20` — confirm exclusion dirs and/or depth limits are applied; run `python onboard.py --help 2>&1 | head -5` to confirm no import errors.
+**Verdict threshold**:
+- HEALTHY: All rglob calls exclude .git/node_modules/vendor/.venv and/or limit depth to ≤4 levels
+- WARNING: Exclusions added but no depth limit (still unbounded on deep trees)
+- FAILURE: No change made, or fix introduces import error
+
+---
+
+## Q6.7 [AGENT] Fix dashboard start.sh 0.0.0.0 binding
+**Mode**: agent
+**Target**: dashboard/start.sh
+**Agent**: security-hardener
+**Hypothesis**: `start.sh` hardcodes `--host 0.0.0.0` making the dashboard LAN-accessible to non-browser clients even after the CORS restriction. Changing the default to `127.0.0.1` with an opt-in `DASHBOARD_HOST` env var closes the remaining exposure for local-only use.
+**Test**: After fix, `grep "uvicorn" C:/Users/trg16/Dev/autosearch/dashboard/start.sh` — should show `${DASHBOARD_HOST:-127.0.0.1}` or equivalent; confirm `DASHBOARD_HOST=0.0.0.0 bash start.sh` syntax is valid.
+**Verdict threshold**:
+- HEALTHY: Default host is 127.0.0.1; DASHBOARD_HOST env var documented for intentional LAN exposure
+- WARNING: Default changed but no env var override path
+- FAILURE: Still hardcodes 0.0.0.0 after fix attempt
+
+---
+
+## Q6.8 [AGENT] Add API key warning in recall/simulate.py
+**Mode**: agent
+**Target**: recall/simulate.py
+**Agent**: security-hardener
+**Hypothesis**: When `BASE_URL != "none"` and `API_KEY == "recall-admin-key-change-me"` (the default placeholder), the runner silently sends the wrong key to a live service, getting a 401 with no helpful error. A one-line stderr warning at startup would surface this misconfiguration immediately.
+**Test**: After fix, `python -c "import sys; sys.argv=['simulate.py','--project','fake']; import importlib.util; spec=importlib.util.spec_from_file_location('simulate','C:/Users/trg16/Dev/autosearch/recall/simulate.py')"` should not error; verify warning logic exists with `grep -n "recall-admin-key\|Warning.*api" C:/Users/trg16/Dev/autosearch/recall/simulate.py`.
+**Verdict threshold**:
+- HEALTHY: Warning printed to stderr when BASE_URL != "none" and API_KEY is the default placeholder
+- WARNING: Logic added but warning goes to stdout (acceptable)
+- FAILURE: No warning added, or fix introduces traceback

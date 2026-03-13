@@ -1739,6 +1739,13 @@ def main():
 
     init_project(args.project)
 
+    _DEFAULT_KEY = "recall-admin-key-change-me"
+    if BASE_URL not in ("none", "None", "") and API_KEY == _DEFAULT_KEY:
+        print(
+            "Warning: using default API key — set api_key in project.json before targeting a live service.",
+            file=sys.stderr,
+        )
+
     if args.scout:
         _run_scout_for_project()
         return
