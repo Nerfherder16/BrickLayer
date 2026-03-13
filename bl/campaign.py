@@ -405,6 +405,18 @@ def run_campaign() -> None:
             )
 
     print("\nCampaign complete.", file=sys.stderr)
+
+    # Auto-generate next wave if question bank is exhausted
+    remaining = [q for q in parse_questions() if q["status"] == "PENDING"]
+    if not remaining:
+        print(
+            "[campaign] Question bank exhausted — generating next wave hypotheses...",
+            file=sys.stderr,
+        )
+        from bl.hypothesis import generate_hypotheses
+
+        generate_hypotheses(cfg.questions_md, cfg.results_tsv)
+
     print_handoff_reminder()
 
 

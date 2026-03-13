@@ -1,4 +1,4 @@
-question_id	verdict	summary	timestamp
+question_id	verdict	failure_type	confidence	score	summary	timestamp
 Q1.1	HEALTHY	c=5: p99=24.4ms | c=10: p99=25.5ms | c=20: p99=88.4ms | c=40: p99=154.8ms	2026-03-12T23:30:54Z
 Q1.2	HEALTHY	1.0/s: mean=474.2ms | 5.0/s: mean=209.6ms | 10.0/s: mean=202.8ms | 20.0/s: mean=184.8ms	2026-03-12T23:32:53Z
 Q1.3	HEALTHY	No health failures and no search errors under 30 concurrent users	2026-03-12T23:42:47Z
@@ -38,3 +38,5 @@ Q7.5	HEALTHY	No datetime.utcnow() calls found in 204 files	2026-03-13T04:06:38Z
 Q7.6	INCONCLUSIVE	Read 2 source files (414 lines) — requires agent analysis for verdict	2026-03-13T04:06:39Z
 Q7.1	HEALTHY	risks_found=3 fixed=3 committed=1 tests_written=9	2026-03-13T04:11:33Z
 Q7.2	HEALTHY	0 PydanticDeprecatedSince20 warnings; Memory.Config → ConfigDict + @field_serializer; committed 033ede9	2026-03-13T04:15:00Z
+Q5.5	INCONCLUSIVE	unknown	uncertain	0.100	coverage 100% → 100% (0 tests written)	2026-03-13T15:01:45Z
+Q7.3	HEALTHY		high	1.000	17 passed, 0 failed	2026-03-13T15:02:02Z

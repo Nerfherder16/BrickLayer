@@ -25,7 +25,7 @@ The human defines what matters. The agent asks the questions, runs the experimen
 | C-11 | Runners | `benchmark` runner — ML model ablation, latency, accuracy sweeps | **FREE** | — |
 | C-12 | Runners | `document` runner — completeness/accuracy/consistency checks on docs vs code | **FREE** | — |
 | C-13 | Runners | `contract` runner — Solana/EVM invariant checking and edge case fuzzing | **FREE** | — |
-| C-14 | Meta-agents | Hypothesis-generator: generate Wave N+1 questions from findings patterns | **FREE** | — |
+| C-14 | Meta-agents | Hypothesis-generator: generate Wave N+1 questions from findings patterns | **DONE** | conv:mar13-afternoon |
 | C-15 | Meta-agents | Crucible: benchmark existing agents, promote/retire by score — **checks & balances for Forge output** | **FREE** | — |
 | C-16 | Dashboard | Question status live-update in dashboard UI | **FREE** | — |
 | C-17 | Integrations | GitHub Actions hook — run campaign on PR, post findings as review comments | **FREE** | — |
@@ -64,6 +64,7 @@ Use a short label for `Claimed By` — date + session context is enough (`conv:m
 
 | Item | Description | Commit |
 |------|-------------|--------|
+| Hypothesis generator (C-14) | `bl/hypothesis.py` — qwen2.5:7b reads results.tsv findings patterns, generates Wave N+1 PENDING questions in questions.md format; `--hypothesize` flag in simulate.py; auto-triggers when campaign bank exhausted | `conv:mar13-afternoon` |
 | simulate.py root move | Moved simulate.py to autosearch root; fixed AUTOSEARCH_ROOT path constant (.parent.parent → .parent) | `conv:mar13-afternoon` |
 | Path refs updated | prepare.md, retrospective.md, launcher prompt — all recall/simulate.py → simulate.py | `conv:mar13-afternoon` |
 | settings.json cleanup | Removed stale temp-dir PostToolUse hook; recall-session-summary timeout 30→10s | `conv:mar13-afternoon` |
