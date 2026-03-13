@@ -1,0 +1,425 @@
+"""
+bl/campaign.py — Campaign orchestration loop.
+
+Handles the outer loop: running and recording questions, sentinel checks
+(Forge, Audit, OVERRIDE), peer-reviewer spawning, and end-of-run housekeeping.
+"""
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+
+from bl.config import cfg
+from bl.findings import update_results_tsv, write_finding
+from bl.questions import get_question_by_id, get_next_pending, parse_questions
+from bl.runners import run_question
+from bl.runners.agent import _strip_frontmatter
+
+
+# ---------------------------------------------------------------------------
+# Core run-and-record
+# ---------------------------------------------------------------------------
+
+
+def run_and_record(question: dict) -> dict:
+    """Run a single question, write finding, update results.tsv, print JSON."""
+    print(
+        f"Running {question['id']} [{question['mode']}]: {question['title']}",
+        file=sys.stderr,
+    )
+    result = run_question(question)
+    finding_path = write_finding(question, result)
+    update_results_tsv(question["id"], result["verdict"], result["summary"])
+    print(json.dumps(result, indent=2))
+    print(f"\nFinding written to: {finding_path}", file=sys.stderr)
+    print(f"Verdict: {result['verdict']}", file=sys.stderr)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# End-of-run helpers
+# ---------------------------------------------------------------------------
+
+
+def print_handoff_reminder() -> None:
+    """Print end-of-run cross-project handoff check."""
+    handoffs_dir = cfg.autosearch_root / "handoffs"
+    print("\n" + "=" * 60, file=sys.stderr)
+    print("END-OF-RUN HANDOFF CHECK", file=sys.stderr)
+    print("=" * 60, file=sys.stderr)
+    print("Did this campaign find changes needed in another project?", file=sys.stderr)
+    print(
+        "  YES → Create autosearch/handoffs/handoff-{project}-{date}.md",
+        file=sys.stderr,
+    )
+    print("  NO  → Session complete.", file=sys.stderr)
+    existing = (
+        sorted(handoffs_dir.glob("handoff-*.md")) if handoffs_dir.exists() else []
+    )
+    if existing:
+        print(f"\nOpen handoffs ({len(existing)}):", file=sys.stderr)
+        for h in existing:
+            print(f"  {h.name}", file=sys.stderr)
+    print("=" * 60, file=sys.stderr)
+
+
+def run_retrospective() -> None:
+    """Run the retrospective agent to improve BrickLayer from session learnings."""
+    import datetime
+
+    retro_path = cfg.agents_dir / "retrospective.md"
+    if not retro_path.exists():
+        print("retrospective.md not found in agents/")
+        return
+
+    body = _strip_frontmatter(retro_path.read_text(encoding="utf-8"))
+
+    results_content = "(no results yet)"
+    if cfg.results_tsv.exists():
+        results_content = cfg.results_tsv.read_text(encoding="utf-8")
+
+    project_cfg: dict = {}
+    cfg_path = cfg.project_root / "project.json"
+    if cfg_path.exists():
+        project_cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+
+    project_display = project_cfg.get("display_name", "Unknown")
+
+    questions = [
+        "1. Verdict accuracy: Which verdicts were INCONCLUSIVE, wrong, or needed manual correction? Why?",
+        "2. Agent output: Did any agent report DONE without a green test run? What broke?",
+        "3. Question quality: Any vacuous results (0 assertions)? Questions too narrow or too broad?",
+        "4. Coverage gaps: Any failure modes found with no agent to fix them?",
+        "5. Parallelization: Which questions had no dependencies and could have run simultaneously?",
+        "6. Fix quality: Any committed fix later found speculative or wrong?",
+        "7. Highest-value finding this session?",
+        "8. Biggest time sink with least value?",
+    ]
+
+    print("\n" + "=" * 60)
+    print(f"BrickLayer Retrospective — {project_display}")
+    print("=" * 60)
+    print("Answer each question. Press Enter twice to move to the next.\n")
+
+    answers = []
+    for q in questions:
+        print(f"\n{q}")
+        lines = []
+        while True:
+            line = input()
+            if line == "" and lines and lines[-1] == "":
+                break
+            lines.append(line)
+        answers.append("\n".join(lines).strip())
+
+    reflection_text = "\n\n".join(
+        f"**{questions[i]}**\n{answers[i]}" for i in range(len(questions))
+    )
+
+    prompt = f"""{body}
+
+---
+
+## Your Assignment
+
+**Project**: {project_display}
+**Autosearch root**: {cfg.autosearch_root}
+**Session date**: {datetime.datetime.now().strftime("%Y-%m-%d")}
+
+**Results TSV**:
+{results_content}
+
+**User Reflection**:
+{reflection_text}
+
+Review the session artifacts and reflection answers. Apply concrete improvements to BrickLayer. Commit to the autosearch repo if git is available. Output your Retrospective Report when done."""
+
+    claude_bin = shutil.which("claude") or "claude"
+    child_env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+
+    print("\n" + "=" * 60)
+    print("Running Retrospective agent...")
+    print("=" * 60 + "\n")
+
+    try:
+        subprocess.run(
+            [claude_bin, "-p", "-", "--dangerously-skip-permissions"],
+            input=prompt,
+            capture_output=False,
+            text=True,
+            encoding="utf-8",
+            env=child_env,
+            timeout=600,
+        )
+    except FileNotFoundError:
+        print("claude CLI not found — cannot run retrospective agent.")
+    except subprocess.TimeoutExpired:
+        print("Retrospective agent timed out after 10 minutes.")
+
+
+# ---------------------------------------------------------------------------
+# Sentinel / meta-agent helpers
+# ---------------------------------------------------------------------------
+
+
+def _spawn_agent_background(agent_name: str, context: str) -> None:
+    """Spawn a meta-agent as a background subprocess. Non-blocking."""
+    agent_path = cfg.agents_dir / f"{agent_name}.md"
+    if not agent_path.exists():
+        print(f"[campaign] {agent_name}.md not found — skipping", file=sys.stderr)
+        return
+
+    agent_prompt = _strip_frontmatter(agent_path.read_text(encoding="utf-8"))
+    full_prompt = f"{agent_prompt}\n\n---\n\n## Your Assignment\n\n{context}"
+
+    claude_bin = shutil.which("claude") or "claude"
+    child_env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+
+    try:
+        proc = subprocess.Popen(
+            [claude_bin, "-p", "-", "--dangerously-skip-permissions"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            encoding="utf-8",
+            env=child_env,
+        )
+        proc.stdin.write(full_prompt)
+        proc.stdin.close()
+        print(
+            f"[campaign] {agent_name} spawned in background (pid={proc.pid})",
+            file=sys.stderr,
+        )
+    except (FileNotFoundError, OSError) as e:
+        print(f"[campaign] Failed to spawn {agent_name}: {e}", file=sys.stderr)
+
+
+def _run_forge_blocking() -> None:
+    """Run Forge synchronously when FORGE_NEEDED.md exists. Blocks until done."""
+    forge_needed = cfg.agents_dir / "FORGE_NEEDED.md"
+    if not forge_needed.exists():
+        return
+
+    agent_path = cfg.agents_dir / "forge.md"
+    if not agent_path.exists():
+        print("[campaign] forge.md not found — cannot fill gap", file=sys.stderr)
+        return
+
+    agent_prompt = _strip_frontmatter(agent_path.read_text(encoding="utf-8"))
+    context = (
+        f"**forge_needed_md**: {forge_needed}\n"
+        f"**agents_dir**: {cfg.agents_dir}\n"
+        f"**findings_dir**: {cfg.findings_dir}\n"
+        f"**schema_md**: {cfg.agents_dir / 'SCHEMA.md'}\n\n"
+        f"Read FORGE_NEEDED.md, build agents from the evidence findings, write them to "
+        f"agents_dir, append to FORGE_LOG.md, then delete FORGE_NEEDED.md to unblock "
+        f"the campaign loop."
+    )
+    full_prompt = f"{agent_prompt}\n\n---\n\n## Your Assignment\n\n{context}"
+
+    claude_bin = shutil.which("claude") or "claude"
+    child_env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+
+    print(
+        "\n[campaign] FORGE_NEEDED.md detected — running Forge (blocking)...",
+        file=sys.stderr,
+    )
+    try:
+        subprocess.run(
+            [claude_bin, "-p", "-", "--dangerously-skip-permissions"],
+            input=full_prompt,
+            capture_output=False,
+            text=True,
+            encoding="utf-8",
+            env=child_env,
+            timeout=600,
+        )
+    except FileNotFoundError:
+        print("[campaign] claude CLI not found — cannot run Forge", file=sys.stderr)
+    except subprocess.TimeoutExpired:
+        print("[campaign] Forge timed out — continuing campaign", file=sys.stderr)
+
+
+def _inject_override_questions() -> None:
+    """Scan findings for OVERRIDE peer review verdicts; inject re-exam PENDING questions."""
+    if not cfg.findings_dir.exists():
+        return
+    if not cfg.questions_md.exists():
+        return
+
+    override_pattern = re.compile(
+        r"## Peer Review.*?\*\*Verdict\*\*:\s*OVERRIDE", re.DOTALL
+    )
+
+    questions_text = cfg.questions_md.read_text(encoding="utf-8")
+
+    injected = 0
+    for finding_file in sorted(cfg.findings_dir.glob("Q*.md")):
+        content = finding_file.read_text(encoding="utf-8")
+        if not override_pattern.search(content):
+            continue
+
+        qid = finding_file.stem
+        reexam_marker = f"Re-examine {qid}"
+        if reexam_marker in questions_text:
+            continue
+
+        reexam_block = f"""
+---
+
+## {qid}.R [CORRECTNESS] Re-examine {qid}
+**Mode**: agent
+**Status**: PENDING
+**Hypothesis**: Peer review returned OVERRIDE — the prior fix for {qid} is incomplete or incorrect.
+**Test**: Re-run the original test command from {qid} and confirm the concern raised in the ## Peer Review section is resolved.
+**Verdict threshold**:
+- HEALTHY: Original test passes and peer-reviewer concern is addressed
+- FAILURE: Test still fails or new issue confirmed
+"""
+        with open(cfg.questions_md, "a", encoding="utf-8") as f:
+            f.write(reexam_block)
+
+        questions_text += reexam_block
+
+        print(
+            f"[campaign] OVERRIDE in {finding_file.name} → injected {qid}.R re-exam question",
+            file=sys.stderr,
+        )
+        injected += 1
+
+    if injected:
+        print(
+            f"[campaign] {injected} re-exam question(s) added to questions.md",
+            file=sys.stderr,
+        )
+
+
+def check_sentinels() -> None:
+    """Wave-start check: FORGE_NEEDED (blocking) → AUDIT_REPORT (advisory) → OVERRIDE verdicts."""
+    _run_forge_blocking()
+
+    audit_report = cfg.agents_dir / "AUDIT_REPORT.md"
+    if audit_report.exists():
+        print(
+            "\n[campaign] AUDIT_REPORT.md available — fleet recommendations:",
+            file=sys.stderr,
+        )
+        print(audit_report.read_text(encoding="utf-8")[:1500], file=sys.stderr)
+        print(
+            "[campaign] Review and apply RETIRE/PROMOTE/UPDATE TRIGGERS manually, "
+            "then delete AUDIT_REPORT.md to dismiss.",
+            file=sys.stderr,
+        )
+
+    _inject_override_questions()
+
+
+# ---------------------------------------------------------------------------
+# Campaign loop
+# ---------------------------------------------------------------------------
+
+
+def run_campaign() -> None:
+    """Run all PENDING questions in sequence with sentinel checks."""
+    questions = parse_questions()
+    pending = [q for q in questions if q["status"] == "PENDING"]
+
+    if not pending:
+        print("No PENDING questions remain.", file=sys.stderr)
+        print_handoff_reminder()
+        return
+
+    print(f"\nCampaign: {len(pending)} PENDING questions to run", file=sys.stderr)
+    questions_done = 0
+
+    for i, question in enumerate(pending, 1):
+        check_sentinels()
+
+        if questions_done > 0:
+            refreshed = parse_questions()
+            pending = [q for q in refreshed if q["status"] == "PENDING"]
+
+        print(
+            f"\n[{i}/{len(pending)}] {question['id']} — {question['title']}",
+            file=sys.stderr,
+        )
+        run_and_record(question)
+        questions_done += 1
+
+        _spawn_agent_background(
+            "peer-reviewer",
+            f"primary_finding={cfg.findings_dir / (question['id'] + '.md')}\n"
+            f"target_git={cfg.project_root.parent}\n"
+            f"agents_dir={cfg.agents_dir}\n\n"
+            f"Re-run the original test for {question['id']}, review the fix code, "
+            f"and append a ## Peer Review section with verdict "
+            f"CONFIRMED | CONCERNS | OVERRIDE to the finding file.",
+        )
+
+        if questions_done % 5 == 0:
+            _spawn_agent_background(
+                "forge-check",
+                f"agents_dir={cfg.agents_dir}\n"
+                f"findings_dir={cfg.findings_dir}\n"
+                f"questions_md={cfg.questions_md}\n\n"
+                f"Inventory the agent fleet, scan the 5 most recent findings, "
+                f"check all PENDING questions for missing agents. "
+                f"Write {cfg.agents_dir}/FORGE_NEEDED.md if gaps found, "
+                f"otherwise output FLEET COMPLETE.",
+            )
+
+        if questions_done % 10 == 0:
+            _spawn_agent_background(
+                "agent-auditor",
+                f"agents_dir={cfg.agents_dir}\n"
+                f"findings_dir={cfg.findings_dir}\n"
+                f"results_tsv={cfg.results_tsv}\n\n"
+                f"Read all agents, findings, and results. "
+                f"Write fleet health report to {cfg.agents_dir}/AUDIT_REPORT.md.",
+            )
+
+    print("\nCampaign complete.", file=sys.stderr)
+    print_handoff_reminder()
+
+
+def run_single(question_id: str | None, dry_run: bool = False) -> None:
+    """Run a single question by ID, or the next PENDING if no ID given."""
+    questions = parse_questions()
+
+    if question_id:
+        question = get_question_by_id(questions, question_id)
+        if not question:
+            print(
+                json.dumps(
+                    {
+                        "error": f"Question {question_id} not found",
+                        "available": [q["id"] for q in questions],
+                    }
+                )
+            )
+            sys.exit(1)
+    else:
+        question = get_next_pending(questions)
+        if not question:
+            print(
+                json.dumps(
+                    {
+                        "verdict": "INCONCLUSIVE",
+                        "summary": "No PENDING questions remain",
+                        "data": {},
+                        "details": "All questions answered. Generate new ones with forge.",
+                    }
+                )
+            )
+            return
+
+    if dry_run:
+        print(json.dumps(question, indent=2))
+        return
+
+    run_and_record(question)
+    print_handoff_reminder()
