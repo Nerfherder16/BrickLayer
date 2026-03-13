@@ -358,7 +358,7 @@ def run_scout(project_cfg: dict, questions_path: Path) -> bool:
 **Stack**: {", ".join(project_cfg.get("stack", [])) or "unknown"}
 **Live service**: {project_cfg.get("target_live_url", "none")}
 **Docs folder**: {docs_dir}
-{f"**Supporting docs content**:{docs_content}" if docs_content else "**Docs folder**: empty — scan the codebase only"}
+{f"<docs>{docs_content}\n</docs>" if docs_content else "**Docs folder**: empty — scan the codebase only"}
 
 Scan the target codebase now and output the complete questions.md content."""
 

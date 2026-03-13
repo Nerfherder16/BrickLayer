@@ -36,47 +36,86 @@ def get_project_path(project: str | None = None) -> Path:
 
 
 def parse_questions(project_path: Path) -> list[dict]:
-    """Parse questions.md table format: | ID | Status | Question |"""
+    """Parse questions.md — supports both block format (## Q1.1 [CAT] Title) and
+    legacy table format (| ID | Status | Question |)."""
     qfile = project_path / "questions.md"
     if not qfile.exists():
         return []
 
+    content = qfile.read_text(encoding="utf-8")
+    lines = content.splitlines()
+
+    # Detect format: block format uses "## Q{N}.{M}" headers
+    is_block_format = any(re.match(r"^##\s+Q\d+\.\d+", line) for line in lines)
+
     questions = []
-    current_domain = None
 
-    for line in qfile.read_text(encoding="utf-8").splitlines():
-        # Domain headers like "## Domain 1 — ..." or "## Domain 2 — ..."
-        domain_match = re.match(r"^##\s+Domain\s+(\d+)\s*[—-]\s*(.+)", line)
-        if domain_match:
-            current_domain = f"D{domain_match.group(1)}"
-            continue
-
-        # Table data rows: | 1.1 | DONE | question text |
-        row_match = re.match(
-            r"^\|\s*([^\|]+?)\s*\|\s*([^\|]+?)\s*\|\s*(.+?)\s*\|$", line
-        )
-        if row_match:
-            q_id = row_match.group(1).strip()
-            status = row_match.group(2).strip().upper()
-            title = row_match.group(3).strip()
-
-            # Skip header rows
-            if q_id.upper() in ("ID", "---", "") or status in ("STATUS", "---", ""):
-                continue
-            # Skip separator rows
-            if re.match(r"^[-\s]+$", q_id):
+    if is_block_format:
+        # Block format: ## Q1.1 [CATEGORY] Title followed by **Status**: field
+        current_q = None
+        for line in lines:
+            header_match = re.match(r"^##\s+(Q\d+\.\d+\w*)\s+\[([^\]]+)\]\s+(.*)", line)
+            if header_match:
+                current_q = {
+                    "id": header_match.group(1),
+                    "title": header_match.group(3).strip(),
+                    "status": "PENDING",
+                    "domain": f"D{header_match.group(1).split('.')[0][1:]}",
+                    "hypothesis": None,
+                    "mode": None,
+                }
+                questions.append(current_q)
                 continue
 
-            if status in ("PENDING", "DONE", "INCONCLUSIVE", "IN_PROGRESS"):
-                questions.append(
-                    {
-                        "id": q_id,
-                        "title": title,
-                        "status": status,
-                        "domain": current_domain or "D?",
-                        "hypothesis": None,
-                    }
-                )
+            if current_q is not None:
+                status_match = re.match(r"^\*\*Status\*\*:\s*(\w+)", line)
+                if status_match:
+                    val = status_match.group(1).upper()
+                    if val in ("PENDING", "DONE", "INCONCLUSIVE", "IN_PROGRESS"):
+                        current_q["status"] = val
+                    continue
+
+                mode_match = re.match(r"^\*\*Mode\*\*:\s*(\S+)", line)
+                if mode_match:
+                    current_q["mode"] = mode_match.group(1).strip()
+                    continue
+
+                hyp_match = re.match(r"^\*\*Hypothesis\*\*:\s*(.*)", line)
+                if hyp_match:
+                    current_q["hypothesis"] = hyp_match.group(1).strip()
+                    continue
+    else:
+        # Legacy table format: | ID | Status | Question |
+        current_domain = None
+        for line in lines:
+            domain_match = re.match(r"^##\s+Domain\s+(\d+)\s*[—-]\s*(.+)", line)
+            if domain_match:
+                current_domain = f"D{domain_match.group(1)}"
+                continue
+
+            row_match = re.match(
+                r"^\|\s*([^\|]+?)\s*\|\s*([^\|]+?)\s*\|\s*(.+?)\s*\|$", line
+            )
+            if row_match:
+                q_id = row_match.group(1).strip()
+                status = row_match.group(2).strip().upper()
+                title = row_match.group(3).strip()
+
+                if q_id.upper() in ("ID", "---", "") or status in ("STATUS", "---", ""):
+                    continue
+                if re.match(r"^[-\s]+$", q_id):
+                    continue
+
+                if status in ("PENDING", "DONE", "INCONCLUSIVE", "IN_PROGRESS"):
+                    questions.append(
+                        {
+                            "id": q_id,
+                            "title": title,
+                            "status": status,
+                            "domain": current_domain or "D?",
+                            "hypothesis": None,
+                        }
+                    )
 
     return questions
 
@@ -206,37 +245,56 @@ def add_question(body: AddQuestion, project: str | None = Query(None)):
     if not qfile.exists():
         raise HTTPException(status_code=404, detail="questions.md not found")
 
-    # Format the new row
     title = body.question.strip()
-    if body.hypothesis:
-        title += f" [Hypothesis: {body.hypothesis.strip()}]"
+    hypothesis = body.hypothesis.strip() if body.hypothesis else title
 
-    # Find next question ID within domain
+    # Find next question ID within domain — use max to avoid collision after deletions
     questions = parse_questions(project_path)
     domain_num = body.domain.replace("D", "")
-    existing_ids = [q["id"] for q in questions if q["domain"] == body.domain]
-    next_num = len(existing_ids) + 1
-    new_id = f"{domain_num}.{next_num}x"  # 'x' suffix marks manually added
+    domain_ids = [q["id"] for q in questions if q["domain"] == body.domain]
+    existing_nums = []
+    for qid in domain_ids:
+        m = re.match(r"Q?\d+\.(\d+)", qid)
+        if m:
+            existing_nums.append(int(m.group(1)))
+    next_num = (max(existing_nums) + 1) if existing_nums else 1
+    new_id = f"Q{domain_num}.{next_num}x"  # 'x' suffix marks manually added
 
-    new_row = f"| {new_id} | PENDING | {title} |"
+    new_block = (
+        f"\n## {new_id} [CUSTOM] {title}\n"
+        f"**Mode**: custom\n"
+        f"**Target**: TBD\n"
+        f"**Hypothesis**: {hypothesis}\n"
+        f"**Status**: PENDING\n"
+    )
 
     content = qfile.read_text(encoding="utf-8")
 
     if body.priority == "next":
-        # Insert before the first PENDING row
+        # Insert before the first PENDING block header
         lines = content.splitlines()
         insert_at = None
         for i, line in enumerate(lines):
-            if re.match(r"^\|\s*\S+\s*\|\s*PENDING\s*\|", line):
-                insert_at = i
-                break
+            if re.match(r"^##\s+Q\d+\.\d+", line):
+                # Check if this block's status is PENDING (default if no Status field)
+                block_status = "PENDING"
+                for j in range(i + 1, min(i + 10, len(lines))):
+                    sm = re.match(r"^\*\*Status\*\*:\s*(\w+)", lines[j])
+                    if sm:
+                        block_status = sm.group(1).upper()
+                        break
+                    if re.match(r"^##", lines[j]):
+                        break
+                if block_status == "PENDING":
+                    insert_at = i
+                    break
         if insert_at is not None:
-            lines.insert(insert_at, new_row)
+            lines.insert(insert_at, new_block.rstrip())
             content = "\n".join(lines) + "\n"
         else:
-            content = content.rstrip() + "\n" + new_row + "\n"
+            content = content.rstrip() + new_block
     else:
-        content = content.rstrip() + "\n" + new_row + "\n"
+        content = content.rstrip() + new_block
 
     qfile.write_text(content, encoding="utf-8")
     return {"ok": True, "id": new_id}
