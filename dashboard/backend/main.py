@@ -13,8 +13,8 @@ app = FastAPI(title="Autosearch Dashboard")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=["http://localhost:3100", "http://127.0.0.1:3100"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -27,7 +27,13 @@ def get_project_path(project: Optional[str] = None) -> Path:
     path_str = project or os.environ.get(
         "AUTOSEARCH_PROJECT", "C:/Users/trg16/Dev/autosearch/adbp"
     )
-    return Path(path_str)
+    resolved = Path(path_str).resolve()
+    base = Path(
+        os.getenv("AUTOSEARCH_BASE", str(Path(__file__).parent.parent.parent))
+    ).resolve()
+    if not str(resolved).startswith(str(base)):
+        raise HTTPException(status_code=400, detail="Invalid project path")
+    return resolved
 
 
 def parse_questions(project_path: Path) -> list[dict]:
@@ -38,7 +44,6 @@ def parse_questions(project_path: Path) -> list[dict]:
 
     questions = []
     current_domain = None
-    domain_map = {}  # track domain labels by header line
 
     for line in qfile.read_text(encoding="utf-8").splitlines():
         # Domain headers like "## Domain 1 — ..." or "## Domain 2 — ..."
@@ -247,7 +252,10 @@ def get_findings(project: Optional[str] = Query(None)):
 @app.get("/api/findings/{finding_id}")
 def get_finding(finding_id: str, project: Optional[str] = Query(None)):
     project_path = get_project_path(project)
-    fpath = project_path / "findings" / f"{finding_id}.md"
+    fpath = (project_path / "findings" / f"{finding_id}.md").resolve()
+    findings_dir = (project_path / "findings").resolve()
+    if not str(fpath).startswith(str(findings_dir)):
+        raise HTTPException(status_code=400, detail="Invalid finding ID")
     if not fpath.exists():
         raise HTTPException(status_code=404, detail="Finding not found")
     return {"id": finding_id, "content": fpath.read_text(encoding="utf-8")}
@@ -258,7 +266,10 @@ def correct_finding(
     finding_id: str, body: AddCorrection, project: Optional[str] = Query(None)
 ):
     project_path = get_project_path(project)
-    fpath = project_path / "findings" / f"{finding_id}.md"
+    fpath = (project_path / "findings" / f"{finding_id}.md").resolve()
+    findings_dir = (project_path / "findings").resolve()
+    if not str(fpath).startswith(str(findings_dir)):
+        raise HTTPException(status_code=400, detail="Invalid finding ID")
     if not fpath.exists():
         raise HTTPException(status_code=404, detail="Finding not found")
 
@@ -283,7 +294,7 @@ def get_results(project: Optional[str] = Query(None)):
 
 @app.get("/api/projects")
 def get_projects():
-    base = Path("C:/Users/trg16/Dev/autosearch")
+    base = Path(os.getenv("AUTOSEARCH_BASE", str(Path(__file__).parent.parent.parent)))
     projects = []
     if base.exists():
         for d in sorted(base.iterdir()):
