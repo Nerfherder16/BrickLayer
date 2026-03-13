@@ -1,7 +1,7 @@
 # BrickLayer Campaign Synthesis — Bricklayer
 **Date**: 2026-03-13
-**Questions run**: 31 (Q1.1–Q7.4)
-**Waves completed**: 7
+**Questions run**: 39 (Q1.1–Q8.4)
+**Waves completed**: 8
 
 ---
 

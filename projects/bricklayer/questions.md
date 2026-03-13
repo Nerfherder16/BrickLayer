@@ -294,6 +294,66 @@ Status is tracked in results.tsv — do not edit manually.
 
 ---
 
+## Q6.1 [SECURITY] Hardcoded API key placeholder in recall/simulate.py
+**Mode**: quality
+**Target**: recall/simulate.py
+**Hypothesis**: `API_KEY = "recall-admin-key-change-me"` is committed to source. If a project.json omits `api_key` and `target_live_url` is a live service, the wrong key is sent silently.
+**Test**: `grep -n "recall-admin-key\|API_KEY" C:/Users/trg16/Dev/autosearch/recall/simulate.py | head -5`
+**Verdict threshold**:
+- HEALTHY: Warning emitted when BASE_URL is live and key is the default placeholder
+- WARNING: Default key present but project.json override is documented
+- FAILURE: Default key silently used against a live service with no warning
+
+---
+
+## Q6.2 [PERFORMANCE] Unbounded rglob calls in detect_stack
+**Mode**: quality
+**Target**: onboard.py
+**Hypothesis**: `detect_stack()` uses 4 unbounded `rglob()` calls with no depth limit and no exclusion of `.git`, `node_modules`, `vendor`, `.venv`.
+**Test**: `grep -n "rglob\|glob" C:/Users/trg16/Dev/autosearch/onboard.py | head -20`
+**Verdict threshold**:
+- HEALTHY: Depth-limited and exclusion-filtered search
+- WARNING: Some exclusions but no depth limit
+- FAILURE: Fully unbounded traversal on all 4 patterns
+
+---
+
+## Q6.3 [PERFORMANCE] parse_findings_index reads all .md files on every API call
+**Mode**: quality
+**Target**: dashboard/backend/main.py
+**Hypothesis**: `parse_findings_index()` reads every `.md` file in `findings/` on each `GET /api/findings` call with no caching.
+**Test**: `grep -n "parse_findings_index\|cache" C:/Users/trg16/Dev/autosearch/dashboard/backend/main.py | head -10`
+**Verdict threshold**:
+- HEALTHY: TTL cache or ETag present
+- WARNING: No cache but campaign scale is small (<50 findings)
+- FAILURE: No cache and high-frequency refresh pattern documented
+
+---
+
+## Q6.4 [SECURITY] Dashboard start.sh binds to 0.0.0.0
+**Mode**: quality
+**Target**: dashboard/start.sh
+**Hypothesis**: After the CORS fix (Q4.1), the backend still binds `--host 0.0.0.0`. Non-browser clients on the LAN can reach all mutation routes without CORS restriction.
+**Test**: `grep "uvicorn" C:/Users/trg16/Dev/autosearch/dashboard/start.sh`
+**Verdict threshold**:
+- HEALTHY: Default host is 127.0.0.1 with env var override
+- WARNING: 0.0.0.0 but CORS restricts browser-based attacks
+- FAILURE: 0.0.0.0 with no CORS restriction
+
+---
+
+## Q6.5 [CORRECTNESS] Runner works end-to-end with bricklayer project
+**Mode**: correctness
+**Target**: recall/simulate.py
+**Hypothesis**: `python recall/simulate.py --project bricklayer --list` successfully loads all questions, cross-references results.tsv, and displays correct statuses after all Wave 5 fixes.
+**Test**: `python recall/simulate.py --project bricklayer --list 2>&1 | head -30`
+**Verdict threshold**:
+- HEALTHY: All questions displayed with correct IDs, statuses, modes
+- WARNING: Questions load but statuses are wrong
+- FAILURE: Error or 0 questions loaded
+
+---
+
 ## Q6.6 [AGENT] Fix unbounded rglob calls in detect_stack
 **Mode**: agent
 **Target**: onboard.py
