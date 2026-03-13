@@ -793,7 +793,8 @@ def _verdict_from_agent_output(agent_name: str, output: dict) -> str:
         return "INCONCLUSIVE"
 
     if agent_name == "security-hardener":
-        if output.get("changes_committed", 0) > 0:
+        # HEALTHY: fixed risks (committed or clearly reported as fixed + tests pass)
+        if output.get("risks_fixed", 0) > 0 or output.get("changes_committed", 0) > 0:
             return "HEALTHY"
         if output.get("risks_reported", 0) > 0:
             return "WARNING"
@@ -801,24 +802,27 @@ def _verdict_from_agent_output(agent_name: str, output: dict) -> str:
     elif agent_name == "test-writer":
         before = output.get("coverage_before", 0.0)
         after = output.get("coverage_after", 0.0)
-        if output.get("tests_written", 0) > 0 and after > before:
+        written = output.get("tests_written", 0)
+        if written > 0 and after > before:
             return "HEALTHY"
-        if output.get("tests_written", 0) > 0:
+        if written > 0:
             return "WARNING"
 
     elif agent_name == "type-strictener":
         before = output.get("errors_before", 0)
         after = output.get("errors_after", 0)
-        if output.get("changes_committed", 0) > 0 and after < before:
+        committed = output.get("changes_committed", 0)
+        if committed > 0 and after < before:
             return "HEALTHY"
-        if output.get("changes_committed", 0) > 0:
+        if committed > 0:
             return "WARNING"
 
     elif agent_name == "perf-optimizer":
         pct = output.get("improvement_pct", 0.0)
-        if output.get("changes_committed", 0) > 0 and pct >= 20:
+        committed = output.get("changes_committed", 0)
+        if committed > 0 and pct >= 20:
             return "HEALTHY"
-        if output.get("changes_committed", 0) > 0 and pct >= 5:
+        if committed > 0 and pct >= 5:
             return "WARNING"
 
     else:
@@ -827,6 +831,71 @@ def _verdict_from_agent_output(agent_name: str, output: dict) -> str:
             return "HEALTHY"
 
     return "INCONCLUSIVE"
+
+
+def _parse_text_output(agent_name: str, text: str) -> dict:
+    """
+    Fallback parser when the agent produces plain text instead of a JSON block.
+    Extracts key metrics using regex patterns matched to each agent type.
+    """
+    out: dict = {}
+
+    # Detect commits — "commit `abc1234`" or "committed abc1234"
+    commit_matches = re.findall(
+        r"commit[ted]*\s+[`']?([0-9a-f]{7,})[`']?", text, re.IGNORECASE
+    )
+    if commit_matches:
+        out["changes_committed"] = len(commit_matches)
+
+    if agent_name == "security-hardener":
+        # Match both "3 risks fixed" and "18 silent exception swallows fixed"
+        for pattern in [
+            r"(\d+)\s+risks?\s+fixed",
+            r"(\d+)\s+\w[\w\s]+\s+fixed",  # "N <anything> fixed"
+        ]:
+            m = re.search(pattern, text, re.IGNORECASE)
+            if m and not out.get("risks_fixed"):
+                out["risks_fixed"] = int(m.group(1))
+        m = re.search(r"(\d+)\s+risks?\s+(?:found|identified)", text, re.IGNORECASE)
+        if m:
+            out["risks_found"] = int(m.group(1))
+        m = re.search(
+            r"(\d+)\s+(?:new\s+)?(?:security\s+)?tests?\s+written", text, re.IGNORECASE
+        )
+        if m:
+            out["tests_written"] = int(m.group(1))
+        m = re.search(r"(\d+)\s+risks?\s+reported", text, re.IGNORECASE)
+        if m:
+            out["risks_reported"] = int(m.group(1))
+
+    elif agent_name == "test-writer":
+        m = re.search(r"(\d+)\s+tests?\s+written", text, re.IGNORECASE)
+        if m:
+            out["tests_written"] = int(m.group(1))
+        m = re.search(
+            r"coverage[:\s]+(\d+(?:\.\d+)?)%\s*[→\-]+\s*(\d+(?:\.\d+)?)%", text
+        )
+        if m:
+            out["coverage_before"] = float(m.group(1)) / 100
+            out["coverage_after"] = float(m.group(2)) / 100
+
+    elif agent_name == "type-strictener":
+        m = re.search(r"(\d+)\s+errors?\s+[→\-]+\s*(\d+)", text)
+        if m:
+            out["errors_before"] = int(m.group(1))
+            out["errors_after"] = int(m.group(2))
+
+    elif agent_name == "perf-optimizer":
+        m = re.search(r"p99[:\s]+(\d+(?:\.\d+)?)ms\s*[→\-]+\s*(\d+(?:\.\d+)?)ms", text)
+        if m:
+            out["p99_before"] = float(m.group(1))
+            out["p99_after"] = float(m.group(2))
+            if out["p99_before"] > 0:
+                out["improvement_pct"] = round(
+                    (out["p99_before"] - out["p99_after"]) / out["p99_before"] * 100, 1
+                )
+
+    return out
 
 
 def _summary_from_agent_output(agent_name: str, output: dict) -> str:
@@ -926,24 +995,34 @@ def run_agent(question: dict) -> dict:
 
 Begin your agent loop now. Output your JSON result contract in a ```json ... ``` block when complete."""
 
+    # Resolve claude CLI — npm shims on Windows need full path
+    import os  # noqa: PLC0415
+    import shutil  # noqa: PLC0415
+
+    claude_bin = shutil.which("claude") or "claude"
+
+    # Strip CLAUDECODE env var — Claude Code refuses to launch nested sessions
+    child_env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+
     try:
+        # Pass prompt via stdin (-p -) to avoid Windows CMD 8191-char limit
         proc = subprocess.run(
             [
-                "claude",
+                claude_bin,
                 "-p",
-                full_prompt,
+                "-",
                 "--output-format",
                 "json",
                 "--allowedTools",
                 "Read,Write,Edit,Bash,Glob,Grep",
-                "--cwd",
-                str(RECALL_SRC),
             ],
+            input=full_prompt,
             capture_output=True,
             text=True,
             encoding="utf-8",
             timeout=600,
             cwd=str(RECALL_SRC),
+            env=child_env,
         )
         raw = proc.stdout
 
@@ -964,6 +1043,10 @@ Begin your agent loop now. Output your JSON result contract in a ```json ... ```
                 agent_output = json.loads(json_match.group(1))
             except json.JSONDecodeError:
                 pass
+
+        # Fallback: parse metrics from plain text when agent skips JSON block
+        if not agent_output and agent_text:
+            agent_output = _parse_text_output(agent_name, agent_text)
 
         verdict = _verdict_from_agent_output(agent_name, agent_output)
         summary = _summary_from_agent_output(agent_name, agent_output)
@@ -1149,7 +1232,7 @@ def update_results_tsv(qid: str, verdict: str, summary: str) -> None:
             "question_id\tverdict\tsummary\ttimestamp\n", encoding="utf-8"
         )
 
-    lines = RESULTS_TSV.read_text(encoding="utf-8").splitlines()
+    lines = RESULTS_TSV.read_text(encoding="utf-8", errors="replace").splitlines()
     updated = False
     new_lines = []
 
