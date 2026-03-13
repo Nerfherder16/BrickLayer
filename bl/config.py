@@ -35,6 +35,7 @@ cfg = SimpleNamespace(
     findings_dir=_autosearch_root / "findings",
     results_tsv=_autosearch_root / "results.tsv",
     questions_md=_autosearch_root / "questions.md",
+    history_db=_autosearch_root / "history.db",
     agents_dir=_autosearch_root / "agents",
 )
 
@@ -82,11 +83,13 @@ def init_project(project_name: str | None) -> None:
         cfg.findings_dir = project_dir / "findings"
         cfg.results_tsv = project_dir / "results.tsv"
         cfg.questions_md = project_dir / "questions.md"
+        cfg.history_db = project_dir / "history.db"
     else:
         project_dir = _autosearch_root
         cfg.project_root = project_dir
         cfg.findings_dir = project_dir / "findings"
         cfg.results_tsv = project_dir / "results.tsv"
         cfg.questions_md = project_dir / "questions.md"
+        cfg.history_db = project_dir / "history.db"
 
     cfg.findings_dir.mkdir(exist_ok=True)

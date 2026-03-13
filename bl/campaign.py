@@ -14,6 +14,7 @@ import sys
 
 from bl.config import cfg
 from bl.findings import classify_failure_type, update_results_tsv, write_finding
+from bl.history import detect_regression, record_verdict
 from bl.questions import get_question_by_id, get_next_pending, parse_questions
 from bl.runners import run_question
 from bl.runners.agent import _strip_frontmatter
@@ -26,8 +27,9 @@ from bl.runners.agent import _strip_frontmatter
 
 def run_and_record(question: dict) -> dict:
     """Run a single question, write finding, update results.tsv, print JSON."""
+    qid = question["id"]
     print(
-        f"Running {question['id']} [{question['mode']}]: {question['title']}",
+        f"Running {qid} [{question['mode']}]: {question['title']}",
         file=sys.stderr,
     )
     result = run_question(question)
@@ -35,9 +37,24 @@ def run_and_record(question: dict) -> dict:
     if failure_type:
         result["failure_type"] = failure_type
     finding_path = write_finding(question, result)
-    update_results_tsv(
-        question["id"], result["verdict"], result["summary"], failure_type
+    update_results_tsv(qid, result["verdict"], result["summary"], failure_type)
+
+    # Record to history ledger and check for regression
+    record_verdict(
+        qid,
+        result["verdict"],
+        summary=result.get("summary", ""),
+        failure_type=failure_type,
     )
+    regression = detect_regression(qid, result["verdict"])
+    if regression:
+        print(
+            f"\n[REGRESSION] {qid}: {regression['previous_verdict']} → {result['verdict']}"
+            f" (was: {regression['previous_timestamp']})",
+            file=sys.stderr,
+        )
+        result["regression"] = regression
+
     print(json.dumps(result, indent=2))
     print(f"\nFinding written to: {finding_path}", file=sys.stderr)
     print(f"Verdict: {result['verdict']}", file=sys.stderr)

@@ -16,7 +16,7 @@ The human defines what matters. The agent asks the questions, runs the experimen
 | C-02 | Architecture | Runner Registry — formalize `Runner(Protocol)` plugin interface | **DONE** | conv:mar13-afternoon |
 | C-03 | Campaign | Goal-directed campaigns via `goal.md` — agent generates question set from a target + goal | **FREE** | — |
 | C-04 | Campaign | Adaptive follow-up — FAILURE/WARNING auto-generates drill-down sub-questions (Q2.4 → Q2.4.1) | **FREE** | — |
-| C-05 | Campaign | Verdict history + regression detection — SQLite ledger, flag regressions across runs | **FREE** | — |
+| C-05 | Campaign | Verdict history + regression detection — SQLite ledger, flag regressions across runs | **DONE** | conv:mar13-afternoon |
 | C-06 | Campaign | Fix loop integration — FAILURE → spawn fix agent → re-run → confirm HEALTHY | **FREE** | — |
 | C-07 | Runners | `http` runner formalization — extract from simulate.py into `runners/http.py` | **FREE** | — |
 | C-08 | Runners | `subprocess` runner formalization — extract into `runners/subprocess.py` | **FREE** | — |
@@ -34,7 +34,7 @@ The human defines what matters. The agent asks the questions, runs the experimen
 | C-20 | Campaign | Failure taxonomy — `classify_failure_type()` wired into every result; `failure_type` in findings + results.tsv | **DONE** | conv:mar13-afternoon |
 | C-21 | Campaign | Confidence signaling — agents emit `high\|medium\|low\|uncertain`; orchestrator uses to route | **DONE** | conv:mar13-afternoon |
 | C-22 | Campaign | Eval/scoring harness — lightweight scorer grades agent outputs; scores written to results.tsv | **FREE** | — |
-| C-23 | Campaign | Introspection decorator — per-step trace `{thought, tool_call, result, tokens, latency, confidence, error_type}` written to Recall | **FREE** | — |
+| C-23 | Campaign | Introspection decorator — per-step trace `{thought, tool_call, result, tokens, latency, confidence, error_type}` written to Recall | **DONE** | conv:mar13-afternoon |
 
 ### Sessions active
 
@@ -85,6 +85,7 @@ Use a short label for `Claimed By` — date + session context is enough (`conv:m
 | Silent exception fixes | 3 bare `except Exception: pass` → logged stderr warnings | `d2895d4` |
 | Failure taxonomy | `classify_failure_type()` in simulate.py — `syntax\|logic\|hallucination\|tool_failure\|timeout\|unknown`; `failure_type` field in verdict envelope, finding .md, and results.tsv | `conv:mar13-afternoon` |
 | Confidence signaling | `classify_confidence()` + `CONFIDENCE_ROUTING` in simulate.py — `high\|medium\|low\|uncertain` → `accept\|validate\|escalate\|re-run`; wired into verdict envelope, finding .md, results.tsv | `conv:mar13-afternoon` |
+| Introspection decorator | `@introspect_step` on `_run_and_record` — writes `{agent, phase, thought, tool_call, tool_result, latency_ms, confidence, error_type, timestamp}` to `introspect.jsonl` + fire-and-forget Recall POST | `conv:mar13-afternoon` |
 
 ---
 
