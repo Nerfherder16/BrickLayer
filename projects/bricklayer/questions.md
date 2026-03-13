@@ -320,6 +320,55 @@ Status is tracked in results.tsv — do not edit manually.
 
 ---
 
+## Q7.1 [CORRECTNESS] _bounded_glob depth limit and exclusions work correctly
+**Mode**: correctness
+**Target**: onboard.py
+**Hypothesis**: `_bounded_glob()` added in Q6.6 uses `relative_to()` which could raise ValueError if the root path is relative; the depth limit might be off-by-one; .git/node_modules exclusions may not propagate correctly.
+**Test**: `python -c "from onboard import _bounded_glob; ..."` — verify: (1) .git-only match returns False; (2) node_modules-only match returns False; (3) depth-5 file not found with max_depth=4; (4) relative root Path('.') works.
+**Verdict threshold**:
+- HEALTHY: All four checks pass
+- WARNING: Three pass; one edge case fails but is low-risk
+- FAILURE: Any check fails in normal usage
+
+---
+
+## Q7.2 [CORRECTNESS] _bounded_glob no-match base case
+**Mode**: correctness
+**Target**: onboard.py
+**Hypothesis**: `_bounded_glob()` returns False on an empty directory and returns False when no files match, confirming no off-by-one or default-True bug.
+**Test**: `python -c "from pathlib import Path; import tempfile; from onboard import _bounded_glob; td = tempfile.mkdtemp(); print(_bounded_glob(Path(td), '*.kt'))"` — expect False.
+**Verdict threshold**:
+- HEALTHY: Returns False for empty dir and non-matching dir
+- FAILURE: Returns True when no match exists
+
+---
+
+## Q7.3 [AGENT] Add tests for _bounded_glob
+**Mode**: agent
+**Target**: tests/test_core.py
+**Agent**: test-writer
+**Hypothesis**: The `_bounded_glob()` helper added in Q6.6 has zero automated test coverage. Five tests (match found, .git excluded, node_modules excluded, depth limit, no match) would give regression protection and formally document the exclusion contract.
+**Test**: After fix, `python -m pytest tests/ -q 2>&1 | tail -5` — should show ≥24 passing tests.
+**Verdict threshold**:
+- HEALTHY: ≥5 new tests added, all pass, covering .git exclusion, node_modules exclusion, depth limit, no-match, and basic match
+- WARNING: Fewer than 5 tests but at least depth limit and exclusion covered
+- FAILURE: Tests added but any fail
+
+---
+
+## Q7.4 [AGENT] Add TTL cache to parse_findings_index
+**Mode**: agent
+**Target**: dashboard/backend/main.py
+**Agent**: perf-optimizer
+**Hypothesis**: Q6.3 found that `parse_findings_index()` re-reads all .md files on every API call with no caching. A 5-second TTL cache keyed on project_path would eliminate redundant disk I/O during active dashboard sessions.
+**Test**: After fix, `grep -n "cache\|monotonic\|time\." C:/Users/trg16/Dev/autosearch/dashboard/backend/main.py | head -10` — confirm cache logic present; verify `GET /api/findings` still returns correct data.
+**Verdict threshold**:
+- HEALTHY: TTL cache present; existing API behavior unchanged; no import errors
+- WARNING: Cache added but TTL is very short (<1s) or very long (>60s)
+- FAILURE: Cache breaks the endpoint or introduces import error
+
+---
+
 ## Q6.8 [AGENT] Add API key warning in recall/simulate.py
 **Mode**: agent
 **Target**: recall/simulate.py

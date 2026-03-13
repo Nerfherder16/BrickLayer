@@ -141,8 +141,23 @@ def parse_results(project_path: Path) -> list[dict]:
     return rows
 
 
+_findings_cache: dict = {}
+_FINDINGS_CACHE_TTL = 5.0  # seconds
+
+
 def parse_findings_index(project_path: Path) -> list[dict]:
-    """List findings/ directory and parse metadata from each .md file."""
+    """List findings/ directory and parse metadata from each .md file.
+
+    Results are cached for _FINDINGS_CACHE_TTL seconds to avoid re-reading
+    all .md files on every dashboard refresh (Q6.3).
+    """
+    import time
+
+    cache_key = str(project_path)
+    cached = _findings_cache.get(cache_key)
+    if cached and time.monotonic() - cached["ts"] < _FINDINGS_CACHE_TTL:
+        return cached["data"]
+
     findings_dir = project_path / "findings"
     if not findings_dir.exists():
         return []
@@ -176,6 +191,8 @@ def parse_findings_index(project_path: Path) -> list[dict]:
                 "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
             }
         )
+
+    _findings_cache[cache_key] = {"data": findings, "ts": time.monotonic()}
     return findings
 
 

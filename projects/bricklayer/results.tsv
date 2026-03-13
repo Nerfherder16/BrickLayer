@@ -30,3 +30,7 @@ Q6.5	HEALTHY	python recall/simulate.py --project bricklayer --list loads all 23 
 Q6.6	HEALTHY	_bounded_glob() helper added; all 4 rglob calls bounded to depth 4 with .git/node_modules exclusions; 19 tests pass	2026-03-13T00:00:00Z
 Q6.7	HEALTHY	start.sh default host changed to 127.0.0.1; DASHBOARD_HOST env var for opt-in LAN exposure	2026-03-13T00:00:00Z
 Q6.8	HEALTHY	API key warning added to simulate.py __main__ block; fires when BASE_URL is live and key is default placeholder	2026-03-13T00:00:00Z
+Q7.1	HEALTHY	_bounded_glob depth limit, relative root, and .git exclusion all pass targeted probes	2026-03-13T00:00:00Z
+Q7.2	HEALTHY	_bounded_glob returns False for .git-only and node_modules-only match — exclusions verified	2026-03-13T00:00:00Z
+Q7.3	HEALTHY	TestBoundedGlob (5 tests) added to test_core.py — 24 tests total, all pass	2026-03-13T00:00:00Z
+Q7.4	HEALTHY	5-second TTL cache added to parse_findings_index; keyed by project_path; no API behavior change	2026-03-13T00:00:00Z

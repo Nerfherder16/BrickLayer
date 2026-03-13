@@ -299,3 +299,41 @@ class TestEvaluate:
         ]
         result = evaluate(records, None)
         assert result["verdict"] == "WARNING"
+
+
+# ---------------------------------------------------------------------------
+# _bounded_glob() — from onboard.py  (Q7.3)
+# ---------------------------------------------------------------------------
+
+from onboard import _bounded_glob  # noqa: E402
+
+
+class TestBoundedGlob:
+    def test_finds_matching_file(self, tmp_path):
+        """Basic match: file within depth limit is found."""
+        (tmp_path / "sub").mkdir()
+        (tmp_path / "sub" / "Main.kt").write_text("fun main() {}")
+        assert _bounded_glob(tmp_path, "*.kt") is True
+
+    def test_excludes_git_dir(self, tmp_path):
+        """Files inside .git are never returned."""
+        (tmp_path / ".git" / "hooks").mkdir(parents=True)
+        (tmp_path / ".git" / "hooks" / "secret.tf").write_text("resource {}")
+        assert _bounded_glob(tmp_path, "*.tf") is False
+
+    def test_excludes_node_modules(self, tmp_path):
+        """Files inside node_modules are never returned."""
+        (tmp_path / "node_modules" / "pkg").mkdir(parents=True)
+        (tmp_path / "node_modules" / "pkg" / "index.kt").write_text("fun main() {}")
+        assert _bounded_glob(tmp_path, "*.kt") is False
+
+    def test_depth_limit_respected(self, tmp_path):
+        """File at depth 5 is not found when max_depth=4."""
+        deep = tmp_path / "a" / "b" / "c" / "d" / "e"
+        deep.mkdir(parents=True)
+        (deep / "deep.tf").write_text("resource {}")
+        assert _bounded_glob(tmp_path, "*.tf", max_depth=4) is False
+
+    def test_no_match_returns_false(self, tmp_path):
+        """Empty directory returns False."""
+        assert _bounded_glob(tmp_path, "*.kt") is False
