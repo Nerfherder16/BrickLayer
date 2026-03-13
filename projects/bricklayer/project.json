@@ -1,0 +1,12 @@
+{
+  "name": "bricklayer",
+  "display_name": "Bricklayer",
+  "target_git": "C:\\Users\\trg16\\Dev\\autosearch",
+  "target_live_url": "none",
+  "stack": [
+    "Python"
+  ],
+  "fix_branch_prefix": "bricklayer/",
+  "claude_session_id": null,
+  "last_run": null
+}

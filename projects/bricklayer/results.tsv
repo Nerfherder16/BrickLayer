@@ -1,0 +1,16 @@
+question_id	verdict	summary	timestamp
+Q1.1	WARNING	No test files found; onboard imports cleanly	2026-03-13T00:00:00Z
+Q1.2	FAILURE	template/simulate.py returns FAILURE on baseline — placeholder revenue model (TODO) never replaced	2026-03-13T00:00:00Z
+Q1.3	FAILURE	Dashboard parse_questions reads table format only; block-format questions return 0 via API	2026-03-13T00:00:00Z
+Q2.1	FAILURE	onboard.py line 241: except Exception appends "Node.js" silently on parse error — wrong data returned	2026-03-13T00:00:00Z
+Q2.2	FAILURE	bricklayer_launcher.pyw line 53: except Exception: pass silently drops corrupt project.json	2026-03-13T00:00:00Z
+Q2.3	FAILURE	dashboard/backend/main.py line 286: Path hardcoded, no env fallback	2026-03-13T00:00:00Z
+Q2.4	INCONCLUSIVE	mypy not installed; legacy Optional imports and missing return types confirmed by inspection	2026-03-13T00:00:00Z
+Q3.1	FAILURE	finding_id used raw in filesystem path; no resolve/is_relative_to guard; server binds to 0.0.0.0	2026-03-13T00:00:00Z
+Q3.2	FAILURE	Wildcard CORS + 0.0.0.0 binding + no auth on POST /api/questions and POST /api/findings/{id}/correct	2026-03-13T00:00:00Z
+Q3.3	FAILURE	ID generation uses len() not max(); collides after deletion; writes table format into block-format file	2026-03-13T00:00:00Z
+Q3.4	WARNING	Docs injected into prompt with no XML delimiters; docs/ is human-controlled so risk is low-medium	2026-03-13T00:00:00Z
+Q4.1	HEALTHY	Path traversal + CORS + hardcoded path fixed in dashboard/backend/main.py — commit 3425225	2026-03-13T00:00:00Z
+Q4.2	HEALTHY	4 silent except swallows replaced with stderr warnings in onboard.py + bricklayer_launcher.pyw — commit b2a18a3	2026-03-13T00:00:00Z
+Q4.3	HEALTHY	19 tests written covering detect_stack, parse_questions, run_simulation, evaluate — all pass — commit ecdc767	2026-03-13T00:00:00Z
+Q4.4	HEALTHY	Optional[str] → str|None migration, from typing import Optional removed — commit 98f45fc	2026-03-13T00:00:00Z
