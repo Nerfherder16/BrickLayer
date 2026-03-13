@@ -369,6 +369,53 @@ Status is tracked in results.tsv — do not edit manually.
 
 ---
 
+## Q8.1 [CORRECTNESS] mypy on dashboard backend (resolve Q2.4)
+**Mode**: correctness
+**Target**: dashboard/backend/main.py
+**Hypothesis**: Q2.4 was INCONCLUSIVE because mypy wasn't installed. Running it now resolves whether the Q4.4 type migration was complete.
+**Test**: `pip install mypy --quiet && python -m mypy dashboard/backend/main.py --ignore-missing-imports 2>&1 | tail -5`
+**Verdict threshold**:
+- HEALTHY: 0 mypy errors
+- WARNING: 1–5 type errors
+- FAILURE: >5 errors
+
+---
+
+## Q8.2 [CORRECTNESS] bricklayer_launcher.pyw stderr visibility
+**Mode**: correctness
+**Target**: bricklayer_launcher.pyw
+**Hypothesis**: `.pyw` files run with pythonw.exe (no console window), silently dropping all stderr output including the Q4.2 warnings. The fixes are invisible to users.
+**Test**: Read `_open_onboard()` — does it spawn onboard.py in a new console window or in the same pythonw process?
+**Verdict threshold**:
+- HEALTHY: onboard.py launched in a new terminal (wt.exe or cmd.exe /k) so stderr is visible
+- FAILURE: onboard.py imported or run in-process with stderr suppressed
+
+---
+
+## Q8.3 [CORRECTNESS] correct_finding does not invalidate _findings_cache
+**Mode**: correctness
+**Target**: dashboard/backend/main.py
+**Hypothesis**: `correct_finding()` appends a Human Correction block to a finding file but never clears `_findings_cache`. A `GET /api/findings` within 5 seconds of a correction returns stale `has_correction: false`.
+**Test**: `grep -n "correct_finding\|_findings_cache" dashboard/backend/main.py | head -10` — verify no cache invalidation in correct_finding.
+**Verdict threshold**:
+- HEALTHY: correct_finding clears the cache entry for the affected project_path
+- WARNING: No invalidation but TTL is ≤5s (acceptable lag)
+- FAILURE: No invalidation AND TTL is >30s (data looks stale for a long time)
+
+---
+
+## Q8.4 [AGENT] Fix cache invalidation in correct_finding
+**Mode**: agent
+**Target**: dashboard/backend/main.py
+**Agent**: forge
+**Hypothesis**: `correct_finding()` should pop `str(project_path)` from `_findings_cache` after writing the correction so the next `GET /api/findings` returns fresh data with `has_correction: true`.
+**Test**: After fix, `grep -A5 "def correct_finding" dashboard/backend/main.py | grep "_findings_cache"` — should match.
+**Verdict threshold**:
+- HEALTHY: Cache invalidated in correct_finding; existing tests still pass
+- FAILURE: Fix breaks existing tests or introduces import error
+
+---
+
 ## Q6.8 [AGENT] Add API key warning in recall/simulate.py
 **Mode**: agent
 **Target**: recall/simulate.py

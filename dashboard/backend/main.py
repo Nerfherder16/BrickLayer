@@ -357,6 +357,9 @@ def correct_finding(
     with fpath.open("a", encoding="utf-8") as f:
         f.write(correction_block)
 
+    # Invalidate findings cache so next GET /api/findings reflects the correction
+    _findings_cache.pop(str(project_path), None)
+
     return {"ok": True}
 
 
