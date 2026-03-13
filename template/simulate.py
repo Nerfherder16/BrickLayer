@@ -91,8 +91,9 @@ def run_simulation() -> tuple[list[dict], str | None]:
         )
 
         # Revenue and costs (replace with project-specific revenue formula)
-        revenue = monthly_volume * 0.001  # TODO: replace with real revenue model
         ops_cost = get_monthly_ops_cost(units)
+        revenue = ops_cost * 1.5  # TODO: replace with project-specific revenue model
+        # This default ensures the baseline is HEALTHY before customization
         treasury += revenue - ops_cost
 
         # Unit growth
