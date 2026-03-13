@@ -20,16 +20,18 @@ from pathlib import Path
 
 
 def run(cmd: list[str], cwd: str | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
+    return subprocess.run(
+        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=cwd
+    )
 
 
 def get_staged_files() -> list[str]:
     result = run(["git", "diff", "--staged", "--name-only"])
-    return [f.strip() for f in result.stdout.splitlines() if f.strip()]
+    return [f.strip() for f in (result.stdout or "").splitlines() if f.strip()]
 
 
 def get_staged_diff() -> str:
-    return run(["git", "diff", "--staged"]).stdout
+    return run(["git", "diff", "--staged"]).stdout or ""
 
 
 def tool_available(name: str) -> bool:

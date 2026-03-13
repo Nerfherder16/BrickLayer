@@ -4,38 +4,105 @@ BrickLayer is a **universal autonomous research framework**. It runs structured 
 
 The human defines what matters. The agent asks the questions, runs the experiments, and reports what it found.
 
-The name comes from the idea: lay enough bricks and the wall reveals its cracks.
+---
+
+## Coordination Board
+
+**Two conversations may be working on this simultaneously. Before touching anything, check CLAIMED status.**
+
+| # | Area | Work Item | Status | Claimed By |
+|---|------|-----------|--------|------------|
+| C-01 | Architecture | Python module split — break simulate.py into `campaign.py`, `questions.py`, `findings.py`, `quality.py`, `scout.py` | **FREE** | — |
+| C-02 | Architecture | Runner Registry — formalize `Runner(Protocol)` plugin interface | **FREE** | — |
+| C-03 | Campaign | Goal-directed campaigns via `goal.md` — agent generates question set from a target + goal | **FREE** | — |
+| C-04 | Campaign | Adaptive follow-up — FAILURE/WARNING auto-generates drill-down sub-questions (Q2.4 → Q2.4.1) | **FREE** | — |
+| C-05 | Campaign | Verdict history + regression detection — SQLite ledger, flag regressions across runs | **FREE** | — |
+| C-06 | Campaign | Fix loop integration — FAILURE → spawn fix agent → re-run → confirm HEALTHY | **FREE** | — |
+| C-07 | Runners | `http` runner formalization — extract from simulate.py into `runners/http.py` | **FREE** | — |
+| C-08 | Runners | `subprocess` runner formalization — extract into `runners/subprocess.py` | **FREE** | — |
+| C-09 | Runners | `static` runner formalization — extract into `runners/static.py` | **FREE** | — |
+| C-10 | Runners | `browser` runner — Playwright-driven UI interaction testing | **FREE** | — |
+| C-11 | Runners | `benchmark` runner — ML model ablation, latency, accuracy sweeps | **FREE** | — |
+| C-12 | Runners | `document` runner — completeness/accuracy/consistency checks on docs vs code | **FREE** | — |
+| C-13 | Runners | `contract` runner — Solana/EVM invariant checking and edge case fuzzing | **FREE** | — |
+| C-14 | Meta-agents | Hypothesis-generator: generate Wave N+1 questions from findings patterns | **FREE** | — |
+| C-15 | Meta-agents | Crucible: benchmark existing agents, promote/retire by score | **FREE** | — |
+| C-16 | Dashboard | Question status live-update in dashboard UI | **FREE** | — |
+| C-17 | Integrations | GitHub Actions hook — run campaign on PR, post findings as review comments | **FREE** | — |
+| C-18 | Phase 3 | Hypothesis generation from git diffs — auto-question on commit | **FREE** | — |
+| C-19 | Phase 3 | Cross-project knowledge transfer — bug patterns propagate across projects | **FREE** | — |
+
+### How to claim work
+
+When starting an item, update its row:
+```
+| C-03 | Campaign | Goal-directed campaigns ... | **IN PROGRESS** | conv:mar13-afternoon |
+```
+
+When done:
+```
+| C-03 | Campaign | Goal-directed campaigns ... | **DONE** | conv:mar13-afternoon |
+```
+
+Use a short label for `Claimed By` — date + session context is enough (`conv:mar13-morning`, `conv:mar14`).
 
 ---
 
-## Core Architecture (Target-Agnostic)
+## Completed Work
 
-BrickLayer has three universal layers:
+| Item | Description | Commit |
+|------|-------------|--------|
+| Wave 1–10 campaigns | Full BrickLayer campaign against Recall — 10 waves, 11+ findings | `aee05df` |
+| Dashboard | React+FastAPI dashboard — question bank, live status, block-format parser | `efd7cfd` |
+| Pre-commit hook | `scripts/pre-commit.py` — lint-guard + commit-reviewer + noqa escape | `71d2495` |
+| 6 framework agents | scout, probe-runner, triage, retrospective, test-writer, type-strictener | `d62a072` |
+| forge-check | Detects agent fleet gaps, writes `FORGE_NEEDED.md` sentinel | `93d2306` |
+| agent-auditor | Audits agent fleet, writes `AUDIT_REPORT.md` | `93d2306` |
+| peer-reviewer | Re-runs tests and appends CONFIRMED/CONCERNS/OVERRIDE to findings | `93d2306` |
+| forge v2.0 | Sentinel-driven autonomous agent factory — reads `FORGE_NEEDED.md`, creates agents, deletes sentinel | `2fb34b3` |
+| Async checkpoint pattern | All meta-agents use background Popen spawn; only Forge is blocking | `fad9611` |
+| program.md async wiring | Live Discovery + wave-start sentinel check added to template, recall, adbp program.md | `6882c0e` |
+| simulate.py checkpoints | `_check_sentinels()`, `_spawn_agent_background()`, `_run_forge_blocking()`, `_inject_override_questions()` wired into `--campaign` loop | `9059d28` |
+| Silent exception fixes | 3 bare `except Exception: pass` → logged stderr warnings | `d2895d4` |
 
-### 1. Campaign Layer
-A `questions.md` (static) or `goal.md` (dynamic) defines what to investigate. Questions have:
-- `id` — Q1.1, Q2.3, etc.
-- `mode` — which runner handles it
-- `target` — what to probe
-- `verdict_threshold` — what counts as FAILURE vs WARNING vs HEALTHY
+---
 
-### 2. Runner Layer
-Runners are target-specific executors. Any runner that returns a structured verdict can plug in:
+## Architecture
 
-| Runner | Target types |
-|--------|-------------|
-| `http` | REST APIs, GraphQL, WebSockets — latency, error rates, concurrent load |
-| `subprocess` | pytest, cargo test, go test, jest, any test suite |
-| `static` | Source files fed to agent analysis — code patterns, security, architecture |
-| `benchmark` | ML model inference — accuracy, latency, throughput, ablation |
-| `document` | Docs, specs, READMEs — completeness, accuracy, consistency |
-| `simulation` | Business models, financial projections, game theory — stress variants |
-| `contract` | Solana programs, EVM contracts — invariant checking, fuzzing |
-| `browser` | Web UIs — Playwright-driven interaction testing |
-| `llm-judge` | Arbitrary text/output quality — LLM-as-evaluator with rubric |
+### Current (v0.1)
 
-### 3. Verdict Layer
-Every runner emits the same verdict envelope:
+```
+autosearch/
+  simulate.py           ← monolith: campaign runner + runners + quality scanner + scout
+  agents/               ← specialist agents (md files, invoked via claude -p)
+  template/             ← project template
+  projects/             ← Gen2 projects (code-driven via simulate.py --campaign)
+  adbp/ recall/         ← Gen1 projects (manual loop via program.md)
+  dashboard/            ← FastAPI + React monitoring UI
+  scripts/              ← pre-commit hook
+```
+
+### Target (v0.2 — module split)
+
+```
+autosearch/
+  simulate.py           ← thin CLI entry point only
+  campaign.py           ← --campaign loop, sentinel checks, agent spawning
+  questions.py          ← parse/update questions.md
+  findings.py           ← write findings, update results.tsv
+  quality.py            ← source file scanning, pattern matching
+  scout.py              ← Scout context assembly
+  runners/
+    base.py             ← Runner(Protocol) interface
+    http.py             ← HTTP load + latency runner
+    subprocess.py       ← pytest/cargo/jest runner
+    static.py           ← agent-based static analysis runner
+    browser.py          ← Playwright UI runner (Phase 2)
+    benchmark.py        ← ML model runner (Phase 2)
+```
+
+### Verdict envelope (universal — all runners return this)
+
 ```json
 {
   "question_id": "Q2.4",
@@ -45,183 +112,63 @@ Every runner emits the same verdict envelope:
   "details": "full evidence text"
 }
 ```
-`results.tsv` is always the same shape regardless of what was tested.
-
----
-
-## Current State (v0.1 — March 2026)
-
-Three runners implemented (`http`, `subprocess`, `static`) against a live FastAPI target (Recall).
-
-First campaign found:
-- 2 bugs fixed (reranker feature mismatch, embed_batch silent failure)
-- 2 coverage gaps (correctness tests marked slow, never run in CI)
-- 27 UTF-8 corrupted source files found and fixed
-- 1 false alarm correctly identified (consolidation 429s = working rate limiter)
 
 ---
 
 ## Phase 1 — Universal Foundation (Near-term)
 
-### 1.1 Runner Registry
-Formalize the runner plugin interface so any runner can be added without touching core:
-```python
-class Runner(Protocol):
-    mode: str
-    def run(self, question: Question) -> Verdict: ...
-```
-Register runners by name. Campaign YAML references them by `mode:`. Drop a new `runners/browser.py` and it's available.
+These are the highest-value items before BrickLayer is used on new projects.
 
-### 1.2 Goal-Directed Campaigns
-Replace static `questions.md` with a `goal.md`:
-```
-target: FastAPI memory API at http://192.168.50.19:8200
-goal: find the reliability ceiling under concurrent load
-constraints: no destructive writes, max 10 min runtime
-```
-BrickLayer generates the question set from the goal using an agent, runs it, reports findings.
-**Works for any target type** — same interface whether it's an API, a codebase, or a document set.
-
-### 1.3 Adaptive Follow-up
-When a question returns FAILURE or WARNING, BrickLayer auto-generates drill-down questions:
-```
-Q2.4 FAILURE → "Is the mismatch in Redis key format or feature extractor version?"
-             → "Can the weight vector be padded without retraining?"
-```
-Follow-ups are numbered `Q2.4.1`, `Q2.4.2` and appear in the same results file.
-
-### 1.4 Verdict History + Regression Detection
-SQLite ledger across runs. Flag any question that regressed:
-```
-Q2.4  HEALTHY → FAILURE  [regression, 2026-03-15, commit abc123]
-Q1.1  HEALTHY → HEALTHY  [stable, 14 runs]
-```
-Turns BrickLayer from one-shot audit into a living regression detector.
-
-### 1.5 Fix Loop Integration
-FAILURE verdict → spawn fix agent → re-run question → confirm HEALTHY. Close the loop without human intervention on clear-cut bugs.
+| # | Item | Notes |
+|---|------|-------|
+| 1.1 | **Runner Registry** | `Runner(Protocol)` — any runner that returns the verdict envelope plugs in. Board item C-02. |
+| 1.2 | **Goal-Directed Campaigns** | Replace static `questions.md` with `goal.md`. Agent generates questions from goal + target. Board item C-03. |
+| 1.3 | **Adaptive Follow-up** | FAILURE/WARNING auto-drills down. `Q2.4 → Q2.4.1, Q2.4.2`. Board item C-04. |
+| 1.4 | **Verdict History** | SQLite ledger. Flag regressions (`HEALTHY → FAILURE`). Board item C-05. |
+| 1.5 | **Fix Loop** | FAILURE → fix agent → re-run → HEALTHY. Board item C-06. |
+| 1.6 | **Module Split** | Break simulate.py into focused modules. Board item C-01. |
 
 ---
 
 ## Phase 2 — Target Breadth (Medium-term)
 
-This is where BrickLayer becomes truly universal. Each item adds a new class of targets.
+Each item adds a new class of targets BrickLayer can run against.
 
-### 2.1 ML Model Runner
-Run ablation studies, benchmark comparisons, and hyperparameter sweeps against any model:
-```yaml
-mode: benchmark
-target: ollama/qwen3:14b
-question: Does increasing context window from 4k to 8k degrade MMLU accuracy?
-metric: accuracy@MMLU, latency_p99
-```
-Overnight experimentation: set a goal (maximize recall@10 with p99 < 200ms), let BrickLayer sweep consolidation thresholds, RRF k values, embedding cache TTLs, report the Pareto frontier.
-
-### 2.2 Document Runner
-Probe documentation, specifications, READMEs, legal docs for:
-- **Completeness**: are all API endpoints documented?
-- **Accuracy**: does the doc match the code?
-- **Consistency**: do two docs contradict each other?
-- **Coverage gaps**: which edge cases aren't described?
-
-```yaml
-mode: document
-target: docs/api/*.md + src/api/routes/*.py
-question: Are all FastAPI route parameters documented in the corresponding .md file?
-```
-
-### 2.3 Smart Contract Runner
-For Solana programs (Anchor) and EVM contracts:
-- Invariant checking: does NonTransferable actually block transfers under all input combinations?
-- Arithmetic edge cases: overflow at max spend cap values?
-- Authority bypass: can a non-authorized caller reach privileged instructions?
-
-```yaml
-mode: contract
-target: programs/benefit-credits/src/lib.rs
-question: Can the spend cap be bypassed by splitting transactions below the per-tx limit?
-```
-
-### 2.4 Browser / UI Runner
-Playwright-driven interaction testing against web UIs:
-```yaml
-mode: browser
-target: http://localhost:5173
-question: Does the employer dashboard correctly reflect a $0 balance after credit exhaustion?
-```
-
-### 2.5 Multi-Agent Swarm
-Fan out parallel research directions simultaneously:
-- Agent A: performance boundaries (pushes load)
-- Agent B: correctness boundaries (mutates inputs, edge cases)
-- Agent C: security boundaries (fuzzes payloads, injection)
-- Agent D: code quality (static analysis, architecture)
-
-Each agent is autonomous. A synthesizer reads all four reports and produces a unified risk map ranked by severity.
-
-### 2.6 Baseline Anchoring + Deploy Gates
-Lock a known-good snapshot. Every future run diffs against it:
-```
-bricklayer --baseline v1.2.0 --target HEAD
-→ 3 regressions, deploy blocked
-→ bricklayer --baseline v1.2.0 --target HEAD --fix
-→ fixes applied, all HEALTHY, deploy unblocked
-```
+| # | Item | Target |
+|---|------|--------|
+| 2.1 | ML Model Runner | Ollama models — accuracy, latency, ablation sweeps |
+| 2.2 | Document Runner | Docs vs code — completeness, accuracy, consistency |
+| 2.3 | Smart Contract Runner | Solana/Anchor — invariant checking, authority bypass |
+| 2.4 | Browser/UI Runner | Playwright — interaction testing, visual regression |
+| 2.5 | Multi-Agent Swarm | Parallel perf/correctness/security/quality campaigns |
+| 2.6 | Baseline Anchoring | Lock known-good snapshot. Every run diffs against it. Deploy gate. |
 
 ---
 
 ## Phase 3 — Autonomy (Longer-term)
 
-### 3.1 Self-Improving Question Banks
-Track which questions have found bugs historically. High bug-hit-rate questions get upweighted. Questions that never find anything get pruned or replaced. The bank evolves toward maximum signal density.
-
-### 3.2 Hypothesis Generation from Diffs
-On each git commit, read the diff and generate targeted questions:
-```
-diff: added session_arc_span to extract_features()
-→ auto-generated: "Does the reranker weight vector match the new feature count?"
-→ runs immediately → finds mismatch → filed before it reaches production
-```
-
-### 3.3 Cross-Project Knowledge Transfer
-Bug patterns found in one project become template questions applied to all new projects:
-```
-Pattern discovered in Recall: "silent exception swallow on embedding path"
-→ auto-applied to FamilyHub: "Does TTS synthesis swallow failures silently?"
-→ auto-applied to ADBP platform: "Does KYC check swallow HTTP errors silently?"
-```
-
-### 3.4 Natural Language Entry Point
-```
-you: "I just added concurrent Neo4j writes to the store endpoint"
-bricklayer: "Running 4 questions: race conditions, N+1 patterns, error propagation, load ceiling"
-→ returns findings in 3 minutes, no questions.md required
-```
-
-### 3.5 BrickLayer audits BrickLayer
-The framework runs campaigns against itself: correctness of verdict logic, performance of the runner dispatcher, quality of the question generation agent. Eats its own dog food.
+| # | Item |
+|---|------|
+| 3.1 | Self-improving question banks — upweight questions that find bugs, prune dead ones |
+| 3.2 | Hypothesis generation from diffs — auto-question on each git commit |
+| 3.3 | Cross-project knowledge transfer — bug patterns propagate to new projects |
+| 3.4 | Natural language entry point — "I just added concurrent Neo4j writes" → 4 questions, 3 minutes |
+| 3.5 | BrickLayer audits BrickLayer — eats its own dog food |
 
 ---
 
 ## Design Principles
 
-1. **Universal verdict envelope.** Every runner, every target, every question type produces the same `{verdict, summary, data, details}` shape. Dashboards, history, and regression detection work the same for all targets.
-
+1. **Universal verdict envelope.** Every runner, every target, every question type produces the same `{verdict, summary, data, details}` shape.
 2. **Questions are the product.** The question bank has compounding value. A good question asked 100 times across 100 projects is worth more than 100 one-off tests.
-
-3. **Humans set goals, agents set questions.** The human knows what matters to the business. The agent knows what to ask technically. Don't conflate them.
-
-4. **Verdicts must be falsifiable.** HEALTHY requires specific evidence. FAILURE requires a reproduction path. INCONCLUSIVE means "agent saw the file but couldn't decide" — not a verdict, a request for more depth.
-
+3. **Humans set goals, agents set questions.** The human knows what matters. The agent knows what to ask technically. Don't conflate them.
+4. **Verdicts must be falsifiable.** HEALTHY requires specific evidence. FAILURE requires a reproduction path.
 5. **Cheap at scale beats thorough occasionally.** 500 fast questions overnight finds more than 5 exhaustive questions quarterly.
-
-6. **Failure boundaries, not pass/fail.** The goal isn't "does it work?" — it's "where does it stop working?" Knowing the ceiling is more valuable than knowing it clears the floor.
+6. **Failure boundaries, not pass/fail.** The goal isn't "does it work?" — it's "where does it stop working?"
 
 ---
 
 ## Target Universe
-
-BrickLayer is intended to work against any of these, with the right runner:
 
 | Category | Examples |
 |----------|---------|
@@ -233,8 +180,8 @@ BrickLayer is intended to work against any of these, with the right runner:
 | **Smart contracts** | Anchor programs, EVM contracts, invariant checking |
 | **Web UIs** | Playwright-driven interaction and visual regression |
 | **Simulations** | Business models, financial projections, game theory |
-| **Pipelines** | CI/CD, data pipelines, ETL — correctness and performance |
-| **Infrastructure** | Docker, Kubernetes, Proxmox — health and configuration drift |
+| **Pipelines** | CI/CD, data pipelines, ETL |
+| **Infrastructure** | Docker, Kubernetes, Proxmox — health and config drift |
 
 ---
 
@@ -243,7 +190,6 @@ BrickLayer is intended to work against any of these, with the right runner:
 - **Recall** (FastAPI + Qdrant + Neo4j) — first full campaign, v0.1 validation target
 - **Exa MCP** — semantic research for question generation and finding enrichment
 - **Firecrawl MCP** — documentation crawling for document runner
-- **Recall memory** — session findings stored for cross-session learning
 
 ## Planned Integrations
 
