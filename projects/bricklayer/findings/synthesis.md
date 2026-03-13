@@ -1,7 +1,7 @@
 # BrickLayer Campaign Synthesis — Bricklayer
 **Date**: 2026-03-13
-**Questions run**: 39 (Q1.1–Q8.4)
-**Waves completed**: 8
+**Questions run**: 42 (Q1.1–Q9.3)
+**Waves completed**: 9
 
 ---
 
@@ -44,8 +44,15 @@
 | Q7.2 | Correctness | HEALTHY | .git and node_modules exclusions verified by dedicated probe |
 | Q7.3 | Agent | HEALTHY | 5 tests added for _bounded_glob; 24 total tests pass |
 | Q7.4 | Agent | HEALTHY | 5s TTL cache added to parse_findings_index; no API behavior change |
+| Q8.1 | Correctness | HEALTHY | mypy clean on dashboard backend — 0 errors; resolves Q2.4 INCONCLUSIVE |
+| Q8.2 | Correctness | HEALTHY | bricklayer_launcher.pyw opens onboard.py in new terminal window — stderr fully visible |
+| Q8.3 | Quality | WARNING | correct_finding() wrote to disk without invalidating _findings_cache — stale data for up to 5s |
+| Q8.4 | Agent | HEALTHY | _findings_cache.pop() added to correct_finding() — cache invalidated on every write |
+| Q9.1 | Correctness | FAILURE | onboard.py never copied analyze.py or created reports/ for new projects |
+| Q9.2 | Correctness | FAILURE | bricklayer/analyze.py missing; IndexError on empty verdict in analyze.py line 409 |
+| Q9.3 | Agent | HEALTHY | analyze.py copy + reports/ mkdir added to onboard.py; empty-verdict guard fixed |
 
-**FAILURE: 10 | WARNING: 6 | INCONCLUSIVE: 1 | HEALTHY: 18**
+**FAILURE: 12 | WARNING: 8 | INCONCLUSIVE: 0 | HEALTHY: 22**
 
 ---
 
@@ -73,13 +80,16 @@
 13. **Q7.3** — `tests/test_core.py`: 5 tests added for `_bounded_glob`; total test count 19 → 24.
 14. **Q7.4** — `dashboard/backend/main.py`: 5-second TTL cache on `parse_findings_index`; keyed by `project_path`.
 
+### Wave 8 (Q8.1, Q8.4)
+15. **Q8.1** — mypy installed and run; `dashboard/backend/main.py` returns `Success: no issues found`; Q2.4 INCONCLUSIVE resolved to HEALTHY.
+16. **Q8.4** — `dashboard/backend/main.py`: `_findings_cache.pop()` added to `correct_finding()`; cache now invalidated on every finding write.
+
+### Wave 9 (Q9.3)
+17. **Q9.3** — `onboard.py`: `shutil.copy(analyze.py)` + `reports.mkdir()` added to project creation block; `projects/bricklayer/analyze.py` backfilled manually. `analyze.py` line 409 guarded against empty verdict with `_vwords[0] if _vwords else "UNKNOWN"`.
+
 ---
 
 ## Remaining Open Issues
-
-### Q2.4 — Type annotation completeness
-**Status**: INCONCLUSIVE — mypy not installed. Q4.4 applied the `Optional` migration but full mypy validation could not be confirmed.
-**Risk**: Low. The codebase is syntactically correct Python 3.10+.
 
 ### Q5.4 — Symlink bypass of path guard
 **Status**: WARNING — `resolve().is_relative_to()` is correct for regular paths but Windows junctions can escape. Server now defaults to `127.0.0.1` (Q6.7) making this a localhost-only concern.
@@ -99,18 +109,18 @@
 
 | Metric | Value |
 |--------|-------|
-| Total questions | 31 |
-| Waves | 7 |
-| FAILURE (fixed) | 10 / 10 |
-| WARNING (documented) | 6 |
-| HEALTHY | 18 |
-| INCONCLUSIVE | 1 |
+| Total questions | 42 |
+| Waves | 9 |
+| FAILURE (fixed) | 12 / 12 |
+| WARNING (documented) | 8 |
+| HEALTHY | 22 |
+| INCONCLUSIVE | 0 |
 | Tests added | 24 (0 → 24) |
-| Commits | 7 |
-| Files modified | 10 |
+| Commits | 8 |
+| Files modified | 11 |
 
 ---
 
 ## Key Findings Pattern
 
-The autosearch framework had **no automated tests** and **no security review** before this campaign. The most severe cluster of issues was in the dashboard backend (path traversal + CORS + hardcoded paths) and the detect_stack function (silent data corruption + unbounded filesystem traversal). All critical and high-severity issues have been fixed. The remaining open items are all LOW risk, documented, and acceptable for a homelab developer tool.
+The autosearch framework had **no automated tests**, **no security review**, and **incomplete onboarding** before this campaign. The most severe cluster of issues was in the dashboard backend (path traversal + CORS + hardcoded paths) and the detect_stack function (silent data corruption + unbounded filesystem traversal). A second cluster emerged late: the PDF report workflow was entirely broken for onboarded projects (missing analyze.py copy + latent IndexError in the PDF generator). All 12 FAILURE items have been fixed. The 8 WARNING items are all LOW risk, documented, and acceptable for a homelab developer tool. The campaign is complete — question bank exhausted.
