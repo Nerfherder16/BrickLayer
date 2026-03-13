@@ -199,6 +199,67 @@ Store findings and intermediate work in Recall under `domain="recall-autoresearc
 
 ---
 
+## Live Discovery — Questions and Agents the Loop Generates Itself
+
+### After every finding (Critical or High severity)
+
+Append to the finding file under `## Open Follow-up Questions`, then immediately
+insert those questions into `questions.md` as PENDING (label them with parent ID,
+e.g., `Q1.1a`). Place them before any remaining lower-priority questions.
+
+### Every 5 completed questions — spawn background agents
+
+**Do NOT block the loop.** Spawn these as background Agent calls, then continue immediately:
+
+```
+# Always at N % 5 == 0 — spawn forge-check in background:
+"Act as forge-check per autosearch/agents/forge-check.md.
+ Inputs: agents_dir=.claude/agents/, findings_dir=findings/, questions_md=questions.md.
+ Write agents/FORGE_NEEDED.md if gaps found, otherwise output FLEET COMPLETE."
+
+# Additionally at N % 10 == 0 — spawn agent-auditor in background:
+"Act as agent-auditor per autosearch/agents/agent-auditor.md.
+ Inputs: agents_dir=.claude/agents/, findings_dir=findings/, results_tsv=results.tsv.
+ Write the audit report to .claude/agents/AUDIT_REPORT.md."
+
+# Also invoke hypothesis-generator:
+"Read the 3 most recent findings in findings/. Identify failure modes not covered by
+ remaining PENDING questions. Add up to 5 new PENDING questions to questions.md. Label them Wave-mid."
+```
+
+Continue to the next question immediately. Results are checked at the wave-start sentinel check.
+
+### After writing each finding — spawn peer-reviewer in background
+
+```
+# Spawn immediately after writing finding file — do NOT wait:
+"Act as peer-reviewer per autosearch/agents/peer-reviewer.md.
+ primary_finding=findings/<question_id>.md, target_git=., agents_dir=.claude/agents/.
+ Re-run the original test, review the fix, append ## Peer Review section with verdict
+ CONFIRMED | CONCERNS | OVERRIDE."
+```
+
+Continue to the next question. OVERRIDE verdicts are caught at the next wave-start check.
+
+### Wave-start sentinel check (runs before EVERY question)
+
+Before picking the next question, check for pending sentinel outputs (< 1 second):
+
+1. **`agents/FORGE_NEEDED.md` exists?**
+   → Invoke Forge **synchronously** (blocking) using `autosearch/agents/forge.md`.
+   Forge must complete before the next question — new agents may be needed for it.
+   Forge deletes `FORGE_NEEDED.md` when done.
+
+2. **`.claude/agents/AUDIT_REPORT.md` exists?**
+   → Apply RETIRE (delete agent file), PROMOTE (update `tier:` field), and
+   UPDATE TRIGGERS (edit `trigger:` frontmatter) recommendations. Delete the report.
+
+3. **Any finding file contains `**Verdict**: OVERRIDE` in a `## Peer Review` section?**
+   → Insert a new PENDING re-examination question at the top of the next wave.
+   Do not revert any commit without human confirmation.
+
+---
+
 ## NEVER STOP
 
 Once the loop has begun, do NOT pause to ask if you should continue.
