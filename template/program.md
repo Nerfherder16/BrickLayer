@@ -114,46 +114,59 @@ questions. Add up to 5 new PENDING questions to questions.md. Label them Wave-mi
 Do not invoke hypothesis-generator on every question — only every 5. The overhead
 of running it too frequently outweighs the benefit.
 
-Also invoke `forge-check` to scan for agent coverage gaps:
-```
-Act as the forge-check agent in .claude/agents/forge-check.md.
-Inventory the agent fleet in .claude/agents/, scan the 5 most recent findings,
-and check all PENDING questions for missing agents.
-If gaps exist, write agents/FORGE_NEEDED.md. If no gaps, output FLEET COMPLETE.
-```
+**Immediately after** hypothesis-generator completes, spawn forge-check and (if N is a
+multiple of 10) agent-auditor as **background agents** — do NOT wait for them:
 
-If `agents/FORGE_NEEDED.md` is written, immediately invoke Forge to fill the gap
-before continuing the loop.
-
-### Every 10 completed questions
-
-Invoke `agent-auditor` to assess fleet health and recommend promote/retire/update actions:
 ```
-Act as the agent-auditor agent in .claude/agents/agent-auditor.md.
-Read all .md files in .claude/agents/, read results.tsv, and read the findings/ directory.
-Write the fleet health report to .claude/agents/AUDIT_REPORT.md.
+# Always at N % 5 == 0:
+Spawn background agent — forge-check:
+  "Act as forge-check per .claude/agents/forge-check.md.
+   Inputs: agents_dir=.claude/agents/, findings_dir=findings/, questions_md=questions.md.
+   Write agents/FORGE_NEEDED.md if gaps found, otherwise output FLEET COMPLETE."
+
+# Additionally at N % 10 == 0:
+Spawn background agent — agent-auditor:
+  "Act as agent-auditor per .claude/agents/agent-auditor.md.
+   Inputs: agents_dir=.claude/agents/, findings_dir=findings/, results_tsv=results.tsv.
+   Write the audit report to .claude/agents/AUDIT_REPORT.md."
 ```
 
-Apply any RETIRE recommendations immediately (delete the agent file).
-Apply PROMOTE recommendations by updating the agent's `tier` frontmatter field.
-Apply UPDATE TRIGGERS recommendations by editing the agent's `trigger:` frontmatter.
-Do not apply CRUCIBLE REVIEW recommendations autonomously — flag to the researcher.
+Continue to the next question immediately. Both agents run concurrently with the main loop.
+Their outputs are checked at the next **wave-start sentinel check** (see below).
 
-### After every fix wave
+### After writing each finding — spawn peer-reviewer in background
 
-Invoke `peer-reviewer` on the highest-severity finding from the wave:
+Immediately after writing a finding file and logging to results.tsv, spawn peer-reviewer
+as a **background agent** — do NOT wait for it:
+
 ```
-Act as the peer-reviewer agent in .claude/agents/peer-reviewer.md.
-Primary finding: findings/<question_id>.md
-Target git: . (current repo)
-Agents dir: .claude/agents/
-Re-run the original test, review the fix code, and append a ## Peer Review section
-to the finding file with your verdict (CONFIRMED | CONCERNS | OVERRIDE).
+Spawn background agent — peer-reviewer:
+  "Act as peer-reviewer per .claude/agents/peer-reviewer.md.
+   primary_finding=findings/<question_id>.md, target_git=., agents_dir=.claude/agents/.
+   Re-run the original test independently, review the fix code, append ## Peer Review
+   section with verdict CONFIRMED | CONCERNS | OVERRIDE."
 ```
 
-If peer-reviewer returns OVERRIDE, create a new PENDING question in `questions.md`
-for the original fix agent to re-examine, then continue the loop. Do not revert the
-fix commit without human confirmation.
+Continue to the next question immediately. OVERRIDE verdicts are caught at the next
+wave-start sentinel check.
+
+### Wave-start sentinel check (runs before EVERY question)
+
+Before picking the next question from questions.md, check for pending sentinel outputs.
+This takes <1 second and closes the async loop:
+
+1. **`agents/FORGE_NEEDED.md` exists?**
+   → Invoke Forge **synchronously** (blocking) to create missing agents, then delete the file.
+   Forge must complete before the next question starts — new agents may be needed for it.
+
+2. **`agents/AUDIT_REPORT.md` exists?**
+   → Read it. Apply RETIRE (delete agent file), PROMOTE (update `tier:` field), and
+   UPDATE TRIGGERS (edit `trigger:` frontmatter) recommendations immediately.
+   Delete `AUDIT_REPORT.md` when done. Continue — this is non-blocking.
+
+3. **Any finding file contains `**Verdict**: OVERRIDE` inside a `## Peer Review` section?**
+   → Insert a new PENDING re-examination question at the top of the next wave in
+   `questions.md`. Continue — do not revert any commit without human confirmation.
 
 ---
 

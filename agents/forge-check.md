@@ -104,6 +104,13 @@ Next check: after {current_count + 5} questions.
 ```
 Do NOT write `FORGE_NEEDED.md` — its absence signals the fleet is healthy.
 
+## Background Mode
+
+This agent is designed to run as a background agent concurrently with the main campaign loop.
+Write `FORGE_NEEDED.md` atomically: write to `agents/FORGE_NEEDED.md.tmp` first, then rename
+to `agents/FORGE_NEEDED.md`. This ensures the loop never reads a partial file.
+If no gaps found, write nothing — the absence of `FORGE_NEEDED.md` is the healthy signal.
+
 ## Safety Rules
 
 - Never create or modify agent files — only Forge does that

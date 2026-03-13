@@ -119,6 +119,12 @@ Write `agents/AUDIT_REPORT.md`:
 After {current_count + 10} questions.
 ```
 
+## Background Mode
+
+This agent is designed to run as a background agent concurrently with the main campaign loop.
+Write `AUDIT_REPORT.md` atomically: write to `agents/AUDIT_REPORT.md.tmp` first, then rename
+to `agents/AUDIT_REPORT.md`. The main loop reads this file at the next wave-start sentinel check.
+
 ## Safety Rules
 
 - Never modify agent files — write recommendations only; Crucible or human applies them

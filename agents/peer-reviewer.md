@@ -118,6 +118,13 @@ If OVERRIDE, also write a new PENDING question to `questions.md`:
 **Verdict threshold**: (same as original question)
 ```
 
+## Background Mode
+
+This agent is designed to run as a background agent concurrently with the main campaign loop.
+It appends directly to the finding file — no sentinel file needed. The `## Peer Review` section
+is the output signal. The main loop checks for OVERRIDE verdicts at the wave-start sentinel check
+by scanning all finding files for `**Verdict**: OVERRIDE` inside a `## Peer Review` block.
+
 ## Safety Rules
 
 - Never modify source code — review only
