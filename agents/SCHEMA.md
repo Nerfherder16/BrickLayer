@@ -69,3 +69,36 @@ Agents with score > 0.8 are promoted to the "trusted" tier and run without human
 | `candidate` | 0.4–0.8 | Benchmarked, requires human approval before commits |
 | `trusted` | > 0.8 | Runs autonomously, commits without approval |
 | `retired` | any | Superseded by a better version |
+
+---
+
+## Agent Catalog
+
+### Campaign Loop Agents (framework-level — span all projects)
+
+| Agent | Role | When invoked |
+|-------|------|-------------|
+| `scout` | Scans codebase, generates initial questions.md | Project onboard or question refresh |
+| `probe-runner` | Executes a question's **Test** field, returns structured verdict | Every PENDING question |
+| `triage` | Groups related FAILURE/WARNING findings into fix batches | After discovery wave, before fix wave |
+| `scope-analyzer` | Maps all call sites + importers before forge touches a function | Before any fix agent runs |
+| `regression-guard` | Re-runs prior HEALTHY probes after every fix commit | After every source code commit |
+| `retrospective` | Post-wave pattern analysis, generates Wave N+1 hypotheses | After each wave completes |
+| `forge` | Designs and creates new specialist agents to fill gaps | When no agent covers a finding |
+| `crucible` | Benchmarks agents, promotes/retires based on score | Periodic quality review |
+
+### Fix Specialist Agents (domain-specific — invoked by triage/forge)
+
+| Agent | Metric | Trigger |
+|-------|--------|---------|
+| `security-hardener` | CVE/OWASP violations removed | Security FAILURE findings |
+| `test-writer` | coverage_delta | Correctness coverage < 70% |
+| `type-strictener` | mypy error count | Type FAILURE or `any` usage |
+| `perf-optimizer` | p99 latency / query count | Performance FAILURE findings |
+
+### Pre-Commit Gate Agents (span all projects — run on git diff --staged)
+
+| Agent | Role | Verdict |
+|-------|------|---------|
+| `commit-reviewer` | Reviews staged diff for security, correctness, quality issues | APPROVE / REQUEST_CHANGES / BLOCK |
+| `lint-guard` | Detects stack, runs ruff/eslint/clippy, auto-fixes, re-stages | CLEAN / FIXED / ERRORS_REMAIN |
