@@ -2,7 +2,6 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,7 +22,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 
-def get_project_path(project: Optional[str] = None) -> Path:
+def get_project_path(project: str | None = None) -> Path:
     path_str = project or os.environ.get(
         "AUTOSEARCH_PROJECT", "C:/Users/trg16/Dev/autosearch/adbp"
     )
@@ -163,7 +162,7 @@ class AddCorrection(BaseModel):
 
 
 @app.get("/api/status")
-def get_status(project: Optional[str] = Query(None)):
+def get_status(project: str | None = Query(None)):
     project_path = get_project_path(project)
     questions = parse_questions(project_path)
     results = parse_results(project_path)
@@ -195,13 +194,13 @@ def get_status(project: Optional[str] = Query(None)):
 
 
 @app.get("/api/questions")
-def get_questions(project: Optional[str] = Query(None)):
+def get_questions(project: str | None = Query(None)):
     project_path = get_project_path(project)
     return parse_questions(project_path)
 
 
 @app.post("/api/questions")
-def add_question(body: AddQuestion, project: Optional[str] = Query(None)):
+def add_question(body: AddQuestion, project: str | None = Query(None)):
     project_path = get_project_path(project)
     qfile = project_path / "questions.md"
     if not qfile.exists():
@@ -244,13 +243,13 @@ def add_question(body: AddQuestion, project: Optional[str] = Query(None)):
 
 
 @app.get("/api/findings")
-def get_findings(project: Optional[str] = Query(None)):
+def get_findings(project: str | None = Query(None)):
     project_path = get_project_path(project)
     return parse_findings_index(project_path)
 
 
 @app.get("/api/findings/{finding_id}")
-def get_finding(finding_id: str, project: Optional[str] = Query(None)):
+def get_finding(finding_id: str, project: str | None = Query(None)):
     project_path = get_project_path(project)
     fpath = (project_path / "findings" / f"{finding_id}.md").resolve()
     findings_dir = (project_path / "findings").resolve()
@@ -263,7 +262,7 @@ def get_finding(finding_id: str, project: Optional[str] = Query(None)):
 
 @app.post("/api/findings/{finding_id}/correct")
 def correct_finding(
-    finding_id: str, body: AddCorrection, project: Optional[str] = Query(None)
+    finding_id: str, body: AddCorrection, project: str | None = Query(None)
 ):
     project_path = get_project_path(project)
     fpath = (project_path / "findings" / f"{finding_id}.md").resolve()
@@ -287,7 +286,7 @@ def correct_finding(
 
 
 @app.get("/api/results")
-def get_results(project: Optional[str] = Query(None)):
+def get_results(project: str | None = Query(None)):
     project_path = get_project_path(project)
     return parse_results(project_path)
 
