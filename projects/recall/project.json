@@ -1,0 +1,10 @@
+{
+  "name": "recall",
+  "display_name": "System-Recall",
+  "target_git": "C:/Users/trg16/Dev/Recall",
+  "target_live_url": "http://192.168.50.19:8200",
+  "stack": ["Python", "FastAPI", "SQLAlchemy", "Pydantic", "Qdrant", "Redis", "PostgreSQL"],
+  "fix_branch_prefix": "bricklayer/",
+  "claude_session_id": null,
+  "last_run": null
+}

@@ -30,7 +30,7 @@ def get_project_path(project: str | None = None) -> Path:
     base = Path(
         os.getenv("AUTOSEARCH_BASE", str(Path(__file__).parent.parent.parent))
     ).resolve()
-    if not str(resolved).startswith(str(base)):
+    if not resolved.is_relative_to(base):
         raise HTTPException(status_code=400, detail="Invalid project path")
     return resolved
 
@@ -311,7 +311,7 @@ def get_finding(finding_id: str, project: str | None = Query(None)):
     project_path = get_project_path(project)
     fpath = (project_path / "findings" / f"{finding_id}.md").resolve()
     findings_dir = (project_path / "findings").resolve()
-    if not str(fpath).startswith(str(findings_dir)):
+    if not fpath.is_relative_to(findings_dir):
         raise HTTPException(status_code=400, detail="Invalid finding ID")
     if not fpath.exists():
         raise HTTPException(status_code=404, detail="Finding not found")
@@ -325,7 +325,7 @@ def correct_finding(
     project_path = get_project_path(project)
     fpath = (project_path / "findings" / f"{finding_id}.md").resolve()
     findings_dir = (project_path / "findings").resolve()
-    if not str(fpath).startswith(str(findings_dir)):
+    if not fpath.is_relative_to(findings_dir):
         raise HTTPException(status_code=400, detail="Invalid finding ID")
     if not fpath.exists():
         raise HTTPException(status_code=404, detail="Finding not found")

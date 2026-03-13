@@ -255,6 +255,20 @@ class App(tk.Tk):
             wraplength=360, justify="left"
         ).grid(row=4, column=0, columnspan=2, sticky="w", pady=(10, 0))
 
+        sep = tk.Frame(tab, bg=self.ELEVATED, height=1)
+        sep.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(14, 8))
+
+        self._btn(tab, "End Session  →  Run Retrospective", self._launch_retro,
+                  padx=16, pady=9
+                  ).grid(row=6, column=0, columnspan=2, sticky="ew")
+
+        self._label(
+            tab,
+            "\nRuns structured reflection + improvement agent.\n"
+            "BrickLayer improves itself from session learnings.",
+            wraplength=360, justify="left"
+        ).grid(row=7, column=0, columnspan=2, sticky="w", pady=(10, 0))
+
     def _build_projects_tab(self, nb):
         tab = tk.Frame(nb, bg=self.BG, padx=14, pady=14)
         nb.add(tab, text="  Projects  ")
@@ -412,6 +426,16 @@ class App(tk.Tk):
         open_claude_terminal(
             cwd=str(AUTOSEARCH_ROOT),
             cmd=f"claude --resume {sid} {CLAUDE_FLAGS}",
+        )
+
+    def _launch_retro(self):
+        p = self._selected_resume()
+        if not p:
+            messagebox.showwarning("No session", "No project with a saved session ID.")
+            return
+        open_claude_terminal(
+            cwd=str(AUTOSEARCH_ROOT),
+            cmd=f"python simulate.py --project {p['name']} --retro",
         )
 
     def _open_onboard(self):

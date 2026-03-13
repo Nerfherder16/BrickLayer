@@ -28,7 +28,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+if __name__ == "__main__":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 try:
     import httpx
@@ -48,30 +49,83 @@ except ImportError:
     sys.exit(1)
 
 # ---------------------------------------------------------------------------
-# Config
+# Config (defaults — overridden by init_project when --project is given)
 # ---------------------------------------------------------------------------
 
 BASE_URL = "http://192.168.50.19:8200"
 API_KEY = "recall-admin-key-change-me"
-AUTH_HEADERS = {
+AUTH_HEADERS: dict = {
     "Authorization": f"Bearer {API_KEY}",
     "Content-Type": "application/json",
 }
 REQUEST_TIMEOUT = 10.0  # seconds per request
 
-# Correct API routes
+# API routes
 SEARCH_ROUTE = "/search/query"
 STORE_ROUTE = "/memory/store"
 HEALTH_ROUTE = "/health"
 CONSOLIDATE_ROUTE = "/admin/consolidate"
-RECALL_SRC = Path("C:/Users/trg16/Dev/Recall")
-PROJECT_ROOT = Path(__file__).parent
-FINDINGS_DIR = PROJECT_ROOT / "findings"
-RESULTS_TSV = PROJECT_ROOT / "results.tsv"
-QUESTIONS_MD = PROJECT_ROOT / "questions.md"
-AGENTS_DIR = PROJECT_ROOT.parent / "agents"
 
-FINDINGS_DIR.mkdir(exist_ok=True)
+# Paths — reassigned by init_project() when --project is given
+RECALL_SRC = Path("C:/Users/trg16/Dev/Recall")
+AUTOSEARCH_ROOT = Path(__file__).parent.parent  # autosearch/
+PROJECT_ROOT = Path(__file__).parent  # recall/ (legacy default)
+FINDINGS_DIR: Path = PROJECT_ROOT / "findings"
+RESULTS_TSV: Path = PROJECT_ROOT / "results.tsv"
+QUESTIONS_MD: Path = PROJECT_ROOT / "questions.md"
+AGENTS_DIR = AUTOSEARCH_ROOT / "agents"
+
+# mkdir deferred to init_project to support path overrides
+
+# ---------------------------------------------------------------------------
+# Project loader
+# ---------------------------------------------------------------------------
+
+
+def init_project(project_name: str | None) -> None:
+    """Load project config from project.json and update module-level path constants."""
+    global BASE_URL, API_KEY, AUTH_HEADERS, RECALL_SRC
+    global FINDINGS_DIR, RESULTS_TSV, QUESTIONS_MD
+
+    if project_name:
+        # Search: projects/{name}/ first, then sibling {name}/ (legacy layout)
+        candidates = [
+            AUTOSEARCH_ROOT / "projects" / project_name,
+            AUTOSEARCH_ROOT / project_name,
+        ]
+        project_dir: Path | None = None
+        for candidate in candidates:
+            if (candidate / "project.json").exists():
+                project_dir = candidate
+                break
+
+        if project_dir is None:
+            print(f"Error: project '{project_name}' not found.", file=sys.stderr)
+            for c in candidates:
+                print(f"  Checked: {c / 'project.json'}", file=sys.stderr)
+            print("\nRun: python onboard.py  to create a new project.", file=sys.stderr)
+            sys.exit(1)
+
+        cfg = json.loads((project_dir / "project.json").read_text(encoding="utf-8"))
+        RECALL_SRC = Path(cfg["target_git"])
+        BASE_URL = cfg.get("target_live_url", BASE_URL)
+        API_KEY = cfg.get("api_key", API_KEY)
+        AUTH_HEADERS = {
+            "Authorization": f"Bearer {API_KEY}",
+            "Content-Type": "application/json",
+        }
+        FINDINGS_DIR = project_dir / "findings"
+        RESULTS_TSV = project_dir / "results.tsv"
+        QUESTIONS_MD = project_dir / "questions.md"
+    else:
+        # Legacy: use the directory simulate.py lives in
+        project_dir = Path(__file__).parent
+        FINDINGS_DIR = project_dir / "findings"
+        RESULTS_TSV = project_dir / "results.tsv"
+        QUESTIONS_MD = project_dir / "questions.md"
+
+    FINDINGS_DIR.mkdir(exist_ok=True)
+
 
 # ---------------------------------------------------------------------------
 # Question parsing
@@ -787,6 +841,84 @@ def _strip_frontmatter(text: str) -> str:
         return text
 
 
+def _run_scout_for_project() -> None:
+    """Invoke the Scout agent to regenerate questions.md."""
+    import os as _os
+    import shutil as _shutil
+
+    scout_path = AGENTS_DIR / "scout.md"
+    if not scout_path.exists():
+        print(json.dumps({"error": "scout.md not found in agents/"}))
+        return
+
+    raw = scout_path.read_text(encoding="utf-8")
+    body = _strip_frontmatter(raw)
+
+    # Load project config
+    cfg_path = FINDINGS_DIR.parent / "project.json"
+    cfg = {}
+    if cfg_path.exists():
+        cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+
+    docs_dir = FINDINGS_DIR.parent / "docs"
+    docs_content = ""
+    if docs_dir.exists():
+        for doc in sorted(docs_dir.iterdir()):
+            if doc.is_file():
+                try:
+                    docs_content += f"\n\n### {doc.name}\n{doc.read_text(encoding='utf-8', errors='ignore')[:3000]}"
+                except Exception:
+                    pass
+
+    prompt = f"""{body}
+
+---
+
+## Your Assignment
+
+**Project**: {cfg.get("display_name", "Unknown")}
+**Target git**: {RECALL_SRC}
+**Stack**: {", ".join(cfg.get("stack", [])) or "unknown"}
+**Live service**: {cfg.get("target_live_url", "none")}
+**Docs folder**: {docs_dir}
+{f"**Supporting docs content**:{docs_content}" if docs_content else "**Docs folder**: empty — scan the codebase only"}
+
+Scan the target codebase now and output the complete questions.md content."""
+
+    claude_bin = _shutil.which("claude") or "claude"
+    child_env = {k: v for k, v in _os.environ.items() if k != "CLAUDECODE"}
+
+    print("Running Scout — scanning codebase to generate questions...", flush=True)
+    try:
+        proc = subprocess.run(
+            [claude_bin, "-p", "-", "--dangerously-skip-permissions"],
+            input=prompt,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            env=child_env,
+            timeout=300,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+        print(json.dumps({"error": str(e)}))
+        return
+
+    output = proc.stdout.strip()
+    idx = output.find("# BrickLayer Campaign Questions")
+    if idx == -1:
+        print(json.dumps({"error": "Scout output not recognized", "raw": output[:500]}))
+        return
+
+    questions_md = output[idx:]
+    QUESTIONS_MD.write_text(questions_md, encoding="utf-8")
+    count = questions_md.count("## Q")
+    print(
+        json.dumps(
+            {"status": "ok", "questions_written": count, "path": str(QUESTIONS_MD)}
+        )
+    )
+
+
 def _verdict_from_agent_output(agent_name: str, output: dict) -> str:
     """Map agent JSON output contract to a BrickLayer verdict."""
     if not output:
@@ -816,6 +948,12 @@ def _verdict_from_agent_output(agent_name: str, output: dict) -> str:
             return "HEALTHY"
         if committed > 0:
             return "WARNING"
+        # Agent may have diagnosed a non-mypy finding and self-reported HEALTHY
+        if output.get("mitigation_required") is False:
+            return "HEALTHY"
+        # Agent found issues but reported them all as architectural debt (can't fix)
+        if output.get("architectural_debt") and not committed:
+            return "WARNING"
 
     elif agent_name == "perf-optimizer":
         pct = output.get("improvement_pct", 0.0)
@@ -829,6 +967,11 @@ def _verdict_from_agent_output(agent_name: str, output: dict) -> str:
         # Generic: any committed change is progress
         if output.get("changes_committed", 0) > 0:
             return "HEALTHY"
+
+    # Last resort: trust the agent's own verdict field if present
+    self_verdict = output.get("verdict", "").upper()
+    if self_verdict in ("HEALTHY", "WARNING", "FAILURE", "INCONCLUSIVE"):
+        return self_verdict
 
     return "INCONCLUSIVE"
 
@@ -1087,27 +1230,30 @@ def run_quality(question: dict) -> dict:
     # Patterns: "src/core/retrieval.py", "src/api/routes/", "src/core/embeddings.py + tests/core/test_embeddings_cache.py"
     src_files = []
 
-    # Single file patterns: src/.../*.py
-    file_matches = re.findall(r"src/[\w/]+\.py", target)
+    # Split on ' + ' to handle multi-path targets like "src/core/ + src/workers/"
+    target_segments = [s.strip() for s in target.split("+")]
 
-    for fpath in file_matches:
-        full = RECALL_SRC / fpath
-        if full.exists():
+    for segment in target_segments:
+        segment = segment.strip()
+
+        # Named .py file: src/core/retrieval.py or tests/core/test_foo.py
+        file_matches = re.findall(r"(?:src|tests)/[\w/]+\.py", segment)
+        for fpath in file_matches:
+            full = RECALL_SRC / fpath
             src_files.append(full)
-        else:
-            # Try stripping leading src/
-            alt = RECALL_SRC / fpath
-            if not alt.exists():
-                src_files.append(full)  # will be noted as missing
 
-    # Also check test paths mentioned in target
-    test_matches = re.findall(r"tests/[\w/]+\.py", target)
-    for tpath in test_matches:
-        full = RECALL_SRC / tpath
-        src_files.append(full)
+        # Bare directory: src/, src/core/, src/workers/, tests/
+        dir_matches = re.findall(r"(?:src|tests)(?:/[\w/]*)?/?(?=\s|$)", segment)
+        for dpath in dir_matches:
+            if file_matches:
+                continue  # already handled as specific file
+            dpath = dpath.strip().rstrip("/")
+            full_dir = RECALL_SRC / dpath
+            if full_dir.is_dir():
+                src_files.extend(sorted(full_dir.rglob("*.py")))
 
-    # Handle "src/api/routes/ (all .py files)"
-    if "src/api/routes/" in target and not file_matches:
+    # Handle legacy "src/api/routes/ (all .py files)" pattern
+    if "src/api/routes/" in target and not src_files:
         routes_dir = RECALL_SRC / "src" / "api" / "routes"
         if routes_dir.exists():
             src_files.extend(sorted(routes_dir.glob("*.py")))
@@ -1147,11 +1293,10 @@ def run_quality(question: dict) -> dict:
 
     full_output = "".join(output_parts)
 
-    verdict = "INCONCLUSIVE"  # Quality mode always needs agent analysis
-    if missing:
-        summary = f"Read {len(unique_files) - len(missing)}/{len(unique_files)} files ({total_lines} lines). Missing: {', '.join(missing)}"
-    else:
-        summary = f"Read {len(unique_files)} source files ({total_lines} lines) — requires agent analysis for verdict"
+    # Pattern-based verdict — applied when we can derive a verdict from code analysis
+    verdict, summary = _analyze_quality_patterns(
+        question, unique_files, full_output, missing, total_lines
+    )
 
     return {
         "verdict": verdict,
@@ -1163,6 +1308,146 @@ def run_quality(question: dict) -> dict:
         },
         "details": full_output,
     }
+
+
+def _analyze_quality_patterns(
+    question: dict, files: list, content: str, missing: list, total_lines: int
+) -> tuple[str, str]:
+    """
+    Apply pattern-based analysis to quality question file content.
+    Returns (verdict, summary). Falls back to INCONCLUSIVE when no pattern matches.
+    """
+    hypothesis = question.get("hypothesis", "").lower()
+
+    # --- Logger mismatch detection ---
+    # Triggered by: "structlog" + "stdlib" or "logging.getlogger" in hypothesis
+    if "structlog" in hypothesis and (
+        "stdlib" in hypothesis
+        or "logging.getlogger" in hypothesis
+        or "mismatch" in hypothesis
+    ):
+        failures = []
+        warnings = []
+        for fpath in files:
+            if not fpath.exists():
+                continue
+            try:
+                src = fpath.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                continue
+            has_stdlib = bool(re.search(r"^import logging\b", src, re.MULTILINE))
+            has_structlog = bool(re.search(r"import structlog", src))
+            # Look for stdlib logger called with kwargs: logger.warning("x", key=val)
+            stdlib_kwarg_calls = re.findall(
+                r"(?:logging\.\w+|logger\.\w+)\([^)]*,\s*\w+=",
+                src,
+            )
+            # Check if logger var is stdlib (getLogger) or structlog (get_logger)
+            uses_stdlib_logger = bool(re.search(r"logging\.getLogger\(\)", src))
+            if has_stdlib and has_structlog:
+                if stdlib_kwarg_calls and uses_stdlib_logger:
+                    failures.append(
+                        f"{fpath.name}: stdlib logger called with kwargs — TypeError in except blocks"
+                    )
+                else:
+                    warnings.append(
+                        f"{fpath.name}: mixed imports (stdlib + structlog) but no kwarg-passing found"
+                    )
+        if failures:
+            return "FAILURE", f"Logger mismatch: {'; '.join(failures)}"
+        if warnings:
+            return "WARNING", f"Mixed logger imports: {'; '.join(warnings)}"
+        return (
+            "HEALTHY",
+            f"Checked {len(files)} files — all consistently use structlog; no stdlib/structlog mixing detected",
+        )
+
+    # --- Unguarded mutable module-level state ---
+    if "mutable" in hypothesis and ("lock" in hypothesis or "async" in hypothesis):
+        failures = []
+        warnings = []
+        for fpath in files:
+            if not fpath.exists():
+                continue
+            try:
+                src = fpath.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                continue
+            # Find module-level dict/list assignments
+            module_dicts = re.findall(
+                r"^(\w+)\s*(?::\s*\S+)?\s*=\s*(?:\{\}|\[\]|dict\(\)|list\(\))",
+                src,
+                re.MULTILINE,
+            )
+            # Check each for nearby asyncio.Lock
+            for var in module_dicts:
+                lock_nearby = bool(
+                    re.search(rf"{var}_lock|_{var}_lock|asyncio\.Lock", src)
+                )
+                # Check if it's written from an async def
+                written_in_async = bool(
+                    re.search(rf"async def[^{{]+\n(?:.*\n){{0,30}}.*{var}\s*[=\[]", src)
+                )
+                if written_in_async and not lock_nearby:
+                    failures.append(
+                        f"{fpath.name}: `{var}` written from async path without asyncio.Lock"
+                    )
+                elif not lock_nearby and module_dicts:
+                    warnings.append(f"{fpath.name}: `{var}` has no apparent lock guard")
+        if failures:
+            return (
+                "FAILURE",
+                f"Unguarded async-written state: {'; '.join(failures[:3])}",
+            )
+        if warnings:
+            return (
+                "WARNING",
+                f"Potentially unguarded module-level state: {'; '.join(warnings[:3])}",
+            )
+        return (
+            "HEALTHY",
+            f"Checked {len(files)} files — no unguarded async-written module-level state detected",
+        )
+
+    # --- datetime.utcnow() deprecation ---
+    if "utcnow" in hypothesis:
+        hits = re.findall(r"datetime\.utcnow\(\)", content)
+        file_hits = [
+            str(f.name)
+            for f in files
+            if f.exists()
+            and "datetime.utcnow()" in f.read_text(encoding="utf-8", errors="replace")
+        ]
+        if hits:
+            return (
+                "FAILURE",
+                f"Found {len(hits)} datetime.utcnow() calls in {len(file_hits)} files: {', '.join(file_hits[:5])}",
+            )
+        return "HEALTHY", f"No datetime.utcnow() calls found in {len(files)} files"
+
+    # --- N+1 query pattern detection ---
+    if "n+1" in hypothesis or "loop" in hypothesis and "db" in hypothesis:
+        loop_db_pattern = re.findall(
+            r"for\s+\w+\s+in\s+\w+[^:]+:\s*\n(?:.*\n){0,5}.*(?:session\.|qdrant\.|redis\.)",
+            content,
+        )
+        if loop_db_pattern:
+            return (
+                "FAILURE",
+                f"Potential N+1 pattern: DB call inside result loop ({len(loop_db_pattern)} instances)",
+            )
+        return "HEALTHY", "No N+1 DB-inside-loop patterns detected"
+
+    # --- Fallback ---
+    if missing:
+        return (
+            "INCONCLUSIVE",
+            f"Read {len(files) - len(missing)}/{len(files)} files ({total_lines} lines). Missing: {', '.join(missing)}",
+        )
+    return (
+        "INCONCLUSIVE",
+        f"Read {len(files)} source files ({total_lines} lines) — requires agent analysis for verdict",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1284,14 +1569,183 @@ def run_question(question: dict) -> dict:
     return result
 
 
+def _run_and_record(question: dict) -> dict:
+    """Run a single question, write finding, update results.tsv, print JSON."""
+    print(
+        f"Running {question['id']} [{question['mode']}]: {question['title']}",
+        file=sys.stderr,
+    )
+    result = run_question(question)
+    finding_path = write_finding(question, result)
+    update_results_tsv(question["id"], result["verdict"], result["summary"])
+    print(json.dumps(result, indent=2))
+    print(f"\nFinding written to: {finding_path}", file=sys.stderr)
+    print(f"Verdict: {result['verdict']}", file=sys.stderr)
+    return result
+
+
+def _print_handoff_reminder() -> None:
+    """Print end-of-run cross-project handoff check."""
+    handoffs_dir = AUTOSEARCH_ROOT / "handoffs"
+    print("\n" + "=" * 60, file=sys.stderr)
+    print("END-OF-RUN HANDOFF CHECK", file=sys.stderr)
+    print("=" * 60, file=sys.stderr)
+    print("Did this campaign find changes needed in another project?", file=sys.stderr)
+    print(
+        "  YES → Create autosearch/handoffs/handoff-{project}-{date}.md",
+        file=sys.stderr,
+    )
+    print("  NO  → Session complete.", file=sys.stderr)
+    existing = (
+        sorted(handoffs_dir.glob("handoff-*.md")) if handoffs_dir.exists() else []
+    )
+    if existing:
+        print(f"\nOpen handoffs ({len(existing)}):", file=sys.stderr)
+        for h in existing:
+            print(f"  {h.name}", file=sys.stderr)
+    print("=" * 60, file=sys.stderr)
+
+
+def _run_retrospective() -> None:
+    """Run the retrospective agent to improve BrickLayer from session learnings."""
+    import os as _os
+    import shutil as _shutil
+
+    retro_path = AGENTS_DIR / "retrospective.md"
+    if not retro_path.exists():
+        print("retrospective.md not found in agents/")
+        return
+
+    # Read agent prompt, strip frontmatter
+    raw = retro_path.read_text(encoding="utf-8")
+    body = _strip_frontmatter(raw)
+
+    # Read results.tsv
+    results_content = "(no results yet)"
+    if RESULTS_TSV.exists():
+        results_content = RESULTS_TSV.read_text(encoding="utf-8")
+
+    # Load project config
+    cfg_path = FINDINGS_DIR.parent / "project.json"
+    cfg = {}
+    if cfg_path.exists():
+        cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+
+    project_display = cfg.get("display_name", "Unknown")
+
+    # Print reflection questions and collect answers
+    questions = [
+        "1. Verdict accuracy: Which verdicts were INCONCLUSIVE, wrong, or needed manual correction? Why?",
+        "2. Agent output: Did any agent report DONE without a green test run? What broke?",
+        "3. Question quality: Any vacuous results (0 assertions)? Questions too narrow or too broad?",
+        "4. Coverage gaps: Any failure modes found with no agent to fix them?",
+        "5. Parallelization: Which questions had no dependencies and could have run simultaneously?",
+        "6. Fix quality: Any committed fix later found speculative or wrong?",
+        "7. Highest-value finding this session?",
+        "8. Biggest time sink with least value?",
+    ]
+
+    print("\n" + "=" * 60)
+    print(f"BrickLayer Retrospective — {project_display}")
+    print("=" * 60)
+    print("Answer each question. Press Enter twice to move to the next.\n")
+
+    answers = []
+    for q in questions:
+        print(f"\n{q}")
+        lines = []
+        while True:
+            line = input()
+            if line == "" and lines and lines[-1] == "":
+                break
+            lines.append(line)
+        answers.append("\n".join(lines).strip())
+
+    reflection_text = "\n\n".join(
+        f"**{questions[i]}**\n{answers[i]}" for i in range(len(questions))
+    )
+
+    # Build prompt
+    import datetime as _datetime
+
+    prompt = f"""{body}
+
+---
+
+## Your Assignment
+
+**Project**: {project_display}
+**Autosearch root**: {AUTOSEARCH_ROOT}
+**Session date**: {_datetime.datetime.now().strftime("%Y-%m-%d")}
+
+**Results TSV**:
+{results_content}
+
+**User Reflection**:
+{reflection_text}
+
+Review the session artifacts and reflection answers. Apply concrete improvements to BrickLayer. Commit to the autosearch repo if git is available. Output your Retrospective Report when done."""
+
+    claude_bin = _shutil.which("claude") or "claude"
+    child_env = {k: v for k, v in _os.environ.items() if k != "CLAUDECODE"}
+
+    print("\n" + "=" * 60)
+    print("Running Retrospective agent...")
+    print("=" * 60 + "\n")
+
+    try:
+        subprocess.run(
+            [claude_bin, "-p", "-", "--dangerously-skip-permissions"],
+            input=prompt,
+            capture_output=False,  # stream output live to terminal
+            text=True,
+            encoding="utf-8",
+            env=child_env,
+            timeout=600,
+        )
+    except FileNotFoundError:
+        print("claude CLI not found — cannot run retrospective agent.")
+    except subprocess.TimeoutExpired:
+        print("Retrospective agent timed out after 10 minutes.")
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Recall autoresearch runner")
+    parser = argparse.ArgumentParser(description="BrickLayer autoresearch runner")
+    parser.add_argument("--project", "-p", help="Project name (e.g. recall, adbp)")
     parser.add_argument("--question", "-q", help="Question ID to run (e.g. Q1.1)")
+    parser.add_argument(
+        "--campaign",
+        "-c",
+        action="store_true",
+        help="Run all PENDING questions in sequence",
+    )
     parser.add_argument("--list", "-l", action="store_true", help="List all questions")
     parser.add_argument(
         "--dry-run", action="store_true", help="Parse questions only, don't run"
     )
+    parser.add_argument(
+        "--scout",
+        "-s",
+        action="store_true",
+        help="Run Scout to regenerate questions.md for the project",
+    )
+    parser.add_argument(
+        "--retro",
+        "-r",
+        action="store_true",
+        help="Run end-of-session retrospective to improve BrickLayer",
+    )
     args = parser.parse_args()
+
+    init_project(args.project)
+
+    if args.scout:
+        _run_scout_for_project()
+        return
+
+    if args.retro:
+        _run_retrospective()
+        return
 
     questions = parse_questions()
 
@@ -1300,6 +1754,23 @@ def main():
         print("-" * 80)
         for q in questions:
             print(f"{q['id']:<8} {q['status']:<15} {q['mode']:<15} {q['title']}")
+        return
+
+    if args.campaign:
+        pending = [q for q in questions if q["status"] == "PENDING"]
+        if not pending:
+            print("No PENDING questions remain.", file=sys.stderr)
+            _print_handoff_reminder()
+            return
+        print(f"\nCampaign: {len(pending)} PENDING questions to run", file=sys.stderr)
+        for i, question in enumerate(pending, 1):
+            print(
+                f"\n[{i}/{len(pending)}] {question['id']} — {question['title']}",
+                file=sys.stderr,
+            )
+            _run_and_record(question)
+        print("\nCampaign complete.", file=sys.stderr)
+        _print_handoff_reminder()
         return
 
     if args.question:
@@ -1323,7 +1794,7 @@ def main():
                         "verdict": "INCONCLUSIVE",
                         "summary": "No PENDING questions remain",
                         "data": {},
-                        "details": "All questions have been answered. Generate new ones based on findings.",
+                        "details": "All questions answered. Generate new ones with forge.",
                     }
                 )
             )
@@ -1333,27 +1804,8 @@ def main():
         print(json.dumps(question, indent=2))
         return
 
-    print(
-        f"Running {question['id']} [{question['mode']}]: {question['title']}",
-        file=sys.stderr,
-    )
-
-    result = run_question(question)
-
-    # Write finding
-    finding_path = write_finding(question, result)
-
-    # Update results.tsv
-    update_results_tsv(question["id"], result["verdict"], result["summary"])
-
-    # Print JSON result to stdout
-    print(json.dumps(result, indent=2))
-
-    print(
-        f"\nFinding written to: {finding_path}",
-        file=sys.stderr,
-    )
-    print(f"Verdict: {result['verdict']}", file=sys.stderr)
+    _run_and_record(question)
+    _print_handoff_reminder()
 
 
 if __name__ == "__main__":

@@ -130,16 +130,18 @@ class TestParseQuestions:
         assert statuses["1.1"] == "PENDING"
         assert statuses["1.2"] == "DONE"
 
-    def test_block_format_returns_empty(self, tmp_path):
-        """Block-format questions.md (no table rows) returns [] — documents Q1.3 gap."""
+    def test_block_format_parsed_correctly(self, tmp_path):
+        """Block-format questions.md is parsed correctly (Q1.3 fix — Q5.7)."""
         qfile = tmp_path / "questions.md"
         qfile.write_text(BLOCK_FORMAT_QUESTIONS, encoding="utf-8")
         result = parse_questions(tmp_path)
-        # parse_questions only handles table format — block format yields nothing
-        # This test documents the known mismatch from Q1.3
-        assert isinstance(result, list)
-        # Block format has no pipe-delimited rows → empty result
-        assert result == []
+        assert len(result) == 2
+        ids = {q["id"] for q in result}
+        assert "Q1.1" in ids
+        assert "Q1.2" in ids
+        statuses = {q["id"]: q["status"] for q in result}
+        assert statuses["Q1.1"] == "PENDING"
+        assert statuses["Q1.2"] == "DONE"
 
     def test_empty_file_returns_empty_list(self, tmp_path):
         """Empty questions.md returns []."""

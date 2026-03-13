@@ -514,7 +514,7 @@ findings that have not yet been asked.
 ---
 
 ## Q7.3 [CORRECTNESS] decay live-Qdrant integration test — importance score write path
-**Status**: DONE
+**Status**: PENDING
 **Mode**: correctness
 **Target**: tests/workers/test_decay.py (new @pytest.mark.integration test)
 **Hypothesis**: All 17 decay tests in tests/workers/test_decay.py use mocks — no test confirms that the DecayWorker's importance score updates actually reach a live Qdrant collection. The write path (qdrant_client.set_payload() or equivalent) could be silently broken by a Qdrant schema change or client version bump with no failing test. A single slow-marked integration test that stores a memory, runs DecayWorker with hours_offset=24, and re-fetches the memory from Qdrant to confirm the importance field decreased would close the live-write-path gap identified in Wave 2 (Pattern 4) and confirmed open in Q6.6.
@@ -562,7 +562,7 @@ findings that have not yet been asked.
 ---
 
 ## Q7.6 [QUALITY] hygiene and dream_consolidation worker test coverage gap
-**Status**: DONE
+**Status**: IN_PROGRESS
 **Mode**: quality
 **Target**: src/workers/hygiene.py + src/workers/dream_consolidation.py
 **Hypothesis**: Q5.3 confirmed all four background workers have structured exception logging. Q5.7 wrote a 17-test suite for the decay worker. However, hygiene.py and dream_consolidation.py received no dedicated test suite — only the confirmation that their exception paths log correctly (a source-read verdict, not a test-run verdict). If either worker's error path logging is later broken by a refactor, no test will catch it. The same test-writer pattern applied to decay.py in Q5.7 should be applied to both remaining workers.

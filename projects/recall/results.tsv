@@ -1,0 +1,40 @@
+question_id	verdict	summary	timestamp
+Q1.1	HEALTHY	c=5: p99=24.4ms | c=10: p99=25.5ms | c=20: p99=88.4ms | c=40: p99=154.8ms	2026-03-12T23:30:54Z
+Q1.2	HEALTHY	1.0/s: mean=474.2ms | 5.0/s: mean=209.6ms | 10.0/s: mean=202.8ms | 20.0/s: mean=184.8ms	2026-03-12T23:32:53Z
+Q1.3	HEALTHY	No health failures and no search errors under 30 concurrent users	2026-03-12T23:42:47Z
+Q1.4	HEALTHY	5 users: p99=23.9ms | 40 users: p99=274.2ms err=0.0%	2026-03-12T23:49:34Z
+Q1.5	WARNING	concurrency guard committed 6ed5bcf (asyncio.Lock + 409); simulation failure was service-unreachable not a code bug	2026-03-13T03:45:00Z
+Q2.1	HEALTHY	23 passed, 0 failed	2026-03-12T23:37:09Z
+Q2.2	HEALTHY	0 passed, 0 failed	2026-03-12T23:41:45Z
+Q2.3	HEALTHY	0 passed, 0 failed	2026-03-12T23:48:11Z
+Q2.4	HEALTHY	28 passed, 0 failed � feature dimension mismatch resolved by 9cec9f4	2026-03-13T03:45:00Z
+Q2.5	HEALTHY	37 passed, 0 failed	2026-03-12T23:54:09Z
+Q3.1	HEALTHY	No N+1 patterns — all DB calls batched via get_batch()/gather()	2026-03-12T23:57:54Z
+Q3.2	HEALTHY	LRU+TTL correct; embed_batch checks cache per-item; no bypass path	2026-03-12T23:57:54Z
+Q3.3	WARNING	_cognitive_bias_lock created at import; _speculative_seeds no lock (soft-cap only)	2026-03-12T23:57:54Z
+Q3.4	HEALTHY	No chain traversal; supersession is flat flag write; include_superseded=False prevents re-processing	2026-03-12T23:57:54Z
+Q3.5	WARNING	embed_batch() swallows batch failure silently (line 224) — zero-vector on critical path	2026-03-12T23:57:54Z
+Q4.1	HEALTHY	risks_fixed=18 tests_written=15 committed=1919b3e (security-hardener)	2026-03-13T01:04:04Z
+Q4.2	HEALTHY	coverage 0% -> 98% (53 tests written)	2026-03-13T01:14:00Z
+Q4.3	HEALTHY	mypy errors 0 -> 0 (0 changes committed)	2026-03-13T01:17:38Z
+Q4.4	HEALTHY	risks_found=1 fixed=1 committed=1 tests_written=3	2026-03-13T01:23:19Z
+Q4.5	HEALTHY	risks_found=2 fixed=1 committed=1 tests_written=2	2026-03-13T01:25:33Z
+Q4.6	HEALTHY	coverage 90% -> 100% (2 tests written)	2026-03-13T01:22:53Z
+Q5.1	HEALTHY	28 passed, 0 failed	2026-03-13T01:44:39Z
+Q5.2	HEALTHY	3 passed, 0 failed	2026-03-13T01:44:44Z
+Q5.3	HEALTHY	All 4 workers have structured logging on every exception path — no silent swallows	2026-03-13T01:44:54Z
+Q5.4	HEALTHY	embed_batch item failures already logged (embed_batch_item_failed) + TestEmbedBatchSecurityQ54 proves contract	2026-03-13T01:44:57Z
+Q5.6	HEALTHY	already_remediated — fix committed in prior session; 7 tests pass	2026-03-13T01:50:49Z
+Q5.7	HEALTHY	17 tests written for DecayWorker (test_decay.py), all passing — committed 12561ec	2026-03-13T02:00:49Z
+Q6.1	HEALTHY	risks_found=1 fixed=1 committed=01260e1 — empty-embedding guard added to signals.py batch path	2026-03-13T02:57:44Z
+Q6.2	HEALTHY	Checked 1 files — all consistently use structlog; no stdlib/structlog mixing detected	2026-03-13T03:18:29Z
+Q6.3	HEALTHY	55 passed, 0 failed	2026-03-13T03:03:50Z
+Q6.4	WARNING	_speculative_seeds, _embed_cache, _tuning_cache written from async paths without asyncio.Lock (fixed by Q7.1)	2026-03-13T03:18:30Z
+Q6.5	WARNING	mypy errors 0 → 0 (0 changes committed)	2026-03-13T03:18:51Z
+Q6.6	HEALTHY	17 passed, 0 failed	2026-03-13T02:52:05Z
+Q6.7	HEALTHY	44 utcnow() calls replaced across 23 files; 0 remaining; committed 9cec9f4	2026-03-13T03:23:33Z
+Q7.4	HEALTHY	Checked 77 files — all consistently use structlog; no stdlib/structlog mixing detected	2026-03-13T04:06:37Z
+Q7.5	HEALTHY	No datetime.utcnow() calls found in 204 files	2026-03-13T04:06:38Z
+Q7.6	INCONCLUSIVE	Read 2 source files (414 lines) — requires agent analysis for verdict	2026-03-13T04:06:39Z
+Q7.1	HEALTHY	risks_found=3 fixed=3 committed=1 tests_written=9	2026-03-13T04:11:33Z
+Q7.2	HEALTHY	0 PydanticDeprecatedSince20 warnings; Memory.Config → ConfigDict + @field_serializer; committed 033ede9	2026-03-13T04:15:00Z

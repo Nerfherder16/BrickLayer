@@ -84,9 +84,9 @@ BrickLayer NEVER commits to any git repo other than the **target project** being
 ```bash
 cd C:/Users/trg16/Dev/autosearch
 
-python simulate.py --project bricklayer --list
-python simulate.py --project bricklayer --question Q1.1
-python simulate.py --project bricklayer --campaign
+python recall/simulate.py --project bricklayer --list
+python recall/simulate.py --project bricklayer --question Q1.1
+python recall/simulate.py --project bricklayer --campaign
 ```
 
 ---

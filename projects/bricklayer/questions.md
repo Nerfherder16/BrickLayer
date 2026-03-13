@@ -197,6 +197,97 @@ Status is tracked in results.tsv — do not edit manually.
 
 ---
 
-## Q5 — Wave 5 (forge-generated after Wave 4 completes)
+## Q5.1 [CORRECTNESS] prepare.md runner path is wrong
+**Mode**: correctness
+**Target**: projects/bricklayer/prepare.md, recall/simulate.py
+**Hypothesis**: `prepare.md` instructs `python simulate.py --project bricklayer` from autosearch root, but the actual runner is `recall/simulate.py`. A new user following prepare.md gets `No such file: simulate.py` with no guidance.
+**Test**: `ls C:/Users/trg16/Dev/autosearch/simulate.py 2>&1; ls C:/Users/trg16/Dev/autosearch/recall/simulate.py 2>&1`
+**Verdict threshold**:
+- HEALTHY: Root simulate.py exists OR prepare.md references recall/simulate.py correctly
+- WARNING: Root simulate.py missing but prepare.md has a note pointing to recall/
+- FAILURE: Root simulate.py missing and prepare.md gives wrong path with no correction
 
-*Leave blank. The `forge` agent generates Wave 5 questions from Wave 4 findings.*
+---
+
+## Q5.2 [CORRECTNESS] recall/simulate.py stdout wrapper not guarded by __main__
+**Mode**: correctness
+**Target**: recall/simulate.py
+**Hypothesis**: Line 31 `sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")` runs at import time, not guarded by `if __name__ == "__main__"`. Importing simulate.py from any other module (e.g. tests) replaces sys.stdout permanently, breaking pytest capture.
+**Test**: `python -c "import sys; orig = sys.stdout; import sys; sys.path.insert(0,'C:/Users/trg16/Dev/autosearch/recall'); import importlib.util; print('stdout replaced:', sys.stdout is not orig)"` — also check line 31 of recall/simulate.py for __main__ guard.
+**Verdict threshold**:
+- HEALTHY: sys.stdout reassignment is inside `if __name__ == "__main__":` block
+- FAILURE: Reassignment is at module level with no guard
+
+---
+
+## Q5.3 [CORRECTNESS] analyze.py handles missing results.tsv
+**Mode**: correctness
+**Target**: template/analyze.py, adbp/analyze.py
+**Hypothesis**: `analyze.py` reads `results.tsv` to generate the PDF report. If the file doesn't exist (new project before any runs), the script crashes with FileNotFoundError rather than printing a helpful message.
+**Test**: `cd C:/Users/trg16/Dev/autosearch/template && python analyze.py 2>&1 | head -10`
+**Verdict threshold**:
+- HEALTHY: Script prints a helpful "no results yet" message and exits 0
+- WARNING: Script exits non-zero but with a clear error message
+- FAILURE: Unhandled FileNotFoundError or AttributeError traceback
+
+---
+
+## Q5.4 [SECURITY] get_project_path containment guard bypassable via symlinks
+**Mode**: quality
+**Target**: dashboard/backend/main.py
+**Agent**: security-hardener
+**Hypothesis**: The new `get_project_path()` containment guard uses `Path.resolve().is_relative_to()`. On Linux/Mac, a symlink inside `projects/` pointing outside it bypasses `resolve()` checks. On Windows, junction points do the same. The guard is sound on Windows without junctions but documents a known limitation.
+**Test**: `grep -n "resolve\|is_relative_to\|symlink\|junction" C:/Users/trg16/Dev/autosearch/dashboard/backend/main.py`
+**Verdict threshold**:
+- HEALTHY: Guard uses resolve() AND documents symlink/junction limitation, or server only binds to 127.0.0.1
+- WARNING: Guard uses resolve() without symlink documentation but server binds to localhost only
+- FAILURE: Guard uses resolve() without symlink documentation AND server binds to 0.0.0.0
+
+---
+
+## Q5.5 [CORRECTNESS] results.tsv race condition on concurrent writes
+**Mode**: correctness
+**Target**: recall/simulate.py
+**Hypothesis**: `write_result()` in `recall/simulate.py` appends to `results.tsv` with no file lock. If two runners execute simultaneously against the same project, both read-then-append without coordination, producing interleaved or partial TSV rows.
+**Test**: `grep -n "results_tsv\|write_result\|open.*append\|lock\|fcntl" C:/Users/trg16/Dev/autosearch/recall/simulate.py | head -20`
+**Verdict threshold**:
+- HEALTHY: File write uses a lock (fcntl, msvcrt, or threading.Lock)
+- WARNING: No lock but campaign runner is single-process by design (acceptable)
+- FAILURE: No lock and `--campaign` mode spawns parallel workers writing to the same file
+
+---
+
+## Q5.6 [AGENT] Fix template/simulate.py baseline verdict
+**Mode**: agent
+**Target**: template/simulate.py
+**Agent**: security-hardener
+**Hypothesis**: The unmodified template baseline returns FAILURE because `revenue = monthly_volume * 0.001` (TODO placeholder) produces ~$175/mo revenue vs $30,000/mo ops cost. Replace with a self-sustaining formula so the baseline is HEALTHY before the agent makes any changes.
+**Test**: After fix, `python template/simulate.py 2>&1 | grep "^verdict:"` should return `verdict: HEALTHY`
+**Verdict threshold**:
+- HEALTHY: Output contains `verdict: HEALTHY` and no traceback
+- FAILURE: Still returns FAILURE or traceback
+
+---
+
+## Q5.7 [AGENT] Fix dashboard parse_questions + add_question format mismatch
+**Mode**: agent
+**Target**: dashboard/backend/main.py
+**Agent**: forge
+**Hypothesis**: `parse_questions()` reads only table format; `add_question()` writes table format; current questions.md uses block format. Both functions need updating to support the block format, and add_question needs max-based ID generation.
+**Test**: After fix, manually verify parse_questions returns all 15 questions from projects/bricklayer/questions.md; verify add_question writes a valid block-format entry.
+**Verdict threshold**:
+- HEALTHY: parse_questions returns 15 questions; add_question writes block format with non-colliding ID
+- WARNING: parse_questions works but add_question still has ID collision risk
+- FAILURE: Either function still broken for block format
+
+---
+
+## Q5.8 [AGENT] Fix docs prompt injection delimiters in run_scout
+**Mode**: agent
+**Target**: onboard.py
+**Agent**: security-hardener
+**Hypothesis**: `run_scout()` injects docs content directly into the Claude prompt without XML delimiters. Wrapping in `<docs>...</docs>` is a one-line fix that prevents content injection.
+**Test**: After fix, `grep -A2 "docs_content" C:/Users/trg16/Dev/autosearch/onboard.py | grep "<docs>"` should match.
+**Verdict threshold**:
+- HEALTHY: docs_content wrapped in `<docs>` XML tags in the prompt string
+- FAILURE: No delimiter present after fix attempt
