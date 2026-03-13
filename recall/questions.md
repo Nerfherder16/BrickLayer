@@ -195,3 +195,49 @@ Also run `pytest C:/Users/trg16/Dev/Recall/tests/ml/ -v --tb=short -q` if the di
 - FAILURE: bare except that swallows errors OR 200 returned on known error condition
 - WARNING: inconsistent status codes across routes (some use 422, others use 400 for same error type)
 - HEALTHY: all routes use explicit HTTPException with correct status codes and no internal detail leaked
+
+---
+
+## Agent Dispatch Questions (Q4.x) — Specialist Agent Fix Loops
+
+These questions invoke specialist agents against findings from Q1–Q3.
+The agent reads the finding, applies its fix loop, and reports back.
+
+---
+
+## Q4.1 [AGENT] security-hardener → API route error handling
+**Mode**: agent
+**Agent**: security-hardener
+**Finding**: Q3.5
+**Source**: src/api/routes/
+**Hypothesis**: security-hardener will tighten bare excepts and inconsistent error handling across API routes, committing fixes with security tests
+**Verdict threshold**:
+- HEALTHY: agent committed ≥1 fix with a corresponding security test
+- WARNING: agent found issues but reported them as architectural debt (unfixable without redesign)
+- INCONCLUSIVE: agent produced no structured output or claude CLI unavailable
+
+---
+
+## Q4.2 [AGENT] test-writer → write_guard and decay coverage gap
+**Mode**: agent
+**Agent**: test-writer
+**Finding**: Q2.2
+**Source**: src/core/write_guard.py
+**Hypothesis**: test-writer will add fast-mode tests for write_guard deduplication that don't require @pytest.mark.slow, lifting coverage above 70%
+**Verdict threshold**:
+- HEALTHY: coverage increased and new tests pass without slow mark
+- WARNING: tests written but coverage delta < 5%
+- INCONCLUSIVE: agent produced no structured output
+
+---
+
+## Q4.3 [AGENT] type-strictener → reranker and retrieval type coverage
+**Mode**: agent
+**Agent**: type-strictener
+**Finding**: Q3.4
+**Source**: src/core/retrieval.py
+**Hypothesis**: type-strictener will reduce mypy errors in retrieval.py by narrowing Any types and adding missing return annotations
+**Verdict threshold**:
+- HEALTHY: mypy error count decreases and all existing tests still pass
+- WARNING: agent ran but errors reduced by < 3
+- INCONCLUSIVE: agent produced no structured output or mypy not installed
