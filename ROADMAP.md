@@ -26,15 +26,17 @@ The human defines what matters. The agent asks the questions, runs the experimen
 | C-12 | Runners | `document` runner — completeness/accuracy/consistency checks on docs vs code | **FREE** | — |
 | C-13 | Runners | `contract` runner — Solana/EVM invariant checking and edge case fuzzing | **FREE** | — |
 | C-14 | Meta-agents | Hypothesis-generator: generate Wave N+1 questions from findings patterns | **FREE** | — |
-| C-15 | Meta-agents | Crucible: benchmark existing agents, promote/retire by score | **FREE** | — |
+| C-15 | Meta-agents | Crucible: benchmark existing agents, promote/retire by score — **checks & balances for Forge output** | **FREE** | — |
 | C-16 | Dashboard | Question status live-update in dashboard UI | **FREE** | — |
 | C-17 | Integrations | GitHub Actions hook — run campaign on PR, post findings as review comments | **FREE** | — |
 | C-18 | Phase 3 | Hypothesis generation from git diffs — auto-question on commit | **FREE** | — |
 | C-19 | Phase 3 | Cross-project knowledge transfer — bug patterns propagate across projects | **FREE** | — |
 | C-20 | Campaign | Failure taxonomy — `classify_failure_type()` wired into every result; `failure_type` in findings + results.tsv | **DONE** | conv:mar13-afternoon |
 | C-21 | Campaign | Confidence signaling — agents emit `high\|medium\|low\|uncertain`; orchestrator uses to route | **DONE** | conv:mar13-afternoon |
-| C-22 | Campaign | Eval/scoring harness — lightweight scorer grades agent outputs; scores written to results.tsv | **FREE** | — |
+| C-22 | Campaign | Eval/scoring harness — lightweight scorer grades agent outputs; scores written to results.tsv | **DONE** | conv:mar13-afternoon |
 | C-23 | Campaign | Introspection decorator — per-step trace `{thought, tool_call, result, tokens, latency, confidence, error_type}` written to Recall | **DONE** | conv:mar13-afternoon |
+| C-24 | Campaign | ML spec validator — re-run initial baseline questions to confirm model choices, thresholds, and embedding params are still valid | **FREE** | — |
+| C-25 | Architecture | Local inference routing — lightweight BrickLayer ops (scoring, failure classification, confidence, hypothesis generation) routed to 3060 Ollama; reserve Claude API for heavy execution | **DONE** | conv:mar13-afternoon |
 
 ### Sessions active
 
@@ -83,13 +85,50 @@ Use a short label for `Claimed By` — date + session context is enough (`conv:m
 | program.md async wiring | Live Discovery + wave-start sentinel check added to template, recall, adbp program.md | `6882c0e` |
 | simulate.py checkpoints | `_check_sentinels()`, `_spawn_agent_background()`, `_run_forge_blocking()`, `_inject_override_questions()` wired into `--campaign` loop | `9059d28` |
 | Silent exception fixes | 3 bare `except Exception: pass` → logged stderr warnings | `d2895d4` |
+| Module split (C-01) | `bl/config.py`, `bl/runners/`, `bl/agents/` — Runner(Protocol) interface; simulate.py thin CLI entry point | `conv:mar13-main` |
+| Runner Registry (C-02) | `Runner(Protocol)` interface in `bl/runners/base.py`; http, subprocess, static runners return universal verdict envelope | `conv:mar13-afternoon` |
+| Verdict history (C-05) | SQLite ledger in `history.db` per project; `record_verdict()` + `check_regression()` — flags HEALTHY→FAILURE regressions | `conv:mar13-afternoon` |
+| AUTOSEARCH_ROOT path fix | Root simulate.py: `.parent.parent` → `.parent` (re-fixed after monolith copy reset it); `errors="replace"` on finding file reads | `conv:mar13-afternoon` |
 | Failure taxonomy | `classify_failure_type()` in simulate.py — `syntax\|logic\|hallucination\|tool_failure\|timeout\|unknown`; `failure_type` field in verdict envelope, finding .md, and results.tsv | `conv:mar13-afternoon` |
 | Confidence signaling | `classify_confidence()` + `CONFIDENCE_ROUTING` in simulate.py — `high\|medium\|low\|uncertain` → `accept\|validate\|escalate\|re-run`; wired into verdict envelope, finding .md, results.tsv | `conv:mar13-afternoon` |
 | Introspection decorator | `@introspect_step` on `_run_and_record` — writes `{agent, phase, thought, tool_call, tool_result, latency_ms, confidence, error_type, timestamp}` to `introspect.jsonl` + fire-and-forget Recall POST | `conv:mar13-afternoon` |
+| Eval/scoring harness | `score_result()` — weighted formula (evidence_quality×0.4 + verdict_clarity×0.4 + execution_success×0.2); `score` field in verdict envelope, finding .md, results.tsv | `conv:mar13-afternoon` |
+| Local inference routing (C-25) | `classify_failure_type()`, `classify_confidence()`, `score_result()` try qwen2.5:7b at 192.168.50.62 first; heuristic fallback if unreachable | `conv:mar13-afternoon` |
 
 ---
 
 ## Architecture
+
+### C-25 — Local Inference Routing (3060 Ollama)
+
+The campaign loop has two classes of work:
+
+**Heavy** — needs frontier intelligence, uses Claude API:
+- Question execution (agent runner, correctness, quality)
+- Fix agents, Forge agent creation
+- Retrospective agent
+
+**Light** — bookkeeping and meta-loop, can use local 7B:
+- `score_result()` — grade evidence quality, verdict clarity, execution success
+- `classify_failure_type()` — syntax|logic|hallucination|tool_failure|timeout
+- `classify_confidence()` — high|medium|low|uncertain routing
+- `hypothesis-generator` — generate Wave N+1 questions from findings patterns
+- Peer-reviewer light pass — re-run test + sanity check (not deep analysis)
+
+The 3060 runs its own Ollama instance at `http://localhost:11434`. The 3090 at
+`192.168.50.62:11434` stays dedicated to Recall (signal detection + Graphiti).
+
+**Implementation plan:**
+1. Add `local_ollama_url` + `local_model` to `bl/config.py` (default: `http://localhost:11434`, `qwen2.5:7b`)
+2. Add `bl/local_inference.py` — thin `ollama_complete(prompt)` wrapper with timeout + fallback
+3. Replace regex heuristics in `classify_failure_type()` and `classify_confidence()` with local model calls
+4. Replace hardcoded formula in `score_result()` with local model scoring prompt
+5. Port `hypothesis-generator` agent to use local model instead of Claude API subprocess
+6. Add `--local-inference` flag to simulate.py to opt in (off by default until validated)
+
+**Model recommendation:** `qwen2.5:7b` (4.5GB at Q4_K_M — fits 3060's VRAM with headroom)
+
+---
 
 ### Current (v0.1)
 

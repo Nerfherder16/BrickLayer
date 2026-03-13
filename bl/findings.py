@@ -7,6 +7,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from bl.config import cfg
+from bl.local_inference import (
+    classify_confidence_local,
+    classify_failure_type_local,
+    score_result_local,
+)
 
 # ---------------------------------------------------------------------------
 # Failure taxonomy
@@ -22,11 +27,20 @@ def classify_failure_type(result: dict, mode: str) -> str | None:
     Classify why a question failed. Returns one of:
       syntax | logic | hallucination | tool_failure | timeout | unknown
     Returns None when verdict is HEALTHY or WARNING — no failure to classify.
+
+    Tries local model (Ollama) first; falls back to keyword heuristic if
+    local inference is unavailable or returns an unexpected value.
     """
     verdict = result.get("verdict", "")
     if verdict in ("HEALTHY", "WARNING"):
         return None
 
+    # Try local model first
+    local = classify_failure_type_local(result, mode)
+    if local:
+        return local
+
+    # Heuristic fallback
     details = (result.get("details", "") or "").lower()
     summary = (result.get("summary", "") or "").lower()
     combined = details + " " + summary
@@ -97,6 +111,161 @@ def classify_failure_type(result: dict, mode: str) -> str | None:
             return "hallucination"
 
     return "unknown"
+
+
+# ---------------------------------------------------------------------------
+# Confidence signaling
+# ---------------------------------------------------------------------------
+
+CONFIDENCE_ROUTING: dict[str, str] = {
+    "high": "accept",
+    "medium": "validate",
+    "low": "escalate",
+    "uncertain": "re-run",
+}
+
+
+def classify_confidence(result: dict, mode: str) -> str:
+    """
+    Estimate how much trust to place in this verdict.
+    Returns: high | medium | low | uncertain
+
+    Tries local model (Ollama) first; falls back to structured heuristic if
+    local inference is unavailable or returns an unexpected value.
+    """
+    verdict = result.get("verdict", "")
+
+    # INCONCLUSIVE always uncertain — we don't know what happened
+    if verdict == "INCONCLUSIVE":
+        return "uncertain"
+
+    # Try local model first
+    local = classify_confidence_local(result)
+    if local:
+        return local
+
+    # Heuristic fallback
+    data = result.get("data", {}) or {}
+    details = (result.get("details", "") or "").lower()
+
+    # --- Performance mode ---
+    if mode == "performance":
+        stages = data.get("stages", [])
+        if not stages:
+            return "uncertain"
+        early_stop = data.get("early_stop_at")
+        if early_stop:
+            return "low"
+        return "high" if len(stages) >= 3 else "medium"
+
+    # --- Correctness mode ---
+    if mode == "correctness":
+        passed = data.get("passed", 0) or 0
+        failed = data.get("failed", 0) or 0
+        total = passed + failed
+        if total == 0:
+            return "uncertain"
+        if total >= 10:
+            return "high"
+        if total >= 3:
+            return "medium"
+        return "low"
+
+    # --- Agent / quality / static mode ---
+    if mode in ("agent", "quality", "static"):
+        concrete_signals = (
+            "line ",
+            "line:",
+            ".py:",
+            ".rs:",
+            ".ts:",
+            ".kt:",
+            "function ",
+            "def ",
+            "file:",
+            "/src/",
+            "test_",
+            "error:",
+            "warning:",
+            "assert",
+            "found ",
+        )
+        evidence_count = sum(1 for s in concrete_signals if s in details)
+        if evidence_count >= 4:
+            return "high"
+        if evidence_count >= 2:
+            return "medium"
+        if evidence_count >= 1:
+            return "low"
+        if data and data != {}:
+            return "medium"
+        return "uncertain"
+
+    # --- Generic fallback by verdict ---
+    if verdict == "FAILURE":
+        return "high" if details.strip() else "low"
+    if verdict == "WARNING":
+        return "medium"
+    if verdict == "HEALTHY":
+        return "high" if details.strip() else "medium"
+
+    return "uncertain"
+
+
+# ---------------------------------------------------------------------------
+# Eval / scoring harness
+# ---------------------------------------------------------------------------
+
+_VERDICT_CLARITY: dict[str, float] = {
+    "HEALTHY": 1.0,
+    "FAILURE": 1.0,
+    "WARNING": 0.7,
+    "INCONCLUSIVE": 0.0,
+}
+
+_CONFIDENCE_EVIDENCE: dict[str, float] = {
+    "high": 1.0,
+    "medium": 0.7,
+    "low": 0.3,
+    "uncertain": 0.0,
+}
+
+_FAILURE_EXECUTION: dict[str, float] = {
+    None: 1.0,
+    "logic": 0.9,
+    "syntax": 0.8,
+    "hallucination": 0.4,
+    "unknown": 0.5,
+    "timeout": 0.3,
+    "tool_failure": 0.0,
+}
+
+
+def score_result(result: dict) -> float:
+    """
+    Score a verdict envelope on a 0.0-1.0 scale.
+
+    Tries local model (Ollama) first; falls back to weighted formula:
+      evidence_quality * 0.4 + verdict_clarity * 0.4 + execution_success * 0.2
+    """
+    # Try local model first
+    local = score_result_local(result)
+    if local is not None:
+        return local
+
+    # Formula fallback
+    verdict = result.get("verdict", "INCONCLUSIVE")
+    confidence = result.get("confidence", "uncertain")
+    failure_type = result.get("failure_type")
+
+    evidence_quality = _CONFIDENCE_EVIDENCE.get(confidence, 0.0)
+    verdict_clarity = _VERDICT_CLARITY.get(verdict, 0.0)
+    execution_success = _FAILURE_EXECUTION.get(failure_type, 0.5)
+
+    score = (
+        (evidence_quality * 0.4) + (verdict_clarity * 0.4) + (execution_success * 0.2)
+    )
+    return round(score, 3)
 
 
 # ---------------------------------------------------------------------------
