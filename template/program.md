@@ -114,6 +114,47 @@ questions. Add up to 5 new PENDING questions to questions.md. Label them Wave-mi
 Do not invoke hypothesis-generator on every question — only every 5. The overhead
 of running it too frequently outweighs the benefit.
 
+Also invoke `forge-check` to scan for agent coverage gaps:
+```
+Act as the forge-check agent in .claude/agents/forge-check.md.
+Inventory the agent fleet in .claude/agents/, scan the 5 most recent findings,
+and check all PENDING questions for missing agents.
+If gaps exist, write agents/FORGE_NEEDED.md. If no gaps, output FLEET COMPLETE.
+```
+
+If `agents/FORGE_NEEDED.md` is written, immediately invoke Forge to fill the gap
+before continuing the loop.
+
+### Every 10 completed questions
+
+Invoke `agent-auditor` to assess fleet health and recommend promote/retire/update actions:
+```
+Act as the agent-auditor agent in .claude/agents/agent-auditor.md.
+Read all .md files in .claude/agents/, read results.tsv, and read the findings/ directory.
+Write the fleet health report to .claude/agents/AUDIT_REPORT.md.
+```
+
+Apply any RETIRE recommendations immediately (delete the agent file).
+Apply PROMOTE recommendations by updating the agent's `tier` frontmatter field.
+Apply UPDATE TRIGGERS recommendations by editing the agent's `trigger:` frontmatter.
+Do not apply CRUCIBLE REVIEW recommendations autonomously — flag to the researcher.
+
+### After every fix wave
+
+Invoke `peer-reviewer` on the highest-severity finding from the wave:
+```
+Act as the peer-reviewer agent in .claude/agents/peer-reviewer.md.
+Primary finding: findings/<question_id>.md
+Target git: . (current repo)
+Agents dir: .claude/agents/
+Re-run the original test, review the fix code, and append a ## Peer Review section
+to the finding file with your verdict (CONFIRMED | CONCERNS | OVERRIDE).
+```
+
+If peer-reviewer returns OVERRIDE, create a new PENDING question in `questions.md`
+for the original fix agent to re-examine, then continue the loop. Do not revert the
+fix commit without human confirmation.
+
 ---
 
 ## Output Format
