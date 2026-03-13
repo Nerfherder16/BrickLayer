@@ -869,8 +869,8 @@ def _run_scout_for_project() -> None:
             if doc.is_file():
                 try:
                     docs_content += f"\n\n### {doc.name}\n{doc.read_text(encoding='utf-8', errors='ignore')[:3000]}"
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    print(f"[scout] skipping {doc.name}: {exc}", file=sys.stderr)
 
     prompt = f"""{body}
 
@@ -1335,7 +1335,8 @@ def _analyze_quality_patterns(
                 continue
             try:
                 src = fpath.read_text(encoding="utf-8", errors="replace")
-            except Exception:
+            except Exception as exc:  # noqa: BLE001
+                print(f"[quality] skipping {fpath.name}: {exc}", file=sys.stderr)
                 continue
             has_stdlib = bool(re.search(r"^import logging\b", src, re.MULTILINE))
             has_structlog = bool(re.search(r"import structlog", src))
@@ -1373,7 +1374,8 @@ def _analyze_quality_patterns(
                 continue
             try:
                 src = fpath.read_text(encoding="utf-8", errors="replace")
-            except Exception:
+            except Exception as exc:  # noqa: BLE001
+                print(f"[quality] skipping {fpath.name}: {exc}", file=sys.stderr)
                 continue
             # Find module-level dict/list assignments
             module_dicts = re.findall(
