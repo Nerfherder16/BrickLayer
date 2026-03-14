@@ -878,41 +878,44 @@ concurrent hook latency, importance decay burial, storage failure recovery, and 
 
 *Follow-up drill-down for Q9.1 — FAILURE verdict*
 
-## Q9.1.1 [LatencySpike] Latency spike during 100-store burst
-**Mode**: performance
+## Q9.1.1 [AGENT] Qdrant HNSW configuration — is segment merge stall tunable?
+**Mode**: agent
+**Agent**: quantitative-analyst
 **Status**: PENDING
-**Hypothesis**: The observed latency increase after the first 50 stores is due to insufficient parallelism or resource contention.
-**Test**: Fire 100 sequential store requests with varied content, but limit the concurrency level to a lower value (e.g., 20) and measure the p95 latency. Compare this result with the original test.
+**Hypothesis**: The 5973ms max store latency from Q9.1 is a Qdrant HNSW segment merge stall — a known behavior when the index grows large. The collection may be using default HNSW parameters (m=16, ef_construction=100) that are suboptimal at 20K+ vectors. Tuning m lower (e.g., 8) or enabling on_disk_payload reduces merge pressure.
+**Test**: Call GET /collections/{collection_name} on the Qdrant API (http://192.168.50.19:6333) to retrieve the current HNSW config (m, ef_construction, on_disk_payload, indexing_threshold). Compare against recommended values for a 20K+ vector collection. Check the collection's segment count — high segment count confirms merge pressure.
 **Verdict threshold**:
-- FAILURE: p95 > 2000ms
-- WARNING: p95 between 1500ms and 2000ms
-- HEALTHY: p95 < 1500ms
+- FAILURE: m >= 16 AND indexing_threshold at default AND segment count > 5 (all factors pointing to merge pressure with no mitigation)
+- WARNING: suboptimal config detected but partial mitigation in place
+- HEALTHY: m <= 8 OR on_disk_payload=true OR indexing_threshold tuned for low-merge operation
 **Derived from**: Q9.1 (FAILURE)
 
 ---
 
-## Q9.1.2 [ConcurrencyTest] Concurrency impact on latency
-**Mode**: performance
+## Q9.1.2 [AGENT] Qdrant collection segment count at 20K+ vectors
+**Mode**: agent
+**Agent**: quantitative-analyst
 **Status**: PENDING
-**Hypothesis**: The segment merge is causing a significant delay, and increasing the number of concurrent stores might mitigate this issue.
-**Test**: Fire 100 sequential store requests with varied content using higher concurrency (e.g., 50) and measure the p95 latency. Compare this result with the original test.
+**Hypothesis**: At 20K+ memories, the Qdrant collection has accumulated many small segments that trigger frequent merges. Each merge briefly blocks new vector writes, causing the 5-6s latency spike. The segment count is directly observable via the Qdrant API and confirms/rules out this cause.
+**Test**: Call GET /collections/{collection_name}/cluster and GET /collections/{collection_name} on the Qdrant API (http://192.168.50.19:6333). Check: (1) segments_count in the collection info, (2) optimizer_status, (3) vectors_count. A high segment count (>10) with optimizer running confirms the hypothesis.
 **Verdict threshold**:
-- FAILURE: p95 > 2000ms
-- WARNING: p95 between 1500ms and 2000ms
-- HEALTHY: p95 < 1500ms
+- FAILURE: segments_count > 10 AND optimizer_status != "ok" (active merge contention)
+- WARNING: segments_count > 5 (merge pressure building)
+- HEALTHY: segments_count <= 5 and optimizer_status = "ok"
 **Derived from**: Q9.1 (FAILURE)
 
 ---
 
-## Q9.1.3 [MergeStall] Segment merge stall duration
-**Mode**: performance
+## Q9.1.3 [AGENT] Qdrant optimizer config — is indexing_threshold set for write throughput?
+**Mode**: agent
+**Agent**: quantitative-analyst
 **Status**: PENDING
-**Hypothesis**: The segment merge is causing a single request to exceed the threshold of 5000ms.
-**Test**: Monitor the latency of individual store requests during the 100-store burst and identify any request that exceeds 5000ms. Record the exact time when these requests occur and correlate with the system logs for signs of segment merge activity.
+**Hypothesis**: Qdrant's indexing_threshold controls when segments get merged into the HNSW index. The default (20000 vectors) means the index triggers a full rebuild at 20K vectors — exactly the corpus size in Q9.1. Lowering indexing_threshold or tuning max_segment_size would reduce stall frequency.
+**Test**: Call GET /collections/{collection_name} on the Qdrant API (http://192.168.50.19:6333). Check: (1) config.optimizer_config.indexing_threshold, (2) config.optimizer_config.max_segment_size, (3) config.optimizer_config.memmap_threshold. Compare against the Qdrant documentation recommendation for write-heavy workloads.
 **Verdict threshold**:
-- FAILURE: Any single request > 5000ms
-- WARNING: Any single request between 4000ms and 5000ms
-- HEALTHY: All requests < 4000ms
+- FAILURE: indexing_threshold at default (20000) with corpus already at 20K+ (exact trigger point for full reindex)
+- WARNING: threshold within 20% of corpus size
+- HEALTHY: threshold significantly above corpus size or max_segment_size tuned to limit merge scope
 **Derived from**: Q9.1 (FAILURE)
 
 ---
@@ -923,11 +926,12 @@ concurrent hook latency, importance decay burial, storage failure recovery, and 
 
 *Follow-up drill-down for Q9.5 — WARNING verdict*
 
-## Q9.5.1 [CODE_REVIEW] Transaction boundary verification
+## Q9.5.1 [AGENT] Transaction boundary verification
 **Mode**: agent
+**Agent**: quantitative-analyst
 **Status**: PENDING
 **Hypothesis**: The transaction boundaries between Qdrant and Neo4j writes are not properly managed, leading to potential race conditions.
-**Test**: Review the code for explicit transaction management or isolation levels that ensure both writes are committed atomically.
+**Test**: Read C:/Users/trg16/Dev/Recall/src/api/routes/memory.py and C:/Users/trg16/Dev/Recall/src/storage/qdrant.py and C:/Users/trg16/Dev/Recall/src/storage/neo4j_store.py. Review the code for explicit transaction management or isolation levels that ensure both writes are committed atomically.
 **Verdict threshold**:
 - FAILURE: Lack of transactional guarantees
 - WARNING: Inconsistent transaction handling logic
@@ -936,11 +940,12 @@ concurrent hook latency, importance decay burial, storage failure recovery, and 
 
 ---
 
-## Q9.5.2 [CODE_REVIEW] Rollback mechanism validation
+## Q9.5.2 [AGENT] Rollback mechanism validation
 **Mode**: agent
+**Agent**: quantitative-analyst
 **Status**: PENDING
 **Hypothesis**: The rollback mechanism for Neo4j writes in case of Qdrant failure is insufficient, potentially leaving orphaned nodes.
-**Test**: Inspect the code to ensure that a failed Qdrant write triggers a proper rollback in Neo4j, deleting any created nodes.
+**Test**: Read C:/Users/trg16/Dev/Recall/src/api/routes/memory.py. Inspect the code to ensure that a failed Qdrant write triggers a proper rollback in Neo4j, deleting any created nodes.
 **Verdict threshold**:
 - FAILURE: Missing or ineffective rollback mechanism
 - WARNING: Incomplete or conditional rollback logic
@@ -949,11 +954,12 @@ concurrent hook latency, importance decay burial, storage failure recovery, and 
 
 ---
 
-## Q9.5.3 [CODE_REVIEW] Orphan detection and cleanup
+## Q9.5.3 [AGENT] Orphan detection and cleanup
 **Mode**: agent
+**Agent**: quantitative-analyst
 **Status**: PENDING
 **Hypothesis**: There is no mechanism in place to detect or clean up orphaned Neo4j nodes, leading to potential resource leaks.
-**Test**: Check for any existing mechanisms that periodically scan the graph for orphaned nodes and delete them.
+**Test**: Read C:/Users/trg16/Dev/Recall/src/workers/hygiene.py. Check for any existing mechanisms that periodically scan the graph for orphaned nodes and delete them.
 **Verdict threshold**:
 - FAILURE: No orphan detection or cleanup mechanism
 - WARNING: Inadequate or infrequent orphan detection

@@ -54,8 +54,11 @@ Q9.2	HEALTHY		uncertain	0.600	consolidation x3: run1=21ms(status=422) | run2=7ms
 Q9.3	HEALTHY		uncertain	0.600	5-concurrent x10 rounds: p50=8ms p95=12ms p99=13ms (n=50)	2026-03-14T15:09:40Z
 Q9.6	HEALTHY		medium	0.880	quantitative-analyst: {"verdict": "HEALTHY", "hit_rate": null, "summary": "Redis failure does not affect deduplication \	2026-03-14T15:12:02Z
 Q9.5	WARNING		medium	0.760	quantitative-analyst: {"verdict": "WARNING", "hit_rate": null, "summary": "Write order is Qdrant-first so the specific N	2026-03-14T15:15:56Z
-Q9.7	INCONCLUSIVE	unknown	uncertain	0.100	coverage 100% → 100% (0 tests written)	2026-03-14T15:17:02Z
+Q9.7	HEALTHY		high	1.000	34 tests pass for hygiene.py + dream_consolidation.py — already covered	2026-03-14T15:17:02Z
 Q9.8	HEALTHY		medium	0.880	3 passed, 0 failed	2026-03-14T15:17:06Z
-Q9.1.1	INCONCLUSIVE	unknown	uncertain	0.100	Unknown mode 'latencyspike'	2026-03-14T15:17:06Z
-Q9.1.2	INCONCLUSIVE	unknown	uncertain	0.100	Unknown mode 'concurrencytest'	2026-03-14T15:17:08Z
-Q9.1.3	INCONCLUSIVE	unknown	uncertain	0.100	Unknown mode 'mergestall'	2026-03-14T15:17:09Z
+Q9.1.1	HEALTHY		medium	0.880	quantitative-analyst: {"verdict": "HEALTHY", "hit_rate": null, "summary": "recall_memories collection has on_disk_payloa	2026-03-14T15:32:19Z
+Q9.1.2	HEALTHY		medium	0.880	quantitative-analyst: {"verdict": "HEALTHY", "hit_rate": null, "summary": "recall_memories collection has 2 segments at 	2026-03-14T15:35:32Z
+Q9.1.3	WARNING		medium	0.760	quantitative-analyst: {"verdict": "WARNING", "hit_rate": null, "summary": "indexing_threshold is 10000 (not the default 	2026-03-14T15:37:50Z
+Q9.5.1	WARNING		low	0.600	quantitative-analyst: {"verdict": "WARNING", "hit_rate": null, "summary": "Compensating-transaction pattern is present b	2026-03-14T15:39:33Z
+Q9.5.2	WARNING		low	0.600	quantitative-analyst: {"verdict": "WARNING", "hit_rate": null, "summary": "Compensating rollback exists (Qdrant delete o	2026-03-14T15:41:22Z
+Q9.5.3	WARNING		medium	0.760	quantitative-analyst: {"verdict": "WARNING", "hit_rate": null, "summary": "Orphan detection exists via a manual /reconci	2026-03-14T15:42:29Z
