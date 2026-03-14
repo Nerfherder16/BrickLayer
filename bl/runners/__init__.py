@@ -12,11 +12,13 @@ from bl.runners.base import Runner, get, register, registered_modes  # noqa: F40
 
 
 def _register_builtins() -> None:
-    """Register the four built-in runners. Called once at module import."""
+    """Register the built-in runners. Called once at module import."""
     from bl.runners.agent import run_agent
     from bl.runners.correctness import run_correctness
+    from bl.runners.http import run_http
     from bl.runners.performance import run_performance
     from bl.runners.quality import run_quality
+    from bl.runners.subprocess_runner import run_subprocess
 
     def _performance_sync(question: dict) -> dict:
         return asyncio.run(run_performance(question))
@@ -25,9 +27,9 @@ def _register_builtins() -> None:
     register("correctness", run_correctness)
     register("quality", run_quality)
     register("agent", run_agent)
-    # static and http are aliases for quality/agent until dedicated runners land
     register("static", run_quality)
-    register("http", _performance_sync)
+    register("http", run_http)
+    register("subprocess", run_subprocess)
 
 
 _register_builtins()
