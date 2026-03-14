@@ -27,6 +27,24 @@ Each question maps to a failure hypothesis. Each simulation either confirms the 
 
 ```
 bricklayer/
+├── bl/                        # Campaign engine (modular Python package)
+│   ├── campaign.py            # Main loop — picks question, runs, records verdict
+│   ├── questions.py           # questions.md parser + results.tsv I/O
+│   ├── config.py              # Project config singleton
+│   ├── history.py             # SQLite verdict history + regression detection
+│   ├── followup.py            # Adaptive follow-up question generation (C-04)
+│   ├── fixloop.py             # FAILURE → fix agent → re-run loop (C-06)
+│   ├── goal.py                # Goal-directed question generation from goal.md (C-03)
+│   ├── crucible.py            # Agent benchmarking via structural rubrics (C-15)
+│   ├── hypothesis.py          # Hypothesis generation (local LLM)
+│   └── runners/               # Mode-specific test runners
+│       ├── performance.py     # Async HTTP load tests (locust-style sweeps)
+│       ├── correctness.py     # pytest subprocess runner
+│       ├── quality.py         # Static source analysis
+│       ├── agent.py           # Claude CLI agent dispatcher
+│       ├── http.py            # Single HTTP request/response checks (C-07)
+│       └── subprocess_runner.py  # Arbitrary subprocess with verdict parsing (C-08)
+├── agents/                    # Global specialist agents (shared across projects)
 ├── template/                  # Copy to start a new project
 │   ├── simulate.py            # The model (agent edits SCENARIO PARAMETERS only)
 │   ├── constants.py           # Immutable rules — never touched by agents
@@ -37,7 +55,7 @@ bricklayer/
 │   ├── findings/              # Per-question findings (*.md)
 │   ├── results.tsv            # Run log
 │   ├── analyze.py             # PDF report generator
-│   └── .claude/agents/        # Specialist agents (see below)
+│   └── .claude/agents/        # Project-specific agents
 ├── dashboard/                 # Web monitoring UI
 │   ├── backend/               # FastAPI — reads project files, serves API
 │   └── frontend/              # React + Vite — live question queue, findings feed
@@ -53,18 +71,66 @@ BrickLayer uses a team of domain-specialist agents. Each knows its lane. Each st
 | Agent | Domain | What it does |
 |-------|--------|--------------|
 | `question-designer` | Init | Reads all project documents, identifies conflicts, generates the initial question bank. Applies 3-tier source authority — human docs override agent output. |
-| `quantitative-analyst` | Simulation | Runs failure boundary mapping through simulate.py. Tracks sensitivity rankings, break-even thresholds, and bridge capital requirements. |
+| `quantitative-analyst` | Live API testing | Makes real HTTP calls against the target system. Stores test memories, queries with paraphrases, runs consolidation, measures dedup behavior. Returns empirical verdicts, not simulated ones. |
 | `regulatory-researcher` | Legal/Compliance | Researches regulatory classification, licensing, tax treatment, and case law. Uses live web sources. Flags post-training-cutoff items for validation. |
 | `competitive-analyst` | Market | Maps analogous system failures, benchmarks fees and participation rates, assesses competitive moats. Pulls live pricing data from the web. |
 | `benchmark-engineer` | Baselines | Establishes performance baselines before stress testing. Used when simulate.py calls live services. |
 | `hypothesis-generator` | Discovery | Scans recent findings for patterns and gaps. Generates Wave N questions every 5 completed questions. Keeps high-severity threads alive. |
 | `synthesizer` | Synthesis | Reads all findings at session end. Produces a cross-domain dependency map, failure mode hierarchy, and minimum viable change set. |
+| `security-hardener` | Hardening | Audits source files for OWASP patterns, race conditions, and silent failure paths. Commits fixes with security tests. |
+| `test-writer` | Coverage | Writes unit and integration tests for modules with coverage gaps. Follows the same RED-GREEN-REFACTOR cycle as the campaign loop. |
+| `type-strictener` | Type safety | Reduces mypy errors, migrates deprecated APIs, replaces `Any` types. Bounded scope — one file at a time. |
+| `fix-agent` | Fix loop | Invoked automatically on FAILURE verdicts (C-06). Reads the finding, applies a targeted fix, and returns a re-run verdict. Max 2 attempts before escalating to human. |
 
 ### Live Discovery
 
 When a Critical or High severity finding is written, the loop immediately generates follow-up questions and inserts them before any remaining lower-priority work. The system self-directs — it doesn't wait for the next wave.
 
 Every 5 completed questions, `hypothesis-generator` scans for cross-domain patterns that no initial question bank anticipates. This is where the interesting findings come from.
+
+---
+
+## Campaign Engine (`bl/`)
+
+The `bl/` package is the modular campaign runner that powers the research loop. It can be used standalone via `python simulate.py --campaign` or embedded in larger automation pipelines.
+
+### Runner Modes
+
+Each question in `questions.md` declares a `[MODE]` in its header. The campaign engine dispatches to the matching runner:
+
+| Mode | Runner | What it runs |
+|------|--------|-------------|
+| `performance` | `bl/runners/performance.py` | Async HTTP load sweeps — concurrent users, p50/p95/p99 latency, error rates |
+| `correctness` | `bl/runners/correctness.py` | pytest subprocess — pass/fail verdict from test output |
+| `quality` | `bl/runners/quality.py` | Static source analysis — reads files, identifies patterns |
+| `agent` | `bl/runners/agent.py` | Spawns a specialist agent via `claude -p` |
+| `http` | `bl/runners/http.py` | Single HTTP request/response checks — status, body, latency threshold |
+| `subprocess` | `bl/runners/subprocess_runner.py` | Arbitrary subprocess with `expect_exit`, `expect_stdout` directives |
+
+### Adaptive Behaviors
+
+| Feature | Flag | What it does |
+|---------|------|-------------|
+| **Adaptive follow-up** (C-04) | on by default | On FAILURE or WARNING, generates sub-questions (Q2.4 → Q2.4.1/2/3) and appends them to `questions.md`. One level deep only. |
+| **Fix loop** (C-06) | `--fix-loop` or `BRICKLAYER_FIX_LOOP=1` | On FAILURE, spawns `fix-agent` to fix and re-run. Max 2 attempts. Records `## Fix Attempt N` in the finding. |
+| **Goal-directed campaigns** (C-03) | `--goal` | Reads `goal.md` from the project root, passes to local LLM (qwen2.5:7b), generates QG-prefixed questions targeting the stated goal. |
+| **Local inference routing** (C-25) | automatic | Routes hypothesis generation and goal question synthesis to a local Ollama model, not the Claude API. Keeps token costs low for bulk generation. |
+| **Verdict history** (C-05) | automatic | Persists all verdicts to `history.db` (SQLite). Detects regressions — if a previously HEALTHY question flips to FAILURE, it is flagged. |
+
+### Agent Benchmarking (Crucible, C-15)
+
+The Crucible benchmarks specialist agents against structural rubrics before trusting their verdicts in production campaigns. Each agent is scored on:
+
+- Output schema compliance (required fields present)
+- Verdict accuracy on known cases
+- Evidence quality (specificity, sourcing)
+- Commit behavior (did it actually write and commit the fix?)
+
+Scores persist to `history.db`. Agents are tagged `promoted`, `active`, `flagged`, or `retired`. Run with:
+
+```bash
+python simulate.py --crucible
+```
 
 ---
 
