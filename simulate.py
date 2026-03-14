@@ -2127,6 +2127,11 @@ def main():
         default=None,
         help="Override wave number for hypothesis generation",
     )
+    parser.add_argument(
+        "--crucible",
+        action="store_true",
+        help="Run Crucible agent benchmarks and print report",
+    )
     args = parser.parse_args()
 
     init_project(args.project)
@@ -2157,6 +2162,15 @@ def main():
         )
         if generated:
             print(f"Generated: {', '.join(generated)}")
+        sys.exit(0)
+
+    if args.crucible:
+        from bl.crucible import get_all_statuses, print_report, run_all_benchmarks
+
+        project_dir = QUESTIONS_MD.parent
+        scores = run_all_benchmarks(project_dir)
+        statuses = get_all_statuses(project_dir)
+        print_report(scores, statuses)
         sys.exit(0)
 
     questions = parse_questions()

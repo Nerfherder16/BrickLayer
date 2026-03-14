@@ -26,7 +26,7 @@ The human defines what matters. The agent asks the questions, runs the experimen
 | C-12 | Runners | `document` runner — completeness/accuracy/consistency checks on docs vs code | **FREE** | — |
 | C-13 | Runners | `contract` runner — Solana/EVM invariant checking and edge case fuzzing | **FREE** | — |
 | C-14 | Meta-agents | Hypothesis-generator: generate Wave N+1 questions from findings patterns | **DONE** | conv:mar13-afternoon |
-| C-15 | Meta-agents | Crucible: benchmark existing agents, promote/retire by score — **checks & balances for Forge output** | **FREE** | — |
+| C-15 | Meta-agents | Crucible: benchmark existing agents, promote/retire by score — **checks & balances for Forge output** | **DONE** | conv:mar13-c15 |
 | C-16 | Dashboard | Question status live-update in dashboard UI | **FREE** | — |
 | C-17 | Integrations | GitHub Actions hook — run campaign on PR, post findings as review comments | **FREE** | — |
 | C-18 | Phase 3 | Hypothesis generation from git diffs — auto-question on commit | **FREE** | — |
