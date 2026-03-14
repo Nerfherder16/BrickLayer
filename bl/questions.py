@@ -14,7 +14,7 @@ def parse_questions() -> list[dict]:
     text = cfg.questions_md.read_text(encoding="utf-8")
 
     block_pattern = re.compile(
-        r"^## (Q[\d.]+\w*) \[(\w+)\] (.+?)$",
+        r"^## (Q[\w.-]+) \[(\w+)\] (.+?)$",
         re.MULTILINE,
     )
     field_pattern = re.compile(
