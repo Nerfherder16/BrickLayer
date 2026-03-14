@@ -39,6 +39,10 @@ The human defines what matters. The agent asks the questions, runs the experimen
 | C-25 | Architecture | Local inference routing — lightweight BrickLayer ops (scoring, failure classification, confidence, hypothesis generation) routed to 3060 Ollama; reserve Claude API for heavy execution | **DONE** | conv:mar13-afternoon |
 | C-26 | Campaign | Synthesizer — reads all findings after each wave, calls Claude, produces `synthesis.md`: validated bets, dead ends, unvalidated bets, recommended next action; terminates campaign when confidence converges | **DONE** | conv:mar14 |
 | C-27 | Architecture | Project Doctrine — per-project `doctrine.md` injected into every campaign session; defines core hypothesis, key constraints, open bets, and first-principles reasoning; prevents Claude from misinterpreting project context | **FREE** | — |
+| C-28 | Campaign | Pre-flight mode validation — before spawning an agent, validate that the question's mode is supported by the project's runner registry; INCONCLUSIVE questions with "Unknown mode" are detected at campaign start, not after wasted execution | **FREE** | — |
+| C-29 | Campaign | Remediation feasibility check — before executing corrective actions (backfill, amnesty, reconcile), model expected outcome vs HEALTHY threshold; if projected delta can't cross threshold, abandon and document as "structural fix required" instead of applying an ineffective patch | **FREE** | — |
+| C-30 | Campaign | Question type enforcement — tag behavioral questions `[BEHAVIORAL]` (requires HTTP/test evidence) vs `[CODE-AUDIT]` (static analysis only); HEALTHY verdict requires live evidence; CODE-AUDIT questions cap confidence at `medium`; question-designer agent enforces ratio (≥60% BEHAVIORAL) | **FREE** | — |
+| C-31 | Campaign | Cross-session status sync — atomic status updates: write DONE to questions.md at the same time as results.tsv, not at session end; add `--sync-status` subcommand that reconciles questions.md against results.tsv to recover from partial-session drift | **FREE** | — |
 
 ### Sessions active
 
@@ -322,6 +326,75 @@ The 5-10 things Claude must understand before touching any question in this camp
 ```
 
 **Injection:** `simulate.py --campaign` reads `doctrine.md` from project dir and prepends to every agent prompt. Claude always has the full context, not just the current question.
+
+---
+
+---
+
+### C-28 — Pre-flight Mode Validation
+
+**Problem**: Q8.1–Q8.4 all returned INCONCLUSIVE with "Unknown mode" errors. The benchmark-engineer agent spent full execution budget on questions whose modes (`concurrency`, `cache`, `embedding`, `logging`) weren't registered in simulate.py. The failure was detectable at parse time, not after 60+ seconds of agent work.
+
+**Root cause**: questions.md accepts any string in the `Mode:` field. The campaign loop passes it directly to the agent with no validation.
+
+**Fix**:
+1. Add `REGISTERED_MODES` set to `bl/runners/base.py` — populated when runners are loaded
+2. In `simulate.py --campaign`, before spawning any agent: check `question.mode in REGISTERED_MODES`
+3. If not registered: immediately record INCONCLUSIVE with `failure_type=configuration`, log "mode '{mode}' not registered — skip", advance to next question
+4. Add `--list-modes` flag to simulate.py for question authors to see what's available
+5. question-designer agent prompt: inject `REGISTERED_MODES` list so it only generates questions with valid modes
+
+**Expected impact**: Eliminates the entire class of "Unknown mode" INCONCLUSIVE results. Estimated 10–15% of wasted execution cycles in early campaigns.
+
+---
+
+### C-29 — Remediation Feasibility Check
+
+**Problem**: Q11.2 amnesty applied `floor=0.3` to 3,858 memories and corpus mean moved 0.392→0.393 — negligible, and predictable in advance. The amnesty floor (0.3) was below the HEALTHY threshold (0.40). A pre-action calculation would have flagged this before executing.
+
+**Root cause**: The fix loop (C-06) executes remediations without modeling expected outcome first. It acts, then measures.
+
+**Fix**:
+1. Add `estimate_remediation_delta(action, params, current_state) → float` to `bl/quality.py`
+2. Before any corrective action in the fix loop: call estimator, compare projected state against HEALTHY threshold
+3. If `projected_mean < threshold`: skip action, record finding note: "remediation insufficient — projected delta={delta:.3f}, threshold={threshold:.2f}; structural fix required"
+4. Document the *correct* fix path in the finding instead of applying an ineffective patch
+5. For known action types: codify estimation logic (amnesty: model distribution shift given floor; backfill: model mean delta given n_samples and boost magnitude)
+
+**Design rule**: A remediation that cannot cross the HEALTHY threshold is worse than no remediation — it creates false confidence that action was taken.
+
+---
+
+### C-30 — Question Type Enforcement (Behavioral vs Code-Audit)
+
+**Problem**: Q9.5.1 ("read memory.py and check transaction logic"), Q9.5.2 ("read neo4j_store.py and check rollback") produced low-confidence verdicts with no live evidence. These are static analysis questions dressed up as behavioral questions. The highest-value findings (reranker cv_score, importance calibration, browse crashes) all had HTTP evidence.
+
+**Root cause**: questions.md has no distinction between questions that require live evidence and questions that only require reading source code. The campaign loop treats them identically.
+
+**Fix**:
+1. Add required `Type:` field to question format: `[BEHAVIORAL]` | `[CODE-AUDIT]`
+2. BEHAVIORAL: requires HTTP call, test execution, or measurable live output to achieve HEALTHY/FAILURE verdict. If agent returns only code analysis: auto-downgrade to INCONCLUSIVE.
+3. CODE-AUDIT: accepted as static analysis — caps confidence at `medium`, verdict ceiling at WARNING (can never be HEALTHY, only CONFIRMED/UNCONFIRMED)
+4. question-designer agent: enforce ≥60% BEHAVIORAL ratio in each wave; flag CODE-AUDIT questions for pairing with a follow-up BEHAVIORAL companion
+5. Add `--type-audit` flag to simulate.py that reports BEHAVIORAL/CODE-AUDIT ratio for the current question bank
+
+**Expected impact**: Shifts campaign output toward evidence-backed verdicts. CODE-AUDIT questions remain useful for generating hypotheses but stop masquerading as confirmed findings.
+
+---
+
+### C-31 — Cross-Session Status Synchronization
+
+**Problem**: After Waves 9–11, ~15 questions in questions.md still showed PENDING despite having DONE results in results.tsv. The campaign loop writes results.tsv and findings/*.md atomically but only updates questions.md status opportunistically (at the start of the next run, or not at all across session boundaries).
+
+**Root cause**: questions.md status update is a separate write that can be skipped if the agent context is compacted, the session ends mid-loop, or the stop hook fires before the final status flush.
+
+**Fix**:
+1. Make questions.md status update part of the same atomic write as results.tsv: `record_verdict()` in `bl/findings.py` updates both in a single transaction
+2. Add `--sync-status` subcommand: reads results.tsv, finds all question IDs with terminal verdicts (DONE/INCONCLUSIVE), marks them in questions.md — recovers from any accumulated drift
+3. Add campaign startup check: before running any question, call `--sync-status` automatically to ensure questions.md reflects actual state
+4. Dashboard: expose sync status as a one-click action in the UI (C-16 dependency)
+
+**Expected impact**: Eliminates re-running already-answered questions after session resume. Prevents the "15 PENDING questions that are actually DONE" state that accumulates across long campaigns.
 
 ---
 
