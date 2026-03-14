@@ -198,6 +198,22 @@ def _parse_followup_blocks(raw: str, parent_id: str, start_index: int) -> list[s
             count=1,
             flags=re.MULTILINE,
         )
+
+        # Ensure [MODE] tag is present in the header — LLMs sometimes omit it.
+        # Extract mode from **Mode**: field and inject it if missing.
+        header_match = re.match(r"^## \S+(.*)$", seg, re.MULTILINE)
+        if header_match and "[" not in header_match.group(1):
+            mode_match = re.search(r"\*\*Mode\*\*:\s*(\w+)", seg)
+            if mode_match:
+                mode_tag = f"[{mode_match.group(1).upper()}]"
+                seg = re.sub(
+                    r"^(## \S+) ",
+                    rf"\1 {mode_tag} ",
+                    seg,
+                    count=1,
+                    flags=re.MULTILINE,
+                )
+
         valid.append(seg)
         current_index += 1
 
