@@ -39,10 +39,11 @@ The human defines what matters. The agent asks the questions, runs the experimen
 | C-25 | Architecture | Local inference routing — lightweight BrickLayer ops (scoring, failure classification, confidence, hypothesis generation) routed to 3060 Ollama; reserve Claude API for heavy execution | **DONE** | conv:mar13-afternoon |
 | C-26 | Campaign | Synthesizer — reads all findings after each wave, calls Claude, produces `synthesis.md`: validated bets, dead ends, unvalidated bets, recommended next action; terminates campaign when confidence converges | **DONE** | conv:mar14 |
 | C-27 | Architecture | Project Doctrine — per-project `doctrine.md` injected into every campaign session; defines core hypothesis, key constraints, open bets, and first-principles reasoning; prevents Claude from misinterpreting project context | **FREE** | — |
-| C-28 | Campaign | Pre-flight mode validation — before spawning an agent, validate that the question's mode is supported by the project's runner registry; INCONCLUSIVE questions with "Unknown mode" are detected at campaign start, not after wasted execution | **FREE** | — |
-| C-29 | Campaign | Remediation feasibility check — before executing corrective actions (backfill, amnesty, reconcile), model expected outcome vs HEALTHY threshold; if projected delta can't cross threshold, abandon and document as "structural fix required" instead of applying an ineffective patch | **FREE** | — |
-| C-30 | Campaign | Question type enforcement — tag behavioral questions `[BEHAVIORAL]` (requires HTTP/test evidence) vs `[CODE-AUDIT]` (static analysis only); HEALTHY verdict requires live evidence; CODE-AUDIT questions cap confidence at `medium`; question-designer agent enforces ratio (≥60% BEHAVIORAL) | **FREE** | — |
-| C-31 | Campaign | Cross-session status sync — atomic status updates: write DONE to questions.md at the same time as results.tsv, not at session end; add `--sync-status` subcommand that reconciles questions.md against results.tsv to recover from partial-session drift | **FREE** | — |
+| C-28 | Campaign | Pre-flight mode validation — before spawning an agent, validate that the question's mode is supported by the project's runner registry; INCONCLUSIVE questions with "Unknown mode" are detected at campaign start, not after wasted execution | **DONE** | conv:mar14 |
+| C-29 | Campaign | Remediation feasibility check — before executing corrective actions (backfill, amnesty, reconcile), model expected outcome vs HEALTHY threshold; if projected delta can't cross threshold, abandon and document as "structural fix required" instead of applying an ineffective patch | **DONE** | conv:mar14 |
+| C-30 | Campaign | Question type enforcement — tag behavioral questions `[BEHAVIORAL]` (requires HTTP/test evidence) vs `[CODE-AUDIT]` (static analysis only); HEALTHY verdict requires live evidence; CODE-AUDIT questions cap confidence at `medium`; question-designer agent enforces ratio (≥60% BEHAVIORAL) | **DONE** | conv:mar14 |
+| C-31 | Campaign | Cross-session status sync — atomic status updates: write DONE to questions.md at the same time as results.tsv, not at session end; add `--sync-status` subcommand that reconciles questions.md against results.tsv to recover from partial-session drift | **DONE** | conv:mar14 |
+| C-32 | Meta-agents | Roadmap Change Validation Loop — after every wave, auto-generate evidence-based meta-questions for any C-xx items deployed but not yet validated; compute KEEP/IMPROVE/REMOVE verdict from results.tsv history without human input; write verdict back to roadmap; applies universally to any project, not just BrickLayer self-audit | **FREE** | — |
 
 ### Sessions active
 
@@ -395,6 +396,67 @@ The 5-10 things Claude must understand before touching any question in this camp
 4. Dashboard: expose sync status as a one-click action in the UI (C-16 dependency)
 
 **Expected impact**: Eliminates re-running already-answered questions after session resume. Prevents the "15 PENDING questions that are actually DONE" state that accumulates across long campaigns.
+
+---
+
+---
+
+### C-32 — Roadmap Change Validation Loop
+
+**Origin**: After implementing C-28–C-31, the human had to manually ask: *"Did they help? Should we improve or remove them?"* That question should have been asked automatically. BrickLayer had all the data in results.tsv and history.db — it never looked.
+
+**Core insight**: This is not a BrickLayer self-audit special case. It is a universal pattern. After the Q10.3.2 rubric fix was deployed, BrickLayer *manually* generated Q11.3, Q11.4 to verify it. That meta-question generation should be automatic for *any* C-xx item or fix committed to *any* project.
+
+**Mechanism**:
+
+1. `roadmap_change_log.tsv` — one row per C-xx item deployment:
+   ```
+   item    commit    deployed_at    metric_target           validated    verdict
+   C-28    1a90a02   2026-03-14     inconclusive_rate↓0     pending      —
+   C-29    1a90a02   2026-03-14     wasted_remediation↓0    pending      —
+   C-31    1a90a02   2026-03-14     status_drift_count↓0    pending      —
+   ```
+
+2. At wave start, `check_sentinels()` scans `roadmap_change_log.tsv` for rows where `validated=pending` and `deployed_at` is > 1 wave old.
+
+3. For each unvalidated item, auto-inject a meta-question into questions.md:
+   ```
+   ## C-28.V [AGENT] Validate roadmap change C-28 — did pre-flight mode check reduce INCONCLUSIVE rate?
+   Mode: agent
+   Hypothesis: C-28 was deployed in commit 1a90a02. INCONCLUSIVE questions with "Unknown mode"
+   should now be caught at campaign start. Measure INCONCLUSIVE rate before/after the commit
+   using history.db and results.tsv.
+   Test: Query history.db for questions answered before/after 2026-03-14. Compare INCONCLUSIVE
+   rates. Check results.tsv for any "C-28: mode not registered" entries. Verdict: did the rate drop?
+   Verdict threshold:
+   - HEALTHY: INCONCLUSIVE rate dropped OR no new "Unknown mode" failures since deployment — KEEP
+   - WARNING: No change in rate (question bank had no unknown-mode questions) — KEEP, LOW SIGNAL
+   - FAILURE: INCONCLUSIVE rate unchanged despite unknown-mode questions present — IMPROVE or REMOVE
+   ```
+
+4. The agent answers using only `history.db` + `results.tsv` — no live service call needed.
+
+5. Verdict written back to `roadmap_change_log.tsv`: `validated=yes`, `verdict=KEEP/IMPROVE/REMOVE`.
+
+6. If IMPROVE or REMOVE: auto-generate a follow-up question (C-04 adaptive drill-down) with specific improvement hypothesis.
+
+**What this automates**:
+
+| Question the human had to ask manually | Automated by C-32 |
+|----------------------------------------|-------------------|
+| "Did C-28 reduce INCONCLUSIVE rate?" | C-28.V auto-injected after wave |
+| "Did C-31 fix status drift?" | C-31.V checks questions.md PENDING count pre/post |
+| "Did Q10.3.2 rubric fix actually improve scores?" | auto-generated after fix commit |
+| "Did the amnesty do anything?" | C-29.V checks if any INCONCLUSIVE remediation was avoided |
+
+**Universal application**: Any project using BrickLayer gets this automatically. The `roadmap_change_log.tsv` is per-project. When Recall gets a fix committed (e.g. reranker arg fix), BrickLayer auto-generates a Q+1 validation question. The human doesn't need to remember to ask.
+
+**Implementation**:
+1. `bl/roadmap_validator.py` — `load_change_log()`, `get_unvalidated()`, `generate_validation_question()`, `record_verdict()`
+2. `roadmap_change_log.tsv` schema + auto-creation in `init_project()`
+3. Hook into `check_sentinels()` in `campaign.py` — after forge/audit checks, before question loop
+4. Template for validation question generation (parameterized on metric_target)
+5. Write verdict back after question completes (post-hook in `run_and_record()`)
 
 ---
 
