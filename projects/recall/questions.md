@@ -924,6 +924,61 @@ concurrent hook latency, importance decay burial, storage failure recovery, and 
 
 ---
 
+*Wave 10 — Post-fix validation + corpus health*
+
+## Q10.1 [AGENT] Decay effectiveness post-fix — are importance scores actually decreasing now?
+**Mode**: agent
+**Agent**: quantitative-analyst
+**Status**: PENDING
+**Hypothesis**: The Q9.4 UTC timezone bug (ac0454b) silently skipped all memories stored before the Q6.7 utcnow() migration. Now that the fix is deployed, the decay worker should be processing those memories and reducing their importance. This question verifies the fix worked end-to-end on the live system.
+**Test**: Hit the Recall API (http://192.168.50.19:8200, Bearer token auth). (1) Query for 5 memories older than 14 days using GET /memories with a broad search. (2) Record their current `importance` and `initial_importance` fields. (3) Calculate decay ratio = importance / initial_importance for each. (4) Check the audit_log table via GET /admin/audit-log or similar for recent `decay` entries to confirm the worker is running. Compare decay ratios against the Q9.4 baseline (all ratios = 1.000 for 25-28d memories).
+**Verdict threshold**:
+- FAILURE: decay ratios still all 1.000 for memories >14 days old (fix not taking effect)
+- WARNING: some decay observed but ratios > 0.95 for memories >21 days old (decay rate too slow)
+- HEALTHY: decay ratios < 0.95 for memories >14 days old AND audit_log shows recent decay runs
+**Derived from**: Q9.4 (WARNING) + fix commit ac0454b
+
+---
+
+## Q10.2 [AGENT] Live orphan count — how many Qdrant-only ghost vectors exist today?
+**Mode**: agent
+**Agent**: quantitative-analyst
+**Status**: PENDING
+**Hypothesis**: Q9.4 confirmed a Qdrant-Postgres desync — memories that appear in vector search results but return 404 on direct GET. These are Qdrant vectors with no corresponding Postgres/Neo4j record. The reconcile worker runs Sunday 5:30am, so the current orphan backlog is unmeasured. High orphan counts degrade search precision and waste index space.
+**Test**: Call POST /reconcile?repair=false on the Recall API (http://192.168.50.19:8200, Bearer token auth). Record: (1) `qdrant_orphans` count — vectors in Qdrant with no Neo4j node, (2) `neo4j_orphans` count — nodes in Neo4j with no Qdrant vector, (3) total corpus size. Calculate orphan rate = (qdrant_orphans + neo4j_orphans) / total. Also check `importance_mismatches` and `superseded_mismatches` counts.
+**Verdict threshold**:
+- FAILURE: orphan rate > 5% OR qdrant_orphans > 1000 (significant index pollution)
+- WARNING: orphan rate 1-5% OR any mismatches > 100 (manageable but needs first reconcile run)
+- HEALTHY: orphan rate < 1% AND mismatches < 100
+
+---
+
+## Q10.3 [AGENT] Initial importance calibration — are high-signal memories getting appropriate scores?
+**Mode**: agent
+**Agent**: quantitative-analyst
+**Status**: PENDING
+**Hypothesis**: Q9.4 found old memories with `importance=0.32` being outranked by new memories at `0.44–1.0`. If the signal extraction pipeline systematically assigns low initial importance to certain memory types (e.g., semantic vs episodic, short content vs long), relevant old memories get buried by rank displacement even before decay runs. This is a calibration problem independent of the decay bug.
+**Test**: Query the Recall API (http://192.168.50.19:8200) for a sample of 50+ memories across different `memory_type` values (semantic, episodic, procedural). Record the `importance` distribution per type. Compute: mean, p25, p75 per type. Also check if there's a correlation between content length and importance score by sampling 10 short (<50 chars) and 10 long (>200 chars) memories and comparing importance.
+**Verdict threshold**:
+- FAILURE: mean importance < 0.35 for any memory type (systematic undervaluing causes burial before decay)
+- WARNING: p25 importance < 0.30 for any type OR >30% of memories at exactly 0.32 (default value, signal extraction not running)
+- HEALTHY: mean importance >= 0.40 across all types AND p25 >= 0.30 (distribution reflects signal quality)
+
+---
+
+## Q10.4 [AGENT] Consolidation dedup rate at 20K+ — is the corpus bloated with near-duplicates?
+**Mode**: agent
+**Agent**: quantitative-analyst
+**Status**: PENDING
+**Hypothesis**: The consolidation worker runs every hour and merges memories with cosine similarity above a threshold. At 20K+ memories, if the threshold is too conservative or the worker is skipping memories, near-duplicates accumulate and dilute search results — multiple near-identical vectors crowd the top-k results for any query.
+**Test**: (1) Call POST /admin/consolidate (or GET /admin/consolidate/status) to get consolidation stats — how many merges have happened total, last run time, pending candidates. (2) Run 3 test searches for very specific phrases and count how many of the top-10 results are semantically near-identical (same content, different timestamps). (3) Check the consolidation worker logs via GET /admin/audit-log filtering on action='consolidate'. Report: total_merges_lifetime, merges_last_24h, near_duplicate_rate in top-10 results.
+**Verdict threshold**:
+- FAILURE: >3 near-identical results in top-10 for a specific-phrase query (dedup not working)
+- WARNING: consolidation last_run > 4 hours ago OR merges_last_24h = 0 with corpus > 10K
+- HEALTHY: near_duplicate_rate < 1 in top-10 AND consolidation ran within last 2 hours
+
+---
+
 *Follow-up drill-down for Q9.5 — WARNING verdict*
 
 ## Q9.5.1 [AGENT] Transaction boundary verification
@@ -968,3 +1023,75 @@ concurrent hook latency, importance decay burial, storage failure recovery, and 
 
 ---
 
+
+---
+
+*Wave 12 — ML observability, classifier health, corpus recovery*
+
+## Q12.1 [AGENT] ML health dashboard: add `ml` key to /admin/health/dashboard
+**Mode**: agent
+**Agent**: benchmark-engineer
+**Status**: PENDING
+**Hypothesis**: The main health dashboard has no ML section (Q11.3). Operators monitoring /admin/health/dashboard are blind to reranker and signal classifier degradation. The 6-day silent reranker failure (Q10.5) is the proof case. Adding an `ml` aggregation block with staleness + cv_score thresholds gives ops visibility with minimal implementation cost.
+**Test**: (1) Verify current dashboard response has no `ml` key (baseline). (2) Inspect src/api/routes/admin.py — find the health/dashboard endpoint and the ML status endpoints. (3) Add `ml` aggregation block: reranker (cv_score, trained_at, staleness_hours, health=HEALTHY/WARNING/FAILURE) + signal_classifier (binary_cv_score, type_cv_score, trained_at, staleness_hours, health). Thresholds: HEALTHY cv>=0.85 staleness<168h; WARNING cv 0.70-0.84 or staleness 168-336h; FAILURE cv<0.70 or staleness>336h. (4) Verify dashboard response now includes `ml` key with correct data. (5) Write 2 tests asserting ml section present and thresholds applied.
+**Verdict threshold**:
+- FAILURE: Dashboard still missing ML section after implementation attempt OR cv_score thresholds not applied
+- WARNING: ML section present but staleness or threshold logic incorrect
+- HEALTHY: Dashboard includes ml.reranker + ml.signal_classifier with live data and correct health classification
+**Derived from**: Q11.3 (WARNING — ML health not in dashboard)
+
+---
+
+## Q12.2 [AGENT] Signal classifier retraining: does a scheduled cron exist?
+**Mode**: agent
+**Agent**: benchmark-engineer
+**Status**: PENDING
+**Hypothesis**: The reranker has a cron trigger in WorkerSettings. The signal classifier's `trained_at=2026-03-08` (6 days at Q11.3 measurement) suggests it has no scheduled retraining. If so, type classification accuracy (currently 0.6488) will degrade further as new signal patterns accumulate that the 2026-03-08 model has never seen.
+**Test**: (1) Read src/workers/main.py — find WorkerSettings.cron_jobs. List all scheduled jobs and whether signal classifier retraining appears. (2) Grep src/ for train_signal_classifier or equivalent — find where classifier retraining is triggered and whether it has a cron schedule. (3) If no cron: add one with weekly cadence (same pattern as reranker). (4) If cron exists: verify it's actually firing by checking GET /admin/audit-log for classifier training events. (5) After any fix, confirm signal classifier trained_at is < 7 days old.
+**Verdict threshold**:
+- FAILURE: No retraining trigger exists anywhere (manual only) AND trained_at > 14 days
+- WARNING: Retraining trigger exists but not scheduled OR last retrain > 7 days ago
+- HEALTHY: Scheduled cron confirmed AND trained_at < 7 days old
+**Derived from**: Q11.3 (WARNING — signal classifier stale; no retraining cron found)
+
+---
+
+## Q12.3 [AGENT] Corpus mean importance recovery — has Q10.3.2 rubric moved the needle?
+**Mode**: agent
+**Agent**: quantitative-analyst
+**Status**: PENDING
+**Hypothesis**: Q11.2 projected 2-3 weeks for corpus mean to cross 0.40 via natural decay + new well-scored signals. With the rubric fix deployed (2026-03-14) and amnesty applied (floor=0.3 on 3,858 memories), the distribution should now be accumulating new 0.5+ technical domain signals. This question measures actual trajectory.
+**Test**: (1) Call GET /admin/health/memory-quality. Record mean_quality and histogram. (2) Compare to Q11.2 baseline (mean=0.393, 57% below 0.40). (3) Query /memories for 10 most recently stored memories (sort by created_at desc) — check their importance values. If rubric is working, recent technical domain memories should score 0.5+. (4) Compute how many new memories have been stored since 2026-03-14 via the admin stats or audit log. (5) Project time-to-HEALTHY based on current trajectory.
+**Verdict threshold**:
+- FAILURE: Mean still < 0.393 (trajectory flat or declining — rubric fix not taking effect)
+- WARNING: Mean 0.393-0.399 (recovering but not yet HEALTHY — expected if < 2 weeks post-fix)
+- HEALTHY: Mean >= 0.40 AND recent memories show importance >= 0.5 for technical domains
+**Derived from**: Q11.2 (WARNING — amnesty insufficient; natural recovery expected)
+
+---
+
+## Q12.4 [AGENT] Signal classifier type accuracy post-retraining
+**Mode**: agent
+**Agent**: quantitative-analyst
+**Status**: PENDING
+**Hypothesis**: The signal classifier's type_cv_score=0.6488 (Q11.3) is marginal for production use. With 9,000+ signals now available (vs 1,209 training samples at 2026-03-08), retraining on the full corpus should materially improve type accuracy. Target: type_cv >= 0.75.
+**Test**: (1) Check current signal classifier status via GET /admin/ml/signal-classifier-status. Record trained_at, n_samples, type_cv_score. (2) If retrain cron added by Q12.2 and a retrain has run: compare new type_cv_score to Q11.3 baseline (0.6488). (3) If no retrain yet: manually trigger retraining (POST /admin/ml/retrain-signal-classifier or equivalent). (4) Measure delta in type_cv_score. (5) Check type_distribution for class imbalance — if any type has <20 samples, flag it.
+**Verdict threshold**:
+- FAILURE: type_cv_score still < 0.65 after retrain on expanded dataset (model architecture limitation)
+- WARNING: type_cv_score 0.65-0.74 (improvement but below target)
+- HEALTHY: type_cv_score >= 0.75 AND all type classes have >= 20 samples
+**Derived from**: Q11.3 (WARNING — type_cv=0.6488 marginal)
+
+---
+
+## Q12.5 [AGENT] Decay correctness at recalibrated importance baseline
+**Mode**: agent
+**Agent**: quantitative-analyst
+**Status**: PENDING
+**Hypothesis**: Q10.1 confirmed decay working at corpus scale. With technical domain memories now scoring 0.5-0.8 (vs 0.1-0.3 before the rubric fix), the decay worker should apply proportional decay. The risk is that the decay formula's half-life tuning was calibrated against the old 0.3-0.4 distribution — at 0.6-0.8 starting points, memories might over-decay to noise faster than expected, or conversely be protected by importance guards.
+**Test**: (1) Find 5 memories stored after 2026-03-14 with importance >= 0.5 (technical domain, newly scored by rubric). Record their importance and initial_importance. (2) Check these same memories 7 days later — or if that's not possible, find technical domain memories from a prior session with known initial_importance and check their current decay ratio. (3) Compare decay ratio to pre-rubric memories at similar age to determine if decay rate is consistent. (4) Check decay worker config for any importance-dependent decay rate or floor protection.
+**Verdict threshold**:
+- FAILURE: High-importance memories (>0.6) decaying faster than expected (ratio < 0.80 within 7 days, no access)
+- WARNING: Decay rate inconsistent between pre-rubric (0.3-0.4 initial) and post-rubric (0.5-0.8 initial) memories
+- HEALTHY: Decay ratio consistent across importance tiers AND no unexpected floor hits within 14 days
+**Derived from**: Q10.1 (HEALTHY) + Q10.3.2 (rubric fix changing baseline importance distribution)
