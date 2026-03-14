@@ -1030,7 +1030,7 @@ concurrent hook latency, importance decay burial, storage failure recovery, and 
 
 ## Q12.1 [AGENT] ML health dashboard: add `ml` key to /admin/health/dashboard
 **Mode**: agent
-**Agent**: benchmark-engineer
+**Agent**: fix-agent
 **Status**: PENDING
 **Hypothesis**: The main health dashboard has no ML section (Q11.3). Operators monitoring /admin/health/dashboard are blind to reranker and signal classifier degradation. The 6-day silent reranker failure (Q10.5) is the proof case. Adding an `ml` aggregation block with staleness + cv_score thresholds gives ops visibility with minimal implementation cost.
 **Test**: (1) Verify current dashboard response has no `ml` key (baseline). (2) Inspect src/api/routes/admin.py — find the health/dashboard endpoint and the ML status endpoints. (3) Add `ml` aggregation block: reranker (cv_score, trained_at, staleness_hours, health=HEALTHY/WARNING/FAILURE) + signal_classifier (binary_cv_score, type_cv_score, trained_at, staleness_hours, health). Thresholds: HEALTHY cv>=0.85 staleness<168h; WARNING cv 0.70-0.84 or staleness 168-336h; FAILURE cv<0.70 or staleness>336h. (4) Verify dashboard response now includes `ml` key with correct data. (5) Write 2 tests asserting ml section present and thresholds applied.
@@ -1044,7 +1044,7 @@ concurrent hook latency, importance decay burial, storage failure recovery, and 
 
 ## Q12.2 [AGENT] Signal classifier retraining: does a scheduled cron exist?
 **Mode**: agent
-**Agent**: benchmark-engineer
+**Agent**: fix-agent
 **Status**: PENDING
 **Hypothesis**: The reranker has a cron trigger in WorkerSettings. The signal classifier's `trained_at=2026-03-08` (6 days at Q11.3 measurement) suggests it has no scheduled retraining. If so, type classification accuracy (currently 0.6488) will degrade further as new signal patterns accumulate that the 2026-03-08 model has never seen.
 **Test**: (1) Read src/workers/main.py — find WorkerSettings.cron_jobs. List all scheduled jobs and whether signal classifier retraining appears. (2) Grep src/ for train_signal_classifier or equivalent — find where classifier retraining is triggered and whether it has a cron schedule. (3) If no cron: add one with weekly cadence (same pattern as reranker). (4) If cron exists: verify it's actually firing by checking GET /admin/audit-log for classifier training events. (5) After any fix, confirm signal classifier trained_at is < 7 days old.

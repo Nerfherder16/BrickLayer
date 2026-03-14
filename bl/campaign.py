@@ -369,7 +369,7 @@ def check_sentinels() -> None:
 
 
 def _preflight_mode_check(pending: list[dict]) -> list[dict]:
-    """Warn about unregistered modes; return questions that can run."""
+    """Warn about unregistered modes or missing agent files; return questions that can run."""
     from bl.runners.base import registered_modes
 
     valid = set(registered_modes())
@@ -377,27 +377,38 @@ def _preflight_mode_check(pending: list[dict]) -> list[dict]:
     runnable = []
     for q in pending:
         if q["mode"] not in valid:
-            skipped.append(q)
+            skipped.append((q, "mode_missing", f"mode '{q['mode']}' not registered"))
+        elif q["mode"] == "agent" and q.get("agent_name"):
+            agent_file = cfg.agents_dir / f"{q['agent_name']}.md"
+            if not agent_file.exists():
+                available = [
+                    f.stem for f in cfg.agents_dir.glob("*.md") if f.stem != "SCHEMA"
+                ]
+                skipped.append(
+                    (
+                        q,
+                        "agent_missing",
+                        f"agent file '{q['agent_name']}.md' not found — available: {available}",
+                    )
+                )
+            else:
+                runnable.append(q)
         else:
             runnable.append(q)
     if skipped:
         print(
-            f"\n[C-28] Pre-flight: {len(skipped)} question(s) have unregistered modes — will record INCONCLUSIVE immediately:",
+            f"\n[C-28] Pre-flight: {len(skipped)} question(s) blocked — will record INCONCLUSIVE immediately:",
             file=sys.stderr,
         )
-        for q in skipped:
-            print(
-                f"  {q['id']} mode='{q['mode']}' (registered: {sorted(valid)})",
-                file=sys.stderr,
-            )
+        for q, fail_class, reason in skipped:
+            print(f"  {q['id']} [{fail_class}]: {reason}", file=sys.stderr)
             result = {
                 "verdict": "INCONCLUSIVE",
-                "summary": f"C-28: mode '{q['mode']}' not registered — no runner available",
-                "data": {"registered_modes": sorted(valid)},
+                "summary": f"C-28 {fail_class}: {reason}",
+                "data": {"registered_modes": sorted(valid), "fail_class": fail_class},
                 "details": (
-                    f"Pre-flight check detected unregistered mode '{q['mode']}'. "
-                    f"Available modes: {sorted(valid)}. "
-                    "Register a runner via bl.runners.base.register() or use a supported mode."
+                    f"Pre-flight check blocked question '{q['id']}': {reason}. "
+                    "Fix the question's Agent or Mode field to continue."
                 ),
                 "failure_type": "configuration",
                 "confidence": "high",
@@ -406,7 +417,6 @@ def _preflight_mode_check(pending: list[dict]) -> list[dict]:
             update_results_tsv(
                 q["id"], result["verdict"], result["summary"], "configuration"
             )
-    if skipped:
         print(f"[C-28] {len(runnable)} question(s) will run normally.", file=sys.stderr)
     return runnable
 

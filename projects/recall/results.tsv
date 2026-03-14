@@ -73,8 +73,6 @@ Q11.1	HEALTHY		high	0.960	reconcile_complete: 11925 Neo4j importance mismatches 
 Q11.2	WARNING		medium	0.680	amnesty_applied: boosted=3858 durable memories to floor=0.3; mean_quality 0.392→0.393 (negligible); amnesty floor below HEALTHY threshold 0.40 — corpus requires natural rehab via Q10.3.2 forward fix over 2-3 weeks	2026-03-14T21:30:00Z
 Q11.3	WARNING		high	0.880	ml_dashboard_gap: reranker (cv=0.9541) and signal_classifier (binary_cv=0.943, type_cv=0.6488) healthy via dedicated endpoints but NOT surfaced in /admin/health/dashboard — operator blind spot; signal_classifier stale (trained 2026-03-08, 6 days)	2026-03-14T21:30:00Z
 Q11.4	HEALTHY		high	0.960	regression_tests: 7 tests in test_importance_calibration.py guard prompt-level (floor pos, tier labels) and parser-level (importance 1-10→0.0-1.0 mapping) regression; all pass; committed daeafd5	2026-03-14T21:30:00Z
-Q12.1	INCONCLUSIVE	unknown	uncertain	0.100	Agent file not found: benchmark-engineer.md	2026-03-14T21:43:52Z
-Q12.2	INCONCLUSIVE	unknown	uncertain	0.100	Agent file not found: benchmark-engineer.md	2026-03-14T21:43:53Z
 Q12.3	HEALTHY		low	0.720	quantitative-analyst: {"verdict": "HEALTHY", "hit_rate": null, "summary": "Corpus mean importance crossed 0.419 (baselin	2026-03-14T21:46:28Z
 Q12.4	FAILURE	logic	high	0.960	two root causes fixed: (1) LIMIT 500→10000 in signal_classifier_trainer.py commit a70246d; (2) signals.py audit_log write omitted content field (all 191 entries skipped by content filter) — fixed commit 93711a0; type_cv improvement deferred until content accumulates (~2 weeks)	2026-03-14T21:50:07Z
 Q12.5	WARNING		medium	0.760	quantitative-analyst: {"verdict": "WARNING", "hit_rate": null, "summary": "Decay formula is importance-agnostic (same ra	2026-03-14T21:55:24Z
