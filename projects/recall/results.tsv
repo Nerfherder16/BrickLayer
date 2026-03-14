@@ -58,7 +58,12 @@ Q9.7	HEALTHY		high	1.000	34 tests pass for hygiene.py + dream_consolidation.py �
 Q9.8	HEALTHY		medium	0.880	3 passed, 0 failed	2026-03-14T15:17:06Z
 Q9.1.1	HEALTHY		medium	0.880	quantitative-analyst: {"verdict": "HEALTHY", "hit_rate": null, "summary": "recall_memories collection has on_disk_payloa	2026-03-14T15:32:19Z
 Q9.1.2	HEALTHY		medium	0.880	quantitative-analyst: {"verdict": "HEALTHY", "hit_rate": null, "summary": "recall_memories collection has 2 segments at 	2026-03-14T15:35:32Z
-Q9.1.3	WARNING		medium	0.760	quantitative-analyst: {"verdict": "WARNING", "hit_rate": null, "summary": "indexing_threshold is 10000 (not the default 	2026-03-14T15:37:50Z
+Q9.1.3	HEALTHY		high	0.960	indexing_threshold raised to 50000 (was 10000) via _ensure_optimizer_config() — confirmed live on Qdrant collection	2026-03-14T16:20:00Z
 Q9.5.1	WARNING		low	0.600	quantitative-analyst: {"verdict": "WARNING", "hit_rate": null, "summary": "Compensating-transaction pattern is present b	2026-03-14T15:39:33Z
 Q9.5.2	WARNING		low	0.600	quantitative-analyst: {"verdict": "WARNING", "hit_rate": null, "summary": "Compensating rollback exists (Qdrant delete o	2026-03-14T15:41:22Z
-Q9.5.3	WARNING		medium	0.760	quantitative-analyst: {"verdict": "WARNING", "hit_rate": null, "summary": "Orphan detection exists via a manual /reconci	2026-03-14T15:42:29Z
+Q9.5.3	HEALTHY		high	0.960	run_reconcile() worker added (src/workers/reconcile.py) — scheduled weekly Sunday 5:30am in WorkerSettings.cron_jobs; confirmed in main.py lines 26, 344, 424	2026-03-14T16:20:00Z
+Q10.1	HEALTHY		high	0.960	decay working post-fix: mean ratio=0.346 for 20-22d memories (Q9.4 baseline=1.000); 128K memories decayed on first post-fix run; audit_log confirms 121 runs since Feb 22	2026-03-14T17:30:00Z
+Q10.2	WARNING		high	0.880	orphan rate=0.0098% (HEALTHY) but importance_mismatches=11926 (58.3% of corpus have importance=0.0 in Neo4j vs real values in Qdrant) — systematic write-path desync	2026-03-14T17:30:00Z
+Q10.3	WARNING		medium	0.760	mean importance=0.393 (below 0.40 threshold); 91% of domains avg below 0.35; p25=0.318; /search/browse broken with datetime timezone bug	2026-03-14T17:30:00Z
+Q10.4	WARNING		medium	0.760	consolidation healthy (18 merges/24h, last run 5min ago) but near-duplicate rate unmeasurable — all vector-search endpoints broken or timing out	2026-03-14T17:30:00Z
+Q10.3.1	HEALTHY		high	0.960	/search/browse fixed: 4 datetime bugs patched (retrieval.py×2, reranker.py×2, search.py×1) + admin user_id filter bypass; confirmed 5 results HTTP:200 (commits 927cd67 e6f9bb8 f15246e bb181cb)	2026-03-14T17:32:00Z
