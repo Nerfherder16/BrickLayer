@@ -1095,3 +1095,87 @@ concurrent hook latency, importance decay burial, storage failure recovery, and 
 - WARNING: Decay rate inconsistent between pre-rubric (0.3-0.4 initial) and post-rubric (0.5-0.8 initial) memories
 - HEALTHY: Decay ratio consistent across importance tiers AND no unexpected floor hits within 14 days
 **Derived from**: Q10.1 (HEALTHY) + Q10.3.2 (rubric fix changing baseline importance distribution)
+
+
+---
+
+*Follow-up drill-down for Q12.4 — FAILURE verdict*
+
+## Q12.4.1 **Mode**: agent  
+**Status**: PENDING  
+**Hypothesis**: The audit_log query limit of 500 is preventing the full corpus of signals from being used in retraining, leading to no improvement in type_cv_score.  
+**Test**: Increase the LIMIT value in the audit_log query and rerun the retraining process to see if it affects the type_cv_score.  
+**Verdict threshold**:  
+- FAILURE: If increasing the LIMIT does not improve the type_cv_score.  
+- HEALTHY: If increasing the LIMIT results in a significant improvement in type_cv_score.  
+**Derived from**: Q12.4 (FAILURE)
+
+---
+
+## Q12.4.2 **Mode**: agent  
+**Status**: PENDING  
+**Hypothesis**: The distribution of training samples across different signal types is imbalanced, which might be causing the retraining to fail in improving the overall type_cv_score.  
+**Test**: Analyze the current distribution of n_samples for each signal type and identify any types with fewer than 20 samples. Adjust their representation in the training set if necessary.  
+**Verdict threshold**:  
+- FAILURE: If adjusting the sample distribution does not improve the type_cv_score.  
+- HEALTHY: If adjusting the sample distribution results in a significant improvement in type_cv_score.  
+**Derived from**: Q12.4 (FAILURE)
+
+---
+
+## Q12.4.3 **Mode**: agent  
+**Status**: PENDING  
+**Hypothesis**: The retrain cron job might not be functioning correctly, leading to no new training being performed despite the availability of more signals.  
+**Test**: Verify the status and configuration of the retrain cron job to ensure it is set up to run on a schedule that would allow for the full corpus of 9,000+ signals to be used in retraining.  
+**Verdict threshold**:  
+- FAILURE: If the retrain cron job is not configured or running as expected.  
+- HEALTHY: If the retrain cron job is correctly set up and running, leading to an improved type_cv_score.  
+**Derived from**: Q12.4 (FAILURE)
+
+---
+
+
+
+---
+
+*Follow-up drill-down for Q12.5 — WARNING verdict*
+
+## Q12.5.1 Decay Rate Consistency Across Importance Tiers
+**Mode**: agent
+**Status**: PENDING
+**Hypothesis**: The decay rate is consistent across all importance tiers, which may not account for the varying starting points of 0.5-0.8.
+**Test**: Compare the decay rates of memories with initial_importance between 0.3 and 0.8 over a similar time period to determine if there are discrepancies in how they decay.
+**Verdict threshold**:
+- FAILURE: Significant differences in decay rates across different importance tiers
+- WARNING: Minor variations but overall consistent decay rate
+- HEALTHY: Uniform decay rate across all importance tiers
+**Derived from**: Q12.5 (WARNING)
+
+---
+
+## Q12.5.2 Theoretical vs Actual Decay Ratio for High Importance Memories
+**Mode**: agent
+**Status**: PENDING
+**Hypothesis**: There is a discrepancy between the theoretical 7-day decay ratio and the actual observed decay ratio for high-importance memories.
+**Test**: Calculate the theoretical 7-day decay ratio for memories with initial_importance of 0.5-0.8 using the current decay formula, then compare it to the actual observed decay ratio from live data.
+**Verdict threshold**:
+- FAILURE: Theoretical and actual decay ratios differ by more than 10%
+- WARNING: Theoretical and actual decay ratios differ by less than 10% but still show a noticeable difference
+- HEALTHY: Theoretical and actual decay ratios are within 5% of each other
+**Derived from**: Q12.5 (WARNING)
+
+---
+
+## Q12.5.3 Effectiveness of Importance Guards on High Importance Memories
+**Mode**: agent
+**Status**: PENDING
+**Hypothesis**: The importance guards are not effectively protecting high-importance memories from over-decay.
+**Test**: Analyze the decay ratios of high-importance memories (0.5-0.8) to see if they have been protected by the importance guards as expected, and compare them with lower-importance memories.
+**Verdict threshold**:
+- FAILURE: High-importance memories show signs of over-decay not mitigated by importance guards
+- WARNING: Some high-importance memories show minor signs of over-decay but overall decay is within acceptable limits
+- HEALTHY: All high-importance memories are adequately protected by the importance guards
+**Derived from**: Q12.5 (WARNING)
+
+---
+
