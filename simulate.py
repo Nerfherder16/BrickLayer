@@ -2132,6 +2132,16 @@ def main():
         action="store_true",
         help="Run Crucible agent benchmarks and print report",
     )
+    parser.add_argument(
+        "--goal",
+        action="store_true",
+        help="Generate questions from goal.md and run campaign",
+    )
+    parser.add_argument(
+        "--goal-dry-run",
+        action="store_true",
+        help="Preview goal-generated questions without writing",
+    )
     args = parser.parse_args()
 
     init_project(args.project)
@@ -2162,6 +2172,24 @@ def main():
         )
         if generated:
             print(f"Generated: {', '.join(generated)}")
+        sys.exit(0)
+
+    if args.goal or args.goal_dry_run:
+        from bl.goal import generate_goal_questions
+
+        goal_md = QUESTIONS_MD.parent / "goal.md"
+        if not goal_md.exists():
+            print(
+                json.dumps(
+                    {"error": f"goal.md not found at {goal_md}. Create it first."}
+                )
+            )
+            sys.exit(1)
+        ids = generate_goal_questions(goal_md, QUESTIONS_MD, dry_run=args.goal_dry_run)
+        if not args.goal_dry_run and ids:
+            print(
+                f"Generated {len(ids)} goal questions. Run without --goal to execute campaign."
+            )
         sys.exit(0)
 
     if args.crucible:
