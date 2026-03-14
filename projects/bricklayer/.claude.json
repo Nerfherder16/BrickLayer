@@ -1,20 +1,8 @@
 {
   "mcpServers": {
-    "recall": {
-      "command": "node",
-      "args": [
-        "C:/Users/trg16/Dev/Recall/mcp-server/index.js"
-      ]
-    },
-    "github": {
-      "command": "C:/Program Files/nodejs/npx.cmd",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-github"
-      ],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
-      }
+    "bricklayer-gateway": {
+      "type": "http",
+      "url": "http://127.0.0.1:8350/mcp"
     }
   }
 }

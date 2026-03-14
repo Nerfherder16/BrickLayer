@@ -769,10 +769,11 @@ concurrent hook latency, importance decay burial, storage failure recovery, and 
 
 ---
 
-## Q9.5 [QUALITY] Qdrant-down mid-store — orphaned Neo4j nodes on partial failure
+## Q9.5 [AGENT] Qdrant-down mid-store — orphaned Neo4j nodes on partial failure
 **Status**: PENDING
-**Mode**: quality
-**Target**: src/core/storage.py (or equivalent storage orchestration layer)
+**Mode**: agent
+**Agent**: quantitative-analyst
+**Target**: C:/Users/trg16/Dev/Recall/src/api/routes/memory.py, C:/Users/trg16/Dev/Recall/src/storage/qdrant.py, C:/Users/trg16/Dev/Recall/src/storage/neo4j_store.py
 **Hypothesis**: The store path writes to both Qdrant (vector) and Neo4j (graph). If Qdrant is unavailable mid-store, the Neo4j node may still be created, leaving a graph node with no corresponding vector — an orphan that consumes graph resources but can never be retrieved by semantic search.
 **Test**: Read the store orchestration code. Look for: transaction boundaries across Qdrant + Neo4j writes, rollback behavior if Qdrant write fails after Neo4j write succeeds, any cleanup/orphan detection mechanism, whether the write order (Neo4j first vs. Qdrant first) determines which orphan type is created.
 **Verdict threshold**:
@@ -782,10 +783,11 @@ concurrent hook latency, importance decay burial, storage failure recovery, and 
 
 ---
 
-## Q9.6 [QUALITY] Redis-down startup — does write_guard fail open or closed?
+## Q9.6 [AGENT] Redis-down startup — does write_guard fail open or closed?
 **Status**: PENDING
-**Mode**: quality
-**Target**: src/core/write_guard.py + src/api/main.py (startup sequence)
+**Mode**: agent
+**Agent**: quantitative-analyst
+**Target**: C:/Users/trg16/Dev/Recall/src/core/write_guard.py, C:/Users/trg16/Dev/Recall/src/api/main.py
 **Hypothesis**: The write guard uses Redis for deduplication. If Redis is unavailable at startup or mid-session, the write guard may silently disable deduplication (fail open), allowing duplicate memories to flood Qdrant. This is the opposite of a safe default — a storage system should fail closed (reject writes) or at minimum warn loudly.
 **Test**: Read src/core/write_guard.py. Look for: the Redis connection initialization path, what happens on `redis.exceptions.ConnectionError` during SETNX, whether there's a fallback mode, what the startup health check does with Redis unavailability, and whether the API rejects store requests or allows them when Redis is down.
 **Verdict threshold**:
@@ -825,3 +827,138 @@ concurrent hook latency, importance decay burial, storage failure recovery, and 
 - FAILURE: any original WARNING condition is still present (fix was not committed or was reverted)
 - WARNING: fixes present but no test covers the fixed path (regression risk without test coverage)
 - HEALTHY: all original WARNING conditions resolved; tests cover the fix paths
+
+
+---
+
+*Follow-up drill-down for Q9.4 — WARNING verdict*
+
+## Q9.4.1 [Memory Decay] Why are old memories still ranking in top positions?
+**Mode**: agent
+**Status**: PENDING
+**Hypothesis**: The decay algorithm is not effectively reducing the importance scores of older memories, leading to their continued high rankings.
+**Test**: Increase the age of the stored memories by 5-7 days and re-run the queries. Observe if the rank/score of old memories improves or remains unchanged.
+**Verdict threshold**:
+- FAILURE: Old memories continue to rank in top positions (positions 1-3) after increased age.
+- WARNING: Old memories still rank between positions 2-6 but show slight improvement in ranking.
+- HEALTHY: Old memories consistently rank below position 5, indicating effective decay application.
+**Derived from**: Q9.4 (WARNING)
+
+---
+
+## Q9.4.2 [Importance Score] What is the impact of base importance on memory retrieval?
+**Mode**: agent
+**Status**: PENDING
+**Hypothesis**: The low base importance score (0.32) is causing older memories to be displaced by more recent, higher-importance ones.
+**Test**: Store new memories with a base importance score significantly higher than 0.32 and compare their retrieval rank against the old memories.
+**Verdict threshold**:
+- FAILURE: Old memories still outperform newer, high-importance memories in top rankings.
+- WARNING: Newer, high-importance memories start to appear in top positions but older memories remain in lower ranks (positions 4-6).
+- HEALTHY: Older memories consistently rank below position 5 regardless of the base importance score.
+**Derived from**: Q9.4 (WARNING)
+
+---
+
+## Q9.4.3 [Decay Application] Is decay being applied uniformly across all memories?
+**Mode**: agent
+**Status**: PENDING
+**Hypothesis**: Decay is not being applied consistently to older memories, leading to their continued high rankings.
+**Test**: Check the decay ratios of multiple old and recent memories to ensure they are consistent with expected values.
+**Verdict threshold**:
+- FAILURE: Decay ratios for old memories remain at 1.000 or close to it, indicating no decay application.
+- WARNING: Some decay ratios for old memories show slight improvement but still not enough to affect their ranking.
+- HEALTHY: Decay ratios for all memories consistently reflect the expected reduction over time.
+**Derived from**: Q9.4 (WARNING)
+
+---
+
+
+
+---
+
+*Follow-up drill-down for Q9.1 — FAILURE verdict*
+
+## Q9.1.1 [LatencySpike] Latency spike during 100-store burst
+**Mode**: performance
+**Status**: PENDING
+**Hypothesis**: The observed latency increase after the first 50 stores is due to insufficient parallelism or resource contention.
+**Test**: Fire 100 sequential store requests with varied content, but limit the concurrency level to a lower value (e.g., 20) and measure the p95 latency. Compare this result with the original test.
+**Verdict threshold**:
+- FAILURE: p95 > 2000ms
+- WARNING: p95 between 1500ms and 2000ms
+- HEALTHY: p95 < 1500ms
+**Derived from**: Q9.1 (FAILURE)
+
+---
+
+## Q9.1.2 [ConcurrencyTest] Concurrency impact on latency
+**Mode**: performance
+**Status**: PENDING
+**Hypothesis**: The segment merge is causing a significant delay, and increasing the number of concurrent stores might mitigate this issue.
+**Test**: Fire 100 sequential store requests with varied content using higher concurrency (e.g., 50) and measure the p95 latency. Compare this result with the original test.
+**Verdict threshold**:
+- FAILURE: p95 > 2000ms
+- WARNING: p95 between 1500ms and 2000ms
+- HEALTHY: p95 < 1500ms
+**Derived from**: Q9.1 (FAILURE)
+
+---
+
+## Q9.1.3 [MergeStall] Segment merge stall duration
+**Mode**: performance
+**Status**: PENDING
+**Hypothesis**: The segment merge is causing a single request to exceed the threshold of 5000ms.
+**Test**: Monitor the latency of individual store requests during the 100-store burst and identify any request that exceeds 5000ms. Record the exact time when these requests occur and correlate with the system logs for signs of segment merge activity.
+**Verdict threshold**:
+- FAILURE: Any single request > 5000ms
+- WARNING: Any single request between 4000ms and 5000ms
+- HEALTHY: All requests < 4000ms
+**Derived from**: Q9.1 (FAILURE)
+
+---
+
+
+
+---
+
+*Follow-up drill-down for Q9.5 — WARNING verdict*
+
+## Q9.5.1 [CODE_REVIEW] Transaction boundary verification
+**Mode**: agent
+**Status**: PENDING
+**Hypothesis**: The transaction boundaries between Qdrant and Neo4j writes are not properly managed, leading to potential race conditions.
+**Test**: Review the code for explicit transaction management or isolation levels that ensure both writes are committed atomically.
+**Verdict threshold**:
+- FAILURE: Lack of transactional guarantees
+- WARNING: Inconsistent transaction handling logic
+- HEALTHY: Explicit transaction boundaries with proper rollback behavior
+**Derived from**: Q9.5 (WARNING)
+
+---
+
+## Q9.5.2 [CODE_REVIEW] Rollback mechanism validation
+**Mode**: agent
+**Status**: PENDING
+**Hypothesis**: The rollback mechanism for Neo4j writes in case of Qdrant failure is insufficient, potentially leaving orphaned nodes.
+**Test**: Inspect the code to ensure that a failed Qdrant write triggers a proper rollback in Neo4j, deleting any created nodes.
+**Verdict threshold**:
+- FAILURE: Missing or ineffective rollback mechanism
+- WARNING: Incomplete or conditional rollback logic
+- HEALTHY: Robust rollback behavior for both stores
+**Derived from**: Q9.5 (WARNING)
+
+---
+
+## Q9.5.3 [CODE_REVIEW] Orphan detection and cleanup
+**Mode**: agent
+**Status**: PENDING
+**Hypothesis**: There is no mechanism in place to detect or clean up orphaned Neo4j nodes, leading to potential resource leaks.
+**Test**: Check for any existing mechanisms that periodically scan the graph for orphaned nodes and delete them.
+**Verdict threshold**:
+- FAILURE: No orphan detection or cleanup mechanism
+- WARNING: Inadequate or infrequent orphan detection
+- HEALTHY: Regular and effective orphan detection and cleanup process
+**Derived from**: Q9.5 (WARNING)
+
+---
+

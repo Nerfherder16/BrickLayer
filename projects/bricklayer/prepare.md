@@ -18,7 +18,7 @@ race conditions, and security issues — then dispatches specialist agents to fi
 
 ```
 C:/Users/trg16/Dev/autosearch/
-  simulate.py              # Main dispatcher (run from autosearch/ root)
+  simulate.py              # Main dispatcher — always use simulate.py from autosearch root
   onboard.py               # Project setup tool
   agents/                  # Agent catalog — all always available
   handoffs/                # Cross-project change requests
@@ -50,7 +50,13 @@ All findings stay in autosearch/projects/bricklayer/.
 Fix agents operate within the target git only.
 Cross-project changes go to autosearch/handoffs/ — never applied directly.
 
-Start by reading your memory, then explore the target before designing questions.
+IMPORTANT — run the campaign as a single subprocess to avoid context overflow:
+
+  python simulate.py --project bricklayer --campaign
+
+Do NOT run questions one-by-one via Bash. Run the full campaign command above,
+wait for it to complete, then read results.tsv and the findings/ folder to report
+what happened. This keeps your context clean across all waves.
 ```
 
 ---
@@ -84,9 +90,9 @@ BrickLayer NEVER commits to any git repo other than the **target project** being
 ```bash
 cd C:/Users/trg16/Dev/autosearch
 
-python recall/simulate.py --project bricklayer --list
-python recall/simulate.py --project bricklayer --question Q1.1
-python recall/simulate.py --project bricklayer --campaign
+python simulate.py --project bricklayer --list
+python simulate.py --project bricklayer --question Q1.1
+python simulate.py --project bricklayer --campaign
 ```
 
 ---

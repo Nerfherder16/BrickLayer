@@ -23,7 +23,52 @@ from tkinter import messagebox, ttk
 
 AUTOSEARCH_ROOT = Path(__file__).parent
 PROJECTS_DIR = AUTOSEARCH_ROOT / "projects"
-CLAUDE_FLAGS = "--dangerously-skip-permissions"
+RETRO_MARKER = AUTOSEARCH_ROOT / ".retro-pending"
+CLAUDE_FLAGS = "--dangerously-skip-permissions --no-mcp"
+GATEWAY_PORT = 8350
+GATEWAY_URL = f"http://127.0.0.1:{GATEWAY_PORT}/mcp"
+
+_gateway_proc: "subprocess.Popen | None" = None
+
+
+def ensure_gateway() -> bool:
+    """Start the FastMCP gateway if it isn't already running. Returns True on success."""
+    import urllib.request
+    global _gateway_proc
+
+    # Check if already up
+    try:
+        urllib.request.urlopen(f"http://127.0.0.1:{GATEWAY_PORT}/", timeout=1)
+        return True
+    except Exception:
+        pass
+
+    # Not running — start it
+    gateway_script = AUTOSEARCH_ROOT / "mcp_gateway.py"
+    if not gateway_script.exists():
+        return False
+
+    try:
+        _gateway_proc = subprocess.Popen(
+            [sys.executable, str(gateway_script), "--port", str(GATEWAY_PORT)],
+            cwd=str(AUTOSEARCH_ROOT),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        return False
+
+    # Wait up to 8s for it to be ready
+    import time
+    for _ in range(16):
+        time.sleep(0.5)
+        try:
+            urllib.request.urlopen(f"http://127.0.0.1:{GATEWAY_PORT}/", timeout=1)
+            return True
+        except Exception:
+            pass
+
+    return False  # Timed out — Claude will still launch, gateway just won't be ready
 
 NEW_SESSION_PROMPT = (
     "Working directory: {autosearch_root}\n\n"
@@ -35,7 +80,11 @@ NEW_SESSION_PROMPT = (
     "All findings stay in autosearch/projects/{name}/. "
     "Fix agents operate within the target git only. "
     "Cross-project changes go to autosearch/handoffs/ — never applied directly.\n\n"
-    "Start by reading your memory, then explore the target before designing questions."
+    "IMPORTANT — run the campaign as a single subprocess to avoid context overflow:\n\n"
+    "  python simulate.py --project {name} --campaign\n\n"
+    "Do NOT run questions one-by-one via Bash. Run the full campaign command above, "
+    "wait for it to complete, then read results.tsv and the findings/ folder to report "
+    "what happened. This keeps your context clean across all waves."
 )
 
 
@@ -73,15 +122,19 @@ def open_vscode(path: str) -> None:
 
 
 def open_claude_terminal(cwd: str, cmd: str) -> None:
-    """Open Claude in Windows Terminal (preferred) or cmd fallback."""
+    """Open Claude in Windows Terminal (preferred) or cmd fallback.
+
+    Sets DISABLE_OMC=1 so OMC hooks don't activate inside BrickLayer sessions.
+    """
+    env_prefix = "set DISABLE_OMC=1 && "
     wt = shutil.which("wt")
     if wt:
         # Windows Terminal: new tab, cmd.exe, run command
-        full = f'wt.exe new-tab --title "BrickLayer" -- cmd.exe /k "cd /d \\"{cwd}\\" && {cmd}"'
+        full = f'wt.exe new-tab --title "BrickLayer" -- cmd.exe /k "cd /d \\"{cwd}\\" && {env_prefix}{cmd}"'
         subprocess.Popen(full, shell=True)
     else:
         # cmd.exe fallback
-        full = f'start cmd.exe /k "cd /d \\"{cwd}\\" && {cmd}"'
+        full = f'start cmd.exe /k "cd /d \\"{cwd}\\" && {env_prefix}{cmd}"'
         subprocess.Popen(full, shell=True)
 
 
@@ -107,8 +160,10 @@ class App(tk.Tk):
         self.option_add("*TCombobox*Listbox.selectBackground", self.ACCENT)
         self.option_add("*TCombobox*Listbox.selectForeground", self.BTN_FG)
         self.projects: list[dict] = []
+        self._retro_pending_project: str | None = None
         self._build_ui()
         self._refresh()
+        self._check_retro_pending()
 
     def _style(self):
         s = ttk.Style(self)
@@ -181,6 +236,10 @@ class App(tk.Tk):
                  font=("Segoe UI", 15, "bold")).pack(side="left")
         tk.Label(hdr, text="  autoresearch launcher", bg=self.BG, fg=self.MUTED,
                  font=("Segoe UI", 9)).pack(side="left", pady=2)
+        self._gw_dot = tk.Label(hdr, text="⬤ gateway", bg=self.BG, fg=self.MUTED,
+                                font=("Segoe UI", 8))
+        self._gw_dot.pack(side="right", padx=4)
+        self._poll_gateway_status()
 
         tk.Frame(self, bg=self.ELEVATED, height=1).pack(fill="x")
 
@@ -258,9 +317,9 @@ class App(tk.Tk):
         sep = tk.Frame(tab, bg=self.ELEVATED, height=1)
         sep.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(14, 8))
 
-        self._btn(tab, "End Session  →  Run Retrospective", self._launch_retro,
-                  padx=16, pady=9
-                  ).grid(row=6, column=0, columnspan=2, sticky="ew")
+        self.retro_btn = self._btn(tab, "End Session  →  Run Retrospective", self._launch_retro,
+                                   padx=16, pady=9)
+        self.retro_btn.grid(row=6, column=0, columnspan=2, sticky="ew")
 
         self._label(
             tab,
@@ -385,10 +444,13 @@ class App(tk.Tk):
         # 1. Copy starting prompt to clipboard
         self._copy_to_clipboard(self._build_prompt(p))
 
-        # 2. Open VSCode at autosearch root
+        # 2. Start MCP gateway (non-blocking if it times out)
+        ensure_gateway()
+
+        # 3. Open VSCode at autosearch root
         open_vscode(str(AUTOSEARCH_ROOT))
 
-        # 3. Open Claude in Windows Terminal
+        # 4. Open Claude in Windows Terminal
         open_claude_terminal(
             cwd=str(AUTOSEARCH_ROOT),
             cmd=f"claude {CLAUDE_FLAGS}",
@@ -428,14 +490,57 @@ class App(tk.Tk):
             cmd=f"claude --resume {sid} {CLAUDE_FLAGS}",
         )
 
-    def _launch_retro(self):
-        p = self._selected_resume()
-        if not p:
-            messagebox.showwarning("No session", "No project with a saved session ID.")
+    def _poll_gateway_status(self):
+        """Check gateway health every 5s and update the header dot."""
+        import urllib.request
+        try:
+            urllib.request.urlopen(f"http://127.0.0.1:{GATEWAY_PORT}/", timeout=1)
+            self._gw_dot.config(text="⬤ gateway", fg="#34d399")  # green
+        except Exception:
+            self._gw_dot.config(text="⬤ gateway", fg=self.MUTED)  # grey = offline
+        self.after(5000, self._poll_gateway_status)
+
+    def _check_retro_pending(self):
+        if not RETRO_MARKER.exists():
             return
+        try:
+            marker = json.loads(RETRO_MARKER.read_text(encoding="utf-8"))
+            project = marker.get("project", "")
+            if not project:
+                return
+            self._retro_pending_project = project
+            # Highlight the button amber to indicate pending retro
+            self.retro_btn.config(
+                bg="#f59e0b", fg="#0f0d1a",
+                text=f"⚑  Retrospective pending ({project})  →  Run Now",
+            )
+        except Exception:
+            pass
+
+    def _launch_retro(self):
+        # If a pending retro was detected by the hook, use that project
+        project_name = self._retro_pending_project
+        if not project_name:
+            p = self._selected_resume()
+            if not p:
+                messagebox.showwarning("No session", "No project with a saved session ID.")
+                return
+            project_name = p["name"]
+
         open_claude_terminal(
             cwd=str(AUTOSEARCH_ROOT),
-            cmd=f"python simulate.py --project {p['name']} --retro",
+            cmd=f"python simulate.py --project {project_name} --retro",
+        )
+
+        # Clear the marker and reset button
+        try:
+            RETRO_MARKER.unlink(missing_ok=True)
+        except Exception:
+            pass
+        self._retro_pending_project = None
+        self.retro_btn.config(
+            bg=self.CARD, fg=self.TEXT,
+            text="End Session  →  Run Retrospective",
         )
 
     def _open_onboard(self):
