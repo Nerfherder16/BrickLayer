@@ -40,3 +40,7 @@ Q7.1	HEALTHY	risks_found=3 fixed=3 committed=1 tests_written=9	2026-03-13T04:11:
 Q7.2	HEALTHY	0 PydanticDeprecatedSince20 warnings; Memory.Config → ConfigDict + @field_serializer; committed 033ede9	2026-03-13T04:15:00Z
 Q5.5	INCONCLUSIVE	unknown	uncertain	0.100	coverage 100% → 100% (0 tests written)	2026-03-13T15:01:45Z
 Q7.3	HEALTHY		high	1.000	17 passed, 0 failed	2026-03-13T15:02:02Z
+Q8.1	INCONCLUSIVE	unknown	uncertain	0.100	Unknown mode 'concurrency'	2026-03-14T04:40:47Z
+Q8.2	INCONCLUSIVE	unknown	uncertain	0.100	Unknown mode 'cache'	2026-03-14T04:42:18Z
+Q8.3	INCONCLUSIVE	unknown	uncertain	0.100	Unknown mode 'embedding'	2026-03-14T04:42:19Z
+Q8.4	INCONCLUSIVE	unknown	uncertain	0.100	Unknown mode 'logging'	2026-03-14T04:42:20Z
