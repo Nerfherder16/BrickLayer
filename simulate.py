@@ -2403,6 +2403,16 @@ def main():
         default=None,
         help="Wave number to label in synthesis (default: auto-detect from results.tsv)",
     )
+    parser.add_argument(
+        "--list-modes",
+        action="store_true",
+        help="(C-28) List all registered runner modes and exit",
+    )
+    parser.add_argument(
+        "--sync-status",
+        action="store_true",
+        help="(C-31) Reconcile questions.md Status fields against results.tsv and exit",
+    )
     args = parser.parse_args()
 
     init_project(args.project)
@@ -2417,6 +2427,21 @@ def main():
             "Warning: using default API key — set api_key in project.json before targeting a live service.",
             file=sys.stderr,
         )
+
+    if args.list_modes:
+        from bl.runners.base import registered_modes
+
+        print("Registered runner modes:")
+        for m in registered_modes():
+            print(f"  {m}")
+        return
+
+    if args.sync_status:
+        from bl.questions import sync_status_from_results
+
+        n = sync_status_from_results()
+        print(f"sync-status: {n} question(s) updated in questions.md")
+        return
 
     if args.scout:
         _run_scout_for_project()
