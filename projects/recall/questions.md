@@ -1142,6 +1142,7 @@ concurrent hook latency, importance decay burial, storage failure recovery, and 
 
 ## Q12.5.1 [AGENT] Decay Rate Consistency Across Importance Tiers
 **Mode**: agent
+**Agent**: quantitative-analyst
 **Status**: PENDING
 **Hypothesis**: The decay rate is consistent across all importance tiers, which may not account for the varying starting points of 0.5-0.8.
 **Test**: Compare the decay rates of memories with initial_importance between 0.3 and 0.8 over a similar time period to determine if there are discrepancies in how they decay.
@@ -1155,6 +1156,7 @@ concurrent hook latency, importance decay burial, storage failure recovery, and 
 
 ## Q12.5.2 [AGENT] Theoretical vs Actual Decay Ratio for High Importance Memories
 **Mode**: agent
+**Agent**: quantitative-analyst
 **Status**: PENDING
 **Hypothesis**: There is a discrepancy between the theoretical 7-day decay ratio and the actual observed decay ratio for high-importance memories.
 **Test**: Calculate the theoretical 7-day decay ratio for memories with initial_importance of 0.5-0.8 using the current decay formula, then compare it to the actual observed decay ratio from live data.
@@ -1168,6 +1170,7 @@ concurrent hook latency, importance decay burial, storage failure recovery, and 
 
 ## Q12.5.3 [AGENT] Effectiveness of Importance Guards on High Importance Memories
 **Mode**: agent
+**Agent**: quantitative-analyst
 **Status**: PENDING
 **Hypothesis**: The importance guards are not effectively protecting high-importance memories from over-decay.
 **Test**: Analyze the decay ratios of high-importance memories (0.5-0.8) to see if they have been protected by the importance guards as expected, and compare them with lower-importance memories.

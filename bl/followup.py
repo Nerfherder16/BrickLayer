@@ -97,6 +97,7 @@ def _build_followup_prompt(question: dict, result: dict, max_questions: int) -> 
     details = result.get("details", "")[:500]
     failure_type = result.get("failure_type", "")
     mode = question.get("mode", "agent")
+    agent = question.get("agent_name", "quantitative-analyst")
     hypothesis = question.get("hypothesis", "")
     test = question.get("test", "")
 
@@ -123,6 +124,7 @@ EXACT FORMAT (use this precisely):
 ---
 ## {parent_id}.N [DOMAIN] Short drill-down title
 **Mode**: {mode}
+**Agent**: {agent}
 **Status**: PENDING
 **Hypothesis**: Specific follow-on hypothesis targeting the observed failure.
 **Test**: Concrete test command or agent instruction targeting the specific failure.
