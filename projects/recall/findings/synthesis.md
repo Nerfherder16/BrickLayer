@@ -537,3 +537,85 @@ Motivation: Q10.1 confirmed decay working at 128K event scale. With the importan
 calibration fix in place, verify that decay applies proportionally to higher-importance
 memories (7-10 range) without over-decaying them relative to the now-recalibrated
 baseline.
+
+---
+
+## Wave 11 — Remediation Verification & Regression Coverage (2026-03-14)
+
+**Questions answered**: 4 (Q11.1–Q11.4)
+**Net new open risks**: 1 (Q11.3 ML dashboard gap)
+**Risks closed**: 2 (Q10.2 Neo4j sync, Q10.3 corpus backfill — forward-fix path confirmed)
+
+### Q11.1 — Neo4j Reconciliation: HEALTHY
+
+Manually triggered `POST /admin/reconcile?repair=true` rather than waiting for the Sunday cron. Result: 11,925 mismatches repaired in a single pass, post-repair mismatch_count=1. The reconcile worker (Q9.5.3) is confirmed operational; the weekly cron will maintain sync going forward. **Risk from Q10.2 is closed.**
+
+### Q11.2 — Importance Backfill: WARNING (persists)
+
+Amnesty endpoint applied: 3,858 durable memories boosted to floor=0.3. Corpus mean moved 0.392→0.393 — negligible. The amnesty floor (0.3) is below the HEALTHY threshold (0.40), so bulk-boosting to 0.3 cannot move the mean into HEALTHY territory.
+
+**Root cause of inadequacy**: The corpus is compressed into the 0.30–0.40 band (~2,250 memories). Boosting that band to 0.30 adds no value; boosting to 0.40 would require overriding the amnesty floor, which risks surfacing stale low-value memories inappropriately.
+
+**Forward path**: The Q10.3.2 rubric fix is the real solution. New technical domain signals now score 0.5+. With ~1,835 decay events per measurement period, the old low-scored memories will decay out while new well-scored memories accumulate. Estimated 2–3 weeks to cross the 0.40 threshold naturally. No further backfill action recommended.
+
+### Q11.3 — ML Dashboard Gap: WARNING (new)
+
+The health dashboard (`GET /admin/health/dashboard`) has no ML section. Two dedicated endpoints exist (`/admin/ml/reranker-status`, `/admin/ml/signal-classifier-status`) and return rich data, but they're invisible from the primary ops surface.
+
+**Current ML health:**
+- Reranker: cv_score=0.9541, trained 2026-03-14 (post Q10.5 fix) — HEALTHY
+- Signal classifier: binary_cv=0.943 (healthy), type_cv=0.6488 (marginal, below 0.70 target), trained 2026-03-08 (6 days stale) — WARNING
+
+The 6-day reranker silent failure (Q10.5) was the proximate cause of adding this question. Recommended fix: add an `ml` aggregation key to the dashboard endpoint with staleness thresholds. Low implementation cost, high ops value.
+
+**Signal classifier type_cv=0.6488** is a secondary concern — type classification accuracy is marginal for production use. No scheduled retraining cron found for the signal classifier (unlike the reranker). This may require a separate investigation.
+
+### Q11.4 — Regression Tests: HEALTHY
+
+14 regression tests now guard the Q10.3.2 fix:
+- `tests/core/test_signal_detection_rubric.py` (7 tests, commit d6eff71): rubric presence, structure, tier ordering, cross-prompt consistency
+- `tests/core/test_importance_calibration.py` (7 tests, commit daeafd5): tier labels (Moderate/Critical), floor position, parser mapping (1-10 → 0.0-1.0), technical domain floor contract
+
+Both suites pass on current codebase. Future rubric changes that silently drop the floor or relabel tiers will be caught immediately.
+
+---
+
+### Wave 11 Risk Inventory
+
+| Risk | Severity | Status | Notes |
+|------|----------|--------|-------|
+| Neo4j importance=0.0 for 58.3% corpus | High | **CLOSED** | Reconciled manually; weekly cron active |
+| Corpus mean importance below 0.40 | Medium | **OPEN — recovering** | Forward fix deployed; natural rehab 2-3 weeks |
+| ML health not in dashboard | Medium | **OPEN** | Reranker healthy; signal classifier type_cv marginal (0.6488); no dashboard visibility |
+| Signal classifier stale (6 days) + type_cv marginal | Low | **OPEN** | No scheduled retraining found; may need cron |
+| Importance rubric regression risk | Low | **CLOSED** | 14 regression tests committed |
+
+---
+
+### Recommended Wave 12 Questions
+
+**High Priority**
+
+**Q12.1 — ML dashboard integration: add `ml` key to /admin/health/dashboard**
+Mode: implementation + verification
+Motivation: Q11.3 confirmed the gap; recommended schema documented. Low-effort fix with high ops value given the Q10.5 incident history.
+
+**Q12.2 — Signal classifier retraining: scheduled cron or trigger?**
+Mode: code audit
+Motivation: Reranker has a cron trigger; signal classifier's `trained_at=2026-03-08` suggests no scheduled retraining. Verify and add cron if missing.
+
+**Medium Priority**
+
+**Q12.3 — Corpus mean importance recovery: verify crossing 0.40 threshold**
+Mode: live verification
+Motivation: Q11.2 forecasts 2-3 weeks to natural recovery. Re-measure mean_quality after the rubric fix has accumulated sufficient new signals.
+
+**Q12.4 — Signal classifier type accuracy improvement**
+Mode: quality
+Motivation: `type_cv_score=0.6488` is marginal. With more training data (1,209 → expected 9,000+ after next retrain), type accuracy should improve. Verify post-retrain.
+
+**Low Priority**
+
+**Q12.5 — Decay correctness at recalibrated baseline**
+Mode: live verification
+Motivation: Q10.1 confirmed decay works. With importance now scoring 0.5+ for technical domains (vs 0.1–0.3 before), verify decay doesn't over-erode the newly well-scored memories relative to their new baseline.
