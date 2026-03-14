@@ -55,6 +55,14 @@ def run_and_record(question: dict) -> dict:
         )
         result["regression"] = regression
 
+    # C-04: adaptive follow-up drill-down on FAILURE/WARNING
+    if result.get("verdict") in ("FAILURE", "WARNING"):
+        from bl.followup import generate_followup
+
+        followup_ids = generate_followup(question, result, cfg.questions_md)
+        if followup_ids:
+            result["followup_questions"] = followup_ids
+
     print(json.dumps(result, indent=2))
     print(f"\nFinding written to: {finding_path}", file=sys.stderr)
     print(f"Verdict: {result['verdict']}", file=sys.stderr)

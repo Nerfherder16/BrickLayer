@@ -1954,6 +1954,14 @@ def _run_and_record(question: dict) -> dict:
         result["confidence"],
         result["score"],
     )
+    # C-04: adaptive follow-up drill-down on FAILURE/WARNING
+    if result.get("verdict") in ("FAILURE", "WARNING"):
+        from bl.followup import generate_followup
+
+        followup_ids = generate_followup(question, result, QUESTIONS_MD)
+        if followup_ids:
+            result["followup_questions"] = followup_ids
+
     print(json.dumps(result, indent=2))
     print(f"\nFinding written to: {finding_path}", file=sys.stderr)
     print(f"Verdict: {result['verdict']}", file=sys.stderr)
@@ -2142,9 +2150,16 @@ def main():
         action="store_true",
         help="Preview goal-generated questions without writing",
     )
+    parser.add_argument(
+        "--no-followup",
+        action="store_true",
+        help="Disable adaptive follow-up drill-down generation (C-04)",
+    )
     args = parser.parse_args()
 
     init_project(args.project)
+    if args.no_followup:
+        os.environ["BRICKLAYER_NO_FOLLOWUP"] = "1"
 
     _DEFAULT_KEY = "recall-admin-key-change-me"
     if BASE_URL not in ("none", "None", "") and API_KEY == _DEFAULT_KEY:
