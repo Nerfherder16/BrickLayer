@@ -8,6 +8,12 @@ import re
 
 from bl.config import cfg
 
+# C-30: tags that require live evidence vs. static analysis only
+_BEHAVIORAL_TAGS = frozenset(
+    ("performance", "correctness", "agent", "http", "benchmark")
+)
+_CODE_AUDIT_TAGS = frozenset(("quality", "static", "code-audit"))
+
 
 def parse_questions() -> list[dict]:
     """Parse questions.md and return list of question dicts."""
@@ -27,7 +33,8 @@ def parse_questions() -> list[dict]:
 
     for i, m in enumerate(matches):
         qid = m.group(1)
-        mode_raw = m.group(2).lower()
+        tag_raw = m.group(2)
+        mode_raw = tag_raw.lower()
         title = m.group(3).strip()
 
         start = m.end()
@@ -38,6 +45,18 @@ def parse_questions() -> list[dict]:
         for fm in field_pattern.finditer(body):
             fields[fm.group(1).lower().replace(" ", "_")] = fm.group(2).strip()
 
+        # C-30: derive question_type from header tag or explicit **Type** field
+        explicit_type = fields.get("type", "").lower()
+        tag_lower = tag_raw.lower()
+        if explicit_type in ("behavioral", "code_audit"):
+            question_type = explicit_type
+        elif tag_lower in _CODE_AUDIT_TAGS:
+            question_type = "code_audit"
+        elif tag_lower in _BEHAVIORAL_TAGS:
+            question_type = "behavioral"
+        else:
+            question_type = "behavioral"  # default
+
         status = get_question_status(qid)
 
         questions.append(
@@ -46,6 +65,7 @@ def parse_questions() -> list[dict]:
                 "mode": mode_raw,
                 "title": title,
                 "status": status,
+                "question_type": question_type,
                 "target": fields.get("target", ""),
                 "hypothesis": fields.get("hypothesis", ""),
                 "test": fields.get("test", ""),
@@ -86,3 +106,48 @@ def get_question_by_id(questions: list[dict], qid: str) -> dict | None:
         if q["id"] == qid:
             return q
     return None
+
+
+def sync_status_from_results() -> int:
+    """
+    Reconcile questions.md Status fields against results.tsv.
+    Returns count of questions updated.
+    """
+    if not cfg.results_tsv.exists() or not cfg.questions_md.exists():
+        return 0
+
+    # Build map of qid → new status from results.tsv
+    done_ids: dict[str, str] = {}
+    for line in cfg.results_tsv.read_text(
+        encoding="utf-8", errors="replace"
+    ).splitlines():
+        parts = line.split("\t")
+        if len(parts) >= 2 and parts[0] not in ("question_id", ""):
+            verdict = parts[1].strip()
+            if verdict in ("HEALTHY", "WARNING", "FAILURE", "INCONCLUSIVE"):
+                done_ids[parts[0]] = (
+                    "DONE" if verdict != "INCONCLUSIVE" else "INCONCLUSIVE"
+                )
+
+    # Update questions.md
+    text = cfg.questions_md.read_text(encoding="utf-8")
+    updated = 0
+    for qid, new_status in done_ids.items():
+        block_start = text.find(f"## {qid} [")
+        if block_start == -1:
+            block_start = text.find(f"## {qid}\n")
+        if block_start == -1:
+            continue
+        next_block = text.find("\n## Q", block_start + 1)
+        block_end = next_block if next_block != -1 else len(text)
+        block = text[block_start:block_end]
+        if "**Status**: PENDING" in block:
+            new_block = block.replace(
+                "**Status**: PENDING", f"**Status**: {new_status}", 1
+            )
+            text = text[:block_start] + new_block + text[block_end:]
+            updated += 1
+
+    if updated:
+        cfg.questions_md.write_text(text, encoding="utf-8")
+    return updated

@@ -368,10 +368,54 @@ def check_sentinels() -> None:
 # ---------------------------------------------------------------------------
 
 
+def _preflight_mode_check(pending: list[dict]) -> list[dict]:
+    """Warn about unregistered modes; return questions that can run."""
+    from bl.runners.base import registered_modes
+
+    valid = set(registered_modes())
+    skipped = []
+    runnable = []
+    for q in pending:
+        if q["mode"] not in valid:
+            skipped.append(q)
+        else:
+            runnable.append(q)
+    if skipped:
+        print(
+            f"\n[C-28] Pre-flight: {len(skipped)} question(s) have unregistered modes — will record INCONCLUSIVE immediately:",
+            file=sys.stderr,
+        )
+        for q in skipped:
+            print(
+                f"  {q['id']} mode='{q['mode']}' (registered: {sorted(valid)})",
+                file=sys.stderr,
+            )
+            result = {
+                "verdict": "INCONCLUSIVE",
+                "summary": f"C-28: mode '{q['mode']}' not registered — no runner available",
+                "data": {"registered_modes": sorted(valid)},
+                "details": (
+                    f"Pre-flight check detected unregistered mode '{q['mode']}'. "
+                    f"Available modes: {sorted(valid)}. "
+                    "Register a runner via bl.runners.base.register() or use a supported mode."
+                ),
+                "failure_type": "configuration",
+                "confidence": "high",
+            }
+            write_finding(q, result)
+            update_results_tsv(
+                q["id"], result["verdict"], result["summary"], "configuration"
+            )
+    if skipped:
+        print(f"[C-28] {len(runnable)} question(s) will run normally.", file=sys.stderr)
+    return runnable
+
+
 def run_campaign() -> None:
     """Run all PENDING questions in sequence with sentinel checks."""
     questions = parse_questions()
     pending = [q for q in questions if q["status"] == "PENDING"]
+    pending = _preflight_mode_check(pending)
 
     if not pending:
         print("No PENDING questions remain.", file=sys.stderr)

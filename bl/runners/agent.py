@@ -242,6 +242,39 @@ def run_agent(question: dict) -> dict:
         f"\n**Source file**: `{cfg.recall_src / source_file}`" if source_file else ""
     )
 
+    # C-29: inject REMEDIATION GUARD when the question involves a corrective action
+    _REMEDIATION_KEYWORDS = (
+        "amnesty",
+        "reconcile",
+        "backfill",
+        "rehabilitate",
+        "repair",
+        "boost",
+    )
+    _question_text = (
+        question.get("hypothesis", "") + " " + question.get("test", "")
+    ).lower()
+    remediation_guard = ""
+    if question.get("mode") == "agent" and any(
+        kw in _question_text for kw in _REMEDIATION_KEYWORDS
+    ):
+        remediation_guard = """
+---
+## REMEDIATION GUARD (C-29)
+
+Before executing ANY corrective action (calling amnesty, reconcile, backfill, rehabilitate,
+or any endpoint that modifies data), you MUST first:
+
+1. Measure the current metric (e.g. GET /admin/health/memory-quality → mean_quality)
+2. Calculate whether the proposed action can move that metric past the HEALTHY threshold
+   - If action floor < threshold: the action CANNOT move the mean past threshold — document
+     this as "structural fix required" and DO NOT apply the patch
+3. Only proceed if projected_outcome >= threshold
+
+If the action is infeasible, record: "remediation_infeasible: projected_delta={delta}, threshold={threshold}"
+This prevents applying ineffective patches that create false confidence.
+"""
+
     full_prompt = f"""{doctrine_prefix}{agent_prompt}
 
 ---
@@ -253,7 +286,7 @@ def run_agent(question: dict) -> dict:
 
 **Finding to address**:
 
-{finding_context}
+{finding_context}{remediation_guard}
 
 Begin your agent loop now. Output your JSON result contract in a ```json ... ``` block when complete."""
 

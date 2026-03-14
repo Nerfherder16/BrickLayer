@@ -1898,6 +1898,67 @@ def update_results_tsv(
         )
 
     RESULTS_TSV.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    _mark_question_done(qid, verdict)
+
+
+def _mark_question_done(qid: str, verdict: str) -> None:
+    """C-31: Update **Status**: PENDING → DONE/INCONCLUSIVE in questions.md for this qid."""
+    if not QUESTIONS_MD.exists():
+        return
+    new_status = "DONE" if verdict != "INCONCLUSIVE" else "INCONCLUSIVE"
+    text = QUESTIONS_MD.read_text(encoding="utf-8", errors="replace")
+    block_start = text.find(f"## {qid} [")
+    if block_start == -1:
+        block_start = text.find(f"## {qid}\n")
+    if block_start == -1:
+        return
+    next_block = text.find("\n## Q", block_start + 1)
+    block_end = next_block if next_block != -1 else len(text)
+    block = text[block_start:block_end]
+    if "**Status**: PENDING" not in block:
+        return
+    new_block = block.replace("**Status**: PENDING", f"**Status**: {new_status}", 1)
+    QUESTIONS_MD.write_text(
+        text[:block_start] + new_block + text[block_end:], encoding="utf-8"
+    )
+
+
+def _sync_status_from_results() -> int:
+    """C-31: Reconcile questions.md Status fields against results.tsv. Returns count updated."""
+    if not RESULTS_TSV.exists() or not QUESTIONS_MD.exists():
+        return 0
+
+    done_ids: dict[str, str] = {}
+    for line in RESULTS_TSV.read_text(encoding="utf-8", errors="replace").splitlines():
+        parts = line.split("\t")
+        if len(parts) >= 2 and parts[0] not in ("question_id", ""):
+            verdict = parts[1].strip()
+            if verdict in ("HEALTHY", "WARNING", "FAILURE", "INCONCLUSIVE"):
+                done_ids[parts[0]] = (
+                    "DONE" if verdict != "INCONCLUSIVE" else "INCONCLUSIVE"
+                )
+
+    text = QUESTIONS_MD.read_text(encoding="utf-8")
+    updated = 0
+    for qid, new_status in done_ids.items():
+        block_start = text.find(f"## {qid} [")
+        if block_start == -1:
+            block_start = text.find(f"## {qid}\n")
+        if block_start == -1:
+            continue
+        next_block = text.find("\n## Q", block_start + 1)
+        block_end = next_block if next_block != -1 else len(text)
+        block = text[block_start:block_end]
+        if "**Status**: PENDING" in block:
+            new_block = block.replace(
+                "**Status**: PENDING", f"**Status**: {new_status}", 1
+            )
+            text = text[:block_start] + new_block + text[block_end:]
+            updated += 1
+
+    if updated:
+        QUESTIONS_MD.write_text(text, encoding="utf-8")
+    return updated
 
 
 # ---------------------------------------------------------------------------
@@ -2113,6 +2174,16 @@ def main():
         action="store_true",
         help="Run end-of-session retrospective to improve BrickLayer",
     )
+    parser.add_argument(
+        "--list-modes",
+        action="store_true",
+        help="List all registered runner modes and exit",
+    )
+    parser.add_argument(
+        "--sync-status",
+        action="store_true",
+        help="Sync questions.md Status fields from results.tsv and exit",
+    )
     args = parser.parse_args()
 
     init_project(args.project)
@@ -2123,6 +2194,27 @@ def main():
             "Warning: using default API key — set api_key in project.json before targeting a live service.",
             file=sys.stderr,
         )
+
+    if args.list_modes:
+        # Derive registered modes from run_question dispatch in this file
+        _modes = [
+            "performance",
+            "correctness",
+            "quality",
+            "agent",
+            "static",
+            "http",
+            "subprocess",
+        ]
+        print("Registered runner modes:")
+        for m in _modes:
+            print(f"  {m}")
+        return
+
+    if args.sync_status:
+        count = _sync_status_from_results()
+        print(f"sync-status: {count} question(s) updated in questions.md")
+        return
 
     if args.scout:
         _run_scout_for_project()
