@@ -37,6 +37,8 @@ The human defines what matters. The agent asks the questions, runs the experimen
 | C-23 | Campaign | Introspection decorator — per-step trace `{thought, tool_call, result, tokens, latency, confidence, error_type}` written to Recall | **DONE** | conv:mar13-afternoon |
 | C-24 | Campaign | ML spec validator — re-run initial baseline questions to confirm model choices, thresholds, and embedding params are still valid | **FREE** | — |
 | C-25 | Architecture | Local inference routing — lightweight BrickLayer ops (scoring, failure classification, confidence, hypothesis generation) routed to 3060 Ollama; reserve Claude API for heavy execution | **DONE** | conv:mar13-afternoon |
+| C-26 | Campaign | Synthesizer — reads all findings after each wave, calls Claude, produces `synthesis.md`: validated bets, dead ends, unvalidated bets, recommended next action; terminates campaign when confidence converges | **DONE** | conv:mar14 |
+| C-27 | Architecture | Project Doctrine — per-project `doctrine.md` injected into every campaign session; defines core hypothesis, key constraints, open bets, and first-principles reasoning; prevents Claude from misinterpreting project context | **FREE** | — |
 
 ### Sessions active
 
@@ -244,6 +246,82 @@ Each item adds a new class of targets BrickLayer can run against.
 | **Simulations** | Business models, financial projections, game theory |
 | **Pipelines** | CI/CD, data pipelines, ETL |
 | **Infrastructure** | Docker, Kubernetes, Proxmox — health and config drift |
+
+---
+
+### C-26 — Synthesizer
+
+After each wave, reads all `findings/*.md` + `results.tsv` and calls Claude to produce `synthesis.md`.
+
+**Output structure:**
+```markdown
+# Campaign Synthesis — Wave N
+
+## Core Hypothesis Verdict
+[CONFIRMED | UNCONFIRMED | PARTIALLY CONFIRMED] — one paragraph
+
+## Validated Bets
+- [bet]: evidence from Q3.5, Q6.4 — confidence high
+- ...
+
+## Dead Ends
+- [path]: Q2.2, Q2.3 found nothing — stop probing here
+
+## Unvalidated Bets
+- [bet]: not yet tested — suggest Wave N+1 questions
+- ...
+
+## Recommended Next Action
+CONTINUE | STOP | PIVOT — with specific reasoning
+```
+
+**Termination logic:**
+- `STOP` when synthesizer says unvalidated bets = 0 or core hypothesis = CONFIRMED/REFUTED with high confidence
+- `PIVOT` when a new direction emerges that the current question bank doesn't cover
+- `CONTINUE` otherwise — hypothesis generator picks up
+
+**Implementation:**
+1. `bl/synthesizer.py` — reads findings dir + results.tsv, builds prompt, calls Claude, writes `synthesis.md`
+2. `--synthesize` flag on `simulate.py`; auto-triggers after each wave alongside hypothesis generator
+3. Synthesis output fed into hypothesis generator prompt as context (so new questions are grounded in accumulated findings)
+4. Campaign loop checks synthesis recommendation before starting next wave
+
+---
+
+### C-27 — Project Doctrine
+
+Per-project `doctrine.md` — injected into every campaign session before any question runs.
+
+**Not a summary. Not a spec.** The reasoning chain: why this project exists, what the core bets are, what constraints are non-negotiable, what has already been decided and why.
+
+**ADBP doctrine example topics:**
+- Why 2x amplification — the math, the tax structure, the employer incentive
+- Why NonTransferable — the SEC classification dependency, what breaks if removed
+- The ERISA line — what triggers it, what must never be implemented
+- Credit burn rate — what's been tried, what's uncertain, what the campaign is testing
+- MSB partner dependency — why ADBP can't transmit money directly
+
+**Format:**
+```markdown
+# [Project] Doctrine
+
+## Core Hypothesis
+What this project is trying to prove or disprove.
+
+## Non-Negotiable Constraints
+Things that cannot change regardless of findings.
+
+## Open Bets (Unvalidated)
+Decisions being made without proof — these are BrickLayer campaign targets.
+
+## Closed Bets (Validated or Decided)
+What has been confirmed, refuted, or decided with reasoning.
+
+## First Principles
+The 5-10 things Claude must understand before touching any question in this campaign.
+```
+
+**Injection:** `simulate.py --campaign` reads `doctrine.md` from project dir and prepends to every agent prompt. Claude always has the full context, not just the current question.
 
 ---
 
