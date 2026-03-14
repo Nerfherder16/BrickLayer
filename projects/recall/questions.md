@@ -706,3 +706,122 @@ findings that have not yet been asked.
 - HEALTHY: Test passes with no errors
 
 **Derived from**: Q5.3, Q7.6 (Q5.5)
+
+---
+
+## Wave 9 — Scale, Concurrency, Quality Decay, and Failure Recovery
+
+*Added 2026-03-14. Covers five untested risk areas: scale boundaries at 20K+ memories,
+concurrent hook latency, importance decay burial, storage failure recovery, and regression hardening.*
+
+---
+
+## Q9.1 [PERFORMANCE] Qdrant store latency curve — does it spike as memory count grows?
+**Status**: PENDING
+**Mode**: performance
+**Target**: POST /memory/store (bulk insertion path)
+**Hypothesis**: At 20K+ memories, Qdrant's HNSW index segment merges cause periodic latency spikes during bulk stores. Individual stores at low volume are fast (Q-C24.3: p95=371ms) but a burst of 100+ stores may trigger a segment merge that blocks new writes for several seconds.
+**Test**: Fire 100 sequential store requests with varied content (domain: autoresearch-scale-test). Measure latency per request. Look for: sustained latency increase after ~50 stores (indicating index growth pressure), any single request exceeding 5000ms (segment merge stall), overall p95 vs. the Q-C24.3 baseline of 371ms.
+**Verdict threshold**:
+- FAILURE: any single store > 5000ms OR p95 > 2000ms across the 100-store burst
+- WARNING: p95 > 1000ms (2.7x above Q-C24.3 baseline) OR any store > 2000ms
+- HEALTHY: p95 ≤ 1000ms and no outlier spikes — HNSW handles 20K+ gracefully
+
+---
+
+## Q9.2 [PERFORMANCE] Consolidation time at 20K+ memories — linear or exponential?
+**Status**: PENDING
+**Mode**: performance
+**Target**: POST /admin/consolidate
+**Hypothesis**: Consolidation clusters similar memories using embedding similarity. At 20K memories, the pairwise comparison space is large enough that each consolidation run takes >60s, which could cause HTTP timeouts from the Claude Code hook or dashboard.
+**Test**: Time 3 successive POST /admin/consolidate calls (wall clock, not just HTTP response — if it's async, poll for completion). Record wall-clock duration per run. Check if duration is growing (each run has fewer candidates so should be faster, not slower).
+**Verdict threshold**:
+- FAILURE: any consolidation run > 120s wall clock (hook timeout risk)
+- WARNING: any run > 60s OR duration growing across successive runs (runaway complexity)
+- HEALTHY: all runs < 60s and duration stable or decreasing
+
+---
+
+## Q9.3 [PERFORMANCE] Concurrent recall-retrieve hook latency — 5 simultaneous Claude sessions
+**Status**: PENDING
+**Mode**: performance
+**Target**: POST /search/query (the endpoint the recall-retrieve hook calls)
+**Hypothesis**: The recall-retrieve hook fires on every Claude Code prompt. With multiple Claude Code instances running (casaclaude + proxyclaude + others), 5+ concurrent search queries could cause p99 to spike above 2000ms — blocking every Claude session waiting on Recall.
+**Test**: Fire 5 concurrent POST /search/query requests simultaneously (asyncio.gather). Repeat 10 rounds. Measure p50/p95/p99 across all 50 requests. Compare to Q1.1 baseline (5 concurrent users: p99=24.4ms).
+**Verdict threshold**:
+- FAILURE: p99 > 2000ms (Claude Code sessions would visibly stall)
+- WARNING: p99 > 500ms (noticeable delay, acceptable but worth reducing)
+- HEALTHY: p99 ≤ 500ms under 5 concurrent sessions
+
+---
+
+## Q9.4 [AGENT] Importance decay burial — are old memories still surfacing at 20K+?
+**Status**: PENDING
+**Mode**: agent
+**Agent**: quantitative-analyst
+**Target**: POST /search/query + Recall memory store
+**Hypothesis**: After multiple decay cycles at 20K+ memories, memories older than 30 days have had their importance scores reduced enough that they no longer appear in top-10 results even when directly relevant. Recent memories crowd out older ones regardless of relevance.
+**Test**: Store 3 memories with unique, highly specific content that would never appear naturally in the corpus (use rare/distinctive phrases). Wait — or check timestamps of existing old memories if the API exposes them. Query for each using the exact key phrase. Check: (1) does the memory appear in results at all, (2) what rank/score does it have. Also query for a topic you know has many recent memories to see if old relevant ones still surface.
+**Verdict threshold**:
+- FAILURE: specific memories stored >14 days ago are not retrievable by exact-phrase query (decay has buried them below retrieval floor)
+- WARNING: memories retrievable but ranked below position 5 despite exact-phrase match (decay affecting relevance ranking)
+- HEALTHY: memories retrievable at top-3 regardless of age when query is specific
+
+---
+
+## Q9.5 [QUALITY] Qdrant-down mid-store — orphaned Neo4j nodes on partial failure
+**Status**: PENDING
+**Mode**: quality
+**Target**: src/core/storage.py (or equivalent storage orchestration layer)
+**Hypothesis**: The store path writes to both Qdrant (vector) and Neo4j (graph). If Qdrant is unavailable mid-store, the Neo4j node may still be created, leaving a graph node with no corresponding vector — an orphan that consumes graph resources but can never be retrieved by semantic search.
+**Test**: Read the store orchestration code. Look for: transaction boundaries across Qdrant + Neo4j writes, rollback behavior if Qdrant write fails after Neo4j write succeeds, any cleanup/orphan detection mechanism, whether the write order (Neo4j first vs. Qdrant first) determines which orphan type is created.
+**Verdict threshold**:
+- FAILURE: Neo4j write happens before Qdrant write with no rollback on Qdrant failure (orphaned graph nodes guaranteed on any Qdrant outage)
+- WARNING: write order is safe (Qdrant first) but no orphan detection exists for pre-existing orphans
+- HEALTHY: either atomic transaction across both stores, OR Qdrant-first with Neo4j rollback on failure, OR orphan detection/cleanup job exists
+
+---
+
+## Q9.6 [QUALITY] Redis-down startup — does write_guard fail open or closed?
+**Status**: PENDING
+**Mode**: quality
+**Target**: src/core/write_guard.py + src/api/main.py (startup sequence)
+**Hypothesis**: The write guard uses Redis for deduplication. If Redis is unavailable at startup or mid-session, the write guard may silently disable deduplication (fail open), allowing duplicate memories to flood Qdrant. This is the opposite of a safe default — a storage system should fail closed (reject writes) or at minimum warn loudly.
+**Test**: Read src/core/write_guard.py. Look for: the Redis connection initialization path, what happens on `redis.exceptions.ConnectionError` during SETNX, whether there's a fallback mode, what the startup health check does with Redis unavailability, and whether the API rejects store requests or allows them when Redis is down.
+**Verdict threshold**:
+- FAILURE: Redis failure causes write_guard to skip dedup silently — stores proceed without dedup check (fail open, no warning)
+- WARNING: Redis failure raises an exception that aborts the store (fail closed) but no structured log is emitted and /health still returns green
+- HEALTHY: Redis failure is detected, logged with structured context, /health reflects degraded state, and store either fails closed or falls back to in-process dedup
+
+---
+
+## Q9.7 [AGENT] test-writer → hygiene and dream_consolidation worker test suites
+**Status**: PENDING
+**Mode**: agent
+**Agent**: test-writer
+**Finding**: Q7.6
+**Source**: src/workers/hygiene.py
+**Hypothesis**: Q7.6 confirmed hygiene.py and dream_consolidation.py have structured exception logging (source-read verdict) but no dedicated test suite. The same test-writer pattern that produced 17 tests for decay.py in Q5.7 should be applied to both remaining workers — covering their error paths, loop logic, and exception handling.
+**Verdict threshold**:
+- HEALTHY: test files exist for both workers; coverage ≥ 70% per file; all error-path branches covered; all tests pass
+- WARNING: tests written but coverage < 70% on either file
+- INCONCLUSIVE: agent produced no structured output
+
+**Derived from**: Q7.6 (INCONCLUSIVE — source read only, no tests), Q5.7 (HEALTHY — decay worker pattern to follow)
+
+---
+
+## Q9.8 [CORRECTNESS] Regression sweep — re-run all previously FAILURE/WARNING questions
+**Status**: PENDING
+**Mode**: correctness
+**Target**: results.tsv (all WARNING verdicts)
+**Hypothesis**: Several questions were resolved as WARNING (Q1.5, Q3.3, Q3.5, Q6.4, Q6.5) with fixes applied in subsequent agent waves. No question has re-run the original WARNING tests to confirm the fixes held. A regression could have been introduced by any of the ~15 commits made since those findings.
+**Test**: Re-run the original tests for each WARNING question:
+- Q1.5: `pytest C:/Users/trg16/Dev/Recall/tests/api/test_security_hardening.py -k "consolidat" -v --tb=short -q`
+- Q3.3: Read src/core/write_guard.py — confirm asyncio.Lock present on Redis lock path
+- Q3.5: Read src/core/embeddings.py — confirm embed_batch failure path logs structured error
+- Q6.4: Read src/core/retrieval.py + embeddings.py + tuning_config.py — confirm locks present on all three caches
+**Verdict threshold**:
+- FAILURE: any original WARNING condition is still present (fix was not committed or was reverted)
+- WARNING: fixes present but no test covers the fixed path (regression risk without test coverage)
+- HEALTHY: all original WARNING conditions resolved; tests cover the fix paths
