@@ -145,7 +145,7 @@ def parse_questions() -> list[dict]:
 
     # Match question blocks: ## Q{N}.{M} [MODE] Title
     block_pattern = re.compile(
-        r"^## (Q\d+\.\d+) \[(\w+)\] (.+?)$",
+        r"^## (Q[\w.-]+) \[(\w+)\] (.+?)$",
         re.MULTILINE,
     )
     field_pattern = re.compile(
