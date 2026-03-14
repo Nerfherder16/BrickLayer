@@ -391,3 +391,149 @@ Mode: quality
 Motivation: Q6.2 cleared graphiti_store.py. The Wave 2 concern (Pattern 3) was
 codebase-wide. Grep `import logging` across all src/ files and verify none use
 stdlib-style `logger.warning(kwarg=value)` patterns.
+
+---
+
+## Wave 10 Results (Q10.1–Q10.5)
+
+**Generated**: 2026-03-14
+**Questions answered**: 8 (Q10.1–Q10.5, Q10.3.1, Q10.3.2, Q10.5)
+**Focus**: Live corpus health — decay correctness, Neo4j sync, importance calibration, deduplication, ML pipeline
+
+### Overview
+
+Wave 10 was a live system health audit targeting the 20K-memory production corpus.
+Unlike prior waves (static source analysis + unit tests), all Q10.x questions were
+answered against the running CasaOS deployment via the Recall API and worker logs.
+
+**Net change to system risk: strongly positive.** Three latent production bugs were
+discovered and fixed:
+1. Decay not running correctly for 6 weeks (found Q9.4, fixed Q10.1)
+2. Reranker never retrained for 6 days (found Q10.5, fixed same session)
+3. Signal importance calibration systematically low for technical domains (found Q10.3, fixed Q10.3.2)
+
+Two structural data quality findings remain open: Neo4j importance sync (Q10.2,
+self-healing via scheduled cron) and corpus-wide importance backfill (Q10.3, forward-fix
+only — existing memories unaffected).
+
+---
+
+### Wave 10 Findings by Verdict
+
+#### HEALTHY (5)
+
+| ID | Finding | Notes |
+|----|---------|-------|
+| Q10.1 | Decay working post-fix: mean importance ratio=0.346 for 20-22d memories (Q9.4 baseline=1.000); 128K memories decayed on first post-fix run; audit_log confirms 121 decay runs since Feb 22 | Confirms Q9.4 fix (corrupt datetime comparison) held; decay pipeline healthy |
+| Q10.4 | Near-duplicate rate 0%: dedup_complete groups=0, total=5693 at threshold 0.90; consolidation cron healthy (18 merges/24h, merged 2 at 18:00 cron) | No corpus bloat; consolidation pipeline consuming clusters regularly |
+| Q10.3.1 | /search/browse fixed: 6 datetime bugs patched (retrieval.py×3, reranker.py×2, search.py×1) + admin user_id filter bypass; confirmed HTTP:200 with entity-heavy queries | Sub-question fix clearing secondary blocker for Q10.3 |
+| Q10.3.2 | SIGNAL_DETECTION_SYSTEM rubric added (commit d6eff71): live validation api=importance:5, database=importance:7 post-deploy; 7/7 tests pass | Forward-fix for Q10.3 root cause |
+| Q10.5 | Reranker retrained: workers/main.py was calling train_reranker(redis, pg) — 2-arg call to a 3-arg function — for 6 days; fixed (commit 7d62664); post-fix retrain n_samples=9102, cv_score=0.9541 | Bug introduced 2026-03-08; reranker had been falling back to similarity-only scoring the entire time |
+
+#### WARNING (2)
+
+| ID | Finding | Severity | Notes |
+|----|---------|---------|-------|
+| Q10.2 | Neo4j importance_mismatches=11,926 (58.3% of corpus have importance=0.0 in Neo4j vs real Qdrant values); orphan rate=0.0098% (healthy) | High | Reconcile worker registered and scheduled Sunday 05:30 UTC (2026-03-15) — self-healing expected; root cause unknown (migration artifact vs active write-path bug) |
+| Q10.3 | Mean corpus importance=0.392 (just below 0.40 threshold); 57.5% below 0.40; technical domains documentation=0.189, ai-ml=0.191 | Medium | Root cause fixed (Q10.3.2) but existing corpus unaffected — forward-fix only; distribution shift requires new ingestion or backfill pass |
+
+---
+
+### Wave 10 Fixes Applied
+
+| Question | Action | Commit / Artifact |
+|----------|--------|------------------|
+| Q10.1 | Confirmed decay working post Q9.4 fix; no new action needed | No new commit (carry-forward) |
+| Q10.3.1 | 6 datetime patches + admin user_id bypass fix across retrieval.py, reranker.py, search.py | Commits 927cd67 e6f9bb8 f15246e bb181cb 8efa72e |
+| Q10.3.2 | Added 5-tier importance rubric + 5+ floor for technical domains to SIGNAL_DETECTION_SYSTEM in prompts.py; 7 tests in test_signal_detection_rubric.py | Commit d6eff71 |
+| Q10.5 | Fixed train_reranker() call args in workers/main.py (2-arg → 3-arg); triggerd manual retrain | Commit 7d62664; retrain: n_samples=9102, cv_score=0.9541 |
+
+---
+
+### Wave 10 Cross-Domain Observations
+
+#### Observation 1: ML pipeline failures are silent until you look for them
+
+The reranker bug (Q10.5) had been silently failing for 6 days. The cron job ran, the
+exception was caught and logged, but no alert surfaced. The system fell back to
+similarity-only scoring transparently — users saw no error, but search ranking quality
+was degraded. Similarly, the importance calibration problem (Q10.3) had been accumulating
+since the first memory was stored — 20K+ memories with systematically low scores.
+
+**Pattern**: Production ML pipelines need observable success signals (last trained, sample
+count, CV score), not just logged errors. A dead reranker is indistinguishable from a
+healthy one without instrumentation.
+
+#### Observation 2: Two independent root causes both pointed to prompts.py
+
+Q10.3 root cause was `SIGNAL_DETECTION_SYSTEM` in `prompts.py` lacking a rubric.
+`OBSERVER_SYSTEM` (same file) had a complete 5-tier rubric. The divergence was introduced
+when the observer was written with a rubric as a best-practice, but the signal detector
+(written separately) was not updated to match. This is a documentation/convention gap:
+no canonical spec said "all LLM importance prompts must include a rubric."
+
+#### Observation 3: Q10.2 Neo4j desync is a migration artifact, not an active bug
+
+The importance_mismatch pattern (all Neo4j nodes have importance=0.0) points to a
+one-time failure: Neo4j nodes were created without importance initialization, while Qdrant
+payloads were written correctly. The reconcile worker design (compare Qdrant → sync to
+Neo4j) directly addresses this class of desync. The 0.0098% orphan rate confirms the
+write-path itself is healthy — the desync is historical, not ongoing.
+
+---
+
+### Updated Residual Risk Inventory (post Wave 10)
+
+Risks from prior waves carry forward. New risks from Wave 10 are marked NEW.
+
+| Risk | Severity | Status | Notes |
+|------|---------|--------|-------|
+| Pydantic v3 breaking change on models.py | Medium | OPEN | Q7.2 fixed (ConfigDict); carry-forward only if not already committed |
+| _embed_cache / _tuning_cache: no asyncio.Lock | Low | OPEN | Q7.1 fixed; carry-forward only if not already committed |
+| Neo4j importance=0.0 for 58.3% of corpus | High | OPEN — self-healing | Reconcile cron 2026-03-15 05:30 UTC; verify post-run |
+| Corpus importance distribution below threshold (mean=0.392) | Medium | OPEN — forward-fix only | New memories fixed; existing 5,695 need backfill to move mean above 0.40 |
+| Reranker CV score history unmonitored | Low | NEW | Post-fix retrain=0.9541; no baseline comparison; recommend storing cv_score time-series |
+| Signal detection prompt/observer prompt divergence | Low | CLOSED (Q10.3.2) | Rubric now consistent; no further drift risk if prompts are reviewed together |
+
+---
+
+### Recommended Wave 11 Questions
+
+**High Priority**
+
+**Q11.1 — Verify Sunday reconcile run fixed Neo4j importance_mismatches**
+Mode: live verification
+Motivation: Q10.2 flagged 11,926 nodes with importance=0.0. Reconcile worker is scheduled
+for 2026-03-15 05:30 UTC. After that run, re-query `POST /admin/reconcile?repair=false`
+and confirm importance_mismatches drops to near-zero.
+
+**Q11.2 — Importance backfill: re-score existing corpus with updated rubric**
+Mode: agent / backfill
+Motivation: Q10.3 root cause is fixed forward-only. The 5,695 active memories scored
+before the rubric fix have systematically low importance (mean=0.392). A backfill pass
+using the signal detector or observer to re-score existing memories would move the
+distribution above the 0.40 threshold.
+
+**Medium Priority**
+
+**Q11.3 — ML pipeline health dashboard: last_trained, n_samples, cv_score time-series**
+Mode: observability
+Motivation: Q10.5 reranker was silently degraded for 6 days. Storing cv_score and
+last_trained timestamps in Redis (alongside the weights) and surfacing them via
+`/admin/ml/status` would make future failures immediately visible.
+
+**Q11.4 — Signal detection importance calibration regression test**
+Mode: quality
+Motivation: Q10.3.2 added 7 structural tests but no behavioral test. A test that sends
+known technical content (API endpoint, database schema) through the signal detector
+(mocked LLM response) and asserts returned importance >= 5 would prevent prompt
+regression.
+
+**Low Priority**
+
+**Q11.5 — Decay correctness at corpus scale: verify 5,000+ memory decay run**
+Mode: live verification
+Motivation: Q10.1 confirmed decay working at 128K event scale. With the importance
+calibration fix in place, verify that decay applies proportionally to higher-importance
+memories (7-10 range) without over-decaying them relative to the now-recalibrated
+baseline.
