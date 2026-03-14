@@ -13,7 +13,11 @@ from bl.config import cfg
 _TIMEOUT = 30.0  # seconds — local LAN call, should be fast
 
 _SYSTEM_PROMPT = (
-    "You are a precise classifier for an autonomous research system. "
+    "You are a precise classifier for BrickLayer, an autonomous research campaign system. "
+    "BrickLayer runs structured question campaigns against production systems (APIs, codebases, databases). "
+    "Each result has a verdict (HEALTHY/WARNING/FAILURE/INCONCLUSIVE), a summary, and evidence details. "
+    "Verdict meanings: HEALTHY=condition confirmed safe, FAILURE=condition confirmed broken, "
+    "WARNING=risk identified but not confirmed, INCONCLUSIVE=could not determine. "
     "Respond only with the exact value requested. No explanation, no preamble."
 )
 
@@ -55,12 +59,23 @@ def classify_failure_type_local(result: dict, mode: str) -> str | None:
     details = result.get("details", "")[:300]
 
     prompt = (
-        f"Classify this test failure. Mode: {mode}\n"
-        f"Verdict: {verdict}\n"
+        f"Classify why this research campaign result failed.\n"
+        f"Mode: {mode} | Verdict: {verdict}\n"
         f"Summary: {summary}\n"
         f"Details: {details}\n\n"
-        "Reply with exactly one word from this list:\n"
-        "syntax, logic, hallucination, tool_failure, timeout, unknown\n\n"
+        "Failure type definitions:\n"
+        "  syntax       — Python/code syntax error, parse error, IndentationError\n"
+        "  logic        — correct execution but wrong result; test assertion failed\n"
+        "  hallucination — agent claimed something without evidence; 'assumed', 'unclear', 'no data'\n"
+        "  tool_failure — connection refused, import error, subprocess failed, HTTP error, exit code\n"
+        "  timeout      — timed out, ReadTimeout, time limit exceeded\n"
+        "  unknown      — cannot determine cause from available information\n\n"
+        "Examples:\n"
+        "  'ModuleNotFoundError: No module named httpx' → tool_failure\n"
+        "  'AssertionError: expected 200 got 404' → logic\n"
+        "  'agent assumed the cache was populated' → hallucination\n"
+        "  'ReadTimeoutError after 30s' → timeout\n\n"
+        "Reply with exactly one word from: syntax, logic, hallucination, tool_failure, timeout, unknown\n\n"
         "Your answer:"
     )
 
@@ -89,12 +104,21 @@ def classify_confidence_local(result: dict) -> str | None:
     details = result.get("details", "")[:300]
 
     prompt = (
-        f"Rate the confidence of this research finding.\n"
+        f"Rate the confidence of this research campaign finding.\n"
         f"Verdict: {verdict}\n"
         f"Summary: {summary}\n"
         f"Details: {details}\n\n"
-        "Reply with exactly one word from this list:\n"
-        "high, medium, low, uncertain\n\n"
+        "Confidence level definitions:\n"
+        "  high      — concrete evidence: specific line numbers, file paths, test counts, measured values\n"
+        "  medium    — some evidence: issue identified but not fully confirmed; WARNING with specific details\n"
+        "  low       — weak evidence: WARNING with vague description; few concrete signals\n"
+        "  uncertain — no usable evidence: INCONCLUSIVE verdict, agent could not verify, speculation only\n\n"
+        "Examples:\n"
+        "  HEALTHY, '23 passed 0 failed', details have test names → high\n"
+        "  WARNING, 'embed_batch() swallows failure at line 224', details mention line number → medium\n"
+        "  WARNING, 'possible race condition in cache', details are vague → low\n"
+        "  INCONCLUSIVE, 'requires agent analysis', no concrete details → uncertain\n\n"
+        "Reply with exactly one word from: high, medium, low, uncertain\n\n"
         "Your answer:"
     )
 
