@@ -586,6 +586,7 @@ findings that have not yet been asked.
 ## Q-C24.1 [AGENT] Embedding model adequacy at scale — qwen3-embedding:0.6b vs retrieval quality
 **Status**: PENDING
 **Mode**: agent
+**Agent**: quantitative-analyst
 **Target**: Recall /search/query endpoint + Ollama at 192.168.50.62:11434
 **Hypothesis**: qwen3-embedding:0.6b was chosen for speed. At 19K+ memories, retrieval quality may be suffering — small embedding models lose semantic nuance that causes relevant memories to rank below the top-10 cutoff.
 **Test**: Store 5 test memories with known content across distinct topics. Query for each using paraphrased phrasing (not exact match). Record whether correct memory appears in top-3 results. Repeat for 10 query pairs. Compute hit-rate.
@@ -601,6 +602,7 @@ findings that have not yet been asked.
 ## Q-C24.2 [AGENT] Consolidation threshold regression — is 0.78 causing memory loss?
 **Status**: PENDING
 **Mode**: agent
+**Agent**: quantitative-analyst
 **Target**: POST /admin/consolidate + GET /search/query
 **Hypothesis**: Consolidation threshold was lowered from 0.85 to 0.78 (v3.0 change). At 0.78, memories that are similar-but-distinct may be merged, permanently losing the more specific one.
 **Test**: Store two memories that are related but meaningfully different (e.g., "qwen3:14b performs well on signal detection" and "qwen3:14b is slow under concurrent load"). Run consolidation. Query for both. Check if both are still retrievable as separate memories.
@@ -631,6 +633,7 @@ findings that have not yet been asked.
 ## Q-C24.4 [AGENT] Semantic dedup threshold — is 0.90 dropping valid distinct memories?
 **Status**: PENDING
 **Mode**: agent
+**Agent**: quantitative-analyst
 **Target**: POST /memory/store (dedup path)
 **Hypothesis**: `semantic_dedup_threshold` dropped from 0.95 to 0.90. At 0.90, two memories sharing the same topic but expressing different facts may be deduplicated on store — the second never persists.
 **Test**: Store two semantically related but factually distinct memories back-to-back (similarity ~0.91–0.93 range). Verify both are retrievable. Then store a near-duplicate (similarity ~0.97) and confirm dedup fires correctly.

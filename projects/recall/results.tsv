@@ -44,3 +44,7 @@ Q8.1	INCONCLUSIVE	unknown	uncertain	0.100	Unknown mode 'concurrency'	2026-03-14T
 Q8.2	INCONCLUSIVE	unknown	uncertain	0.100	Unknown mode 'cache'	2026-03-14T04:42:18Z
 Q8.3	INCONCLUSIVE	unknown	uncertain	0.100	Unknown mode 'embedding'	2026-03-14T04:42:19Z
 Q8.4	INCONCLUSIVE	unknown	uncertain	0.100	Unknown mode 'logging'	2026-03-14T04:42:20Z
+Q-C24.3	HEALTHY		uncertain	0.600	store latency p50=269ms p95=371ms p99=371ms errors=0	2026-03-14T04:50:21Z
+Q-C24.1	HEALTHY		medium	0.880	quantitative-analyst: {"verdict": "HEALTHY", "hit_rate": 1.0, "summary": "qwen3-embedding:0.6b paraphrased retrieval: 10	2026-03-14T04:57:44Z
+Q-C24.2	HEALTHY		low	0.720	quantitative-analyst: {"verdict": "HEALTHY", "hit_rate": 1.0, "summary": "Both distinct qwen3:14b memories (signal detec	2026-03-14T05:02:01Z
+Q-C24.4	HEALTHY		medium	0.880	quantitative-analyst: {"verdict": "HEALTHY", "hit_rate": 1.0, "summary": "Both factually distinct memories (Qdrant vs Ne	2026-03-14T05:05:45Z

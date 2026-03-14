@@ -629,12 +629,61 @@ async def run_performance_q1_5() -> dict:
     }
 
 
+async def run_performance_q_c24_3() -> dict:
+    """Q-C24.3 — Signal detection hook latency: 10 sequential /memory/store requests."""
+    import time as _time
+
+    payloads = [
+        {
+            "content": f"During our session today, I noticed that Claude tends to remember context better when I provide explicit examples. This is useful for {i} reasons.",
+            "memory_type": "episodic",
+            "domain": "autoresearch-perf-test",
+        }
+        for i in range(1, 11)
+    ]
+    latencies: list = []
+    errors = 0
+    async with httpx.AsyncClient(base_url=BASE_URL, headers=AUTH_HEADERS) as client:
+        for payload in payloads:
+            t0 = _time.time()
+            try:
+                resp = await client.post("/memory/store", json=payload, timeout=30.0)
+                elapsed = (_time.time() - t0) * 1000
+                latencies.append(elapsed)
+                if resp.status_code >= 500:
+                    errors += 1
+            except Exception:
+                errors += 1
+                latencies.append(30_000)
+
+    latencies_sorted = sorted(latencies)
+    n = len(latencies_sorted)
+    p50 = latencies_sorted[int(n * 0.50)]
+    p95 = latencies_sorted[int(n * 0.95) - 1] if n >= 2 else latencies_sorted[-1]
+    p99 = latencies_sorted[int(n * 0.99) - 1] if n >= 2 else latencies_sorted[-1]
+
+    if p95 > 10_000 or errors > 2:
+        verdict = "FAILURE"
+    elif p95 > 3_000:
+        verdict = "WARNING"
+    else:
+        verdict = "HEALTHY"
+
+    return {
+        "verdict": verdict,
+        "summary": f"store latency p50={p50:.0f}ms p95={p95:.0f}ms p99={p99:.0f}ms errors={errors}",
+        "data": {"p50_ms": p50, "p95_ms": p95, "p99_ms": p99, "errors": errors, "n": n},
+        "details": f"10 sequential /memory/store requests.\nP95={p95:.0f}ms (FAILURE>10000, WARNING>3000).\nErrors: {errors}",
+    }
+
+
 PERFORMANCE_RUNNERS = {
     "Q1.1": run_performance_q1_1,
     "Q1.2": run_performance_q1_2,
     "Q1.3": run_performance_q1_3,
     "Q1.4": run_performance_q1_4,
     "Q1.5": run_performance_q1_5,
+    "Q-C24.3": run_performance_q_c24_3,
 }
 
 
@@ -1129,6 +1178,24 @@ def run_agent(question: dict) -> dict:
         f"\n**Source file**: `{RECALL_SRC / source_file}`" if source_file else ""
     )
 
+    # Inject question details so agents with no prior finding still have context
+    question_section = ""
+    if (
+        question.get("hypothesis")
+        or question.get("test")
+        or question.get("verdict_threshold")
+    ):
+        question_section = f"""
+**Question ID**: {question.get("id", "")}
+**Title**: {question.get("title", "")}
+**Target**: {question.get("target", "")}
+**Hypothesis**: {question.get("hypothesis", "")}
+**Test procedure**:
+{question.get("test", "")}
+**Verdict thresholds**:
+{question.get("verdict_threshold", "")}
+"""
+
     full_prompt = f"""{agent_prompt}
 
 ---
@@ -1137,7 +1204,7 @@ def run_agent(question: dict) -> dict:
 
 **Project root**: `{RECALL_SRC}`{source_line}
 **Test directory**: `{RECALL_SRC / "tests"}`
-
+{question_section}
 **Finding to address**:
 
 {finding_context}
