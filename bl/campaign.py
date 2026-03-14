@@ -429,6 +429,27 @@ def run_campaign() -> None:
 
     print("\nCampaign complete.", file=sys.stderr)
 
+    # Run synthesizer at end of each wave
+    from bl.synthesizer import parse_recommendation, synthesize
+
+    synthesis_result = synthesize(cfg.project_root, wave=None)
+    if synthesis_result is not None:
+        recommendation = parse_recommendation(
+            synthesis_result.read_text(encoding="utf-8")
+        )
+        if recommendation == "STOP":
+            print(
+                "[campaign] Synthesizer recommends STOP — campaign complete",
+                file=sys.stderr,
+            )
+            print_handoff_reminder()
+            return
+        if recommendation == "PIVOT":
+            print(
+                "[campaign] Synthesizer recommends PIVOT — see synthesis.md",
+                file=sys.stderr,
+            )
+
     # Auto-generate next wave if question bank is exhausted
     remaining = [q for q in parse_questions() if q["status"] == "PENDING"]
     if not remaining:

@@ -2160,6 +2160,17 @@ def main():
         action="store_true",
         help="On FAILURE, spawn fix agent and re-run to confirm HEALTHY (expensive)",
     )
+    parser.add_argument(
+        "--synthesize",
+        action="store_true",
+        help="Run synthesizer on current project without running questions",
+    )
+    parser.add_argument(
+        "--synthesis-wave",
+        type=int,
+        default=None,
+        help="Wave number to label in synthesis (default: auto-detect from results.tsv)",
+    )
     args = parser.parse_args()
 
     init_project(args.project)
@@ -2194,6 +2205,13 @@ def main():
         )
         if generated:
             print(f"Generated: {', '.join(generated)}")
+        sys.exit(0)
+
+    if args.synthesize:
+        from bl.synthesizer import synthesize
+
+        project_dir = QUESTIONS_MD.parent
+        synthesize(project_dir, wave=args.synthesis_wave, dry_run=args.dry_run)
         sys.exit(0)
 
     if args.goal or args.goal_dry_run:
