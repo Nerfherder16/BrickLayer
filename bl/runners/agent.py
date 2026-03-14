@@ -216,6 +216,18 @@ def run_agent(question: dict) -> dict:
 
     agent_prompt = _strip_frontmatter(agent_path.read_text(encoding="utf-8"))
 
+    # C-27: inject project doctrine if present
+    doctrine_prefix = ""
+    doctrine_path = cfg.project_root / "doctrine.md"
+    if doctrine_path.exists():
+        doctrine_content = doctrine_path.read_text(encoding="utf-8")
+        doctrine_prefix = (
+            f"## Campaign Doctrine\n\n"
+            f"{doctrine_content}\n\n"
+            f"---\n\n"
+            f"## Agent Instructions\n\n"
+        )
+
     finding_context = "(no finding specified)"
     if finding_id:
         finding_path = cfg.findings_dir / f"{finding_id}.md"
@@ -230,7 +242,7 @@ def run_agent(question: dict) -> dict:
         f"\n**Source file**: `{cfg.recall_src / source_file}`" if source_file else ""
     )
 
-    full_prompt = f"""{agent_prompt}
+    full_prompt = f"""{doctrine_prefix}{agent_prompt}
 
 ---
 
