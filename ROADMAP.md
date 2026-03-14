@@ -17,7 +17,7 @@ The human defines what matters. The agent asks the questions, runs the experimen
 | C-03 | Campaign | Goal-directed campaigns via `goal.md` — agent generates question set from a target + goal | **DONE** | conv:mar13-c03 |
 | C-04 | Campaign | Adaptive follow-up — FAILURE/WARNING auto-generates drill-down sub-questions (Q2.4 → Q2.4.1) | **DONE** | conv:mar13-c04 |
 | C-05 | Campaign | Verdict history + regression detection — SQLite ledger, flag regressions across runs | **DONE** | conv:mar13-afternoon |
-| C-06 | Campaign | Fix loop integration — FAILURE → spawn fix agent → re-run → confirm HEALTHY | **FREE** | — |
+| C-06 | Campaign | Fix loop integration — FAILURE → spawn fix agent → re-run → confirm HEALTHY | **DONE** | conv:mar13-c06 |
 | C-07 | Runners | `http` runner formalization — extract from simulate.py into `runners/http.py` | **FREE** | — |
 | C-08 | Runners | `subprocess` runner formalization — extract into `runners/subprocess.py` | **FREE** | — |
 | C-09 | Runners | `static` runner formalization — extract into `runners/static.py` | **FREE** | — |

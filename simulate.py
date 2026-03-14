@@ -2155,11 +2155,18 @@ def main():
         action="store_true",
         help="Disable adaptive follow-up drill-down generation (C-04)",
     )
+    parser.add_argument(
+        "--fix-loop",
+        action="store_true",
+        help="On FAILURE, spawn fix agent and re-run to confirm HEALTHY (expensive)",
+    )
     args = parser.parse_args()
 
     init_project(args.project)
     if args.no_followup:
         os.environ["BRICKLAYER_NO_FOLLOWUP"] = "1"
+    if args.fix_loop:
+        os.environ["BRICKLAYER_FIX_LOOP"] = "1"
 
     _DEFAULT_KEY = "recall-admin-key-change-me"
     if BASE_URL not in ("none", "None", "") and API_KEY == _DEFAULT_KEY:

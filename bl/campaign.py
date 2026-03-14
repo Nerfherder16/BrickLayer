@@ -63,6 +63,21 @@ def run_and_record(question: dict) -> dict:
         if followup_ids:
             result["followup_questions"] = followup_ids
 
+    # C-06: fix loop — attempt to repair FAILURE automatically (opt-in)
+    if (
+        result.get("verdict") == "FAILURE"
+        and os.environ.get("BRICKLAYER_FIX_LOOP") == "1"
+    ):
+        from bl.fixloop import run_fix_loop
+
+        finding_path = cfg.findings_dir / f"{qid}.md"
+        fixed_result = run_fix_loop(question, result, finding_path)
+        if fixed_result.get("verdict") == "HEALTHY":
+            update_results_tsv(
+                qid, "HEALTHY", fixed_result.get("summary", "Fixed"), None
+            )
+            result = fixed_result
+
     print(json.dumps(result, indent=2))
     print(f"\nFinding written to: {finding_path}", file=sys.stderr)
     print(f"Verdict: {result['verdict']}", file=sys.stderr)
