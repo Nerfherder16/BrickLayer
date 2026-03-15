@@ -3165,7 +3165,7 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 ---
 
 ## Q34.1 [DOMAIN-1] Double-decay cumulative damage — expected vs actual importance distribution across active corpus
-**Status**: PENDING
+**Status**: DONE (FAILURE+INCONCLUSIVE)
 **Wave**: 34
 **Mode**: quantitative analysis
 **Target**: GET /admin/export (active memories, include_superseded=false); compute importance distribution histogram; model expected single-decay distribution from initial_importance + age + access_count
@@ -3302,7 +3302,7 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 ---
 
 ## Q34.7 [DOMAIN-5] Post-fix importance restoration — will natural access recover double-decayed memories or is bulk re-score needed?
-**Status**: PENDING
+**Status**: DONE (FAILURE)
 **Wave**: 34
 **Mode**: quantitative analysis
 **Target**: GET /admin/export (active memories); analyze access_count distribution for floor-clamped memories; model recovery trajectory
