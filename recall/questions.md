@@ -1979,4 +1979,118 @@ findings that have not yet been asked.
 **Priority**: Tier 1b — verify after Q21.6 fix deployed; enables monitoring of all other fix verifications
 **Derived from**: Q21.6 HEALTHY — "~9 LOC across reconcile.py + ops.py closes Q20.1 reconcile observability gap"; Q20.1 WARNING — "reconcile has zero audit_log entries — execution history unverifiable"; synthesis §13 Tier 1b item #7
 
-**Derived from**: Q22.1 FAILURE — double-decay pushes memories to near-zero faster than intended; Q23.1 — quantifies how many memories are in the danger zone
+---
+
+## Wave 25 Questions
+
+---
+
+## Q25.1 [DOMAIN-1] Double-decay deployment check — has the _user_conditions(None) fix been deployed since Wave 24?
+**Status**: DONE
+**Wave**: 25
+**Mode**: static code analysis + observability
+**Target**: `src/workers/decay.py` or `src/storage/qdrant.py` `_user_conditions()` method; GET /admin/audit?action=decay_run
+**Hypothesis**: Wave 24 (Q24.1) confirmed double-decay is still active after 12 consecutive waves. The fix requires adding `IsNullCondition(key="user_id")` to the system-run filter in `_user_conditions(None)` (or equivalent separation of the system-run entrypoint). No code change has been deployed in 13 characterization waves. This question checks whether the Tier 0 emergency hotfix has been applied in the interval since Wave 24 by inspecting the code and the live audit pattern. If deployed, each 6-hour audit slot should show exactly ONE full-corpus proc entry (system run) rather than two, and 3-7d cohort importance ratios should begin recovering above the Q24.1 baseline of 0.793.
+**What to measure**: (1) Read `_user_conditions()` in qdrant.py or decay.py — does `_user_conditions(None)` now return a filter with `IsNullCondition(key="user_id")` instead of `[]`? (2) GET /admin/audit?action=decay_run&limit=40 — count entries per 6-hour slot. If the fix is deployed, each slot should have exactly 1 full-corpus proc entry (proc≈active_corpus) plus per-user entries, not 2 full-corpus entries. (3) Sample the most recent 3 slots. Report slot structure: number of entries, proc values per entry, whether any entry shows proc≈full_corpus twice. (4) If fix is deployed: check the 3-7d cohort — query `GET /admin/memories?age_min_days=3&age_max_days=7&limit=100` and compute median importance. Recovery would show ratio >0.793 (Q24.1 baseline).
+**Verdict threshold**:
+- FAILURE: `_user_conditions(None)` still returns `[]`; per-slot audit still shows two proc≈active_corpus entries; fix not deployed; 14th consecutive wave with zero Tier 0 action
+- WARNING: Code change deployed but slot audit still shows two full-corpus entries (possible regression in different code path); or code change partially applied
+- HEALTHY: `_user_conditions(None)` confirmed to return IS NULL filter; per-slot audit shows exactly 1 full-corpus proc entry; no per-user entry duplicates the full-corpus run; fix confirmed deployed
+**Priority**: Tier 0 — highest priority; 12+ consecutive failure confirmations; fix is ~3 lines
+**Derived from**: Q24.1 FAILURE — "double-decay fix not deployed (12th consecutive wave)"; Q22.1 FAILURE — "_user_conditions(None) returns [] → every memory decayed twice per slot"; synthesis §14 Tier 0 item #0; synthesis §15 Q24.1-post re-measurement spec
+
+---
+
+## Q25.2 [DOMAIN-5] mark_superseded importance=0.0 deployment check — has neo4j_store.py:391 been fixed since Wave 24?
+**Status**: DONE
+**Wave**: 25
+**Mode**: static code analysis + observability
+**Target**: `src/storage/neo4j_store.py` `mark_superseded()` method around line 391; GET /admin/reconcile?dry_run=true
+**Hypothesis**: Wave 24 (Q24.2) confirmed `neo4j_store.py:391` still sets `m.importance = 0.0` in `mark_superseded()`. At ~796 consolidation events/day, approximately 796 new importance mismatches have accumulated since the Q24.2 measurement. If the fix was deployed (removing the one-line `m.importance = 0.0` assignment), the mismatch count growth rate should have dropped to near zero — the Sunday reconcile will have repaired the accumulated backlog and new consolidations will no longer create mismatches. This question verifies deployment and measures whether the mismatch accumulation rate has stopped.
+**What to measure**: (1) Read `mark_superseded()` in neo4j_store.py — confirm whether `m.importance = 0.0` (or equivalent) is present or absent. (2) POST /admin/reconcile?dry_run=true — record `importance_mismatches` count. Compare to Q24.2 baseline of 92. If the fix is deployed and the Sunday reconcile has run, count should be near 0 (or a small accumulation since the last Sunday repair). If fix is NOT deployed, count should reflect ~796/day accumulation since Q24.2 (likely 1,500–3,000+ if days have passed). (3) Calculate implied accumulation rate: (current_count - Q24.2_baseline_of_92) / days_since_Q24.2. Rate >500/day confirms fix not deployed; rate ~0/day after a Sunday repair confirms fix deployed.
+**Verdict threshold**:
+- FAILURE: `neo4j_store.py:391` still contains `m.importance = 0.0`; importance_mismatches growing at >100/day; fix not deployed
+- WARNING: Code fix present but mismatch count still growing (secondary code path creating 0.0 importance); or fix deployed but Sunday reconcile has not yet run to clear backlog
+- HEALTHY: `mark_superseded()` confirmed to not set importance=0.0; reconcile dry_run shows importance_mismatches ≤10 (post-Sunday baseline or near-zero daily accumulation); fix confirmed deployed
+**Priority**: Tier 1b — 1-line fix; resolves Q20.5 compound failure + stops weekly mismatch accumulation cycle
+**Derived from**: Q24.2 FAILURE — "mark_superseded importance=0.0 fix not deployed; neo4j_store.py:391 confirmed unchanged; 92 mismatches; ~796/day accumulation"; Q21.1 HEALTHY — "one-line removal confirmed vestigial, zero regressions"; synthesis §15 Q24.2-post re-measurement spec
+
+---
+
+## Q25.3 [DOMAIN-4] Consolidation user_id attribution deployment check — has consolidation.py:235 been fixed since Wave 24?
+**Status**: DONE
+**Wave**: 25
+**Mode**: static code analysis + observability
+**Target**: `src/core/consolidation.py` Memory() constructor call around line 235; GET /admin/audit?action=supersede&limit=20
+**Hypothesis**: Wave 24 (Q24.5) confirmed `consolidation.py:235` Memory() constructor has no `user_id=` argument. At ~796 merged memories/day, approximately that many attribution-less merged memories have accumulated since Q24.5. If the fix has been deployed, new consolidated memories should have `user_id` populated from the source cluster. The supersede audit entries (action=supersede) include `actor=consolidation` — cross-referencing a recently-created merged memory's user_id field against its source cluster members' user_ids will confirm whether attribution is being preserved.
+**What to measure**: (1) Read `consolidation.py` around line 235 — confirm whether `Memory(... user_id=cluster[0].user_id ...)` or equivalent is present. (2) GET /admin/audit?action=supersede&limit=20 — identify the most recent consolidation-supersedure event (actor=consolidation). Extract the merged memory ID from the `details.superseded_by` field. (3) Query the merged memory: GET /admin/memories/{merged_id} — check its `user_id` field. Is it None (fix not deployed) or a valid user_id (fix deployed)? (4) If fix deployed: verify edge case — if the source cluster contained memories from multiple user_ids, what user_id was assigned to the merged output? (5) Count how many active memories in Qdrant have user_id=None — compare to Q24.5's pre-fix baseline.
+**Verdict threshold**:
+- FAILURE: `consolidation.py:235` Memory() constructor still lacks `user_id=` argument; most recent merged memory has user_id=None; ~796/day attribution loss continues
+- WARNING: Fix deployed but edge case present — multi-user source clusters produce user_id=None merged memories; single-user case works correctly
+- HEALTHY: `consolidation.py:235` confirmed to pass user_id from source cluster; most recent merged memory has user_id matching source memories; active memory user_id=None count not growing relative to Q24.5 baseline
+**Priority**: Tier 2 — 3-line fix; prevents silent user attribution loss; users with consolidated memories disappear from decay loop
+**Derived from**: Q24.5 FAILURE — "consolidation.py:235 Memory() constructor missing user_id argument confirmed; ~796 merged memories/day accumulate with user_id=None"; Q22.9 WARNING — "user_id=None merged form; disappears from get_distinct_user_ids()"; synthesis §15 Q24.5-post re-measurement spec
+
+---
+
+## Q25.4 [DOMAIN-3] Manual GC first batch — use the admin purge endpoint to delete a sample of 30+ day old superseded memories and verify the operation is safe
+**Status**: DONE
+**Wave**: 25
+**Mode**: observability + live admin operation
+**Target**: `/admin/memory/purge` or `/admin/memory/purge-domain` endpoint; Qdrant superseded points with `invalid_at < (now - 30d)`; Neo4j node count
+**Hypothesis**: Wave 24 (Q24.6) confirmed ~11,000+ consolidation-superseded memories are 30+ days old and eligible for DETACH DELETE. No GC cron exists. The admin purge endpoint exists and can perform manual cleanup. Synthesis §15 identified this as a "no prerequisite" low-priority analytical question that can run without a cron implementation. The key question is: does the manual purge endpoint correctly delete both Qdrant points AND corresponding Neo4j nodes, does it affect active-memory queries (it should not), and does it reduce the ghost-user count in `get_distinct_user_ids()`? This is both a verification of the purge endpoint's correctness and a partial remediation of the Q24.6 WARNING.
+**What to measure**: (1) Before purge: record Qdrant total count (should be ~21,043), active count (~5,945), superseded count (~15,099), and `get_distinct_user_ids()` output (should include 7+ ghost users). (2) Identify a small sample (50-100) of GC-eligible memories: Qdrant points with `superseded_by IS NOT NULL AND invalid_at < (today - 30 days)`. Verify each sample memory's successor (superseded_by ID) is still active. (3) Call the admin purge endpoint for the eligible sample batch. (4) After purge: record Qdrant total count, active count (should be unchanged), and superseded count (should decrease by batch size). (5) Verify Neo4j: check that the deleted memories' Neo4j nodes are gone (GET /admin/memories/{deleted_id} should return 404 or empty). (6) Re-call `get_distinct_user_ids()` — does the ghost user count decrease proportionally to the number of deleted superseded memories? (7) Verify active-memory queries return same results (spot-check 3 searches before and after purge).
+**Verdict threshold**:
+- FAILURE: Purge endpoint deletes Qdrant points but leaves Neo4j nodes (half-delete); or purge removes active memories erroneously; or active-memory search results change after purge
+- WARNING: Purge is correct for both Qdrant and Neo4j, but ghost user count in `get_distinct_user_ids()` does not decrease as expected; or purge endpoint does not support batch deletion of superseded-by-criteria and requires individual memory IDs
+- HEALTHY: Purge correctly removes both Qdrant points and Neo4j nodes for the sample batch; active memory count unchanged; active-memory searches unaffected; ghost user count in get_distinct_user_ids() decreases proportionally; operation is confirmed safe for larger batch execution
+**Priority**: Tier 3 — no prerequisite; partial remediation of Q24.6 WARNING; confirms admin purge endpoint is production-ready for manual GC batches
+**Derived from**: Q24.6 WARNING — "~11,000 eligible; admin purge endpoint available for manual GC; no DETACH DELETE cron"; Q21.3 WARNING — "safe GC: age ≥30d + successor active + simultaneous Neo4j DELETE"; synthesis §15 "Manual GC first batch — no prerequisite, can run without cron implementation"
+
+---
+
+## Q25.5 [DOMAIN-1] Hygiene cron first-archival threshold — with 632 floor-clamped memories and ongoing double-decay, are any active memories now meeting all hygiene archival criteria?
+**Status**: DONE
+**Wave**: 25
+**Mode**: observability + static code analysis
+**Target**: GET /admin/audit?action=auto_archive; `workers/hygiene.py` archival criteria; `scroll_hygiene_candidates` in qdrant.py
+**Hypothesis**: Wave 24 (Q24.6) found the hygiene cron has archived 0 memories to date. The archival criteria require: `importance < 0.3 AND access_count = 0 AND age > 30 days AND not pinned AND not permanent AND superseded_by IS NULL`. Wave 23 (Q23.1) quantified 632 memories at the 0.05 importance floor — well below the 0.3 threshold. However, the 30-day age AND access_count=0 requirements may not yet be met for most floor-clamped memories. The double-decay bug accelerates the rate at which memories reach the floor — a memory that would normally reach importance=0.3 after ~30 days is instead reaching it in ~10-15 days under double-decay. This means the double-decay bug is also accelerating hygiene eligibility. As the corpus ages, the first hygiene archival batch may be imminent. This question characterizes how many active memories currently meet ALL hygiene criteria simultaneously.
+**What to measure**: (1) GET /admin/audit?action=auto_archive&limit=10 — confirm whether any archival events have occurred since Q24.6 (still 0, or first batch happened). (2) Query active memories meeting the full hygiene criteria: `importance < 0.3 AND access_count = 0 AND created_at < (now - 30d) AND superseded_by IS NULL`. Count the eligible batch. (3) Of those eligible, what is the importance distribution? How many are at the 0.05 floor vs 0.05–0.30? (4) Estimate when the first archival will trigger: oldest eligible memory created_at date + 30d threshold — has that date passed? (5) Static check: does `scroll_hygiene_candidates` in qdrant.py correctly use `access_count <= 0` (matching memories with zero accesses) — or does it use `== 0` which might miss edge cases? (6) Cross-reference: do any of the 632 floor-clamped memories also have age > 30d AND access_count = 0? These are the highest-risk candidates for hygiene archival in the next run.
+**Verdict threshold**:
+- FAILURE: Hygiene cron criteria are misconfigured (e.g., `access_count = 0` never matches any memory due to schema mismatch); eligible batch exists but hygiene fails to archive; memories meeting all criteria are silently skipped
+- WARNING: Eligible batch confirmed (>100 memories meeting all criteria); hygiene should have archived them but has not (possible cron failure or edge case in criteria matching); or first archival is imminent (<24h) and the auto-archive soft-delete mechanism is about to trigger
+- HEALTHY: 0 or very few (<20) memories currently meet all hygiene criteria simultaneously (age threshold is the binding constraint for most floor-clamped memories); first archival batch projected >7 days away; hygiene cron is operating correctly on its intended timeline
+**Priority**: Tier 3 — no prerequisite; cross-cutting (interacts with double-decay, floor, GC); characterizes the next phase of the memory lifecycle under current failure conditions
+**Derived from**: Q24.6 WARNING — "hygiene cron running but 0 archived; hygiene is active-only soft-delete"; Q23.1 WARNING — "632 active memories at 0.05 floor (10.6%); 12 premature casualties in 3-7d age band"; Q24.1 FAILURE — "double-decay ongoing; 3-7d cohort ratio = 0.793"; synthesis §14 Tier 3 item #26 (GC cron cross-reference)
+
+---
+
+## Q25.6 [DOMAIN-1] ARQ worker restart anomaly characterization — what caused the Mar 15 timing anomaly and is it a recurring pattern?
+**Status**: DONE
+**Wave**: 25
+**Mode**: observability
+**Target**: GET /admin/audit?action=decay_run; GET /health; Docker container logs; ARQ worker uptime
+**Hypothesis**: Wave 24 (Q24.1) noted a Mar 15 timing anomaly in the decay cron schedule: a single run at 00:01 (instead of the expected 06:xx pattern), then two runs 4 minutes apart at 06:45 and 06:49. Q24.1 noted this could indicate a system restart between Mar 14 18:15 and Mar 15 00:01 — consistent with the Q22.9 ARQ 6-hour outage pattern from Mar 14T18:15–00:01. The anomaly did not affect the double-decay finding (still confirmed), but it raises a secondary question: is the ARQ worker experiencing recurrent restart-on-recovery behavior where a backlog of missed cron slots fires in rapid succession after restart? If so, a single ARQ restart can produce a burst of decay runs in a short window, potentially over-decaying the corpus more than the already-confirmed 2× factor. This question characterizes the anomaly pattern and determines whether it is a one-off or recurring.
+**What to measure**: (1) GET /admin/audit?action=decay_run&limit=200 — retrieve the full observable decay audit history. Identify all slots where the gap between consecutive entries is < 30 minutes (indicating burst behavior) vs the expected ~360-minute (6-hour) cadence. Count burst events. (2) Identify the Mar 15 anomaly slot specifically: confirm the 00:01 entry (single run), then 06:45 + 06:49 (two full-corpus runs 4 minutes apart). Is the 00:01 run a catch-up from the Q22.9 outage window (Mar 14 18:15–00:01 = 1 missed slot)? (3) Look for any other burst windows in the full audit history — how many times has a gap < 60 minutes appeared between full-corpus entries? (4) Check current ARQ health: GET /health — does it show the ARQ worker as healthy and connected? What is the reported uptime? (5) If burst behavior is recurring: characterize the maximum burst size (number of decay runs fired in < 1 hour). This matters because each burst run applies the double-decay factor — a 3-run burst = 0.9216³ = 0.782× factor on that window.
+**Verdict threshold**:
+- FAILURE: Burst behavior (< 30-min gap) appears more than 3 times in the audit history; ARQ worker is restarting recurrently; compound decay damage from bursts is materially worse than the 2× factor already characterized; effective daily decay rate is worse than the Q22.1 model
+- WARNING: Mar 15 anomaly is isolated (appears once); or ARQ restarts occasionally but < 3 times in observable history; burst decay adds marginal damage above the Q22.1 baseline but does not change the severity characterization
+- HEALTHY: Mar 15 anomaly is explained as a catch-up from the Q22.9 outage (exactly 1 missed slot → 1 catch-up run at 00:01); no other burst patterns in history; ARQ worker uptime is stable; the Q22.1 double-decay characterization (2× factor per slot) remains the complete model of decay behavior
+**Priority**: Tier 3 — observability; cross-references Q22.9 outage pattern; determines whether the Q22.1 decay model understates actual corpus damage
+**Derived from**: Q24.1 FAILURE — "Mar 15 timing anomaly (00:01 single run, 06:45+06:49 4 min apart) suggests possible system restart; double-decay still manifest"; Q22.9 WARNING — "ARQ 6-hour outage 2026-03-14T18:15–00:01; dec=4544 catch-up at 00:01"; synthesis §3 Wave 24 cross-domain observation #1
+
+---
+
+## Q25.7 [DOMAIN-1] Ghost-user decay and consolidation user_id deployment check — have Q21.5 (IS NULL filter) and Q24.5 (consolidation user_id) fixes been co-deployed?
+**Status**: DONE
+**Wave**: 25
+**Mode**: static code analysis + observability
+**Target**: `src/storage/qdrant.py` `get_distinct_user_ids()` (IS NULL filter); `src/core/consolidation.py:235` (user_id argument); GET /admin/audit?action=decay_run&limit=40
+**Hypothesis**: Q24.7 confirmed the ghost-user decay fix (IS NULL filter in `get_distinct_user_ids()`) is not deployed — 7/10 decay_run entries per slot still show proc=0 ghost users. Q24.5 confirmed the consolidation user_id attribution fix is also not deployed — merged memories still get user_id=None, which is the root cause of ghost users being created. These two fixes interact: deploying the IS NULL filter (Q21.5 fix) will immediately eliminate ghost users from the decay loop, but new ghost users will continue accumulating unless the consolidation user_id fix (Q24.5 fix) is also deployed. This question checks deployment status of both fixes and measures whether their co-deployment has reduced the per-slot ghost user count.
+**What to measure**: (1) Read `get_distinct_user_ids()` in qdrant.py — confirm whether `IsNullCondition(is_null=PayloadField(key="superseded_by"))` filter is present. (2) Read `consolidation.py:235` Memory() constructor — confirm whether `user_id=` argument is present (overlaps with Q25.3 but scoped to ghost-user impact). (3) GET /admin/audit?action=decay_run&limit=40 — count entries per cron slot. If IS NULL filter is deployed: slots should show ≤3 entries (1 full-corpus system run + 1-2 real users) instead of ~10; no proc=0 entries. (4) If IS NULL filter deployed but consolidation user_id fix NOT deployed: count whether new merged memories with user_id=None are accumulating in Qdrant — these will eventually become new ghost users as their originals get superseded and GC'd. (5) Report the compound deployment status: both fixes deployed / only IS NULL deployed / only consolidation user_id deployed / neither deployed.
+**Verdict threshold**:
+- FAILURE: Neither fix deployed; per-slot decay audit still shows ~10 entries with 7 proc=0 ghost users; both code paths confirmed unchanged from Q24.7 and Q24.5
+- WARNING: IS NULL filter deployed (ghost users eliminated from current loop) but consolidation user_id fix NOT deployed — ghost users will re-accumulate as new merged memories with user_id=None age through the superseded pool; partial fix only
+- HEALTHY: Both fixes deployed; per-slot decay audit shows ≤3 entries; 0 proc=0 ghost entries; Qdrant scan size reduced from 21,043 to ~5,945 per decay cycle; new consolidated memories have user_id set; ghost user re-accumulation path closed
+**Priority**: Tier 2 — compound deployment check; the two fixes must both be deployed to permanently eliminate ghost users
+**Derived from**: Q24.7 FAILURE — "ghost-user decay fix not deployed; 7 proc=0 entries per slot confirmed"; Q24.5 FAILURE — "consolidation user_id attribution fix not deployed; ~796 merged memories/day with user_id=None"; Q21.5 WARNING — "get_distinct_user_ids() scans superseded; ghost users grow with superseded pool"; synthesis §13 Tier 2 items #16 and #18
