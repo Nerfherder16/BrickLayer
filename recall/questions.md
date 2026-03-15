@@ -3028,7 +3028,7 @@ Time anchor: Wave 33 runs AFTER 2026-03-16T05:30 UTC (Sunday reconcile window) a
 ---
 
 ## Q33.2c [DOMAIN-1] Double-decay fix deployment — remove redundant system pass from run_decay_all_users
-**Status**: PENDING
+**Status**: DONE (FAILURE)
 **Wave**: 33
 **Mode**: quality analysis
 **Target**: C:/Users/trg16/Dev/Recall/src/workers/decay.py (run_decay_all_users, lines 278–301); C:/Users/trg16/Dev/Recall/src/storage/qdrant.py (get_distinct_user_ids, ~line 1187)
