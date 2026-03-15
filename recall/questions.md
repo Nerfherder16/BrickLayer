@@ -2568,7 +2568,7 @@ findings that have not yet been asked.
 ---
 
 ## Q30.1 [DOMAIN-1] Hygiene first archival CONFIRMED or FAILED? -- did the 2026-03-16T04:00 UTC cron fire? (5th attempt; escalation trigger)
-**Status**: PENDING
+**Status**: INCONCLUSIVE
 **Wave**: 30
 **Mode**: observability
 **Target**: GET /admin/audit?action=auto_archive&limit=20; active corpus count vs 6,017 baseline
@@ -2585,7 +2585,7 @@ findings that have not yet been asked.
 ---
 
 ## Q30.2 [DOMAIN-1] Double-decay fix deployment check (Wave 30) -- is Q22.1 finally deployed? (19th attempt)
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 30
 **Mode**: static code analysis + observability
 **Target**: src/storage/qdrant.py:114 _user_conditions(); GET /admin/audit?action=decay_run&limit=10
@@ -2601,7 +2601,7 @@ findings that have not yet been asked.
 ---
 
 ## Q30.3 [DOMAIN-5] Importance mismatch trend -- are the 179 Qdrant vs Neo4j mismatches growing, stable, or shrinking?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 30
 **Mode**: observability
 **Target**: POST /admin/reconcile; importance_mismatches field; compare to Q29.7 baseline of 179
@@ -2617,7 +2617,7 @@ findings that have not yet been asked.
 ---
 
 ## Q30.4 [DOMAIN-4] Consolidation user_id fix deployment re-check (6th attempt) -- has consolidation.py:235 been fixed?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 30
 **Mode**: static code analysis
 **Target**: src/core/consolidation.py:235 Memory() constructor; src/storage/qdrant.py:1143 get_distinct_user_ids()
@@ -2633,7 +2633,7 @@ findings that have not yet been asked.
 ---
 
 ## Q30.5 [DOMAIN-5] Reconcile audit fix deployment re-check (6th attempt) -- has log_audit() been added to reconcile.py and ops.py?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 30
 **Mode**: static code analysis + observability
 **Target**: src/workers/reconcile.py; src/api/routes/ops.py; GET /admin/audit?action=reconcile&limit=10
@@ -2649,7 +2649,7 @@ findings that have not yet been asked.
 ---
 
 ## Q30.6 [DOMAIN-1] Floor-clamped count trajectory -- has 941 (Q29.6 FAILURE) grown further or stabilized?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 30
 **Mode**: quantitative analysis
 **Target**: Active memories with importance <= 0.051 and access_count=0; compare to Q29.6 baseline of 941
@@ -2665,7 +2665,7 @@ findings that have not yet been asked.
 ---
 
 ## Q30.7 [DOMAIN-3] GC-eligible cohort size at 2026-03-21T19:12 UTC -- has the first GC run fired? (Q28.4 re-verify)
-**Status**: PENDING
+**Status**: INCONCLUSIVE
 **Wave**: 30
 **Mode**: observability
 **Target**: POST /admin/reconcile (superseded count); GET /admin/audit?action=gc_run&limit=10; Qdrant total points
