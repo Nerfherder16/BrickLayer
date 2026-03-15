@@ -3321,3 +3321,140 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 - INCONCLUSIVE: initial_importance not in export; cannot model expected single-decay importance; re-score scope unquantifiable
 **Priority**: Tier 2 — contingent on Q33.2c fix being deployed; this is post-fix remediation planning; informs whether a one-time admin action is needed after fix deployment
 **Derived from**: Q33.2b WARNING (5,043 double-decayed; fix specified); Q33.7 HEALTHY (high-access memories survived; low-access did not); Q31.3 FAILURE (1,049 floor-clamped); Q23.1 WARNING (632 floor-clamped 20 waves ago — poverty trap hypothesis first raised)
+
+---
+
+## Wave 35 Questions — Rehabilitate-Importance Audit, Hygiene Cron Root Cause, Integer-0 Domain Skew, and Mortality Crisis Triage
+
+## Q35.1 [DOMAIN-5] Rehabilitate-importance endpoint code audit — does it catch the 644 floor-clamped premature casualties?
+**Status**: PENDING
+**Wave**: 35
+**Mode**: code analysis
+**Target**: C:/Users/trg16/Dev/Recall/src/api/routes/admin.py (POST /admin/rehabilitate-importance); C:/Users/trg16/Dev/Recall/src/workers/decay.py or rehabilitate logic; GET /admin/audit?action=rehabilitate&limit=20
+**Hypothesis**: Q34.7 identified that the `POST /admin/rehabilitate-importance` endpoint exists and is the only available tool to rescue the 644 premature casualties before the hygiene window closes in ~16 days. However, Q34.7 also flagged a critical ambiguity: the 644 premature casualties are clamped at exactly `importance = 0.050` (the floor value), and the endpoint's filter is described as targeting `importance < 0.05`. If the filter uses strict less-than, it misses every premature casualty by one decimal place. This question determines: (1) what filter does the endpoint actually use — strict `<` or inclusive `<=`; (2) what re-score formula does it apply — flat boost, restore to initial_importance, or the correct single-decay formula; (3) does it scope by user_id (null-pool only, or int-0 pool also); and (4) has it ever been called (audit log entries).
+**What to measure**:
+1. Read `src/api/routes/admin.py` — find the `rehabilitate-importance` route definition. Note the importance filter condition (exact operator: `<`, `<=`, or range-based).
+2. Note the re-score formula applied to matched memories. Options: flat value (e.g., set to 0.1), restore to `initial_importance`, or apply single-decay formula `initial_importance × 0.96^(age_hours/6)`.
+3. Check whether the endpoint accepts a `user_id` parameter. If not, does it default to all users (null + int-0) or null only?
+4. Check whether `simulate_hours` or a similar parameter exists to apply time-adjusted re-scoring.
+5. GET /admin/audit?action=rehabilitate&limit=20 — has the endpoint ever been called? If yes: when, how many memories updated, and what was the importance delta?
+6. Given the 644 premature casualties at exactly `importance = 0.050`: would a call to the endpoint today catch them? If not, what parameter change is needed?
+**Verdict threshold**:
+- FAILURE: Endpoint filter is strict `<` (misses floor-clamped at exactly 0.050); OR re-score formula is flat boost (over-inflates legitimately old memories); OR endpoint has no user_id scoping (would apply to int-0 never-decayed pool incorrectly); AND endpoint has never been called (no mitigation attempted)
+- WARNING: Endpoint filter is `<=` (catches floor-clamped) but re-score formula is not time-adjusted (flat boost or restore-to-initial rather than single-decay formula); OR endpoint has correct filter but has never been called; endpoint is usable but suboptimal
+- HEALTHY: Endpoint filter is `<= 0.05`, re-score formula is single-decay based (`initial_importance × decay^age`), user_id scoping is correct, and endpoint has been called since Q34.7 finding (644 casualties already remediated)
+- INCONCLUSIVE: Route file not readable; or endpoint definition not found under expected path
+**Priority**: Tier 0 — time-critical: 644 premature casualties have ~16-day hygiene deadline (from Q34.7, measured 2026-03-15); if endpoint cannot be used as-is, the correct invocation parameters must be determined before the hygiene window closes
+**Derived from**: Q34.7 FAILURE (644 premature casualties; rehabilitate-importance endpoint exists but filter ambiguity unresolved; bulk re-score mandatory); Q31.3 FAILURE (1,049 floor-clamped); Q33.2b WARNING (5,043 double-decayed null population)
+
+---
+
+## Q35.2 [DOMAIN-4] Hygiene cron task registration — is the hygiene task in the cron_jobs list?
+**Status**: PENDING
+**Wave**: 35
+**Mode**: code analysis
+**Target**: C:/Users/trg16/Dev/Recall/src/workers/main.py (WorkerSettings.cron_jobs); C:/Users/trg16/Dev/Recall/src/workers/hygiene.py (hygiene task definition); GET /admin/audit?action=hygiene_run&limit=5
+**Hypothesis**: Q32.1 established that the hygiene cron has NEVER fired in the observable audit history (0 hygiene_run entries across 9+ consecutive missed windows, including the 2026-03-16T04:00 UTC target that Q27.7 predicted would be the first archival). Q31.1 confirmed the ARQ worker is alive (decay is running), which means the silence is hygiene-task-specific, not an ARQ-wide outage. The most likely root cause is that the hygiene task is either not registered in `WorkerSettings.cron_jobs`, or it is registered with an incorrect function reference or schedule that prevents ARQ from enqueuing it. This question reads `main.py` directly to confirm whether the hygiene task appears in the cron list, and whether the task function it references matches the actual function in `hygiene.py`. The 644 premature casualties have a ~16-day hygiene window — if hygiene starts firing before the double-decay fix AND re-score are applied, the window shrinks further.
+**What to measure**:
+1. Read `src/workers/main.py` — list all entries in `WorkerSettings.cron_jobs`. Is there any entry that calls `run_hygiene`, `hygiene_task`, or similar?
+2. If hygiene is registered: note the schedule (hour, minute, weekday) and the function reference. Does it match the function in `hygiene.py`?
+3. If hygiene is NOT registered: is there any commented-out block or TODO indicating it was intentionally deferred?
+4. Read `src/workers/hygiene.py` — confirm the hygiene function exists and has the expected signature. Does it reference `importance < 0.3 AND access_count == 0 AND age > 30d` as Q34.7 found?
+5. GET /admin/audit?action=hygiene_run&limit=5 — confirm still 0 entries (as of Q32.1). If now > 0, note timestamp and memories_archived.
+6. Cross-reference: the ARQ worker processes cron_jobs from WorkerSettings. If hygiene is absent from cron_jobs, it will never run regardless of ARQ health.
+**Verdict threshold**:
+- FAILURE: Hygiene task is completely absent from `WorkerSettings.cron_jobs` (task was never registered; has never run; will never run until code is deployed; 644 premature casualties are safe from hygiene only because hygiene is broken)
+- WARNING: Hygiene task IS registered in cron_jobs but with incorrect function reference, wrong schedule, or a conditional gate that prevents execution (registered but non-functional; a code fix is needed)
+- HEALTHY: Hygiene task is registered and correctly defined; audit log now shows at least one hygiene_run entry (hygiene started firing after Q32.1 measurement; reevaluate mortality risk)
+- INCONCLUSIVE: main.py not readable; or WorkerSettings not found in main.py
+**Priority**: Tier 0 — critical path: determines whether the 644 premature casualties face a hygiene deadline at all, and whether an emergency code deployment is needed to register the hygiene task before or after the re-score is applied; also relevant to Q27.7 archival pipeline warnings
+**Derived from**: Q32.1 FAILURE (9th consecutive hygiene miss; hygiene has never fired); Q31.1 FAILURE (ARQ alive but hygiene absent); Q34.7 FAILURE (644 premature casualties; 16.6d hygiene window); Q27.7 WARNING (3,289 memories qualify for archival)
+
+---
+
+## Q35.3 [DOMAIN-1] Integer-0 domain skew — do floor-clamped premature casualties cluster in specific domains?
+**Status**: PENDING
+**Wave**: 35
+**Mode**: quantitative analysis
+**Target**: GET /admin/export (active memories); filter floor-clamped (importance <= 0.051); cross-tabulate by domain and user_id (null vs int-0)
+**Hypothesis**: Q34.7 identified 644 premature casualties in the null-user_id pool (double-decayed to floor despite single-decay model showing they should be above floor). Q34.2 identified 2,996 integer-0 memories (never decayed) growing at ~58/day. Q34.5 found the int-0 pool is healthy (mean importance 0.185 — no retrieval-quality crisis yet). The question not yet answered: do the 644 null-pool premature casualties concentrate in specific domains (e.g., autosearch, development, general)? If the casualties are domain-uniform, the damage is a random sample of all user knowledge. If they cluster in a specific domain, that domain's coverage in Recall is severely degraded. Additionally: does access_count explain the null vs int-0 importance inversion (null mean ~0.258 per synthesis vs int-0 mean 0.185 per Q34.5)? The null pool has higher mean importance despite being double-decayed — is this because the null pool is populated by higher-quality initial memories, or because access patterns differ?
+**What to measure**:
+1. Export all active floor-clamped memories (importance <= 0.051). Group by `domain`. For each domain: count total memories, count floor-clamped, compute floor-clamped rate (%). Identify top-3 most affected domains.
+2. For the 644 premature casualties specifically (floor-clamped AND single-decay model shows > 0.050): what is the domain distribution? Are casualties uniform across domains or concentrated?
+3. Cross-tabulate access_count by user_id pool: for the null pool (5,043 active), what fraction have access_count > 0? For the int-0 pool (975 active), same question. This tests whether access patterns explain the mean importance inversion (null mean > int-0 mean despite double-decay damage).
+4. Compare average `initial_importance` by pool: null pool vs int-0 pool. If null pool had higher initial_importance on average, the inversion is explained by quality difference at creation, not by access patterns.
+5. Check: are autosearch-domain memories (from the current research session) disproportionately represented in the floor-clamped pool? This would mean the research generating these questions is simultaneously degrading its own memory base.
+**Verdict threshold**:
+- FAILURE: One or two domains have floor-clamped rate > 40% (domain-specific knowledge loss confirmed; e.g., development or autosearch domain effectively blind in retrieval); OR access_count does NOT explain importance inversion (null mean > int-0 mean remains unexplained after controlling for access)
+- WARNING: Top domain has floor-clamped rate 20-40% (elevated but not catastrophic domain coverage loss); OR access_count partially explains inversion (directionally consistent but gap remains)
+- HEALTHY: Floor-clamped casualties are domain-uniform (no domain-specific coverage degradation); AND access_count + initial_importance together fully explain the null vs int-0 importance inversion
+- INCONCLUSIVE: Export does not include domain field; or floor-clamped cannot be filtered by user_id pool
+**Priority**: Tier 2 — diagnostic; informs whether the bulk re-score (Q35.1) needs to be domain-prioritized or can be applied uniformly; also confirms or refutes the session-degrades-its-own-memory hypothesis
+**Derived from**: Q34.7 FAILURE (644 premature casualties; domain distribution unknown); Q34.2 FAILURE (null pool 5,043 active; int-0 pool 2,996; importance inversion observed but unexplained); Q34.5 HEALTHY (int-0 mean importance 0.185 vs null pool higher mean)
+
+---
+
+## Q35.4 [DOMAIN-4] Fix deployment status — double-decay two-line fix and consolidation user_id fix — current deployment state
+**Status**: PENDING
+**Wave**: 35
+**Mode**: code analysis
+**Target**: C:/Users/trg16/Dev/Recall/src/storage/qdrant.py (line ~1207); C:/Users/trg16/Dev/Recall/src/workers/decay.py (line ~296); C:/Users/trg16/Dev/Recall/src/core/consolidation.py (line ~250 deserialization block)
+**Hypothesis**: Q33.2c (24th consecutive FAILURE) confirmed the two-line double-decay fix is not deployed as of its measurement date. Q34.6 confirmed the consolidation user_id fix is also not deployed. The double-decay fix is the precondition for meaningful monitoring of floor-clamped recovery. The consolidation fix is the precondition for stopping new null-user_id memories from entering the poverty trap. Wave 35 re-verifies both fixes to establish the current deployment baseline before the Q35.1 rehabilitate-importance execution. If either fix has been silently deployed between Q33.2c and now, the Wave 35 characterization changes significantly (fewer new premature casualties, and the floor-clamped count may have stabilized).
+**What to measure**:
+1. Read `qdrant.py` lines 1200–1215 — is `get_distinct_user_ids()` filtering `uid > 0`? The undeployed version uses `if uid is not None:`. The deployed version uses `if uid is not None and uid > 0:`.
+2. Read `decay.py` lines 290–305 — is the redundant `worker.run(user_id=0)` system pass still present after the per-user loop? The undeployed version has the explicit second call. The deployed version removes it.
+3. Read `consolidation.py` lines 120–135 (`_get_eligible_memories`) — does the Memory() constructor now read `user_id` from the payload? The undeployed version omits `user_id=payload.get("user_id")`. The deployed version includes it.
+4. Read `consolidation.py` line ~250 — does the merged Memory() constructor pass `user_id=cluster[0].user_id`? (This is the Q24.5 fix.) This fix propagates user_id from source to merged memory, but is undermined if _get_eligible_memories still drops user_id during deserialization (Finding 3 of Q34.2).
+5. If any fix is now deployed: note the exact line and what changed. If all are still undeployed: note for Wave 35 context — all subsequent measurements remain under the compound-bug regime.
+**Verdict threshold**:
+- FAILURE: All three fixes still undeployed (25th consecutive; status quo unchanged; double-decay continues; consolidation still produces null-user_id outputs; Q35.1 re-score urgency unchanged)
+- WARNING: One fix deployed (partial progress; the specific deployed fix changes the rate of damage but does not stop it entirely; need to identify which fix and recalculate impact)
+- HEALTHY: Both double-decay fix AND consolidation fix deployed (compound bug resolved; floor-clamped accumulation stops; only the existing 644 casualties need remediation; Q35.1 re-score timing is now lower-urgency)
+- INCONCLUSIVE: Source files not accessible; or diff cannot be determined from line inspection alone
+**Priority**: Tier 0 — the deployment state gates all other Wave 35 analysis; must be the first question answered to determine the urgency level of Q35.1 and Q35.2
+**Derived from**: Q33.2c FAILURE (24th consecutive; two-line fix not deployed); Q34.6 FAILURE (consolidation contributing 199–648 floor-clamped/day; Q24.5 fix absent); Q34.2 FAILURE (consolidation deserialization drops user_id — undermines Q24.5 fix even if deployed)
+
+---
+
+## Q35.5 [DOMAIN-5] Immediate mitigation inventory — what actions can be taken without a code deployment to reduce the mortality crisis?
+**Status**: PENDING
+**Wave**: 35
+**Mode**: operational risk analysis
+**Target**: Available admin endpoints: POST /admin/rehabilitate-importance; POST /admin/decay; POST /admin/reconcile; GET /admin/audit; POST /admin/memory/purge; cron configuration (if hot-reloadable)
+**Hypothesis**: The mortality crisis has three components: (1) 644 premature casualties already at floor, with ~16-day hygiene window; (2) floor-clamped pool growing at 199–648/day from new null-user_id consolidation outputs; (3) double-decay and consolidation fixes not yet deployed. Code deployments require development time. Between now and deployment, the only tools available are the existing admin HTTP endpoints. This question catalogs what can be done today — without any code changes — to reduce the ongoing damage and rescue as many premature casualties as possible. The key actions to evaluate: (a) run rehabilitate-importance now (rescue floor-clamped memories before hygiene fires); (b) disable or slow consolidation (reduce new floor-clamped input rate); (c) disable hygiene temporarily (extend the window); (d) manually run reconcile with repair=true (keep Neo4j mismatches low while fixes are delayed).
+**What to measure**:
+1. Is `POST /admin/rehabilitate-importance` callable today and does it catch the 644 premature casualties (depends on Q35.1 findings)? What is the expected outcome of calling it now?
+2. Is there an endpoint to pause, disable, or rate-limit consolidation? Check `admin.py` for any consolidation control endpoint. If not: could consolidation be paused by temporarily setting a threshold parameter (e.g., min_cluster_size to a very high value via a config endpoint)?
+3. Is there a hygiene disable endpoint or configuration parameter? If the hygiene task is not registered (Q35.2 FAILURE hypothesis), this is already moot — hygiene cannot fire. If it IS registered: can it be temporarily disabled without code changes?
+4. What is the current hygiene window risk? If Q35.2 confirms hygiene is unregistered, the 16-day deadline is notional — the 644 memories face no actual deletion until hygiene is deployed. Confirm this.
+5. Is there a way to boost specific memories' importance via the API without a bulk endpoint? (e.g., POST /memory/{id} with importance override) — this would allow targeted rescue of the highest-value casualties.
+6. Assess: calling `POST /admin/decay` with `simulate_hours=0` — does this trigger one clean decay pass without the double-decay bug, or does it use the same broken `run_decay_all_users` path? (If the latter: avoid. If it calls `worker.run(user_id=None)` which processes all memories once without the double-loop, it is actually the fix equivalent.)
+**Verdict threshold**:
+- FAILURE: No admin endpoint can rescue the floor-clamped casualties (rehabilitate filter misses them); AND no way to slow consolidation inflow; AND hygiene may fire before fixes are deployed (Q35.2 shows hygiene IS registered and functional)
+- WARNING: Rehabilitate endpoint works but applies suboptimal formula (rescues casualties but with flat boost rather than time-adjusted importance); OR hygiene confirmed unregistered (no deletion risk for now, but this is fragile)
+- HEALTHY: Rehabilitate endpoint works correctly (catches ≤ 0.050, applies time-adjusted formula); AND hygiene confirmed unregistered (no deadline risk); clear action plan exists for no-code mitigation
+- INCONCLUSIVE: Admin endpoint behavior cannot be determined without calling it; risk profile remains unquantified
+**Priority**: Tier 0 — actionable; the output of this question is a list of concrete immediate actions (or confirmation that none are available); directly feeds the human decision of whether to do an emergency deployment vs wait for a planned release
+**Derived from**: Q34.7 FAILURE (644 premature casualties; rehabilitate endpoint identified; 16.6d hygiene window); Q35.1 PENDING (rehabilitate filter/formula audit); Q35.2 PENDING (hygiene cron registration); Q34.4 WARNING (admin decay endpoint unscoped — must not be called as mitigation without understanding blast radius)
+
+---
+
+## Q35.6 [DOMAIN-1] Floor-clamped count 24-hour rate — current trajectory under compound-bug regime
+**Status**: PENDING
+**Wave**: 35
+**Mode**: quantitative analysis
+**Target**: GET /admin/export (active memories); compare to Q34.7 baseline (1,049 floor-clamped at 2026-03-15)
+**Hypothesis**: Q34.7 (2026-03-15) established 1,049 floor-clamped memories (17.3% of 6,063 active). Q34.6 showed consolidation alone is generating 199–648 new null-user_id memories per day, all of which enter the poverty trap via double-decay. Natural decay of non-floor memories also contributes new floor arrivals. This question takes the first 24-hour measurement of the total floor-clamped growth rate under the compound-bug regime (both double-decay and consolidation user_id bug active simultaneously). The rate determines whether the 644 premature casualties constitute a stable casualty count or whether hundreds more are being added daily. If the rate is >200/day (consistent with Q34.6's lower bound), the total floor-clamped pool will double from 1,049 to 2,100+ within five days — well before any fix deployment is likely.
+**What to measure**:
+1. GET /admin/export (active memories). Filter importance <= 0.051. Count total floor-clamped. Compare to Q34.7 baseline: 1,049.
+2. Compute delta: current_floor_clamped − 1,049. Divide by hours elapsed since Q34.7 (2026-03-15 ~12:00 UTC). Express as floor-clamped/day.
+3. Separately count: floor-clamped with user_id IS NULL vs user_id = 0 (int). The null pool is the double-decay victim pool. If int-0 floor-clamped is growing, the never-decayed int-0 pool is also developing problems (possibly decay-exemption is being removed by a partial fix, or the int-0 pool is reaching natural floor via the access-boost mechanics alone).
+4. Cross-check: has the active corpus size changed? If the total active memory count dropped significantly, hygiene may have started firing (inconsistent with Q35.2 hypothesis but must be ruled out).
+5. Extrapolate: at the measured rate, when does floor-clamped reach 50% of active corpus? When does premature casualty count exceed 2,000 (3× Q34.7 baseline of 644)?
+**Verdict threshold**:
+- FAILURE: Floor-clamped growth rate > 100/day (compound bug regime is accelerating; >2,500 floor-clamped expected before any plausible fix deployment; mortality crisis is worsening faster than previously modeled)
+- WARNING: Floor-clamped growth rate 20–100/day (accumulation continuing at moderate pace; current trajectory reaches 50% corpus in 10–30 days; fix deployment urgency confirmed but not emergency-immediate)
+- HEALTHY: Floor-clamped growth rate < 20/day (compound bug damage is contained for now; either consolidation throughput is lower than Q34.6's burst rate, or a fix was silently deployed; re-evaluate fix status)
+- INCONCLUSIVE: Less than 12 hours elapsed since Q34.7 baseline (insufficient elapsed time to measure daily rate reliably)
+**Priority**: Tier 1 — quantifies the ongoing damage rate; determines whether the ~16-day hygiene window from Q34.7 has shortened based on actual accumulation observed since that measurement
+**Derived from**: Q34.7 FAILURE (1,049 floor-clamped at 2026-03-15; 644 premature casualties; bulk re-score mandatory); Q34.6 FAILURE (199–648 consolidation-source floor-clamped/day); Q31.3 FAILURE (1,049 floor-clamped; threshold 800 exceeded)

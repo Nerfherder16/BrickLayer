@@ -1,7 +1,7 @@
 # Synthesis: Recall Autoresearch — Waves 1–33
 
-**Generated**: 2026-03-15 (updated with Wave 32–33 findings)
-**Questions answered**: 196 (Q1.1–Q1.5, Q2.1–Q2.5, Q3.1–Q3.5, Q4.1–Q4.6, Q5.1–Q5.4, Q5.6–Q5.7, Q6.1–Q6.7, Q7.1–Q7.6, Q13.1–Q13.8, Q13.1a–Q13.8b, Q14.1–Q14.9, Q14.4a, Q14.4b, Q15.1–Q15.5, Q16.1–Q16.5, Q16.3b, Q16.4b, Q18.1–Q18.5, Q19.1–Q19.6, Q20.1–Q20.6, Q21.1–Q21.6, Q22.1–Q22.9, Q23.1–Q23.7, Q24.1–Q24.8, Q25.1–Q25.7, Q26.1–Q26.7, Q27.1–Q27.7, Q28.1–Q28.7, Q29.1–Q29.7, Q30.1–Q30.7, Q31.1–Q31.7, Q31.2a, Q32.1–Q32.7, Q33.2, Q33.2a, Q33.2b, Q33.2c, Q33.7)
+**Generated**: 2026-03-15 (updated with Wave 34 findings)
+**Questions answered**: 203 (Q1.1–Q1.5, Q2.1–Q2.5, Q3.1–Q3.5, Q4.1–Q4.6, Q5.1–Q5.4, Q5.6–Q5.7, Q6.1–Q6.7, Q7.1–Q7.6, Q13.1–Q13.8, Q13.1a–Q13.8b, Q14.1–Q14.9, Q14.4a, Q14.4b, Q15.1–Q15.5, Q16.1–Q16.5, Q16.3b, Q16.4b, Q18.1–Q18.5, Q19.1–Q19.6, Q20.1–Q20.6, Q21.1–Q21.6, Q22.1–Q22.9, Q23.1–Q23.7, Q24.1–Q24.8, Q25.1–Q25.7, Q26.1–Q26.7, Q27.1–Q27.7, Q28.1–Q28.7, Q29.1–Q29.7, Q30.1–Q30.7, Q31.1–Q31.7, Q31.2a, Q32.1–Q32.7, Q33.2, Q33.2a, Q33.2b, Q33.2c, Q33.7, Q34.1–Q34.7)
 **Wave 17 questions (Q16.3a, Q16.4a)**: PENDING — deferred until Tier 1 fixes deployed
 **Source codebase**: C:/Users/trg16/Dev/Recall/
 **Stack**: FastAPI + Qdrant + Neo4j + Redis + PostgreSQL + Ollama (qwen3:14b + qwen3-embedding:0.6b)
@@ -65,7 +65,7 @@ Wave 31 re-run produces 3 FAILURE, 2 WARNING, 1 HEALTHY, 1 INCONCLUSIVE (plus Q3
 
 ---
 
-## 2. Cumulative Findings by Verdict Tier (Waves 1–33)
+## 2. Cumulative Findings by Verdict Tier (Waves 1–34)
 
 ### FAILURE — Open (requires fix before scaling)
 
@@ -97,6 +97,10 @@ Wave 31 re-run produces 3 FAILURE, 2 WARNING, 1 HEALTHY, 1 INCONCLUSIVE (plus Q3
 | **Q24.8 / Q26.7 / Q27.6 / Q28.6 / Q29.5 / Q30.5** | **~~Reconcile audit trail fix NOT deployed (6 prior waves)~~ — CORRECTED by Q31.4 re-run: all 6 FAILURE verdicts were FALSE NEGATIVES caused by querying `?action=reconcile_run` (string not present in codebase). Actual action name is `"reconcile"`. `log_audit(action="reconcile")` is deployed in both `ops.py:373-377` and `workers/reconcile.py:112-116`. Entries confirmed under correct action name. Mismatch details fully visible in audit.** | **Medium → CLOSED** | **24/26/27/28/29/30 (corrected Q31.4)** |
 | **Q27.3** | **Double-decay inflation queue FAILURE: 1,332 active memories (7–29d, importance<0.3, access_count=0) > 500 FAILURE threshold; 89.2% of 7–10d cohort below 0.3 (vs 59.2% expected under single-decay); double-decay halves time-to-threshold (2.1d→1.1d) and time-to-floor (9.5d→4.7d); correction: double-decay does NOT inflate 30d archival COUNT (floor reached in <10d under either regime); bug's damage is to information quality in 0–10d window only** | **High** | **27** |
 | **Q29.6 / Q31.3 / Q33.7** | **Floor-clamped accumulation FAILURE: Q29.6 941/6,044 (15.6%); Q31.3 1,049/6,048 (17.3%); total floor-clamped pool 1,049; no drain active (hygiene cron broken, Q32.1 9th miss). Q33.7 HEALTHY provides key nuance: the Feb 14 cohort (first to cross 30d boundary) has ZERO floor-clamped active members — all 14 active memories maintain importance 0.30–0.40 due to sustained access (min ac=1, max ac=130). Floor-clamped backlog is concentrated in mid-life 7–21d cohorts, not the 30d+ archival boundary. Double-decay damage manifests in the mid-cohort, confirming Q27.7 analytical proof that both decay regimes archive the same count at 30d.** | **High** | **29/31/33** |
+| **Q34.1** | **Total importance suppression damage FAILURE+INCONCLUSIVE: 795 null-pool memories at decay floor (≤0.05) — exceeds FAILURE threshold of 500. Null pool mean importance 0.2584 (n=5,048). Importance-units stolen INCONCLUSIVE: int-0 pool is not a valid control group (mean 0.1852 < null pool mean 0.2584 — inversion; different origin populations). Without stored `initial_importance` per memory, magnitude of suppression is uncomputable. 795 are retrieval dead zone: floor-clamped memories never surface in importance-weighted queries; double-decay fix stops further accumulation but does not restore clamped memories.** | **High** | **34** |
+| **Q34.2** | **user_id attribution architecture broken across 4 dimensions: (1) auth.py writes `user_id=0` (integer) but `_user_conditions(0)` queries IS NULL — decay/scan misses all 2,996 integer-0 memories; (2) 5 worker paths (observer.py:151, observer.py:286, signals.py:259, patterns.py:241, ingest.py:221) omit user_id entirely; (3) consolidation `_get_eligible_memories()` drops user_id from deserialization — all merged memories default to user_id=None regardless of source; (4) integer-0 pool growing at 58/day (all from session-summary hook). The `_user_conditions` semantic contract (0 = "IS NULL/unowned") is violated by the storage reality (admin-key writes integer 0). Three-population system is accidental, not designed.** | **High** | **34** |
+| **Q34.6** | **Consolidation floor-clamped growth self-reinforcing loop FAILURE: 199–648 new floor-clamped memories per day from consolidation output alone, far exceeding 50/day FAILURE threshold. All consolidation outputs reach floor because (a) Q24.5 bug produces null-user_id merged memories and (b) null-user_id memories are double-decayed at 2× rate. Recent session (autoresearch wave activity) drives throughput to 648/day (13× threshold). Loop is self-reinforcing: more session activity → more consolidation candidates → more null-user_id floor-clamped outputs. Floor is a one-way trap — no promotion mechanism exists. Fix required: Q24.5 (`consolidation.py:235` must pass `user_id=source_memories[0].user_id`).** | **High** | **34** |
+| **Q34.7** | **644 premature casualties — natural recovery impossible; bulk re-score mandatory; 16.6-day hygiene window is hard deadline. Single-decay model applied to 1,012 zero-access floor-clamped memories: 368 would be below floor anyway (correctly expired); 644 should still be above floor (prematurely clamped). Premature casualties: median age 13.4d, median initial_importance 0.700 (high-value), median expected single-decay importance 0.0776. Poverty trap confirmed: floor memories score 1/3 of average corpus member in retrieval; 99% access_count=0; access boost is +0.02 additive (no restore to initial_importance); hygiene deletes at age >30d if access=0 AND importance <0.3 — median 16.6 days remaining. `POST /admin/rehabilitate-importance` filter may use `importance < 0.05` (strict less-than) — verify endpoint handles floor value `= 0.05` before executing re-score.** | **High** | **34** |
 
 ### WARNING — Open
 
@@ -131,6 +135,7 @@ Wave 31 re-run produces 3 FAILURE, 2 WARNING, 1 HEALTHY, 1 INCONCLUSIVE (plus Q3
 | **Q33.2 / Q33.2a / Q33.2b** | **Double-decay root cause investigation chain (WARNING tier — root cause identified but fix not deployed): Q33.2 rules out stale Redis job, proposes two-replica hypothesis; Q33.2a refutes two-replica (1 container confirmed), identifies `run_decay_all_users` logic bug; Q33.2b confirms three-way population split via direct Qdrant API: 5,043 null double-decayed, 975 integer-0 never decayed. Exact fix specified (two lines). Escalated to FAILURE in Q33.2c.** | **HIGH** | **33** |
 | **Q31.4 (re-run)** | **Reconcile audit trail WORKING (WARNING — naming discrepancy): audit entries confirmed under action="reconcile" in both ops.py and workers/reconcile.py; 262 mismatches detected; repairs_applied=0 (scan-only); WARNING because scheduled cron never repairs detected mismatches; action name "reconcile_run" used in all prior question hypotheses was wrong; any dashboard filters referencing "reconcile_run" must be updated** | **Low** | **31** |
 | **Q31.5 (re-run)** | **Importance mismatches: repair mechanism functional (261/261 cleared by repair=true); scheduled runs scan-only (never auto-repair); mark_superseded root cause unpatched (neo4j_store.py does not call update_importance when superseding); re-accumulation guaranteed; immediate fix: update scheduler to use repair=true; root fix: patch mark_superseded** | **Medium** | **31** |
+| **Q34.4** | **Admin decay endpoint unscoped — single call = full-corpus floor-clamp: `POST /admin/decay` has no `user_id` parameter; calls `worker.run(user_id=None)` which scrolls and decays ALL memories across all users with no filter. Rate limit 10/min constrains throughput but not sustained attack (600 calls/hour). Audit actor is hardcoded `"decay"` regardless of caller — admin-triggered runs are forensically indistinguishable from cron runs. `simulate_hours` parameter allows time-amplification (e.g., 8760 hours flattens entire corpus to floor in one call). No confirmed incident in observable window. Recommended fix: add `user_id` scoping to `DecayRequest`, require admin role, stamp actor in audit log, cap `simulate_hours` (max ~168).** | **Medium** | **34** |
 | **Q25.4** | **Purge endpoint scope clarified: `/admin/memory/purge` uses `scroll_all(include_superseded=False)` by default — targets ACTIVE low-quality memories only (1,081 eligible: importance≤0.15, age≥7d, access=0); consolidation-superseded memories (15,099) are explicitly excluded from its scope by IS NULL filter; Q24.6 GC gap is fully unaddressed by any available endpoint or scheduled cron; purge deletion logic is correct (Qdrant + Neo4j DETACH DELETE) but misscoped for GC purpose; new endpoint or cron required for superseded GC** | **Medium** | **25** |
 | **Q26.3** | **Double-decay compound damage growing: floor-clamped count 673 (+41 from Q23.1 baseline of 632, +6.5%); ~10 new floor-clamped memories/day; 179.5 importance-units stolen across 5,975 active memories (avg 0.030 per memory, 6% of typical 0.5 initial importance); 3-7d cohort ratio 1.2988 reflects stability variation not absence of damage; floor-clamped count is most reliable direct damage metric; first hygiene batch (2026-03-17) NOT materially inflated by double-decay for 30d+ cohort (both decay models reach floor by 30d)** | **Medium** | **26** |
 | **Q26.5** | **Ghost re-accumulation trap characterized: 1,833 active consolidation-source memories with user_id=None (30.7% of active corpus); IS NULL-only deployment eliminates current ghost users immediately but re-accumulation within weeks as these 1,833 memories get superseded through consolidation; co-deployment of Q21.5 (IS NULL filter) AND Q24.5 (consolidation user_id= propagation) required for permanent fix; 3,191 additional null-uid memories are system/observer by design (not re-accumulation seeds)** | **Medium** | **26** |
@@ -234,9 +239,126 @@ Wave 32–33 HEALTHY additions:
 | Q32.6 | **LLM semaphore hold events: no >60s accumulation risk; 17/17 callsites compliant** (Q31.7 re-confirmed); `httpx.TimeoutException` properly caught + logged + metriced; semaphore released via `async with` — no leak path; max theoretical hold = 90s (heavy tier, intentional); 180s unbounded hold from Q15.3 structurally eliminated; zero `llm_error` or `llm_timeout` audit entries | 32 |
 | Q33.7 | **Feb 14 cohort intact — double-decay has NOT degraded oldest memories**: 14 active memories all maintain importance 0.30–0.40 (well above floor); median access_count ~30; 0 floor-clamped in the >30d archival boundary group; floor-clamped backlog (1,049) concentrated in mid-life 7–21d cohorts; archival backlog specifically >=30d old: **0 memories**; confirms Q27.7 proof that both decay regimes archive same count at 30d | 33 |
 
+Wave 34 HEALTHY additions:
+
+| ID | Finding | Wave |
+|----|---------|------|
+| Q34.3 | **Importance mismatch re-accumulation rate 0.00/hour post Q31.5 repair**: mismatch rate measured 0.00/hour over 58-minute post-repair window with 33 consolidation events. Single transient mismatch at 14:32 self-cleared by 15:10 without intervention. Q31.5 implied ~28/hour re-accumulation rate; actual observed rate is near-zero. Consolidation events in window produced almost no new mismatches — consistent with same-session create-then-supersede cycles resolving within the reconcile polling interval. Clean-slate repair from Q31.5 is holding. | 34 |
+| Q34.5 | **Integer-0 active pool has zero retrieval-contaminating zombie memories**: 952 int-0 active memories; mean importance 0.185; 92% never accessed (access_count=0); 0 memories meet zombie criteria (imp>0.5 AND ac=0 AND age>14d) — single candidate at 0.950 is 13d old (1 day short of threshold). Int-0 pool mean (0.185) is *below* null pool mean (0.257) — never-decayed memories are not inflating importance because they were inherently low-importance at creation. 18 memories with imp>0.5 are all recent (within 13d) and do not qualify as zombies. No retrieval pollution from this cohort is detectable. | 34 |
+
 ---
 
-## 3. Wave 32–33 Results (Q32.1–Q32.7, Q33.2, Q33.2a, Q33.2b, Q33.2c, Q33.7)
+## 3. Wave 34 Results (Q34.1–Q34.7)
+
+### Overview
+
+Wave 34 is the **root-cause consequence wave** — the first wave to measure the downstream damage from the double-decay and user_id attribution architecture bugs whose root causes were fully identified in Wave 33. Of 7 questions: 4 FAILURE (Q34.1, Q34.2, Q34.6, Q34.7), 1 WARNING (Q34.4), 2 HEALTHY (Q34.3, Q34.5).
+
+The defining narrative: the Q33.2b root-cause identification unlocked a new question set that measured *what the bugs have actually done* to the corpus — not just confirming the bugs are present, but quantifying the casualty count, the ongoing accumulation rate, and the window before permanent data loss.
+
+**Key findings count**: 4 FAILURE, 1 WARNING, 2 HEALTHY.
+
+---
+
+### The Mortality Crisis (Q34.7)
+
+Q34.7 is the most time-sensitive finding in the entire research program.
+
+**644 premature casualties** are floor-clamped memories that should still be above the decay floor under correct single-decay logic. They are at importance=0.05, the hard floor. They have never been retrieved (99% access_count=0). They were high-value at creation (median initial_importance=0.700). The double-decay bug pushed them to floor prematurely — median age 13.4 days old, where single-decay would place them at importance ~0.0776 (still above floor and eligible for retrieval).
+
+**The poverty trap is permanent without intervention.** Floor memories score 1/3 of an average corpus member in retrieval. Since they never surface, they receive no access boost. The access boost formula is +0.02 additive per access — not a restore to initial_importance. Without daily access (which is near-zero probability at importance=0.05), each memory needs ~8.3 days of daily access to reach corpus median. They will not receive it.
+
+**The hygiene deadline is ~16.6 days from 2026-03-15.** The hygiene worker deletes memories where `access_count==0 AND importance<0.3 AND age>30d`. With median age 13.4 days, the median premature casualty hits the 30-day deletion window in approximately 16.6 days. Without a bulk re-score run, 644 high-value memories — including infrastructure knowledge, tooling facts, and development context — will be permanently deleted.
+
+The `POST /admin/rehabilitate-importance` endpoint exists but targets `importance < 0.05` (strict less-than). Floor-clamped memories sit at exactly 0.050. Verify the endpoint filter uses `<=` before executing.
+
+---
+
+### The Self-Reinforcing Loop (Q34.6)
+
+Q34.6 establishes that the floor-clamped pool is not merely accumulating — it is accelerating via a self-reinforcing feedback loop:
+
+1. Active sessions generate memories (observer, signals, patterns workers)
+2. Consolidation runs hourly, merging clusters → produces null-user_id outputs (Q24.5 bug)
+3. Null-user_id outputs are double-decayed (Q33.2b bug) → reach floor in ~4.7 days
+4. Floor-clamped count grows: 199/day (conservative) to 648/day (active session)
+5. Active sessions generate more memories → step 1 repeats
+
+At the current autoresearch session throughput, the loop produces **648 new floor-clamped memories per day** — 13× the 50/day FAILURE threshold. Until Q24.5 (consolidation user_id= fix) is deployed, every consolidation run permanently adds to the floor-clamped backlog with no escape.
+
+---
+
+### user_id Attribution Architecture (Q34.2)
+
+Q34.2 extends the Q33.2b root-cause finding to reveal that the entire user_id attribution architecture is broken across four independent dimensions simultaneously:
+
+1. **Storage/query contract mismatch**: `auth.py` writes integer-0 for admin-key requests; `_user_conditions(0)` queries IS NULL. These match different populations.
+2. **Five worker paths omit user_id**: observer, signals, patterns, ingest, session snapshot — all produce null-attributed memories regardless of session context.
+3. **Consolidation deserialization drops user_id**: `_get_eligible_memories()` rebuilds Memory objects without reading `user_id` from payload. Even if source memories have user_id=0, the merged output defaults to user_id=None.
+4. **Integer-0 pool actively growing at 58/day**: All from session-summary hooks using the master admin key.
+
+This means the "three-population split" identified in Q33.2b (null-double-decayed, int-0-never-decayed, user_id=1+-correctly-decayed) is not an accident that can be fixed with one line — it reflects four distinct code-level attribution failures that each require their own fix.
+
+---
+
+### Positive Surprise (Q34.3)
+
+Q34.3 is a significant positive result. Q31.5 found the mark_superseded root cause creates ~28 new importance mismatches per hour. Q34.3 measured the actual re-accumulation rate after the Q31.5 clean-slate repair: **0.00/hour over a 58-minute window with 33 consolidation events.**
+
+The Q31.5 rate estimate was based on a pre-repair accumulation trend, not a post-repair measurement. The actual post-repair rate is near-zero, suggesting that consolidation events during the measurement window predominantly created new memories rather than supersessions that would trigger mismatches. This does not mean the mark_superseded root cause is fixed — only that the current session's consolidation pattern produced minimal mismatch-generating supersessions.
+
+---
+
+### Fix Priority Ordering (16.6-Day Hygiene Window)
+
+Given the mortality crisis deadline, fix sequencing is time-constrained:
+
+| Priority | Fix | Deadline | Impact |
+|----------|-----|----------|--------|
+| **P0 — IMMEDIATE** | Bulk re-score 644 premature casualties: `POST /admin/rehabilitate-importance` with `importance <= 0.05` filter | Before 2026-04-01 (16.6d from Q34.7 measurement) | Prevents permanent deletion of 644 high-value memories |
+| **P1 — SAME DAY** | Double-decay two-line fix: `qdrant.py:1207` add `and uid > 0`; `decay.py:296` remove redundant system pass | Immediately | Stops 5,043 null memories from being decayed twice per cycle; stops further floor-clamped accumulation from this source |
+| **P2 — SAME DAY** | Consolidation user_id= fix: `consolidation.py:235` pass `user_id=source_memories[0].user_id` | Immediately | Stops 199–648 new floor-clamped memories/day from consolidation |
+| **P3 — THIS WEEK** | Hygiene cron: register hygiene task in `cron_jobs` | Before 2026-03-22 | Enables natural drain of floor-clamped and expired memories |
+| **P4 — THIS WEEK** | Worker user_id attribution: pass user context through observer, signals, patterns, ingest paths | This week | Closes null-accumulation from background workers |
+| **P5 — LOW URGENCY** | Admin decay endpoint scoping: add `user_id` param, admin-role check, caller-stamped audit | When convenient | Closes single-call full-corpus floor-clamp attack surface (no confirmed incident) |
+
+---
+
+### Wave 34 Findings Summary
+
+| ID | Verdict | Severity | Key Finding |
+|----|---------|---------|-------------|
+| Q34.1 | FAILURE + INCONCLUSIVE | High | 795 null-pool memories at decay floor (>500 FAILURE threshold); importance-units stolen INCONCLUSIVE (int-0 not a valid control); null pool mean 0.2584 higher than never-decayed int-0 mean 0.1852 (inversion invalidates comparison) |
+| Q34.2 | FAILURE | High | user_id attribution broken in 4 dimensions: storage/query mismatch; 5 worker paths omit user_id; consolidation deserialization drops user_id; int-0 pool growing 58/day |
+| Q34.3 | HEALTHY | None | Mismatch re-accumulation rate 0.00/hour post Q31.5 clean-slate repair; 33 consolidation events produced near-zero new mismatches; Q31.5 repair holding |
+| Q34.4 | WARNING | Medium | Admin decay endpoint unscoped — single authenticated call can floor-clamp entire corpus; audit log indistinguishable from cron run; no confirmed incident but structural risk present |
+| Q34.5 | HEALTHY | None | 0 zombie int-0 memories (strict: imp>0.5, ac=0, age>14d); int-0 mean 0.185 below null mean 0.257 — no retrieval inflation; 92% never accessed; dormant low-value entries |
+| Q34.6 | FAILURE | High | Consolidation floor-clamped growth 199–648/day; self-reinforcing loop: session activity → consolidation candidates → null-user_id outputs → floor-clamped; 13× FAILURE threshold at current throughput |
+| Q34.7 | FAILURE | High | 644 premature casualties; 99% access_count=0; poverty trap confirmed (floor score 1/3 corpus median); hygiene deadline ~16.6 days; bulk re-score mandatory; `rehabilitate-importance` filter must use `<= 0.05` not `< 0.05` |
+
+---
+
+### Wave 34 Cross-Domain Observations
+
+#### Observation 1: Root cause investigation chain complete — damage quantification is now the priority
+
+The Q33.2b breakthrough unlocked a second research phase: now that the *mechanism* is known, Wave 34 quantified the *consequences*. Q34.1 (795 floor casualties), Q34.6 (199-648/day new accumulation), and Q34.7 (644 premature casualties with 16.6d deadline) convert an abstract "decay is running twice" finding into a concrete triage problem with a hard deadline.
+
+#### Observation 2: The three-population split is a symptom of a deeper architecture problem
+
+Q33.2b identified three populations (null-double-decayed, int-0-never-decayed, user_id≥1-correctly-decayed). Q34.2 reveals why: the code was built with a single intended population ("system/unowned memories stored as null") but the actual data has two separate system populations because auth.py and workers/observer.py make different choices about what to write when there is no authenticated user. This is not a one-line fix — it requires a coordinated correction across storage, query, consolidation, and worker-ingest paths.
+
+#### Observation 3: Q34.3 positive result clarifies the mismatch accumulation model
+
+The Q31.5 rate of ~28/hour was an estimate based on delta-over-time from accumulated pre-repair mismatches. Q34.3's post-repair measurement of 0.00/hour over 58 minutes suggests the rate is episodic rather than continuous — mismatches accumulate during heavy consolidation activity and are near-zero during quieter periods. This makes the weekly reconcile cron (Sunday 05:30) more effective than the ~28/hour estimate implied.
+
+#### Observation 4: Two HEALTHY verdicts in a single wave is unprecedented since Wave 20
+
+Prior waves (29–33) produced zero or one HEALTHY finding. Wave 34 produces two (Q34.3, Q34.5). Both are targeted validation questions that tested specific concerns (retrieval pollution from int-0 pool, mismatch re-accumulation) and found the concerns are not realized at current scale. This confirms the research is now correctly focusing on confirmed failures rather than speculative risks.
+
+---
+
+## 4. Wave 32–33 Results (Q32.1–Q32.7, Q33.2, Q33.2a, Q33.2b, Q33.2c, Q33.7)
 
 ### Overview
 
@@ -303,7 +425,7 @@ Q32.3 (floor-clamped rate), Q32.5 (importance mismatch trajectory), and Q32.7 (s
 
 ---
 
-## 4. Wave 31 Results (Q31.1–Q31.7, Q31.2a) — First Run and Re-Run
+## 5. Wave 31 Results (Q31.1–Q31.7, Q31.2a) — First Run and Re-Run
 
 ### Overview — First Run
 
@@ -374,7 +496,7 @@ Q31.7 HEALTHY is the first confirmed fix deployment observed in 21 waves of char
 
 ---
 
-## 5. Wave 30 Results (Q30.1–Q30.7)
+## 6. Wave 30 Results (Q30.1–Q30.7)
 
 ### Overview
 
@@ -414,7 +536,7 @@ Wave 31 must run on/after 2026-03-16T04:00 UTC for Q31.1 (hygiene first archival
 
 ---
 
-## 6. Wave 29 Results (Q29.1–Q29.7)
+## 7. Wave 29 Results (Q29.1–Q29.7)
 
 ### Overview
 
@@ -466,7 +588,7 @@ Q29.4 (5th consecutive) and Q29.5 (5th consecutive) have both reached 5 consecut
 
 ---
 
-## 7. Wave 28 Results (Q28.1–Q28.7)
+## 8. Wave 28 Results (Q28.1–Q28.7)
 
 ### Overview
 
@@ -520,7 +642,7 @@ Total fix burden: ~18 LOC across 4 files. Zero analytical work remaining on any 
 
 ---
 
-## 8. Wave 27 Results (Q27.1–Q27.7)
+## 9. Wave 27 Results (Q27.1–Q27.7)
 
 ### Overview
 
@@ -570,7 +692,7 @@ Q27.5 (consolidation user_id) and Q27.6 (reconcile audit) have both reached 3 co
 
 ---
 
-## 9. Wave 26 Results (Q26.1–Q26.7)
+## 10. Wave 26 Results (Q26.1–Q26.7)
 
 ### Overview
 
@@ -628,7 +750,7 @@ The hygiene first archival is 1 day away (2026-03-17). Q26.7 confirms the audit 
 
 ---
 
-## 10. Wave 25 Results (Q25.1–Q25.7)
+## 11. Wave 25 Results (Q25.1–Q25.7)
 
 ### Overview
 
@@ -680,7 +802,7 @@ Q25.2's matching mismatch count (92 = 1 day post-Sunday repair in both Q24.2 and
 
 ---
 
-## 11. Wave 24 Results (Q24.1–Q24.8)
+## 12. Wave 24 Results (Q24.1–Q24.8)
 
 ### Overview
 
@@ -731,7 +853,7 @@ The 30-day GC window is open (Q24.6). An estimated 11,000 consolidation-supersed
 
 ---
 
-## 12. Wave 23 Results (Q23.1–Q23.7)
+## 13. Wave 23 Results (Q23.1–Q23.7)
 
 ### Overview
 
@@ -786,7 +908,7 @@ None of these corrections change the severity of Q22.1, Q21.1, or Q22.9's struct
 
 ---
 
-## 13. Wave 22 Results (Q22.1–Q22.9)
+## 14. Wave 22 Results (Q22.1–Q22.9)
 
 ### Overview
 
@@ -1265,4 +1387,18 @@ Waves 1–12 produced 35 HEALTHY findings and 5 committed fixes covering: p99 se
 
 **Key pre-condition**: The Waves 1–12 work addressed code quality and unit-test coverage. Wave 13 established that this well-built code is failing at its primary job — surfacing the right memories at the right time. Waves 14–25 have added numerous FAILURE/WARNING findings to the runtime behavior and documented a remediation stall pattern that has now run for fourteen consecutive waves.
 
-**Wave 33 post-synthesis recommendation**: Twenty-two waves of characterization (12–33) with only TWO fixes deployed (LLM timeouts Q31.7, reconcile audit Q31.4 — both confirmed by false-negative correction, not new deployment). The double-decay root cause is now fully identified at the code level (Q33.2b) — the fix is two lines. **Immediate priority**: (1) Deploy Tier 0 fix #0: `qdrant.py:1207` add `and uid > 0`, `decay.py:296` remove redundant system pass — stops 5,043 memories from being decayed twice per cycle. (2) Investigate hygiene cron: Q32.1 reveals hygiene has NEVER fired (not just broken recently) — the cron task may not be registered in `cron_jobs`. (3) Deploy Tier 1b fix #6 (mark_superseded importance=0.0 removal, 1 line). No further characterization waves are justified until Tier 0 is deployed.
+**Wave 34 post-synthesis recommendation**: Twenty-two waves of characterization (12–33) with only TWO fixes deployed (LLM timeouts Q31.7, reconcile audit Q31.4 — both confirmed by false-negative correction, not new deployment). Wave 34 has introduced a hard deadline.
+
+**CRITICAL TIME-SENSITIVE ACTION — 16.6-DAY WINDOW (expires ~2026-04-01):**
+
+Q34.7 identified 644 premature casualties — floor-clamped memories (importance=0.050) with median age 13.4 days and median initial_importance=0.700 that were pushed to floor by the double-decay bug. The hygiene worker will permanently delete these memories when they cross the 30-day age threshold. The median casualty has ~16.6 days remaining. After that window, no recovery is possible.
+
+**Step 0 (before deploying any code fix):** Run bulk re-score via `POST /admin/rehabilitate-importance`. Verify the endpoint filter uses `importance <= 0.05` (not strict less-than `< 0.05`) — floor memories sit at exactly 0.050 and may be excluded by a strict filter. Apply the single-decay restoration formula: `new_importance = max(initial_importance × 0.96^(age_hours/6), 0.051)`.
+
+**Step 1 (same day):** Deploy the double-decay two-line fix: `qdrant.py:1207` change `if uid is not None:` to `if uid is not None and uid > 0:`; `decay.py:296` remove the redundant `worker.run(user_id=0)` system pass. This stops 5,043 null memories from being decayed twice per cycle and stops further floor-clamped accumulation from this source.
+
+**Step 2 (same day):** Deploy the consolidation user_id fix: `consolidation.py:235` pass `user_id=source_memories[0].user_id`. This stops the self-reinforcing loop that is generating 199–648 new floor-clamped memories per day.
+
+**Step 3 (this week):** Fix hygiene cron (never fired since Feb 14). Register the hygiene task in `cron_jobs`. Without this, floor-clamped and expired memories have no automated drain.
+
+No further characterization waves are justified until Step 0 (bulk re-score) and Steps 1–2 (code fixes) are executed. The 16.6-day deadline is the binding constraint.
