@@ -2718,6 +2718,22 @@ findings that have not yet been asked.
 
 ---
 
+## Q31.2a [DOMAIN-1] Second full-corpus decay run — what is the source? Admin API route or duplicate scheduler?
+**Status**: DONE (FAILURE)
+**Wave**: 31
+**Mode**: observability
+**Target**: C:/Users/trg16/Dev/Recall/src/api/routes/admin.py (decay endpoint); C:/Users/trg16/Dev/Recall/src/workers/ (ARQ scheduler config); decay_run audit log inter-run timing
+**Hypothesis**: Q31.2 found two sequential 5,994-count decay runs per cycle (ids 376685 and 378119, ~20s apart) even after `_user_conditions(user_id=0)` IS NULL fix is deployed. The IS NULL fix prevents the system pass from re-processing user memories, but a SECOND full-corpus invocation still occurs. Two candidate sources: (1) `/admin/decay` API route calls `DecayWorker.run()` directly (not `run_decay_all_users()`), bypassing scope filtering entirely; (2) ARQ scheduler has duplicate job registrations firing the same task twice per slot. Identifying the source is required before the double-decay can be fully fixed.
+**What to measure**: (1) Read C:/Users/trg16/Dev/Recall/src/api/routes/admin.py — find the /admin/decay endpoint; does it call `DecayWorker.run()` without user_id scoping? (2) Read C:/Users/trg16/Dev/Recall/src/workers/settings.py or equivalent — are there two cron_jobs entries for decay tasks? (3) Check audit log: GET /admin/audit?action=decay_run&limit=20 — what is the inter-run gap and actor field for the two 5,994-count runs? (4) Are both 5,994 runs from actor="scheduler" or is one from actor="admin"? (5) If admin route: the /admin/decay endpoint being called by an automated script or the hygiene cron would explain the second run.
+**Verdict threshold**:
+- FAILURE: Second full-corpus run source identified AND no easy fix (e.g., duplicate scheduler that requires architecture change)
+- WARNING: Second full-corpus run from admin API route (fixable by adding user_id=0 scope to the admin endpoint)
+- HEALTHY: No second full-corpus run found in fresh audit log (anomaly was transient)
+**Priority**: Tier 1 — direct follow-up to Q31.2; identifies the remaining double-decay source after partial fix
+**Derived from**: Q31.2 FAILURE (21st); IS NULL fix deployed but second run persists
+
+---
+
 ## Q31.3 [DOMAIN-1] Floor-clamped count post-fix -- is the 941 FAILURE count declining?
 **Status**: DONE
 **Wave**: 31
@@ -2738,9 +2754,10 @@ findings that have not yet been asked.
 **Status**: DONE
 **Wave**: 31
 **Mode**: observability
-**Target**: GET /admin/audit?action=reconcile_run&limit=5; POST /admin/reconcile (trigger manual run)
+**Target**: GET /admin/audit?action=reconcile&limit=5 (NOTE: action="reconcile" NOT "reconcile_run"); POST /admin/reconcile (trigger manual run)
 **Hypothesis**: Q21.6 and Q24.8 both found FAILURE: no audit entries for reconcile runs. The fix (log_audit() added to both reconcile.py and ops.py) was deployed this session. The weekly reconcile cron fires Sunday 5:30am UTC; a manual POST /admin/reconcile can verify immediately without waiting.
-**What to measure**: (1) POST /admin/reconcile to trigger a run. (2) GET /admin/audit?action=reconcile_run&limit=5 -- any entries? (3) Verify entry contains expected fields: action=reconcile_run, actor=reconcile, details with qdrant_only/neo4j_only counts. (4) Check GET /admin/audit?action=reconcile_op&limit=20 for per-orphan entries if any orphans were repaired. (5) Confirm no exception in the reconcile response body.
+**CORRECTION (Wave 31 re-run)**: All prior FAILURE verdicts (Q21.6, Q24.8, Q26.7, Q27.6, Q28.6, Q29.5, Q30.5) were FALSE NEGATIVES — the correct audit action name is "reconcile" (not "reconcile_run"). The log_audit fix was deployed; entries were being written under action="reconcile" all along.
+**What to measure**: (1) POST /admin/reconcile to trigger a run. (2) GET /admin/audit?action=reconcile&limit=5 -- any entries? (3) Verify entry contains expected fields: action=reconcile, actor=reconcile, details with qdrant_only/neo4j_only counts. (4) Check GET /admin/audit?action=reconcile_op&limit=20 for per-orphan entries if any orphans were repaired. (5) Confirm no exception in the reconcile response body.
 **Verdict threshold**:
 - FAILURE: No reconcile_run audit entries after manual trigger (fix did not deploy or log_audit call is erroring silently)
 - WARNING: reconcile_run entry present but missing expected detail fields (partial audit)
@@ -2804,7 +2821,7 @@ findings that have not yet been asked.
 ---
 
 ## Q32.1 [DOMAIN-2] Hygiene cron — did the 2026-03-16T04:00 UTC window finally fire?
-**Status**: PENDING
+**Status**: DONE (FAILURE)
 **Wave**: 32
 **Mode**: observability
 **Target**: GET /admin/audit?action=hygiene_run&limit=5; GET /admin/audit?action=archive&limit=20
@@ -2820,7 +2837,7 @@ findings that have not yet been asked.
 ---
 
 ## Q32.2 [DOMAIN-1] Double-decay — 21st consecutive reconfirmation
-**Status**: PENDING
+**Status**: DONE (FAILURE)
 **Wave**: 32
 **Mode**: quantitative analysis
 **Target**: GET /admin/audit?action=decay_run&limit=10
@@ -2836,7 +2853,7 @@ findings that have not yet been asked.
 ---
 
 ## Q32.3 [DOMAIN-1] Floor-clamped 24h rate — does the +108 in 3h extrapolation hold over a full day?
-**Status**: PENDING
+**Status**: INCONCLUSIVE
 **Wave**: 32
 **Mode**: quantitative analysis
 **Target**: GET /admin/export (all memories); filter importance <= 0.051 AND access_count = 0
@@ -2852,7 +2869,7 @@ findings that have not yet been asked.
 ---
 
 ## Q32.4 [DOMAIN-3] Sunday reconcile cron — did it fire on 2026-03-16T05:30 UTC?
-**Status**: PENDING
+**Status**: DONE (HEALTHY)
 **Wave**: 32
 **Mode**: observability
 **Target**: GET /admin/audit?action=reconcile_run&limit=5; POST /admin/reconcile (trigger manual run)
@@ -2868,7 +2885,7 @@ findings that have not yet been asked.
 ---
 
 ## Q32.5 [DOMAIN-3] Importance mismatch 24h trajectory — is the +28/hour rate sustained or a consolidation burst?
-**Status**: PENDING
+**Status**: INCONCLUSIVE
 **Wave**: 32
 **Mode**: quantitative analysis
 **Target**: POST /admin/reconcile (trigger); note importance_mismatch count in response
@@ -2884,7 +2901,7 @@ findings that have not yet been asked.
 ---
 
 ## Q32.6 [DOMAIN-4] LLM semaphore hold events — are >60s Ollama events accumulating in prod logs?
-**Status**: PENDING
+**Status**: DONE (HEALTHY)
 **Wave**: 32
 **Mode**: observability
 **Target**: ARQ worker logs; GET /admin/metrics or equivalent; LLM callsite audit cross-check
@@ -2901,7 +2918,7 @@ findings that have not yet been asked.
 ---
 
 ## Q32.7 [DOMAIN-3] GC-eligible pool tracking — what is the superseded pool growth rate with 6 days to eligibility?
-**Status**: PENDING
+**Status**: INCONCLUSIVE
 **Wave**: 32
 **Mode**: quantitative analysis
 **Target**: POST /admin/reconcile (response includes superseded counts); or GET /admin/stats
@@ -2914,3 +2931,163 @@ findings that have not yet been asked.
 - INCONCLUSIVE: Insufficient time elapsed since Q31.6 to compute reliable rate (same-day measurement artifact as Q30.7)
 **Priority**: Tier 2 — time-gated observation; re-verify on/after 2026-03-21T19:12 UTC for Q32.7 HEALTHY/FAILURE verdict
 **Derived from**: Q31.6 INCONCLUSIVE; Q30.7 INCONCLUSIVE; Q21.3 WARNING (~600/day superseded accumulation)
+
+---
+
+## Wave 33 Questions — Post-Window Verification, Double-Enqueue Root Cause, and Corpus Impact
+
+Time anchor: Wave 33 runs AFTER 2026-03-16T05:30 UTC (Sunday reconcile window) and AFTER 2026-03-16T04:00 UTC (hygiene window). All time-gated re-runs from Wave 32 are eligible at 2026-03-16T13:46–14:18 UTC.
+
+---
+
+## Q33.1 [DOMAIN-2] Hygiene cron — did the 2026-03-16T04:00 UTC window fire (9th check)?
+**Status**: PENDING
+**Wave**: 33
+**Mode**: observability
+**Target**: GET /admin/audit?action=hygiene_run&limit=10; GET /admin/audit?action=archive&limit=20; GET /admin/audit?action=auto_archive&limit=10
+**Hypothesis**: Q32.1 confirmed FAILURE (8th consecutive miss, 2026-03-15T04:00 UTC passed with 0 entries). The next window is 2026-03-16T04:00 UTC. Wave 33 runs after that window. The hygiene cron has been broken since at least 2026-03-09 — 8 consecutive misses with ARQ alive and decay running normally. The failure is task-specific: `hygiene_run`, `archive`, and `auto_archive` have NEVER appeared in 379,666+ total audit entries. Two hypotheses compete: (A) the hygiene task is not registered in ARQ WorkerSettings.functions or cron_jobs — meaning it never fires regardless of worker state; (B) the task is registered but the candidate query returns 0 results at execution time (age gate, threshold config, or date math error). If the 2026-03-16T04:00 window fires, the Feb 14 cohort (oldest active memories, now 30+ days) should produce archival entries. If it does not fire, the task is structurally absent from the worker.
+**What to measure**:
+1. GET /admin/audit?action=hygiene_run&limit=10 — any entries with timestamp >= 2026-03-16T04:00 UTC?
+2. GET /admin/audit?action=archive&limit=20 — any archive entries? Note count and timestamps.
+3. GET /admin/audit?action=auto_archive&limit=10 — alternate action name check.
+4. If hygiene_run present but archive=0: cron fires but archival predicate fails — check importance/access threshold vs current floor-clamped population.
+5. If no hygiene_run entries: confirm static source — is `hygiene_task` (or equivalent) listed in WorkerSettings.functions in `src/workers/main.py`?
+6. Cross-reference with Q33.3 floor-clamped count — if archival fired, floor-clamped total should decrease.
+**Verdict threshold**:
+- FAILURE: No hygiene_run audit entries after 2026-03-16T04:00 UTC (9th consecutive miss; task absent from worker or permanently broken)
+- WARNING: hygiene_run entries present but archive_count = 0 (cron fires but archival predicate not met; threshold or date math bug)
+- HEALTHY: hygiene_run entries present AND archive_count > 0 (cron repaired; archival pipeline functional)
+**Priority**: Tier 0 — 8 consecutive FAILUREs; 9th miss escalates to structural absence verdict; Feb 14 cohort crossed 30d boundary and will never be archived if cron remains broken
+**Derived from**: Q32.1 FAILURE (8th miss); Q31.1 FAILURE (7th+); Q27.7 WARNING (first batch ~2 memories at 2026-03-16T04:00)
+
+---
+
+## Q33.2 [DOMAIN-1] ARQ double-enqueue: is a stale Redis job the source of the second run_decay enqueue?
+**Status**: PENDING
+**Wave**: 33
+**Mode**: observability
+**Target**: Redis job queue inspection via GET /admin/debug/arq or equivalent; decay_run audit entries for the most recent 3 cron cycles
+**Hypothesis**: Q31.2a established that the second full-corpus `run_decay` enqueue is NOT from admin API calls (actor="decay" on both) and NOT from a duplicate cron entry (only one `cron(run_decay, ...)` in `main.py`). The pattern has been consistent since 2026-03-14T18:15 UTC — the exact cycle where the IS NULL (`user_id=0` sentinel) fix was deployed. Q32.2 confirmed the 19–21 second inter-run gap is deterministic, suggesting a fixed-offset re-enqueue. Three candidate sources remain unexplored: (1) a stale ARQ job persisted in Redis from before the IS NULL deployment restart, re-running on every worker wake cycle; (2) a secondary `arq.enqueue_job("run_decay")` call hidden in a non-cron code path (e.g., a lifecycle hook, `on_startup`, or a task completion callback); (3) the `run_decay` function itself calling `arq.enqueue_job("run_decay")` recursively at the end of execution. If the stale-Redis hypothesis is true, inspecting the Redis job queue should show two pending `run_decay` jobs at any time between cron intervals.
+**What to measure**:
+1. Inspect Redis for pending ARQ jobs: check for `arq:job:*` keys matching `run_decay`; count how many exist between scheduled cron intervals.
+2. GET /admin/audit?action=decay_run&limit=20 — for the 3 most recent cycles, note: (a) exact inter-run gap (seconds), (b) whether gap is growing, shrinking, or fixed.
+3. Static code check: does `run_decay()` in `workers/decay.py` contain any `enqueue_job`, `arq.enqueue`, or `ctx["redis"].enqueue_job` call at the end of the function body?
+4. Static code check: does `main.py` contain any `on_startup` handler, `on_worker_startup`, or `startup` hook that calls `enqueue_job("run_decay")`?
+5. If Redis job count shows exactly 2 `run_decay` entries between cron ticks: stale-job hypothesis confirmed; fix is `arq.delete_job` + restart.
+**Verdict threshold**:
+- FAILURE: Source still unidentified (2+ full-corpus runs per cycle, unknown origin); double-decay persists for 23rd consecutive wave
+- WARNING: Source identified but fix not deployed (root cause known but behavioral doubling continues)
+- HEALTHY: Second run eliminated (source identified AND fix deployed; processed count halved to ~5,994 per slot from ~11,988)
+- INCONCLUSIVE: Redis not inspectable via API; static analysis inconclusive; source remains ambiguous
+**Priority**: Tier 0 — root cause identification is prerequisite for deploying the double-decay fix; 22 consecutive FAILURE waves; deterministic 19–21s gap is the strongest clue available
+**Derived from**: Q32.2 FAILURE (22nd consecutive); Q31.2a FAILURE (enqueue source unknown); Q31.2 FAILURE (IS NULL fix insufficient)
+
+---
+
+## Q33.3 [DOMAIN-1] Floor-clamped 24h rate — true daily accumulation from Q31.3 baseline (re-run of Q32.3)
+**Status**: PENDING
+**Wave**: 33
+**Mode**: quantitative analysis
+**Target**: GET /admin/export (all memories) or GET /admin/stats with importance distribution; filter importance <= 0.051 AND access_count = 0
+**Hypothesis**: Q32.3 was INCONCLUSIVE — only 41 minutes elapsed since Q31.3 baseline (1,049 floor-clamped at 2026-03-15T13:46 UTC). Wave 33 runs after 2026-03-16T13:46 UTC, providing a true 24h measurement window. The key ambiguity is whether the +108 in 3h burst from Q31.3 (extrapolating ~864/day) reflects: (A) sustained high accumulation driven by consolidation-source memories (consolidation +74 in 3h), or (B) a one-time burst from a consolidation batch that ran shortly before Q31.3 measurement. A true 24h rate will resolve this. Additionally: if Q33.1 shows hygiene archival finally fired (first batch ~2 memories at 2026-03-16T04:00 UTC), a small decrease may appear in the floor-clamped total — but the count of archival candidates is large (~3,289 at Q27.7 estimate) so a 2-memory archival would be noise. The consolidation-source component is the most informative: if it grew by >100 overnight, the Q24.5 user_id fix is urgently needed.
+**What to measure**:
+1. Count memories with importance <= 0.051 AND access_count = 0; break down by source field (system, consolidation, pattern, user).
+2. Compare to Q31.3 re-run baseline: total=1,049, system=~572, consolidation=~449, pattern=~25, user=~3.
+3. Calculate Δ total and Δ by source. Compute hours elapsed since Q31.3 (2026-03-15T13:46 UTC) and daily rate = Δ / hours × 24.
+4. If hygiene fired (Q33.1 HEALTHY/WARNING): note whether any reduction is visible or whether archival batch was too small to offset accumulation.
+5. Compare daily rate to Q27.7 WARNING estimate (~186.7/day) — is actual rate higher or lower?
+**Verdict threshold**:
+- FAILURE: Floor-clamped total > 1,049 (continued accumulation; no fix effective; daily rate > 0)
+- WARNING: Floor-clamped total 800–1,049 (stable or slight decline; hygiene archiving at boundary)
+- HEALTHY: Floor-clamped total < 800 (meaningful decline; archival pipeline draining the pool faster than accumulation)
+- INCONCLUSIVE: Elapsed time < 20 hours since Q31.3 (re-run still too early)
+**Priority**: Tier 1 — resolves Q32.3 ambiguity; directly informs whether hygiene archival (if it fired) is keeping pace with accumulation; also confirms whether IS NULL fix halted new floor-clamping
+**Derived from**: Q32.3 INCONCLUSIVE (41 min elapsed); Q31.3 FAILURE (1,049; re-run baseline); Q30.6 WARNING (δ=0 over 79 min — earlier false stable)
+
+---
+
+## Q33.4 [DOMAIN-3] Sunday reconcile cron — post-hoc verification that the 2026-03-16T05:30 UTC run fired
+**Status**: PENDING
+**Wave**: 33
+**Mode**: observability
+**Target**: GET /admin/audit?action=reconcile&limit=10; note timestamps relative to 2026-03-16T05:30 UTC
+**Hypothesis**: Q32.4 found HEALTHY: the reconcile cron is registered (`weekday=6, hour=5, minute=30`), the manual trigger works, and audit entries are written under `action="reconcile"`. However Q32.4 was measured at 2026-03-15T14:29 UTC — 15 hours before the Sunday window. Wave 33 runs after 2026-03-16T05:30 UTC. This is a post-hoc verification: did the scheduled Sunday cron actually fire, or was the worker down at 05:30 UTC? The Q32.4 HEALTHY verdict is conditional on worker uptime at the scheduled time. Additionally, the current system state (0 importance mismatches as of Q32.5 repair) should make the reconcile run produce `repairs_applied=0, importance_mismatches=0` if mismatches have not re-accumulated — or reveal whether the mark_superseded bug re-seeded mismatches overnight.
+**What to measure**:
+1. GET /admin/audit?action=reconcile&limit=10 — look for an entry with timestamp between 2026-03-16T05:29:00 UTC and 2026-03-16T05:31:00 UTC. Was the automated cron run logged?
+2. If a 05:30 UTC entry exists: note importance_mismatches and repairs_applied. Did mismatches re-accumulate since Q32.5's clean baseline (0 mismatches at 2026-03-15T14:30 UTC)?
+3. Calculate mismatch accumulation rate: Δ mismatches / hours elapsed since Q32.5 repair. Compare to Q31.5 implied rate (~28/hour) and Q24.2 estimate (~1.3/hour).
+4. If no 05:30 UTC entry: worker was down at the scheduled time; check latest reconcile entry timestamp to determine when it last ran.
+5. Note total reconcile entries in audit log — establishes cron run history depth.
+**Verdict threshold**:
+- FAILURE: No reconcile audit entry near 2026-03-16T05:30 UTC (worker was down at scheduled window; automated reconcile did not run)
+- WARNING: Entry present but repairs_applied=0 AND importance_mismatches > 50 (cron ran but scheduler still scan-only; mismatches re-accumulating from mark_superseded bug)
+- HEALTHY: Entry present, importance_mismatches < 50 (cron ran; mismatch re-accumulation is slow; mark_superseded bug less urgent than Q31.5 implied)
+**Priority**: Tier 1 — post-hoc confirmation of Q32.4 HEALTHY; resolves whether automated Sunday reconcile is operationally reliable; also measures Q32.5's re-accumulation rate in a clean 24h window
+**Derived from**: Q32.4 HEALTHY (reconcile registered and manual trigger works); Q32.5 INCONCLUSIVE (12.6 min post-repair; 24h rate unknown); Q31.5 WARNING (scan-only scheduler; mark_superseded unpatched)
+
+---
+
+## Q33.5 [DOMAIN-1] Importance mismatch 24h trajectory — sustained or burst? (re-run of Q32.5 at 24h mark)
+**Status**: PENDING
+**Wave**: 33
+**Mode**: quantitative analysis
+**Target**: POST /admin/reconcile (repair=false); note importance_mismatches in response; compute rate from Q31.5 repair baseline
+**Hypothesis**: Q32.5 was INCONCLUSIVE — only 12.6 minutes elapsed since the Q31.5 repair run (id=379617, 2026-03-15T14:17:41 UTC). Wave 33 runs after 2026-03-16T14:17 UTC, providing the 24h post-repair measurement. Two competing rates must be distinguished: (A) Q31.5 implied rate of ~28/hour (261 mismatches accumulated over ~9.3h before the repair), which would predict ~672 mismatches at 24h; (B) Q24.2 historical estimate of ~1.3/hour (~31 mismatches at 24h), which would predict the burst was a consolidation artifact. The 24h count will conclusively identify which rate characterizes the mark_superseded bug's steady-state output. Note: if Q33.4 shows the Sunday 05:30 UTC reconcile cron ran with repairs_applied > 0, this measurement may be artificially low (mismatches cleared mid-window); in that case, note the reconcile run and compute pre-repair estimate.
+**What to measure**:
+1. POST /admin/reconcile (DO NOT use repair=true yet — capture natural accumulation). Note importance_mismatches.
+2. Compute Δ from Q31.5 post-repair baseline (0 mismatches at 2026-03-15T14:17:41 UTC). Note exact hours elapsed.
+3. Compute hourly rate: Δ / hours elapsed. Compare to Q31.5 implied (~28/hour) and Q24.2 estimate (~1.3/hour).
+4. Check Q33.4 result: if the Sunday 05:30 UTC cron ran and cleared mismatches, use the last pre-repair reconcile entry count as the measurement baseline and note the gap.
+5. If rate is 20–40/hour: Q31.5 was NOT a burst; mark_superseded is actively creating ~672+ mismatches/day; priority escalates to Tier 0.
+6. If rate is <5/hour: Q31.5 was likely a burst from a large consolidation run; mark_superseded creates mismatches at ~31/day — lower urgency, but fix still required.
+**Verdict threshold**:
+- FAILURE: importance_mismatches > 200 at 24h mark (rate ≥ 8/hour; sustained high drift; mark_superseded fix and reconcile auto-repair both urgent)
+- WARNING: importance_mismatches 20–200 (rate 1–8/hour; moderate sustained drift; matches Q24.2 estimate; fix needed but not Tier 0)
+- HEALTHY: importance_mismatches < 20 (rate < 1/hour; Q31.5 was a burst artifact; current mark_superseded creates negligible drift)
+- INCONCLUSIVE: Elapsed time < 20h since Q31.5 repair (Wave 33 still too early for Q32.5 re-run), OR Sunday reconcile cleared mismatches mid-window and baseline is ambiguous
+**Priority**: Tier 1 — resolves Q31.5 vs Q24.2 rate discrepancy; determines whether reconcile auto-repair (immediate fix: scheduler repair=true flag) is Tier 0 or Tier 1; directly informs fix deployment priority
+**Derived from**: Q32.5 INCONCLUSIVE (12.6 min elapsed); Q31.5 WARNING (261/261 cleared; ~28/hour implied rate); Q24.2 FAILURE (mark_superseded fix undeployed; ~1.3/hour estimate)
+
+---
+
+## Q33.6 [DOMAIN-3] Superseded pool 24h rate — reliable daily measurement at Q31.6 baseline + 24h (re-run of Q32.7)
+**Status**: PENDING
+**Wave**: 33
+**Mode**: quantitative analysis
+**Target**: GET /admin/stats (active count); POST /admin/reconcile (qdrant_total); compute superseded = qdrant_total − active
+**Hypothesis**: Q32.7 was INCONCLUSIVE — only 14 minutes elapsed since Q31.6 baseline (qdrant_total=21,360, superseded≈15,335 at 2026-03-15T14:18 UTC). Wave 33 runs after 2026-03-16T14:18 UTC, providing a true 24h measurement. The competing rate estimates are: Q21.3 analytical estimate (~600/day from consolidation); Q31.6 burst observation (~1,035/day from +151 in 3.5h). The 24h rate determines the projected pool size at GC eligibility (2026-03-21T19:12 UTC) and whether the first GC batch will be manageable or very large. Note: the /admin/reconcile endpoint does not expose a direct superseded_count field — the proxy is (qdrant_total − active_count); if this gap cannot be computed from available endpoints, use the lifetime supersede audit count as a second approximation.
+**What to measure**:
+1. POST /admin/reconcile — note qdrant_total. GET /admin/stats — note active count (or `total` from health endpoint). Compute superseded = qdrant_total − active.
+2. Compare to Q31.6 baseline (superseded ≈ 15,335). Compute Δ and hours elapsed since 2026-03-15T14:18 UTC.
+3. Compute daily rate = Δ / hours × 24. Compare to Q21.3 estimate (~600/day) and Q31.6 burst (~1,035/day).
+4. Project pool at GC eligibility: baseline + (rate × days_remaining_to_2026-03-21T19:12). Is the projected first GC batch < 20,000 entries?
+5. Check /admin/health/dashboard or /admin/audit?action=supersede&limit=1 for latest supersede timestamp — confirms consolidation is still running and supersede operations are active.
+**Verdict threshold**:
+- FAILURE: Daily rate > 1,000/day (superseded pool growing faster than Q21.3 estimate; GC batch at eligibility will exceed 20,000; reconcile scan time impact non-trivial)
+- WARNING: Daily rate 400–1,000/day (within Q21.3–Q31.6 range; GC will have a meaningful first batch of ~15,000–19,000 entries)
+- HEALTHY: Daily rate < 400/day (growth slowed; pool at GC eligibility manageable; consolidation rate may have naturally decreased)
+- INCONCLUSIVE: Elapsed time < 20h since Q31.6 (still too early); or superseded count not derivable from available endpoints
+**Priority**: Tier 2 — time-gated; GC eligibility is 2026-03-21T19:12 UTC (~5.7 days from Wave 33 measurement); rate measurement now is the last reliable opportunity before GC window; informs whether any emergency GC infrastructure must be built in advance
+**Derived from**: Q32.7 INCONCLUSIVE (14 min elapsed); Q31.6 INCONCLUSIVE (~1,035/day burst rate); Q21.3 WARNING (~600/day analytical estimate); GC eligibility 2026-03-21T19:12 UTC
+
+---
+
+## Q33.7 [DOMAIN-2] Feb 14 cohort corpus impact — has double-decay caused measurable importance degradation in 30d+ memories pending archival?
+**Status**: PENDING
+**Wave**: 33
+**Mode**: quantitative analysis
+**Target**: GET /admin/export (all memories); filter created_at <= 2026-02-14T23:59 UTC AND superseded_by IS NULL AND access_count = 0
+**Hypothesis**: Q27.7 identified that the Feb 14 cohort (oldest active memories, created 2026-02-14) was the first expected archival batch at 2026-03-16T04:00 UTC. Q27.3 established that double-decay halves the time to importance floor (9.5d single → 4.7d double) — meaning any memory created on 2026-02-14 that has not been accessed would have hit the 0.05 floor by ~2026-02-19 under double-decay, versus ~2026-02-24 under single-decay. By 2026-03-16 (30d later), these memories would have been floor-clamped for 25 days under double-decay versus 20 days under single-decay. The question is: how many Feb 14 memories are active, never-accessed, and floor-clamped — i.e., how large is the first archival cohort that the broken hygiene cron has failed to process? If hygiene cron has never fired (Q33.1 FAILURE), these memories accumulate indefinitely even after their archival date passes, consuming Qdrant storage and degrading retrieval signal-to-noise ratio.
+**What to measure**:
+1. Count active memories with created_at <= 2026-02-15T00:00 UTC AND access_count = 0 AND importance <= 0.3 (hygiene eligibility criteria). This is the backlog the broken hygiene cron has failed to process.
+2. Of those, count with importance <= 0.051 (floor-clamped; double-decay impact confirmed). Compare to the single-decay expected count.
+3. Calculate the archival backlog size: how many days of missed archival has the 8-miss streak produced? (8 days × daily_rate from Q33.3).
+4. Identify the oldest memory in the active corpus (lowest created_at with superseded_by IS NULL) — is it from Feb 14 or earlier?
+5. If Q33.1 shows hygiene FINALLY fired: note how many of these were archived and whether the Feb 14 cohort is partially cleared.
+**Verdict threshold**:
+- FAILURE: Archival backlog > 200 never-accessed floor-clamped memories older than 30d (hygiene miss streak has created a meaningful noise pool in the active corpus)
+- WARNING: Archival backlog 50–200 (moderate backlog; hygiene cron fix is important but not immediately corpus-degrading)
+- HEALTHY: Archival backlog < 50 OR hygiene fired and cleared the cohort (backlog trivial; OR cron fixed just in time)
+- INCONCLUSIVE: Export endpoint unavailable or per-memory created_at not in export schema
+**Priority**: Tier 1 — directly measures the damage from 8-wave hygiene FAILURE streak; first quantification of the archival backlog; informs urgency of hygiene cron fix vs other active bugs
+**Derived from**: Q32.1 FAILURE (8th miss; Feb 14 cohort crossed 30d boundary); Q31.3 FAILURE (1,049 floor-clamped; backlog size unknown); Q27.7 WARNING (first archival target 2026-03-16T04:00; ~2 memories estimated); Q27.3 FAILURE (double-decay accelerates time-to-floor)
