@@ -2236,7 +2236,7 @@ findings that have not yet been asked.
 ---
 
 ## Q27.2 [DOMAIN-3] First GC-eligible cohort emergence -- are any superseded memories now 30+ days old and eligible for DETACH DELETE?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 27
 **Mode**: observability + quantitative analysis
 **Target**: Qdrant superseded pool (superseded_by IS NOT NULL AND invalid_at < now-30d); POST /admin/reconcile?dry_run=true
@@ -2252,7 +2252,7 @@ findings that have not yet been asked.
 ---
 
 ## Q27.3 [DOMAIN-1] Double-decay 7-20d band -- are memories approaching the hygiene importance threshold faster than under single-decay?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 27
 **Mode**: quantitative analysis
 **Target**: Active memory corpus; importance distribution stratified by age band (7-10d, 10-15d, 15-20d); hygiene threshold importance < 0.3
@@ -2268,7 +2268,7 @@ findings that have not yet been asked.
 ---
 
 ## Q27.4 [DOMAIN-1] Information recovery debt -- how many floor-clamped memories are permanently stuck vs recoverable if Q22.1 deployed today?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 27
 **Mode**: quantitative analysis
 **Target**: Floor-clamped active memory cohort (importance <= 0.051); access_count, age, source distributions
@@ -2284,7 +2284,7 @@ findings that have not yet been asked.
 ---
 
 ## Q27.5 [DOMAIN-4] Consolidation user_id deployment re-check (3rd attempt) -- has consolidation.py:235 been fixed?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 27
 **Mode**: static code analysis + observability
 **Target**: src/core/consolidation.py:235 Memory() constructor; active null-uid consolidated memory count vs Q26.5 baseline of 1,833
@@ -2300,7 +2300,7 @@ findings that have not yet been asked.
 ---
 
 ## Q27.6 [DOMAIN-5] Reconcile audit fix deployment re-check (3rd attempt) -- has log_audit() been added to reconcile.py and ops.py?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 27
 **Mode**: static code analysis + observability
 **Target**: src/workers/reconcile.py; src/api/routes/ops.py (log_audit calls); GET /admin/audit?action=reconcile&limit=10
@@ -2316,7 +2316,7 @@ findings that have not yet been asked.
 ---
 
 ## Q27.7 [DOMAIN-1] Hygiene archival rate projection -- will hygiene stabilize, reduce, or over-archive the active corpus under double-decay?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 27
 **Mode**: quantitative analysis (depends on Q27.1 for first batch data)
 **Target**: Q27.1 archival count; active corpus age distribution; daily new memory rate; double-decay importance profiles for 15-30d cohort
