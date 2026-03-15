@@ -872,7 +872,7 @@ findings that have not yet been asked.
 ---
 
 ## Q14.2 [DOMAIN-5] Exploration-based retrieval prototype — does random-walk injection of buried memories improve coverage without degrading session quality?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: benchmark
 **Target**: recall-retrieve.js hook + POST /search
 **Hypothesis**: Q13.1b's Priority 1 recommendation is exploration-based retrieval: on every Nth retrieval call, include 2–3 memories sampled from importance ≥ 0.7, access_count = 0 regardless of similarity score. This should surface buried high-value memories but risks injecting irrelevant content that degrades the context window. The key metric is whether the injected memories are topically relevant to the session (>30% term overlap with subsequent prompts) or pure noise.
@@ -887,7 +887,7 @@ findings that have not yet been asked.
 ---
 
 ## Q14.3 [DOMAIN-1] Store-time dedup behavior — does supersedure update the surviving memory or silently drop the incoming write?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: correctness
 **Target**: POST /store deduplication path — src/core/memory.py + src/core/qdrant.py
 **Hypothesis**: Q13.4a found semantic_dedup_threshold=0.90 and confirmed a false-positive merge (session 14996103 absorbed into de31f553). But the deeper question is: when supersedure fires, does the surviving memory get updated with content from the incoming write (merge/append), or is the incoming write silently dropped? If dropped, the system loses the unique facts from the newer memory. Q13.1b audit item #4 noted that "store-time path drops incoming write, does not create Neo4j edges" — this suggests a drop-not-merge pattern that loses data.
@@ -902,7 +902,7 @@ findings that have not yet been asked.
 ---
 
 ## Q14.4 [DOMAIN-5] Global OllamaLLM semaphore — does adding asyncio.Semaphore(1) to OllamaLLM.generate() reduce system-wide p95 below 10s?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: benchmark
 **Target**: src/core/llm.py — OllamaLLM.generate() method
 **Hypothesis**: Q13.3a concluded that the endpoint-level extraction semaphore (already deployed) is insufficient because all LLM callers (fact_extraction, consolidation, observer, signal detection) share the same Ollama GPU queue without coordination. A global asyncio.Semaphore(1) on OllamaLLM.generate() would serialize all inference requests, bounding p95 at approximately queue_depth x median_inference_time. Q13.3a predicted this would achieve HEALTHY (p95 ≤ 10s). This question verifies that prediction empirically.
@@ -918,7 +918,7 @@ findings that have not yet been asked.
 ---
 
 ## Q14.5 [DOMAIN-1] file_ext proxy analysis — can input_chars distribution in prompt_metrics approximate the config/code split without instrumentation?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: benchmark
 **Target**: PostgreSQL prompt_metrics table — action='fact_extraction', empty=true
 **Hypothesis**: Q13.2a was INCONCLUSIVE because file_ext is not captured in prompt_metrics. However, the input_chars field IS captured. Config files (.json, .yaml, .toml) tend to produce shorter extraction prompts (<300 chars) than code files (.py, .js, .ts) which produce 500–2000 char prompts. If the input_chars distribution for empty extractions clusters below 300 chars, this is indirect evidence that config files dominate the empty rate — supporting the pre-filter recommendation without requiring code instrumentation.
@@ -933,7 +933,7 @@ findings that have not yet been asked.
 ---
 
 ## Q14.6 [DOMAIN-1] Per-class classifier confusion matrix — what does scikit-learn's cross_val_predict reveal about type misclassification patterns?
-**Status**: PENDING
+**Status**: INCONCLUSIVE
 **Mode**: benchmark
 **Target**: Signal classifier retrain path — src/core/signal_classifier.py or /admin/ml/retrain endpoint
 **Hypothesis**: Q13.7a confirmed the endpoint exposes no per-class metrics, but the training code uses scikit-learn which computes them internally during cross_val_predict. By adding classification_report(output_dict=True) to the retrain output and storing it, we can directly answer: which classes have precision < 0.5? Does contradiction systematically misclassify as warning (supporting the merge)? Does the confusion matrix reveal other unexpected misclassification pairs?
@@ -948,7 +948,7 @@ findings that have not yet been asked.
 ---
 
 ## Q14.7 [DOMAIN-5] Retrieval coverage after sim-persona cleanup — what is the effective coverage rate on a clean corpus?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: benchmark
 **Target**: Qdrant recall_memories — post-cleanup corpus statistics
 **Hypothesis**: Q13.1 measured 8.9% coverage rate (1,827 unique memories retrieved / 20,602 total). Q13.1b found ~25% of high-importance never-retrieved memories are sim-persona residue. Q13.5a confirmed all 20,602 memories are real user data (no testbed bulk delete possible). After removing sim-persona residue (~1,000–1,300 estimated from Q14.1), the denominator shrinks and the coverage rate should increase modestly. More importantly, the remaining never-retrieved population would be genuinely useful content, making the exploration-based retrieval recommendation (Q14.2) more impactful.
@@ -964,7 +964,7 @@ findings that have not yet been asked.
 ---
 
 ## Q14.8 [DOMAIN-1] Session summary dedup exemption — do session summaries warrant a higher similarity threshold or full exemption from store-time dedup?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: correctness
 **Target**: POST /store dedup logic + recall-session-summary.js hook
 **Hypothesis**: Q13.4 found 46.7% supersedure rate for session summaries, and Q13.4a found the threshold at 0.90 (reduced from 0.95 in v2.x). Session summaries are structurally repetitive: they describe "what Tim worked on" using overlapping vocabulary (project names, tool names, action verbs). Two sessions working on the same project will produce summaries with >0.90 cosine similarity even though they describe different work. The dedup logic should either: (a) exempt session summaries entirely (tag-based bypass), or (b) apply a higher threshold (0.95+) for memories with a session_summary tag. The risk of the current 0.90 threshold is that consecutive sessions on the same project collapse into a single memory, losing session-specific context.
@@ -979,7 +979,7 @@ findings that have not yet been asked.
 ---
 
 ## Q14.9 [DOMAIN-5] Markov prefetch targeted filter implementation — after replacing scroll_all() with tag filter, does prefetch latency drop from ~200–500ms to <10ms?
-**Status**: PENDING
+**Status**: INCONCLUSIVE
 **Mode**: benchmark
 **Target**: src/core/markov_chain.py — build_prefetch_cache
 **Hypothesis**: Q13.8b confirmed scroll_all() is structural and the O(N) scan runs on every file visit with transition history. After replacing scroll_all() with a targeted Qdrant tag filter (FieldCondition key="tags" match=MatchAny), prefetch latency should drop from ~200–500ms (scrolling 20,602 memories) to <10ms (matching 1–5 memories). This is a prerequisite for the Q13.8 tag vocabulary fix — the filter replacement must happen first to avoid making a broken-but-cheap operation into a working-but-expensive one.
@@ -991,3 +991,751 @@ findings that have not yet been asked.
 
 **Derived from**: Q13.8b FAILURE finding — scroll_all() O(N) scan confirmed structural; fix order: targeted filter FIRST, then tag storage fix
 **Prerequisite**: Implement scroll_by_tags() or equivalent in Qdrant store class; replace scroll_all() call in build_prefetch_cache
+
+---
+
+## Q14.4a [DOMAIN-5] Priority queue LLM dispatch — does routing signal_detection to front of queue reduce signal_detection p95 below 3s?
+**Status**: INCONCLUSIVE
+**Mode**: benchmark
+**Target**: src/core/llm.py — OllamaLLM dispatch mechanism
+**Hypothesis**: Q14.4 confirmed Semaphore(1) is insufficient because consolidation/observer_high_value tasks hold the semaphore for 10–25s, blocking interactive signal_detection. A priority queue that places signal_detection ahead of background tasks would bound signal_detection wait time to ~0ms (background tasks yielded). p95 for signal_detection should drop from ~8s to <3s since inference time for signal_detection prompts is ~1–2s.
+**Test**: Implement a priority asyncio.PriorityQueue with prompt_type as priority key (signal_detection=0, fact_extraction=1, observer=2, consolidation=3). Measure signal_detection p95 over 24h post-deploy. Compare against Q14.4 baseline (p95=8,356ms, n=5).
+**Verdict threshold**:
+- FAILURE: signal_detection p95 still >5s (queue priority not respected or insufficient signal_detection volume to measure)
+- WARNING: signal_detection p95 3–5s (priority helps but inference time still dominates)
+- HEALTHY: signal_detection p95 ≤ 3s AND other prompt types p95 acceptable (≤ 60s for background)
+
+**Derived from**: Q14.4 FAILURE finding — semaphore serializes correctly but fat-tail inference blocks interactive path; priority dispatch is the next mitigation step
+
+---
+
+## Q14.4b [DOMAIN-5] Input length vs latency correlation — is there a chars threshold above which qwen3:14b inference jumps to >10s?
+**Status**: DONE
+**Mode**: benchmark
+**Target**: PostgreSQL prompt_metrics — input_chars vs latency_ms correlation
+**Hypothesis**: Q14.4 found p50=1,007ms but p95=16,843ms for fact_extraction — a 16× spread. The likely driver is prompt length: config files produce <300-char prompts (fast) while large code files produce >4,000-char prompts (slow). A scatter of input_chars vs latency_ms should reveal a threshold (e.g., ~3,000–5,000 chars) where inference time shifts from the 1–2s regime to the 10–25s regime, justifying a prompt truncation strategy.
+**Test**: Query prompt_metrics: SELECT input_chars, latency_ms for all rows where input_chars IS NOT NULL AND latency_ms IS NOT NULL. Bucket into <500, 500–1000, 1000–2000, 2000–4000, 4000–8000, >8000 chars. Compute p50/p95 per bucket. Report: the bucket where p95 first exceeds 10,000ms and the sample count at that bucket.
+**Verdict threshold**:
+- FAILURE: no clear correlation (p95 > 10s even for short inputs — model startup or other factor dominates)
+- WARNING: threshold exists but is at <1,000 chars (truncation would lose too much content to be practical)
+- HEALTHY: threshold at 3,000–6,000 chars (truncation at that boundary preserves most content and achieves p95 < 10s)
+
+**Derived from**: Q14.4 FAILURE finding — inference time variance is root cause; characterizing the input_chars→latency relationship is prerequisite to prompt truncation strategy
+
+---
+
+## Wave 15 — Dedup Blast Radius, Timeout Misconfiguration, and Empty Extraction Pathologies (Q15.x)
+
+*Derived from Wave 14 findings (2026-03-15). Wave 15 targets the three highest-priority open threads: (1) the blast radius and recoverability of the Q14.3 store-time dedup silent-drop defect, (2) the signal_detection_timeout=180s misconfiguration discovered in Q14.4a that applies to all LLM calls, and (3) two unresolved fact_extraction empty-extraction pathologies from Q14.5 — the very-short-prompt cluster and the high-input_chars outlier regime.*
+
+---
+
+## Q15.1 [DOMAIN-1] Store-time dedup hit rate — how often does the silent-drop path fire, and what is the cumulative data loss?
+**Status**: INCONCLUSIVE
+**Mode**: benchmark
+**Target**: PostgreSQL audit_log table + Qdrant recall_memories — `POST /store` dedup path, `src/api/routes/memory.py` lines 230–255
+**Hypothesis**: Q14.3 confirmed that every store-time dedup hit (cosine similarity > 0.90) silently drops the incoming write with no audit entry, no content merge, and no Neo4j edge. The audit log confirms zero `dedup_drop` entries and zero store-path supersede entries (all 100 sampled supersede entries have `actor="consolidation"`). The unknown variable is how often the 0.90 threshold fires at store time. If the hit rate is < 1% of stores, the blast radius is bounded. If it is > 5%, accumulated data loss over the system's 368,038 audit entries is significant. The total store count can be inferred from audit_log `action="store"` entries; the dedup hit count requires either code instrumentation or proxy estimation from semantic similarity distributions in Qdrant.
+**Test**: (1) Query `SELECT COUNT(*) FROM audit_log WHERE action='store'` to establish total store volume. (2) Estimate dedup hits using Qdrant: for a random sample of 200 memories, query each against the corpus at threshold 0.90 and count how many would have been deduplicated if stored today (simulates the rate prospectively). (3) Cross-check by querying structlog output for `semantic_dedup_hit` events in signals.py and observer.py if a log sink is accessible. Report: estimated dedup hit rate (%), estimated total silent-drop count over system lifetime, and whether any log sink captures the worker-path drops.
+**Verdict threshold**:
+- FAILURE: estimated dedup hit rate > 5% of total stores (>18,000 silent drops over system lifetime — material data loss requiring immediate Tier 1 audit-preservation fix)
+- WARNING: hit rate 1–5% (3,600–18,000 drops — concerning but bounded; fix is urgent but not emergency)
+- HEALTHY: hit rate < 1% (<3,600 drops — blast radius is limited; dedup is rarely triggering at 0.90 threshold on genuine writes)
+
+**Derived from**: Q14.3 FAILURE finding — store-time dedup path silently drops incoming writes; blast radius (frequency) is unknown and required to prioritize the fix; Q14.3a follow-up question
+
+---
+
+## Q15.2 [DOMAIN-1] Observer and signals dedup structlog persistence — are worker-path silent drops captured to a durable log sink or are they ephemeral container stdout?
+**Status**: WARNING
+**Mode**: correctness
+**Target**: `src/workers/signals.py` line 285–301 (`signal_semantic_dedup_hit` debug log), `src/workers/observer.py` line 175 (`continue` silent skip), Docker logging configuration
+**Hypothesis**: Q14.3 confirmed that the observer.py and signals.py dedup paths produce zero audit_log entries — the only trace of a worker-path dedup hit is a `structlog.debug("signal_semantic_dedup_hit", ...)` call in signals.py and a bare `continue` in observer.py (no log at all). The recoverability of these drops depends entirely on whether structlog output is captured to a persistent sink (file rotation, centralized log aggregator, or Docker volume mount) or whether it is ephemeral container stdout that is lost on container restart. If logs are ephemeral, every observer/signals dedup hit over the system's lifetime is unrecoverable — the content is gone with no record anywhere.
+**Test**: (1) Read the Docker Compose configuration for the recall-api service and identify the logging driver (`logging.driver`) and any volume mounts for log output. (2) Check whether structlog is configured to write to a file sink (look for `structlog.WriteLoggerFactory` or file handlers in `src/core/logging.py` or equivalent). (3) Inspect the observer.py dedup path at line 175 — confirm whether any log call exists before the `continue`. (4) Attempt to retrieve historical `signal_semantic_dedup_hit` events from any available log surface (Docker `docker logs`, log files, or admin API). Report: log sink type, retention window (if file-based), and whether any historical worker dedup events are recoverable.
+**Verdict threshold**:
+- FAILURE: structlog output is ephemeral container stdout with no persistent sink — all historical observer/signals dedup drops are unrecoverable; observer.py has zero log call before `continue` (completely invisible drops)
+- WARNING: structlog writes to a persistent file but observer.py still has no log call (signals drops are recoverable from file; observer drops remain invisible)
+- HEALTHY: structlog writes to a persistent sink AND observer.py logs a dedup event before `continue` — all worker-path drops are at minimum recoverable from logs even without audit_log entries
+
+**Derived from**: Q14.3 FAILURE finding — observer and signals dedup paths produce no audit entries; Q14.3c follow-up question — recoverability depends on log sink persistence; severity escalates to critical if logs are ephemeral
+
+---
+
+## Q15.3 [DOMAIN-5] Global LLM timeout misconfiguration — does signal_detection_timeout=180s apply to all OllamaLLM callers, and what is the worst-case semaphore hold duration per caller type?
+**Status**: FAILURE
+**Mode**: correctness
+**Target**: `src/core/config.py` line 71 (`signal_detection_timeout`), `src/core/llm.py` OllamaLLM `__init__` — `httpx.AsyncClient(timeout=self.settings.signal_detection_timeout)`
+**Hypothesis**: Q14.4a's peer review discovered that `signal_detection_timeout` in config.py (value: 180.0s) is used as the global httpx client timeout for ALL LLM callers, not only signal_detection. The timeout name implies it was intended for signal_detection specifically, but a single `httpx.AsyncClient` instance is reused across all `generate()` calls. This means: (a) consolidation and observer_high_value tasks — which already produce p95 inference times of 14–20s — can hold the asyncio.Semaphore(1) for up to 180s on a stalled call, blocking all other LLM work for 3 minutes; (b) signal_detection, which should be the fastest path, gets no preferential timeout. The correct fix is per-caller timeout configuration: signal_detection at ~15s, background tasks at 60–90s, with the global cap at 180s only as a hard circuit-breaker.
+**Test**: (1) Read `src/core/config.py` — confirm `signal_detection_timeout` is the sole LLM timeout setting and its value. (2) Read `src/core/llm.py` — confirm the httpx client is initialized once with `timeout=self.settings.signal_detection_timeout` and reused for all callers. (3) Check whether any caller passes a per-call timeout override (e.g., via `httpx` request-level timeout). (4) Query prompt_metrics for `latency_ms > 30000` (30s) by prompt_type — count how many calls have exceeded 30s inference time historically, as these are the cases where a 15s per-caller cap would have already timed them out. Report: whether the timeout is global or per-caller, the number of >30s inference events by type, and the maximum observed latency_ms per prompt_type (worst-case semaphore hold).
+**Verdict threshold**:
+- FAILURE: timeout is global (single value), no per-caller override mechanism exists, AND >10 consolidation/observer events show latency_ms > 60s (confirmed worst-case 3-minute semaphore locks are occurring in production)
+- WARNING: timeout is global but >60s events are rare (<10 total) — risk is theoretical but unmitigated
+- HEALTHY: per-caller timeout override mechanism exists OR signal_detection_timeout has already been reduced to ≤ 30s (misconfiguration is resolved or bounded)
+
+**Derived from**: Q14.4a INCONCLUSIVE finding — peer review identified signal_detection_timeout=180s applies to all LLM calls; Q14.4 FAILURE finding — semaphore can be held for up to timeout duration on stalled inference; worst-case 3-minute blocks unquantified
+
+---
+
+## Q15.4 [DOMAIN-1] Very-short-prompt empty rate — does the input_chars < 50 sub-cluster justify a narrow pre-filter for fact_extraction?
+**Status**: DONE
+**Mode**: benchmark
+**Target**: PostgreSQL `prompt_metrics` table — `prompt_type='fact_extraction'`, `input_chars < 50`
+**Hypothesis**: Q14.5 found that the 100–300 char range has the *lowest* empty rate (23.7%), but the <100 char range has a 51.0% empty rate — nearly double. This non-monotonic pattern suggests the <100 char regime contains a distinct pathology sub-population: single-line config values, lock file hashes, auto-generated enum entries, and other content that is genuinely not worth extracting. If this sub-population concentrates below ~50 chars and achieves an empty rate of ≥ 70%, a narrow pre-filter (skip fact_extraction if input_chars < 50) would be both precise (high empty-rate reduction) and low-risk (the discarded content is genuinely empty). Q14.5 recommended investigating this sub-population but did not execute the query.
+**Test**: Query prompt_metrics with fine-grained buckets in the 0–100 char range: SELECT input_chars bucket (0–10, 10–25, 25–50, 50–75, 75–100), COUNT(*), SUM(CASE WHEN empty THEN 1 ELSE 0 END) / COUNT(*)::float AS empty_rate FROM prompt_metrics WHERE prompt_type='fact_extraction' AND input_chars IS NOT NULL GROUP BY bucket ORDER BY bucket. Report: empty rate per sub-bucket, total volume per bucket, and the chars threshold (if any) where empty rate first falls below 60%. Additionally: sample 20 prompts from the < 50 chars bucket to characterize the content type (lock file hash, JSON scalar, comment-only line, etc.).
+**Verdict threshold**:
+- FAILURE: no sub-bucket achieves empty rate ≥ 70% — very-short prompts are not systematically empty; pre-filter is not justified at any threshold below 100 chars
+- WARNING: input_chars < 25 achieves ≥ 70% empty rate but volume is < 5% of total (pre-filter viable but impact is limited)
+- HEALTHY: input_chars < 50 achieves ≥ 70% empty rate AND represents ≥ 15% of total fact_extraction calls (pre-filter is both precise and high-impact — justifies a 2-line guard in fact_extractor.py)
+
+**Derived from**: Q14.5 FAILURE finding — input_chars cannot proxy file-type split; non-monotonic empty rate (51% for <100 chars) implies a distinct pathology sub-population below 50 chars; Q14.5a follow-up question
+
+---
+
+## Q15.5 [DOMAIN-1] High-input_chars outlier regime — what content type produces 1,000–3,000 char fact_extraction prompts with a 60.6% empty rate?
+**Status**: DONE
+**Mode**: benchmark
+**Target**: PostgreSQL `prompt_metrics` table + Qdrant recall_memories — `prompt_type='fact_extraction'`, `input_chars BETWEEN 1000 AND 3000`
+**Hypothesis**: Q14.5 found that the 1,000–3,000 char bucket has the *highest* empty rate of any bucket (60.6%, exceeding even the <100 char pathology at 51%). This is counterintuitive — longer prompts should contain more extractable content. The likely explanation is that this bucket contains large generated or binary-adjacent files: minified JavaScript, lock files (package-lock.json, poetry.lock), generated type definitions, or large data files pasted whole. These files have high character counts but zero meaningful semantic content for fact extraction. If this hypothesis holds, a content-based pre-filter (detect minified/generated files by line-length entropy or file extension) would eliminate 60%+ of wasted inference calls in this bucket — and those calls also hold the Semaphore(1) for disproportionately long durations given their high input_chars (Q14.4b showed 1,000–3,000 char prompts have p50=1,672ms but p95=15,536ms).
+**Test**: (1) Query prompt_metrics for the 1,000–3,000 char bucket: retrieve 30 sample rows with their full prompt content (or truncated prompt if stored). Classify each by likely source type: minified code, lock file, generated types, config, or genuine source code. (2) Compute the proportion of each class and its empty rate. (3) Check whether any metadata distinguishes this bucket from lower-char buckets (e.g., presence of a single very long line, low newline density as a minification proxy). Report: content type distribution, empty rate per type, and whether a structural signal (line-length, entropy, file extension if available) reliably identifies the high-empty-rate content.
+**Verdict threshold**:
+- FAILURE: high-input_chars empty extractions are structurally indistinguishable from successful ones — no content type clustering; no pre-filter signal available
+- WARNING: a dominant content type (e.g., lock files) is identifiable but requires file extension data not currently captured — instrumentation prerequisite before filter can be deployed
+- HEALTHY: ≥ 70% of the high-input_chars empty extractions share a structural signature detectable without file extension (e.g., single-line minified content, low newline density) — a ~5-line guard in fact_extractor.py can filter them without instrumentation
+
+**Derived from**: Q14.5 FAILURE finding — 1,000–3,000 char bucket has 60.6% empty rate (highest of any bucket), counterintuitive given longer prompts; Q14.5c follow-up question; also relevant to Q14.4b finding — this bucket's p95=15,536ms contributes disproportionately to semaphore hold time
+
+
+---
+
+## Wave 16 -- Dedup Observability, Timeout Remediation, and Content-Type Instrumentation (Q16.x)
+
+## Q16.1 [DOMAIN-4] Dedup counter instrumentation -- after adding recall_dedup_hits_total, what is the baseline store-time hit rate in the first 24h?
+**Status**: INCONCLUSIVE
+**Mode**: benchmark
+**Target**: `src/api/routes/memory.py` lines 247-271, `src/workers/signals.py` lines 294-301, `src/workers/observer.py` lines 175-176, Prometheus metrics endpoint `http://192.168.50.19:8200/metrics`
+**Hypothesis**: Q15.1 found that all three dedup drop sites are uninstrumented -- there is no `recall_dedup_hits_total` Prometheus counter and no `action='dedup_drop'` audit entry anywhere. The threshold history (0.95 -> 0.90 -> 0.92) confirms real-world dedup fires were noticed subjectively but never measured. Once a counter is added at all three sites, the baseline hit rate should become quantifiable within 24h of normal operation. If the hit rate exceeds 1% of total store attempts, the 0.92 threshold is dropping a material volume of memories and threshold recalibration is warranted. If the hit rate is below 0.1%, the threshold is effectively inert and the observability gap is low-urgency.
+**Test**: (1) Verify that `recall_dedup_hits_total{source="api"}`, `recall_dedup_hits_total{source="signal"}`, and `recall_dedup_hits_total{source="observer"}` counters now exist at `GET /metrics`. (2) If they do not exist, this question is BLOCKED -- prerequisite instrumentation is not yet deployed. (3) If they exist, query the counter values and divide by `recall_memories_total` (also at /metrics) to compute the hit rate. (4) Also query `SELECT count(*) FROM audit_log WHERE action='dedup_drop'` to cross-validate. (5) Break down by source label. Report: hit rate per source, total across all three, and whether the total exceeds 1% of store volume.
+**Verdict threshold**:
+- FAILURE: dedup counters exist but total hit rate > 5% of store attempts -- threshold is actively dropping a high volume of memories; recalibration is urgent
+- WARNING: counters exist and hit rate is 1-5% -- material drop volume requiring threshold review; OR counters still do not exist (instrumentation not yet deployed, question remains BLOCKED)
+- HEALTHY: counters exist and hit rate < 1% of store attempts -- dedup threshold is operating conservatively; observability gap is resolved
+
+**Derived from**: Q15.1 INCONCLUSIVE -- store-time dedup hit rate is completely unquantifiable due to zero instrumentation at all three drop sites; Q14.3 FAILURE -- no audit_log entry for dedup drops
+
+---
+
+## Q16.2 [DOMAIN-4] Observer dedup silent-drop fix -- does adding a logger.debug call before the observer.py continue produce any events in the Docker logs within 1h?
+**Status**: INCONCLUSIVE
+**Mode**: correctness
+**Target**: `src/workers/observer.py` lines 170-176 (semantic dedup `continue` block), Docker logs `docker logs recall-worker`
+**Hypothesis**: Q15.2 WARNING established that observer.py semantic dedup `continue` has zero log instrumentation -- it is the only drop path with no trace at any layer (no audit entry per Q14.3, no log event per Q15.2). The recommended one-line fix is `logger.debug("observer_semantic_dedup_hit", similarity=round(similar[0][1], 4))` before the `continue`. Once this line is deployed, any subsequent observer dedup hit will appear in `docker logs recall-worker`. If no events appear within 1h of normal operation, either the observer dedup path is not firing in practice or the log level is suppressing DEBUG events. If events appear within 1h, the fix is confirmed working and the first real-time evidence of observer dedup activity is available.
+**Test**: (1) Confirm the fix is deployed: read `src/workers/observer.py` lines 170-176 and verify a `logger.debug("observer_semantic_dedup_hit", ...)` call exists before the `continue`. (2) If the fix is not deployed, this question is BLOCKED. (3) Run `docker logs recall-worker --since 1h | grep observer_semantic_dedup_hit` and report the count of matching events. (4) If count > 0, report the similarity values and frequency distribution. (5) Compare the observer event rate to the `signal_semantic_dedup_hit` rate from `docker logs recall-api --since 1h | grep signal_semantic_dedup_hit`.
+**Verdict threshold**:
+- FAILURE: fix is deployed but zero `observer_semantic_dedup_hit` events appear in 1h AND `signal_semantic_dedup_hit` also has zero events -- the log level is suppressing DEBUG output; all dedup events across both workers remain invisible despite the fix
+- WARNING: fix is deployed and events appear in logs, but event rate differs from signals.py by more than 10x without structural explanation (suggests one worker dedup threshold is miscalibrated relative to the other)
+- HEALTHY: fix is deployed and at least one `observer_semantic_dedup_hit` event appears in logs within 1h OR both worker paths show zero events (threshold not firing in this period), confirming the fix is functional and the path is instrumented
+
+**Derived from**: Q15.2 WARNING -- observer.py bare `continue` with zero log call; the one-line fix is the lowest-cost remediation in the entire Wave 15 set; Q14.3 FAILURE -- observer dedup has no audit coverage
+
+---
+
+## Q16.3 [DOMAIN-5] Per-caller LLM timeout implementation -- does adding a timeout parameter to generate() bound the worst-case semaphore hold to <=60s for fact_extraction and <=90s for consolidation?
+**Status**: FAILURE
+**Mode**: correctness
+**Target**: `src/core/llm.py` `generate()` method signature and `httpx.AsyncClient` initialization, `src/core/config.py` timeout settings
+**Hypothesis**: Q15.3 FAILURE confirmed that `signal_detection_timeout=180s` is the sole LLM timeout, applies globally, and has already produced 43 production events with `latency_ms > 60,000ms` (consolidation=16, fact_extraction=27), each of which held `Semaphore(1)` for over a minute. The fix direction from Q15.3 is: add a `timeout: float | None = None` parameter to `generate()` and add per-type config values (`fact_extraction_timeout`, `consolidation_timeout`). Once implemented, the worst-case semaphore hold for fact_extraction should be bounded to <=60s and for consolidation to <=90s. This question verifies the implementation is structurally correct -- not just that config values exist -- by checking that all callsites in `src/workers/` pass the appropriate timeout argument.
+**Test**: (1) Read `src/core/llm.py` -- confirm `generate()` now accepts a `timeout` parameter and uses it as a per-request override (not baked into `AsyncClient` construction). (2) Read `src/core/config.py` -- confirm `fact_extraction_timeout` and `consolidation_timeout` (or equivalent named fields) exist with values <=60s and <=90s respectively. (3) Grep for all `llm.generate(` callsites in `src/workers/` and `src/api/` -- confirm each caller passes the appropriate timeout argument. (4) Query `prompt_metrics` for events after the deployment date with `latency_ms > fact_extraction_timeout * 1000` -- if any exist, the per-request timeout is not being enforced. Report: whether all callers pass a timeout, the configured values, and whether any post-deployment events exceed the configured timeout.
+**Verdict threshold**:
+- FAILURE: `generate()` still has no timeout parameter OR per-type config values do not exist -- the global 180s misconfiguration is unresolved; semaphore holds remain unbounded
+- WARNING: `generate()` accepts a timeout parameter but not all callers in `src/workers/` pass one -- partial fix leaves some callers still governed by the global 180s ceiling
+- HEALTHY: `generate()` has a timeout parameter, per-type config values exist with values <=60s (fact_extraction) and <=90s (consolidation), and all callsites in `src/workers/` pass the appropriate value
+
+**Derived from**: Q15.3 FAILURE -- 43 production events with >60s semaphore holds; global timeout named for signal_detection governs all callers; fix direction explicitly stated as per-caller timeout config
+
+---
+
+## Q16.4 [DOMAIN-4] Dedup observability completeness -- do all three drop sites now satisfy audit_log, Prometheus counter, and structlog simultaneously?
+**Status**: FAILURE
+**Mode**: correctness
+**Target**: `src/api/routes/memory.py` lines 247-271, `src/workers/signals.py` lines 292-301, `src/workers/observer.py` lines 170-176
+**Hypothesis**: Q15.1 (INCONCLUSIVE), Q15.2 (WARNING), and Q14.3 (FAILURE) together describe a complete three-layer observability gap: no audit_log entries, no Prometheus counters, and no INFO-level log events across any of the three drop sites. This is a compound failure -- each individual gap could be excused, but the combination means dedup activity is completely invisible across all observable surfaces. Q16.1 and Q16.2 test counter and log instrumentation in isolation. This question tests whether all three sites now satisfy ALL THREE observability requirements simultaneously: (a) an audit_log entry (`action='dedup_drop'` with similarity and existing_id), (b) a Prometheus counter increment (`recall_dedup_hits_total{source=...}`), and (c) a `logger.info` or `logger.debug` event. Any site missing any layer is an incomplete fix. The 9-cell matrix (3 sites x 3 layers) must be fully green for HEALTHY.
+**Test**: (1) For each of the three files, read the dedup drop code path and check for: an audit_log call, a `recall_dedup_hits_total` counter increment, and a logger call at any level. (2) POST a near-duplicate memory to `/api/v1/memories` with content very similar to an existing memory (cosine similarity expected > 0.92). (3) Verify the response shows `created=False`. (4) Check `SELECT * FROM audit_log WHERE action='dedup_drop' ORDER BY created_at DESC LIMIT 5` -- confirm an entry was written. (5) Check `GET /metrics | grep dedup` -- confirm the counter incremented. Report a 3x3 pass/fail matrix.
+**Verdict threshold**:
+- FAILURE: any of the three sites is missing all three observability layers -- the compound gap from Q14.3+Q15.1+Q15.2 persists at that site; a dedup drop at that site remains completely invisible
+- WARNING: all sites have at least one observability layer but at least one site is still missing audit_log coverage -- audit is the most durable surface and its absence was the original Q14.3 FAILURE finding
+- HEALTHY: all three sites have all three observability layers; the 9-cell matrix is fully green; the compound dedup observability gap from Q14.3+Q15.1+Q15.2 is closed
+
+**Derived from**: Q14.3 FAILURE (no audit_log for any dedup path), Q15.1 INCONCLUSIVE (no Prometheus counter), Q15.2 WARNING (observer.py bare continue, signals.py DEBUG-only) -- all three findings identify the same compound gap across three independent observable surfaces
+
+---
+
+## Q16.5 [DOMAIN-1] Content-type instrumentation -- does adding a file_extension field to prompt_metrics unlock a >=70% empty-rate filter for fact_extraction?
+**Status**: INCONCLUSIVE
+**Mode**: benchmark
+**Target**: `src/workers/observer.py` `extract_facts_for_memory` callsite, PostgreSQL `prompt_metrics` table schema, `src/workers/fact_extractor.py`
+**Hypothesis**: Q15.4 FAILURE established that input_chars alone cannot identify high-empty-rate content (no sub-bucket below 50 chars reaches 70%), and Q15.5 HEALTHY showed that the newline-density signal works only for the 1,000-3,000 char regime and eliminates just 14 fast-fail calls. The root limitation identified by both findings is that metadata is null for all rows in prompt_metrics -- there is no `file_extension`, `content_class`, or `source_tag` field. Q15.4 recommendation 3 explicitly states that instrumenting prompt_metrics with a file_extension field would enable a high-precision filter (likely 70-90% empty rate for known bad types like .lock, .min.js). If observer.py passes the file extension from the edit event context through to fact_extractor.py, and fact_extractor.py logs it to prompt_metrics, then a retrospective query can identify which extensions drive empty rates and justify a pre-filter. This question tests whether that instrumentation is deployed and, if so, what the data shows.
+**Test**: (1) Read the observer.py callsite for `extract_facts_for_memory` -- check whether the call now passes a `file_ext` or `source_tag` parameter. (2) Read `src/workers/fact_extractor.py` -- check whether `prompt_metrics` inserts now include a `file_extension` or `content_class` column. (3) If instrumentation exists and has been running for >=24h, query: `SELECT file_extension, COUNT(*), ROUND(AVG(CASE WHEN empty THEN 1.0 ELSE 0.0 END)*100,1) AS empty_pct FROM prompt_metrics WHERE prompt_type='fact_extraction' AND file_extension IS NOT NULL GROUP BY file_extension ORDER BY empty_pct DESC LIMIT 20`. (4) Report the top 5 extensions by empty rate and whether any achieves >=70% with volume >=100 rows.
+**Verdict threshold**:
+- FAILURE: file_extension instrumentation still not deployed -- prerequisite for a precision pre-filter remains missing; both Q15.4 and Q15.5 remediation paths remain blocked
+- WARNING: instrumentation deployed but < 24h of data collected, OR no extension achieves >=70% empty rate with sufficient volume -- results not yet statistically meaningful; re-run after 48h
+- HEALTHY: instrumentation deployed, >=24h of data, and >=1 file extension achieves >=70% empty rate with volume >=100 rows -- a precision content-type pre-filter is now data-justified
+
+**Derived from**: Q15.4 FAILURE -- metadata null prevents content-type analysis; length-based filter unjustified; recommendation 3 explicitly calls for file_extension instrumentation; Q15.5 HEALTHY -- newline-density is a partial proxy but file_ext is the high-precision path
+
+---
+
+## Wave 17 — Timeout Remediation Verification, Dedup Observability Closure, and Importance-Inheritance Audit (Q17.x)
+
+## Q16.3a [DOMAIN-5] Per-caller timeout post-deployment — after adding timeout parameter to generate(), do fact_extraction p99 semaphore holds drop below 60s?
+**Status**: INCONCLUSIVE
+**Mode**: benchmark
+**Target**: `src/core/llm.py` generate() signature (post-fix), PostgreSQL `prompt_metrics` fact_extraction rows post-deployment
+**Hypothesis**: Q16.3 FAILURE confirmed generate() has no timeout parameter and 43 production events >60s already exist. The Q16.3 fix adds `timeout: float | None = None` to generate() and per-type config values (fact_extraction_timeout=60s, consolidation_timeout=90s). After deployment, any fact_extraction call that would have exceeded 60s should now be cut off at 60s (LLMError thrown, semaphore released). The p99 semaphore hold for fact_extraction should drop from current (17,000ms+ with tail at 60,000ms+) to approximately 60,000ms (the new hard ceiling). If the timeout parameter is not being passed by callers, p99 will be unchanged.
+**Test**: (1) Read generate() in llm.py -- confirm timeout parameter exists and is used per-request. (2) Grep all llm.generate() callsites -- confirm each passes timeout=settings.{type}_timeout. (3) Query: SELECT MAX(latency_ms), percentile_cont(0.99) WITHIN GROUP (ORDER BY latency_ms) FROM prompt_metrics WHERE prompt_type='fact_extraction' AND timestamp > '{deploy_date}'. (4) Compare to pre-fix p99 from Q15.3.
+**Verdict threshold**:
+- FAILURE: generate() has timeout param but callers don't pass it; OR post-deploy p99 is unchanged from Q15.3 baseline (>60,000ms); semaphore holds remain unbounded
+- WARNING: timeout param deployed and some callers pass it; post-deploy p99 reduced but still >30,000ms; partial improvement
+- HEALTHY: timeout param deployed; all callers pass appropriate timeout; post-deploy p99 ≤60,000ms for fact_extraction
+**Derived from**: Q16.3 FAILURE -- generate() has no timeout parameter; 43 production events >60s semaphore holds persist
+
+---
+
+## Q16.3b [DOMAIN-5] httpx per-request timeout override — does client.post(..., timeout=N) correctly override the client-level timeout set at AsyncClient construction?
+**Status**: DONE
+
+**Mode**: quality
+**Target**: `src/core/llm.py` httpx.AsyncClient construction (line 49) and generate() post() call (line 95)
+**Hypothesis**: Q16.3 identified that httpx.AsyncClient is constructed with timeout=180s and the per-request fix requires passing timeout= to client.post(). httpx documentation states that a per-request timeout passed to client.post() overrides the client-level timeout. However, the exact behavior depends on whether httpx uses the timeout as a scalar or a Timeout object. If the client-level timeout is a scalar (180.0) and per-request is also a scalar, the per-request value overrides it. If the client was constructed with httpx.Timeout(180.0) and per-request passes a float, behavior may differ. This question verifies the override works as expected by reading httpx source behavior and the Recall code path.
+**Test**: (1) Read llm.py lines 49 and 95 -- check whether the client is constructed with scalar or Timeout object, and whether per-request timeout is scalar or Timeout. (2) Fetch httpx documentation (context7 or web) confirming the per-request override behavior. (3) If the per-request fix is deployed, write a targeted test: call generate() with timeout=1.0 against a slow mock and confirm httpx.TimeoutException fires within 1-2s.
+**Verdict threshold**:
+- FAILURE: httpx per-request timeout does NOT override client-level timeout; the fix approach is architecturally incorrect; alternative (reconstruct client per-request or use Timeout objects) is required
+- HEALTHY: httpx per-request timeout correctly overrides client-level timeout; the scalar override is confirmed by documentation and/or test
+**Derived from**: Q16.3 FAILURE -- per-caller timeout fix assumes httpx per-request override works; this must be verified before declaring the fix correct
+
+---
+
+## Q16.4a [DOMAIN-4] Dedup drop volume post-instrumentation — after adding recall_dedup_hits_total, what fraction of daily stores are dedup-dropped, and does the API store path fire more often than observer?
+**Status**: INCONCLUSIVE
+**Mode**: benchmark
+**Target**: Prometheus /metrics recall_dedup_hits_total{source="api|signal|observer"}, recall_memories_total, PostgreSQL prompt_metrics store volume
+**Hypothesis**: Q16.4 found that the 9-cell observability matrix is 2/12 covered and no site has complete instrumentation. The fix adds Prometheus counters at all sites. Once deployed, the hit rate per source will reveal which path is most active. The API store path (memory.py) handles all MCP-initiated stores and likely has the highest dedup hit rate because session hook data is frequently redundant. The observer path handles file-edit extractions and may have lower dedup rate since each file edit produces different content. If the total hit rate exceeds 5% of daily stores (~1,036 stores/day from Q15.4 context), threshold recalibration at 0.92 is warranted.
+**Test**: After instrumentation is deployed: (1) Read /metrics -- confirm recall_dedup_hits_total{source=*} counters exist. (2) Compute hit rate = sum(dedup_hits) / (recall_memories_total + sum(dedup_hits)). (3) Break down by source label. (4) Report whether API store rate > observer rate and what the combined rate implies for threshold calibration.
+**Verdict threshold**:
+- FAILURE: counters deployed but total hit rate > 10% -- threshold 0.92 is aggressively collapsing distinct memories; significant data loss
+- WARNING: counters deployed and hit rate 1-10% -- material volume, worth monitoring; threshold review warranted
+- HEALTHY: counters deployed and hit rate < 1% -- threshold operating conservatively; compound observability gap closure confirmed
+**Derived from**: Q16.4 FAILURE -- 7/12 observability cells empty; compound gap persists; Q15.1 INCONCLUSIVE -- hit rate completely unquantifiable
+
+---
+
+## Q16.4b [DOMAIN-4] Importance inheritance correctness — does the memory.py importance-inheritance path (lines 251-259) correctly promote existing memory when a dedup-dropped store has higher importance?
+**Status**: FAILURE
+**Mode**: quality
+**Target**: `src/api/routes/memory.py` lines 251-259 (importance inheritance block inside dedup path)
+**Hypothesis**: Q16.4 identified a secondary concern: the importance-inheritance logic at memory.py:251-259 executes inside the dedup drop path but has zero observability. The logic: if a new store request has higher importance than the existing memory, the existing memory's importance is promoted. This is a correctness-critical path — if it silently fails (exception caught at line 258, pass), the existing memory retains a stale low importance score and the new high-importance signal is lost with no trace. Since Q16.4 confirms no structlog, no audit_log, and no Prometheus counter at this path, any failure mode here is invisible. This question audits the correctness and exception handling of this path.
+**Test**: (1) Read memory.py lines 247-270. (2) Check: does the try/except at line 258 log the exception? It currently has `except Exception: pass` -- completely silent. (3) Check: does qdrant.update_importance() have its own logging? Read the qdrant store's update_importance() method. (4) Write a test scenario: store a memory with importance=0.3, then attempt to store a near-duplicate with importance=0.9. Verify the existing memory's importance is updated to 0.9.
+**Verdict threshold**:
+- FAILURE: `except Exception: pass` silently swallows importance update failures with no log; OR qdrant.update_importance() has no error handling; importance inheritance is a silent black box
+- WARNING: exception is caught and logged but at DEBUG level; importance update failures are not visible in production
+- HEALTHY: importance update path has adequate error logging; a test confirms the promotion works correctly
+**Derived from**: Q16.4 FAILURE -- memory.py dedup path has zero observability; importance inheritance logic has bare except:pass at line 258
+
+---
+
+## Wave 18 — Silent Write Failures, Timeout Deployment Blockers, and Dedup Correctness Consequences (Q18.x)
+
+## Q18.1 [DOMAIN-5] Decay batch write failure mode — does asyncio.gather() over update_importance calls abort the entire batch on first Qdrant error, leaving remaining memories un-decayed?
+**Status**: WARNING
+**Mode**: correctness
+**Target**: `src/workers/decay.py` lines 183–188 (`asyncio.gather` over `qdrant.update_importance` and `neo4j.update_importance`), `src/storage/qdrant.py` `update_importance()` (line 476)
+**Hypothesis**: Q16.4b established that `qdrant.update_importance()` has no internal error handling — it calls `client.set_payload()` naked and propagates exceptions to callers. In decay.py, the batch write at lines 184–187 fans out all per-memory importance updates via `asyncio.gather()` without `return_exceptions=True`. If any single `set_payload` call raises (Qdrant transient error, unknown point ID, network blip), `asyncio.gather` will propagate the first exception, abort the entire gather, and skip all remaining importance updates in the batch. The `stats["decayed"] += len(decay_updates)` at line 188 would then be an overcount — crediting all planned updates even though only some completed. Since this is a background worker with no per-call logging on success, there is no way to detect partial batch failures from the audit log or metrics.
+**Test**: (1) Read `decay.py` lines 183–192 — confirm `asyncio.gather` has no `return_exceptions=True`. (2) Read the enclosing `try/except` block — determine what catches the gather if it raises (is the gather inside a try block? what is the outer exception handler?). (3) Grep for `return_exceptions` in the decay worker. (4) Simulate a partial failure scenario: what happens to `stats["decayed"]` if `gather` raises after completing 3 of 10 updates? (5) Check whether the decay audit log (`_log_decay_audit`) is written before or after the gather — if after, a gather failure means no audit entry either.
+**Verdict threshold**:
+- FAILURE: `asyncio.gather` has no `return_exceptions=True` AND the gather is not inside a try block with per-batch error logging; a single Qdrant failure silently aborts the entire decay batch with incorrect `stats["decayed"]` accounting
+- WARNING: `asyncio.gather` has no `return_exceptions=True` but the outer exception handler logs the failure; partial batch aborts are visible but not recoverable
+- HEALTHY: `return_exceptions=True` is used and per-failure logging handles partial writes; OR each update is individually awaited with per-memory error handling
+
+**Derived from**: Q16.4b FAILURE — `qdrant.update_importance()` has no error handling; pattern confirmed at `update_pinned()` too; decay.py is the highest-volume consumer of batch importance writes (runs on scroll_all results daily)
+
+---
+
+## Q18.2 [DOMAIN-5] Retrieval access-stat write failures — do update_importance(), update_confidence(), and update_access() calls in retrieval.py fire outside any error boundary, making per-retrieval stat updates silently lossy?
+**Status**: WARNING
+**Mode**: correctness
+**Target**: `src/core/retrieval.py` lines 1540–1555 (`_update_access_stats` method, post-retrieval importance/confidence/access writes)
+**Hypothesis**: Q16.4b identified `update_importance()` and `update_pinned()` as having no error handling at the storage layer. `retrieval.py:_update_access_stats` (lines 1540–1555) calls `qdrant.update_importance()`, `qdrant.update_confidence()`, and `qdrant.update_access()` in sequence with no surrounding try/except. If any of these three calls raises, the exception propagates up through `_update_access_stats` to the background task caller. Since this is a background task (likely spawned via `asyncio.create_task`), an unhandled exception may be silently swallowed by the event loop with only an `asyncio` error log. This means per-retrieval access reinforcement — the mechanism by which frequently-retrieved memories gain importance — is silently lossy on any Qdrant transient error.
+**Test**: (1) Read `retrieval.py` lines 1495–1560 — identify whether `_update_access_stats` is called directly, via `asyncio.create_task`, or via `background_tasks.add_task`. (2) Check whether the call site wraps the task in a try/except. (3) Confirm whether `update_importance`, `update_confidence`, and `update_access` calls at lines 1542–1555 have any error handling. (4) Identify what happens to the access reinforcement feedback loop if the first call (`update_importance`) raises: are `update_confidence` and `update_access` still attempted? (5) Check whether any test covers partial failure in `_update_access_stats`.
+**Verdict threshold**:
+- FAILURE: all three write calls are outside any try/except AND the method is called as a background task where unhandled exceptions are silently discarded; access reinforcement can silently fail with no observable signal
+- WARNING: write calls are outside try/except but the caller catches exceptions with logging; failures are visible but the partial-write state (some stats updated, some not) is not corrected
+- HEALTHY: write calls are individually wrapped in try/except with logging; OR the calling pattern guarantees exception visibility (e.g., `await` in a monitored context)
+
+**Derived from**: Q16.4b FAILURE — storage write methods uniformly lack error handling; `retrieval.py` is the most frequent consumer of `update_importance()` (called on every cache-miss retrieval hit for memories not accessed in the last hour)
+
+---
+
+## Q18.3 [DOMAIN-5] LLM timeout deployment gap — with httpx override confirmed sound (Q16.3b HEALTHY), what is the minimum changeset blocking immediate deployment of the per-caller timeout fix, and does any callsite have a structural impediment?
+**Status**: DONE
+**Mode**: correctness
+**Target**: `src/core/llm.py` `generate()` signature (line 51), all 14+ `llm.generate()` callsites across `src/workers/` and `src/api/` and `src/core/`
+**Hypothesis**: Q16.3 confirmed the fix is undeployed. Q16.3b confirmed httpx override semantics are correct. The minimum deployment changeset is: (1) add `timeout: float | None = None` to `generate()`, (2) add `fact_extraction_timeout` and `consolidation_timeout` to config, (3) update each callsite to pass its type-appropriate timeout. The risk is that some callers may not have a clearly mappable timeout type — e.g., `admin.py` ad-hoc LLM calls, `search.py` narrative generation, `causal_extractor.py`, `dream_consolidation.py` — and leaving them without a timeout argument means they still fall through to the 180s global. This question audits the full callsite inventory: which callers map cleanly to a known timeout category, which are ambiguous, and whether any caller has a structural reason (e.g., intentionally long-running) that would justify the full 180s rather than a shorter per-type value.
+**Test**: (1) Read `generate()` in `llm.py` — confirm current signature. (2) Enumerate all 14+ callsites from: `workers/fact_extractor.py`, `workers/observer.py`, `workers/signals.py` (via `signal_detector.py`), `core/consolidation.py`, `core/contradiction_detector.py`, `core/causal_extractor.py`, `workers/cognitive_distiller.py`, `workers/dream_consolidation.py`, `workers/patterns.py`, `workers/profile_drift.py`, `workers/state_fact_extractor.py`, `api/routes/admin.py`, `api/routes/search.py`, `core/document_ingest.py`. (3) For each callsite, classify: (a) maps to `fact_extraction_timeout` (60s), (b) maps to `consolidation_timeout` (90s), (c) ambiguous / needs new timeout category, (d) intentionally unbounded. (4) Report: how many callsites can be updated without a new config value, how many require a new named timeout, and whether any callsite is a structural blocker.
+**Verdict threshold**:
+- FAILURE: >3 callsites are structurally ambiguous or require new timeout categories that are not yet defined in config; deployment is blocked pending further classification work
+- WARNING: 1-3 callsites are ambiguous but the highest-volume paths (fact_extraction, consolidation) can be updated immediately; partial deployment is possible but incomplete
+- HEALTHY: all callsites map cleanly to ≤3 named timeout categories; no structural blocker; the fix is a mechanical 1-line change per callsite with no design decisions outstanding
+
+**Derived from**: Q16.3 FAILURE — 14+ callsites all use global 180s; Q16.3b HEALTHY — httpx override confirmed sound; the deployment is architecturally unblocked; this question asks whether it is operationally unblocked
+
+---
+
+## Q18.4 [DOMAIN-4] Dedup correctness consequence — are near-duplicate signals actually being stored in Qdrant despite the dedup path being intended to prevent them, due to the signals.py dedup operating at DEBUG level only?
+**Status**: DONE
+**Mode**: correctness
+**Target**: `src/workers/signals.py` lines 239–248 (content hash dedup), lines 285–301 (semantic dedup), `src/workers/observer.py` lines 169–176 (observer semantic dedup), Qdrant collection via `scroll_all`
+**Hypothesis**: Q16.4 confirmed that signals.py dedup fires at DEBUG level (structlog only, no counter, no audit) and observer.py dedup has zero instrumentation. However, the observability gap raises a deeper correctness question: given that these dedup paths return `None, None` or `continue` silently, is it possible that near-duplicates are entering Qdrant anyway through a different code path? Specifically: if signals.py dedup fires and returns `None, None`, does the caller (`signals.py` main flow) still proceed to store the signal? The answer depends on whether the caller correctly handles `None, None`. If the caller stores the signal unconditionally regardless of the dedup return value, the dedup logic is present but bypassed. This question verifies the functional correctness of the dedup mechanism — not just its observability.
+**Test**: (1) Read `signals.py` lines 239–320 — identify what the caller does with the `None, None` return from the content-hash dedup path. (2) Read `signals.py` lines 285–315 — identify what the caller does with `None, None` from semantic dedup. (3) Trace the full call chain: from dedup hit to `return None, None` to the calling function — does the caller short-circuit and skip the Qdrant store? (4) For observer.py: read lines 160–200 — after `continue`, is there any additional code path in the loop that could still store the memory? (5) As a ground truth check: query Qdrant for memories with cosine similarity > 0.95 to any other memory — count the pairs. If near-duplicates are present in meaningful volume, dedup is either not firing or is being bypassed.
+**Verdict threshold**:
+- FAILURE: the caller of the dedup return path stores the signal anyway (dedup is functionally bypassed); OR Qdrant contains >10 pairs of memories with similarity >0.95 (statistically implausible if dedup was working correctly at the 0.92 threshold)
+- WARNING: dedup return is handled correctly but the `None, None` sentinel is not a well-typed signal (relies on caller convention rather than a typed guard); future refactors could introduce bypass risk
+- HEALTHY: caller correctly handles `None, None` by not storing; observer `continue` correctly skips the rest of the loop body; Qdrant near-duplicate pair count is ≤5 (consistent with a working dedup at 0.92)
+
+**Derived from**: Q16.4 FAILURE — dedup observability gap prevents confirmation that dedup is working; Q16.4b FAILURE — importance inheritance may silently fail; this question tests whether the dedup mechanism itself is functionally correct, independent of its observability
+
+---
+
+## Q18.5 [DOMAIN-1] Dedup threshold asymmetry — do episodic and session_summary type exemptions from dedup cause measurable corpus bloat, or is the exemption correctly scoped to prevent collapsing distinct temporal records?
+**Status**: INCONCLUSIVE
+**Mode**: benchmark
+**Target**: `src/api/routes/memory.py` lines 234–235 (dedup skip types: `{"episodic", "session_summary"}`), PostgreSQL `memories` table, Qdrant collection
+**Hypothesis**: The dedup path at memory.py:234 explicitly exempts `episodic` and `session_summary` memory types from semantic dedup, reasoning that each is a distinct temporal record. This is a correctness-first decision but has a potential corpus bloat consequence: if the same session produces structurally similar session summaries (e.g., two sessions where Claude did similar work), they will both be stored regardless of similarity. Over time, the session_summary type could accumulate near-duplicate content that the 0.92 threshold would have caught for other types. This question quantifies whether the exemption is causing measurable redundancy: what is the p99 pairwise similarity between session_summary entries, and between episodic entries? If either distribution has a significant mass above 0.85, the exemption is generating corpus bloat that the dedup threshold was designed to prevent.
+**Test**: (1) Query: `SELECT COUNT(*) FROM memories WHERE memory_type = 'session_summary'` and `WHERE memory_type = 'episodic'` — establish baseline counts. (2) Via Qdrant scroll_all filtered to session_summary type, compute pairwise cosine similarity for a sample of 100 entries. Report the distribution: what fraction have similarity > 0.85 with at least one other entry? > 0.92? (3) Repeat for episodic type. (4) Compare to the non-exempt types (e.g., `factual`, `procedural`) — does the exempt types have a higher near-duplicate density than the non-exempt corpus? (5) Report: what fraction of the total memory corpus is composed of exempt types?
+**Verdict threshold**:
+- FAILURE: >5% of session_summary entries have a near-duplicate (similarity > 0.92) in the corpus — the exemption is generating corpus bloat at the same scale that dedup was designed to prevent
+- WARNING: 1–5% of exempt-type entries are near-duplicates; low but non-zero redundancy; no immediate action needed but worth tracking as corpus grows
+- HEALTHY: <1% of exempt-type entries are near-duplicates; the exemption is correctly scoped; temporal distinctiveness is sufficient to prevent meaningful redundancy
+
+**Derived from**: Q16.4 FAILURE — dedup observability gap means no one has verified whether the exemption is correctly scoped; Q14.8 WARNING — session_summary dedup exemption was added without quantifying how many session summaries are semantically similar; this question provides the first data-backed answer
+
+
+---
+
+## Wave 19 -- Silent Write Failures (Scope Expansion), Dedup Observability Operational Cost, LLM Semaphore Cascade, Importance Corpus Audit, and Unguarded Fire-and-Forget Tasks (Q19.x)
+
+## Q19.1 [DOMAIN-5] Unguarded asyncio.gather() scope audit -- beyond decay.py, are there other batch-write workers that use asyncio.gather() without return_exceptions=True, creating the same partial-batch-abort failure mode?
+**Status**: DONE
+**Mode**: correctness
+**Target**: `src/workers/` and `src/core/` -- all files that call `asyncio.gather()`, excluding decay.py (already confirmed in Q18.1)
+**Hypothesis**: Q18.1 WARNING confirmed that decay.py:184-187 uses `asyncio.gather()` without `return_exceptions=True` across a batch of importance updates. The Q18.1 finding explicitly posed the follow-up: "Does the same unguarded gather pattern exist in other batch-write workers?" Given that decay.py, consolidation.py, and the graph-link workers all perform parallel bulk writes, and given that Q16.4b established that `qdrant.update_importance()` propagates all exceptions to callers, the same abort pattern is likely present wherever `asyncio.gather()` fans out over storage calls. If consolidation.py uses gather for its Neo4j SUPERSEDES edge writes, a single Neo4j transient error would abort the entire consolidation batch with no audit entry -- a higher-severity version of the decay problem, because consolidation is the only mechanism that writes content-merge audit records.
+**Test**: (1) Grep `asyncio.gather` across all `src/workers/*.py` and `src/core/*.py` files -- list every callsite. (2) For each callsite, check whether `return_exceptions=True` is present. (3) For each unguarded gather, identify: (a) what the gathered coroutines do (storage writes, external calls, etc.), (b) what the surrounding try/except covers, (c) whether missing audit writes or stat updates result from a raise. (4) Specifically check `core/consolidation.py` -- if it uses gather for Neo4j SUPERSEDES edge writes, a failure here would leave ghost memories (Qdrant updated, Neo4j edge missing). (5) Report a complete inventory: N total gather calls, M without return_exceptions, and the severity of each unguarded call.
+**Verdict threshold**:
+- FAILURE: consolidation.py or any other high-severity writer uses unguarded gather -- a single transient error can abort content-merge operations, leaving the corpus in an inconsistent Qdrant/Neo4j state with no audit trail
+- WARNING: unguarded gather exists in lower-severity workers (profile_drift, patterns) but not in consolidation; partial-write risk is present but does not affect the core integrity path
+- HEALTHY: all gather calls in non-decay workers use `return_exceptions=True` or are individually awaited; only decay.py carries the Q18.1 WARNING pattern
+
+**Derived from**: Q18.1 WARNING -- decay.py asyncio.gather() no return_exceptions=True; open follow-up explicitly asks whether this pattern exists elsewhere; Q16.4b FAILURE -- qdrant.update_importance() propagates all exceptions to callers
+
+---
+
+## Q19.2 [DOMAIN-5] _store_retrieval_context fire-and-forget audit -- does the asyncio.create_task(_store_retrieval_context) at retrieval.py:572 have the same unguarded write pattern as _track_access, and does it write to Qdrant/Neo4j outside any error boundary?
+**Status**: DONE
+**Mode**: correctness
+**Target**: `src/core/retrieval.py` line 572 (`asyncio.create_task(self._store_retrieval_context(...))`) and the `_store_retrieval_context` method body
+**Hypothesis**: Q18.2 WARNING confirmed that `_track_access()` at retrieval.py:568 is a fire-and-forget task with five bare await calls to storage writers. The Q18.2 finding explicitly noted: "Does the `_store_retrieval_context` task at line 572 have the same unguarded pattern? It runs concurrently with `_track_access` and also has no return value check." These two tasks are spawned back-to-back at lines 568 and 572. If `_store_retrieval_context` also writes to Qdrant or Neo4j without per-call error handling, then every retrieval event spawns two concurrent fire-and-forget tasks, either of which can fail silently and leave an inconsistent access state. The compound failure mode -- both tasks failing simultaneously on the same retrieval event -- is worse than the Q18.2 finding because it means zero access state is recorded for that retrieval event.
+**Test**: (1) Read retrieval.py lines 565-580 -- confirm the spawn sites for both tasks. (2) Read the full `_store_retrieval_context` method body -- identify all storage writes (Qdrant, Neo4j, Redis, PostgreSQL). (3) Check whether those writes are inside a try/except. (4) Identify the difference in scope between `_track_access` (per-memory importance/access update) and `_store_retrieval_context` (what does this one store?). (5) Check whether either task has a callback or error handler registered via `task.add_done_callback()`. (6) Compare the two tasks: if both raise on the same retrieval event, what is the net state change in Qdrant and Neo4j?
+**Verdict threshold**:
+- FAILURE: `_store_retrieval_context` writes to Qdrant or Neo4j outside any try/except AND no done_callback is registered; two concurrent fire-and-forget tasks can both fail silently, leaving retrieval events with zero state updates
+- WARNING: `_store_retrieval_context` has bare writes but they are lower-severity (e.g., Redis working set only, no Qdrant/Neo4j writes); or the method has a top-level try/except that catches all storage exceptions
+- HEALTHY: `_store_retrieval_context` either has per-write error handling or does not write to persistent storage (Qdrant/Neo4j); the fire-and-forget pattern is acceptable for its use case
+
+**Derived from**: Q18.2 WARNING -- _track_access fire-and-forget bare awaits; open follow-up explicitly names _store_retrieval_context at line 572 as the next unverified task; Q16.4b FAILURE -- storage write methods uniformly lack error handling
+
+---
+
+## Q19.3 [DOMAIN-5] LLM semaphore cascade under Semaphore(1) -- when a per-caller timeout fires while others are queued, does Semaphore(1) guarantee FIFO ordering and does the timeout fix actually bound interactive caller latency to the signal_detection ceiling?
+**Status**: DONE
+**Mode**: benchmark
+**Target**: `src/core/llm.py` asyncio.Semaphore(1), Python asyncio.Semaphore ordering guarantees, `prompt_metrics` latency data for signal_detection calls that queued behind consolidation calls
+**Hypothesis**: Q18.3 HEALTHY confirmed 17 LLM callsites across 4 timeout tiers (15s interactive, 60s background, 90s long-running, 120s admin). Under Semaphore(1) with the fix deployed, a new failure mode emerges: Python asyncio.Semaphore does not document FIFO ordering. When the semaphore is released (either by normal completion or by timeout exception), any waiting coroutine may acquire it. If consolidation.py (90s timeout) acquires ahead of signal_detector.py (15s timeout), the interactive call still waits up to 90s. The per-caller timeout fix bounds the hold time of an active caller but does not guarantee that a fast-timeout caller is served before a slow-timeout caller. Under Semaphore(1), the worst-case signal_detection wait is bounded by one full consolidation timeout (90s) regardless of per-caller values -- only a priority-aware queue (Q14.4a) would actually deliver the 15s interactive ceiling.
+**Test**: (1) Read `llm.py` -- confirm Semaphore(1) is the concurrency mechanism. (2) Check Python asyncio.Semaphore documentation: does acquire() use a FIFO queue or unordered set? (3) Query prompt_metrics for signal_detection calls where a consolidation call was running in the prior 120s: SELECT a.prompt_type, a.latency_ms, b.prompt_type AS preceding_type FROM prompt_metrics a JOIN prompt_metrics b ON b.prompt_type IN ('consolidation','dream_consolidation') AND b.timestamp BETWEEN a.timestamp - interval '120s' AND a.timestamp WHERE a.prompt_type = 'signal_detection' ORDER BY a.latency_ms DESC LIMIT 20. (4) Compare signal_detection latency when consolidation was running vs. not. (5) Report: does empirical data show signal_detection is penalized when consolidation is co-running, and by how much?
+**Verdict threshold**:
+- FAILURE: asyncio.Semaphore is NOT FIFO; empirical data shows signal_detection p95 >60s when consolidation is co-running; per-caller timeout fix does not deliver interactive latency improvement; priority queue (Q14.4a) is required
+- WARNING: asyncio.Semaphore is FIFO by implementation but empirical data shows signal_detection still queues behind consolidation in practice; improvement is real but not the advertised 15s ceiling
+- HEALTHY: asyncio.Semaphore is FIFO AND empirical signal_detection latency is below 30s even when consolidation is co-running; the per-caller timeout fix is sufficient without priority routing
+
+**Derived from**: Q18.3 HEALTHY -- all 17 callsites deployable; Q14.4a INCONCLUSIVE -- priority queue proposed but not built; Q15.3 FAILURE -- Semaphore(1) does not prevent interactive callers from waiting behind slow background calls; this question tests whether the per-caller timeout fix alone achieves the interactive latency goal
+
+---
+
+## Q19.4 [DOMAIN-4] Importance corpus contamination -- what fraction of active memories have importance=0.5 (the store-time default), and is the default-cluster anomalously large given the expected number of importance-inheritance promotions?
+**Status**: DONE
+**Mode**: benchmark
+**Target**: Qdrant collection (importance field distribution across all living memories), PostgreSQL `audit_log` (store event volume as proxy for dedup event frequency), `src/api/routes/memory.py` importance-inheritance block (lines 251-259)
+**Hypothesis**: Q16.4b FAILURE confirmed that the importance-inheritance block in memory.py:251-259 uses `except Exception: pass`, silently swallowing all Qdrant errors during importance updates. If `qdrant.update_importance()` has been failing on transient errors since the feature was deployed, every dedup event where the incoming memory had higher importance has left the existing memory at its original importance score. The visible symptom would be: a high fraction of memories sitting at importance=0.5 (the store-time default). A healthy corpus with active importance-inheritance would show a continuous distribution from 0.5 upward. A bimodal distribution with a spike at 0.5 and another at 0.9 (pinned memories) with nothing in between is the fingerprint of a broken middle-tier promotion path.
+**Test**: (1) Via the Recall API or Qdrant HTTP, scroll all living memories and extract the importance field. (2) Bucket the distribution at 0.1 intervals and specifically count memories at exactly 0.5. (3) Report: what percentage of memories are at exactly 0.5? What percentage are above 0.7? (4) From audit_log: count total creates vs. current memory count -- the gap gives a lower-bound on dedup+supersedure events, and thus the expected number of importance-inheritance triggers. (5) Cross-check: query for memories with access_count > 5 -- these should have importance > 0.5 from _track_access reinforcement. If they do not, both importance update paths are broken.
+**Verdict threshold**:
+- FAILURE: >60% of active memories have importance = 0.5 AND memories with access_count > 5 also show importance near 0.5 -- both the importance-inheritance AND the _track_access reinforcement paths are silently failing; importance values are frozen at store-time defaults
+- WARNING: 40-60% of memories at 0.5 OR memories with high access_count show importance = 0.5; partial failure in one of the two promotion paths
+- HEALTHY: <40% of memories at 0.5 AND memories with access_count > 5 show importance > 0.5 -- both importance update paths are functioning; Q16.4b except:pass is either not triggering or the update is succeeding despite missing error handling
+
+**Derived from**: Q16.4b FAILURE -- except:pass silently swallows importance update failures in dedup path; Q18.2 WARNING -- _track_access also has bare update_importance calls that can fail silently; this question tests the combined impact of both failure modes on the actual importance distribution in the corpus
+
+---
+
+## Q19.5 [DOMAIN-4] Dedup hit rate lower-bound via audit proxy -- can audit_log create-event volume minus current corpus size estimate an implied dedup rate, and does the git history reveal the empirical basis for the 0.92 threshold?
+**Status**: DONE
+**Mode**: benchmark
+**Target**: PostgreSQL `audit_log` (create event count), `memories` table (total rows including superseded), git log for `src/core/config.py` (threshold change history), Prometheus /metrics (`recall_memories_total`)
+**Hypothesis**: Q18.4 HEALTHY confirmed dedup is functionally correct but direct hit rate measurement is impossible without instrumentation (Q15.1 INCONCLUSIVE). Q18.5 INCONCLUSIVE established that a Qdrant batch similarity scan is infeasible. However, an indirect proxy exists: audit_log records every successful create event. Total store attempts minus successful creates equals the combined volume of dedup drops plus validation rejections -- a lower-bound on dedup activity. Additionally, the threshold was changed from 0.90 to 0.92 at some point (Q13.4a synthesis). If the git commit message for this change contains the rationale, it provides the only human-authored calibration evidence for the threshold. Without this context there is no way to know whether 0.92 was chosen for a reason or arbitrarily.
+**Test**: (1) Query: SELECT COUNT(*) FROM audit_log WHERE action = 'create'. (2) Query: SELECT COUNT(*) FROM memories (all rows including superseded). (3) Compute: implied_drops = audit_creates - total_memories. Note this is a ceiling (includes supersedure), not just dedup. (4) Run git log against config.py and look for commits referencing threshold, dedup, or similarity -- read the full commit message. (5) From /metrics, confirm recall_memories_total counter and compare to audit_log create count. (6) Report: the implied drop volume and whether the threshold change has a documented rationale.
+**Verdict threshold**:
+- FAILURE: implied drop volume >10% of total creates AND git history shows threshold was set without empirical basis -- significant data loss at an unjustified threshold
+- WARNING: implied drop volume 1-10% OR git history shows threshold was changed reactively without quantification; material drop activity at a weakly-justified threshold
+- HEALTHY: implied drop volume <1% (consistent with conservative threshold) OR git commit shows threshold was based on empirical observation of false positive rate -- the 0.92 threshold is justified even without real-time counters
+
+**Derived from**: Q15.1 INCONCLUSIVE -- hit rate completely unquantifiable via direct observation; Q18.4 HEALTHY -- dedup functionally correct but ground-truth scan not feasible; Q13.4a WARNING -- threshold change from 0.90 to 0.92 noted but rationale undocumented in any finding; this question attempts the indirect measurement path and documentation audit simultaneously
+
+---
+
+## Q19.6 [DOMAIN-5] Neo4j write error handling scope -- can a Neo4j transient error during consolidation produce a split-brain state where a memory is superseded in Qdrant but still active in the graph, and do neo4j.py write methods propagate exceptions as nakedly as the Qdrant methods confirmed in Q16.4b?
+**Status**: DONE
+**Mode**: correctness
+**Target**: `src/storage/neo4j.py` core write methods (`create_memory_node`, `create_relationship`, `update_importance`, `create_supersedes`), and their callsites in `src/core/consolidation.py`
+**Hypothesis**: Q16.4b FAILURE established that `qdrant.update_importance()` has no internal error handling. Q18.2 WARNING showed that retrieval.py calls `neo4j.update_importance()` as a bare await alongside Qdrant calls. However, the most critical Neo4j write path has not been audited: the SUPERSEDES edge creation during consolidation. Consolidation writes a supersede record to Qdrant (marking the old memory as superseded), creates a SUPERSEDES edge in Neo4j, and writes an audit_log entry. If consolidation writes Qdrant first and then the Neo4j write fails with an unhandled exception, the memory is marked superseded in the vector store but still appears active in the graph. Graph-based retrieval paths would continue to surface the superseded memory; vector-based retrieval would not. This Qdrant/Neo4j split-brain is the worst consistency failure mode in the codebase because it is invisible and potentially permanent.
+**Test**: (1) Read `src/storage/neo4j.py` -- examine `create_memory_node()`, `create_relationship()`, `update_importance()`, and `create_supersedes()` for internal try/except coverage. (2) Read `src/core/consolidation.py` -- identify the sequence of writes: when does it write to Qdrant vs Neo4j, and are they inside a shared try/except or separate? (3) Determine write order: if Qdrant is written before Neo4j, a Neo4j failure leaves Qdrant in a terminal superseded state with no compensating rollback. (4) Check whether any integration test covers partial consolidation failure (Qdrant succeeds, Neo4j raises). (5) Report: is a Qdrant/Neo4j split-brain state possible on a Neo4j transient error, and is there any detection or repair mechanism?
+**Verdict threshold**:
+- FAILURE: consolidation.py writes Qdrant SUPERSEDES before Neo4j SUPERSEDES edge with no compensating rollback; a Neo4j transient error produces a split-brain corpus state (vector store: superseded, graph: active) with no audit trail and no repair path
+- WARNING: Neo4j write methods propagate exceptions but consolidation wraps both writes in a shared try/except that logs the failure and skips or rolls back the Qdrant write; split-brain is prevented but the rollback correctness is untested
+- HEALTHY: Neo4j write methods have internal error handling OR consolidation uses an atomic write pattern (e.g., write Neo4j first, then Qdrant); split-brain state is not possible on transient failures
+
+**Derived from**: Q16.4b FAILURE -- qdrant storage writes uniformly lack error handling; Q18.1 WARNING -- asyncio.gather() in decay can leave partial Qdrant writes with no Neo4j counterpart; Q18.2 WARNING -- _track_access calls both Neo4j and Qdrant bare; this question targets the consolidation path where Qdrant/Neo4j consistency determines whether the corpus can be trusted for graph-based retrieval
+
+---
+
+## Wave 20 — Split-Brain Quantification, Reconcile Coverage, and Corpus Quality Measurement (Q20.x)
+
+*Derived from Wave 19 findings (2026-03-15). Wave 20 addresses three open threads: (1) the Q19.6 split-brain claim of "permanent divergence" was incomplete — reconcile.py exists and repairs it weekly, but the current backlog is unknown; (2) the Q19.4 0.5-importance cluster age distribution and memory_type breakdown needed to isolate Q16.4b contribution; (3) the Q19.5 dedup threshold has never been empirically calibrated on the live corpus. Wave 20 also probes the reconcile worker's own correctness and scalability.*
+
+---
+
+## Q20.1 [DOMAIN-5] Current split-brain backlog — how many memories are Qdrant-superseded but Neo4j-active right now, and when did the last reconcile run?
+**Status**: DONE
+**Mode**: observability
+**Target**: `POST /admin/reconcile?repair=false` (report-only mode) + audit_log for last reconcile timestamp
+**Hypothesis**: Q19.6 concluded that split-brain divergence from consolidation failures is "permanent." This is incorrect: `src/workers/reconcile.py` runs weekly (Sundays 5:30am) and explicitly detects and repairs `superseded_mismatches` by syncing Qdrant → Neo4j. However, the repair window is up to 7 days. The current `superseded_mismatches` count from a live reconcile report will reveal: (a) whether any split-brain memories currently exist, (b) the scale of divergence since the last Sunday run, and (c) whether the reconcile cadence is adequate for the consolidation rate (1 consolidation/hour × potential Neo4j transient errors).
+**Test**: (1) Call `POST /admin/reconcile?repair=false` against the live system (192.168.50.19:8200) and record `superseded_mismatches`, `importance_mismatches`, `qdrant_orphans`, `neo4j_orphans`. (2) Query audit_log: `SELECT MAX(timestamp) FROM audit_log WHERE action = 'reconcile'` to find the last repair run. (3) Query audit_log: `SELECT COUNT(*) FROM audit_log WHERE action = 'consolidate' AND timestamp > (last reconcile timestamp)` to count consolidation runs since last repair. Compute: implied split-brain rate = superseded_mismatches / consolidations_since_last_reconcile.
+**Verdict threshold**:
+- FAILURE: `superseded_mismatches` > 50 (more than 50 memories currently in split-brain state) OR last reconcile run > 14 days ago (repair cadence broken)
+- WARNING: `superseded_mismatches` 1–50 (split-brain exists but manageable scale) OR implied split-brain rate > 1% of consolidation runs
+- HEALTHY: `superseded_mismatches` = 0 AND last reconcile run < 7 days ago AND implied split-brain rate < 1%
+
+**Derived from**: Q19.6 FAILURE -- split-brain path confirmed at consolidation.py:282-283; reconcile.py discovered during source audit as the repair mechanism not mentioned in Q19.6; Q19.6 open follow-up: "Are there any known production consolidation failures visible in the audit log?"
+
+---
+
+## Q20.2 [DOMAIN-5] Reconcile worker scalability -- does scroll_all(include_superseded=True) over 20,836 memories complete within the 30-minute ARQ job timeout, and what happens as the corpus grows?
+**Status**: DONE
+**Mode**: static-analysis
+**Target**: `src/workers/reconcile.py:23` (`qdrant.scroll_all(include_superseded=True)`) + `src/api/routes/ops.py:262` (same pattern in the admin endpoint)
+**Hypothesis**: Both the worker and admin reconcile paths call `qdrant.scroll_all(include_superseded=True)` followed by `neo4j.get_all_memory_ids()` and `neo4j.get_bulk_memory_data(list(common_ids))`. At 20,836 memories this is an O(N) Qdrant scroll + O(N) Neo4j bulk fetch. The ARQ job timeout is 30 minutes. As the corpus grows to 100K+ memories, the reconcile run time grows linearly. The admin endpoint has no timeout protection — a 100K-memory reconcile via `POST /admin/reconcile` would hold the HTTP connection open for potentially minutes. The question is: what is the current measured run time, and at what corpus size does it breach the 30-minute ARQ limit?
+**Test**: (1) Read `src/workers/reconcile.py` -- confirm there is no pagination, batching, or cursor resumption in the scroll_all call. (2) Read `src/storage/qdrant.py` `scroll_all()` implementation -- confirm page size and total pages for 20,836 memories. (3) Calculate: at current Qdrant scroll page size, how many round trips does scroll_all require for 20,836 memories? At ~50ms/round trip, what is the estimated full-corpus scan time? (4) Read `neo4j.get_bulk_memory_data()` -- what is the Cypher query structure, and does it use `UNWIND` batching or per-ID queries? (5) Model: at what corpus size (50K / 100K / 200K) does the reconcile run exceed 30 minutes?
+**Verdict threshold**:
+- FAILURE: scroll_all has no pagination cursor (entire corpus fetched in one blocking call) OR neo4j.get_bulk_memory_data() issues per-ID queries (O(N) Cypher calls) OR modeled breach of 30-minute timeout before 100K corpus size
+- WARNING: pagination exists but admin HTTP endpoint has no timeout guard (long-running request possible) OR modeled breach between 100K–200K
+- HEALTHY: scroll_all is paginated with cursor, neo4j fetch is single batched UNWIND query, modeled 30-minute breach > 500K corpus size
+
+**Derived from**: Q19.6 source audit revealing reconcile.py existence; reconcile uses scroll_all(include_superseded=True) which was flagged as O(N) in Q13.8b (Markov Chain context); Q20.1 establishes the repair is real -- this question establishes whether the repair mechanism itself has a scalability ceiling
+
+---
+
+## Q20.3 [DOMAIN-1] Importance=0.5 cluster age and memory_type breakdown -- are the 889 stuck memories fresh creates or Q16.4b casualties?
+**Status**: DONE
+**Mode**: observability
+**Target**: Qdrant `recall_memories` collection -- scroll with filter `importance ∈ [0.499, 0.501]`
+**Hypothesis**: Q19.4 found 889 memories at exactly importance=0.5 (21x spike, 99% never-accessed) but could not determine whether they are: (a) fresh creates not yet processed by decay (expected transient), or (b) memories whose importance-inheritance promotion silently failed via Q16.4b's `except Exception: pass` (pathological persistent). The discriminator is `created_at` age: if >80% of the 889 memories are >7 days old, they have been through multiple decay cycles and are stuck -- decay would have moved them to 0.3–0.4 otherwise. Additionally, a `memory_type` breakdown (semantic vs episodic vs procedural) would reveal whether the 0.5 cluster is disproportionately `semantic` -- the memory type where importance-inheritance fires during dedup -- which would implicate Q16.4b as the dominant cause.
+**Test**: (1) Scroll Qdrant for all memories with `importance ∈ [0.499, 0.501]`. For each, extract `created_at`, `memory_type`, `access_count`, `domain`. (2) Compute age distribution: bucket by <1 day, 1–7 days, 7–30 days, >30 days. (3) Compute memory_type distribution: what fraction are `semantic` vs `episodic` vs other? (4) Compare: if the corpus-wide semantic fraction is X%, and the 0.5-cluster semantic fraction is >2X%, Q16.4b importance-inheritance failure is the primary cause. (5) Report: age distribution, memory_type breakdown, and estimated Q16.4b contribution vs fresh-create explanation.
+**Verdict threshold**:
+- FAILURE: >50% of 0.5-cluster memories are >30 days old AND disproportionately semantic (>2x corpus-wide semantic rate) -- Q16.4b is the dominant cause, cluster will not self-resolve
+- WARNING: 20–50% are >30 days old OR mild semantic over-representation (1.5–2x) -- mixed cause, partial Q16.4b contribution
+- HEALTHY: >80% are <7 days old AND memory_type distribution matches corpus-wide rate -- fresh-create explanation confirmed, cluster will self-resolve via decay
+
+**Derived from**: Q19.4 WARNING -- 889 memories at 0.5 default, Q16.4b contribution "cannot be excluded"; Q19.4 open follow-up: "Are the 889 memories at 0.5 disproportionately concentrated in any memory_type or domain? What is the age distribution?"
+
+---
+
+## Q20.4 [DOMAIN-1] Dedup threshold empirical calibration -- how many near-duplicates does the live corpus contain at 0.90 vs 0.92, and what does the difference reveal about false-positive rate?
+**Status**: DONE
+**Mode**: observability
+**Target**: `POST /admin/dedup` batch scan endpoint against live corpus (20,836 memories)
+**Hypothesis**: Q19.5 found the 0.92 dedup threshold was set qualitatively ("reduce false-positive dedup on qwen3-embedding range") with no empirical calibration. The only prior empirical measurement was a 2026-02-19 batch scan that found 129 near-duplicates at 0.90 in a 4,602-memory corpus (2.8%). The current corpus is 4.5x larger (20,836 memories). Running the admin batch scan at both 0.90 and 0.92 will yield: (a) current near-duplicate count at 0.92 (the active threshold), (b) the delta count at 0.90 (memories that were caught at 0.90 but escaped at 0.92), and (c) by sampling the delta entries, an estimate of the false-positive rate for the 0.90–0.92 similarity band. If the delta is large (>200 entries) and a manual sample of the delta shows mostly true duplicates, the 0.92 raise was overcorrected. If the delta is small (<20 entries) or samples as false positives, the 0.92 threshold is correctly calibrated.
+**Test**: (1) Call the admin batch dedup endpoint (or equivalent Qdrant scan) at threshold=0.92 and record total near-duplicate pairs found. (2) Repeat at threshold=0.90 and record total. (3) Delta = count(0.90) - count(0.92). (4) Sample 20 memory pairs from the delta band (0.90–0.92 similarity). For each pair, manually assess: are they true duplicates (same fact, different phrasing) or false positives (same topic, distinct content)? (5) Compute: estimated false-positive rate in the 0.90–0.92 band, implied correction direction for the threshold.
+**Verdict threshold**:
+- FAILURE: delta > 200 pairs AND manual sample shows >70% true duplicates in the 0.90–0.92 band (threshold overcorrected -- significant true duplicates are escaping dedup)
+- WARNING: delta 20–200 pairs OR manual sample shows mixed (30–70% true duplicates) -- threshold may need fine-tuning but not urgent
+- HEALTHY: delta < 20 pairs OR manual sample shows <30% true duplicates in 0.90–0.92 band (raise was correct -- band was false-positive-dominated)
+
+**Derived from**: Q19.5 WARNING -- 0.92 threshold set without empirical calibration; Q19.5 open follow-up: "Run admin /dedup endpoint on current 20,836-memory corpus at both 0.90 and 0.92 to see how many near-duplicates each threshold finds"
+
+---
+
+## Q20.5 [DOMAIN-5] Compound failure: can a single consolidation run produce a memory that is simultaneously split-brain (Qdrant-superseded, Neo4j-active) AND importance-mismatched AND missing from the decay audit?
+**Status**: DONE
+**Mode**: static-analysis
+**Target**: `src/core/consolidation.py:262–305`, `src/workers/decay.py:182–191`, `src/storage/postgres_store.py` audit_log schema
+**Hypothesis**: Three independent failure modes have been confirmed: Q19.6 (consolidation split-brain at line 282-283), Q18.1 (decay gather partial writes with no audit entry), Q16.4b (importance-inheritance silent failure). The compound scenario is: (1) consolidation succeeds in Qdrant (marks source superseded) but fails in Neo4j at line 283 -- split-brain created; (2) the split-brain source memory, still active in Neo4j, continues to receive importance updates from the next decay run; (3) the decay gather for that user partially fails, writing some Qdrant importance updates but no audit entry; (4) the merged memory's importance was never set via the inheritance path (Q16.4b silently fails). Result: a cluster of 3 memories in permanently inconsistent state across all four tracking dimensions (Qdrant supersedure, Neo4j supersedure, importance values, audit trail). The question is whether the code paths interact in a way that makes this compound scenario reachable in a single consolidation cycle, or whether the timing constraints prevent it.
+**Test**: (1) Trace the exact call sequence in a consolidation run that merges cluster [A, B] → C. List every storage write in order and the exception handling at each step. (2) Identify the earliest failure point that produces all three conditions simultaneously (split-brain + importance-mismatch + missing audit). (3) Determine whether the reconcile worker would detect and repair all three conditions or only the supersedure mismatch. (4) Determine whether the compound state is recoverable: if reconcile repairs the split-brain, does the repaired state leave the importance values consistent? (5) Report: is the compound state reachable, detectable, and fully repairable, or does partial repair leave residual inconsistency?
+**Verdict threshold**:
+- FAILURE: compound state is reachable in a single consolidation cycle AND reconcile partial repair leaves residual importance inconsistency (decay runs on a memory reconcile just re-activated, with wrong importance values)
+- WARNING: compound state is reachable but fully repairable by running reconcile followed by decay (two-step manual repair sufficient)
+- HEALTHY: compound state is not reachable (timing constraints, write ordering, or exception propagation prevent all three conditions from occurring simultaneously)
+
+**Derived from**: Q19.6 FAILURE (consolidation split-brain), Q18.1 WARNING (decay partial writes), Q16.4b FAILURE (importance-inheritance silent failure); compound scenario is the intersection of all three unresolved failure modes
+
+---
+
+## Q20.6 [DOMAIN-1] Decay run audit gap -- how many decay_run audit entries exist vs expected runs, and does the 694-entry count imply missed decay executions?
+**Status**: DONE
+**Mode**: observability
+**Target**: `audit_log` table -- `action = 'decay_run'` entries vs expected ARQ cron count
+**Hypothesis**: Q19.5 audit revealed 694 `decay_run` entries in the audit_log. The ARQ cron schedule runs decay every 6 hours (4x/day). If the system has been running for N days, the expected count is 4N. The 694 entries implies approximately 694/4 = 173 days of operation, or a shorter period with some missed runs. Q18.1 WARNING established that a gather() failure in decay.py skips `_log_decay_audit()`, meaning any decay run that encounters a Qdrant error produces no audit_run entry. The gap between expected and actual decay_run entries is a direct measure of how often decay failures have silently occurred -- each missing entry represents a run where some memories received partial or no decay without any audit trail.
+**Test**: (1) Query audit_log: `SELECT DATE(timestamp) as day, COUNT(*) as runs FROM audit_log WHERE action = 'decay_run' GROUP BY day ORDER BY day`. (2) Identify the earliest decay_run entry to establish system start date. (3) Compute expected runs = days_since_start × 4. (4) Compute gap = expected - actual. (5) Identify specific days with <4 runs (partial-day gaps) vs days with 0 runs (complete decay outage). (6) Correlate gap days with any Docker logs evidence of `decay_user_error` events if accessible. Report: total gap count, gap rate, worst-gap day, and whether gaps cluster (suggesting sustained failure periods) or are scattered (suggesting transient errors).
+**Verdict threshold**:
+- FAILURE: gap > 20% of expected runs (>1 in 5 decay runs silently failed with no audit entry) OR any 7-day window with >50% missing entries (sustained decay outage)
+- WARNING: gap 5–20% of expected runs OR scattered missing entries suggesting periodic Qdrant transient errors
+- HEALTHY: gap < 5% of expected runs AND no multi-day outage windows (decay is running reliably; small gap explained by maintenance windows or initial deployment period)
+
+**Derived from**: Q18.1 WARNING -- `_log_decay_audit()` skipped when asyncio.gather() raises, so each missing audit_run entry represents a silent partial-write decay run; Q19.5 audit revealed 694 decay_run entries as a data point; quantifying the gap answers whether Q18.1's failure mode is theoretical or actively occurring in production
+
+---
+
+## Wave 21 — Reconcile Convergence Fix, Superseded Garbage Collection, and Residual Split-Brain Mechanics (Q21.x)
+
+*Derived from Wave 20 findings (2026-03-15). Wave 20 established: (1) Q20.5 FAILURE — reconcile introduces new importance mismatches during compound repair because neo4j.mark_superseded zeros importance=0.0, overwriting the prior importance fix; (2) Q20.4 — 72% of Qdrant points are superseded with no garbage collection; (3) Q20.1 — 1,315 importance mismatches with 9 sub-pattern-A entries now explained by Q20.5's compound failure; (4) Q20.6 — processed=0 decay_run entries suggest ghost users. Wave 21 targets the reconcile convergence defect, superseded storage bloat, repair=true risk assessment, and the Qdrant payload structure needed for any future unmark_superseded operation.*
+
+---
+
+## Q21.1 [DOMAIN-5] Does neo4j.mark_superseded's importance=0.0 serve any graph traversal or query purpose, or is it vestigial?
+**Status**: DONE
+**Mode**: static-analysis
+**Target**: `src/storage/neo4j_store.py` — `mark_superseded()` method; all Neo4j Cypher queries in `src/storage/neo4j_store.py` and `src/core/retrieval.py` that reference `m.importance`
+**Hypothesis**: Q20.5 identified that `neo4j.mark_superseded()` sets `importance=0.0` alongside `superseded_by=<successor_id>`. This zeroing is the root cause of reconcile's two-pass convergence requirement — Step B overwrites Step A's importance repair. If no Neo4j Cypher query uses `m.importance` as a filter or sort condition for superseded memories, then the `importance=0.0` assignment is vestigial (carried over from an earlier design where Neo4j importance was a retrieval signal) and can be safely removed. Removing it would allow reconcile to converge compound failures in a single pass without the minimum fix proposed in Q20.5. If Neo4j queries DO filter on importance (e.g., `WHERE m.importance > 0` as a proxy for "active"), removing the zeroing could surface superseded memories in graph traversals.
+**Test**: (1) Read `neo4j_store.py:mark_superseded()` — confirm it sets importance=0.0 and identify the exact Cypher statement. (2) Grep all Cypher queries across `neo4j_store.py` and `retrieval.py` for references to `m.importance` or `importance` in WHERE clauses, ORDER BY, or RETURN. (3) For each query that references importance, determine: does it also filter on `superseded_by IS NULL`? If yes, the importance=0.0 is redundant (the superseded_by filter already excludes the memory). If no, importance=0.0 serves as a secondary exclusion mechanism. (4) Check whether any graph traversal (MATCH path patterns, relationship hops) uses importance as a weight or filter. (5) Report: is importance=0.0 in mark_superseded functionally necessary for any query path, or is it safe to remove?
+**Verdict threshold**:
+- FAILURE: ≥1 Neo4j query filters on `importance > 0` WITHOUT also filtering on `superseded_by IS NULL` — removing importance=0.0 from mark_superseded would surface superseded memories in active retrieval results
+- WARNING: all queries double-filter (importance + superseded_by) but importance=0.0 is documented as intentional in comments or commit history — removal is safe but requires explicit design decision
+- HEALTHY: no Neo4j query uses importance as a filter for superseded memories; importance=0.0 is vestigial; removal is safe and fixes reconcile single-pass convergence
+
+**Derived from**: Q20.5 FAILURE — neo4j.mark_superseded zeroing importance=0.0 is the root cause of reconcile two-pass convergence; Q20.5 open follow-up: "Does neo4j.mark_superseded zeroing importance=0.0 serve any purpose for Neo4j graph traversal?"
+
+---
+
+## Q21.2 [DOMAIN-5] Reconcile repair=true risk assessment — what happens to the 1,315 importance mismatches and 9 sub-pattern-A entries when repair runs?
+**Status**: DONE
+**Mode**: observability
+**Target**: `POST /admin/reconcile?repair=true` against live system (192.168.50.19:8200) — dry-run analysis first, then controlled repair
+**Hypothesis**: Q20.1 found 1,315 importance mismatches (6.3% of corpus) including 9 sub-pattern-A entries (neo4j=0.0, qdrant=0.3–0.8). Q20.5 explained sub-pattern-A as compound-failure memories awaiting a second reconcile pass. Running repair=true will: (a) fix the 1,306 sub-pattern-B entries by syncing Neo4j importance to Qdrant importance (small drift correction, low risk), (b) fix the 9 sub-pattern-A entries by setting Neo4j importance to the Qdrant value — but Q20.5 showed that if any of these 9 also have a pending superseded_by mismatch, the sequential repair will re-introduce the importance=0.0 overwrite. The risk is: does running repair=true on the current corpus converge fully, or does it create new sub-pattern-A entries from the superseded repair step? A pre-repair reconcile report (repair=false) followed by a post-repair report will measure convergence.
+**Test**: (1) Run `POST /admin/reconcile?repair=false` and record baseline: importance_mismatches, superseded_mismatches, neo4j_orphans. (2) Run `POST /admin/reconcile?repair=true` and record: repairs_applied, response time. (3) Immediately run `POST /admin/reconcile?repair=false` again and record: importance_mismatches (should be 0 if single-pass convergence), superseded_mismatches (should be 0). (4) If importance_mismatches > 0 after repair, these are the residual sub-pattern-A entries created by the sequential repair — count them and compare to the 9 pre-repair sub-pattern-A. (5) Run a second repair=true and verify full convergence.
+**Verdict threshold**:
+- FAILURE: post-repair importance_mismatches > 50 (repair created more mismatches than it fixed — reconcile is divergent)
+- WARNING: post-repair importance_mismatches 1–50 (partial convergence — the Q20.5 sequential repair defect is active; second pass needed)
+- HEALTHY: post-repair importance_mismatches = 0 AND superseded_mismatches = 0 (single-pass convergence — either no compound failures exist or the repair order happened to converge)
+
+**Derived from**: Q20.1 WARNING — 1,315 importance mismatches including 9 sub-pattern-A; Q20.5 FAILURE — reconcile sequential repair introduces residual mismatches; Q20.1 open follow-up: "Running repair=true would fix the 1,315 mismatches — is there risk?"
+
+---
+
+## Q21.3 [DOMAIN-4] Superseded memory garbage collection — at what age and under what conditions can superseded Qdrant points be safely deleted?
+**Status**: DONE
+**Mode**: static-analysis
+**Target**: `src/storage/qdrant.py` (superseded_by payload field usage), `src/core/consolidation.py` (successor chain traversal), `src/workers/reconcile.py` (reconcile references to superseded memories), `src/core/retrieval.py` (any superseded memory access)
+**Hypothesis**: Q20.4 found 15,007 superseded memories (72% of 20,889 total Qdrant points) with no garbage collection mechanism. These accumulate indefinitely, increasing reconcile scan time (Q20.2: 209 round trips for full corpus vs ~62 for active-only), storage footprint (~45MB vectors for superseded alone), and admin operation latency. However, superseded memories may still be referenced: (a) the successor chain (memory A superseded_by B superseded_by C) may be traversed for provenance; (b) reconcile needs superseded memories to verify Neo4j consistency; (c) retrieval may use superseded memories for graph context. The question is: which code paths access superseded memories, and is there a safe age threshold (e.g., >30 days since supersedure AND successor is still active) after which a superseded point can be deleted from Qdrant without breaking any code path?
+**Test**: (1) Grep all callsites of `scroll_all(include_superseded=True)` — these are the only paths that see superseded memories. (2) For each callsite, determine: does it need the superseded memory's vector, payload, or just its ID? (3) Check whether any retrieval or consolidation path traverses the successor chain (A→B→C) — if yes, deleting A while B references it via superseded_by breaks the chain. (4) Check whether Neo4j stores its own superseded_by edges independently — if yes, Qdrant superseded points are redundant for provenance. (5) Identify the minimum safe deletion criteria: superseded_by is set, successor memory exists and is active, age since supersedure > N days.
+**Verdict threshold**:
+- FAILURE: superseded memories are accessed by retrieval or consolidation paths beyond reconcile — deletion would break active functionality
+- WARNING: superseded memories are only accessed by reconcile and admin endpoints, but successor chain traversal exists in Neo4j that cross-references Qdrant IDs — deletion requires Neo4j cleanup too
+- HEALTHY: superseded memories are only accessed by reconcile (which can skip deleted points) and admin dedup (which already filters them out) — safe to delete after successor validation with no functional impact
+
+**Derived from**: Q20.4 HEALTHY (primary) with Medium secondary finding — 72% superseded ratio with no garbage collection; Q20.2 HEALTHY — reconcile fetches 3.5x more points than needed due to include_superseded=True over a 72% superseded corpus
+
+---
+
+## Q21.4 [DOMAIN-5] Qdrant payload structure for superseded_by — can superseded_by be unset via direct payload update, and what is the correct API call?
+**Status**: DONE
+**Mode**: benchmark
+**Target**: Qdrant HTTP API (`PUT /collections/{name}/points/payload`), `src/storage/qdrant.py` — mark_superseded() payload structure, Qdrant documentation for payload field deletion
+**Hypothesis**: Q19.6 noted that `qdrant.unmark_superseded()` does not exist in the codebase. The reconcile worker syncs Qdrant→Neo4j (one direction only). If a memory is incorrectly superseded in Qdrant (false positive from consolidation), there is no programmatic way to un-supersede it — the memory is permanently removed from search results. The Qdrant REST API supports `DELETE /collections/{name}/points/payload` to remove specific payload keys, and `PUT /collections/{name}/points/payload` to overwrite them. The question is: (a) what is the exact payload structure for superseded_by in Recall's Qdrant collection (string UUID? dict? nested?), (b) can it be set to null/removed via the Qdrant API to restore a memory to active status, and (c) does removing superseded_by from Qdrant also require removing `invalid_at` (set by mark_superseded) to fully restore the memory?
+**Test**: (1) Read `qdrant.py:mark_superseded()` — extract the exact payload update call and field names. (2) Query Qdrant HTTP API for one known superseded memory: `GET /collections/recall_memories/points/{id}` — inspect the full payload structure for superseded_by and invalid_at fields. (3) Test un-superseding via `DELETE /collections/recall_memories/points/payload` with `{"keys": ["superseded_by", "invalid_at"]}` on a single test memory. (4) Verify the memory reappears in `scroll_all(include_superseded=False)` results. (5) Report: the exact API call needed for un-supersedure, and whether this is safe (no side effects on Neo4j or audit_log).
+**Verdict threshold**:
+- FAILURE: superseded_by is stored as a nested structure or index that cannot be removed via payload delete API — un-supersedure requires Qdrant point re-insertion (destructive)
+- WARNING: superseded_by can be removed via payload delete, but invalid_at or other fields also need cleanup — multi-step un-supersedure with risk of partial state
+- HEALTHY: superseded_by and invalid_at can be atomically removed via a single payload delete call, and the memory immediately reappears in active scroll results — un-supersedure is a safe, reversible operation
+
+**Derived from**: Q19.6 FAILURE — "qdrant.unmark_superseded() does not exist"; Q20.5 FAILURE — compound failures leave memories incorrectly superseded; Q20.1 WARNING — reconcile is one-directional (Qdrant→Neo4j), cannot reverse an incorrect Qdrant supersedure
+
+---
+
+## Q21.5 [DOMAIN-1] Ghost users in decay — what user_ids produce processed=0 decay_run entries, and do they have any memories in Qdrant?
+**Status**: DONE
+**Mode**: observability
+**Target**: PostgreSQL `audit_log` (decay_run entries with processed=0), Qdrant `recall_memories` collection (per-user memory counts)
+**Hypothesis**: Q20.6 noted that some `decay_run` entries have `processed=0`, suggesting the decay worker iterated over user_ids returned by `qdrant.get_distinct_user_ids()` that have no active memories. These could be: (a) users whose memories were all superseded (active count=0, but superseded memories still have the user_id in their payload), (b) users deleted from the auth system but still present in Qdrant metadata, or (c) a race condition where memories were deleted between get_distinct_user_ids() and scroll_memories_for_decay(). If case (a), the ghost user count will grow as more memories are superseded — each consolidation cycle can reduce a user's active count to 0. The decay worker wastes one audit_log row and one Qdrant scroll per ghost user per run (4x/day × N ghost users). At 9 users this is negligible; at 100+ users it becomes measurable overhead.
+**Test**: (1) Query audit_log: `SELECT metadata->>'user_id' as uid, COUNT(*) as zero_runs FROM audit_log WHERE action = 'decay_run' AND (metadata->>'processed')::int = 0 GROUP BY uid ORDER BY zero_runs DESC`. (2) For each ghost user_id, query Qdrant: scroll with filter `user_id = <uid>` and `superseded_by IS NULL` — count active memories. (3) Also scroll with `user_id = <uid>` without the superseded filter — count total (active + superseded). (4) Report: how many ghost users exist, whether they have superseded-only memories, and the per-run overhead (scroll calls + audit writes per ghost user).
+**Verdict threshold**:
+- FAILURE: >20% of user_ids are ghost users with 0 active memories AND the per-ghost overhead is measurable (>100ms per ghost per decay run)
+- WARNING: ghost users exist (1–20% of user_ids) but overhead is negligible; or ghost users are a known artifact of the test/development user lifecycle
+- HEALTHY: zero ghost users (all user_ids returned by get_distinct_user_ids have ≥1 active memory) OR processed=0 entries are explained by timing (memories created between get_distinct and scroll)
+
+**Derived from**: Q20.6 HEALTHY — secondary finding: "processed=0 entries suggest some users have zero active memories at decay time. Are these ghost users or recently created users with no memories yet?"
+
+---
+
+## Q21.6 [DOMAIN-5] Reconcile audit trail — does adding an audit_log entry for each reconcile run enable the last-run-date query that Q20.1 could not answer?
+**Status**: DONE
+**Mode**: static-analysis
+**Target**: `src/workers/reconcile.py` (run_reconcile function), `src/api/routes/ops.py` (reconcile_stores endpoint), `src/storage/postgres_store.py` (audit_log_entry method signature)
+**Hypothesis**: Q20.1 found that reconcile has zero audit trail — `SELECT COUNT(*) FROM audit_log WHERE action = 'reconcile'` returns 0. The reconcile worker logs only via structlog, making the last run date unverifiable from the database. The system already has a well-established audit_log pattern (used by decay_run, consolidate, dedup, etc.) with `action`, `memory_id`, `metadata` columns. Adding a single `audit_log_entry(action='reconcile', memory_id='system', metadata={...})` call at the end of both `run_reconcile()` and `reconcile_stores()` would close this observability gap. The question is: (a) what is the exact audit_log_entry function signature and does it support arbitrary metadata dicts, (b) is the postgres_store dependency already available in the reconcile worker context (or would it need to be plumbed in), and (c) what metadata fields should the reconcile audit entry carry to be useful (importance_mismatches, superseded_mismatches, repairs_applied, duration_ms)?
+**Test**: (1) Read `postgres_store.py` — find the `audit_log_entry` or equivalent method. Extract its signature: what parameters does it accept? Does it support a `metadata` dict? (2) Read `reconcile.py:run_reconcile()` — is `postgres_store` available in scope, or only `qdrant` and `neo4j`? (3) Read `ops.py:reconcile_stores()` — same question for the admin endpoint. (4) Identify the minimum change: how many lines are needed to add a reconcile audit entry in both paths? (5) Report: feasibility, LOC estimate, and recommended metadata schema for the audit entry.
+**Verdict threshold**:
+- FAILURE: postgres_store is not available in the reconcile worker context AND plumbing it in requires changes to the ARQ worker setup, dependency injection, and >20 LOC — audit trail requires architectural change
+- WARNING: postgres_store is available but audit_log_entry does not support metadata dicts (only fixed fields) — audit entry possible but without the repair details that make it useful
+- HEALTHY: postgres_store is available in both reconcile paths, audit_log_entry accepts metadata dict, and the change is ≤10 LOC per path — reconcile audit trail is a trivial addition
+
+**Derived from**: Q20.1 WARNING — "Reconcile has zero audit observability: neither run_reconcile() nor reconcile_stores() writes to audit_log"; Q20.1 secondary finding B: "a critical repair operation is invisible — same gap as Q16.1 for dedup"
+
+---
+
+## Wave 22 — Ghost User Confirmation, Primary User Double-Decay, GC Readiness, and Reconcile Observability Improvements (Q22.x)
+
+*Derived from Wave 21 findings (2026-03-15). Wave 21 established: (1) Q21.1 HEALTHY — importance=0.0 in mark_superseded is vestigial; removal fixes reconcile single-pass convergence; (2) Q21.2 HEALTHY — repair=true converges in one pass on current corpus (1,315→0 mismatches); weekly cron resolved 99.8% before manual repair; (3) Q21.3 WARNING — causal_extractor accesses superseded memories during live store; GC safe at 30-day threshold with simultaneous Neo4j cleanup; (4) Q21.4 HEALTHY — qdrant.unmark_superseded is a 4-line addition; neo4j side needs new helper; (5) Q21.5 WARNING — 70% ghost users in decay; primary user double-processed; audit lacks user_id; (6) Q21.6 HEALTHY — reconcile audit trail is 9 LOC across 2 files. Wave 22 follows up on the open threads: ghost user identity, primary user double-decay root cause, GC age threshold readiness, and reconcile response format.*
+
+---
+
+## Q22.1 [DOMAIN-1] Primary user double-decay root cause — is the primary user's corpus split across user_id=None AND user_id=N?
+**Status**: DONE
+**Mode**: observability
+**Target**: Qdrant `recall_memories` collection — `get_distinct_user_ids()` output + per-user active memory counts
+**Hypothesis**: Q21.5 showed the primary user is processed TWICE per decay slot (e.g., 5693 + 5693 in the 18:15 slot). The leading explanation is a user_id split: memories stored before user tracking was added have `user_id=None` (processed in the system/null run), while memories stored after have `user_id=N` (processed in the named-user run). If both runs produce ~5,700 processed counts, either: (a) both batches contain ~5,700 active memories (total ~11,400 — but only ~5,900 active memories exist corpus-wide, so both runs process overlapping or identical sets), or (b) the null-user run processes ALL active memories (no user_id filter) and the named-user run processes the same memories again (user_id=N matches most of them). Case (b) means the decay factor is applied twice per slot = `importance * 0.96^2 ≈ 0.9216` instead of `0.96` — a 4% overdecay per run compounding over time.
+**Test**: (1) Call `get_distinct_user_ids()` or equivalent Qdrant query to list all unique user_ids in the collection (including NULL). (2) For each user_id (including NULL), count active memories: `scroll with filter user_id=X AND superseded_by IS NULL`. (3) Confirm whether NULL-user and named-user counts sum to more than total active corpus (indicating overlap/double-counting). (4) Read `decay.py:run_decay_all_users()` — how does it handle the NULL user case? Does `scroll_memories_for_decay(user_id=None)` apply a user_id filter or skip it? (5) Report: is the primary user's corpus split, and does the decay worker process the same memories twice?
+**Verdict threshold**:
+- FAILURE: NULL-user decay run processes ALL active memories (no user_id filter) AND named-user run re-processes the same memories — confirmed double-decay on every run (importance error compounds at 0.96^2 per slot)
+- WARNING: user_id split exists but overlap is partial (<50% of memories appear in both runs) — overdecay affects a subset
+- HEALTHY: no overlap — NULL-user and named-user counts sum to exactly the total active corpus, or decay correctly skips NULL users
+
+**Derived from**: Q21.5 WARNING — "Primary user processed twice per slot (5693, 5693)"; Q21.5 open follow-up: "is their corpus split across user_id=None AND user_id=N?"
+
+---
+
+## Q22.2 [DOMAIN-1] Ghost user identity — do the 7 ghost user_ids have any memories (active or superseded) in Qdrant?
+**Status**: DONE
+**Mode**: observability
+**Target**: Qdrant `recall_memories` collection — per-ghost-user memory counts (active + superseded)
+**Hypothesis**: Q21.5 identified 7 ghost user_ids producing processed=0 decay_run entries every slot. These users are returned by `get_distinct_user_ids()` because their user_id exists in at least one Qdrant point's payload. The question is whether these are: (a) "exhausted" users whose ALL memories have been superseded (they had real memories that were consolidated away — their user_id persists only in superseded payloads), (b) test/development accounts that stored a few memories and then went inactive, or (c) user_ids that somehow exist in metadata without any associated memories (data artifact). Category (a) confirms that ghost user count will grow proportionally with supersedure rate. Category (b) suggests a one-time cleanup. Category (c) would be a data integrity issue.
+**Test**: (1) Determine the 7 ghost user_ids — either by calling `get_distinct_user_ids()` and then querying active memory count per user, or by querying Qdrant directly for all distinct user_id values. (2) For each ghost user_id: scroll with filter `user_id = X AND superseded_by IS NULL` (active count). (3) Scroll with filter `user_id = X` without superseded filter (total count = active + superseded). (4) Report per ghost user: active count, superseded count, total. (5) Classify: exhausted (active=0, superseded>0), test account (active=0, superseded=0 but user_id in some payload), or data artifact.
+**Verdict threshold**:
+- FAILURE: ≥1 ghost user_id has 0 total memories (no active, no superseded) — data integrity issue; user_id exists in metadata with no corresponding point
+- WARNING: all ghost users are "exhausted" (active=0, superseded>0) — confirms ghost count grows with supersedure rate; get_distinct_user_ids fix from Q21.5 is the correct mitigation
+- HEALTHY: all ghost users are test accounts with small total counts (<10 memories each) — one-time artifact, not a growing problem
+
+**Derived from**: Q21.5 WARNING — "Do the 7 ghost user_ids have any memories at all (active or superseded) in Qdrant?"
+
+---
+
+## Q22.3 [DOMAIN-4] GC age threshold readiness — have any superseded memories crossed the 30-day invalid_at threshold yet?
+**Status**: DONE
+**Mode**: observability
+**Target**: Qdrant `recall_memories` collection — superseded points with `invalid_at` payload field
+**Hypothesis**: Q21.3 established a 30-day GC threshold for superseded memory deletion. The deployment started 2026-02-21 (23 days before 2026-03-15). If consolidation started within the first 3 days, the earliest superseded memories have `invalid_at` dates around 2026-02-24 — which is now 19 days ago (below the 30-day threshold). The 30-day threshold becomes actionable around 2026-03-24. However, if any superseded memories have `invalid_at` dates earlier than 2026-02-13 (perhaps from pre-deployment test data or data migration), GC could begin immediately. This question measures the actual `invalid_at` distribution to determine when GC first becomes actionable and how large the initial deletable batch will be.
+**Test**: (1) Scroll Qdrant for superseded memories (filter: `superseded_by IS NOT NULL`), extracting `invalid_at` from each payload. (2) Parse `invalid_at` timestamps and compute age = now - invalid_at. (3) Bucket the age distribution: <7 days, 7-14 days, 14-21 days, 21-30 days, >30 days. (4) Report: how many superseded memories are currently ≥30 days old (immediately deletable), how many will cross the threshold in the next 7 days, and what is the earliest `invalid_at` in the corpus. (5) If any are ≥30 days old, verify their successor memory still exists and is active (GC criterion #3 from Q21.3).
+**Verdict threshold**:
+- FAILURE: >1,000 superseded memories are ≥30 days old but successor verification fails for >10% (dangling successor chains — GC would orphan references)
+- WARNING: 0 superseded memories are ≥30 days old yet (GC not yet actionable; first batch expected in ~7 days based on deployment date math)
+- HEALTHY: ≥1 superseded memories are ≥30 days old AND successor verification passes for >90% — GC is immediately actionable for a measurable batch
+
+**Derived from**: Q21.3 WARNING — "Deployment started 2026-02-21 = 22 days ago [...] A 14-day threshold would make ~8,000–10,000 points immediately deletable"; this question resolves the actual invalid_at distribution
+
+---
+
+## Q22.4 [DOMAIN-5] Reconcile response format — does ops.py reconcile_stores() have access to all variable names needed for the audit entry?
+**Status**: DONE
+**Mode**: static-analysis
+**Target**: `src/api/routes/ops.py` — `reconcile_stores()` function body; variable scoping for `qdrant_total`, `neo4j_total`, `importance_mismatches`, `superseded_mismatches`, `repairs_applied`
+**Hypothesis**: Q21.6 confirmed that `log_audit()` is callable from ops.py with a details dict. The recommended audit entry schema uses variable names like `qdrant_total`, `neo4j_total`, `importance_mismatches`, `superseded_mismatches`, `repairs_applied`. However, Q21.6 did not verify that these exact variable names exist in the local scope of `reconcile_stores()` at the point where the audit call would be inserted. The admin endpoint may compute these values differently from the ARQ cron (e.g., storing counts as ints vs lists, using different variable names, or computing them inline in the response dict). If the variable names don't match, the audit insertion requires additional extraction/renaming logic beyond the 4-line estimate.
+**Test**: (1) Read `ops.py:reconcile_stores()` — identify every local variable or dict key that corresponds to the audit schema fields. (2) Determine the exact point in the function where the audit call should be inserted (after repairs but before response return). (3) List which audit schema fields are directly available as local variables at that point and which need extraction from intermediate data structures. (4) Report: is the 4-line audit insertion accurate, or does variable scoping require additional logic?
+**Verdict threshold**:
+- FAILURE: ≥3 audit schema fields require multi-line extraction from nested data structures — the "4 lines" estimate is off by >2x
+- WARNING: 1-2 fields need extraction but the total change is still ≤8 LOC — minor underestimate
+- HEALTHY: all audit schema fields are directly available as local variables at the insertion point — the 4-line estimate is accurate
+
+**Derived from**: Q21.6 HEALTHY — "Does the admin HTTP endpoint (ops.py reconcile_stores) actually have access to all the variable names needed?"
+
+---
+
+## Q22.5 [DOMAIN-5] Neo4j unmark_superseded — does any existing neo4j_store method already support REMOVE property operations?
+**Status**: DONE
+**Mode**: static-analysis
+**Target**: `src/storage/neo4j_store.py` — all methods that modify Memory node properties; Cypher patterns for `REMOVE` or property deletion
+**Hypothesis**: Q21.4 proposed a `neo4j.unmark_superseded(memory_id, importance)` method requiring `REMOVE m.superseded_by, m.invalid_at` Cypher. The Neo4j Cypher `REMOVE` keyword deletes a property from a node (distinct from `SET m.prop = null` which sets it to null). The question is: (a) does any existing method in `neo4j_store.py` use `REMOVE` in a Cypher query (establishing the pattern is already in use), (b) does `mark_superseded`'s test suite cover the reverse case (if so, the new method can be tested symmetrically), and (c) would `SET m.superseded_by = null, m.invalid_at = null` work equivalently to `REMOVE` for Recall's reconcile logic (which uses `superseded_by IS NULL` checks)?
+**Test**: (1) Grep `neo4j_store.py` for `REMOVE` in any Cypher query string. (2) Grep for `= null` or `= NULL` in any SET clause. (3) Read the `mark_superseded` test (if one exists in `tests/storage/test_neo4j.py` or similar) — does it verify the properties are set and could the test be mirrored for unmark? (4) Read `reconcile.py` — does the superseded_by mismatch check use `IS NULL` or `is None` or `== ""` — which determines whether `REMOVE` vs `SET null` is the correct approach. (5) Report: is the REMOVE pattern already established, and what is the exact Cypher needed for unmark_superseded?
+**Verdict threshold**:
+- FAILURE: neo4j_store.py uses a custom property deletion wrapper or ORM that makes raw REMOVE Cypher incompatible — architectural mismatch requiring >20 LOC
+- WARNING: no REMOVE pattern exists in neo4j_store.py but SET null would work equivalently — 8-line method addition with new Cypher pattern
+- HEALTHY: REMOVE or SET null pattern already exists in neo4j_store.py — unmark_superseded mirrors an established pattern; 8-line addition with symmetric test
+
+**Derived from**: Q21.4 HEALTHY — "Neo4j side requires a corresponding neo4j.unmark_superseded() helper"; Q21.4 open follow-up: "Is there any existing neo4j_store method close to the needed REMOVE m.superseded_by?"
+
+---
+
+## Q22.6 [DOMAIN-5] Reconcile repair response — post-repair state visibility for operators
+**Status**: DONE
+**Mode**: static-analysis
+**Target**: `src/api/routes/ops.py` — `reconcile_stores()` response construction after repair=true
+**Hypothesis**: Q21.2 found that the repair=true response shows pre-repair scan state (`importance_mismatches: 2` in the response even though repairs were applied and post-repair state is 0 mismatches). An operator reading this response would think repair failed. The fix is to either: (a) run a second scan after repairs and return the post-repair counts alongside the pre-repair counts, or (b) add explicit `pre_repair_mismatches` and `post_repair_mismatches` fields to the response dict. The question is: what is the current response construction pattern in `reconcile_stores()`, and how many lines are needed to add post-repair visibility?
+**Test**: (1) Read `ops.py:reconcile_stores()` — identify where the response dict is constructed. (2) Determine whether the response is built incrementally during scanning (pre-repair values baked in) or built at the end from accumulated results (easier to augment). (3) Estimate LOC needed for option (a) — re-run the scan loop after repair and include both counts. (4) Estimate LOC needed for option (b) — rename existing fields and add post-repair fields without re-scanning. (5) Report: which option is simpler, LOC estimate, and whether re-scanning has performance concerns (double reconcile scan time).
+**Verdict threshold**:
+- FAILURE: response is constructed inline during the scan loop with no clear separation between scan and repair — adding post-repair visibility requires refactoring the scan/repair separation (>30 LOC)
+- WARNING: response is built at the end but re-scanning doubles the reconcile time (2x Qdrant+Neo4j scans) — option (b) is preferred but requires careful field renaming
+- HEALTHY: response is built from variables that can be captured pre-repair and post-repair with ≤10 LOC — either option is a trivial addition
+
+**Derived from**: Q21.2 HEALTHY — "repair=true response shows pre-repair scan state even for repair=true — misleading but functionally benign"; Q21.2 open follow-up: "Should the reconcile endpoint run a second scan after applying repairs and return the post-repair counts?"
+
+---
+
+## Q22.7 [DOMAIN-1] Decay user_id audit gap — after adding user_id to the decay audit INSERT, can existing processed=0 entries be backfilled?
+**Status**: DONE
+**Mode**: static-analysis
+**Target**: `src/workers/decay.py` — `_log_decay_audit()` function; PostgreSQL `audit_log` table schema
+**Hypothesis**: Q21.5 identified that `_log_decay_audit()` does not populate the `user_id` column, making ghost user identification impossible from the audit log. The fix is to pass `user_id` to the INSERT. However, there are ~28 processed=0 entries per day already in the audit_log (7 ghost users x 4 runs/day). These historical entries have `user_id=NULL`. The question is: (a) does `_log_decay_audit()` receive the user_id as a parameter or only the aggregate stats dict, (b) does the `audit_log` table have a `user_id` column (or is it embedded in the `details` JSON), and (c) can historical processed=0 entries be retroactively identified by correlating timestamps with `get_distinct_user_ids()` output ordering (if the decay loop processes users in a deterministic order)?
+**Test**: (1) Read `decay.py:_log_decay_audit()` — what parameters does it accept? Does it have access to the current user_id? (2) Read the `audit_log` schema (via postgres_store.py or migration files) — does a `user_id` column exist? (3) Read `decay.py:run_decay_all_users()` — is _log_decay_audit called inside the per-user loop (user_id available) or after the loop (user_id lost)? (4) If _log_decay_audit is called after the loop, the fix requires moving the audit call inside the loop OR passing user_id as a parameter. Estimate LOC. (5) Report: feasibility, LOC, and whether historical backfill is possible.
+**Verdict threshold**:
+- FAILURE: _log_decay_audit is called once per cron invocation (after all users processed) with aggregate stats only — per-user audit requires restructuring the decay loop (>20 LOC change)
+- WARNING: _log_decay_audit is called per-user but user_id is not passed — adding the parameter is straightforward but historical entries cannot be backfilled
+- HEALTHY: _log_decay_audit is called per-user AND already receives user_id (or can trivially accept it) — fix is ≤5 LOC; historical entries identifiable by deterministic processing order
+
+**Derived from**: Q21.5 WARNING — "audit log lacks user_id field making ghost identity unresolvable without Qdrant direct query"; Q21.5 fix recommendation: "add user_id to the audit entry INSERT"
+
+---
+
+## Q22.8 [DOMAIN-4] Causal extractor superseded access — what fraction of causal edges are created from superseded vs active candidates?
+**Status**: DONE
+**Mode**: observability
+**Target**: `src/core/causal_extractor.py:128` — the `include_superseded=True` search call; Neo4j CAUSAL_PRECEDES edges
+**Hypothesis**: Q21.3 identified `causal_extractor.py:128` as the only live production path accessing superseded memories. The GC safety argument rests on the claim that "memories superseded ≥30 days ago are unlikely to be semantically relevant to current store operations." This claim is untested. If a significant fraction (>20%) of CAUSAL_PRECEDES edges in Neo4j link to superseded source memories, then GC at 30 days would retroactively orphan those edges (the source node would be deleted from Qdrant but the Neo4j edge would remain pointing to a non-existent vector). If the fraction is low (<5%), the 30-day threshold is empirically validated as safe. A direct Neo4j query counting CAUSAL_PRECEDES edges where the source memory is superseded would answer this.
+**Test**: (1) Query Neo4j: `MATCH (a:Memory)-[:CAUSAL_PRECEDES]->(b:Memory) WHERE a.superseded_by IS NOT NULL RETURN count(*) AS superseded_source_edges`. (2) Query Neo4j: `MATCH (a:Memory)-[:CAUSAL_PRECEDES]->(b:Memory) RETURN count(*) AS total_causal_edges`. (3) Compute fraction = superseded_source_edges / total_causal_edges. (4) For superseded source edges, check: is the superseded source's successor (a.superseded_by) ALSO linked via CAUSAL_PRECEDES to the same target? If yes, the causal relationship is already captured via the successor — edge orphaning has no information loss. (5) Report: fraction, successor coverage rate, and whether 30-day GC would cause causal edge orphaning with information loss.
+**Verdict threshold**:
+- FAILURE: >20% of CAUSAL_PRECEDES edges have superseded sources AND <50% of those have successor-equivalent edges — GC would cause significant causal knowledge loss
+- WARNING: 5-20% of edges have superseded sources OR successor coverage is 50-90% — GC safe but some causal edges would be orphaned; Neo4j DETACH DELETE handles this but information is lost
+- HEALTHY: <5% of edges have superseded sources OR >90% successor coverage — 30-day GC threshold empirically validated as safe for causal knowledge preservation
+
+**Derived from**: Q21.3 WARNING — "causal_extractor queries superseded memories with include_superseded=True during every new memory store"; Q21.3 GC safety argument is time-bounded but not empirically measured
+
+## Q22.9 [DOMAIN-5] Corpus state anomaly — what event occurred between 2026-03-14T18:15 and 2026-03-15T00:16 UTC causing 521 importance mismatches and primary user (user_id=2) to disappear from the decay loop?
+**Status**: DONE
+**Mode**: observability
+**Target**: audit_log (all action types), reconcile results, decay slot data for 2026-03-15
+**Hypothesis**: Between the 18:15 slot (10 decay entries with primary user ~5693) and the 00:16 slot (8 entries, no primary user), a significant corpus event occurred: (a) importance mismatches rose from 0 (post-Q21.2 repair) to 521, (b) primary user's decay loop entries dropped from [5693, 5693] to [absent], (c) an isolated single-entry decay slot at 00:01 fired 14 minutes early with processed=5749. The most likely trigger is a large consolidation wave that superseded most or all of the primary user's ~5,749 active memories, creating 507 new superseded entries (confirmed in Q22.3 audit data for 0–2 day bucket) and causing the importance mismatch count to spike (newly-consolidated memories have Qdrant importance unchanged but Neo4j importance set to 0.0 by mark_superseded — this is the exact neo4j.mark_superseded() vestigial importance=0.0 bug from Q21.1). The question is: what triggered the consolidation wave, what is the current active corpus size for user_id=2, and how many of the 521 mismatches are attributable to this event?
+**Test**: (1) Query audit log for consolidate events between 2026-03-14T18:00 and 2026-03-15T01:00 UTC — count them and note timestamps. (2) Run reconcile dry-run to get current totals and mismatch count. (3) Check audit log for any `session_end`, `store`, or other bulk operations in the anomaly window. (4) Read Neo4j or Qdrant stats for user_id=2 current active memory count (if accessible via admin API). (5) Hypothesis validation: if the 521 mismatches are neo4j=0.0/qdrant>0 pairs from newly-superseded memories, this is the Q21.1 vestigial importance=0.0 bug manifesting at scale.
+**Verdict threshold**:
+- FAILURE: the corpus anomaly caused data loss — active memories were deleted (not superseded), reducing the total corpus size below the expected baseline
+- WARNING: large consolidation wave occurred, 521 mismatches are all attributable to neo4j.mark_superseded() vestigial importance=0.0 bug (Q21.1) — confirms Q21.1 is a recurring production issue, not a theoretical concern
+- HEALTHY: the 521 mismatches have a different root cause unrelated to mark_superseded(); primary user data is intact as a new consolidated form
+
+**Derived from**: Q22.2 WARNING — "521 importance mismatches re-appeared, primary user user_id=2 absent from decay loop"; Q21.1 HEALTHY — "importance=0.0 in neo4j.mark_superseded is vestigial but creates mismatch pattern on every supersedure event"
