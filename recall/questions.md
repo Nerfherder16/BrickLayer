@@ -2560,3 +2560,121 @@ findings that have not yet been asked.
 - HEALTHY: Pool growing at ~796/day; total consistent with active + superseded accounting; 0 GC-eligible (before 2026-03-21T19:12)
 **Priority**: Tier 2 -- pre-condition verification for Q28.4 re-verify on 2026-03-21
 **Derived from**: Q28.4 INCONCLUSIVE; Q27.2 WARNING (superseded 15,130; GC-eligible date 2026-03-21T19:12 UTC)
+
+---
+
+## Wave 30 Questions
+
+---
+
+## Q30.1 [DOMAIN-1] Hygiene first archival CONFIRMED or FAILED? -- did the 2026-03-16T04:00 UTC cron fire? (5th attempt; escalation trigger)
+**Status**: PENDING
+**Wave**: 30
+**Mode**: observability
+**Target**: GET /admin/audit?action=auto_archive&limit=20; active corpus count vs 6,017 baseline
+**Hypothesis**: Q29.1 was INCONCLUSIVE (4th consecutive) -- 0 auto_archive entries at 2026-03-15T10:35 UTC, ~17.4h before the target. This is the 5th attempt. Per Q29.1 verdict threshold: if current time is AFTER 2026-03-16T04:00 UTC and auto_archive count is still 0, escalate to FAILURE. Wave 30 is the first wave that CAN achieve a non-INCONCLUSIVE verdict on hygiene first archival.
+**What to measure**: (1) GET /admin/audit?action=auto_archive&limit=100 -- count >0? (2) If yes: report timestamps (match 04:00 UTC slot), details.archived, importance distribution; active corpus count vs 6,017. (3) If still 0 AND current time > 2026-03-16T04:00 UTC: FAILURE -- hygiene cron not firing or age filter wrong. (4) If still 0 AND current time < 2026-03-16T04:00 UTC: INCONCLUSIVE (5th) -- still timing-blocked.
+**Verdict threshold**:
+- FAILURE: 0 entries AND current time > 2026-03-16T04:00 UTC (hygiene cron broken; age filter misconfigured; audit instrumentation missing)
+- INCONCLUSIVE: Current time still before 2026-03-16T04:00 UTC (5th consecutive -- should not happen in Wave 30)
+- WARNING: Entries present but count much larger than ~2 (>20 for first batch -- Q27.7 age projection wrong)
+- HEALTHY: 1-5 entries consistent with Q27.7 ~2 projection; timing matches 04:00 UTC slot; active corpus decreased
+**Priority**: TIME-SENSITIVE -- CRITICAL ESCALATION POINT; first wave that can confirm FAILURE if cron is broken
+**Derived from**: Q29.1 INCONCLUSIVE (4th consecutive); Q27.7 WARNING (first batch 2 memories)
+
+---
+
+## Q30.2 [DOMAIN-1] Double-decay fix deployment check (Wave 30) -- is Q22.1 finally deployed? (19th attempt)
+**Status**: PENDING
+**Wave**: 30
+**Mode**: static code analysis + observability
+**Target**: src/storage/qdrant.py:114 _user_conditions(); GET /admin/audit?action=decay_run&limit=10
+**Hypothesis**: Q29.2 confirmed _user_conditions(None) returns [] (18th consecutive FAILURE). Wave 30 is the 19th consecutive mandatory deployment check. The 941 floor-clamped count (Q29.6 FAILURE) provides new urgency -- every wave the fix is undeployed, floor-clamped accumulation continues.
+**What to measure**: (1) Read qdrant.py:106-114 -- is _user_conditions(None) still returning []? (2) GET /admin/audit?action=decay_run&limit=10 -- check details.processed: still 6,002 per slot (FAILURE) or reduced? (3) If deployed: re-run Q29.6 floor-clamped count -- has 941 stabilized or begun declining?
+**Verdict threshold**:
+- FAILURE: _user_conditions(None) returns []; 19th consecutive FAILURE
+- WARNING: Fix deployed in code but only 1 observable slot; or partial fix
+- HEALTHY: _user_conditions(None) returns non-empty filter; single-pass per slot confirmed
+**Priority**: MANDATORY -- run before any other Wave 30 analysis
+**Derived from**: Q29.2 FAILURE (18th consecutive); Q29.6 FAILURE (floor-clamped 941 directly linked)
+
+---
+
+## Q30.3 [DOMAIN-5] Importance mismatch trend -- are the 179 Qdrant vs Neo4j mismatches growing, stable, or shrinking?
+**Status**: PENDING
+**Wave**: 30
+**Mode**: observability
+**Target**: POST /admin/reconcile; importance_mismatches field; compare to Q29.7 baseline of 179
+**Hypothesis**: Q29.5 and Q29.7 both surfaced a new anomaly: 179 memories have importance stored in Qdrant but Neo4j reports 0.0. The reconcile endpoint detects these but repairs_applied=0 (does not auto-repair). Without audit logging (Q29.5 FAILURE), historical trend is unknowable. Wave 30 can establish whether this count is growing, stable, or shrinking.
+**What to measure**: (1) POST /admin/reconcile -- record importance_mismatches count. (2) Compare to Q29.7 baseline of 179: growing/stable/shrinking? (3) Are any of the 179 mismatch IDs the same as prior waves (stable set) or all new? (4) Cross-check: do these 179 memories appear in active export with non-zero importance? (5) Is there a repair mechanism that should be fixing these automatically?
+**Verdict threshold**:
+- FAILURE: importance_mismatches > 200 (growing; active defect creating new mismatches faster than repair)
+- WARNING: 150-200 mismatches (stable or slow growth; historical artifact)
+- HEALTHY: < 50 mismatches (shrinking; self-healing mechanism exists or manual repair ran)
+**Priority**: Tier 2 -- new anomaly from Q29.5/Q29.7; baseline needed for trend analysis
+**Derived from**: Q29.5 FAILURE (new: 179 mismatches detected, repairs_applied=0); Q29.7 WARNING (same anomaly)
+
+---
+
+## Q30.4 [DOMAIN-4] Consolidation user_id fix deployment re-check (6th attempt) -- has consolidation.py:235 been fixed?
+**Status**: PENDING
+**Wave**: 30
+**Mode**: static code analysis
+**Target**: src/core/consolidation.py:235 Memory() constructor; src/storage/qdrant.py:1143 get_distinct_user_ids()
+**Hypothesis**: Q29.4 (5th consecutive FAILURE) confirmed both fixes still absent. Wave 30 is the 6th verification attempt. Q29.6 FAILURE (941 floor-clamped, consolidation source 7->375) provides direct measurement of the bug impact.
+**What to measure**: (1) Read consolidation.py:235-249 -- is user_id= now present in Memory() constructor? (2) Read qdrant.py:1143-1162 -- does get_distinct_user_ids() now have IS NULL filter? (3) If either fix deployed: run floor-clamped count analysis (Q29.6 methodology) -- is consolidation-source count stabilizing?
+**Verdict threshold**:
+- FAILURE: consolidation.py:235 still missing user_id=; qdrant.py:1143 still lacks IS NULL filter; 6th consecutive FAILURE
+- WARNING: One fix deployed but not both
+- HEALTHY: Both fixes deployed; new merged memories have user_id
+**Priority**: Tier 1 -- 6th consecutive wave; direct link to Q30.6 floor-clamped count
+**Derived from**: Q29.4 FAILURE (5th consecutive); Q29.6 FAILURE (941 floor-clamped, consolidation spike 7->375)
+
+---
+
+## Q30.5 [DOMAIN-5] Reconcile audit fix deployment re-check (6th attempt) -- has log_audit() been added to reconcile.py and ops.py?
+**Status**: PENDING
+**Wave**: 30
+**Mode**: static code analysis + observability
+**Target**: src/workers/reconcile.py; src/api/routes/ops.py; GET /admin/audit?action=reconcile&limit=10
+**Hypothesis**: Q29.5 (5th consecutive FAILURE) confirmed 0 log_audit() calls. Wave 30 is the 6th verification attempt. New urgency: without audit logging, the 179 importance mismatch trend (Q30.3) cannot be tracked over time.
+**What to measure**: (1) Read reconcile.py -- is log_audit() present? (2) Read ops.py -- is log_audit() present? (3) POST /admin/reconcile then GET /admin/audit?action=reconcile&limit=10 -- count >0? (4) If deployed: check if reconcile entries include importance_mismatches count -- enabling Q30.3 trend analysis automatically.
+**Verdict threshold**:
+- FAILURE: 0 log_audit() in reconcile.py/ops.py; 0 reconcile audit entries; 6th consecutive FAILURE
+- WARNING: log_audit() in one file but not both
+- HEALTHY: Both files have log_audit(); at least 1 reconcile audit entry with mismatch counts
+**Priority**: Tier 1b -- 9-LOC fix; 6th consecutive wave; blocks Q30.3 trend analysis
+**Derived from**: Q29.5 FAILURE (5th consecutive); 179 importance_mismatches need audit trail for trend analysis
+
+---
+
+## Q30.6 [DOMAIN-1] Floor-clamped count trajectory -- has 941 (Q29.6 FAILURE) grown further or stabilized?
+**Status**: PENDING
+**Wave**: 30
+**Mode**: quantitative analysis
+**Target**: Active memories with importance <= 0.051 and access_count=0; compare to Q29.6 baseline of 941
+**Hypothesis**: Q29.6 measured 941 floor-clamped (FAILURE threshold 800). If Q30.2 confirms double-decay still active and Q30.4 confirms consolidation user_id fix still absent, the count should be growing. If hygiene first archival fired (Q30.1), some of the oldest floor-clamped members may have been archived, potentially reducing the count.
+**What to measure**: (1) Download admin/export and count importance<=0.051 by source (same Q29.6 methodology). (2) Compare to Q29.6: system=547, consolidation=375, pattern=16, user=3, total=941. (3) Cross-check: if Q30.1 confirms hygiene fired, how many floor-clamped memories were archived? (4) Identify if consolidation-source count (375) is still growing.
+**Verdict threshold**:
+- FAILURE: Floor-clamped count > 941 (still growing; no fixes deployed, no hygiene archival reducing it)
+- WARNING: Count 800-941 (hygiene beginning to offset new accumulation; or growth slowing)
+- HEALTHY: Count < 800 (fixes deployed and/or hygiene archival significantly reducing accumulation)
+**Priority**: Tier 2 -- direct compound damage measurement; depends on Q30.1/Q30.2/Q30.4 status
+**Derived from**: Q29.6 FAILURE (941 vs 673 Q27.4 baseline); Q30.1 hygiene archival timing
+
+---
+
+## Q30.7 [DOMAIN-3] GC-eligible cohort size at 2026-03-21T19:12 UTC -- has the first GC run fired? (Q28.4 re-verify)
+**Status**: PENDING
+**Wave**: 30
+**Mode**: observability
+**Target**: POST /admin/reconcile (superseded count); GET /admin/audit?action=gc_run&limit=10; Qdrant total points
+**Hypothesis**: Q28.4 was INCONCLUSIVE -- GC eligibility date 2026-03-21T19:12 UTC was 6 days away. Q29.7 confirmed superseded pool at 15,185. If Wave 30 runs on or after 2026-03-21T19:12, the first GC-eligible cohort has arrived. Q21.3 noted no automated GC cron exists; the eligible pool may accumulate without removal.
+**What to measure**: (1) Current time: is it after 2026-03-21T19:12 UTC? If not, INCONCLUSIVE. (2) If after: GET /admin/audit?action=gc_run&limit=10 -- has any GC run? (3) POST /admin/reconcile -- superseded count vs 15,185 Q29.7 baseline; has it decreased (GC fired) or increased (no GC)? (4) Estimate GC-eligible pool: superseded memories with updated_at < (now - 30d). (5) If 0 gc_run audit entries: confirm no automated GC cron exists; quantify the eligible-but-undeleted backlog.
+**Verdict threshold**:
+- FAILURE: 0 gc_run entries AND GC-eligible pool > 0 after 2026-03-21T19:12 UTC (no GC scheduled; backlog growing)
+- WARNING: GC eligible pool present but small (<100); gc_run entries present (manual GC ran)
+- HEALTHY: gc_run entries present; superseded count decreased; eligibility window working as expected
+- INCONCLUSIVE: Current time before 2026-03-21T19:12 UTC
+**Priority**: Tier 2 -- time-gated; run on/after 2026-03-21T19:12 UTC
+**Derived from**: Q28.4 INCONCLUSIVE; Q29.7 WARNING (superseded 15,185); Q21.3 WARNING (no GC cron)
