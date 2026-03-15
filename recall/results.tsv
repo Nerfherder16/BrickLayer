@@ -167,3 +167,12 @@ Q30.4	30	DOMAIN-4	FAILURE	Consolidation user_id fix FAILURE 6th consecutive; Mem
 Q30.5	30	DOMAIN-5	FAILURE	Reconcile audit fix FAILURE 6th consecutive; 0 log_audit() in reconcile.py/ops.py; 0 reconcile audit entries; Q30.3 trend limited to manual per-wave sampling
 Q30.6	30	DOMAIN-1	WARNING	Floor-clamped count stable at 941/6044 (15.6%; delta=0 from Q29.6); growth arrested in 79-minute same-day window; within 800-941 WARNING range; fixes still absent
 Q30.7	30	DOMAIN-3	INCONCLUSIVE	GC eligibility 6d 8h 18m away (2026-03-21T19:12 UTC); gc_run=0; superseded pool 15184 (-1 from Q29.7; flat); no automated GC cron; Wave 31 verdict-capable
+Q23.6	DOMAIN-5	WARNING	Per-supersedure audit logging exists; user_id null; 26/1000 duplicate memory_ids from Q22.1 double-processing	2026-03-15T13:45:00Z
+Q27.1	DOMAIN-1	INCONCLUSIVE	Hygiene archival timing-blocked; 1d 14h before 2026-03-17T04:00 UTC; auto_archive=0; hygiene_run=0	2026-03-15T13:46:00Z
+Q31.1	DOMAIN-2	FAILURE	Hygiene cron broken 7th+ consecutive; hygiene_run=0; archive=0; 2026-03-15T04:00 window passed with no entries	2026-03-15T13:46:00Z
+Q31.2	DOMAIN-1	FAILURE	Double-decay fix not deployed (20th consecutive); system pass processed=5994/6048 (99.1%); fix would halve to ~3024	2026-03-15T13:46:00Z
+Q31.3	DOMAIN-1	FAILURE	Floor-clamped 1049/6048 (17.3%); +108 from Q30.6 baseline 941; consolidation +74 in 3 hours; all fixes undeployed	2026-03-15T13:50:00Z
+Q31.4	DOMAIN-3	FAILURE	Reconcile audit 7th consecutive FAILURE; reconcile_run=0 after manual trigger; fix not deployed	2026-03-15T13:46:00Z
+Q31.5	DOMAIN-3	FAILURE	Importance mismatches grew 179->264 (+85, +47%); mark_superseded fix undeployed; reconcile cron broken	2026-03-15T13:46:00Z
+Q31.6	DOMAIN-3	INCONCLUSIVE	GC eligibility 6d 5h away; gc_run=0; superseded pool ~15275 (+91 from Q30.7); before 2026-03-21T19:12 UTC	2026-03-15T13:46:00Z
+Q31.7	DOMAIN-4	FAILURE	LLM timeout tiers not deployed; 15/18 generate() callsites missing timeout=; 83.3% unprotected against 180s hangs	2026-03-15T13:46:00Z

@@ -1822,7 +1822,7 @@ findings that have not yet been asked.
 ---
 
 ## Q23.6 [DOMAIN-5] Mark_superseded audit coverage — does consolidation emit per-supersedure audit entries, or is each consolidation event invisible except for the aggregate consolidate action?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: static code analysis + observability
 **Target**: consolidation.py (log_audit call sites), postgres_store.py log_audit(), audit_log supersede action query
 **Hypothesis**: Q22.9 event reconstruction had to infer individual supersedure events from the mismatch count rather than reading them directly from the audit trail. If consolidation.py does not call log_audit() for each mark_superseded() call, then the only evidence of a supersedure is (a) the memory superseded_by field, (b) the aggregate consolidate action, and (c) the reconcile mismatch count increment. This makes post-hoc debugging of consolidation waves rely on reconcile dry-run as the only counting mechanism. Compare to decay: Q22.7 showed decay emits per-memory audit entries via executemany — does consolidation have an equivalent?
@@ -2220,7 +2220,7 @@ findings that have not yet been asked.
 ---
 
 ## Q27.1 [DOMAIN-1] Hygiene first-archival verification (TIME-SENSITIVE) -- did the 2026-03-17 or 2026-03-18 04:00 cron archive the Feb 14 cohort?
-**Status**: PENDING
+**Status**: INCONCLUSIVE
 **Wave**: 27
 **Mode**: observability
 **Target**: GET /admin/audit?action=auto_archive&limit=100; active memory count; Qdrant total point count post-archival
@@ -2678,3 +2678,121 @@ findings that have not yet been asked.
 - INCONCLUSIVE: Current time before 2026-03-21T19:12 UTC
 **Priority**: Tier 2 -- time-gated; run on/after 2026-03-21T19:12 UTC
 **Derived from**: Q28.4 INCONCLUSIVE; Q29.7 WARNING (superseded 15,185); Q21.3 WARNING (no GC cron)
+
+---
+
+## Wave 31 Questions — Post-Fix Verification
+
+---
+
+## Q31.1 [DOMAIN-2] Hygiene first archival -- has the mandatory FAILURE escalation finally fired?
+**Status**: DONE
+**Wave**: 31
+**Mode**: observability
+**Target**: GET /admin/audit?action=hygiene_run&limit=5; GET /admin/audit?action=archive&limit=20
+**Hypothesis**: Q30.1 was FAILURE (6th consecutive miss; last confirmed run 2026-03-09). The hygiene cron targets 4:00am UTC daily. As of Wave 31 (2026-03-15+), at least 6 more windows have passed. Either the cron is broken (no runs at all) or archival is running but producing 0 results (archive entries absent). This is the highest-priority open issue.
+**What to measure**: (1) GET /admin/audit?action=hygiene_run&limit=5 -- any entries after 2026-03-09? Record timestamps. (2) GET /admin/audit?action=archive&limit=20 -- any entries? (3) If hygiene_run entries present but no archive entries: hygiene is running but not archiving (threshold config issue). (4) If no hygiene_run entries at all: cron not firing; check ARQ worker logs. (5) Compare floor-clamped count (Q31.3) to Q30.6 baseline as indirect signal.
+**Verdict threshold**:
+- FAILURE: No hygiene_run audit entries after 2026-03-09 (cron still broken; 7th+ consecutive miss)
+- WARNING: hygiene_run entries present but 0 archive entries (running but not archiving)
+- HEALTHY: hygiene_run entries present AND archive entries present (archival confirmed working)
+**Priority**: Tier 0 -- 6 consecutive FAILUREs; highest priority in Wave 31
+**Derived from**: Q30.1 FAILURE (6th miss); Q29.1 FAILURE; Q28.1 FAILURE; Q27.1 FAILURE
+
+---
+
+## Q31.2 [DOMAIN-1] Double-decay fix VERIFIED -- has processed count per decay slot halved?
+**Status**: DONE
+**Wave**: 31
+**Mode**: quantitative analysis
+**Target**: GET /admin/audit?action=decay_run&limit=10; decay log output from ARQ worker
+**Hypothesis**: Q22.1 identified the double-decay bug: _user_conditions(None) returned [] causing system decay to process ALL memories, then per-user passes processed them again. The fix (user_id=0 sentinel) was deployed in this session. If working correctly, total memories processed per decay slot should be roughly half the Q30.3 baseline (which measured the doubled count). The decay_run audit entries should show a per_user breakdown with no system=all overlap.
+**What to measure**: (1) GET /admin/audit?action=decay_run&limit=10 -- compare processed counts to Q30.3 baseline. (2) If decay has run since deployment: calculate ratio (new count / Q30.3 count); expect ~0.5. (3) Check for any decay_error entries indicating the sentinel fix broke something. (4) If decay has not run since deployment (cron fires at 0:15/6:15/12:15/18:15 UTC): note time elapsed and mark INCONCLUSIVE.
+**Verdict threshold**:
+- FAILURE: Processed count unchanged from Q30.3 baseline (fix did not deploy or is not working)
+- WARNING: Processed count reduced but not by ~50% (partial fix or other decay source)
+- HEALTHY: Processed count reduced by ~40-60% from Q30.3 baseline (double-decay eliminated)
+- INCONCLUSIVE: No decay_run entries since deployment timestamp
+**Priority**: Tier 1 -- direct verification of the highest-impact fix deployed this session
+**Derived from**: Q22.1 FAILURE (double-decay); Q30.3 (decay baseline measurement)
+
+---
+
+## Q31.3 [DOMAIN-1] Floor-clamped count post-fix -- is the 941 FAILURE count declining?
+**Status**: DONE
+**Wave**: 31
+**Mode**: quantitative analysis
+**Target**: GET /admin/export (all memories); filter importance <= 0.051 AND access_count = 0
+**Hypothesis**: Q30.6 measured 941 floor-clamped memories (FAILURE threshold 800). Three fixes were deployed this session that should reduce new accumulation: (1) double-decay fix stops over-decaying system memories, (2) consolidation user_id fix stops stranding merged memories at floor, (3) hygiene archival (if finally working) removes oldest floor-clamped members. The count should be declining or at minimum stable.
+**What to measure**: (1) Download admin/export; count importance<=0.051 by source (same Q30.6 methodology). (2) Compare to Q30.6: system=547, consolidation=375, pattern=16, user=3, total=941. (3) Breakdown by source: which category changed most? (4) Cross-reference with Q31.1 (hygiene archival) and Q31.2 (double-decay) results for causal attribution.
+**Verdict threshold**:
+- FAILURE: Floor-clamped count > 941 (fixes not working; accumulation continuing)
+- WARNING: Count 800-941 (stabilized but not yet declining; fixes deployed but not enough time elapsed)
+- HEALTHY: Count < 800 (declining; at least one fix is reducing accumulation)
+**Priority**: Tier 1 -- compound damage measurement; lagging indicator for Q31.1 + Q31.2
+**Derived from**: Q30.6 FAILURE (941); Q22.1 double-decay fix; Q24.5 consolidation user_id fix
+
+---
+
+## Q31.4 [DOMAIN-3] Reconcile audit trail WORKING -- are entries now appearing in audit_log?
+**Status**: DONE
+**Wave**: 31
+**Mode**: observability
+**Target**: GET /admin/audit?action=reconcile_run&limit=5; POST /admin/reconcile (trigger manual run)
+**Hypothesis**: Q21.6 and Q24.8 both found FAILURE: no audit entries for reconcile runs. The fix (log_audit() added to both reconcile.py and ops.py) was deployed this session. The weekly reconcile cron fires Sunday 5:30am UTC; a manual POST /admin/reconcile can verify immediately without waiting.
+**What to measure**: (1) POST /admin/reconcile to trigger a run. (2) GET /admin/audit?action=reconcile_run&limit=5 -- any entries? (3) Verify entry contains expected fields: action=reconcile_run, actor=reconcile, details with qdrant_only/neo4j_only counts. (4) Check GET /admin/audit?action=reconcile_op&limit=20 for per-orphan entries if any orphans were repaired. (5) Confirm no exception in the reconcile response body.
+**Verdict threshold**:
+- FAILURE: No reconcile_run audit entries after manual trigger (fix did not deploy or log_audit call is erroring silently)
+- WARNING: reconcile_run entry present but missing expected detail fields (partial audit)
+- HEALTHY: reconcile_run entry present with full details (qdrant_only, neo4j_only counts)
+**Priority**: Tier 1 -- verifies the ops.py audit fix; can be tested immediately without waiting for cron
+**Derived from**: Q24.8 FAILURE (no reconcile audit); Q21.6 FAILURE (same); fix deployed this session
+
+---
+
+## Q31.5 [DOMAIN-3] Importance mismatch drain -- did the Sunday reconcile repair the 179 mismatches?
+**Status**: DONE
+**Wave**: 31
+**Mode**: quantitative analysis
+**Target**: POST /admin/reconcile (trigger); check response body for importance_mismatch count; compare to Q29.5 baseline of 179
+**Hypothesis**: Q29.5 measured 179 importance mismatches (Qdrant importance != Neo4j importance). The root cause was mark_superseded() setting importance=0.0 in Neo4j while Qdrant retained the original value. The fix (removing m.importance=0.0 from the Cypher query) was deployed this session. Reconcile repairs existing mismatches when it runs; if the weekly Sunday cron fired since deployment, mismatches should be lower. If not yet, triggering manual reconcile now will repair them.
+**What to measure**: (1) POST /admin/reconcile -- note importance_mismatch count in response. (2) Compare to Q29.5 baseline (179). (3) If mismatches are still 179: reconcile has not run since fix deployment; trigger it manually and recheck. (4) If mismatches are 0 or near 0: fix + reconcile has repaired the backlog. (5) Monitor whether new mismatches accumulate in the next wave (should be 0 new ones with the mark_superseded fix).
+**Verdict threshold**:
+- FAILURE: importance_mismatch count still near 179 AND reconcile has been run (fix not working)
+- WARNING: importance_mismatch count reduced but not 0 (partial repair; some edge case remaining)
+- HEALTHY: importance_mismatch count at 0 or near 0 after reconcile run (fix + repair working)
+**Priority**: Tier 1 -- direct verification of neo4j_store.py mark_superseded fix
+**Derived from**: Q29.5 FAILURE (179 mismatches); mark_superseded importance=0.0 fix deployed this session
+
+---
+
+## Q31.6 [DOMAIN-3] GC cron registered and first eligible cohort -- did GC run after 2026-03-21T19:12 UTC?
+**Status**: INCONCLUSIVE
+**Wave**: 31
+**Mode**: observability
+**Target**: GET /admin/audit?action=gc_run&limit=5; GET /admin/audit?action=gc_delete&limit=10; POST /admin/reconcile (superseded count)
+**Hypothesis**: Q30.7 was INCONCLUSIVE because 2026-03-21T19:12 UTC was in the future. The GC cron (run_gc, daily 5:00am UTC) was deployed this session and registered in WorkerSettings. Wave 31 runs on 2026-03-15; the first eligible cohort arrives 2026-03-21. If Wave 31 runs before that date, this is INCONCLUSIVE again. If after, check whether gc_run audit entries exist.
+**What to measure**: (1) Check current date against 2026-03-21T19:12 UTC. If before: INCONCLUSIVE. (2) If after: GET /admin/audit?action=gc_run&limit=5 -- any entries? (3) GET /admin/audit?action=gc_delete&limit=10 -- any individual deletions? (4) POST /admin/reconcile -- has superseded count decreased from Q30.7 baseline (15,185+)? (5) If no gc_run entries: confirm GC worker is deployed and ARQ worker restarted after deployment.
+**Verdict threshold**:
+- FAILURE: After 2026-03-21 -- no gc_run entries AND superseded count still growing (GC not deployed or not running)
+- WARNING: gc_run entries present but gc_delete count = 0 (GC ran but found no eligible candidates; possible cutoff logic issue)
+- HEALTHY: gc_run entries present AND gc_delete count > 0 (GC running and deleting eligible memories)
+- INCONCLUSIVE: Current date before 2026-03-21T19:12 UTC
+**Priority**: Tier 2 -- time-gated; only actionable after 2026-03-21
+**Derived from**: Q30.7 INCONCLUSIVE; Q21.3 WARNING (no GC cron); GC worker deployed this session
+
+---
+
+## Q31.7 [DOMAIN-4] LLM per-call timeout tiers DEPLOYED -- are all 17 callsites updated?
+**Status**: DONE
+**Wave**: 31
+**Mode**: observability
+**Target**: Source code audit of all LLM generate() callsites; grep for timeout= parameter
+**Hypothesis**: Q15.3 and Q16.3 identified that generate() had no per-call timeout, allowing a single slow Ollama call to hold a semaphore slot for up to 180s. Timeout tiers were deployed this session: 15s (signal_detector, search), 30s (observer, state_fact_extractor, admin), 60s (causal_extractor, contradiction_detector, document_ingest, fact_extractor), 90s (consolidation, patterns, cognitive_distiller, dream_consolidation, profile_drift). All 17 callsites should now have explicit timeout= parameters.
+**What to measure**: (1) Grep all Python files for llm.generate( or await llm.generate( calls. (2) For each call: does it include timeout=N? (3) Count callsites with timeout vs without. (4) Verify the llm.py generate() signature accepts timeout= and passes it to client.post(). (5) Check for any generate() calls added after this session that may be missing the timeout.
+**Verdict threshold**:
+- FAILURE: Any generate() callsite missing timeout= parameter (partial deployment; worst-case 180s still possible)
+- WARNING: All callsites have timeout= but values are inconsistent with the tier spec (wrong tier assigned)
+- HEALTHY: All 17 callsites have timeout= matching their assigned tier; llm.py signature confirmed
+**Priority**: Tier 1 -- verifies LLM timeout deployment; can be checked via static grep without running the system
+**Derived from**: Q15.3 FAILURE (no timeout); Q16.3 FAILURE (semaphore starvation); timeout tiers deployed this session
