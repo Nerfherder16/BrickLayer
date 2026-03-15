@@ -574,3 +574,121 @@ findings that have not yet been asked.
 
 **Derived from**: Q5.3 (HEALTHY — structured logging confirmed by source read, not test run), Q5.7 (HEALTHY — decay worker test suite written; same pattern not applied to hygiene/dream_consolidation)
 **Simulation path**: test-writer agent reads hygiene.py and dream_consolidation.py, writes tests/workers/test_hygiene.py and tests/workers/test_dream_consolidation.py following the test_decay.py pattern, commits
+
+---
+
+## Wave 13 — Retrieval Health and Coverage (Q13.x)
+
+*Derived from Wave 12 live system observability audit (2026-03-14). These questions probe the gap between what Recall stores and what it actually surfaces.*
+
+---
+
+## Q13.1 [DOMAIN-5] Retrieval coverage rate — why are 86–93% of memories never surfaced?
+**Status**: PENDING
+**Mode**: benchmark
+**Target**: GET /admin/health/distributions + recall_retrieve.js hook
+**Hypothesis**: With 20,536 stored memories but only ~447 injection events, the retrieval coverage rate is 7–14%. Most memories are permanently invisible because: (a) vector search returns top-K from a large pool so low-ranked memories are never selected, (b) the hook's `adaptiveFilter` raises the similarity floor over time, and (c) the hook skips short prompts entirely. The practical effect is that Recall accumulates memories faster than it can serve them, and the oldest/lowest-importance content never re-enters the context window.
+**Test**: Query `/admin/health/distributions` for injection rate. Cross-check `/memories/stats` for total count. Compute coverage = injections_30d / total_memories. Sample 20 memories that have never been retrieved (access_count=0 AND created_at < 30d ago) to assess whether they are genuinely valuable or safely ignorable.
+**Verdict threshold**:
+- FAILURE: coverage rate < 10% AND sampled never-retrieved memories contain ≥5 that are genuinely useful (high-value knowledge being buried)
+- WARNING: coverage rate < 20% but never-retrieved memories are mostly low-value artifacts
+- HEALTHY: coverage rate ≥ 20% OR never-retrieved memories are demonstrably low-value (working as designed)
+
+**Derived from**: Wave 12 live audit — 20,536 memories stored, ~447 injections observed, estimated 7–14% coverage rate
+**Simulation path**: benchmark-engineer fetches stats + samples never-retrieved memories via /search/browse filtered by access_count=0; apply by-design content audit protocol before finalizing verdict
+
+---
+
+## Q13.2 [DOMAIN-1] fact_extraction empty rate — 30.2% of LLM extraction calls return nothing
+**Status**: PENDING
+**Mode**: simulation
+**Target**: observe-edit.js hook → /extract endpoint
+**Hypothesis**: 30.2% of fact_extraction pipeline calls return empty results (no facts extracted). This is wasted Ollama inference (qwen3:14b at ~15s/call). Root causes may be: (a) edits to config/JSON/YAML files where there are no facts to extract, (b) very small diffs below a meaningful content threshold, (c) LLM refusing to extract from non-prose content, or (d) structural prompt mismatch. If category (a)/(b) dominates, a pre-filter on file type or diff size could eliminate the waste without losing coverage.
+**Test**: Pull the last 100 audit_log entries where action='extract' AND result IS NULL or empty. Classify by: file type edited, diff size (chars), content type (code/prose/config). Identify the dominant category. Simulate the impact of adding a pre-filter (e.g., skip if diff_chars < 200 OR file_ext in ['.json','.yaml','.toml','.lock']).
+**Verdict threshold**:
+- FAILURE: > 50% of empty extractions come from edits where facts genuinely exist but were missed (model failure, not pre-filterable)
+- WARNING: 30–50% are pre-filterable but no filter is implemented
+- HEALTHY: ≥ 80% of empty extractions are from pre-filterable content types (config/small diffs); pre-filter recommendation documented
+
+**Derived from**: Wave 12 audit — fact_extraction empty rate 30.2% observed in /admin/health/distributions pipeline stats
+**Simulation path**: quantitative-analyst queries audit_log, classifies empty extractions, tests threshold scenarios in simulate.py
+
+---
+
+## Q13.3 [DOMAIN-5] p95 extraction latency — 15–16 second outliers in the extraction pipeline
+**Status**: PENDING
+**Mode**: benchmark
+**Target**: observe-edit.js → POST /extract (Ollama qwen3:14b)
+**Hypothesis**: The p95 extraction latency of 15–16 seconds is 3–5× the expected inference time for qwen3:14b on an RTX 3090. The outliers are likely caused by: (a) Ollama model cold-start (first inference after idle period loads model to VRAM), (b) context window overflow forcing multi-pass chunking, or (c) RTX 3090 thermal throttling under sustained load. The p50 latency may be acceptable while the p95 creates perceived hook "freezes" for the user.
+**Test**: Analyze the last 200 extract audit_log entries: compute p50/p75/p95/p99 latency. Identify whether outliers cluster at session start (cold-start signature) or are uniformly distributed (thermal/overflow signature). Check if outlier events correlate with large diff sizes (content length > X chars).
+**Verdict threshold**:
+- FAILURE: p95 > 20s OR outliers uniformly distributed (not cold-start, indicating sustained degradation)
+- WARNING: p95 15–20s but outliers cluster at session start (acceptable cold-start behavior)
+- HEALTHY: p95 ≤ 10s OR cold-start confirmed and mitigatable (e.g., Ollama keep_alive setting)
+
+**Derived from**: Wave 12 audit — p95 latency 15–16s observed in /admin/health/distributions pipeline performance
+**Simulation path**: benchmark-engineer queries audit_log for timing data, computes distribution, correlates with content size and time-of-day patterns
+
+---
+
+## Q13.4 [DOMAIN-1] observer supersedure rate — 46.7% of session summaries are over-deduped
+**Status**: PENDING
+**Mode**: correctness
+**Target**: recall-session-summary.js hook → /store deduplication logic
+**Hypothesis**: The observer (session summary) pipeline shows a 46.7% supersedure rate — nearly half of all session summaries are being absorbed/merged into existing memories rather than stored as new entries. Session summaries are high-value durable memories that represent entire work sessions. If they are being collapsed into older memories with different content, recent session context is lost. The question is whether the dedup threshold is too aggressive for session-length content, or whether the summaries genuinely repeat the same topics.
+**Test**: Fetch the last 20 session-summary memories that were superseded (action='store', result='superseded'). Compare the summary content against the memory they were merged into. Assess: (a) is the superseding memory actually semantically equivalent, or just topically similar? (b) What is the similarity score at which supersedure fires for these entries?
+**Verdict threshold**:
+- FAILURE: ≥ 5 of 20 superseded summaries contain unique session-specific facts that were lost (genuine data loss)
+- WARNING: supersedure fires correctly but threshold is borderline (0.85–0.90 cosine) — recent summaries absorb into old ones without updating them
+- HEALTHY: superseded summaries are genuinely redundant with the surviving memory; no unique facts lost
+
+**Derived from**: Wave 12 audit — observer supersedure rate 46.7% observed; concern that high-value session summaries are being aggressively deduplicated
+**Simulation path**: benchmark-engineer fetches superseded session summaries from audit_log, compares content pairs, applies by-design content audit protocol
+
+---
+
+## Q13.5 [DOMAIN-1] corpus/retrieval capacity imbalance — does storing more memories hurt retrieval quality?
+**Status**: PENDING
+**Mode**: simulation
+**Target**: simulate.py — vector search recall degradation model
+**Hypothesis**: Recall stores memories indefinitely (with decay, but the floor prevents deletion). As the corpus grows from 20K → 50K → 100K memories, the top-K vector search returns the same K results but from a larger haystack — the signal-to-noise ratio degrades. A memory that would rank #3 in a 10K corpus might rank #12 in a 100K corpus and fall below the injection threshold. The system has no mechanism to retire truly dead memories (importance = floor, access_count = 0, age > 90d), so the haystack grows monotonically.
+**Test**: Model retrieval precision as a function of corpus size. Assume: fixed top-K=10, target memories have importance~0.6, noise memories have importance~0.2. Sweep corpus sizes 10K / 20K / 50K / 100K / 200K. Compute probability that a target memory ranks in top-5 at each corpus size.
+**Verdict threshold**:
+- FAILURE: model predicts top-5 hit rate drops below 60% before corpus reaches 100K (urgent capacity problem)
+- WARNING: degradation is gradual but meaningful retirement/pruning policy needed before 200K
+- HEALTHY: top-5 hit rate stays above 80% through 200K corpus size (current growth rate not a near-term risk)
+
+**Derived from**: Wave 12 audit — 20,536 stored memories growing monotonically; no memory retirement policy; 7–14% coverage rate already observed
+**Simulation path**: quantitative-analyst models top-K precision degradation in simulate.py; sweep corpus_size parameter from 10K to 200K
+
+---
+
+## Q13.6 [DOMAIN-3] vocabulary mismatch — do domain-specific queries fail to surface relevant memories?
+**Status**: PENDING
+**Mode**: benchmark
+**Target**: POST /search with domain-specific query terms
+**Hypothesis**: Recall's hook extracts "key terms" from conversational prompts and uses them as the search query. When a user asks about "the CasaOS Docker stack" or "the Relay AI project", the stored memories may use different vocabulary ("homelab containers", "AI phone receptionist"). The qwen3-embedding:0.6b model has a compressed similarity range (0.3–0.65), so vocabulary mismatch pushes relevant memories below the injection threshold even when they are semantically related. This would manifest as the retrieval hook returning zero results for specific project queries even though relevant memories exist.
+**Test**: Run 10 targeted queries covering each active project (Recall, FamilyHub, Relay, Bricklayer, media stack). For each: (a) query the API directly and record top-5 results + similarity scores; (b) manually verify whether the returned memories are relevant; (c) test an alternative phrasing and compare results. Measure: hit rate (relevant memory in top-5) and mean similarity of top-1 result per query.
+**Verdict threshold**:
+- FAILURE: < 60% of targeted queries return a relevant memory in top-5 (vocabulary mismatch causing systematic misses)
+- WARNING: 60–80% hit rate but mean top-1 similarity < 0.50 (borderline matches, vulnerable to threshold changes)
+- HEALTHY: ≥ 80% hit rate with mean top-1 similarity ≥ 0.55 (retrieval robust to query phrasing variation)
+
+**Derived from**: Wave 12 audit — qwen3-embedding:0.6b compressed range noted; hook vocabulary extraction identified as potential mismatch source; domain-specific recall gaps suspected
+**Simulation path**: benchmark-engineer runs 10 structured queries against live API (192.168.50.19:8200), records similarity scores, evaluates relevance manually
+
+---
+
+## Q13.7 [DOMAIN-1] signal classifier retraining readiness — is type_cv above 0.75 yet?
+**Status**: PENDING
+**Mode**: benchmark
+**Target**: GET /admin/health (signal_classifier section) + /admin/ml/metrics
+**Hypothesis**: Wave 12 found signal_classifier type_cv=0.6488, below the 0.75 target. The root cause was the audit_log content bug (fixed in commits a70246d + 93711a0). Two weeks of content accumulation were required before retraining would be meaningful. It is now approximately 2+ weeks since the fix. The classifier may be ready for retraining, or the content accumulation may still be insufficient.
+**Test**: Fetch current type_cv from /admin/health or /admin/ml/metrics. Count audit_log entries where action='extract' AND content IS NOT NULL since commit 93711a0 (2026-03-14). If entry count > 500 AND type_cv still < 0.75, trigger retraining and re-measure. Report whether retraining moves type_cv above threshold.
+**Verdict threshold**:
+- FAILURE: type_cv still < 0.65 after retraining attempt (content insufficient or model degraded)
+- WARNING: type_cv 0.65–0.75 after retraining (improvement confirmed but target not yet reached)
+- HEALTHY: type_cv ≥ 0.75 after retraining (target reached; signal classification reliable)
+
+**Derived from**: Wave 12 Q12.4 fix (audit_log content bug) — retrain deferred 2 weeks; Wave 12 closing risk: "Re-train signal classifier after ~2 weeks of content accumulation; verify type_cv > 0.75"
+**Simulation path**: benchmark-engineer checks current metrics, counts accumulated content, triggers retrain if ready, re-measures type_cv
