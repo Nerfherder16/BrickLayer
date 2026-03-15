@@ -847,3 +847,147 @@ findings that have not yet been asked.
 - HEALTHY: Targeted filter available AND tags field has a payload index (O(matching) retrieval)
 
 **Derived from**: Q13.8 FAILURE finding — O(N) scroll_all() identified as secondary performance concern; fix should address both the tag vocabulary mismatch AND the search efficiency
+
+---
+
+## Wave 14 — Verification, Cleanup, and Prerequisite Fixes (Q14.x)
+
+*Derived from Wave 13 findings (2026-03-15). Wave 14 focuses on actionable verification of the three FAILURE-level issues, closing the two INCONCLUSIVE prerequisites, and quantifying newly discovered contamination and dedup problems.*
+
+---
+
+## Q14.1 [DOMAIN-5] Sim-persona residue quantification — how many fake memories remain after the 2026-02-25 bulk delete?
+**Status**: DONE
+**Mode**: benchmark
+**Target**: Qdrant recall_memories — content-based scan of importance ≥ 0.6, access_count = 0
+**Hypothesis**: Q13.1b found 25% of a 20-sample audit were sim-persona residue that escaped the 2026-02-25 bulk deletion (which targeted sim_ username prefixes only). These memories were stored under real usernames with high importance scores (0.61–0.74) because the signal classifier cannot distinguish fictional first-person statements from real user preferences. Extrapolating 25% across the 5,168 high-importance never-retrieved population suggests ~1,292 sim-persona memories remain. A content-based filter using first-person fictional signals ("As [Name]", "In my experience as", "From my work at", persona vocabulary) can identify and count them precisely.
+**Test**: Scroll Qdrant for memories with importance ≥ 0.6 AND access_count = 0. Apply a content-based regex filter for sim-persona markers: first-person fictional introductions, named persona references (Aria Chen, Priya Sharma, etc.), consulting/startup vocabulary patterns. Sample 200 flagged memories to verify the filter's precision (true positive rate). Report: total flagged count, precision of filter, estimated true residue count.
+**Verdict threshold**:
+- FAILURE: ≥1,000 sim-persona memories remain (bulk cleanup required before any retrieval improvement work)
+- WARNING: 200–1,000 remain (cleanup recommended but not blocking)
+- HEALTHY: <200 remain (residue is negligible; 2026-02-25 delete was nearly complete)
+
+**Derived from**: Q13.1b FAILURE finding — 5/20 (25%) of high-importance never-retrieved sample were sim-persona residue; bulk delete missed memories stored without sim_ prefix
+
+---
+
+## Q14.2 [DOMAIN-5] Exploration-based retrieval prototype — does random-walk injection of buried memories improve coverage without degrading session quality?
+**Status**: PENDING
+**Mode**: benchmark
+**Target**: recall-retrieve.js hook + POST /search
+**Hypothesis**: Q13.1b's Priority 1 recommendation is exploration-based retrieval: on every Nth retrieval call, include 2–3 memories sampled from importance ≥ 0.7, access_count = 0 regardless of similarity score. This should surface buried high-value memories but risks injecting irrelevant content that degrades the context window. The key metric is whether the injected memories are topically relevant to the session (>30% term overlap with subsequent prompts) or pure noise.
+**Test**: Simulate exploration injection by: (1) sample 30 memories from importance ≥ 0.7, access_count = 0; (2) for each, retrieve the 5 most recent session prompts from injection_log; (3) compute term overlap between the sampled memory content and those prompts; (4) classify each as relevant (>20% overlap), marginal (10–20%), or noise (<10%). Report: relevance rate, noise rate, and projected coverage improvement if exploration fires every 10th call with 2 memories.
+**Verdict threshold**:
+- FAILURE: >60% of exploration-injected memories would be noise (<10% term overlap) — exploration degrades session quality
+- WARNING: 30–60% noise — exploration helps some sessions but needs filtering (e.g., only inject if importance ≥ 0.8)
+- HEALTHY: <30% noise — exploration is safe to deploy; projected coverage improvement documented
+
+**Derived from**: Q13.1b FAILURE finding — 35% of high-importance never-retrieved memories are genuinely high-value; Priority 1 mitigation is exploration-based retrieval
+
+---
+
+## Q14.3 [DOMAIN-1] Store-time dedup behavior — does supersedure update the surviving memory or silently drop the incoming write?
+**Status**: PENDING
+**Mode**: correctness
+**Target**: POST /store deduplication path — src/core/memory.py + src/core/qdrant.py
+**Hypothesis**: Q13.4a found semantic_dedup_threshold=0.90 and confirmed a false-positive merge (session 14996103 absorbed into de31f553). But the deeper question is: when supersedure fires, does the surviving memory get updated with content from the incoming write (merge/append), or is the incoming write silently dropped? If dropped, the system loses the unique facts from the newer memory. Q13.1b audit item #4 noted that "store-time path drops incoming write, does not create Neo4j edges" — this suggests a drop-not-merge pattern that loses data.
+**Test**: Read the /store dedup code path. Trace what happens when cosine similarity > 0.90: (a) is the incoming memory's content appended/merged into the surviving memory? (b) is the incoming memory's importance compared and the higher value kept? (c) are Neo4j edges created for the relationship? (d) is the audit_log entry created with the incoming content preserved? Sample 10 recent supersede audit_log entries and verify: does the surviving memory contain facts from both the original and the incoming write?
+**Verdict threshold**:
+- FAILURE: incoming write is silently dropped with no content merge — unique facts from newer memory are permanently lost
+- WARNING: incoming write is dropped but audit_log preserves the content (recoverable, not merged)
+- HEALTHY: incoming write is merged into surviving memory (content union, higher importance kept, Neo4j edges created)
+
+**Derived from**: Q13.4a WARNING finding — supersedure threshold=0.90 causes false positives; Q13.1b audit item #4 — "store-time path drops incoming write, does not create Neo4j edges"
+
+---
+
+## Q14.4 [DOMAIN-5] Global OllamaLLM semaphore — does adding asyncio.Semaphore(1) to OllamaLLM.generate() reduce system-wide p95 below 10s?
+**Status**: PENDING
+**Mode**: benchmark
+**Target**: src/core/llm.py — OllamaLLM.generate() method
+**Hypothesis**: Q13.3a concluded that the endpoint-level extraction semaphore (already deployed) is insufficient because all LLM callers (fact_extraction, consolidation, observer, signal detection) share the same Ollama GPU queue without coordination. A global asyncio.Semaphore(1) on OllamaLLM.generate() would serialize all inference requests, bounding p95 at approximately queue_depth x median_inference_time. Q13.3a predicted this would achieve HEALTHY (p95 ≤ 10s). This question verifies that prediction empirically.
+**Test**: After deploying the global semaphore: collect 48h of prompt_metrics data across all prompt types. Compute p50/p75/p95/p99 for each prompt type. Compare pre-deploy vs post-deploy distributions. Check whether interactive /search signal detection latency is acceptably bounded (p95 < 3s — signal detection is on the critical user-facing path).
+**Verdict threshold**:
+- FAILURE: p95 still >10s after global semaphore (root cause is inference time, not queuing)
+- WARNING: p95 drops to 5–10s but signal_detection p95 > 3s (background tasks starve interactive path — needs priority queue)
+- HEALTHY: p95 ≤ 10s across all prompt types AND signal_detection p95 ≤ 3s
+
+**Derived from**: Q13.3a INCONCLUSIVE finding — structural analysis predicts global semaphore achieves HEALTHY; empirical verification required
+**Prerequisite**: Deploy asyncio.Semaphore(1) to OllamaLLM.generate() in src/core/llm.py (~10 lines)
+
+---
+
+## Q14.5 [DOMAIN-1] file_ext proxy analysis — can input_chars distribution in prompt_metrics approximate the config/code split without instrumentation?
+**Status**: PENDING
+**Mode**: benchmark
+**Target**: PostgreSQL prompt_metrics table — action='fact_extraction', empty=true
+**Hypothesis**: Q13.2a was INCONCLUSIVE because file_ext is not captured in prompt_metrics. However, the input_chars field IS captured. Config files (.json, .yaml, .toml) tend to produce shorter extraction prompts (<300 chars) than code files (.py, .js, .ts) which produce 500–2000 char prompts. If the input_chars distribution for empty extractions clusters below 300 chars, this is indirect evidence that config files dominate the empty rate — supporting the pre-filter recommendation without requiring code instrumentation.
+**Test**: Query prompt_metrics: SELECT input_chars distribution for action='fact_extraction' WHERE empty=true, bucketed into <300, 300–1000, >1000 chars. Compare against the same distribution for empty=false (successful extractions). If empty extractions are disproportionately short (<300 chars), the config-file hypothesis is supported. Additionally: sample 30 memories from Qdrant where metadata.observer=True and metadata.source_file is populated, extract file extensions, compute the file-type distribution of observer-originated memories.
+**Verdict threshold**:
+- FAILURE: empty extractions have the same input_chars distribution as successful ones (file type is NOT the differentiator — model quality is the issue)
+- WARNING: empty extractions skew shorter but overlap significantly with successful extractions (partial signal, not conclusive)
+- HEALTHY: ≥60% of empty extractions have input_chars < 300 AND ≥60% of successful extractions have input_chars > 500 (clear separation — config pre-filter justified)
+
+**Derived from**: Q13.2a INCONCLUSIVE finding — proxy analysis via input_chars suggested but not executed; avoids the ~20-line instrumentation prerequisite
+
+---
+
+## Q14.6 [DOMAIN-1] Per-class classifier confusion matrix — what does scikit-learn's cross_val_predict reveal about type misclassification patterns?
+**Status**: PENDING
+**Mode**: benchmark
+**Target**: Signal classifier retrain path — src/core/signal_classifier.py or /admin/ml/retrain endpoint
+**Hypothesis**: Q13.7a confirmed the endpoint exposes no per-class metrics, but the training code uses scikit-learn which computes them internally during cross_val_predict. By adding classification_report(output_dict=True) to the retrain output and storing it, we can directly answer: which classes have precision < 0.5? Does contradiction systematically misclassify as warning (supporting the merge)? Does the confusion matrix reveal other unexpected misclassification pairs?
+**Test**: Read the signal classifier training code (signal_classifier.py). Identify where cross-validation runs. Add classification_report output to the retrain response (or extract it from the training logs if already computed but not exposed). Trigger a retrain. Report: full 8-class confusion matrix, per-class precision/recall/F1, and the top-3 misclassification pairs by count.
+**Verdict threshold**:
+- FAILURE: contradiction precision ≥ 0.7 AND no class has precision < 0.5 (merge is not justified; low type_cv has a different root cause)
+- WARNING: contradiction precision < 0.5 but unexpected misclassification pairs exist (merge helps contradiction but other classes also problematic)
+- HEALTHY: contradiction precision < 0.5 AND contradiction→warning is the dominant misclassification pair (merge directly addresses the primary confusion source)
+
+**Derived from**: Q13.7a FAILURE finding — per-class data unavailable; merge hypothesis (contradiction→warning, decision→preference) cannot be validated without confusion matrix
+
+---
+
+## Q14.7 [DOMAIN-5] Retrieval coverage after sim-persona cleanup — what is the effective coverage rate on a clean corpus?
+**Status**: PENDING
+**Mode**: benchmark
+**Target**: Qdrant recall_memories — post-cleanup corpus statistics
+**Hypothesis**: Q13.1 measured 8.9% coverage rate (1,827 unique memories retrieved / 20,602 total). Q13.1b found ~25% of high-importance never-retrieved memories are sim-persona residue. Q13.5a confirmed all 20,602 memories are real user data (no testbed bulk delete possible). After removing sim-persona residue (~1,000–1,300 estimated from Q14.1), the denominator shrinks and the coverage rate should increase modestly. More importantly, the remaining never-retrieved population would be genuinely useful content, making the exploration-based retrieval recommendation (Q14.2) more impactful.
+**Test**: After Q14.1 cleanup is executed: recompute coverage rate = unique_retrieved / total_memories. Recompute the high-importance never-retrieved population (importance ≥ 0.6, access_count = 0). Sample 20 from the cleaned population to verify sim-persona contamination is eliminated. Report: new coverage rate, new high-importance buried count, sample audit results.
+**Verdict threshold**:
+- FAILURE: coverage rate still < 12% after cleanup (sim-persona removal was insufficient; structural retrieval changes needed)
+- WARNING: coverage rate 12–20% (cleanup helped but exploration-based retrieval still needed)
+- HEALTHY: coverage rate ≥ 20% (cleanup alone restores acceptable coverage)
+
+**Derived from**: Q13.1b FAILURE finding + Q14.1 (sim-persona quantification) — measures the impact of cleanup on the core coverage metric
+**Prerequisite**: Q14.1 must complete first (quantify residue); cleanup must be executed before this measurement
+
+---
+
+## Q14.8 [DOMAIN-1] Session summary dedup exemption — do session summaries warrant a higher similarity threshold or full exemption from store-time dedup?
+**Status**: PENDING
+**Mode**: correctness
+**Target**: POST /store dedup logic + recall-session-summary.js hook
+**Hypothesis**: Q13.4 found 46.7% supersedure rate for session summaries, and Q13.4a found the threshold at 0.90 (reduced from 0.95 in v2.x). Session summaries are structurally repetitive: they describe "what Tim worked on" using overlapping vocabulary (project names, tool names, action verbs). Two sessions working on the same project will produce summaries with >0.90 cosine similarity even though they describe different work. The dedup logic should either: (a) exempt session summaries entirely (tag-based bypass), or (b) apply a higher threshold (0.95+) for memories with a session_summary tag. The risk of the current 0.90 threshold is that consecutive sessions on the same project collapse into a single memory, losing session-specific context.
+**Test**: Fetch the 20 most recent session summaries from Qdrant (filter by tags containing "session_summary" or metadata.observer containing "session"). Compute pairwise cosine similarity for consecutive sessions. Report: (a) how many consecutive pairs exceed 0.90 similarity, (b) content diff between pairs that would be superseded, (c) unique facts in the newer summary that would be lost. Model the impact of raising threshold to 0.95 vs full exemption.
+**Verdict threshold**:
+- FAILURE: ≥50% of consecutive session pairs exceed 0.90 similarity AND ≥3 contain unique facts that would be lost (aggressive dedup destroying session history)
+- WARNING: 25–50% exceed 0.90 but most share genuinely redundant content (threshold is borderline)
+- HEALTHY: <25% exceed 0.90 (session summaries are sufficiently distinct; current threshold is acceptable)
+
+**Derived from**: Q13.4 WARNING finding — 46.7% supersedure rate for session summaries; Q13.4a WARNING — threshold=0.90; recommendation to "exempt session summaries from auto-dedup"
+
+---
+
+## Q14.9 [DOMAIN-5] Markov prefetch targeted filter implementation — after replacing scroll_all() with tag filter, does prefetch latency drop from ~200–500ms to <10ms?
+**Status**: PENDING
+**Mode**: benchmark
+**Target**: src/core/markov_chain.py — build_prefetch_cache
+**Hypothesis**: Q13.8b confirmed scroll_all() is structural and the O(N) scan runs on every file visit with transition history. After replacing scroll_all() with a targeted Qdrant tag filter (FieldCondition key="tags" match=MatchAny), prefetch latency should drop from ~200–500ms (scrolling 20,602 memories) to <10ms (matching 1–5 memories). This is a prerequisite for the Q13.8 tag vocabulary fix — the filter replacement must happen first to avoid making a broken-but-cheap operation into a working-but-expensive one.
+**Test**: After implementing the targeted filter: (1) measure build_prefetch_cache latency with timing instrumentation around the Qdrant call; (2) verify the filter returns correct results by comparing against scroll_all() output for 10 known file:tag patterns; (3) confirm Qdrant tags payload index exists via collection info API.
+**Verdict threshold**:
+- FAILURE: targeted filter latency still >50ms (Qdrant tags index missing or filter not working correctly)
+- WARNING: latency <50ms but correctness check shows missed results vs scroll_all() baseline
+- HEALTHY: latency <10ms AND results match scroll_all() baseline for all 10 test patterns
+
+**Derived from**: Q13.8b FAILURE finding — scroll_all() O(N) scan confirmed structural; fix order: targeted filter FIRST, then tag storage fix
+**Prerequisite**: Implement scroll_by_tags() or equivalent in Qdrant store class; replace scroll_all() call in build_prefetch_cache
