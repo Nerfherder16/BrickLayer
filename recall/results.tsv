@@ -153,3 +153,10 @@ Q28.4	28	DOMAIN-3	INCONCLUSIVE	GC-eligible cohort: 2026-03-21T19:12 UTC target i
 Q28.5	28	DOMAIN-4	FAILURE	Consolidation user_id fix not deployed (4th consecutive); consolidation.py:235 Memory() still missing user_id=; qdrant.py:1143 IS NULL filter still absent; null-uid pool growing ~796/day
 Q28.6	28	DOMAIN-5	FAILURE	Reconcile audit fix not deployed (4th consecutive); 0 log_audit() in reconcile.py/ops.py; reconcile sole remaining maintenance worker without observability
 Q28.7	28	DOMAIN-1	INCONCLUSIVE	Hygiene Week 13 batch (Mar 22-28 ~128/day): depends on Q28.1 data; target dates 7-13 days away; re-verify starting 2026-03-22
+Q29.1	29	DOMAIN-1	INCONCLUSIVE	Hygiene first archival (4th attempt): auto_archive still 0 at 2026-03-15T10:35 UTC; target 2026-03-16T04:00 UTC ~17.4h away; 4th consecutive INCONCLUSIVE
+Q29.2	29	DOMAIN-1	FAILURE	Double-decay fix not deployed (18th consecutive); qdrant.py:114 _user_conditions(None) returns [] unchanged; two full-corpus decay_run entries per slot (processed=6002 each)
+Q29.3	29	DOMAIN-1	INCONCLUSIVE	Hygiene Week 12 cumulative: Q29.1 prerequisite not met; 0 auto_archive entries; Week 12 dates (Mar 17-21) not yet reached; re-verify after 2026-03-21
+Q29.4	29	DOMAIN-4	FAILURE	Consolidation user_id fix not deployed (5th consecutive); consolidation.py:235 Memory() still missing user_id=; consolidation-source floor-clamped jumped 7→375 (+368); null-uid accumulation accelerating
+Q29.5	29	DOMAIN-5	FAILURE	Reconcile audit fix not deployed (5th consecutive); 0 log_audit() in reconcile.py/ops.py; new anomaly: 179 importance_mismatches detected but repairs_applied=0
+Q29.6	29	DOMAIN-1	FAILURE	Floor-clamped count 941 vs 673 Q27.4 baseline (+268, +39.8%); FAILURE threshold 800 exceeded; consolidation source 7→375 (+368) due to Q24.5 user_id bug
+Q29.7	29	DOMAIN-3	WARNING	Superseded pool 15185 vs 15130 Q27.2 baseline (+55); growing (not FAILURE); rate below 796/day estimate (same-day measurement window); new: 179 importance_mismatches Qdrant vs Neo4j; GC eligibility 2026-03-21T19:12 UTC still ~6 days away

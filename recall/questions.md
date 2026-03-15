@@ -2450,7 +2450,7 @@ findings that have not yet been asked.
 ---
 
 ## Q29.1 [DOMAIN-1] Hygiene first archival confirmed? -- did the 2026-03-16T04:00 cron fire and archive the expected ~2 memories? (4th attempt)
-**Status**: PENDING
+**Status**: INCONCLUSIVE
 **Wave**: 29
 **Mode**: observability
 **Target**: GET /admin/audit?action=auto_archive&limit=20; GET /admin/stats (active count vs 6,005 baseline)
@@ -2467,7 +2467,7 @@ findings that have not yet been asked.
 ---
 
 ## Q29.2 [DOMAIN-1] Double-decay fix deployment check (Wave 29) -- is Q22.1 finally deployed? (18th attempt)
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 29
 **Mode**: static code analysis + observability
 **Target**: src/storage/qdrant.py:114 _user_conditions(); GET /admin/audit?action=decay_run&limit=20 (check details.processed field)
@@ -2483,7 +2483,7 @@ findings that have not yet been asked.
 ---
 
 ## Q29.3 [DOMAIN-1] Hygiene Week 12 cumulative archival -- did the 18 projected Week 12 archives (Mar 17-21) occur? (depends on Q29.1)
-**Status**: PENDING
+**Status**: INCONCLUSIVE
 **Wave**: 29
 **Mode**: observability + quantitative verification
 **Target**: GET /admin/audit?action=auto_archive&limit=100; Q27.7 Week 12 projection (Mar 17-21, ~18 total, ~3/day)
@@ -2500,7 +2500,7 @@ findings that have not yet been asked.
 ---
 
 ## Q29.4 [DOMAIN-4] Consolidation user_id fix deployment re-check (5th attempt) -- has consolidation.py:235 been fixed?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 29
 **Mode**: static code analysis
 **Target**: src/core/consolidation.py:235 Memory() constructor; src/storage/qdrant.py:1143 get_distinct_user_ids()
@@ -2516,7 +2516,7 @@ findings that have not yet been asked.
 ---
 
 ## Q29.5 [DOMAIN-5] Reconcile audit fix deployment re-check (5th attempt) -- has log_audit() been added to reconcile.py and ops.py?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 29
 **Mode**: static code analysis + observability
 **Target**: src/workers/reconcile.py; src/api/routes/ops.py; GET /admin/audit?action=reconcile&limit=10
@@ -2532,7 +2532,7 @@ findings that have not yet been asked.
 ---
 
 ## Q29.6 [DOMAIN-1] Double-decay floor accumulation -- has the floor-clamped count grown above Q27.4 baseline of 673?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 29
 **Mode**: quantitative analysis
 **Target**: Active memories with importance <= 0.051 (floor) and access_count=0 across all source categories
@@ -2548,7 +2548,7 @@ findings that have not yet been asked.
 ---
 
 ## Q29.7 [DOMAIN-3] Superseded pool growth rate -- has the 15,130 baseline grown as expected? (verify Q28.4 pre-condition)
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 29
 **Mode**: observability
 **Target**: GET /admin/stats (superseded count); total Qdrant points
