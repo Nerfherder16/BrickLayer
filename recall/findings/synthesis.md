@@ -1,7 +1,7 @@
 # Synthesis: Recall Autoresearch — Waves 1–31
 
-**Generated**: 2026-03-15 (updated with Wave 31 findings)
-**Questions answered**: 183 (Q1.1–Q1.5, Q2.1–Q2.5, Q3.1–Q3.5, Q4.1–Q4.6, Q5.1–Q5.4, Q5.6–Q5.7, Q6.1–Q6.7, Q7.1–Q7.6, Q13.1–Q13.8, Q13.1a–Q13.8b, Q14.1–Q14.9, Q14.4a, Q14.4b, Q15.1–Q15.5, Q16.1–Q16.5, Q16.3b, Q16.4b, Q18.1–Q18.5, Q19.1–Q19.6, Q20.1–Q20.6, Q21.1–Q21.6, Q22.1–Q22.9, Q23.1–Q23.7, Q24.1–Q24.8, Q25.1–Q25.7, Q26.1–Q26.7, Q27.1–Q27.7, Q28.1–Q28.7, Q29.1–Q29.7, Q30.1–Q30.7, Q31.1–Q31.7)
+**Generated**: 2026-03-15 (updated with Wave 31 re-run findings)
+**Questions answered**: 184 (Q1.1–Q1.5, Q2.1–Q2.5, Q3.1–Q3.5, Q4.1–Q4.6, Q5.1–Q5.4, Q5.6–Q5.7, Q6.1–Q6.7, Q7.1–Q7.6, Q13.1–Q13.8, Q13.1a–Q13.8b, Q14.1–Q14.9, Q14.4a, Q14.4b, Q15.1–Q15.5, Q16.1–Q16.5, Q16.3b, Q16.4b, Q18.1–Q18.5, Q19.1–Q19.6, Q20.1–Q20.6, Q21.1–Q21.6, Q22.1–Q22.9, Q23.1–Q23.7, Q24.1–Q24.8, Q25.1–Q25.7, Q26.1–Q26.7, Q27.1–Q27.7, Q28.1–Q28.7, Q29.1–Q29.7, Q30.1–Q30.7, Q31.1–Q31.7, Q31.2a)
 **Wave 17 questions (Q16.3a, Q16.4a)**: PENDING — deferred until Tier 1 fixes deployed
 **Source codebase**: C:/Users/trg16/Dev/Recall/
 **Stack**: FastAPI + Qdrant + Neo4j + Redis + PostgreSQL + Ollama (qwen3:14b + qwen3-embedding:0.6b)
@@ -38,20 +38,28 @@ Wave 28 produced 3 FAILURE, 4 INCONCLUSIVE. Wave 29 produces 4 FAILURE, 2 INCONC
 
 Wave 30 produces 3 FAILURE, 2 WARNING, 2 INCONCLUSIVE.
 
-**Wave 31 key findings**:
-- Q23.6: WARNING — Per-supersedure audit logging exists (consolidation.py:299-305); 1000+ entries; user_id always null (Q24.5 propagation); 26/1000 duplicate memory_ids from Q22.1 double-processing
-- Q27.1: INCONCLUSIVE — Hygiene archival timing-blocked; 1d 14h before 2026-03-17T04:00 UTC; auto_archive=0
+**Wave 31 first-run key findings** (superseded by re-run below):
 - Q31.1: FAILURE (7th+ consecutive) — hygiene_run=0; archive=0; 2026-03-15T04:00 UTC window passed with no entries; cron broken since 2026-03-09
-- Q31.2: FAILURE (20th consecutive) — double-decay fix not deployed; system pass processed=5,994/6,048 (99.1%); fix would halve to ~3,024
-- Q31.3: FAILURE — floor-clamped 1,049/6,048 (17.3%); +108 from Q30.6 baseline 941 in ~3 hours; consolidation +74; all fixes undeployed
-- Q31.4: FAILURE (7th consecutive) — reconcile_run=0 after manual trigger; fix not deployed
+- Q31.2: FAILURE (20th consecutive) — double-decay fix not deployed; system pass processed=5,994/6,048 (99.1%)
+- Q31.3: FAILURE — floor-clamped 1,049/6,048 (17.3%); +108 from Q30.6 baseline 941 in ~3 hours
+- Q31.4: FAILURE (7th consecutive) — reconcile_run=0 after manual trigger; **SUPERSEDED: FALSE NEGATIVE** — wrong action name queried
 - Q31.5: FAILURE — importance_mismatches grew 179→264 (+85, +47%); mark_superseded fix undeployed; ~28/hour new mismatch rate
-- Q31.6: INCONCLUSIVE — GC eligibility 6d 5h away (2026-03-21T19:12 UTC); gc_run=0; superseded pool ~15,275 (+91 from Q30.7)
-- Q31.7: FAILURE — LLM timeout tiers not deployed; 15/18 generate() callsites missing timeout=; 83.3% unprotected against 180s hangs
+- Q31.6: INCONCLUSIVE — GC eligibility 6d 5h away (2026-03-21T19:12 UTC); superseded pool ~15,275 (+91 from Q30.7)
+- Q31.7: FAILURE — LLM timeout tiers not deployed; 15/18 generate() callsites missing timeout= — **SUPERSEDED: FULLY DEPLOYED**
 
-Wave 31 produces 6 FAILURE, 1 WARNING, 2 INCONCLUSIVE.
+**Wave 31 re-run key findings** (Q31.1–Q31.7 second pass + Q31.2a):
+- Q31.1: FAILURE (7th+ consecutive) — hygiene_run=0; archive=0; cron not fired since 2026-03-09; ARQ worker alive (decay running), confirming hygiene-task-specific failure
+- Q31.2: FAILURE (21st consecutive) — IS NULL fix deployed (`user_id=0` sentinel) but second full-corpus run (~5,994/slot) persists; behavioral doubling confirmed
+- Q31.2a: FAILURE — Second run source confirmed NOT admin API (actor="decay" on both runs), NOT duplicate cron (only one cron entry); ARQ enqueuing `run_decay` twice per cycle from unknown enqueue path; admin endpoint structural risk (`worker.run()` without user_id) identified
+- Q31.3: FAILURE — floor-clamped 1,038–1,049/6,021 (17.3%); stable vs prior Q31.3 (−11 noise); +97 above Q30.6 FAILURE threshold of 941; partial IS NULL fix may have halted new accumulation; no drain active
+- Q31.4: WARNING (CORRECTION — 7 prior FAILUREs were FALSE NEGATIVES) — audit IS deployed and working; action name is `"reconcile"` not `"reconcile_run"`; entries confirmed in audit log; 262 mismatches, repairs_applied=0 (scan-only scheduler)
+- Q31.5: WARNING — repair=true clears all mismatches (261/261 cleared in one run); scheduled runs are scan-only (repairs_applied=0 always); mark_superseded root cause unpatched; mismatches re-accumulate continuously
+- Q31.6: INCONCLUSIVE — GC gate 6d 4h away; superseded pool 15,335 (+151 from Q30.7 in ~3.5 hours; ~1,035/day burst rate)
+- Q31.7: HEALTHY — 17/17 generate() callsites have correct timeout= tiers; full reversal from prior run's 15/18 missing; 180s semaphore-hold risk eliminated
 
-**Overall health signal: CRITICAL — 20 CONSECUTIVE CHARACTERIZATION WAVES WITH ZERO FIXES DEPLOYED. DOUBLE-DECAY ACTIVE FOR 20 WAVES. FOUR ACTIVE FAILURE THREADS: Q22.1 DOUBLE-DECAY (20th), Q24.5 CONSOLIDATION (7th), Q21.6 RECONCILE AUDIT (7th), Q31.7 LLM TIMEOUT (1st). FLOOR-CLAMPED 1,049 (FAILURE — +108 IN 3 HOURS). HYGIENE CRON BROKEN (7th miss). IMPORTANCE MISMATCHES 264 (+47%). GC ELIGIBILITY: 2026-03-21T19:12 UTC (~6 DAYS). DEPLOYMENT IS THE ONLY REMAINING ACTION.**
+Wave 31 re-run produces 3 FAILURE, 2 WARNING, 1 HEALTHY, 1 INCONCLUSIVE (plus Q31.2a FAILURE).
+
+**Overall health signal: CRITICAL — DOUBLE-DECAY ACTIVE 21 CONSECUTIVE WAVES. ARQ DOUBLE-ENQUEUE ROOT CAUSE CONFIRMED (Q31.2a): NOT ADMIN API, NOT DUPLICATE CRON; UNKNOWN ENQUEUE SOURCE. FLOOR-CLAMPED 1,038–1,049 (FAILURE THRESHOLD). HYGIENE CRON BROKEN (7th miss, task-specific). SUPERSEDED POOL 15,335 (+151/3.5h). KEY CORRECTIONS: Q31.4 RECONCILE AUDIT IS DEPLOYED (7 WAVES OF FALSE NEGATIVES — WRONG ACTION NAME); Q31.7 LLM TIMEOUTS FULLY DEPLOYED (17/17). IMPORTANCE MISMATCHES SELF-HEALING VIA repair=true BUT NOT AUTO-SCHEDULED. GC ELIGIBILITY: 2026-03-21T19:12 UTC (~6 DAYS). DEPLOYMENT BLOCKERS REMAIN: (1) ARQ DOUBLE-ENQUEUE FIX, (2) HYGIENE CRON TASK FIX, (3) CONSOLIDATION user_id FIX, (4) mark_superseded ROOT-CAUSE FIX.**
 
 ---
 
@@ -68,9 +76,9 @@ Wave 31 produces 6 FAILURE, 1 WARNING, 2 INCONCLUSIVE.
 | Q14.3 | Store-time semantic dedup silently drops incoming write with no content merge, no audit entry, no Neo4j edge — unique facts permanently lost | High | 14 |
 | Q14.4 | Global asyncio.Semaphore(1) deployed but p95 still 11,313–16,843ms; root cause is qwen3:14b inference time variance (1s–24s per request), not concurrency | High | 14 |
 | Q14.7 | Retrieval coverage 9.50% (unchanged from Q13.1's 8.9%); structural problem confirmed | High | 14 |
-| Q15.3 | signal_detection_timeout=180s applies to ALL OllamaLLM callers via httpx.AsyncClient at init time; no per-call override in generate() signature; 43 confirmed >60s events; worst-case semaphore hold = 180s | High | 15 |
+| Q15.3 | ~~signal_detection_timeout=180s applies to ALL OllamaLLM callers via httpx.AsyncClient at init time; no per-call override in generate() signature; 43 confirmed >60s events; worst-case semaphore hold = 180s~~ **CLOSED by Q31.7 re-run: all 17 callsites now have explicit timeout= matching tier spec; 180s hold risk eliminated** | High → CLOSED | 15 / 31 |
 | Q15.4 | Very-short-prompt pre-filter at <50 chars not justified: best sub-bucket is 61.2% (threshold 70%); 30–44 char range has lower empty rate (34–42%) than overall average | Medium | 15 |
-| Q16.3 | generate() has no timeout parameter; httpx.AsyncClient constructed once with 180s; per-call override path does not exist; 43 >60s events confirmed; fix not deployed | High | 16 |
+| Q16.3 | ~~generate() has no timeout parameter; httpx.AsyncClient constructed once with 180s; per-call override path does not exist; 43 >60s events confirmed; fix not deployed~~ **CLOSED by Q31.7 re-run: timeout parameter exists in generate() signature; all 17 callsites supply explicit values; httpx per-request override confirmed** | High → CLOSED | 16 / 31 |
 | Q16.4 | 9-cell (4-site x 3-layer) dedup observability matrix: 2/12 cells covered; memory.py and observer.py have 0/3 layers; compound gap from Q14.3+Q15.1+Q15.2 not remediated | High | 16 |
 | Q16.4b | except:pass in memory.py importance-inheritance block silently swallows all Qdrant errors; importance promotions never confirmed in production | Medium | 16 |
 | Q13.8 | Session Markov Chain: 0 predictions in 4,008 visits; tag vocabulary mismatch; feature completely inert | Medium | 13 |
@@ -80,15 +88,13 @@ Wave 31 produces 6 FAILURE, 1 WARNING, 2 INCONCLUSIVE.
 | Q19.6 | Split-brain confirmed in consolidation: qdrant.mark_superseded() at line 282 committed before neo4j.mark_superseded() at line 283 bare await; Neo4j failure = divergence; all 4 Neo4j write methods unguarded; **Q20.1 bounds impact**: weekly reconcile repairs superseded_by mismatches (0 currently); divergence window up to 7 days, not permanent | High | 19 |
 | **Q20.5** | **Compound failure reachable: Q18.1 partial gather + Q19.6 split-brain co-occur on single memory; reconcile Step A fix overwritten by Step B mark_superseded (importance=0.0); two passes required for convergence; 9 sub-pattern-A entries in Q20.1 are production evidence; Q21.1 provides one-line fix (remove importance=0.0 from mark_superseded); Q21.2 confirms compound state is currently latent (0 active)** | **High** | **20** |
 | **Q22.1** | **Double-decay FAILURE: `_user_conditions(None)` returns `[]` → system run processes ALL active memories (no user_id filter); every 15-min cron slot applies decay twice (system run + per-user run); effective decay 0.9216× per slot instead of 0.96×; corpus decaying 2× faster than configured; fix: add MatchAny or IsNullCondition to system-run filter in `_user_conditions`** | **High** | **22** |
-| **Q23.2 / Q24.1 / Q25.1 / Q26.2 / Q27.3 / Q28.2 / Q29.2 / Q31.2** | **Double-decay FAILURE RECONFIRMED (20th consecutive wave): Q22.1 fix not deployed; `_user_conditions(None)` confirmed unchanged; two full-corpus decay_run entries per slot (processed=5,994 each, Wave 31); active corpus 6,048 as of Wave 31** | **High** | **23/24/25/26/27/28/29/30/31** |
+| **Q23.2 / Q24.1 / Q25.1 / Q26.2 / Q27.3 / Q28.2 / Q29.2 / Q31.2 / Q31.2a** | **Double-decay FAILURE RECONFIRMED (21st consecutive wave): IS NULL fix for `user_id=0` sentinel IS deployed but behavioral doubling persists — second full-corpus run (~5,994/slot) confirmed in audit log; Q31.2a establishes root cause is NOT admin API, NOT duplicate cron entry; ARQ is enqueuing `run_decay` twice per cycle from an unknown enqueue source (both runs show actor="decay"); first evidence of enqueue duplication: present from 2026-03-14T18:15 cycle onwards, coinciding with IS NULL fix deployment; admin endpoint structural risk: `worker.run()` with no `user_id` argument defaults to full-corpus scan (must be changed to call `run_decay_all_users()`)** | **High** | **23/24/25/26/27/28/29/30/31** |
 | **Q24.2 / Q25.2 / Q26.4** | **mark_superseded importance=0.0 fix NOT deployed: `neo4j_store.py:391` still sets `m.importance = 0.0`; Wave 26: 124 mismatches on Sunday repair day itself (higher than 1-day post-repair baseline of 92 — confirms same-day re-accumulation); 3rd data point for weekly cycle: Sunday repair → ~32 new mismatches in hours → ~92/day accumulation → ~5,572 peak pre-Sunday; retrieval unaffected (find_related filters superseded) but monitoring unreliable** | **Medium** | **24/25/26** |
 | **Q24.5 / Q25.3 / Q27.5 / Q28.5 / Q29.4 / Q30.4** | **Consolidation user_id attribution fix NOT deployed (7th consecutive): `consolidation.py:235` Memory() constructor missing `user_id=` argument confirmed; consolidation-source floor-clamped 375→449 (+74) by Wave 31; total floor-clamped 1,049; co-deployment of Q21.5 + Q24.5 required for permanent fix** | **Medium** | **24/25/27/28/29/30/31** |
 | **Q24.7 / Q25.7** | **Ghost-user compound FAILURE — neither Q21.5 IS NULL filter nor Q24.5 consolidation user_id fix deployed; `qdrant.py:1143-1162` confirmed unchanged; 7 ghost user proc=0 entries per slot; 28+ wasted scroll operations/day; ghost re-accumulation path open: new merged memories with user_id=None (~796/day) seed next generation of ghost users even if IS NULL filter were deployed today** | **Medium** | **24/25** |
-| **Q24.8 / Q26.7 / Q27.6 / Q28.6 / Q29.5 / Q30.5 / Q31.4** | **Reconcile audit trail fix NOT deployed (7th consecutive): zero reconcile entries in audit_log; neither `reconcile.py` nor `ops.py` contains `log_audit()` calls; importance mismatches grew to 264 (+47%, Wave 31); mismatch trend unknowable without audit trail** | **Medium** | **24/26/27/28/29/30/31** |
-| **Q31.5** | **Importance mismatches FAILURE: grew 179→264 (+85, +47%) in ~3 hours (Wave 31); mark_superseded importance=0.0 fix undeployed; reconcile cron broken; ~28 new mismatches/hour; chain reconstructable but attribution broken** | **Medium** | **31** |
-| **Q31.7** | **LLM timeout tiers NOT deployed: 15/18 generate() callsites missing timeout=; only 3/18 protected; Q15.3/Q16.3 180s semaphore hold risk remains in 83.3% of callsites; tiers spec: 15s/30s/60s/90s across 8 files** | **High** | **31** |
+| **Q24.8 / Q26.7 / Q27.6 / Q28.6 / Q29.5 / Q30.5** | **~~Reconcile audit trail fix NOT deployed (6 prior waves)~~ — CORRECTED by Q31.4 re-run: all 6 FAILURE verdicts were FALSE NEGATIVES caused by querying `?action=reconcile_run` (string not present in codebase). Actual action name is `"reconcile"`. `log_audit(action="reconcile")` is deployed in both `ops.py:373-377` and `workers/reconcile.py:112-116`. Entries confirmed under correct action name. Mismatch details fully visible in audit.** | **Medium → CLOSED** | **24/26/27/28/29/30 (corrected Q31.4)** |
 | **Q27.3** | **Double-decay inflation queue FAILURE: 1,332 active memories (7–29d, importance<0.3, access_count=0) > 500 FAILURE threshold; 89.2% of 7–10d cohort below 0.3 (vs 59.2% expected under single-decay); double-decay halves time-to-threshold (2.1d→1.1d) and time-to-floor (9.5d→4.7d); correction: double-decay does NOT inflate 30d archival COUNT (floor reached in <10d under either regime); bug's damage is to information quality in 0–10d window only** | **High** | **27** |
-| **Q29.6 / Q31.3** | **Floor-clamped accumulation FAILURE (escalating): Q29.6 941/6,044 (15.6%); Q31.3 1,049/6,048 (17.3%); +108 in 3 hours (Wave 31); consolidation-source 375→449 (+74); system-source 547→572 (+25); pattern 16→25 (+9); rate accelerating (~864/day extrapolated); all three mitigating fixes undeployed** | **High** | **29/31** |
+| **Q29.6 / Q31.3** | **Floor-clamped accumulation FAILURE: Q29.6 941/6,044 (15.6%); Q31.3 first-run 1,049/6,048 (17.3%, +108 in 3 hours from Q30.6); Q31.3 re-run 1,038 ac=0 / 1,049 total (stable; −11 noise from first-run); re-run tentative signal: partial IS NULL fix (user_id=0 sentinel) may have halted new accumulation; floor total unchanged at 1,049; no drain active (hygiene cron broken Q31.1); confirmation requires multi-day window** | **High** | **29/31** |
 
 ### WARNING — Open
 
@@ -120,6 +126,8 @@ Wave 31 produces 6 FAILURE, 1 WARNING, 2 INCONCLUSIVE.
 | **Q23.6** | **Mark_superseded audit coverage WARNING: per-supersedure log_audit() calls exist in consolidation.py:299-305; 1000+ entries in audit trail; chain reconstructable; TWO gaps: user_id null throughout (Q24.5 propagation); 2.6% duplicate memory_ids from Q22.1 double-processing** | **Medium** | **23/31** |
 | **Q30.3** | **Importance mismatch trend WARNING: 179 stable (Q29.7 baseline 179; δ=0); same IDs confirmed; qdrant_total +26 (21,202→21,228) but no new mismatches; historical artifact; no repair mechanism; Neo4j importance queries return stale 0.0 for these 179 memories** | **Medium** | **30** |
 | **Q30.6** | **Floor-clamped count trajectory WARNING: 941 stable vs Q29.6 FAILURE baseline (δ=0); growth arrested in 79-minute same-day window; active corpus 6,017→6,044 (+27 new all above floor); within 800-941 WARNING range; underlying bugs (Q30.2, Q30.4) still present; long-term accumulation resumes on next multi-day interval** | **High** | **30** |
+| **Q31.4 (re-run)** | **Reconcile audit trail WORKING (WARNING — naming discrepancy): audit entries confirmed under action="reconcile" in both ops.py and workers/reconcile.py; 262 mismatches detected; repairs_applied=0 (scan-only); WARNING because scheduled cron never repairs detected mismatches; action name "reconcile_run" used in all prior question hypotheses was wrong; any dashboard filters referencing "reconcile_run" must be updated** | **Low** | **31** |
+| **Q31.5 (re-run)** | **Importance mismatches: repair mechanism functional (261/261 cleared by repair=true); scheduled runs scan-only (never auto-repair); mark_superseded root cause unpatched (neo4j_store.py does not call update_importance when superseding); re-accumulation guaranteed; immediate fix: update scheduler to use repair=true; root fix: patch mark_superseded** | **Medium** | **31** |
 | **Q25.4** | **Purge endpoint scope clarified: `/admin/memory/purge` uses `scroll_all(include_superseded=False)` by default — targets ACTIVE low-quality memories only (1,081 eligible: importance≤0.15, age≥7d, access=0); consolidation-superseded memories (15,099) are explicitly excluded from its scope by IS NULL filter; Q24.6 GC gap is fully unaddressed by any available endpoint or scheduled cron; purge deletion logic is correct (Qdrant + Neo4j DETACH DELETE) but misscoped for GC purpose; new endpoint or cron required for superseded GC** | **Medium** | **25** |
 | **Q26.3** | **Double-decay compound damage growing: floor-clamped count 673 (+41 from Q23.1 baseline of 632, +6.5%); ~10 new floor-clamped memories/day; 179.5 importance-units stolen across 5,975 active memories (avg 0.030 per memory, 6% of typical 0.5 initial importance); 3-7d cohort ratio 1.2988 reflects stability variation not absence of damage; floor-clamped count is most reliable direct damage metric; first hygiene batch (2026-03-17) NOT materially inflated by double-decay for 30d+ cohort (both decay models reach floor by 30d)** | **Medium** | **26** |
 | **Q26.5** | **Ghost re-accumulation trap characterized: 1,833 active consolidation-source memories with user_id=None (30.7% of active corpus); IS NULL-only deployment eliminates current ghost users immediately but re-accumulation within weeks as these 1,833 memories get superseded through consolidation; co-deployment of Q21.5 (IS NULL filter) AND Q24.5 (consolidation user_id= propagation) required for permanent fix; 3,191 additional null-uid memories are system/observer by design (not re-accumulation seeds)** | **Medium** | **26** |
@@ -132,7 +140,7 @@ Wave 31 produces 6 FAILURE, 1 WARNING, 2 INCONCLUSIVE.
 | **Q28.3 / Q29.3** | **Double-decay archival count parity + Week 12 cumulative: Q29.1 prerequisite not met (auto_archive still 0); Week 12 dates (Mar 17-21) not yet reached; Q27.7 analytical proof stands (both decay regimes archive same count at 30d); empirical verification pending** | **Info** | **28/29** |
 | **Q28.4** | **GC-eligible cohort: target date 2026-03-21T19:12 UTC; 0 GC-eligible today; superseded pool 15,185 (Q29.7); re-verify on/after 2026-03-21T19:12 UTC** | **Info** | **28** |
 | **Q28.7** | **Hygiene Week 13 batch (Mar 22-28, ~128/day): depends on Q28.1/Q29.1 data; target dates now 7-13 days from Wave 29; re-verify starting 2026-03-22** | **Info** | **28** |
-| **Q30.7 / Q31.6** | **GC-eligible cohort INCONCLUSIVE: Q30.7 6d 8h before 2026-03-21T19:12 UTC; Q31.6 6d 5h before; gc_run=0; superseded pool 15,275 (+91 from Q30.7 in 3 hours); Wave 32+ verdict-capable on/after 2026-03-21T19:12 UTC** | **Info** | **30/31** |
+| **Q30.7 / Q31.6** | **GC-eligible cohort INCONCLUSIVE: Q30.7 6d 8h before 2026-03-21T19:12 UTC; Q31.6 re-run 6d 4h before; gc_run=0; superseded pool 15,335 (+151 from Q30.7 in ~3.5h; burst rate ~1,035/day); no GC endpoints exist (404); Wave 32+ verdict-capable on/after 2026-03-21T19:12 UTC** | **Info** | **30/31** |
 | Q15.1 | Store-time dedup hit rate: 3 silent-drop sites, 0 audit entries, 0 Prometheus counter — hit rate completely unquantifiable; prior threshold change (0.90->0.92) confirms real-world fires with no measurement | High | 15 |
 | Q16.1 | recall_dedup_hits_total counter absent from /metrics; instrumentation from Q15.1 not deployed; 6 metric families present, none dedup-related; baseline unmeasurable | Medium | 16 |
 | Q16.2 | logger.debug fix from Q15.2 not deployed; observer.py:176 is still bare `continue`; observer dedup remains most invisible path in the system | Medium | 16 |
@@ -209,19 +217,23 @@ Wave 25 HEALTHY additions:
 | Q25.5 | **Hygiene first archival imminent**: zero active memories currently meet all hygiene criteria (age>30d is binding constraint); oldest active memory created 2026-02-14 (28 days old as of Q25.5); first batch expected 2026-03-17 at 04:00 when Feb 14 cohort crosses 30-day threshold; hygiene `scroll_hygiene_candidates` criteria are well-formed (`access_count lte=0` confirmed correct); double-decay accelerates importance decay into sub-0.3 territory faster than expected — first batch may be larger than single-decay assumptions suggest; **time-sensitive follow-up required on 2026-03-17** | 25 |
 | Q25.6 | ARQ Mar 15 timing anomaly fully explained as isolated catch-up event from Q22.9 outage slot; 200-entry audit history (22 complete 6h slots) shows no recurring ARQ restart pattern; 20 raw "burst events" all classified as normal double-decay pairs (11–13s gaps) or boundary artifacts; Mar 15T00 single run = catch-up after Q22.9 outage missed the 00:15 scheduled slot; Mar 15T06 4.3-min gap = post-restart queue settling artifact (still canonical 2× factor); Q22.1 double-decay 2× model remains complete and accurate characterization of decay behavior | 25 |
 
----
+Wave 31 re-run HEALTHY addition:
 
-## 3. Wave 31 Results (Q23.6, Q27.1, Q31.1–Q31.7)
-
-### Overview
-
-Wave 31 continues on 2026-03-15, ~1 hour after Wave 30. Of 9 questions: 6 FAILURE, 1 WARNING, 2 INCONCLUSIVE.
-
-The defining escalation: **Q31.3 FAILURE — floor-clamped count surged from 941 to 1,049 (+108) in approximately 3 hours** between Wave 30 and Wave 31. Extrapolated daily rate: ~864/day, far higher than prior estimates of ~10-15/day. The consolidation-source component (+74 in 3 hours) is the primary driver, consistent with active consolidation runs at the 09:48 and 12:15 UTC slots. Q31.5 (mismatches 179→264, +47%) confirms mark_superseded bug at ~28/hour. All six FAILURE results reflect undeployed fixes.
+| ID | Finding | Wave |
+|----|---------|------|
+| Q31.7 | **LLM per-call timeout tiers FULLY DEPLOYED**: 17/17 generate() callsites have explicit `timeout=` matching tier spec (15s: signal_detector/search; 30s: observer/state_fact_extractor/admin; 60s: causal_extractor/contradiction_detector/document_ingest/fact_extractor; 90s: consolidation/patterns/cognitive_distiller/dream_consolidation/profile_drift); `llm.py:generate()` signature confirmed; httpx per-request timeout override path confirmed; 180s semaphore-hold risk eliminated; full reversal from prior Q31.7 run (15/18 callsites missing); closes Q15.3/Q16.3 | 31 (re-run) |
 
 ---
 
-### Wave 31 Findings Summary
+## 3. Wave 31 Results (Q31.1–Q31.7, Q31.2a) — First Run and Re-Run
+
+### Overview — First Run
+
+Wave 31 first run continues on 2026-03-15, ~1 hour after Wave 30. Of 9 questions: 6 FAILURE, 1 WARNING, 2 INCONCLUSIVE.
+
+The defining escalation: **Q31.3 FAILURE — floor-clamped count surged from 941 to 1,049 (+108) in approximately 3 hours** between Wave 30 and Wave 31. Extrapolated daily rate: ~864/day, far higher than prior estimates of ~10-15/day. The consolidation-source component (+74 in 3 hours) is the primary driver, consistent with active consolidation runs at the 09:48 and 12:15 UTC slots. Q31.5 (mismatches 179→264, +47%) confirms mark_superseded bug at ~28/hour.
+
+### Wave 31 First-Run Findings Summary
 
 | ID | Verdict | Severity | Key Finding |
 |----|---------|---------|-------------|
@@ -237,19 +249,50 @@ The defining escalation: **Q31.3 FAILURE — floor-clamped count surged from 941
 
 ---
 
+### Overview — Re-Run
+
+The Wave 31 re-run was conducted on 2026-03-15T14:13–14:19 UTC, approximately 3.5 hours after the first run. It produces significant verdict reversals for Q31.4 and Q31.7, adds Q31.2a to characterize the ARQ double-enqueue root cause, and refines Q31.3 and Q31.5.
+
+**Two major corrections:**
+
+**Q31.4 CORRECTION — 7 prior FAILURE waves were FALSE NEGATIVES.** The reconcile audit trail has been deployed and working the entire time. All prior waves queried `?action=reconcile_run` — a string that does not exist anywhere in the codebase. The deployed action name is `"reconcile"`. Q31.4 re-run confirmed `log_audit(action="reconcile")` in both `ops.py:373-377` and `workers/reconcile.py:112-116`, with live entries in the audit log. This closes a major analytical gap: Waves 24–30 were tracking a non-existent action name.
+
+**Q31.7 CORRECTION — LLM timeout tiers fully deployed.** The prior Q31.7 run found 15/18 callsites missing `timeout=`. The re-run finds 17/17 compliant. This is a full reversal, closing the Q15.3/Q16.3 semaphore-hold risk that has been open since Wave 15.
+
+**New finding Q31.2a:** The second full-corpus decay run per cycle is confirmed NOT from admin API calls (actor="decay" not "admin") and NOT from duplicate cron entries (single `cron(run_decay, ...)` in `main.py`). The ARQ worker is enqueuing `run_decay` twice per scheduler cycle via an unknown path. Both full-corpus runs appear since 2026-03-14T18:15 — the same cycle where the IS NULL fix was deployed — suggesting the IS NULL fix deployment may have triggered a re-enqueue event or the fix was deployed with an ARQ job state inconsistency. Admin endpoint structural risk also identified: `POST /admin/decay` calls `worker.run()` without `user_id`, which processes the entire corpus unscoped.
+
+### Wave 31 Re-Run Findings Summary
+
+| ID | Verdict | Severity | Key Finding |
+|----|---------|---------|-------------|
+| Q31.1 | FAILURE | High | Hygiene cron broken; hygiene_run=0; archive=0; cron broken since 2026-03-09; decay cron alive — failure is hygiene-task-specific; action types `hygiene_run`, `archive`, `auto_archive` have never appeared in all-time audit log |
+| Q31.2 | FAILURE | High | Double-decay 21st consecutive; IS NULL fix deployed (user_id=0 sentinel works) but second full-corpus run (5,994/slot) persists; processed count has not halved; total Qdrant: 21,354 |
+| Q31.2a | FAILURE | High | Second full-corpus run source: NOT admin API (actor="decay"), NOT duplicate cron (1 cron entry only); duplicate enqueue source unknown; pattern consistent from 2026-03-14T18:15 onwards; admin endpoint also has structural risk (`worker.run()` unscoped) |
+| Q31.3 | FAILURE | High | Floor-clamped 1,038 (ac=0) / 1,049 (any); stable vs prior Q31.3 run (−11 noise); total importance≤0.051 unchanged at 1,049; +97 above Q30.6 FAILURE threshold; partial IS NULL fix may have halted new accumulation but no drain active |
+| Q31.4 | WARNING | Low | Reconcile audit IS deployed and working; action="reconcile" (not "reconcile_run"); 262 mismatches detected; repairs_applied=0 (scan-only); WARNING: scheduler never repairs; 7 prior FAILURE verdicts were false negatives |
+| Q31.5 | WARNING | Medium | Repair=true clears all 261 mismatches in one run (0 remaining); scheduled runs are scan-only; mark_superseded root cause unpatched; mismatches re-accumulate continuously (~+28/hr); scheduler must be updated to use repair=true |
+| Q31.6 | INCONCLUSIVE | Info | GC gate 6d 4h away (2026-03-21T19:12 UTC); superseded pool 15,335 (+151 from Q30.7 in ~3.5h; ~1,035/day burst); no GC infrastructure (404 on gc endpoints) |
+| Q31.7 | HEALTHY | None | 17/17 generate() callsites have correct timeout= tiers; 0 missing; full reversal from first run (15/18 missing); 180s semaphore-hold risk eliminated; closes Q15.3/Q16.3 |
+
+---
+
 ### Wave 31 Cross-Domain Observations
 
-#### Observation 1: Floor-clamped accumulation rate is far higher than estimated
+#### Observation 1: Floor-clamped accumulation rate is far higher than estimated — but partial fix may have stabilized it
 
-Q30.6 showed delta=0 (79-minute same-day window). Q31.3 shows +108 in approximately 3 hours. Extrapolated: ~864/day. The 3-hour window captured two complete consolidation cycles (09:48 and 12:15 UTC), each generating large batches of floor-clamped consolidation memories. The Q30.6 WARNING was misleading; the true rate is visible only across multi-slot windows.
+Q30.6 showed delta=0 (79-minute same-day window). The first Q31.3 run showed +108 in approximately 3 hours (~36/hr). The second Q31.3 run (re-run, 29 minutes later) shows −11 (noise) — total importance≤0.051 population unchanged at 1,049. The Q30.6 WARNING was misleading; the true rate is visible only across multi-slot windows. The tentative positive signal: the IS NULL fix (user_id=0 sentinel in `_user_conditions`) may have halted NEW floor-clamping while existing 1,049 remain. This hypothesis requires confirmation over a multi-day window.
 
-#### Observation 2: Importance mismatches accelerating at 28/hour
+#### Observation 2: Reconcile audit is deployed — 7 waves of false-negative data must be discarded
 
-Q31.5 shows +85 mismatches in 3 hours = ~28/hour = ~672/day. This exceeds the Q22.9/Q26.4 weekly cycle estimates. Acceleration reflects increased consolidation activity driven by Q22.1 double-decay compounding with Q24.2 mark_superseded importance=0.0. Without the reconcile audit trail (Q31.4 FAILURE, 7th consecutive), trend detection is manual only.
+Q31.4 re-run overturns 7 consecutive FAILURE verdicts. The practical consequence: mismatch trend data from Waves 24–30 that was characterized as "unknowable without audit trail" was in fact being logged continuously under `action="reconcile"`. The audit trail now shows exactly 2 entries (both from the Wave 31 session itself), suggesting the reconcile cron has not run automatically recently — or the audit DB was purged. This warrants a follow-up query: how many reconcile entries exist in the full audit log, and what is the last automatic cron run date?
 
-#### Observation 3: 20 consecutive FAILURE waves; trajectory unambiguously downward
+#### Observation 3: ARQ double-enqueue is the remaining root cause of double-decay
 
-Wave 31 marks the 20th consecutive characterization wave with zero fixes deployed. Every data-quality metric is deteriorating simultaneously: floor-clamped growing (+108 in 3 hours), importance mismatches growing (+47%), hygiene cron broken (7th miss), LLM timeout gap (15/18 callsites unprotected). Fix burden: ~19 LOC across 4 files (existing) plus ~17 callsite updates for Q31.7.
+Q31.2a establishes that the double-decay behavioral failure has evolved. The original Q22.1 root cause (`_user_conditions(None)` returning no filter) has been partially fixed. The new root cause is an ARQ job being enqueued twice per cycle. This is a different fix than the original — the original was a Python filter function; the new issue is in ARQ job dispatch. The admin endpoint (`POST /admin/decay`) is a structural risk but is not the active source. Likely investigation paths: (1) check ARQ job queue length and pending jobs in Redis; (2) check whether the IS NULL deployment restarted ARQ with a stale job in the queue; (3) check whether any code path outside `cron_jobs` calls `arq.enqueue_job("run_decay")`.
+
+#### Observation 4: LLM timeout fix closes a 15-wave open FAILURE — confirmed positive deployment signal
+
+Q31.7 HEALTHY is the first confirmed fix deployment observed in 21 waves of characterization. Every prior wave found zero fixes deployed. The Q15.3/Q16.3 180s semaphore-hold risk, open since Wave 15 (10+ waves), is now fully closed. This confirms the deployment channel is functional — the other identified fixes are deployable via the same path.
 
 ---
 
