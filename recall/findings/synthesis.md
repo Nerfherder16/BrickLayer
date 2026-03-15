@@ -1,7 +1,7 @@
-# Synthesis: Recall Autoresearch — Waves 1–25
+# Synthesis: Recall Autoresearch — Waves 1–26
 
-**Generated**: 2026-03-15 (updated with Wave 25 findings)
-**Questions answered**: 141 (Q1.1–Q1.5, Q2.1–Q2.5, Q3.1–Q3.5, Q4.1–Q4.6, Q5.1–Q5.4, Q5.6–Q5.7, Q6.1–Q6.7, Q7.1–Q7.6, Q13.1–Q13.8, Q13.1a–Q13.8b, Q14.1–Q14.9, Q14.4a, Q14.4b, Q15.1–Q15.5, Q16.1–Q16.5, Q16.3b, Q16.4b, Q18.1–Q18.5, Q19.1–Q19.6, Q20.1–Q20.6, Q21.1–Q21.6, Q22.1–Q22.9, Q23.1–Q23.7, Q24.1–Q24.8, Q25.1–Q25.7)
+**Generated**: 2026-03-15 (updated with Wave 26 findings)
+**Questions answered**: 148 (Q1.1–Q1.5, Q2.1–Q2.5, Q3.1–Q3.5, Q4.1–Q4.6, Q5.1–Q5.4, Q5.6–Q5.7, Q6.1–Q6.7, Q7.1–Q7.6, Q13.1–Q13.8, Q13.1a–Q13.8b, Q14.1–Q14.9, Q14.4a, Q14.4b, Q15.1–Q15.5, Q16.1–Q16.5, Q16.3b, Q16.4b, Q18.1–Q18.5, Q19.1–Q19.6, Q20.1–Q20.6, Q21.1–Q21.6, Q22.1–Q22.9, Q23.1–Q23.7, Q24.1–Q24.8, Q25.1–Q25.7, Q26.1–Q26.7)
 **Wave 17 questions (Q16.3a, Q16.4a)**: PENDING — deferred until Tier 1 fixes deployed
 **Source codebase**: C:/Users/trg16/Dev/Recall/
 **Stack**: FastAPI + Qdrant + Neo4j + Redis + PostgreSQL + Ollama (qwen3:14b + qwen3-embedding:0.6b)
@@ -10,28 +10,28 @@
 
 ## 1. Executive Summary
 
-Twenty-five waves of autoresearch have been run against the Recall self-hosted memory system. Waves 1–12 established a well-tested, type-safe codebase. Wave 13 revealed structural failures at the retrieval architecture level. Waves 14–20 added five FAILURE-severity findings across five clusters: LLM timeout misconfiguration, dedup observability, silent write failures, consolidation split-brain, and reconcile convergence failure. Wave 20 was an operational measurement wave that confirmed compound failures are occurring in production.
+Twenty-six waves of autoresearch have been run against the Recall self-hosted memory system. Waves 1–12 established a well-tested, type-safe codebase. Wave 13 revealed structural failures at the retrieval architecture level. Waves 14–20 added five FAILURE-severity findings across five clusters: LLM timeout misconfiguration, dedup observability, silent write failures, consolidation split-brain, and reconcile convergence failure. Wave 20 was an operational measurement wave that confirmed compound failures are occurring in production.
 
-Wave 24 was a **fix-verification wave** — the second consecutive attempt to confirm deployment of the Tier 0/1/1b fixes characterized across Waves 21–23. All five FAILURE questions confirmed fixes still not deployed. Wave 25 is the **third consecutive fix-verification wave**. All four confirmed FAILURE questions again show no code changes.
+Waves 24–26 are consecutive **fix-verification waves** — the second, third, and fourth attempts to confirm deployment of the Tier 0/1/1b fixes. Wave 26 produces 3 FAILURE, 3 WARNING, 1 INCONCLUSIVE.
 
-**Wave 25 signal: 14 consecutive characterization waves (Waves 12–25), ZERO fixes deployed.** The Tier 0 double-decay fix (`_user_conditions(None)`, ~3 lines) has been confirmed undeployed through 14 consecutive waves. Wave 25 brings two new time-sensitive developments: (1) the first hygiene archival batch is imminent (2026-03-17, 2 days), and (2) the purge endpoint scope has been clarified — it targets active low-quality memories, not the consolidation-superseded GC gap.
+**Wave 26 signal: 15 consecutive characterization waves (Waves 12–26), ZERO fixes deployed.** Wave 26 introduces two landmark developments: (1) Q24.6's "~11,000 GC-eligible superseded memories" estimate is **corrected** — the corpus started 2026-02-14 and no memory is actually 30+ days old; the first GC-eligible cohort emerges 2026-03-16; (2) **asymmetric observability** is confirmed — reconcile has zero audit visibility while hygiene.py:49 has full per-memory `log_audit(action="auto_archive")` instrumentation, making the 2026-03-17 first archival event observable.
 
-**Wave 25 key findings**:
-- Q25.1: FAILURE — Double-decay fix not deployed (14th consecutive wave); `_user_conditions(None)` still returns `[]`; 21 of 22 observable 6-hour slots (2026-03-10 through 2026-03-15) show 2 full-corpus runs per slot; Mar 15T00 single catch-up run confirmed as Q22.9 ARQ outage artifact (not a fix)
-- Q25.2: FAILURE — mark_superseded importance=0.0 fix not deployed; `neo4j_store.py:391` unchanged; 92 importance mismatches = exactly 1 day post-Sunday reconcile repair; **Sunday reconcile cycle confirmed**: accumulates ~92/day Mon–Sat (~5,572 peak by next Sunday), repaired weekly at 05:30 Sunday
-- Q25.3: FAILURE — Consolidation user_id attribution fix not deployed; `consolidation.py:235` Memory() constructor still missing `user_id=`; cumulative ~22,288 attribution-less merged memories created over 28 days
-- Q25.4: WARNING — Purge endpoint scope discovery: `/admin/memory/purge` uses `scroll_all(include_superseded=False)` by default — it targets ACTIVE low-quality memories (1,081 eligible) and explicitly excludes all 15,099 consolidation-superseded memories; the Q24.6 GC gap remains **fully unaddressed** by any available endpoint or scheduled cron
-- Q25.5: HEALTHY with observation — **First hygiene archival imminent**: 0 memories currently meet all hygiene criteria (binding constraint: age > 30d); oldest active memory is 28 days old (created 2026-02-14); first batch expected **2026-03-17 at 04:00** when Feb 14 cohort crosses the threshold; double-decay accelerates eligibility — first batch may be larger than expected
-- Q25.6: HEALTHY — ARQ Mar 15 timing anomaly is a fully explained isolated event from Q22.9 outage catch-up; Q22.1 2× model remains the complete and accurate characterization; no additional decay patterns beyond double-decay
-- Q25.7: FAILURE — Ghost-user compound FAILURE: neither Q21.5 IS NULL filter nor Q24.5 consolidation user_id fix deployed; 7 proc=0 ghost entries per slot; ghost re-accumulation path open — new merged memories with user_id=None continue to seed the next generation of ghost users
+**Wave 26 key findings**:
+- Q26.1: INCONCLUSIVE — Hygiene first-archival timing not reached (measured 2 days early); 0 auto_archive audit entries (expected at this timing); hygiene audit instrumentation CONFIRMED at `hygiene.py:49`
+- Q26.2: FAILURE — Double-decay fix not deployed (15th consecutive wave); most recent slot Mar 15T06 shows 2 full-corpus runs at 06:45 and 06:49; `_user_conditions(None)` at `qdrant.py:114` confirmed unchanged
+- Q26.3: WARNING — Floor-clamped count 673 (+41 from Q23.1 baseline of 632, +6.5%); 179.5 importance-units stolen across 5,975 active memories; first hygiene batch NOT materially inflated by double-decay for 30d+ cohort (all near floor regardless of decay model)
+- Q26.4: FAILURE — mark_superseded fix NOT deployed (3rd consecutive); `neo4j_store.py:391` unchanged; 124 mismatches on Sunday repair day (higher than 1-day post-repair baseline of 92, confirming same-day re-accumulation); weekly cycle 3rd data point confirmed
+- Q26.5: WARNING — Ghost re-accumulation trap characterized: 1,833 active consolidation-source memories with user_id=None (30.7% of active corpus); IS NULL-only deployment gives temporary relief but re-accumulation to 7 ghost users within weeks; co-deployment of Q21.5 + Q24.5 required for permanent fix
+- Q26.6: WARNING — Superseded pool 15,130 (+23 vs Q25.4 baseline); 0 GC-eligible (Q24.6 estimate CORRECTED: corpus started 2026-02-14, no memory is 30+ days old); first GC-eligible cohort emerges 2026-03-16; reconcile scan 5.94s for 21,105 points (no degradation)
+- Q26.7: FAILURE (reconcile) / NOTE (hygiene) — reconcile audit fix NOT deployed (2nd consecutive); 0 `log_audit()` calls in reconcile.py or ops.py; hygiene audit IS present at `hygiene.py:49`; asymmetric observability gap: reconcile invisible, hygiene will be visible on 2026-03-17
 
-Wave 24 produced 5 FAILURE, 1 WARNING, 2 HEALTHY. Wave 25 produces 4 FAILURE, 1 WARNING, 2 HEALTHY. The slight reduction in FAILURE count (Q24.8 reconcile audit trail not re-tested in Wave 25; Q25.4 purge scope is newly characterized as WARNING rather than a continued fix-check).
+Wave 25 produced 4 FAILURE, 1 WARNING, 2 HEALTHY. Wave 26 produces 3 FAILURE, 3 WARNING, 1 INCONCLUSIVE.
 
-**Overall health signal: CRITICAL — 14 CONSECUTIVE CHARACTERIZATION WAVES WITH ZERO FIXES DEPLOYED. FOUR CONFIRMED FAILURE CLUSTERS THIS WAVE. DOUBLE-DECAY HAS BEEN ACTIVE FOR 14 WAVES WITHOUT REMEDIATION. HYGIENE FIRST ARCHIVAL IS 2 DAYS AWAY — UNMONITORED UNDER DOUBLE-DECAY ACCELERATION. THE PURGE ENDPOINT DOES NOT ADDRESS THE GC GAP. DEPLOYMENT IS THE ONLY REMAINING ACTION.**
+**Overall health signal: CRITICAL — 15 CONSECUTIVE CHARACTERIZATION WAVES WITH ZERO FIXES DEPLOYED. THREE CONFIRMED FAILURE CLUSTERS THIS WAVE. DOUBLE-DECAY HAS BEEN ACTIVE FOR 15 WAVES WITHOUT REMEDIATION. FIRST HYGIENE ARCHIVAL IS TOMORROW (2026-03-17) — OBSERVABLE VIA AUDIT LOG BUT OCCURRING UNDER DOUBLE-DECAY CONDITIONS. Q24.6 GC-ELIGIBLE ESTIMATE WAS WRONG — FIRST ELIGIBLE COHORT EMERGES 2026-03-16. DEPLOYMENT IS THE ONLY REMAINING ACTION.**
 
 ---
 
-## 2. Cumulative Findings by Verdict Tier (Waves 1–25)
+## 2. Cumulative Findings by Verdict Tier (Waves 1–26)
 
 ### FAILURE — Open (requires fix before scaling)
 
@@ -56,11 +56,11 @@ Wave 24 produced 5 FAILURE, 1 WARNING, 2 HEALTHY. Wave 25 produces 4 FAILURE, 1 
 | Q19.6 | Split-brain confirmed in consolidation: qdrant.mark_superseded() at line 282 committed before neo4j.mark_superseded() at line 283 bare await; Neo4j failure = divergence; all 4 Neo4j write methods unguarded; **Q20.1 bounds impact**: weekly reconcile repairs superseded_by mismatches (0 currently); divergence window up to 7 days, not permanent | High | 19 |
 | **Q20.5** | **Compound failure reachable: Q18.1 partial gather + Q19.6 split-brain co-occur on single memory; reconcile Step A fix overwritten by Step B mark_superseded (importance=0.0); two passes required for convergence; 9 sub-pattern-A entries in Q20.1 are production evidence; Q21.1 provides one-line fix (remove importance=0.0 from mark_superseded); Q21.2 confirms compound state is currently latent (0 active)** | **High** | **20** |
 | **Q22.1** | **Double-decay FAILURE: `_user_conditions(None)` returns `[]` → system run processes ALL active memories (no user_id filter); every 15-min cron slot applies decay twice (system run + per-user run); effective decay 0.9216× per slot instead of 0.96×; corpus decaying 2× faster than configured; fix: add MatchAny or IsNullCondition to system-run filter in `_user_conditions`** | **High** | **22** |
-| **Q23.2 / Q24.1 / Q25.1** | **Double-decay FAILURE RECONFIRMED (14th consecutive wave): Q22.1 fix not deployed; `_user_conditions(None)` confirmed unchanged at `qdrant.py:114`; 21 of 22 observable 6-hour slots (2026-03-10 through 2026-03-15) show 2 full-corpus proc entries; Mar 15T00 single catch-up run is isolated Q22.9 ARQ outage artifact (not a fix); Mar 15T06 4.3-min gap between double-decay runs is post-restart queue settling (still 2× decay); active corpus at 5,936 as of Mar 15T06** | **High** | **23/24/25** |
-| **Q24.2 / Q25.2** | **mark_superseded importance=0.0 fix NOT deployed: `neo4j_store.py:391` still sets `m.importance = 0.0`; 92 importance mismatches confirmed (Wave 25: 1 day post-Sunday repair, confirming ~92/day accumulation rate); mismatch cycle confirmed: accumulates Mon–Sat (~5,572 peak), repaired Sunday 05:30am; retrieval unaffected (find_related filters superseded) but monitoring unreliable** | **Medium** | **24/25** |
-| **Q24.5 / Q25.3** | **Consolidation user_id attribution fix NOT deployed: `consolidation.py:235` Memory() constructor missing `user_id=` argument confirmed; ~796 merged memories/day accumulate with user_id=None; cumulative ~22,288 attribution-less merged memories over 28 days; users fully consolidated lose attribution permanently** | **Medium** | **24/25** |
+| **Q23.2 / Q24.1 / Q25.1 / Q26.2** | **Double-decay FAILURE RECONFIRMED (15th consecutive wave): Q22.1 fix not deployed; `_user_conditions(None)` confirmed unchanged at `qdrant.py:114`; 21 of 22 observable 6-hour slots (2026-03-10 through 2026-03-15) show 2 full-corpus proc entries; Mar 15T00 single catch-up run is isolated Q22.9 ARQ outage artifact (not a fix); Mar 15T06 4.3-min gap between double-decay runs is post-restart queue settling (still 2× decay); Wave 26 most recent slot Mar 15T06 confirms 2 full-corpus runs at 06:45 and 06:49; active corpus 5,975 as of Wave 26** | **High** | **23/24/25/26** |
+| **Q24.2 / Q25.2 / Q26.4** | **mark_superseded importance=0.0 fix NOT deployed: `neo4j_store.py:391` still sets `m.importance = 0.0`; Wave 26: 124 mismatches on Sunday repair day itself (higher than 1-day post-repair baseline of 92 — confirms same-day re-accumulation); 3rd data point for weekly cycle: Sunday repair → ~32 new mismatches in hours → ~92/day accumulation → ~5,572 peak pre-Sunday; retrieval unaffected (find_related filters superseded) but monitoring unreliable** | **Medium** | **24/25/26** |
+| **Q24.5 / Q25.3** | **Consolidation user_id attribution fix NOT deployed: `consolidation.py:235` Memory() constructor missing `user_id=` argument confirmed; ~796 merged memories/day accumulate with user_id=None; cumulative ~22,288+ attribution-less merged memories over 28 days; users fully consolidated lose attribution permanently** | **Medium** | **24/25** |
 | **Q24.7 / Q25.7** | **Ghost-user compound FAILURE — neither Q21.5 IS NULL filter nor Q24.5 consolidation user_id fix deployed; `qdrant.py:1143-1162` confirmed unchanged; 7 ghost user proc=0 entries per slot; 28+ wasted scroll operations/day; ghost re-accumulation path open: new merged memories with user_id=None (~796/day) seed next generation of ghost users even if IS NULL filter were deployed today** | **Medium** | **24/25** |
-| **Q24.8** | **Reconcile audit trail fix NOT deployed: zero reconcile entries in audit_log after multiple invocations; neither `reconcile.py` nor `ops.py` contains `log_audit()` calls; Q20.1 reconcile observability gap persists; monitoring of other fix verifications impaired** | **Medium** | **24** |
+| **Q24.8 / Q26.7** | **Reconcile audit trail fix NOT deployed (2nd consecutive): zero reconcile entries in audit_log; neither `reconcile.py` nor `ops.py` contains `log_audit()` calls; Q20.1 reconcile observability gap persists; reconcile is the ONLY scheduled maintenance worker with zero audit visibility (decay has decay_run entries, hygiene has auto_archive entries, consolidation has supersede entries); asymmetric observability gap confirmed** | **Medium** | **24/26** |
 
 ### WARNING — Open
 
@@ -85,13 +85,16 @@ Wave 24 produced 5 FAILURE, 1 WARNING, 2 HEALTHY. Wave 25 produces 4 FAILURE, 1 
 | **Q22.2** | **Ghost users confirmed as exhausted legacy user_ids (stored float in Qdrant; int() conversion surfaces them in get_distinct_user_ids()); all have 0 active memories; not in PostgreSQL users table; secondary anomaly: user_id=2 absent from decay loop post-consolidation, 521 mismatches re-appeared** | **Medium** | **22** |
 | **Q22.9** | **ARQ decay worker 6-hour outage (2026-03-14T18:15–00:01 UTC); 521 importance mismatches = Q21.1 bug accumulated over ALL historical consolidation (~521 supersedure events each creating 1 permanent Neo4j=0.0 vs Qdrant!=0 mismatch); user_id=2 data not deleted — consolidated into user_id=None merged form (consolidation.py:235 creates Memory() without user_id); disappears from get_distinct_user_ids() when ALL originals superseded; active corpus grew 5693→5936 confirming no data loss; dec=4544 catch-up at 00:01 is time-based formula, not bulk deletion** | **High** | **22** |
 | **Q23.1** | **Double-decay damage quantified: 632 active memories (10.6%) clamped at 0.05 floor; 12 premature casualties in 3-7d age band (avg init_imp=0.583); median 3-7d importance 79.3% of expected single-decay baseline; ~217 importance-units stolen from 3-7d cohort; damage bounded by floor (0 below 0.05)** | **Medium** | **23** |
-| **Q24.6** | **GC window open: hygiene cron running daily at 4am but 0 memories archived; hygiene is active-only soft-delete (IS NULL on superseded_by); no DETACH DELETE cron for consolidation-superseded memories; ~11,000 memories 30+ days past consolidation date eligible; 15,099 total superseded accumulating; Q21.3 GC cron recommendation still unimplemented** | **Medium** | **24** |
+| **Q24.6 / Q26.6** | **Superseded GC backlog: hygiene cron running daily at 4am but 0 memories archived; hygiene is active-only soft-delete (IS NULL on superseded_by); no DETACH DELETE cron for consolidation-superseded memories; **Q24.6's "~11,000 GC-eligible" estimate was INCORRECT** — corpus started 2026-02-14; no memory is actually 30+ days old as of Q26.6 measurement (2026-03-15); first GC-eligible cohort emerges 2026-03-16; Wave 26: 15,130 total superseded (+23 vs Q25.4 baseline); reconcile scan 5.94s for 21,105 points (no degradation); Q21.3 GC cron recommendation still unimplemented** | **Medium** | **24/26** |
 | **Q25.4** | **Purge endpoint scope clarified: `/admin/memory/purge` uses `scroll_all(include_superseded=False)` by default — targets ACTIVE low-quality memories only (1,081 eligible: importance≤0.15, age≥7d, access=0); consolidation-superseded memories (15,099) are explicitly excluded from its scope by IS NULL filter; Q24.6 GC gap is fully unaddressed by any available endpoint or scheduled cron; purge deletion logic is correct (Qdrant + Neo4j DETACH DELETE) but misscoped for GC purpose; new endpoint or cron required for superseded GC** | **Medium** | **25** |
+| **Q26.3** | **Double-decay compound damage growing: floor-clamped count 673 (+41 from Q23.1 baseline of 632, +6.5%); ~10 new floor-clamped memories/day; 179.5 importance-units stolen across 5,975 active memories (avg 0.030 per memory, 6% of typical 0.5 initial importance); 3-7d cohort ratio 1.2988 reflects stability variation not absence of damage; floor-clamped count is most reliable direct damage metric; first hygiene batch (2026-03-17) NOT materially inflated by double-decay for 30d+ cohort (both decay models reach floor by 30d)** | **Medium** | **26** |
+| **Q26.5** | **Ghost re-accumulation trap characterized: 1,833 active consolidation-source memories with user_id=None (30.7% of active corpus); IS NULL-only deployment eliminates current ghost users immediately but re-accumulation within weeks as these 1,833 memories get superseded through consolidation; co-deployment of Q21.5 (IS NULL filter) AND Q24.5 (consolidation user_id= propagation) required for permanent fix; 3,191 additional null-uid memories are system/observer by design (not re-accumulation seeds)** | **Medium** | **26** |
 
 ### INCONCLUSIVE — Open (observation gap, not resolved)
 
 | ID | Finding | Severity | Wave |
 |----|---------|---------|------|
+| **Q26.1** | **Hygiene first-archival verification — TIMING: measured 2 days before expected first archival (2026-03-17 at 04:00); 0 auto_archive audit entries at time of measurement (expected at this timing); hygiene audit instrumentation CONFIRMED at `hygiene.py:49` (action="auto_archive", per-memory metadata); observability is ready; re-verify on/after 2026-03-17** | **Info** | **26** |
 | Q15.1 | Store-time dedup hit rate: 3 silent-drop sites, 0 audit entries, 0 Prometheus counter — hit rate completely unquantifiable; prior threshold change (0.90->0.92) confirms real-world fires with no measurement | High | 15 |
 | Q16.1 | recall_dedup_hits_total counter absent from /metrics; instrumentation from Q15.1 not deployed; 6 metric families present, none dedup-related; baseline unmeasurable | Medium | 16 |
 | Q16.2 | logger.debug fix from Q15.2 not deployed; observer.py:176 is still bare `continue`; observer dedup remains most invisible path in the system | Medium | 16 |
@@ -170,7 +173,65 @@ Wave 25 HEALTHY additions:
 
 ---
 
-## 3. Wave 25 Results (Q25.1–Q25.7)
+## 3. Wave 26 Results (Q26.1–Q26.7)
+
+### Overview
+
+Wave 26 is the **fourth consecutive fix-verification wave**. Of 7 questions: 3 FAILURE, 3 WARNING, 1 INCONCLUSIVE.
+
+The defining result: **zero fixes deployed, fifteen consecutive waves of characterization with no remediation.** Wave 26 brings two landmark corrections and one confirmed asymmetry.
+
+**Q24.6 GC-eligible estimate corrected (Q26.6)**: Q24.6 stated "~11,000+ memories are 30+ days old and eligible for GC." Q26.6 analysis reveals this was incorrect. The entire corpus started on 2026-02-14 (28 days ago as of Q26.6 measurement on 2026-03-15). No memory in the corpus can be 30+ days old. The first GC-eligible cohort will emerge on 2026-03-16. The Q24.6 estimate used the wrong baseline; the Q21.3 GC cron is still the correct recommendation, but the urgency timeline was overstated.
+
+**Asymmetric observability gap (Q26.7)**: Direct code inspection confirms that reconcile (`reconcile.py`, `ops.py`) has zero `log_audit()` calls — making it the only scheduled maintenance worker with zero audit visibility. However, hygiene.py:49 has full `log_audit(action="auto_archive")` instrumentation with per-memory metadata. When the first hygiene archival fires on 2026-03-17, it will produce observable audit entries. The observability gap is now asymmetric: reconcile is invisible, hygiene will be visible.
+
+**Double-decay compound damage growing (Q26.3)**: The floor-clamped cohort has grown to 673 (+41 since Q23.1 four days earlier, +6.5%). Total importance-units stolen from the active corpus = 179.5 across 5,975 memories. The daily accumulation rate (~10 new floor-clamped memories/day) is consistent with the ongoing double-decay at each 6-hour slot.
+
+**Ghost re-accumulation trap quantified (Q26.5)**: 1,833 active consolidation-source memories have user_id=None (30.7% of active corpus). Deploying only the IS NULL filter (Q21.5) would eliminate current ghost users immediately, but re-accumulation would begin within weeks as these 1,833 memories get superseded through ongoing consolidation. The permanent fix requires co-deployment of Q21.5 and Q24.5 together.
+
+---
+
+### Wave 26 Findings Summary
+
+| ID | Verdict | Severity | Key Finding |
+|----|---------|---------|-------------|
+| Q26.1 | INCONCLUSIVE | Info | Hygiene first-archival timing: measured 2 days before expected event (2026-03-17 04:00); 0 auto_archive audit entries (expected at this timing); hygiene audit instrumentation CONFIRMED at `hygiene.py:49` (action="auto_archive", per-memory metadata); re-verify on/after 2026-03-17 |
+| Q26.2 | FAILURE | High | Double-decay fix not deployed (15th consecutive wave); `_user_conditions(None)` returns `[]` confirmed unchanged at `qdrant.py:114`; most recent slot Mar 15T06: 2 full-corpus runs at 06:45 and 06:49; first hygiene batch on 2026-03-17 will occur under double-decay conditions |
+| Q26.3 | WARNING | Medium | Floor-clamped count 673 (+41 from Q23.1 baseline of 632, +6.5%); 179.5 importance-units stolen across 5,975 active memories; ~10 new floor-clamped memories/day; first hygiene batch NOT materially inflated by double-decay for 30d+ cohort (both models reach floor by 30d); 7-20d band disproportionately affected |
+| Q26.4 | FAILURE | Medium | mark_superseded importance=0.0 fix NOT deployed (3rd consecutive FAILURE); `neo4j_store.py:391` unchanged; 124 mismatches on Sunday repair day (same-day re-accumulation, higher than 1-day post-repair baseline of 92); weekly cycle confirmed: 3rd empirical data point |
+| Q26.5 | WARNING | Medium | Ghost re-accumulation trap: 1,833 active consolidation-source memories with user_id=None (30.7% of active corpus); IS NULL-only deployment gives temporary relief but re-accumulation within weeks; co-deployment of Q21.5 + Q24.5 required for permanent fix; neither fix currently deployed |
+| Q26.6 | WARNING | Medium | Superseded pool 15,130 (+23 vs Q25.4 baseline); **Q24.6 GC-eligible estimate corrected**: 0 memories are actually 30+ days old (corpus started 2026-02-14); first GC-eligible cohort emerges 2026-03-16; reconcile scan 5.94s for 21,105 points (no degradation); Q21.3 GC cron still unimplemented |
+| Q26.7 | FAILURE/NOTE | Medium | Reconcile audit fix NOT deployed (2nd consecutive); 0 `log_audit()` calls in reconcile.py or ops.py; 0 reconcile audit entries; **hygiene IS instrumented** at `hygiene.py:49` (action="auto_archive" per-memory); asymmetric observability: reconcile invisible, hygiene visible from 2026-03-17 |
+
+---
+
+### Wave 26 Cross-Domain Observations
+
+#### Observation 1: Q24.6 GC-eligible estimate was wrong — first cohort emerges 2026-03-16
+
+Wave 24's synthesis stated "~11,000+ consolidation-superseded memories are eligible for GC." This estimate was based on an incorrect assumption about corpus age. The corpus started on 2026-02-14, making the oldest memories 28 days old as of Q26.6 measurement. No memory has crossed the 30-day GC eligibility threshold yet. The first GC-eligible cohort (memories consolidated from Feb 14 originals) crosses the threshold on 2026-03-16. Wave 27 should verify whether the first GC-eligible batch is observable. The Q21.3 GC cron recommendation stands; its urgency timeline has been corrected but its necessity has not changed.
+
+#### Observation 2: Reconcile is the sole audit blind spot among all scheduled workers
+
+Q26.7's code inspection confirms an asymmetric observability pattern across Recall's four scheduled maintenance workers:
+- **Decay**: has `decay_run` audit entries (one per run, per-user detail)
+- **Consolidation**: has `supersede` audit entries (one per supersedure event)
+- **Hygiene**: has `auto_archive` audit entries at `hygiene.py:49` (one per archived memory)
+- **Reconcile**: zero audit entries; no `log_audit()` calls in either `reconcile.py` or `ops.py`
+
+Reconcile is the sole blind spot. The Q21.6 fix (~9 LOC across 2 files) closes this gap and enables last-run-date querying, mismatch trend detection, and repair convergence monitoring.
+
+#### Observation 3: Ghost fix deployment sequencing is critical
+
+Q26.5 quantifies the ghost re-accumulation trap: 1,833 active merged memories with user_id=None will seed new ghost users as they get superseded. Deploying only the IS NULL filter (Q21.5) is a temporary fix that will require re-deployment within weeks. The co-deployment requirement (Q21.5 + Q24.5) means these two fixes are linked — neither alone is sufficient. This has not been clearly documented until Q26.5.
+
+#### Observation 4: First hygiene archival is tomorrow — verify with audit log
+
+The hygiene first archival is 1 day away (2026-03-17). Q26.7 confirms the audit infrastructure is ready (`hygiene.py:49` instrumentation confirmed). Wave 27's first question should be verification of the 2026-03-17 archival event: (a) how many memories were archived; (b) does the batch size match Q26.3's expectation; (c) were any memories archived that would have survived under single-decay (double-decay inflation check); (d) did the hygiene audit entries appear at `GET /admin/audit?action=auto_archive`.
+
+---
+
+## 4. Wave 25 Results (Q25.1–Q25.7)
 
 ### Overview
 
@@ -222,7 +283,7 @@ Q25.2's matching mismatch count (92 = 1 day post-Sunday repair in both Q24.2 and
 
 ---
 
-## 4. Wave 24 Results (Q24.1–Q24.8)
+## 5. Wave 24 Results (Q24.1–Q24.8)
 
 ### Overview
 
@@ -273,7 +334,7 @@ The 30-day GC window is open (Q24.6). An estimated 11,000 consolidation-supersed
 
 ---
 
-## 5. Wave 23 Results (Q23.1–Q23.7)
+## 6. Wave 23 Results (Q23.1–Q23.7)
 
 ### Overview
 
@@ -328,7 +389,7 @@ None of these corrections change the severity of Q22.1, Q21.1, or Q22.9's struct
 
 ---
 
-## 6. Wave 22 Results (Q22.1–Q22.9)
+## 7. Wave 22 Results (Q22.1–Q22.9)
 
 ### Overview
 
@@ -387,7 +448,7 @@ The total implementation cost for all five Wave 22 fix specifications is ≤38 L
 
 ---
 
-## 7. Wave 21 Results (Q21.1–Q21.6)
+## 8. Wave 21 Results (Q21.1–Q21.6)
 
 ### Overview
 
@@ -451,7 +512,7 @@ Waves 13–21 have produced characterizations without deployed remediation. Howe
 
 ---
 
-## 8. Wave 20 Results (Q20.1–Q20.6)
+## 9. Wave 20 Results (Q20.1–Q20.6)
 
 ### Overview
 
@@ -476,7 +537,7 @@ Of 6 questions: 4 HEALTHY (Q20.2, Q20.3, Q20.4, Q20.6), 1 WARNING (Q20.1), 1 FAI
 
 ---
 
-## 9. Wave 19 Results (Q19.1–Q19.6)
+## 10. Wave 19 Results (Q19.1–Q19.6)
 
 ### Overview
 
@@ -501,7 +562,7 @@ Of 6 questions: 2 HEALTHY (Q19.1, Q19.2), 3 WARNING (Q19.3, Q19.4, Q19.5), 1 FAI
 
 ---
 
-## 10. Wave 18 Results (Q18.1–Q18.5)
+## 11. Wave 18 Results (Q18.1–Q18.5)
 
 ### Overview
 
@@ -525,7 +586,7 @@ Of 5 questions: 2 HEALTHY (Q18.3, Q18.4), 2 WARNING (Q18.1, Q18.2), 1 INCONCLUSI
 
 ---
 
-## 11. Wave 17 Status (Q16.3a, Q16.4a — PENDING)
+## 12. Wave 17 Status (Q16.3a, Q16.4a — PENDING)
 
 Wave 17 was planned as a post-deployment verification wave with two questions:
 
@@ -539,7 +600,7 @@ These two questions remain the highest-priority measurement questions in the que
 
 ---
 
-## 12. Wave 16 Results (Q16.1–Q16.5, Q16.3b, Q16.4b)
+## 13. Wave 16 Results (Q16.1–Q16.5, Q16.3b, Q16.4b)
 
 ### Overview
 
@@ -563,7 +624,7 @@ Of 7 questions: 1 HEALTHY (Q16.3b), 2 FAILURE (Q16.3, Q16.4), 1 FAILURE/Medium (
 
 ---
 
-## 13. Waves 15 and 14 Results (archived from prior synthesis — condensed)
+## 14. Waves 15 and 14 Results (archived from prior synthesis — condensed)
 
 **Wave 15** (Q15.1–Q15.5): Dedup observability crisis confirmed — three independent code paths produce zero audit entries, zero log entries, no Prometheus counter. Global LLM timeout 180s applies to all callers; 43 confirmed >60s events; per-call override does not exist. Q15.4 ruled out length-based pre-filtering. Q15.5 identified newline-density guard as a practical fast-fail alternative for dense single-line content.
 
@@ -571,7 +632,7 @@ Of 7 questions: 1 HEALTHY (Q16.3b), 2 FAILURE (Q16.3, Q16.4), 1 FAILURE/Medium (
 
 ---
 
-## 14. Cross-Wave Patterns (Waves 1–25)
+## 15. Cross-Wave Patterns (Waves 1–26)
 
 ### Pattern 1: Dedup observability gap — three waves, four sites, zero remediation (Q14.3, Q15.1, Q15.2, Q16.1, Q16.2, Q16.4) — SYSTEMIC / STALLED — Q20.4 confirms threshold correct
 
@@ -635,7 +696,7 @@ The hygiene archival cron has been running daily at 4am with zero output for the
 
 ---
 
-## 15. Prioritized Remediation Roadmap (Current State, post Wave 25)
+## 16. Prioritized Remediation Roadmap (Current State, post Wave 26)
 
 Based on severity, feasibility, and number of waves confirming the gap. Items marked with `[N waves]` have been confirmed across multiple investigation cycles without remediation. **Wave 25 updates are bolded.**
 
@@ -707,18 +768,23 @@ Note: Markov feature should remain disabled (build_prefetch_cache short-circuite
 
 ---
 
-## 16. Open Threads for Wave 26
+## 17. Open Threads for Wave 27
 
-**Critical requirement**: Wave 26 MUST begin with a deployment check. Fourteen consecutive waves (Waves 12–25) have produced characterizations with zero deployed remediation. The Tier 0 double-decay fix (~3 lines) has been confirmed undeployed 14 times. **Before running any questions, Wave 26 should check: has any code changed in the repo since Wave 25? If yes, run post-fix verification questions. If no (still the same code), deploy Tier 0 immediately.**
+**Critical requirement**: Wave 27 MUST begin with a deployment check. Fifteen consecutive waves (Waves 12–26) have produced characterizations with zero deployed remediation. The Tier 0 double-decay fix (~3 lines) has been confirmed undeployed 15 times. **Before running any questions, Wave 27 should check: has any code changed in the repo since Wave 26? If yes, run post-fix verification questions. If no (still the same code), continue with time-sensitive verification below.**
 
-### Time-sensitive priority (Wave 26 day 1)
+### Time-sensitive priority (Wave 27 — run immediately, 2026-03-17)
 
-**Q25.5-followup — Hygiene first archival verification (RUN ON 2026-03-17)**:
-The Feb 14 cohort crosses the 30-day threshold on 2026-03-17 at 18:00 UTC. The daily hygiene cron runs at 04:00. Verify on 2026-03-17:
-(a) Did the 04:00 hygiene cron archive any memories? If the cron runs at 04:00, the Feb 14 oldest memory doesn't cross the threshold until 18:00 — so the March 17 04:00 run may show 0, and the March 18 04:00 run would be the first to catch the Feb 14 cohort.
-(b) Check `/admin/audit?action=hygiene_archive&limit=100` after 04:00 on both Mar 17 and Mar 18.
-(c) Report: first archival count, importance distribution of archived memories, whether double-decay inflated the batch (compare to single-decay expectation: memories with initial_importance ~0.5 should have decayed to ~0.05 under double-decay in 30 days; under single-decay they would still be ~0.24).
-*No prerequisite. Can and must run regardless of deployment status.*
+**Q26.1-followup — Hygiene first archival verification (RUN ON OR AFTER 2026-03-17 04:00)**:
+Q26.1 was INCONCLUSIVE because measurement was taken 2 days before the expected first archival. Q26.7 confirmed that `hygiene.py:49` has `log_audit(action="auto_archive")` instrumentation. The first batch should fire on 2026-03-17 at 04:00 when the Feb 14 cohort crosses the 30-day threshold.
+(a) Check `GET /admin/audit?action=auto_archive&limit=100` — should show N entries (one per archived memory).
+(b) Report: first archival count, importance distribution of archived memories, whether double-decay inflated the batch vs single-decay expectations.
+(c) Verify the hygiene soft-delete is active-only (memories get `superseded_by="auto-archive"`, not DETACH DELETE).
+(d) Note: Q26.3 showed that for 30d+ memories, both decay models reach the floor — the batch size is driven primarily by access_count=0 criterion, not the importance threshold.
+*Correction from Q25.5 open thread: the audit action is `auto_archive` (confirmed at `hygiene.py:49`), NOT `hygiene_archive`. Use `GET /admin/audit?action=auto_archive`.*
+
+**Q26.6-followup — First GC-eligible cohort verification (2026-03-16/17)**:
+Q26.6 corrected Q24.6: the first GC-eligible memories (superseded_by IS NOT NULL AND invalid_at < now-30d) emerge on 2026-03-16. Verify: (a) how many superseded memories are now GC-eligible; (b) are any automated GC mechanisms present or is the Q21.3 backlog starting to accumulate?
+*No prerequisite. Run as early in Wave 27 as possible.*
 
 ### Post-deployment re-measurements (activate only after Tier 1/1b deploy)
 
@@ -728,7 +794,7 @@ The Feb 14 cohort crosses the 30-day threshold on 2026-03-17 at 18:00 UTC. The d
 **Q16.4a — Dedup hit rate baseline**: After deploying recall_dedup_hits_total counters, what is the 24h baseline hit rate per source?
 *Prerequisite: Q15.1/Q16.1 instrumentation deployed.*
 
-**Q25.1-post — Double-decay post-fix verification**: After deploying Q22.1 fix (IS NULL filter in _user_conditions or system-run filter), verify: (a) each 6-hour slot shows exactly ONE full-corpus proc entry (system run) plus per-user entries; (b) 3-7d cohort ratio begins recovering above 0.793 baseline; (c) floor-clamped memory count begins decreasing; (d) confirm no new hygiene over-archiving from the double-decay acceleration.
+**Q25.1-post — Double-decay post-fix verification**: After deploying Q22.1 fix (IS NULL filter in _user_conditions or system-run filter), verify: (a) each 6-hour slot shows exactly ONE full-corpus proc entry (system run) plus per-user entries; (b) 3-7d cohort ratio begins recovering above 0.793 baseline; (c) floor-clamped memory count begins decreasing from 673 (Q26.3 baseline).
 *Prerequisite: Q22.1 fix deployed.*
 
 **Q25.2-post — mark_superseded mismatch rate post-fix**: After removing `m.importance = 0.0` from `neo4j_store.py:391`, verify: (a) reconcile dry_run shows 0 new mismatches accumulating after the weekly repair; (b) importance_mismatches count stabilizes and does not grow between Sunday repairs.
@@ -737,18 +803,21 @@ The Feb 14 cohort crosses the 30-day threshold on 2026-03-17 at 18:00 UTC. The d
 **Q25.3-post — Consolidation user_id attribution propagation**: After fixing `consolidation.py:235` to pass `user_id` to merged Memory constructor, verify: (a) new merged memories have user_id set; (b) users with recently consolidated originals reappear in get_distinct_user_ids().
 *Prerequisite: consolidation user_id fix deployed.*
 
+**Q26.5-post — Ghost fix co-deployment verification**: After co-deploying Q21.5 (IS NULL filter) AND Q24.5 (consolidation user_id= propagation), verify: (a) get_distinct_user_ids() returns only user_ids with active memories; (b) no proc=0 ghost entries in next 24h of decay audit; (c) new merged memories have user_id set (Q26.5 seed pool stops growing).
+*Prerequisite: BOTH Q21.5 and Q24.5 deployed together.*
+
 ### Low-priority analytical questions (proceed only if deployment gating is impractical)
 
-**GC mechanism build — build new superseded GC endpoint**: Q25.4 confirmed the admin purge endpoint does NOT target superseded memories. To address the Q24.6 backlog (~11,000 eligible memories), a new endpoint or cron is required that calls `scroll_all(include_superseded=True)` and filters for `superseded_by IS NOT NULL AND invalid_at < (now - 30d)`. Before building, verify: (a) successor memories are still active (Q21.3 safety criterion); (b) DETACH DELETE runs atomically in both Qdrant and Neo4j. A dry_run mode is strongly recommended.
+**GC mechanism build — build new superseded GC endpoint**: Q25.4 confirmed the admin purge endpoint does NOT target superseded memories. Q26.6 corrected Q24.6's eligibility estimate — the first GC-eligible cohort emerges 2026-03-16. To address the backlog, a new endpoint or cron is required that calls `scroll_all(include_superseded=True)` and filters for `superseded_by IS NOT NULL AND invalid_at < (now - 30d)`. Before building, verify: (a) successor memories are still active (Q21.3 safety criterion); (b) DETACH DELETE runs atomically in both Qdrant and Neo4j. A dry_run mode is strongly recommended.
 *No prerequisite. Can scope and implement independently of other fixes.*
 
 ---
 
-## 17. Residual Risk Inventory (Current State, post Wave 25)
+## 18. Residual Risk Inventory (Current State, post Wave 26)
 
 | Risk | Severity | Likelihood | Trigger | Status |
 |------|---------|-----------|---------|--------|
-| **Double-decay: corpus decaying 2× faster than configured; every memory decays at 0.9216/slot instead of 0.96/slot; 632 memories floor-clamped (10.6%); active corpus 5,936 as of 2026-03-15** | **CRITICAL** | **Certain (every cron slot)** | **Every 6-hour decay run** | **OPEN — Q22.1 FAILURE; Q23.2, Q24.1, Q25.1 RECONFIRMED (14th consecutive wave); fix is ~3 lines in _user_conditions() or decay cron entrypoint; Q25.6 fully explains Mar 15 timing anomaly as ARQ catch-up (not a fix); 21/22 observable slots confirm 2 full-corpus runs per slot; Mar 15T06 4.3-min gap is post-restart settling (still 2×); first hygiene archival 2026-03-17 will be inflated by this bug** |
+| **Double-decay: corpus decaying 2× faster than configured; every memory decays at 0.9216/slot instead of 0.96/slot; 673 memories floor-clamped (11.3%); 179.5 importance-units stolen; active corpus 5,975 as of Wave 26** | **CRITICAL** | **Certain (every cron slot)** | **Every 6-hour decay run** | **OPEN — Q22.1 FAILURE; Q23.2, Q24.1, Q25.1, Q26.2 RECONFIRMED (15th consecutive wave); fix is ~3 lines in _user_conditions() or decay cron entrypoint; Q25.6 fully explains Mar 15 timing anomaly as ARQ catch-up (not a fix); floor-clamped cohort growing ~10/day; Q26.3: first hygiene batch NOT materially inflated for 30d+ cohort (both decay models reach floor by 30d)** |
 | Dedup hit rate completely unquantifiable — unknown volume of unique facts permanently dropped | High | Active (31,289+ creates processed without measurement) | Every store event that triggers dedup path | OPEN — 4 waves unresolved (Q15.1, Q16.1); real-time rate unmeasurable; Q20.4 confirms threshold is correct but real-time rate still unknown |
 | Global LLM timeout 180s — single slow call blocks entire pipeline for up to 180s | High | Active (43 confirmed >60s events) | Any consolidation or fact_extraction call with long input | OPEN — 5 waves unresolved (Q15.3, Q16.3); Q18.3 confirms fix deployable; Q19.3 adds queue-wait qualifier |
 | Store-time dedup silent drop — unique facts in incoming write permanently lost with no audit trail | High | Active (every dedup event) | Any store that scores >0.92 against existing memory | OPEN — Q14.3 FAILURE; audit entry not deployed |
@@ -757,17 +826,17 @@ The Feb 14 cohort crosses the 30-day threshold on 2026-03-17 at 18:00 UTC. The d
 | Retrieval coverage structural failure — K=3 fixed vs. growing corpus; 9.5% lifetime coverage | High | Certain (coverage degrades with corpus growth) | Each new memory stored | OPEN — Q13.1, Q14.7; exploration injection from Q14.2 not deployed; note: active corpus only 5,945 (Q24.3) |
 | Consolidation split-brain: Neo4j failure after Qdrant mark_superseded = divergence up to 7 days | High | Unknown (consolidation runs regularly; Neo4j transient errors possible) | Any Neo4j transient error during consolidation source-supersedure loop | OPEN — Q19.6 FAILURE; Q20.1 bounds impact (0 superseded_mismatches currently; weekly reconcile repairing); **Q21.4 confirms compensating rollback is 4 lines qdrant.py** |
 | **Reconcile convergence defect: compound failures require two passes; mark_superseded overwrites Step A importance fix** | **High** | **Latent (9 entries produced historically; 0 active after Q21.2 repair)** | **Q18.1 partial gather + Q19.6 split-brain co-occurring on same memory** | **OPEN — Q20.5 FAILURE; Q21.1 collapses fix to 1-line removal of importance=0.0 from neo4j_store.py; Q24.2 confirms fix not deployed** |
-| **mark_superseded importance=0.0: ~92 mismatches/day accumulating; ~5,572 accumulate weekly before Sunday repair; weekly cycle confirmed by Q25.2** | **Medium** | **Certain (every consolidation event creates 1 mismatch)** | **Every consolidation supersedure** | **OPEN — Q21.1 root cause confirmed; Q24.2, Q25.2 confirm fix not deployed (2nd consecutive wave); weekly mismatch cycle confirmed empirically: Q24.2 and Q25.2 both measured 92 mismatches ~1 day post-Sunday repair; retrieval unaffected (find_related filters superseded)** |
-| **Reconcile audit invisibility: zero audit_log entries for any reconcile run — execution history unverifiable** | **Medium** | **Certain (reconcile runs weekly but never writes to audit_log)** | **Every reconcile run** | **OPEN — Q20.1 secondary; Q21.6 confirms 9-LOC fix; Q24.8 confirms fix not deployed** |
+| **mark_superseded importance=0.0: ~92 mismatches/day accumulating; ~5,572 accumulate weekly before Sunday repair; weekly cycle confirmed by Q25.2 and Q26.4 (3rd data point)** | **Medium** | **Certain (every consolidation event creates 1 mismatch)** | **Every consolidation supersedure** | **OPEN — Q21.1 root cause confirmed; Q24.2, Q25.2, Q26.4 confirm fix not deployed (3rd consecutive wave); weekly mismatch cycle confirmed: 3 empirical measurements; Q26.4: 124 mismatches on Sunday repair day itself (same-day re-accumulation); retrieval unaffected (find_related filters superseded)** |
+| **Reconcile audit invisibility: zero audit_log entries for any reconcile run — execution history unverifiable; ONLY maintenance worker with zero audit visibility** | **Medium** | **Certain (reconcile runs weekly but never writes to audit_log)** | **Every reconcile run** | **OPEN — Q20.1 secondary; Q21.6 confirms 9-LOC fix; Q24.8, Q26.7 confirm fix not deployed (2nd consecutive wave); Q26.7: reconcile is sole audit blind spot among all scheduled workers — decay, consolidation, and hygiene all have audit entries** |
 | 1,315 importance mismatches (6.3% corpus): Qdrant/Neo4j drift from _track_access and compound failures | Medium | Active (Q21.2 resolved to 0 after repair; will re-accumulate) | Every _track_access exception (Q18.2) and every compound failure (Q20.5) | OPERATIONALLY BOUNDED — Q21.2 confirms repair=true converges in single pass; weekly reconcile resolves 1,313 mismatches automatically; residual 2 sub-pattern-A resolved by manual repair=true |
 | except:pass in importance-inheritance block — Qdrant errors silently swallowed; promotions unconfirmed | Medium | Unknown (never logged) | Any Qdrant error during dedup drop at API path | OPEN — Q16.4b FAILURE; Q19.4 provides indirect evidence this is materializing |
 | decay.py gather partial write — batch abort leaves partial Qdrant writes untracked; audit log skipped | Medium | Unknown (depends on decay_user_error frequency) | Any Qdrant error during decay batch execution | OPEN — Q18.1 WARNING; Q19.1 confirms scope is bounded to decay.py only |
 | retrieval.py _track_access loop early exit — N+1 memories in retrieval batch miss access reinforcement | Medium | Unknown (depends on _track_access exception frequency) | Any storage error during retrieval stat update | OPEN — Q18.2 WARNING; Q19.2 confirms scope is bounded to _track_access only |
 | Importance corpus contamination: Q16.4b + Q18.2 prevent importance promotion; 1,315 importance mismatches accumulating | Medium | Active (6.3% of corpus, measurable drift; resolves weekly) | Any dedup event (Q16.4b) or retrieval event (Q18.2) where write fails silently | OPEN — Q20.1 WARNING; re-accumulates between weekly reconcile runs |
-| **Superseded memory storage bloat: ~15,099 superseded Qdrant points; ~796 new/day; no scheduled GC; ~11,000+ eligible for DETACH DELETE; NO AVAILABLE MANUAL TOOL** | **Medium** | **Certain (grows with every consolidation)** | **Every consolidation event creates superseded points that are never scheduled for deletion** | **OPEN — Q21.3 WARNING; Q24.6 WARNING (GC window now open); Q25.4 WARNING confirms admin purge endpoint CANNOT target superseded memories (uses include_superseded=False by default); no endpoint or cron exists for bulk superseded GC; requires new endpoint/cron with scroll_all(include_superseded=True) filtered by superseded_by IS NOT NULL AND invalid_at < (now-30d)** |
-| **Ghost users in decay: 7/10 decay_run entries/slot processed=0; overdecay ~4%/run for primary user; ghost re-accumulation path open** | **Medium** | **Certain (70% of user_id list are phantoms; grows with superseded accumulation)** | **Every cron slot; every decay run for primary user** | **OPEN — Q21.5 WARNING; Q22.2 confirms ghost identity; Q24.7, Q25.7 confirm both fixes not deployed; Q25.7 identifies ghost re-accumulation: even if IS NULL filter deployed, new user_id=None merged memories (~796/day) seed next generation; both Q21.5 IS NULL fix and Q24.5 consolidation user_id fix must be co-deployed** |
-| **Consolidation user_id attribution loss: merged memories get user_id=None permanently; ~22,288 cumulative attribution-less merged memories (28 days × ~796/day); user vanishes from get_distinct_user_ids() when all originals superseded** | **Medium** | **Certain (runs hourly; every system consolidation event)** | **Every consolidation of named-user memories by system run** | **OPEN — Q22.9 WARNING; Q24.5, Q25.3 FAILURE (fix not deployed, 2nd consecutive wave); ~796 merged memories/day with user_id=None; cumulative loss growing** |
-| **Hygiene first archival batch may be over-inflated by double-decay (imminent: 2026-03-17)** | **Medium** | **Certain (first batch fires in ~2 days)** | **2026-03-17 04:00 daily hygiene cron** | **TIME-SENSITIVE — Q25.5 HEALTHY with observation; hygiene cron criteria are correct; but under double-decay, the Feb 14 cohort has decayed 2× as fast, meaning a higher fraction will be below importance<0.3 at the 30-day gate than expected; first batch size is uncharacterized; follow-up required on 2026-03-17 or 2026-03-18 (Wave 26)** |
+| **Superseded memory storage bloat: ~15,130 superseded Qdrant points; ~796 new/day; no scheduled GC; first GC-eligible cohort emerges 2026-03-16; NO AVAILABLE MANUAL TOOL** | **Medium** | **Certain (grows with every consolidation)** | **Every consolidation event creates superseded points that are never scheduled for deletion** | **OPEN — Q21.3 WARNING; Q24.6 WARNING (Q26.6 corrects: 0 GC-eligible as of 2026-03-15, NOT "~11,000"); Q25.4 WARNING confirms admin purge endpoint CANNOT target superseded memories; Q26.6: first GC-eligible cohort emerges 2026-03-16; no endpoint or cron exists for bulk superseded GC; requires new endpoint/cron with scroll_all(include_superseded=True) filtered by superseded_by IS NOT NULL AND invalid_at < (now-30d)** |
+| **Ghost users in decay: 7/10 decay_run entries/slot processed=0; overdecay ~4%/run for primary user; ghost re-accumulation path open** | **Medium** | **Certain (70% of user_id list are phantoms; grows with superseded accumulation)** | **Every cron slot; every decay run for primary user** | **OPEN — Q21.5 WARNING; Q22.2 confirms ghost identity; Q24.7, Q25.7 confirm both fixes not deployed; Q26.5 quantifies seed pool: 1,833 active consolidation-source memories with user_id=None; IS NULL-only deployment gives temporary relief but re-accumulation within weeks; co-deployment of Q21.5 + Q24.5 required for permanent fix** |
+| **Consolidation user_id attribution loss: merged memories get user_id=None permanently; ~22,288+ cumulative attribution-less merged memories; user vanishes from get_distinct_user_ids() when all originals superseded** | **Medium** | **Certain (runs hourly; every system consolidation event)** | **Every consolidation of named-user memories by system run** | **OPEN — Q22.9 WARNING; Q24.5, Q25.3 FAILURE (fix not deployed, 2nd consecutive wave); ~796 merged memories/day with user_id=None; Q26.5: 1,833 active consolidation-source null-uid memories confirmed in active corpus** |
+| **Hygiene first archival imminent (2026-03-17 04:00)** | **Low** | **Certain (cron fires daily)** | **2026-03-17 04:00 daily hygiene cron** | **TIME-SENSITIVE — Q26.1 INCONCLUSIVE (measured 2 days early); Q26.7 confirms audit instrumentation ready at `hygiene.py:49`; Q26.3 REVISED: first batch NOT materially inflated by double-decay for 30d+ cohort (both models reach floor by 30d); batch size driven by access_count=0 criterion; verify with `GET /admin/audit?action=auto_archive` on 2026-03-17/18** |
 | Dedup threshold (0.92) empirically confirmed correct (Q20.4) — 0 pairs at 0.90 | Low | Resolved | — | **RESOLVED by Q20.4** — threshold is empirically correct; 0.90-0.95 band empty |
 | ~~Active-memory Neo4j sync gap: active memories with neo4j=0.0~~ | ~~High~~ | ~~Active~~ | ~~Memory creation path~~ | **CLOSED by Q24.3** — hypothesis ruled out; Q23.4's 50 "active" mismatches were temporal artifacts; zero active memories have neo4j=0.0; only creation-path bug is the mark_superseded path (Q21.1) |
 | observer.py semantic dedup: zero log call before continue — drops permanently unrecoverable | Medium | Active (every observer dedup event) | Dedup threshold fires on any observer-sourced memory | OPEN — 2 waves unresolved (Q15.2, Q16.2) |
@@ -785,10 +854,10 @@ The Feb 14 cohort crosses the 30-day threshold on 2026-03-17 at 18:00 UTC. The d
 
 ---
 
-## 18. Waves 1–12 Baseline (summary, not modified)
+## 19. Waves 1–12 Baseline (summary, not modified)
 
 Waves 1–12 produced 35 HEALTHY findings and 5 committed fixes covering: p99 search latency well under threshold at 40 concurrent users (Q1.1–Q1.4); domain isolation correct under concurrent writes (Q2.1); graph traversal guarded against cycles (Q3.4); all 4 background workers with structured exception logging (Q5.3); asyncio.Lock added to all async-mutated module-level state (Q7.1, e73858f); Pydantic v2 migration complete (Q7.2, 033ede9); datetime.utcnow() sweep complete across 23 files (Q6.7, 9cec9f4); all 4 worker test suites written and passing (Q5.7, Q7.6); embed_batch per-item fallback confirmed observable (Q6.1, 26da1aa); stdlib/structlog mismatch eliminated across all 77 src/ files (Q7.4). These findings remain confirmed holding.
 
 **Key pre-condition**: The Waves 1–12 work addressed code quality and unit-test coverage. Wave 13 established that this well-built code is failing at its primary job — surfacing the right memories at the right time. Waves 14–25 have added numerous FAILURE/WARNING findings to the runtime behavior and documented a remediation stall pattern that has now run for fourteen consecutive waves.
 
-**Wave 25 post-synthesis recommendation**: Fourteen waves of characterization (12–25) with zero deployed remediation. Wave 25 confirms: (1) Q22.1 double-decay is still active — 14th consecutive wave; 21 of 22 observable slots confirm 2 full-corpus runs per slot; ARQ timing anomaly from Wave 24 is now fully explained as isolated catch-up (Q25.6); (2) all four re-tested Tier 0/1b FAILUREs remain undeployed; (3) the GC window has been open since Wave 24 but Q25.4 confirms the admin purge endpoint cannot address the superseded backlog — a new endpoint/cron is required; (4) hygiene first archival is imminent on 2026-03-17 and will be inflated by the double-decay bug. **Immediate priority**: Deploy Tier 0 fix #0 (Q22.1 double-decay, ~3 lines) BEFORE the hygiene first archival on 2026-03-17 to ensure the hygiene batch is calibrated correctly. Then Tier 1b fixes #6 and #7 (~10 LOC total). Then Tier 2 fixes #16, #17, #18 (~10 LOC). No further characterization waves are justified until at least Tier 0 + Tier 1 remediation is deployed.
+**Wave 26 post-synthesis recommendation**: Fifteen waves of characterization (12–26) with zero deployed remediation. Wave 26 confirms: (1) Q22.1 double-decay is still active — 15th consecutive wave; floor-clamped cohort now 673 (+41 from Q23.1, ~10/day growth); (2) two key corrections: Q24.6's "~11,000 GC-eligible" was wrong (0 eligible until 2026-03-16), and Q25.5's batch inflation concern is reduced (Q26.3 confirms both decay models reach floor by 30d for the first cohort); (3) asymmetric observability discovered: reconcile is the only worker with zero audit visibility; (4) hygiene first archival fires tomorrow (2026-03-17) and WILL be observable via `GET /admin/audit?action=auto_archive`. **Immediate priority**: Deploy Tier 0 fix #0 (Q22.1 double-decay, ~3 lines). Then Tier 1b fixes #6 and #7 (~10 LOC total). Then Tier 2 fixes #16, #17, #18 (~10 LOC). No further characterization waves are justified until at least Tier 0 + Tier 1 remediation is deployed.
