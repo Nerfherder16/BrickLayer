@@ -2332,7 +2332,7 @@ findings that have not yet been asked.
 ---
 
 ## Q28.1 [DOMAIN-1] Hygiene first archival re-verification -- did the 2026-03-16T04:00 cron fire and archive the expected ~2 memories?
-**Status**: PENDING
+**Status**: INCONCLUSIVE
 **Wave**: 28
 **Mode**: observability
 **Target**: GET /admin/audit?action=auto_archive&limit=20; active corpus count; superseded pool count
@@ -2349,7 +2349,7 @@ findings that have not yet been asked.
 ---
 
 ## Q28.2 [DOMAIN-1] Double-decay fix deployment check (Wave 28) -- is Q22.1 finally deployed?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 28
 **Mode**: static code analysis + observability
 **Target**: src/storage/qdrant.py:114 _user_conditions(); GET /admin/audit?action=decay_run&limit=20
@@ -2365,7 +2365,7 @@ findings that have not yet been asked.
 ---
 
 ## Q28.3 [DOMAIN-1] Double-decay archival count parity -- does the first hygiene batch size confirm Q27.7 correction?
-**Status**: PENDING
+**Status**: INCONCLUSIVE
 **Wave**: 28
 **Mode**: quantitative verification
 **Target**: GET /admin/audit?action=auto_archive&limit=100; Q27.7 age-band projections
@@ -2381,7 +2381,7 @@ findings that have not yet been asked.
 ---
 
 ## Q28.4 [DOMAIN-3] GC-eligible cohort at 2026-03-21 -- are superseded memories now crossing the 30-day threshold?
-**Status**: PENDING
+**Status**: INCONCLUSIVE
 **Wave**: 28
 **Mode**: observability + quantitative analysis
 **Target**: Qdrant superseded pool (superseded_by IS NOT NULL AND invalid_at < now-30d); POST /admin/reconcile?dry_run=true
@@ -2398,7 +2398,7 @@ findings that have not yet been asked.
 ---
 
 ## Q28.5 [DOMAIN-4] Consolidation user_id fix deployment re-check (4th attempt) -- has consolidation.py:235 been fixed?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 28
 **Mode**: static code analysis + observability
 **Target**: src/core/consolidation.py:235 Memory() constructor; src/storage/qdrant.py:1143 get_distinct_user_ids(); active null-uid consolidated memory count
@@ -2414,7 +2414,7 @@ findings that have not yet been asked.
 ---
 
 ## Q28.6 [DOMAIN-5] Reconcile audit fix deployment re-check (4th attempt) -- has log_audit() been added to reconcile.py and ops.py?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 28
 **Mode**: static code analysis + observability
 **Target**: src/workers/reconcile.py; src/api/routes/ops.py; GET /admin/audit?action=reconcile&limit=10
@@ -2430,7 +2430,7 @@ findings that have not yet been asked.
 ---
 
 ## Q28.7 [DOMAIN-1] Hygiene Week 13 batch verification -- does the March 22-28 archival rate match Q27.7 projection (~128/day)?
-**Status**: PENDING
+**Status**: INCONCLUSIVE
 **Wave**: 28
 **Mode**: observability + quantitative analysis
 **Target**: GET /admin/audit?action=auto_archive&limit=200; active corpus count; Q27.7 weekly projection
