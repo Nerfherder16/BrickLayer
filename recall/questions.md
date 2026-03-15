@@ -2212,3 +2212,119 @@ findings that have not yet been asked.
 - HEALTHY: Reconcile audit fix deployed; GET /admin/audit?action=reconcile returns >= 1 entry with required fields; hygiene archive entries also visible for Q26.1 events
 **Priority**: Tier 1b — 9-LOC fix; 2nd consecutive reconfirmation; Wave 26 hygiene event makes this time-relevant (reveals whether hygiene archival is also invisible)
 **Derived from**: Q24.8 FAILURE — "reconcile audit trail fix not deployed; zero reconcile entries in audit_log"; Q21.6 HEALTHY — "9 LOC across reconcile.py + ops.py; fire-and-forget log_audit()"; Q26.1 creates opportunity to test whether hygiene worker also lacks audit instrumentation
+
+## Wave 27 Questions
+
+**Wave theme**: Hygiene first-archival verification (time-sensitive 2026-03-17/18), first GC-eligible cohort emergence (2026-03-16), double-decay 7-20d band impact, information recovery debt quantification, and deployment re-checks for the three open FAILURE items.
+
+---
+
+## Q27.1 [DOMAIN-1] Hygiene first-archival verification (TIME-SENSITIVE) -- did the 2026-03-17 or 2026-03-18 04:00 cron archive the Feb 14 cohort?
+**Status**: PENDING
+**Wave**: 27
+**Mode**: observability
+**Target**: GET /admin/audit?action=auto_archive&limit=100; active memory count; Qdrant total point count post-archival
+**Hypothesis**: Q26.1 was INCONCLUSIVE because it was measured 2 days before the expected first-archival. Q26.7 confirmed that hygiene.py:49 has log_audit(action="auto_archive") instrumentation with per-memory metadata. The daily 4am hygiene cron should fire on 2026-03-17 or 2026-03-18. Q26.3 revised expectations: for 30d+ memories, both decay models drive importance near 0.05 floor, so batch size is driven by access_count=0 criterion. Archival should be soft-delete (superseded_by="auto-archive") NOT DETACH DELETE.
+**What to measure**: (1) GET /admin/audit?action=auto_archive&limit=100 -- how many auto_archive entries exist? Extract importance, access_count, age_days from details field. (2) If 0 entries: verify timing (must be after 04:00 on 2026-03-17 or 2026-03-18). Try action=archive or action=hygiene as fallbacks. (3) Verify soft-delete: archived memories should have superseded_by="auto-archive" in Qdrant; should NOT appear in active scroll (IS NULL filter). (4) Confirm consolidation-superseded pool is UNCHANGED -- hygiene must not have touched the 15,130+ superseded memories. (5) Active count before vs after: confirm decreased by archived batch size. (6) Total Qdrant points should be UNCHANGED (soft-delete, not hard-delete).
+**Verdict threshold**:
+- FAILURE: Cron fired but 0 memories archived despite age > 30d criterion met; or hygiene archived consolidation-superseded memories (scope bleed)
+- WARNING: Mar 17 04:00 caught 0 (bulk cohort not yet past threshold); first real batch deferred to Mar 18; or batch size unexpectedly large or small
+- HEALTHY: auto_archive audit entries confirmed; batch size consistent with access_count=0 criterion; soft-delete verified; active count decreased; superseded pool unchanged
+**Priority**: TIME-SENSITIVE -- Wave 27 day 1; Q26.1 explicitly deferred this verification to Wave 27
+**Derived from**: Q26.1 INCONCLUSIVE; Q26.7 FAILURE/NOTE (hygiene.py:49 confirmed); Q26.3 WARNING (batch not inflated for 30d+ cohort)
+
+---
+
+## Q27.2 [DOMAIN-3] First GC-eligible cohort emergence -- are any superseded memories now 30+ days old and eligible for DETACH DELETE?
+**Status**: PENDING
+**Wave**: 27
+**Mode**: observability + quantitative analysis
+**Target**: Qdrant superseded pool (superseded_by IS NOT NULL AND invalid_at < now-30d); POST /admin/reconcile?dry_run=true
+**Hypothesis**: Q26.6 corrected Q24.6: first GC-eligible cohort (superseded memories from Feb 14 originals) crosses 30-day threshold on 2026-03-16. As of Wave 27, the first GC-eligible batch should exist. No automated mechanism exists (Q21.3 GC cron unimplemented). This is the first time real GC-eligible candidates are available for measurement.
+**What to measure**: (1) Query Qdrant for superseded memories with invalid_at < (now - 30 days): count and report. (2) Verify these are consolidation-superseded (superseded_by IS NOT NULL, not superseded_by="auto-archive"). (3) Check if any automated GC ran: has superseded pool total changed beyond expected consolidation growth rate? (4) Reconcile scan time: POST /admin/reconcile?dry_run=true -- compare to Q26.6 baseline of 5.94s for 21,105 points. (5) Cross-ref with Q27.1: do hygiene-archived memories also appear in GC-eligible query?
+**Verdict threshold**:
+- FAILURE: 0 GC-eligible memories despite 2026-03-16 threshold (calculation wrong); or automated GC ran silently without audit entries
+- WARNING: First GC-eligible cohort confirmed (hundreds of memories from Feb 14 cohort); no automated GC; Q21.3 cron remains unimplemented
+- HEALTHY: GC-eligible cohort confirmed and sized; automated GC cron deployed and running; Qdrant total decreasing
+**Priority**: Tier 2 -- first real GC opportunity; motivated by Q26.6 timeline correction
+**Derived from**: Q26.6 WARNING (0 GC-eligible as of 2026-03-15; first cohort emerges 2026-03-16); Q21.3 WARNING (GC cron unimplemented)
+
+---
+
+## Q27.3 [DOMAIN-1] Double-decay 7-20d band -- are memories approaching the hygiene importance threshold faster than under single-decay?
+**Status**: PENDING
+**Wave**: 27
+**Mode**: quantitative analysis
+**Target**: Active memory corpus; importance distribution stratified by age band (7-10d, 10-15d, 15-20d); hygiene threshold importance < 0.3
+**Hypothesis**: Q26.3 noted the 7-20d band is disproportionately affected by double-decay. Under single-decay (0.9228/slot), a memory at importance=0.5 reaches importance=0.3 in approximately 7-8 days. Under double-decay (0.8516/slot), the same memory reaches 0.3 in approximately 3-4 days -- the hygiene threshold is reached roughly 2x faster. This creates a "double-decay inflation queue": memories in the 15-30d range with importance < 0.3 and access_count=0 that will be hygiene-archived at 30 days due to double-decay even though they would survive under single-decay.
+**What to measure**: (1) Sample 7-20d active memory cohort. Compute importance / expected_single_decay_importance ratio. Compare to Q23.1 3-7d ratio of 0.793 (expect lower). (2) Measure fraction of 7-20d cohort with importance < 0.3. Compare to expected fraction under single-decay. (3) Count "double-decay inflation queue": active memories with age 15-30d, importance < 0.3, AND access_count = 0. These will be archived at 30 days via double-decay that would survive under single-decay. (4) Report what fraction of Q26.3 179.5 importance-units stolen comes from the 7-20d band vs floor-clamped cohort.
+**Verdict threshold**:
+- FAILURE: 7-20d importance/expected ratio < 0.5; or inflation queue > 500 memories
+- WARNING: 7-20d ratio in 0.5-0.8 range; inflation queue 100-500 memories; measurable excess pre-hygiene eligibility
+- HEALTHY: 7-20d ratio near 1.0 (Q22.1 fix deployed); inflation queue near 0
+**Priority**: Tier 3 -- compound damage characterization; quantifies downstream hygiene inflation
+**Derived from**: Q26.3 WARNING (7-20d band disproportionately affected; 179.5 importance-units stolen)
+
+---
+
+## Q27.4 [DOMAIN-1] Information recovery debt -- how many floor-clamped memories are permanently stuck vs recoverable if Q22.1 deployed today?
+**Status**: PENDING
+**Wave**: 27
+**Mode**: quantitative analysis
+**Target**: Floor-clamped active memory cohort (importance <= 0.051); access_count, age, source distributions
+**Hypothesis**: Q26.3 found 673 memories at the 0.05 floor (up from 632 at Q23.1). Decay can only reduce importance -- it cannot spontaneously restore it. Floor-clamped memories with access_count=0 and no active consolidation siblings have no natural recovery path. If Q22.1 were deployed today, these memories would stop losing importance (already at floor) but would not recover. Quantifying this "permanent loss" pool characterizes the remediation debt from 15 waves of unresolved double-decay.
+**What to measure**: (1) Sample floor-clamped cohort (importance = 0.05, active). For each: access_count, age, source, estimate initial_importance. (2) Segment: (a) can recover via retrieval _track_access; (b) may recover via consolidation boost (has active siblings); (c) permanently stuck (access_count=0, no active siblings, age approaching 30d). (3) Report fraction in category (c) -- permanent information loss. (4) For category (c): how many will be hygiene-archived within 30 days?
+**Verdict threshold**:
+- FAILURE: > 500 floor-clamped memories permanently stuck; unrecoverable information loss
+- WARNING: 200-500 permanently stuck; remainder have some recovery pathway
+- HEALTHY: < 100 permanently stuck; Q22.1 fix deployment would prevent further damage with minimal sunk loss
+**Priority**: Tier 3 -- remediation debt quantification
+**Derived from**: Q26.3 WARNING (673 floor-clamped; 179.5 importance-units stolen); Q22.1 FAILURE (15 consecutive waves)
+
+---
+
+## Q27.5 [DOMAIN-4] Consolidation user_id deployment re-check (3rd attempt) -- has consolidation.py:235 been fixed?
+**Status**: PENDING
+**Wave**: 27
+**Mode**: static code analysis + observability
+**Target**: src/core/consolidation.py:235 Memory() constructor; active null-uid consolidated memory count vs Q26.5 baseline of 1,833
+**Hypothesis**: Q25.3 (FAILURE) and Q24.5 (FAILURE) confirmed consolidation.py:235 Memory() constructor missing user_id= argument. Q26.5 quantified the seed pool: 1,833 active consolidation-source memories with user_id=None. If deployed, new merged memories should have user_id propagated. The existing seed pool still creates re-accumulation risk until those memories are superseded.
+**What to measure**: (1) Read consolidation.py:235 -- confirm whether user_id= argument is present. (2) If deployed: query recent merged memories (source=consolidation, created after fix date) -- do they have user_id set? (3) Update seed pool: active memories with source=consolidation AND user_id=None. Compare to Q26.5 baseline of 1,833. If fix deployed: count stable. If not: count grown by ~796/day * consolidation fraction * days_since_Q26.5. (4) Decay audit: GET /admin/audit?action=decay_run&limit=20 -- is proc=0 ghost count still 7 per slot?
+**Verdict threshold**:
+- FAILURE: consolidation.py:235 still lacks user_id=; seed pool growing beyond 1,833; fix not deployed (3rd consecutive wave)
+- WARNING: Fix deployed; seed pool stable at ~1,833 (old seeds remain); co-deployment of Q21.5 required to eliminate current ghost users
+- HEALTHY: consolidation.py:235 passes user_id= to Memory(); new merged memories have user_id; seed pool not growing
+**Priority**: Tier 2 -- 3rd consecutive wave; co-deployment with Q21.5 required for permanent ghost user fix
+**Derived from**: Q26.5 WARNING (1,833 seed pool; co-deployment required); Q25.3 FAILURE (2nd consecutive)
+
+---
+
+## Q27.6 [DOMAIN-5] Reconcile audit fix deployment re-check (3rd attempt) -- has log_audit() been added to reconcile.py and ops.py?
+**Status**: PENDING
+**Wave**: 27
+**Mode**: static code analysis + observability
+**Target**: src/workers/reconcile.py; src/api/routes/ops.py (log_audit calls); GET /admin/audit?action=reconcile&limit=10
+**Hypothesis**: Q26.7 (FAILURE) and Q24.8 (FAILURE) confirmed zero log_audit() calls in reconcile.py or ops.py. Q26.7 established reconcile is the ONLY scheduled maintenance worker with zero audit visibility. If Q21.6 fix (~9 LOC) was deployed, the next reconcile run should produce audit entries with action="reconcile" and fields for mismatch_count, repair_count, scan_duration.
+**What to measure**: (1) Read reconcile.py and ops.py -- confirm whether log_audit() calls are present. (2) POST /admin/reconcile?dry_run=true then GET /admin/audit?action=reconcile&limit=10. Expect 0 if not deployed; >= 1 if deployed. (3) If entry exists: verify fields include mismatch_count, repair_count, scan_duration, qdrant_total (Q21.6 spec). (4) If not deployed: confirm 0 entries (3rd consecutive FAILURE). (5) Cross-check: GET /admin/audit?action=auto_archive&limit=10 -- hygiene entries from Q27.1 should exist, confirming audit infrastructure works.
+**Verdict threshold**:
+- FAILURE: reconcile.py and ops.py still lack log_audit() calls; GET /admin/audit?action=reconcile returns 0; fix not deployed (3rd consecutive wave)
+- WARNING: log_audit() present in one file but not both; or entry exists but missing required fields
+- HEALTHY: log_audit() confirmed in both files; at least 1 reconcile audit entry with all required fields; reconcile no longer sole audit-blind worker
+**Priority**: Tier 1b -- 9-LOC fix; 3rd consecutive wave; asymmetric observability gap fully characterized
+**Derived from**: Q26.7 FAILURE/NOTE (reconcile ONLY worker with zero audit visibility; 2nd consecutive); Q21.6 HEALTHY (9 LOC across 2 files)
+
+---
+
+## Q27.7 [DOMAIN-1] Hygiene archival rate projection -- will hygiene stabilize, reduce, or over-archive the active corpus under double-decay?
+**Status**: PENDING
+**Wave**: 27
+**Mode**: quantitative analysis (depends on Q27.1 for first batch data)
+**Target**: Q27.1 archival count; active corpus age distribution; daily new memory rate; double-decay importance profiles for 15-30d cohort
+**Hypothesis**: Q27.1 provides the first empirical hygiene batch size. At ~5,975 active memories and ~213 new memories/day (store + consolidation estimate), the corpus is currently growing. If hygiene archives more than new memories enter per day, the active corpus shrinks. The double-decay bug affects the 15-30d pipeline: memories with importance < 0.3 and access_count=0 in the 15-30d range will hit the hygiene gate at 30 days. Under single-decay, fewer would be below 0.3 at 30 days, so the double-decay bug inflates the ongoing daily archival pipeline.
+**What to measure**: (1) From Q27.1: first batch size as reference for one cohort. (2) Pipeline query: active memories with age 15-30d, importance < 0.3, access_count = 0. This is the daily hygiene pipeline. Report count and estimate daily rate (count / 15 days average). (3) Compare daily new memories vs daily archival rate. Active corpus in growth, equilibrium, or decline? (4) Under double-decay vs single-decay: for 15-30d memories, what fraction have importance < 0.3? Excess quantifies ongoing inflation from bug. (5) 30-day projection under: (a) no fixes deployed; (b) Q22.1 deployed today.
+**Verdict threshold**:
+- FAILURE: Projected daily archival rate > 200/day (hygiene shrinking corpus > 1,000/week); or double-decay inflates ongoing archival by > 2x vs single-decay
+- WARNING: Daily archival rate 50-200/day; active corpus in slow decline; double-decay adds 20-50% to ongoing archival rate
+- HEALTHY: Daily archival rate < 50/day; active corpus stable or growing; double-decay has < 10% ongoing effect on daily archival
+**Priority**: Tier 3 -- forward corpus health projection; depends on Q27.1 first batch data
+**Derived from**: Q27.1 (first archival batch); Q26.3 WARNING (7-20d band disproportionately affected); Q22.1 FAILURE (15 waves)
