@@ -3155,3 +3155,169 @@ Time anchor: Wave 33 runs AFTER 2026-03-16T05:30 UTC (Sunday reconcile window) a
 - INCONCLUSIVE: Export endpoint unavailable or per-memory created_at not in export schema
 **Priority**: Tier 1 — directly measures the damage from 8-wave hygiene FAILURE streak; first quantification of the archival backlog; informs urgency of hygiene cron fix vs other active bugs
 **Derived from**: Q32.1 FAILURE (8th miss; Feb 14 cohort crossed 30d boundary); Q31.3 FAILURE (1,049 floor-clamped; backlog size unknown); Q27.7 WARNING (first archival target 2026-03-16T04:00; ~2 memories estimated); Q27.3 FAILURE (double-decay accelerates time-to-floor)
+
+---
+
+## Wave 34 Questions — Double-Decay Impact Quantification, Population Split Origin, Mismatch Re-accumulation, and Admin Endpoint Risk
+
+Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16T14:18+ UTC). The 24-wave double-decay root cause is fully identified (Q33.2b) but the fix remains undeployed (Q33.2c FAILURE). This wave quantifies cumulative damage, traces the origin of the integer-0 vs null population split, measures post-repair mismatch dynamics, and audits the admin endpoint attack surface.
+
+---
+
+## Q34.1 [DOMAIN-1] Double-decay cumulative damage — expected vs actual importance distribution across active corpus
+**Status**: PENDING
+**Wave**: 34
+**Mode**: quantitative analysis
+**Target**: GET /admin/export (active memories, include_superseded=false); compute importance distribution histogram; model expected single-decay distribution from initial_importance + age + access_count
+**Hypothesis**: Q33.2b confirmed 5,043 null-user_id active memories have been decayed twice per 6-hour cycle for 24+ waves (at least since 2026-03-14T18:15 UTC when IS NULL fix deployed, but likely since system start ~2026-02-14). Q23.1 measured 632 floor-clamped and ~217 importance-units stolen from the 3-7d cohort, but that was 20 waves ago. With 24 additional waves of double-decay, the cumulative damage is significantly worse. Using the decay formula (0.96^n per cycle under single-decay, 0.96^(2n) under double-decay), we can model the expected importance for every memory given its initial_importance, age, and access_count, then compare to actual importance. The delta between expected and actual is the net importance suppression caused by double-decay. This quantifies the total information quality debt: how many importance-units have been stolen from the corpus, and how many memories are at floor that should still be above it under correct single-decay.
+**What to measure**:
+1. Export all active memories. For each memory, record: id, importance, initial_importance, created_at, access_count, user_id.
+2. Compute age_hours = (now - created_at) / 3600. Compute expected_cycles = age_hours / 6 (one cycle per 6h).
+3. For null-user_id memories (5,043): actual decay rate was 2x per cycle. Expected single-decay importance = max(0.05, initial_importance * 0.96^expected_cycles + access_boost). Actual importance reflects 0.96^(2*expected_cycles).
+4. Compute per-memory delta = expected_single_decay_importance - actual_importance. Sum all deltas for total importance-units stolen.
+5. Count memories where expected > 0.05 but actual = 0.05 (premature floor-clamping casualties — memories that should still be live but are stuck at floor due to double-decay).
+6. Build histogram: importance buckets [0.05, 0.1, 0.2, 0.3, 0.4, 0.5+] for null-user_id population. Compare to integer-0 population (975 memories, never decayed) as a control group.
+**Verdict threshold**:
+- FAILURE: > 500 premature floor-clamping casualties (memories at floor that should be above 0.05 under single-decay); OR total importance-units stolen > 1,000
+- WARNING: 100-500 premature casualties; OR total importance-units stolen 200-1,000
+- HEALTHY: < 100 premature casualties AND total importance-units stolen < 200 (double-decay damage limited; most memories would have reached floor anyway)
+- INCONCLUSIVE: initial_importance not available in export schema; OR access_boost formula not deterministic enough to model expected importance
+**Priority**: Tier 1 — first comprehensive damage quantification since Q23.1 (20 waves ago); directly informs whether post-fix importance restoration is needed (bulk re-score) or whether natural access will recover the corpus
+**Derived from**: Q33.2b WARNING (root cause confirmed: 5,043 null memories decayed 2x); Q23.1 WARNING (632 floor-clamped, 217 importance-units stolen — now stale); Q33.7 HEALTHY (Feb 14 cohort survived due to high access — but mid-cohort may not have)
+
+---
+
+## Q34.2 [DOMAIN-4] Integer-0 vs null user_id population origin — which code paths produce each?
+**Status**: DONE (FAILURE)
+**Wave**: 34
+**Mode**: quality analysis
+**Target**: C:/Users/trg16/Dev/Recall/src/ — all store() call sites; Memory model constructor; observer.py, consolidation.py, workers/decay.py, causal_extractor.py, signals.py
+**Hypothesis**: Q33.2b identified a three-population split: 975 active memories with user_id=0 (integer), 5,043 with user_id=null (JSON null), and ~65 other. The integer-0 population has username="system" and are never decayed (missed by both passes in run_decay_all_users). The null population are legacy consolidation records predating user isolation. But the exact code paths that produce each population have not been traced. Understanding the origin is critical for the unification fix proposed in Q33.2b ("store user_id=null always, never store integer 0") — we need to know every ingest path that writes user_id=0 so we can change them all. Additionally, are new memories STILL being created with user_id=0 today? If yes, the never-decayed integer-0 pool grows indefinitely.
+**What to measure**:
+1. Read the Memory model/dataclass definition — what is the default value of user_id? Is it None, 0, or required?
+2. Grep all call sites that construct Memory(...) — which ones pass user_id=0 explicitly? Which ones omit user_id (inheriting the default)?
+3. Specifically check: observer.py (PostToolUse hook — stores edit-extracted facts), consolidation.py (stores merged memories), signals.py, causal_extractor.py, and any admin/import endpoints.
+4. Check the store() method in qdrant.py — does it transform user_id before writing to payload? (e.g., does it convert None to 0, or 0 to None?)
+5. Count new integer-0 memories created in the last 24h (from audit log or export with created_at filter). If > 0: the integer-0 pool is still growing; if = 0: legacy only.
+6. Trace the consolidation path specifically: when consolidation.py creates a merged memory, what user_id does it get? Q24.5 confirmed it is missing user_id= in the Memory() constructor — does this produce null or 0?
+**Verdict threshold**:
+- FAILURE: Multiple active code paths still producing user_id=0 today; integer-0 pool growing; unification requires changes to 3+ files
+- WARNING: One or two code paths producing user_id=0; limited to system/observer ingest; consolidation produces null (confirming Q33.2b); unification is scoped
+- HEALTHY: No code paths currently produce user_id=0; all integer-0 memories are legacy; new memories all use null or explicit user_id; no code changes needed for unification
+- INCONCLUSIVE: Memory model default is ambiguous; store() transforms user_id in a way that makes the origin untraceable
+**Priority**: Tier 1 — prerequisite for designing the correct double-decay fix; determines whether a simple sentinel change suffices or whether multiple ingest paths need patching
+**Derived from**: Q33.2b WARNING (three-population split identified; 975 integer-0 never decayed; origin untraced); Q24.5 FAILURE (consolidation.py:235 Memory() missing user_id=)
+
+---
+
+## Q34.3 [DOMAIN-2] Mismatch re-accumulation rate — clean-window measurement from Q31.5 repair baseline
+**Status**: DONE (HEALTHY)
+**Wave**: 34
+**Mode**: quantitative analysis
+**Target**: POST /admin/reconcile (repair=false); GET /admin/audit?action=reconcile&limit=10
+**Hypothesis**: Q31.5 repair cleared all 261 mismatches at 2026-03-15T14:17 UTC. Q32.5 was INCONCLUSIVE (12.6 min elapsed). Q33.4 and Q33.5 are time-gated at 2026-03-16T05:30 and 14:17 UTC respectively. Wave 34 provides the longest clean-window measurement yet. Two competing rate models: (A) Q31.5's implied ~28/hour (261 in ~9.3h), which predicts ~1,344 mismatches at 48h post-repair; (B) Q24.2's ~1.3/hour (~62 at 48h). If the Sunday 05:30 UTC reconcile cron ran with repair=true (Q33.4), the measurement window resets to post-Sunday. Either way, the elapsed time since last repair gives the most reliable rate ever measured. This rate determines whether reconcile must be changed to auto-repair on every run (if >10/hour) or whether weekly scan-only is adequate (if <2/hour).
+**What to measure**:
+1. POST /admin/reconcile (repair=false) — note importance_mismatches count.
+2. GET /admin/audit?action=reconcile&limit=10 — identify the most recent reconcile entry. Was it the Q31.5 manual repair (2026-03-15T14:17 UTC), the Sunday 05:30 UTC cron (Q33.4), or a later entry?
+3. If Sunday cron ran: note its importance_mismatches and repairs_applied. If repairs_applied > 0: baseline resets to that timestamp with 0 mismatches. If repairs_applied = 0 (scan-only): baseline remains Q31.5 at 14:17 UTC.
+4. Compute: current_mismatches / hours_since_last_repair = hourly_rate. Classify: >10/hour = urgent, 2-10/hour = moderate, <2/hour = low.
+5. Cross-reference with consolidation activity: GET /admin/audit?action=consolidation_run&limit=5 — how many consolidation runs occurred in the window? Each supersedure creates one mismatch (Q31.5 root cause: mark_superseded does not update Neo4j importance). Rate should correlate with consolidation throughput.
+**Verdict threshold**:
+- FAILURE: Mismatch rate > 10/hour (mark_superseded bug generates mismatches faster than weekly reconcile can drain; auto-repair on every run is mandatory)
+- WARNING: Mismatch rate 2-10/hour (moderate accumulation; weekly repair sufficient if cron uses repair=true; root fix still needed)
+- HEALTHY: Mismatch rate < 2/hour (slow accumulation; weekly scan-only is operationally adequate for now; root fix is lower priority)
+- INCONCLUSIVE: Sunday reconcile ran with repair=true AND < 6h elapsed since (insufficient post-repair window for rate measurement)
+**Priority**: Tier 1 — resolves the Q31.5 vs Q24.2 rate discrepancy conclusively; directly determines whether the immediate fix (scheduler repair=true) is Tier 0 or Tier 2
+**Derived from**: Q31.5 WARNING (261/261 repaired; ~28/hour implied); Q33.4 PENDING (Sunday cron verification); Q33.5 PENDING (24h trajectory); Q24.2 FAILURE (~1.3/hour estimate)
+
+---
+
+## Q34.4 [DOMAIN-5] Admin decay endpoint unscoped risk — has POST /admin/decay ever been called, and what is the blast radius?
+**Status**: DONE (WARNING)
+**Wave**: 34
+**Mode**: quality analysis
+**Target**: GET /admin/audit?action=decay_run&limit=50 (check for actor="admin" entries); C:/Users/trg16/Dev/Recall/src/api/ (admin router for POST /admin/decay); source code audit of admin endpoint
+**Hypothesis**: Q31.2a identified a structural risk: POST /admin/decay calls `worker.run()` with `user_id=None` (no filter), which means it processes the ENTIRE active corpus in a single pass. This is the same `worker.run(user_id=None)` path that caused the original double-decay. If an admin or automated process calls this endpoint, it would apply a THIRD decay pass on top of the existing double-decay — triple-decaying null-user_id memories. The endpoint appears to have no rate limiting and no confirmation step. This question determines: (1) has it ever been called (check audit log for actor="admin" decay entries), (2) what is the exact code path (does it call run_decay_all_users or worker.run directly), and (3) what guardrails exist (auth required? rate limit? user_id parameter accepted?).
+**What to measure**:
+1. GET /admin/audit?action=decay_run&limit=50 — filter for entries where actor != "decay" (i.e., not from the scheduled cron). Any actor="admin" or actor="api" entries? Note count, timestamps, and processed counts.
+2. Read the admin router file that defines POST /admin/decay — what function does it call? Does it accept a user_id parameter? Does it call `worker.run()` directly or `run_decay_all_users()`?
+3. If it calls `worker.run(user_id=None)`: confirm that this path applies IS NULL filter (catches null-user_id memories) or no filter at all (catches everything).
+4. Check for authentication/authorization on the endpoint — is it protected by API key, session, or completely open?
+5. Check for rate limiting — can the endpoint be called repeatedly in rapid succession?
+6. If it has been called: quantify the damage — each call applies one extra decay pass to the full corpus. N calls = N extra decay passes. Cross-reference timestamps with importance anomalies.
+**Verdict threshold**:
+- FAILURE: Endpoint has been called at least once AND it applies unscoped full-corpus decay (confirmed triple+ decay event in production)
+- WARNING: Endpoint has never been called BUT it remains unscoped (structural risk; one accidental call = corpus-wide decay event; no guardrails)
+- HEALTHY: Endpoint accepts user_id parameter and scopes correctly; OR endpoint has been removed/disabled; OR endpoint requires explicit confirmation
+- INCONCLUSIVE: Audit log does not distinguish actor source; cannot determine whether admin calls occurred
+**Priority**: Tier 1 — structural risk assessment; even if never called, an unscoped full-corpus decay endpoint is a latent severity-critical vulnerability; especially dangerous while double-decay bug remains unpatched (would become triple-decay)
+**Derived from**: Q31.2a FAILURE (admin endpoint calls worker.run() with user_id=None); Q33.2b WARNING (worker.run(user_id=0) → IS NULL → 5,043 null memories)
+
+---
+
+## Q34.5 [DOMAIN-1] Integer-0 never-decayed pool — importance distribution and information quality impact
+**Status**: DONE (HEALTHY)
+**Wave**: 34
+**Mode**: quantitative analysis
+**Target**: GET /admin/export (active memories); filter user_id = 0 (integer); importance and access_count distribution
+**Hypothesis**: Q33.2b confirmed 975 active memories with user_id=0 (integer) are NEVER decayed — they are missed by both passes in run_decay_all_users because: (1) the per-user loop runs IS NULL which only catches null, not integer-0; (2) the explicit system pass also runs IS NULL. These memories have username="system" and were created by system/worker ingest paths. Without decay, their importance scores remain at or near initial_importance indefinitely (only access boosts change them). This creates the opposite problem from double-decay: over-representation of system memories in retrieval results. If many of these have high importance but low relevance to user queries, they pollute retrieval quality. This question measures the importance distribution of the never-decayed pool and assesses whether they are causing retrieval noise.
+**What to measure**:
+1. Export active memories with user_id=0 (integer). Count: expected ~975 (from Q33.2b).
+2. Importance distribution: histogram [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]. What fraction have importance > 0.5? > 0.8?
+3. Access count distribution: how many have access_count = 0? These are never-retrieved AND never-decayed — permanently occupying importance space.
+4. Age distribution: when were they created? If old (>14d) AND high importance AND zero access: they are zombie high-importance memories that should have decayed to floor but never did.
+5. Domain distribution: are they concentrated in specific domains (system, tooling, etc.) or spread across all domains?
+6. Compare to the null-user_id population (5,043): what is the average importance of never-decayed (int-0) vs double-decayed (null)? The ratio quantifies the asymmetric damage.
+**Verdict threshold**:
+- FAILURE: > 200 never-decayed memories with importance > 0.5 AND access_count = 0 AND age > 14d (significant retrieval pollution from zombie high-importance system memories)
+- WARNING: 50-200 such memories; OR average importance of int-0 pool is > 2x the null pool average (asymmetric but bounded)
+- HEALTHY: < 50 such memories; OR most int-0 memories have been accessed (importance is earned, not stale); OR int-0 importance distribution is similar to null pool
+- INCONCLUSIVE: user_id=0 not filterable in export; or export does not include user_id field
+**Priority**: Tier 2 — secondary to the double-decay fix but important for understanding total corpus health; the never-decayed pool is the mirror image of the double-decay problem and may require its own fix (adding FieldCondition match=0 as a third pass in run_decay_all_users)
+**Derived from**: Q33.2b WARNING (975 integer-0 active memories never decayed; asymmetric with 5,043 double-decayed null memories); Q33.7 HEALTHY (Feb 14 cohort importance preserved by access — but int-0 memories may have inflated importance without access)
+
+---
+
+## Q34.6 [DOMAIN-1] Consolidation contribution to floor-clamped pool — audit log measurement since Q31.3 baseline
+**Status**: DONE (FAILURE)
+**Wave**: 34
+**Mode**: quantitative analysis
+**Target**: GET /admin/audit?action=consolidation_run&limit=50; GET /admin/audit?action=supersede&limit=50; cross-reference with floor-clamped count from Q33.3
+**Hypothesis**: Q33.3 is time-gated (24h from Q31.3 baseline at 2026-03-15T13:46 UTC). While waiting, the audit log can provide an independent measure of consolidation activity. Q24.5 confirmed consolidation.py:235 creates Memory() without user_id=, producing null-user_id merged memories. These are subject to double-decay and rapidly reach floor. Q29.4 through Q30.4 tracked consolidation-source floor-clamped growth: 7 (Q27.4) to 375 (Q29.4) to 449 (Q31.3). The consolidation throughput (runs per day, memories superseded per run, new memories created per run) determines how fast the floor-clamped pool grows. If consolidation runs 4x/day and each run supersedes ~20 memories and creates ~10 new null-user_id memories, the floor-clamped pool grows by ~40/day from consolidation alone. This rate, combined with Q33.3's total rate, tells us what fraction of floor-clamped growth is attributable to the consolidation user_id bug vs natural decay.
+**What to measure**:
+1. GET /admin/audit?action=consolidation_run&limit=50 — count entries since 2026-03-15T13:46 UTC (Q31.3 baseline). Note timestamps and any metadata (memories_superseded, memories_created if available).
+2. If consolidation_run not available: GET /admin/audit?action=consolidation&limit=50 or check for alternate action names.
+3. Compute consolidation runs per day from the audit timestamps.
+4. If per-run metadata includes superseded count: compute total superseded since Q31.3. Each superseded memory creates one new null-user_id merged memory (per Q24.5 bug). Compare to Q33.3's consolidation-source floor-clamped delta.
+5. If per-run metadata is minimal: use the Q31.3 consolidation-source baseline (449) and Q33.3 result to compute the consolidation contribution rate directly.
+6. Estimate: what fraction of Q33.3's total floor-clamped delta is attributable to consolidation-source memories?
+**Verdict threshold**:
+- FAILURE: Consolidation-source floor-clamped growth > 50/day (consolidation user_id bug is the dominant driver of floor-clamped accumulation; Q24.5 fix is Tier 0)
+- WARNING: Consolidation-source growth 10-50/day (significant contributor but not dominant; Q24.5 fix is Tier 1)
+- HEALTHY: Consolidation-source growth < 10/day (consolidation throughput is low; floor-clamped growth is primarily from natural decay; Q24.5 fix is Tier 2)
+- INCONCLUSIVE: Consolidation audit entries not available under any action name; per-run metadata insufficient to compute rate
+**Priority**: Tier 1 — resolves whether the Q24.5 consolidation user_id bug or the Q33.2b double-decay bug is the primary driver of floor-clamped accumulation; directly informs fix deployment priority ordering
+**Derived from**: Q33.3 PENDING (24h floor-clamped rate); Q31.3 FAILURE (1,049 floor-clamped; consolidation-source 449); Q24.5 FAILURE (consolidation.py:235 missing user_id=); Q30.4 FAILURE (6th consecutive)
+
+---
+
+## Q34.7 [DOMAIN-5] Post-fix importance restoration — will natural access recover double-decayed memories or is bulk re-score needed?
+**Status**: PENDING
+**Wave**: 34
+**Mode**: quantitative analysis
+**Target**: GET /admin/export (active memories); analyze access_count distribution for floor-clamped memories; model recovery trajectory
+**Hypothesis**: Once the double-decay fix is deployed (Q33.2c), the 5,043 null-user_id memories will decay at the correct single rate. But the damage is already done: memories that were prematurely floor-clamped (importance=0.05) will stay there unless accessed. Access boosts importance, but floor-clamped memories rank lowest in retrieval and are therefore least likely to be accessed — a poverty trap. Q33.7 showed that the Feb 14 cohort survived because it had high access counts (median ~30). But the mid-cohort (7-21d old, where Q33.7 showed 1,049 floor-clamped) likely has low access counts. This question determines: (1) what fraction of floor-clamped memories have EVER been accessed (access_count > 0), and (2) for those that haven't, what is the expected natural recovery rate vs the rate at which new memories push them further down the ranking? If natural recovery is negligible, a bulk re-score (resetting floor-clamped importance to their expected single-decay value) may be the only way to undo the double-decay damage.
+**What to measure**:
+1. Export floor-clamped active memories (importance <= 0.051). Count total (expected ~1,049 from Q31.3).
+2. Of those, count with access_count = 0 (never retrieved). Count with access_count > 0 (retrieved at least once but still at floor).
+3. For the access_count > 0 subset: what is the distribution? Are they at floor because access boost is too small to overcome floor-clamping, or because they were accessed long ago and decayed back down?
+4. Model recovery: if double-decay stops today, how long until a floor-clamped memory with access_count=0 is naturally retrieved? Retrieval probability at importance=0.05 is near zero in a corpus of 6,000+ memories where median importance is ~0.3.
+5. Estimate bulk re-score scope: for each floor-clamped memory, compute what its importance SHOULD be under single-decay (using initial_importance, age, access_count). How many would move above floor? What would the average restored importance be?
+6. Risk assessment: would a bulk re-score disrupt the system? (e.g., suddenly 1,000 memories jump from 0.05 to 0.2-0.4 — does this change retrieval ranking significantly?)
+**Verdict threshold**:
+- FAILURE: > 800 floor-clamped memories with access_count = 0 (poverty trap confirmed; natural recovery impossible for >80% of casualties; bulk re-score required)
+- WARNING: 400-800 with access_count = 0 (significant poverty trap; partial natural recovery possible for memories with access history; re-score recommended but not mandatory)
+- HEALTHY: < 400 with access_count = 0 (most floor-clamped memories have access history; natural access recovery will gradually restore importance over 2-4 weeks post-fix)
+- INCONCLUSIVE: initial_importance not in export; cannot model expected single-decay importance; re-score scope unquantifiable
+**Priority**: Tier 2 — contingent on Q33.2c fix being deployed; this is post-fix remediation planning; informs whether a one-time admin action is needed after fix deployment
+**Derived from**: Q33.2b WARNING (5,043 double-decayed; fix specified); Q33.7 HEALTHY (high-access memories survived; low-access did not); Q31.3 FAILURE (1,049 floor-clamped); Q23.1 WARNING (632 floor-clamped 20 waves ago — poverty trap hypothesis first raised)
