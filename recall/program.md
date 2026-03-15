@@ -1,5 +1,14 @@
 # Recall Autoresearch Program
 
+> **SESSION ISOLATION REQUIRED** — Always launch this loop with `DISABLE_OMC=1` to prevent
+> OMC hooks from intercepting agent spawns. BrickLayer must use its own domain-specific agents
+> from `.claude/agents/` only. See the launch commands in autosearch CLAUDE.md.
+>
+> ```bash
+> DISABLE_OMC=1 claude --dangerously-skip-permissions "Read program.md and questions.md. Begin the research loop..."
+> # PowerShell: $env:DISABLE_OMC=1; claude --dangerously-skip-permissions "..."
+> ```
+
 This is a live-system stress-testing experiment. An AI agent (Claude Code) works through
 the question bank in `questions.md`, dispatches each question to `simulate.py`, evaluates
 the result, writes a finding, and loops autonomously.
