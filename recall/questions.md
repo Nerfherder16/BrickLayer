@@ -2328,3 +2328,117 @@ findings that have not yet been asked.
 - HEALTHY: Daily archival rate < 50/day; active corpus stable or growing; double-decay has < 10% ongoing effect on daily archival
 **Priority**: Tier 3 -- forward corpus health projection; depends on Q27.1 first batch data
 **Derived from**: Q27.1 (first archival batch); Q26.3 WARNING (7-20d band disproportionately affected); Q22.1 FAILURE (15 waves)
+
+---
+
+## Q28.1 [DOMAIN-1] Hygiene first archival re-verification -- did the 2026-03-16T04:00 cron fire and archive the expected ~2 memories?
+**Status**: PENDING
+**Wave**: 28
+**Mode**: observability
+**Target**: GET /admin/audit?action=auto_archive&limit=20; active corpus count; superseded pool count
+**Hypothesis**: Q27.1 was INCONCLUSIVE (measured ~17h before first cron run). Q27.7 corrected the re-verify target to 2026-03-16T04:00 UTC and projected the first batch at ~2 memories (25-27d cohort, importance<0.3, access=0). Wave 28 should catch the first audit entries if the cron has now fired.
+**What to measure**: (1) GET /admin/audit?action=auto_archive&limit=20 -- are there now N>0 entries? (2) If entries exist: report count, timestamps, and importance distribution of archived memories. (3) Verify batch count matches Q27.7 projection (~2 for first batch; ~18 for Week 12 total). (4) Check active corpus count via GET /admin/stats -- has it decreased by batch size since Q27.7 baseline (6,005)? (5) Verify superseded pool unchanged (hygiene archives to superseded, not DETACH DELETE).
+**Verdict threshold**:
+- FAILURE: Still 0 entries after 2026-03-16T04:00 (hygiene cron not firing; instrumentation broken; or age>30d binding constraint still holds)
+- INCONCLUSIVE: Measured before 2026-03-16T04:00 UTC (re-verify again)
+- WARNING: Entries exist but count much larger than ~2 (>20 for first day) suggesting Q27.7 age distribution was wrong; or entries present but metadata missing
+- HEALTHY: 1-5 entries consistent with Q27.7 ~2 projection; timing matches 04:00 UTC; soft-delete confirmed
+**Priority**: TIME-SENSITIVE -- first run on/after 2026-03-16T04:00 UTC
+**Derived from**: Q27.1 INCONCLUSIVE; Q27.7 WARNING (projection: ~2 first batch, 18 total Week 12)
+
+---
+
+## Q28.2 [DOMAIN-1] Double-decay fix deployment check (Wave 28) -- is Q22.1 finally deployed?
+**Status**: PENDING
+**Wave**: 28
+**Mode**: static code analysis + observability
+**Target**: src/storage/qdrant.py:114 _user_conditions(); GET /admin/audit?action=decay_run&limit=20
+**Hypothesis**: Q22.1 has been confirmed undeployed for 16 consecutive waves (Waves 12-27). The 3-line fix in _user_conditions() would eliminate double-decay: add MatchAny or IsNullCondition filter so system run only processes memories without user_id. Wave 28 begins with a mandatory deployment check.
+**What to measure**: (1) Read qdrant.py:114 -- is _user_conditions(None) still returning []? Or does it now return a filter for user_id IS NULL? (2) GET /admin/audit?action=decay_run&limit=20 -- most recent 6h slot: 1 full-corpus proc entry (fixed) or still 2 full-corpus proc entries (double-decay)? (3) If deployed: is floor-clamped cohort (673 baseline) stabilizing? (4) If not deployed: 17th consecutive FAILURE confirmation.
+**Verdict threshold**:
+- FAILURE: _user_conditions(None) still returns []; most recent slot still shows 2 full-corpus proc entries; 17th consecutive FAILURE
+- WARNING: Fix deployed in code but not yet observable in audit log; or partial fix
+- HEALTHY: _user_conditions(None) returns non-empty filter; most recent slot shows 1 full-corpus proc + per-user entries; decay rate normalized
+**Priority**: MANDATORY -- run before any other Wave 28 analysis
+**Derived from**: Q22.1 FAILURE (16 consecutive waves); Q27.3 FAILURE (inflation queue 1,332)
+
+---
+
+## Q28.3 [DOMAIN-1] Double-decay archival count parity -- does the first hygiene batch size confirm Q27.7 correction?
+**Status**: PENDING
+**Wave**: 28
+**Mode**: quantitative verification
+**Target**: GET /admin/audit?action=auto_archive&limit=100; Q27.7 age-band projections
+**Hypothesis**: Q27.7 asserted that double-decay does NOT inflate the 30-day archival COUNT because both single and double decay bring zero-access memories to the 0.05 floor within 10 days -- well before the 30-day gate. The first batch (~2 memories) should match this projection regardless of decay regime. If actual batch is much larger, Q27.7 correction needs re-examination.
+**What to measure**: (1) From Q28.1: actual first batch count. (2) Compare to Q27.7 projection: Week 12 (Mar 17-21) = 18 total. If actual >50 for Week 12, Q27.7 correction needs re-examination. (3) Age distribution: are any memories <20d old in the archived cohort? (would indicate earlier archival under double-decay). (4) Importance distribution: are all archived memories near 0.05 floor (confirming both decay regimes converge before 30d gate)?
+**Verdict threshold**:
+- FAILURE: First week archival count >100 (Q27.7 projection was 18); or memories <20d old appear in archived cohort
+- WARNING: First week count 19-100 (projection exceeded but not catastrophically); importance spread above floor
+- HEALTHY: Week 12 count within 25% of Q27.7 projection (13-23 memories); all archived at importance near floor; Q27.7 parity correction CONFIRMED
+**Priority**: Tier 2 -- depends on Q28.1 data; validates Q27.7 correction
+**Derived from**: Q27.7 WARNING (double-decay does NOT inflate archival count); Q27.3 FAILURE (inflation queue 1,332)
+
+---
+
+## Q28.4 [DOMAIN-3] GC-eligible cohort at 2026-03-21 -- are superseded memories now crossing the 30-day threshold?
+**Status**: PENDING
+**Wave**: 28
+**Mode**: observability + quantitative analysis
+**Target**: Qdrant superseded pool (superseded_by IS NOT NULL AND invalid_at < now-30d); POST /admin/reconcile?dry_run=true
+**Hypothesis**: Q27.2 corrected Q26.6: first GC-eligible date is 2026-03-21T19:12 UTC (oldest consolidation-source active memory = 2026-02-19T19:12). After 2026-03-21, a growing cohort crosses the 30-day invalid_at threshold and becomes eligible for DETACH DELETE. No automated GC cron exists (Q21.3 unimplemented). Wave 28 is the first wave where this cohort should be observable.
+**What to measure**: (1) Query superseded pool for invalid_at < (now-30d) AND superseded_by IS NOT NULL: count. (2) Is count >0 (Q27.2 prediction: yes if after 2026-03-21T19:12)? (3) Has overall superseded pool (15,130 Wave 27 baseline) grown? (4) Reconcile scan time vs Q26.6 baseline of 5.94s for 21,105 points. (5) Confirm no automated GC ran (pool should only grow absent cron).
+**Verdict threshold**:
+- FAILURE: 0 GC-eligible after 2026-03-21T19:12 (Q27.2 correction was wrong -- 4th estimate failure)
+- INCONCLUSIVE: Wave 28 measured before 2026-03-21T19:12 UTC (re-verify Wave 29)
+- WARNING: GC-eligible cohort confirmed (10-500 memories); no automated GC; Q21.3 still unimplemented
+- HEALTHY: GC cron deployed and running; superseded pool stabilizing
+**Priority**: Tier 2 -- run on/after 2026-03-21T19:12 UTC; 3rd consecutive GC estimate verification
+**Derived from**: Q27.2 WARNING (first GC-eligible date = 2026-03-21T19:12; 3rd consecutive estimate correction)
+
+---
+
+## Q28.5 [DOMAIN-4] Consolidation user_id fix deployment re-check (4th attempt) -- has consolidation.py:235 been fixed?
+**Status**: PENDING
+**Wave**: 28
+**Mode**: static code analysis + observability
+**Target**: src/core/consolidation.py:235 Memory() constructor; src/storage/qdrant.py:1143 get_distinct_user_ids(); active null-uid consolidated memory count
+**Hypothesis**: Q27.5 (3rd consecutive FAILURE) confirmed consolidation.py:235 Memory() constructor still lacks user_id= and qdrant.py:1143 still lacks IS NULL filter. Both fixes required for permanent ghost user elimination. Wave 28 is the 4th verification attempt.
+**What to measure**: (1) Read consolidation.py:235-249 -- is user_id= now present in Memory() constructor? (2) Read qdrant.py:1143-1162 -- does get_distinct_user_ids() now have IS NULL filter? (3) If either fix deployed: query active memories with source=consolidation AND user_id=None -- count stable vs 1,833 baseline? (4) Decay audit: GET /admin/audit?action=decay_run&limit=20 -- proc=0 ghost count still 7 per slot?
+**Verdict threshold**:
+- FAILURE: consolidation.py:235 still missing user_id=; qdrant.py:1143 still lacks IS NULL filter; 4th consecutive FAILURE
+- WARNING: One fix deployed but not both; ghost count reduced but re-accumulation path open
+- HEALTHY: Both fixes deployed; new merged memories have user_id; ghost count near 0; seed pool stable
+**Priority**: Tier 1 -- 4th consecutive wave; two linked fixes required together
+**Derived from**: Q27.5 FAILURE (3rd consecutive); Q26.5 WARNING (1,833 seed pool; co-deployment required)
+
+---
+
+## Q28.6 [DOMAIN-5] Reconcile audit fix deployment re-check (4th attempt) -- has log_audit() been added to reconcile.py and ops.py?
+**Status**: PENDING
+**Wave**: 28
+**Mode**: static code analysis + observability
+**Target**: src/workers/reconcile.py; src/api/routes/ops.py; GET /admin/audit?action=reconcile&limit=10
+**Hypothesis**: Q27.6 (3rd consecutive FAILURE) confirmed 0 log_audit() calls in reconcile.py or ops.py. Reconcile remains the only scheduled maintenance worker with zero audit visibility. The Q21.6 9-LOC fix has been confirmed absent for 3 consecutive waves. Wave 28 is the 4th verification attempt.
+**What to measure**: (1) Read reconcile.py -- is log_audit() present after reconcile completion? (2) Read ops.py -- is log_audit() present in the manual reconcile trigger? (3) POST /admin/reconcile?dry_run=false then GET /admin/audit?action=reconcile&limit=10 -- count >0? (4) If deployed: verify fields include mismatch_count, repair_count, scan_duration, qdrant_total. (5) Cross-check: GET /admin/audit?action=auto_archive -- entries from Q28.1 should exist (confirms audit infrastructure functioning).
+**Verdict threshold**:
+- FAILURE: 0 log_audit() in reconcile.py/ops.py; 0 reconcile audit entries; 4th consecutive FAILURE
+- WARNING: log_audit() in one file but not both; or entry present but missing required fields
+- HEALTHY: Both files have log_audit(); at least 1 reconcile audit entry with all required fields
+**Priority**: Tier 1b -- 9-LOC fix; 4th consecutive wave
+**Derived from**: Q27.6 FAILURE (3rd consecutive); Q26.7 FAILURE (reconcile sole audit blind spot)
+
+---
+
+## Q28.7 [DOMAIN-1] Hygiene Week 13 batch verification -- does the March 22-28 archival rate match Q27.7 projection (~128/day)?
+**Status**: PENDING
+**Wave**: 28
+**Mode**: observability + quantitative analysis
+**Target**: GET /admin/audit?action=auto_archive&limit=200; active corpus count; Q27.7 weekly projection
+**Hypothesis**: Q27.7 projected weekly hygiene archival: Week 12 (Mar 17-21) = 18 total (~3/day); Week 13 (Mar 22-28) = 898 total (~128/day); Week 14 (Mar 29-Apr 4) = 1,550 total (~221/day, peak). By Wave 28, Week 12 should be complete and Week 13 may be in progress. The Week 13 rate is the first meaningful validation of the Q27.7 projection model.
+**What to measure**: (1) GET /admin/audit?action=auto_archive&limit=200 -- cumulative count and daily rate trend. (2) Compare to Q27.7 projection by measurement date. (3) Active corpus count: has it decreased by archived count from 6,005 baseline? (4) Report actual-vs-projected ratio -- if >2x, Q27.7 double-decay non-inflation assertion needs revisiting. (5) Confirm archival rate accelerating toward ~128/day by end of Week 13.
+**Verdict threshold**:
+- FAILURE: Actual archival count >2x Q27.7 projection at same date (double-decay IS inflating count); or hygiene cron stopped firing
+- WARNING: Actual count 1.25-2x projection; or corpus decline steeper than expected
+- HEALTHY: Actual within 25% of Q27.7 projection; daily rate trend consistent with Week 13 estimate
+**Priority**: Tier 3 -- depends on Q28.1 data; longitudinal validation of Q27.7 projection
+**Derived from**: Q27.7 WARNING (3,289 pipeline; Wk12=18, Wk13=898, Wk14=1550; corpus shrinks Week 14)
