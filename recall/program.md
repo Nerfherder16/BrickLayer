@@ -269,6 +269,77 @@ Before picking the next question, check for pending sentinel outputs (< 1 second
 
 ---
 
+## Parallel Execution — Running Multiple Questions Concurrently
+
+BrickLayer can run independent questions in parallel using the native Agent tool
+(`run_in_background: true`). This is available even with `DISABLE_OMC=1` — the Agent
+tool is built into Claude Code, not OMC.
+
+### When to parallelize
+
+Parallelize when:
+- 2+ PENDING questions are **independent** (different API endpoints, different source files)
+- Questions are in the same domain and can use the same agent type
+- The question bank has a backlog (≥ 3 PENDING questions remaining)
+
+Do NOT parallelize when:
+- Questions share state (e.g., both modify `simulate.py`)
+- One question's verdict determines whether the next should run
+- You are in a follow-up chain (Q13.1 → Q13.1a → Q13.1b must be sequential)
+
+### How to parallelize
+
+Spawn agents using the Agent tool with `run_in_background: true`. Always point to
+BrickLayer's own agent definitions — never use OMC agent types.
+
+```
+# Example: run 3 independent benchmark questions concurrently
+
+Agent(
+  subagent_type="general-purpose",
+  run_in_background=True,
+  prompt="Act as the benchmark-engineer agent as defined in
+    C:/Users/trg16/Dev/autosearch/recall/.claude/agents/benchmark-engineer.md.
+    Answer question Q13.6: [full question text].
+    Write finding to findings/Q13.6.md. Update results.tsv."
+)
+
+Agent(
+  subagent_type="general-purpose",
+  run_in_background=True,
+  prompt="Act as the quantitative-analyst agent as defined in
+    C:/Users/trg16/Dev/autosearch/recall/.claude/agents/quantitative-analyst.md.
+    Answer question Q13.5: [full question text].
+    Write finding to findings/Q13.5.md. Update results.tsv."
+)
+
+# Continue main loop immediately — do not wait for background agents
+```
+
+### Collecting results
+
+After spawning background agents, continue the main loop. Before picking the next
+batch of parallel questions, check that background findings are written:
+
+```
+# Quick check before next parallel batch:
+ls findings/Q13.5.md findings/Q13.6.md  # confirm files exist
+grep "^\*\*Verdict\*\*:" findings/Q13.5.md findings/Q13.6.md  # confirm verdicts written
+```
+
+If a background agent produced FAILURE or Critical/High severity:
+1. Read the finding
+2. Generate follow-up questions immediately
+3. Add to questions.md before continuing
+
+### Parallelism limits
+
+- Max 4 concurrent background agents (avoid overwhelming the Ollama inference server)
+- Benchmark questions (hit live API): max 2 concurrent (rate limit protection)
+- Quality/source-read questions: up to 4 concurrent (read-only, no API load)
+
+---
+
 ## NEVER STOP
 
 Once the loop has begun, do NOT pause to ask if you should continue.
