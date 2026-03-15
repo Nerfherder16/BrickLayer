@@ -1739,3 +1739,112 @@ findings that have not yet been asked.
 - HEALTHY: the 521 mismatches have a different root cause unrelated to mark_superseded(); primary user data is intact as a new consolidated form
 
 **Derived from**: Q22.2 WARNING — "521 importance mismatches re-appeared, primary user user_id=2 absent from decay loop"; Q21.1 HEALTHY — "importance=0.0 in neo4j.mark_superseded is vestigial but creates mismatch pattern on every supersedure event"
+
+---
+
+## Wave 23 Questions
+
+---
+
+## Q23.1 [DOMAIN-1] Double-decay damage quantification — what is the cumulative importance loss from the double-decay bug, and which memories have dropped below the functional threshold?
+**Status**: PENDING
+**Mode**: observability
+**Target**: Qdrant active memories — importance distribution snapshot, comparison to expected decay trajectory
+**Hypothesis**: The Q22.1 double-decay bug applies 0.9216/slot instead of 0.96/slot. At 96 slots/day, the actual daily factor is 0.9216^96 vs intended 0.96^96. A memory stored 7 days ago with initial importance 0.8 should be meaningfully above 0.05 (active threshold) under single-decay; under double-decay it could be near zero. The question is: (a) what is the current importance distribution, (b) how many memories are below 0.05 that would be above it under single-decay, (c) how long has the double-decay been running?
+**Test**: (1) Query active memory importance distribution via admin API or stats endpoint. (2) Identify earliest active memory created_at to bound how long double-decay has been running. (3) Compare observed importance for memories of known age to expected value under single-decay formula. (4) Count memories with importance < 0.05 that have created_at < 7 days ago. (5) If decay_rate config accessible, compute expected vs actual importance at multiple age points.
+**Verdict threshold**:
+- FAILURE: >20% of memories stored >3 days ago are at importance < 0.05; measured importance is <50% of expected single-decay value at any age point >= 3 days
+- WARNING: 10-20% of memories aged 3-7 days are below 0.05; measured importance 50-80% of expected
+- HEALTHY: <10% of 3-7 day memories below 0.05; measured importance within 80% of expected single-decay value
+
+**Derived from**: Q22.1 FAILURE — double-decay confirmed at 0.9216/slot vs 0.96/slot; exponential divergence over days not yet quantified
+
+---
+
+## Q23.2 [DOMAIN-1] ARQ restart slot structure — why did the decay slot structure change from 10 to 8 to 2 entries across the Q22.9 anomaly window, and is the current 2-entry structure still double-decaying?
+**Status**: PENDING
+**Mode**: observability
+**Target**: audit_log decay_run entries (most recent 48 hours), decay.py ARQ cron registration
+**Hypothesis**: Q22.9 documented three distinct slot structures: (1) pre-outage: 10 entries [system, 7xghost, user_id=2, system], (2) post-restart 00:16 and 06:15: 8 entries [7xghost, user_id=2] no system run, (3) post-06:30: ~2 entries [system, system] system-only. If the current slot is 2-entry double-system, the Q22.1 bug is still active. If it is 1-entry, the restart may have self-corrected. Understanding the current structure is critical to knowing whether Q22.1 is still active.
+**Test**: (1) Query /admin/audit?action=decay_run&limit=50 for most recent 48h. (2) Count entries per 15-minute slot (group by floor(timestamp, 15min)). (3) Identify which user_ids appear as processed values. (4) Check decay.py for run_decay_all_users() vs run_decay_for_user() entrypoints and their ARQ cron registrations. (5) Determine if current slot structure shows double-decay (two entries with proc=full_corpus) or single-decay.
+**Verdict threshold**:
+- FAILURE: Current slots still show double-decay (proc=active_corpus in both entries per slot); Q22.1 bug still active
+- WARNING: Slot structure changed but new pattern has missing runs (some users not being decayed)
+- HEALTHY: Current slot structure shows single-decay per memory per slot; restart changed the behavior; Q22.1 bug is latent
+
+**Derived from**: Q22.9 WARNING — "slot structure changed 10 to 8 to 2 entries across 12-hour window"; Q22.1 FAILURE — double-decay mechanism confirmed
+
+---
+
+## Q23.3 [DOMAIN-1] User_id type consistency — are any Qdrant payloads storing user_id as float instead of int, causing count_user_memories() to return 0 for users who have memories?
+**Status**: PENDING
+**Mode**: static code analysis + observability
+**Target**: memory.py, qdrant.py store paths — user_id type handling; Qdrant payload inspection for user_id field type
+**Hypothesis**: Q22.9 identified an unresolved anomaly: count_user_memories(2) returned 0 while get_distinct_user_ids() was returning user_id=2 in the decay loop. Two explanations: (a) memories have user_id=2.0 (float) stored in Qdrant — get_distinct_user_ids() converts via int(uid) so 2 appears, but MatchValue(value=2) (int exact match) returns 0 results; (b) memories were already superseded at time of API check. If float storage is the cause, this is a systematic type inconsistency affecting all user-scoped queries for any user whose memories were written via a float-producing path.
+**Test**: (1) Query /admin/users/2/export (includes_superseded=True) — if 0 results, user_id=2 memories are either gone or type-mismatched. (2) Check memory.py and observer.py store paths — is user_id typed as int, float, or untyped when passed to qdrant.store()? (3) Read qdrant.py _user_conditions() — MatchValue(value=user_id) where user_id is int; check if any write path can produce float. (4) Check if Pydantic Memory model has user_id as int or Optional[int] — does JSON serialization/deserialization coerce to float? (5) If admin API allows raw payload inspection, check a known user memory for user_id field type.
+**Verdict threshold**:
+- FAILURE: user_id stored as float in Qdrant for some write path; MatchValue(value=int) systematically misses float-stored memories; all user-scoped queries undercount
+- WARNING: Inconsistency exists for specific write path (observer vs API store); partial scoping failures
+- HEALTHY: user_id consistently stored as int; count_user_memories(2)=0 explained by consolidation supersedure, not type mismatch
+
+**Derived from**: Q22.9 WARNING — "count_user_memories(2)=0 while proc=2 in decay loop — unresolved: float vs int user_id OR genuine supersedure"
+
+---
+
+## Q23.4 [DOMAIN-5] Reconcile mismatch growth rate — at what rate are new importance mismatches accumulating per day after the Q22.9 baseline of 521?
+**Status**: PENDING
+**Mode**: observability
+**Target**: POST /admin/reconcile?dry_run=True current count, audit_log consolidate entries last 7 days
+**Hypothesis**: Every supersedure event creates exactly 1 importance mismatch (Q22.9 confirmed). Q21.3 estimated ~600 new superseded/day from continuous consolidation. If that rate holds, the mismatch count should be growing by ~600/day from the 521 baseline. A current dry-run reconcile should show a substantially higher count, and the delta divided by days since 2026-03-15 should match the daily consolidation supersedure rate. This validates Q21.3 estimate and provides a concrete urgency metric for the Q21.1 one-line fix.
+**Test**: (1) Call POST /admin/reconcile?dry_run=True, record importance_mismatches count. (2) Compute delta from 521 (Q22.9 baseline, 2026-03-15T07:09). (3) Count audit consolidate entries in last 7 days via /admin/audit?action=consolidate&limit=1000, group by day. (4) Compare mismatches/day to consolidations/day x avg_sources_per_consolidation. (5) If Q21.1 fix deployed, confirm count has stopped growing (expected: delta = 0).
+**Verdict threshold**:
+- FAILURE: Mismatch count has grown by >1000 from baseline (>600/day confirmed); growth rate is accelerating or above Q21.3 estimate
+- WARNING: Count growing at 100-600/day; steady accumulation; consistent with Q21.3 estimate
+- HEALTHY: Count <= 521 (Q21.1 fix deployed, growth stopped) OR growth rate <50/day (consolidation rate much lower than Q21.3 estimated)
+
+**Derived from**: Q22.9 WARNING — "521 mismatches = entire historical Q21.1 accumulation; every supersedure = 1 permanent mismatch"; Q21.3 WARNING — "~600 new superseded/day"
+
+---
+
+## Q23.5 [DOMAIN-4] Consolidation worker rate and backoff — does the continuously-running consolidation worker have any rate limit or natural termination condition?
+**Status**: PENDING
+**Mode**: static code analysis + observability
+**Target**: consolidation.py (worker loop and exit conditions), ARQ cron registration, audit_log consolidate entries per hour
+**Hypothesis**: Q22.9 states consolidation "runs continuously." If no rate limit exists, the worker consumes similar memory pairs indefinitely. Combined with double-decay (Q22.1), consolidation output memories (user_id=None) are processed by the system run but user originals were also being double-decayed — the effective decay rate for user content compounds further. The question is whether consolidation has a per-run limit, similarity floor, or naturally terminates when no similar pairs remain above threshold.
+**Test**: (1) Read consolidation.py for sleep calls, loop bounds, per-batch limits, or termination conditions. (2) Check ARQ cron registration — scheduled (fixed interval) or self-rescheduling (continuous)? (3) Count consolidate audit entries per hour in last 24h — is the rate constant or does it slow as the corpus becomes more consolidated? (4) Check the similarity threshold used in consolidation — same as dedup 0.92 or different? (5) Measure: does consolidation rate drop toward zero or remain constant?
+**Verdict threshold**:
+- FAILURE: No rate limit or loop bound; worker cycles indefinitely even when no new pairs exist; no audit entry for batch-complete state; rate is unbounded
+- WARNING: Worker has per-run limit but re-schedules immediately with no backoff; effective rate is bounded but aggressively continuous
+- HEALTHY: Worker runs on fixed schedule, has per-run limit, or naturally terminates when similarity search returns no results; rate is controlled and predictable
+
+**Derived from**: Q22.9 WARNING — "consolidation ran continuously at 06:00–06:01"; Q21.3 WARNING — "~600 new superseded/day; unbounded accumulation"
+
+---
+
+## Q23.6 [DOMAIN-5] Mark_superseded audit coverage — does consolidation emit per-supersedure audit entries, or is each consolidation event invisible except for the aggregate consolidate action?
+**Status**: PENDING
+**Mode**: static code analysis + observability
+**Target**: consolidation.py (log_audit call sites), postgres_store.py log_audit(), audit_log supersede action query
+**Hypothesis**: Q22.9 event reconstruction had to infer individual supersedure events from the mismatch count rather than reading them directly from the audit trail. If consolidation.py does not call log_audit() for each mark_superseded() call, then the only evidence of a supersedure is (a) the memory superseded_by field, (b) the aggregate consolidate action, and (c) the reconcile mismatch count increment. This makes post-hoc debugging of consolidation waves rely on reconcile dry-run as the only counting mechanism. Compare to decay: Q22.7 showed decay emits per-memory audit entries via executemany — does consolidation have an equivalent?
+**Test**: (1) Grep consolidation.py for log_audit calls — how many, which actions, which fields. (2) Check if neo4j.mark_superseded() or qdrant.mark_superseded() call log_audit() internally. (3) Query GET /admin/audit?action=supersede&limit=50 — do any entries exist? (4) Count: should be ~521 entries if per-supersedure logging exists. (5) Characterize the complete audit trail for one consolidation cycle.
+**Verdict threshold**:
+- FAILURE: No supersede action in audit_log; individual supersedure events completely invisible; post-hoc debugging requires reconcile dry-run to count victims
+- WARNING: Some supersedure events logged (inconsistent coverage across code paths)
+- HEALTHY: Each mark_superseded() call emits audit entry with source_id, merged_id, user_id; full supersedure chain reconstructable from audit trail
+
+**Derived from**: Q22.9 WARNING — "event reconstruction required inference from mismatch count, not direct audit trail"; Q22.7 HEALTHY — decay emits per-memory audit entries via executemany
+
+---
+
+## Q23.7 [DOMAIN-1] Importance floor — is there a minimum importance floor below which decay stops, and does double-decay push active memories below it?
+**Status**: PENDING
+**Mode**: static code analysis + observability
+**Target**: decay.py (decay formula and floor check), constants.py, active memory importance histogram
+**Hypothesis**: With double-decay, memories aged >7 days may be at importance < 0.001 — functionally zero but still appearing in active scroll and retrieval results. If no floor exists, near-zero memories may: (a) pollute retrieval results (returned with near-zero relevance score), (b) block new stores via dedup (MatchValue still finds them as candidates), (c) occupy Qdrant storage and reconcile scan bandwidth indefinitely. A floor check (e.g., skip update if new_importance < 0.001) would bound the damage but also hide evidence of the double-decay bug.
+**Test**: (1) Read decay.py for min_importance, floor check, or if new_importance < threshold: skip before applying update. (2) Check constants.py for MIN_IMPORTANCE or decay floor constant. (3) Query current active memories importance histogram — what is the minimum importance? How many memories below 0.01? Below 0.001? (4) Check retrieval.py — does search filter by importance > threshold or return all active regardless of importance? (5) Check dedup: does similarity check filter by candidate importance?
+**Verdict threshold**:
+- FAILURE: No importance floor; double-decay has pushed large numbers of active memories to near-zero importance (<0.001); these memories remain in active scroll, pollute dedup checks, and occupy retrieval bandwidth
+- WARNING: No floor but near-zero memories are deprioritized in scoring; retrievability degraded but no active pollution
+- HEALTHY: Importance floor exists (e.g., min_importance=0.01); decay stops at floor; double-decay damage is bounded; OR minimum active memory importance is above 0.01 even under double-decay
+
+**Derived from**: Q22.1 FAILURE — double-decay pushes memories to near-zero faster than intended; Q23.1 — quantifies how many memories are in the danger zone
