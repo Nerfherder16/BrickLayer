@@ -2963,7 +2963,7 @@ Time anchor: Wave 33 runs AFTER 2026-03-16T05:30 UTC (Sunday reconcile window) a
 ---
 
 ## Q33.2 [DOMAIN-1] ARQ double-enqueue: is a stale Redis job the source of the second run_decay enqueue?
-**Status**: PENDING
+**Status**: DONE (WARNING)
 **Wave**: 33
 **Mode**: observability
 **Target**: Redis job queue inspection via GET /admin/debug/arq or equivalent; decay_run audit entries for the most recent 3 cron cycles
@@ -2981,6 +2981,28 @@ Time anchor: Wave 33 runs AFTER 2026-03-16T05:30 UTC (Sunday reconcile window) a
 - INCONCLUSIVE: Redis not inspectable via API; static analysis inconclusive; source remains ambiguous
 **Priority**: Tier 0 — root cause identification is prerequisite for deploying the double-decay fix; 22 consecutive FAILURE waves; deterministic 19–21s gap is the strongest clue available
 **Derived from**: Q32.2 FAILURE (22nd consecutive); Q31.2a FAILURE (enqueue source unknown); Q31.2 FAILURE (IS NULL fix insufficient)
+
+---
+
+## Q33.2a [DOMAIN-1] ARQ double-enqueue: are two worker replicas running simultaneously on CasaOS?
+**Status**: PENDING
+**Wave**: 33
+**Mode**: observability
+**Target**: docker compose ps on CasaOS (192.168.50.19); Redis arq:cron:* key inspection
+**Hypothesis**: Q33.2 identified the most probable root cause of the 22-wave double-decay: two ARQ worker replicas running simultaneously on CasaOS, both registering the same `cron(run_decay, ...)` job and both firing independently per cycle. Evidence supporting this: (1) self-enqueue and stale-Redis-job hypotheses are definitively ruled out — `run_decay()` does not self-enqueue, `on_startup` is clean, pattern is persistent (not a one-time artifact); (2) the 19–21 second inter-run gap equals one full-corpus decay pass duration, meaning the two runs are SEQUENTIAL (not concurrent) — consistent with a shared Redis job queue where both replicas race to claim the same cron job, with the second replica executing after the first completes; (3) off-schedule cycles at 06:45 and 09:48 UTC are consistent with one replica restarting and firing a catch-up run while the other fires the scheduled run. If two `recall_worker` containers are running, the fix is simply `docker compose scale worker=1` or updating `deploy.replicas: 1` in the compose file.
+**What to measure**:
+1. SSH to CasaOS (192.168.50.19): `docker ps | grep worker` OR `docker compose -f /path/to/recall/docker-compose.yml ps worker` — how many worker replicas are running?
+2. If API access available: GET /admin/workers or /admin/debug/arq — does it expose worker count or Redis queue state?
+3. Try GET http://192.168.50.19:8200/admin/debug or /admin/queue to inspect ARQ state
+4. Redis inspection via admin endpoint: does any endpoint expose `arq:cron:*` key count?
+5. Note: if two replicas ARE confirmed, this closes the 23-wave FAILURE streak explanation definitively. Fix: scale worker to 1 replica.
+**Verdict threshold**:
+- FAILURE: Worker replica count cannot be determined; double-decay source remains ambiguous
+- WARNING: Two replicas confirmed running (source identified; fix not yet deployed)
+- HEALTHY: One replica confirmed AND double-decay stops (source eliminated; fix deployed)
+- INCONCLUSIVE: Docker/SSH not accessible from API; static analysis only
+**Priority**: Tier 0 — this is the most specific, actionable double-decay hypothesis since Q22.1; if confirmed, the fix is a single docker compose command
+**Derived from**: Q33.2 WARNING (stale-job ruled out; two-replica hypothesis identified); Q31.2a FAILURE (unknown ARQ source); Q32.2 FAILURE (22nd consecutive)
 
 ---
 
@@ -3073,7 +3095,7 @@ Time anchor: Wave 33 runs AFTER 2026-03-16T05:30 UTC (Sunday reconcile window) a
 ---
 
 ## Q33.7 [DOMAIN-2] Feb 14 cohort corpus impact — has double-decay caused measurable importance degradation in 30d+ memories pending archival?
-**Status**: PENDING
+**Status**: DONE (HEALTHY)
 **Wave**: 33
 **Mode**: quantitative analysis
 **Target**: GET /admin/export (all memories); filter created_at <= 2026-02-14T23:59 UTC AND superseded_by IS NULL AND access_count = 0
