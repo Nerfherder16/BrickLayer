@@ -2985,7 +2985,7 @@ Time anchor: Wave 33 runs AFTER 2026-03-16T05:30 UTC (Sunday reconcile window) a
 ---
 
 ## Q33.2a [DOMAIN-1] ARQ double-enqueue: are two worker replicas running simultaneously on CasaOS?
-**Status**: PENDING
+**Status**: DONE (WARNING)
 **Wave**: 33
 **Mode**: observability
 **Target**: docker compose ps on CasaOS (192.168.50.19); Redis arq:cron:* key inspection
@@ -3003,6 +3003,48 @@ Time anchor: Wave 33 runs AFTER 2026-03-16T05:30 UTC (Sunday reconcile window) a
 - INCONCLUSIVE: Docker/SSH not accessible from API; static analysis only
 **Priority**: Tier 0 — this is the most specific, actionable double-decay hypothesis since Q22.1; if confirmed, the fix is a single docker compose command
 **Derived from**: Q33.2 WARNING (stale-job ruled out; two-replica hypothesis identified); Q31.2a FAILURE (unknown ARQ source); Q32.2 FAILURE (22nd consecutive)
+
+---
+
+## Q33.2b [DOMAIN-1] Qdrant user_id payload audit — do all 5,994 active memories have user_id=1, and why does IsNullCondition also return 5,994?
+**Status**: DONE (WARNING)
+**Wave**: 33
+**Mode**: quality analysis
+**Target**: C:/Users/trg16/Dev/Recall/src/storage/qdrant.py (scroll_all, _user_conditions, filter application); Redis SSH arq:workers inspection
+**Hypothesis**: Q33.2a definitively refuted the two-replica hypothesis (1 container, no replicas). The new root cause is: `scroll_all(user_id=1)` returns all 5,994 memories AND the system/null pass (IsNullCondition, user_id=0) also returns all 5,994. Two sub-hypotheses explain this: (A) All 5,994 active memories have user_id=1 in their Qdrant payload — meaning the FieldCondition(match=1) correctly returns them all, but the IsNullCondition is silently broken (not applied, or the Qdrant client API changed and `IsNullCondition(is_null=PayloadField(key="user_id"))` degenerates to no-filter); (B) No memories have any user_id field — the Qdrant client treats missing fields as matching BOTH FieldCondition and IsNullCondition (field-missing = null-like behavior). Either sub-hypothesis means both passes process the full corpus. The fix depends on which sub-hypothesis is true: (A) fix IsNullCondition syntax; (B) ensure memories are stored with explicit user_id payload.
+**What to measure**:
+1. Read C:/Users/trg16/Dev/Recall/src/storage/qdrant.py — find scroll_all() and how it applies _user_conditions() filters. Does it use `filter=Filter(must=[...])` or `filter=Filter(should=[...])`? Is the filter constructed from `_user_conditions()` result or bypassed?
+2. Find IsNullCondition usage: exactly how is `IsNullCondition(is_null=PayloadField(key="user_id"))` constructed at the call site? Check Qdrant Python client version in requirements.txt — does that version support IsNullCondition with PayloadField?
+3. Via SSH to CasaOS: inspect a sample of memories' Qdrant payload. `docker exec $(docker ps -q --filter name=qdrant) sh -c 'curl -s localhost:6333/collections/memories/points/scroll -d "{\"limit\":5,\"with_payload\":true}" -H "Content-Type: application/json"'` — do they have user_id in the payload?
+4. Check how memories are stored: read store() in qdrant.py — is user_id included in the payload dict when storing? If not, all payloads lack user_id entirely.
+5. If payloads lack user_id: both FieldCondition(match=1) and IsNullCondition would fail silently with Qdrant — FieldCondition returns 0 for non-existent field match... OR for some Qdrant versions, FieldCondition on a non-existent integer field returns all points. Check Qdrant docs/behavior.
+**Verdict threshold**:
+- FAILURE: Root cause ambiguous; cannot determine whether filter is broken or payloads lack user_id; double-decay structural explanation still incomplete
+- WARNING: Root cause identified (IsNullCondition syntax error OR missing user_id in payloads) but fix not deployed
+- HEALTHY: Root cause identified AND fix deployed AND single run per cycle confirmed
+**Priority**: Tier 0 — this is the closest the investigation has come to a concrete, deployable fix for the 23-wave double-decay FAILURE streak; root cause now requires only one more static code read
+**Derived from**: Q33.2a WARNING (one container confirmed; scroll_all(user_id=1) returns full corpus; IsNullCondition also returns full corpus); Q31.2 FAILURE (IS NULL fix deployed but ineffective)
+
+---
+
+## Q33.2c [DOMAIN-1] Double-decay fix deployment — remove redundant system pass from run_decay_all_users
+**Status**: PENDING
+**Wave**: 33
+**Mode**: quality analysis
+**Target**: C:/Users/trg16/Dev/Recall/src/workers/decay.py (run_decay_all_users, lines 278–301); C:/Users/trg16/Dev/Recall/src/storage/qdrant.py (get_distinct_user_ids, ~line 1187)
+**Hypothesis**: Q33.2b (WARNING) identified the exact root cause: `get_distinct_user_ids()` includes uid=0 in its returned list (because 0 is not None), so the per-user loop runs `worker.run(user_id=0)` → IS NULL filter → decays 5,043 null memories. The explicit system pass at line 296 then runs `worker.run(user_id=0)` again, decaying the same 5,043 memories a second time. Fix requires: (1) exclude uid=0 from per-user loop in `get_distinct_user_ids()` by changing `if uid is not None` to `if uid is not None and uid > 0`; (2) optionally add explicit pass for integer-0 memories (FieldCondition match=0) since they are currently never decayed. The MINIMUM fix is item (1) alone — this eliminates the double-decay for the 5,043 null memories. The 975 integer-0 memories never being decayed is a separate lower-priority issue.
+**What to measure**:
+1. Read current state of `get_distinct_user_ids()` in qdrant.py — confirm whether the `uid > 0` guard has been added.
+2. Read current state of `run_decay_all_users()` in decay.py — confirm whether the explicit system pass at line ~296 is still present.
+3. Check audit log for the most recent decay cycle (look for the 06:15/12:15/18:15/00:15 UTC slots after any fix deployment): does the cycle now show 1 full-corpus run instead of 2? Compare `processed` counts.
+4. If fix deployed: calculate new per-cycle processed count. Expected: ~5,043 (null pool, one pass) + ~975 (int-0, if fixed) = ~6,018. Previous (buggy): ~5,043 × 2 = ~10,086 across two runs. A single run of ~5,043 (if int-0 not yet fixed) confirms the double-decay is eliminated.
+5. Check the audit log for any `decay_run` entry with `actor="decay"` and `processed` count ≈ half the previous 5,994 figure — this is the success signal.
+**Verdict threshold**:
+- FAILURE: Code unchanged; double-decay still active; two full-corpus runs per cycle confirmed in audit log
+- WARNING: Code fix deployed but not yet verified in a live decay cycle; OR fix deployed but int-0 memories still never decayed (secondary issue)
+- HEALTHY: `get_distinct_user_ids()` returns [] (no real users exist) OR returns only uid>0 users; single full-corpus run per cycle confirmed; `processed` count halved from ~5,994 to ~3,000 range; 24th consecutive FAILURE streak broken
+**Priority**: Tier 0 — this is the first actionable fix question in the 23-wave double-decay streak; if HEALTHY, it closes the longest-running open FAILURE in this investigation
+**Derived from**: Q33.2b WARNING (root cause fully identified: get_distinct_user_ids returns [0] → IS NULL decayed twice; exact fix specified)
 
 ---
 
