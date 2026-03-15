@@ -1747,7 +1747,7 @@ findings that have not yet been asked.
 ---
 
 ## Q23.1 [DOMAIN-1] Double-decay damage quantification — what is the cumulative importance loss from the double-decay bug, and which memories have dropped below the functional threshold?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: observability
 **Target**: Qdrant active memories — importance distribution snapshot, comparison to expected decay trajectory
 **Hypothesis**: The Q22.1 double-decay bug applies 0.9216/slot instead of 0.96/slot. At 96 slots/day, the actual daily factor is 0.9216^96 vs intended 0.96^96. A memory stored 7 days ago with initial importance 0.8 should be meaningfully above 0.05 (active threshold) under single-decay; under double-decay it could be near zero. The question is: (a) what is the current importance distribution, (b) how many memories are below 0.05 that would be above it under single-decay, (c) how long has the double-decay been running?
@@ -1762,7 +1762,7 @@ findings that have not yet been asked.
 ---
 
 ## Q23.2 [DOMAIN-1] ARQ restart slot structure — why did the decay slot structure change from 10 to 8 to 2 entries across the Q22.9 anomaly window, and is the current 2-entry structure still double-decaying?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: observability
 **Target**: audit_log decay_run entries (most recent 48 hours), decay.py ARQ cron registration
 **Hypothesis**: Q22.9 documented three distinct slot structures: (1) pre-outage: 10 entries [system, 7xghost, user_id=2, system], (2) post-restart 00:16 and 06:15: 8 entries [7xghost, user_id=2] no system run, (3) post-06:30: ~2 entries [system, system] system-only. If the current slot is 2-entry double-system, the Q22.1 bug is still active. If it is 1-entry, the restart may have self-corrected. Understanding the current structure is critical to knowing whether Q22.1 is still active.
@@ -1777,7 +1777,7 @@ findings that have not yet been asked.
 ---
 
 ## Q23.3 [DOMAIN-1] User_id type consistency — are any Qdrant payloads storing user_id as float instead of int, causing count_user_memories() to return 0 for users who have memories?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: static code analysis + observability
 **Target**: memory.py, qdrant.py store paths — user_id type handling; Qdrant payload inspection for user_id field type
 **Hypothesis**: Q22.9 identified an unresolved anomaly: count_user_memories(2) returned 0 while get_distinct_user_ids() was returning user_id=2 in the decay loop. Two explanations: (a) memories have user_id=2.0 (float) stored in Qdrant — get_distinct_user_ids() converts via int(uid) so 2 appears, but MatchValue(value=2) (int exact match) returns 0 results; (b) memories were already superseded at time of API check. If float storage is the cause, this is a systematic type inconsistency affecting all user-scoped queries for any user whose memories were written via a float-producing path.
@@ -1792,7 +1792,7 @@ findings that have not yet been asked.
 ---
 
 ## Q23.4 [DOMAIN-5] Reconcile mismatch growth rate — at what rate are new importance mismatches accumulating per day after the Q22.9 baseline of 521?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: observability
 **Target**: POST /admin/reconcile?dry_run=True current count, audit_log consolidate entries last 7 days
 **Hypothesis**: Every supersedure event creates exactly 1 importance mismatch (Q22.9 confirmed). Q21.3 estimated ~600 new superseded/day from continuous consolidation. If that rate holds, the mismatch count should be growing by ~600/day from the 521 baseline. A current dry-run reconcile should show a substantially higher count, and the delta divided by days since 2026-03-15 should match the daily consolidation supersedure rate. This validates Q21.3 estimate and provides a concrete urgency metric for the Q21.1 one-line fix.
@@ -1807,7 +1807,7 @@ findings that have not yet been asked.
 ---
 
 ## Q23.5 [DOMAIN-4] Consolidation worker rate and backoff — does the continuously-running consolidation worker have any rate limit or natural termination condition?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: static code analysis + observability
 **Target**: consolidation.py (worker loop and exit conditions), ARQ cron registration, audit_log consolidate entries per hour
 **Hypothesis**: Q22.9 states consolidation "runs continuously." If no rate limit exists, the worker consumes similar memory pairs indefinitely. Combined with double-decay (Q22.1), consolidation output memories (user_id=None) are processed by the system run but user originals were also being double-decayed — the effective decay rate for user content compounds further. The question is whether consolidation has a per-run limit, similarity floor, or naturally terminates when no similar pairs remain above threshold.
@@ -1837,7 +1837,7 @@ findings that have not yet been asked.
 ---
 
 ## Q23.7 [DOMAIN-1] Importance floor — is there a minimum importance floor below which decay stops, and does double-decay push active memories below it?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: static code analysis + observability
 **Target**: decay.py (decay formula and floor check), constants.py, active memory importance histogram
 **Hypothesis**: With double-decay, memories aged >7 days may be at importance < 0.001 — functionally zero but still appearing in active scroll and retrieval results. If no floor exists, near-zero memories may: (a) pollute retrieval results (returned with near-zero relevance score), (b) block new stores via dedup (MatchValue still finds them as candidates), (c) occupy Qdrant storage and reconcile scan bandwidth indefinitely. A floor check (e.g., skip update if new_importance < 0.001) would bound the damage but also hide evidence of the double-decay bug.
