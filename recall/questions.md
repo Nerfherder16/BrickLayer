@@ -3327,7 +3327,7 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 ## Wave 35 Questions â€” Rehabilitate-Importance Audit, Hygiene Cron Root Cause, Integer-0 Domain Skew, and Mortality Crisis Triage
 
 ## Q35.1 [DOMAIN-5] Rehabilitate-importance endpoint code audit â€” does it catch the 644 floor-clamped premature casualties?
-**Status**: PENDING
+**Status**: DONE (FAILURE)
 **Wave**: 35
 **Mode**: code analysis
 **Target**: C:/Users/trg16/Dev/Recall/src/api/routes/admin.py (POST /admin/rehabilitate-importance); C:/Users/trg16/Dev/Recall/src/workers/decay.py or rehabilitate logic; GET /admin/audit?action=rehabilitate&limit=20
@@ -3350,7 +3350,7 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 ---
 
 ## Q35.2 [DOMAIN-4] Hygiene cron task registration â€” is the hygiene task in the cron_jobs list?
-**Status**: PENDING
+**Status**: DONE (WARNING)
 **Wave**: 35
 **Mode**: code analysis
 **Target**: C:/Users/trg16/Dev/Recall/src/workers/main.py (WorkerSettings.cron_jobs); C:/Users/trg16/Dev/Recall/src/workers/hygiene.py (hygiene task definition); GET /admin/audit?action=hygiene_run&limit=5
@@ -3373,7 +3373,7 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 ---
 
 ## Q35.3 [DOMAIN-1] Integer-0 domain skew â€” do floor-clamped premature casualties cluster in specific domains?
-**Status**: PENDING
+**Status**: DONE (FAILURE)
 **Wave**: 35
 **Mode**: quantitative analysis
 **Target**: GET /admin/export (active memories); filter floor-clamped (importance <= 0.051); cross-tabulate by domain and user_id (null vs int-0)
@@ -3395,7 +3395,7 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 ---
 
 ## Q35.4 [DOMAIN-4] Fix deployment status â€” double-decay two-line fix and consolidation user_id fix â€” current deployment state
-**Status**: PENDING
+**Status**: DONE (WARNING)
 **Wave**: 35
 **Mode**: code analysis
 **Target**: C:/Users/trg16/Dev/Recall/src/storage/qdrant.py (line ~1207); C:/Users/trg16/Dev/Recall/src/workers/decay.py (line ~296); C:/Users/trg16/Dev/Recall/src/core/consolidation.py (line ~250 deserialization block)
@@ -3417,7 +3417,7 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 ---
 
 ## Q35.5 [DOMAIN-5] Immediate mitigation inventory â€” what actions can be taken without a code deployment to reduce the mortality crisis?
-**Status**: PENDING
+**Status**: DONE (WARNING)
 **Wave**: 35
 **Mode**: operational risk analysis
 **Target**: Available admin endpoints: POST /admin/rehabilitate-importance; POST /admin/decay; POST /admin/reconcile; GET /admin/audit; POST /admin/memory/purge; cron configuration (if hot-reloadable)
@@ -3440,7 +3440,7 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 ---
 
 ## Q35.6 [DOMAIN-1] Floor-clamped count 24-hour rate â€” current trajectory under compound-bug regime
-**Status**: PENDING
+**Status**: DONE (HEALTHY)
 **Wave**: 35
 **Mode**: quantitative analysis
 **Target**: GET /admin/export (active memories); compare to Q34.7 baseline (1,049 floor-clamped at 2026-03-15)
@@ -3458,3 +3458,133 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 - INCONCLUSIVE: Less than 12 hours elapsed since Q34.7 baseline (insufficient elapsed time to measure daily rate reliably)
 **Priority**: Tier 1 â€” quantifies the ongoing damage rate; determines whether the ~16-day hygiene window from Q34.7 has shortened based on actual accumulation observed since that measurement
 **Derived from**: Q34.7 FAILURE (1,049 floor-clamped at 2026-03-15; 644 premature casualties; bulk re-score mandatory); Q34.6 FAILURE (199â€“648 consolidation-source floor-clamped/day); Q31.3 FAILURE (1,049 floor-clamped; threshold 800 exceeded)
+
+
+---
+
+## Wave 36 Questions — Amnesty Execution, Hygiene 0-Candidate Root Cause, Rehabilitate Fix Analysis, Fix-1 Deployment Triage
+
+## Q36.1 [DOMAIN-5] Amnesty endpoint live run — rescue floor-clamped memories without code deployment
+**Status**: PENDING
+**Wave**: 36
+**Mode**: operational action
+**Target**: POST /admin/importance/amnesty?dry_run=false (CasaOS 192.168.50.19:8200); GET /admin/audit?action=amnesty&limit=5; post-run floor-clamped count via Qdrant scroll
+**Hypothesis**: Q35.5 found that POST /admin/importance/amnesty?dry_run=false can boost 4,173 of 5,202 memories (80% boost rate) including those at importance=0.05, confirmed by dry-run showing old_importance: 0.05 -> new_importance: 0.35 examples. This is the only admin endpoint that can rescue floor-clamped premature casualties without a code deployment. Running it now would rescue all 846 floor-clamped null-user_id casualties that have graph connections, before the hygiene window closes.
+**What to measure**:
+1. Run POST /admin/importance/amnesty?dry_run=false via admin bearer token. Record: processed count, boosted count, skipped count, elapsed time.
+2. Check audit log after run. Confirm amnesty action was recorded.
+3. Post-run floor-clamped count: query Qdrant for null-user_id + superseded_by IS NULL + importance <= 0.051. Compare to pre-run baseline of 846.
+4. Net rescued: 846 - post_run_floor_clamped. What fraction of the 846 premature casualties were rescued?
+5. Residual floor-clamped: count those not reached by amnesty (without graph edges or durable durability).
+6. Check for any errors in the response. If endpoint returns an error, do NOT retry without analysis.
+**Verdict threshold**:
+- FAILURE: Endpoint returns error; OR boosted count < 500; OR audit log shows no entry (silent failure)
+- WARNING: boosted >= 500 but < 2,000; OR post-run floor-clamped reduced by < 50% of the 846 null-pool casualties
+- HEALTHY: boosted >= 2,000; post-run null-pool floor-clamped reduced by >= 50%; audit entry confirmed
+**Priority**: Tier 0 — immediate actionable rescue; no code deployment required; 16.6-day hygiene window makes this time-critical
+**Derived from**: Q35.5 WARNING (amnesty dry-run shows 4,173 boostable; only actionable no-code mitigation); Q35.1 FAILURE (rehabilitate endpoint broken); Q34.7 FAILURE (644 premature casualties; bulk re-score mandatory); Q35.3 FAILURE (846 floor-clamped, up from 644)
+
+---
+
+## Q36.2 [DOMAIN-4] Hygiene 0-candidate root cause — why did scroll_hygiene_candidates return 0 on first run?
+**Status**: PENDING
+**Wave**: 36
+**Mode**: code analysis
+**Target**: C:/Users/trg16/Dev/Recall/src/storage/qdrant.py (scroll_hygiene_candidates); C:/Users/trg16/Dev/Recall/src/workers/hygiene.py; system memory age distribution
+**Hypothesis**: Q35.2 found that hygiene ran for the first time at 2026-03-15T14:47 UTC but scanned exactly 0 candidates. Hygiene criteria: access_count == 0 AND importance < 0.3 AND age > 30 days. The int-0 pool has 952 active memories, 92% with access_count=0, mean importance 0.185. If those memories are all under 30 days old, 0 candidates is correct. But if scroll_hygiene_candidates has a malformed filter, it might erroneously return empty. This question determines whether 0 candidates is correct or a defect.
+**What to measure**:
+1. Read src/storage/qdrant.py -- find scroll_hygiene_candidates. Note exact Qdrant filter conditions for access_count, importance, and age.
+2. Read src/workers/hygiene.py -- what cutoff date does it compute (now - 30 days)?
+3. Age distribution: what is the oldest memory created_at in the system? Is any memory older than 30 days from 2026-03-15?
+4. Count active memories with access_count == 0 AND importance < 0.3 AND created_at < 2026-02-14 (30 days ago). If > 0, scroll_hygiene_candidates has a defect. If == 0, result is legitimately correct.
+5. Rule out: was the system deployed less than 30 days ago? Check oldest memory timestamp.
+**Verdict threshold**:
+- FAILURE: scroll_hygiene_candidates has filter defect returning 0 even when candidates exist; OR oldest memory > 30d old AND qualifies but hygiene missed it
+- WARNING: Correctly implemented but 0 candidates because NO memory is older than 30 days (system is young; hygiene untested on mature data)
+- HEALTHY: Oldest memory < 30 days; hygiene correctly dormant; will work when memories age past threshold
+**Priority**: Tier 1 -- determines whether hygiene is silently broken or correctly dormant; affects whether the 16-day mortality window is real
+**Derived from**: Q35.2 WARNING (hygiene ran but 0 candidates scanned); Q34.7 FAILURE (16.6-day hygiene window binding)
+
+---
+
+## Q36.3 [DOMAIN-5] Rehabilitate one-char fix — coverage of floor-clamped after correcting >= to >
+**Status**: PENDING
+**Wave**: 36
+**Mode**: code analysis + impact projection
+**Target**: C:/Users/trg16/Dev/Recall/src/api/routes/admin.py lines 1097-1160 (full rehabilitate function)
+**Hypothesis**: Q35.1 found a single off-by-one: if importance >= 0.05: continue should be if importance > 0.05: continue. However, the restore formula has two branches: (1) high-access (access_count >= 3) or pinned -> restore to max(importance, initial_importance*0.5, 0.3); (2) durable/permanent -> restore to max(importance, 0.2). With 99% of floor-clamped having access_count=0, most would pass the fixed filter but fail both branch conditions. This question maps whether there is a default branch for zero-access non-durable memories.
+**What to measure**:
+1. Read admin.py lines 1097-1160 -- map the full rehabilitate logic: filter, all branch conditions, default case.
+2. For 846 floor-clamped null-pool: what fraction have access_count >= 3? What fraction have durable/permanent durability? What fraction qualify for neither branch?
+3. Does a default branch exist for zero-access ephemeral memories? If not, they pass the fixed filter but get no boost.
+4. Compare rehabilitate vs amnesty coverage: what is the union of memories rescuable by both endpoints?
+5. Risk: could fixed rehabilitate incorrectly boost legitimately-old floor-clamped memories (correctly at floor, not premature casualties)?
+**Verdict threshold**:
+- FAILURE: Fixing >= to > still leaves >500 of 846 unreachable (zero-access ephemeral skipped); rehabilitate + amnesty combined cannot rescue majority
+- WARNING: Fixed rehabilitate reaches 100-500 additional casualties beyond amnesty; combined rescue > 500 total
+- HEALTHY: Fixed rehabilitate reaches >500 directly; or amnesty + rehabilitate combined rescue > 700 of 846
+**Priority**: Tier 1 -- determines whether the one-char rehabilitate fix provides near-complete rescue beyond what amnesty alone achieves
+**Derived from**: Q35.1 FAILURE (>= 0.05 filter misses floor; endpoint never run); Q35.5 WARNING (amnesty partial); Q34.7 FAILURE (99% floor-clamped have access_count=0)
+
+---
+
+## Q36.4 [DOMAIN-1] Post-amnesty residual — how many floor-clamped remain after amnesty and their characteristics?
+**Status**: PENDING
+**Wave**: 36
+**Mode**: quantitative analysis
+**Target**: Qdrant scroll post-Q36.1 for null-user_id + importance <= 0.051 + superseded_by IS NULL; domain and durability cross-tabulation
+**Hypothesis**: After amnesty runs (Q36.1), some floor-clamped memories will be boosted and some will remain. Amnesty requires graph edges or durable durability. Zero-access, non-durable, graph-isolated memories are not amnesty-eligible. This question measures the residual and its characteristics.
+**What to measure**:
+1. Post-Q36.1 amnesty: query null-user_id floor-clamped count. Compare to 846 pre-amnesty baseline.
+2. Residual domain distribution -- is residual concentrated in specific domains?
+3. Residual durability distribution -- what fraction are ephemeral (amnesty-ineligible)?
+4. Can residual be rescued by fixed rehabilitate (Q36.3)? Count residual with access_count >= 3 or pinned.
+5. Unreachable residual: zero access, non-durable, no graph edges, importance exactly 0.050 -- hard floor count.
+**Verdict threshold**:
+- FAILURE: Residual > 400 (amnesty rescued fewer than half of 846; large floor-clamped persists with no rescue mechanism)
+- WARNING: Residual 100-400 (amnesty meaningfully reduced crisis; fixed rehabilitate could close the gap)
+- HEALTHY: Residual < 100 (amnesty rescued >88% of 846; floor-clamped crisis materially resolved)
+**Priority**: Tier 1 -- depends on Q36.1 completion; measures amnesty effectiveness
+**Derived from**: Q36.1 PENDING (amnesty execution); Q35.5 WARNING (amnesty partial); Q35.3 FAILURE (846 floor-clamped)
+
+---
+
+## Q36.5 [DOMAIN-4] Fix-1 deployment risk — uid>0 guard interaction with deployed Fix-2 and Fix-3
+**Status**: PENDING
+**Wave**: 36
+**Mode**: code analysis
+**Target**: C:/Users/trg16/Dev/Recall/src/storage/qdrant.py (get_distinct_user_ids lines 1200-1215); C:/Users/trg16/Dev/Recall/src/workers/decay.py (per-user loop and explicit system block)
+**Hypothesis**: Q35.4 confirmed Fix 1 (uid>0 guard in qdrant.py:1207) is the only undeployed change. Fix 2 and Fix 3 are deployed. After Fix 1 deploys, get_distinct_user_ids() returns [] (no uid>0 users currently), per-user loop runs 0 iterations, and system block (Fix 2) runs once per cycle -- correct single-decay behavior. This question assesses interaction risks.
+**What to measure**:
+1. Confirm exact change: uid is not None -> uid is not None and uid > 0. What does get_distinct_user_ids() return from actual data currently?
+2. After Fix 1: per-user loop iterates over [] (zero iterations). Explicit system block runs once. Any other callers of get_distinct_user_ids() affected?
+3. Are there any memories with user_id > 0 in the system?
+4. Fix 1 + Fix 2 interaction: 0 per-user iterations + system block once = 1 decay pass per cycle. Confirm eliminates double-decay.
+5. Deployment: can Fix 1 be deployed without downtime (hot-reload vs container restart)?
+**Verdict threshold**:
+- FAILURE: Fix 1 has unintended side effects (valid uid>0 users skipped; or combination causes null pool to not decay at all)
+- WARNING: Fix 1 safe but edge cases (future real uid>0 users would work; current behavior ambiguous)
+- HEALTHY: Clean low-risk single-line change; double-decay stops after deployment; no interaction risks
+**Priority**: Tier 0 -- Fix 1 is the only code change needed to stop ongoing accumulation; risk assessment determines deployment urgency
+**Derived from**: Q35.4 WARNING (Fix 1 missing; double-decay continuing); Q33.2b WARNING (root cause confirmed)
+
+---
+
+## Q36.6 [DOMAIN-1] Graph connectivity of floor-clamped premature casualties — amnesty eligibility mapping
+**Status**: PENDING
+**Wave**: 36
+**Mode**: quantitative analysis
+**Target**: Qdrant scroll for 846 floor-clamped null-pool memory IDs; Neo4j graph query for edge counts; Qdrant payload durability field
+**Hypothesis**: Amnesty targets memories with graph edges OR durable durability. The dry-run showed 80% boost rate across all memories, but the 846 floor-clamped null-pool subset may have different connectivity. Session-summary and consolidation-output memories (primary null-pool sources) may be graph-isolated. If majority are graph-isolated, amnesty rescue rate for this subset is well below 80%.
+**What to measure**:
+1. Fetch all 846 floor-clamped null-pool memory IDs from Qdrant.
+2. For each ID: query Neo4j for any edges. Count graph-connected vs graph-isolated.
+3. For graph-isolated subset: check Qdrant durability field. Count durable/permanent vs ephemeral/standard.
+4. Final segmentation: N1 (graph-connected), N2 (graph-isolated but durable), N3 (graph-isolated AND ephemeral -- needs fixed rehabilitate).
+5. Cross-check against Q36.1 actual boosted count: does N1+N2 match the amnesty rescue count?
+**Verdict threshold**:
+- FAILURE: N3 > 500 (amnesty cannot rescue majority; fixed rehabilitate mandatory)
+- WARNING: N3 = 200-500 (amnesty rescues majority; rehabilitate closes the gap)
+- HEALTHY: N3 < 200 (amnesty alone rescues >75% of 846; minimal residual)
+**Priority**: Tier 1 -- determines whether amnesty is sufficient or rehabilitate fix also urgently needed
+**Derived from**: Q35.5 WARNING (amnesty partial; graph eligibility unclear for null pool); Q36.1 PENDING (amnesty execution); Q35.3 FAILURE (846 floor-clamped)
