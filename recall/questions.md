@@ -1847,4 +1847,136 @@ findings that have not yet been asked.
 - WARNING: No floor but near-zero memories are deprioritized in scoring; retrievability degraded but no active pollution
 - HEALTHY: Importance floor exists (e.g., min_importance=0.01); decay stops at floor; double-decay damage is bounded; OR minimum active memory importance is above 0.01 even under double-decay
 
+---
+
+## Wave 24 Questions
+
+---
+
+## Q24.1 [DOMAIN-1] Double-decay fix verification — after deploying the Q22.1 fix to _user_conditions(), does each cron slot now apply decay exactly once per memory?
+**Status**: PENDING
+**Wave**: 24
+**Mode**: observability
+**Target**: decay audit_log (GET /admin/audit?action=decay_run), Qdrant active memory importance histogram
+**Hypothesis**: The Q22.1 fix (add IsNullCondition or MatchAny to the system-run Qdrant filter in _user_conditions(None), or remove the Phase 2 system run) should reduce the per-slot audit entries from 10 to ~2: one entry for the primary named user (proc≈active corpus) and one for the system/null run (proc≈0 if no unowned memories exist). The two 5936-count entries per slot (Q23.2 Phase 4 [system+system]) should collapse to a single named-user entry. Additionally, importance values for recently-created memories should start climbing toward single-decay baseline: a 1-day-old memory that was decaying at 0.9228/slot should now decay at 0.9606/slot, and the 3-7d cohort median importance/expected ratio should recover above 0.80 within a week of fix deployment.
+**What to measure**: (1) Read the last 3 cron slots from GET /admin/audit?action=decay_run — count entries per slot and record proc values. (2) Verify no two entries in the same slot have proc≈active_corpus (both should be distinct: named user count + near-zero system count). (3) Compute current 3-7d cohort median importance/expected ratio — should trend above 0.793 (Q23.1 baseline). (4) Count memories at floor (importance=0.05) — should start declining as new memories no longer arrive at floor prematurely. (5) Confirm _user_conditions code change is present in the deployed version (read qdrant.py lines 106-114 or equivalent post-fix).
+**Verdict threshold**:
+- FAILURE: Slot structure still shows two full-corpus proc entries (proc≈active_corpus in both); fix not deployed or not effective; double-decay still active
+- WARNING: Slot structure improved but not fully correct (e.g., system run now proc=0 but named-user run fires twice, or proc counts inconsistent across slots)
+- HEALTHY: Each slot shows exactly one proc≈active_corpus entry (named user) and zero or one low-count system entry (proc=0 or near-zero); no slot has two entries with identical proc≈active_corpus; 3-7d median importance ratio trending above Q23.1 baseline of 0.793
+**Priority**: Tier 0 — must be the first verification question answered after any fix deployment
+**Derived from**: Q22.1 FAILURE — double-decay root cause; Q23.2 FAILURE — fix not deployed reconfirmed; Q23.1 WARNING — damage quantified; synthesis §14 post-deployment re-measurement Q23.2
+
+---
+
+## Q24.2 [DOMAIN-5] mark_superseded importance=0.0 fix verification — after removing importance=0.0 from neo4j.mark_superseded(), does the reconcile mismatch count stop growing?
+**Status**: PENDING
+**Wave**: 24
+**Mode**: observability
+**Target**: neo4j_store.py mark_superseded() (code inspection), POST /admin/reconcile?dry_run=true (count trend), GET /admin/audit?action=supersede (rate measurement)
+**Hypothesis**: The Q21.1 one-line fix (remove `m.importance = 0.0` from neo4j_store.py mark_superseded()) stops every new supersedure from creating a new importance mismatch. Before the fix, each of the ~700/day consolidation supersedures sets Neo4j importance to 0.0 while Qdrant retains the original importance — creating 1 new mismatch per supersedure. After the fix, Neo4j importance is preserved at whatever value the memory had, so reconcile dry_run importance_mismatches for active memories should stop growing. The existing ~15,000+ superseded mismatches (invisible to the current active-only scan) will not be repaired by this fix alone — those require a repair=true run or a reconcile scope restoration. But the growth rate should drop to near zero.
+**What to measure**: (1) Read neo4j_store.py mark_superseded() — confirm `m.importance = 0.0` line is absent. (2) Call POST /admin/reconcile?dry_run=true, record importance_mismatches. (3) Wait for 1 cron cycle (~1 hour for consolidation), call reconcile dry_run again. (4) Compare counts: delta should be ≤5 (statistical noise) not ~700. (5) Verify active-memory mismatch count (the 50 from Q23.4) is being tracked separately — Q24.2 targets the supersede-path mismatches, not the creation-path mismatches.
+**Verdict threshold**:
+- FAILURE: importance_mismatches count still growing at >100/day after fix deployment; mark_superseded still setting importance=0.0 (code not changed or change not deployed)
+- WARNING: Growth rate reduced but not eliminated (>10/day); possible secondary code path setting importance=0.0 not covered by the one-line fix
+- HEALTHY: importance_mismatches count stable between consecutive reconcile dry_runs (delta ≤5 over 1h observation window); neo4j_store.py mark_superseded() confirmed to not set importance=0.0; new supersedure events add 0 mismatches
+**Priority**: Tier 1b — verify after Q21.1 fix deployed
+**Derived from**: Q21.1 HEALTHY — one-line fix confirmed safe; Q22.9 WARNING — 521 mismatches = historical accumulation; Q23.4 WARNING — ~700/day accumulation rate confirmed; synthesis §14 post-deployment re-measurement Q23.4
+
+---
+
+## Q24.3 [DOMAIN-5] Active-memory Neo4j sync gap root cause — what code path produces active memories with neo4j_importance=0.0 and how many exist now?
+**Status**: PENDING
+**Wave**: 24
+**Mode**: static code analysis + observability
+**Target**: memory.py POST /store path (Neo4j write sequence), neo4j_store.py add_memory() or create_memory(), reconcile active mismatch sample (the 50 from Q23.4)
+**Hypothesis**: Q23.4 found 50 active memories (e.g., id=41569d71, created 2026-03-15T05:33) where Qdrant importance=0.7+ but Neo4j importance=0.0. This is a different bug from Q21.1 (which only affects superseded memories via mark_superseded). The root cause is likely one of: (a) Neo4j node creation in the memory store path fails to write the importance field — created with importance=0 default; (b) the Neo4j write succeeds but importance is passed as None/0.0 by a code path that doesn't carry the importance value; (c) a Neo4j write error at creation time is silently swallowed (Q16.4b pattern), leaving the node with a default 0.0 importance. The accumulation rate is unknown — Q23.4 observed 50 at one snapshot but creation-path failures could be systematic (every store) or intermittent.
+**What to measure**: (1) Read memory.py POST /store path — where does Neo4j importance get written? Is it passed explicitly or left to a default? (2) Read neo4j_store.py add_memory()/create_memory() — is importance a required field or optional with default=0.0? (3) Check if the Neo4j write for importance is in a try/except that swallows errors (Q16.4b pattern). (4) Call POST /admin/reconcile?dry_run=true — record current active importance_mismatches count; compare to Q23.4 baseline of 50 (created 2026-03-15T05:33). If count has grown, estimate daily creation rate. (5) Inspect the 50 known mismatch IDs — are they all from the same date/time window (suggesting an outage-related batch) or spread across multiple days (suggesting ongoing systematic failure)?
+**Verdict threshold**:
+- FAILURE: Active mismatch count has grown significantly above 50 (e.g., >200) since Q23.4 measurement; creation-path Neo4j sync failure is systematic and ongoing; every store may be producing Neo4j importance=0.0
+- WARNING: Count is stable at ~50 (isolated to a specific window, not ongoing); root cause identified as a code path that can recur; fix specified but not yet deployed
+- HEALTHY: Count stable at ~50; root cause confirmed as one-time event (e.g., Q22.9 outage period); fix is same as or simpler than Q21.1; not a regression risk for future stores
+**Priority**: Tier 1 — characterize before deploying mark_superseded fix to confirm non-overlapping root causes
+**Derived from**: Q23.4 WARNING — "50 NEW active-memory mismatches (neo4j=0.0, qdrant=0.7+); different bug from Q21.1"; synthesis §15 — "Active-memory Neo4j sync gap: new High severity open risk"
+
+---
+
+## Q24.4 [DOMAIN-5] Reconcile scope regression — is the active-only scope of the current reconcile API intentional or a regression that should be reverted to full-corpus scanning?
+**Status**: PENDING
+**Wave**: 24
+**Mode**: static code analysis + observability
+**Target**: reconcile.py and ops.py reconcile logic (scroll_all call site, filter parameters), git log or code comments indicating scope change intent
+**Hypothesis**: Q23.4 found that the reconcile API now scans only active memories, making 15,000+ superseded mismatches invisible in its output. The prior behavior (Q22.9 baseline) scanned all memories including superseded. This scope change could be: (a) an intentional narrowing — superseded memories are no longer being reconciled because find_related() filters superseded_by IS NULL anyway (so Neo4j importance for superseded memories doesn't affect retrieval); (b) an unintentional regression introduced alongside another change; (c) a performance optimization to avoid scanning 15,000+ superseded points. If intentional, the 15,000+ accumulated mismatches are "accepted waste" and the Q21.1 fix just stops new waste from accumulating. If a regression, the scope should be restored and a repair=true run should clear the backlog.
+**What to measure**: (1) Read reconcile.py and ops.py — does the reconcile scroll use include_superseded=False or a filter that excludes superseded? Was this the case in Q22.9 when 521 were visible? (2) Check for any recent git commits or code comments explaining the scope change. (3) Determine whether superseded-memory importance mismatches affect any live system behavior: does find_related() use Neo4j importance for superseded memories? Does any query path include superseded memories by intention? (4) If the scope change is a regression: what is the effort to restore full-corpus scanning and what is the performance cost at current corpus size (~21,011 total)?
+**Verdict threshold**:
+- FAILURE: Scope change is a regression (no intentional code comment, no performance rationale); superseded mismatches are not benign (some query path does use Neo4j importance on superseded memories); full-corpus scan should be restored
+- WARNING: Scope change is intentional but undocumented; superseded mismatches confirmed benign for retrieval (find_related filters them); but the change silently hides ~15,000 known-bad records from monitoring visibility
+- HEALTHY: Scope change is intentional and documented; superseded mismatches confirmed to have zero retrieval or functional impact; active-only scan is the correct design; Q21.1 fix is sufficient to stop new mismatches from accumulating
+**Priority**: Tier 1b — answer before deciding whether to run repair=true on the superseded mismatch backlog
+**Derived from**: Q23.4 WARNING — "reconcile API changed scope from all-memories to active-only; 521+ superseded mismatches invisible"; Q21.1 HEALTHY — "Neo4j queries already filter superseded_by IS NULL so importance=0.0 on superseded has limited retrieval impact"
+
+---
+
+## Q24.5 [DOMAIN-4] Consolidation user_id attribution fix verification — after fixing consolidation.py:235 to pass user_id to merged Memory(), do consolidated memories retain user attribution?
+**Status**: PENDING
+**Wave**: 24
+**Mode**: observability + static code analysis
+**Target**: consolidation.py Memory() constructor call at line ~235, GET /admin/users/{id}/export, get_distinct_user_ids() output
+**Hypothesis**: Q22.9 confirmed that consolidation.py:235 creates the merged Memory() without a user_id argument, permanently attributing consolidated memories to user_id=None. The fix is ~3 lines (pass user_id=source_memories[0].user_id or infer from sources). After deployment, new consolidation events should produce merged memories that appear in the originating user's count_user_memories() and export, and users who had ALL their originals consolidated should reappear in get_distinct_user_ids(). The primary test is: find a user who recently had memories consolidated and verify the merged output has their user_id, not None.
+**What to measure**: (1) Read consolidation.py around line 235 — confirm `Memory(... user_id=<source_user_id> ...)` pattern is present in the deployed version. (2) Trigger a manual consolidation (POST /ops/consolidate) and inspect the created merged memory via the export API for user_id. (3) Call GET /admin/users/{primary_user_id}/export and confirm the count includes recently-merged memories (not just originals). (4) Call get_distinct_user_ids() equivalent — confirm no users have disappeared due to consolidation. (5) Verify edge case: if sources have different user_ids (cross-user consolidation), what user_id does the merged memory get?
+**Verdict threshold**:
+- FAILURE: consolidated memories still have user_id=None after fix deployment; Memory() constructor not updated; user attribution still lost
+- WARNING: Consolidated memories now have user_id set BUT edge cases exist (multi-user source memories, system memories) — partial fix
+- HEALTHY: Consolidated memories have user_id matching their primary source; users do not disappear from get_distinct_user_ids() after consolidation; count_user_memories() includes merged memories; code inspection confirms the fix is present
+**Priority**: Tier 2 — verify after consolidation.py:235 fix deployed
+**Derived from**: Q22.9 WARNING — "consolidation.py:235 creates Memory() without user_id; user_id=2 data not deleted — consolidated into user_id=None merged form"; synthesis §13 Tier 2 item #18
+
+---
+
+## Q24.6 [DOMAIN-4] Superseded GC first batch — the 30-day eligibility window has opened; how many memories are now GC-eligible and what is the correct deletion procedure?
+**Status**: PENDING
+**Wave**: 24
+**Mode**: observability + static code analysis
+**Target**: Qdrant superseded points (superseded_by IS NOT NULL AND invalid_at < now−30d), causal_extractor.py access patterns, neo4j_store.py delete_memory_node()
+**Hypothesis**: Q21.3 identified the first GC-eligible batch would be ~2026-03-21 (30 days after earliest supersedure audit entry on 2026-03-02). Q22.3 confirmed 507 overnight consolidation entries from the Q22.9 anomaly window become 14-day eligible by 2026-03-27. We are now past both dates (current date: 2026-03-15 was Q23's date; the first batch is now due or imminent). The GC cron (Tier 3 item #26) is not deployed, so no deletions have occurred. This question characterizes the current GC backlog size, validates the safe GC criteria (age ≥30d + successor active + simultaneous Neo4j DELETE), and provides the spec for what the GC cron should do when deployed.
+**What to measure**: (1) Query Qdrant for superseded memories where invalid_at < (now − 30 days) — count the GC-eligible batch. (2) For a sample of eligible memories, verify the successor memory is still active (superseded_by ID exists and is not itself superseded). (3) Check causal_extractor.py — does it access superseded memories by ID directly (which would make deletion unsafe) or only via active-memory queries? Q21.3 noted include_superseded=True but characterize whether old (>30d) superseded memories are realistically accessed. (4) Read neo4j_store.py for a delete_memory_node() or equivalent method — does it perform DETACH DELETE, and does it cascade to relationship cleanup? (5) Estimate: if GC cron ran today, how many points would be deleted? What percentage of the total Qdrant corpus would remain?
+**Verdict threshold**:
+- FAILURE: GC-eligible batch is >5,000 memories and growing; no deletion mechanism exists; causal_extractor accesses old superseded memories by direct ID lookup making safe deletion impossible without code changes
+- WARNING: GC-eligible batch confirmed; safe deletion criteria satisfied for most but causal_extractor edge case requires a one-query fix before GC can run safely; or neo4j_store.py lacks delete_memory_node()
+- HEALTHY: GC-eligible batch quantified; safe deletion criteria satisfied (successor active, no live causal_extractor access to old superseded); neo4j_store.py has delete_memory_node(); GC cron spec confirmed ready to implement
+**Priority**: Tier 3 — characterize before implementing GC cron; GC window is open
+**Derived from**: Q21.3 WARNING — "~600 new superseded/day; safe GC: age ≥30d + successor active + simultaneous Neo4j DELETE; 30-day batch eligible ~2026-03-21"; Q22.3 HEALTHY — "507-entry overnight wave eligible 2026-03-27"; synthesis §13 Tier 3 item #26
+
+---
+
+## Q24.7 [DOMAIN-1] Ghost-user decay fix verification — after fixing get_distinct_user_ids() to scan active-only, do ghost users disappear from the decay loop?
+**Status**: PENDING
+**Wave**: 24
+**Mode**: observability + static code analysis
+**Target**: qdrant.py get_distinct_user_ids() (IS NULL filter on superseded_by), decay audit_log per-slot entry count
+**Hypothesis**: Q21.5 found that get_distinct_user_ids() scans all 20,923 Qdrant points including superseded, returning user_ids whose only surviving memories are superseded — these ghost users produce 7/10 decay_run entries per slot with processed=0. The fix is a one-line IS NULL filter on superseded_by, which would reduce the returned user_id list from ~10 to ~2-3 (active named users only). After the fix, the per-slot audit entry count should drop from ~10 to ~2-3, eliminating the 7 wasted scroll operations per slot. Additionally, the primary user double-processing (~4% overdecay per run from Q21.5) should also be investigated — does the fix prevent the primary user from appearing twice?
+**What to measure**: (1) Read qdrant.py get_distinct_user_ids() — confirm IS NULL filter on superseded_by is present. (2) Call GET /admin/audit?action=decay_run&limit=30 and count entries per cron slot — should now be ~2-3 not ~10. (3) Confirm no entries with processed=0 remain in the per-slot list (ghost users eliminated). (4) Verify the primary user appears exactly once per slot (not twice from the old Q21.5 double-processing). (5) Measure the improvement: old scan processed 20,923 points; new scan should process ~active_corpus (~6,000); verify via timing or log messages if available.
+**Verdict threshold**:
+- FAILURE: get_distinct_user_ids() still scans superseded points; per-slot decay entry count still ~10; ghost users still appearing with processed=0
+- WARNING: Ghost users eliminated but per-slot count reduction smaller than expected (e.g., 7 not 3); or primary user still double-processed via a different mechanism
+- HEALTHY: Per-slot decay entries reduced from ~10 to ≤3; no processed=0 entries per slot; get_distinct_user_ids() confirmed to filter active-only; qdrant scan size reduced from ~21,000 to ~6,000 points per decay cycle
+**Priority**: Tier 2 — verify after Q21.5 IS NULL filter fix deployed
+**Derived from**: Q21.5 WARNING — "7/10 decay_run entries/slot are processed=0; root cause: get_distinct_user_ids() scans superseded; 28 wasted scrolls/day"; Q22.2 WARNING — ghost user identity confirmed; synthesis §13 Tier 2 item #16
+
+---
+
+## Q24.8 [DOMAIN-5] Reconcile audit trail fix verification — after deploying the 9-LOC reconcile audit changes (Q21.6), are reconcile runs now visible in the audit log?
+**Status**: PENDING
+**Wave**: 24
+**Mode**: observability + static code analysis
+**Target**: GET /admin/audit?action=reconcile, reconcile.py and ops.py (log_audit call sites)
+**Hypothesis**: Q21.6 confirmed the reconcile audit fix is a ~9-LOC change across reconcile.py and ops.py, adding log_audit() calls for each reconcile run with fields including: mismatch count, repair count, run timestamp, and dry_run flag. After deployment, GET /admin/audit?action=reconcile should return entries for each reconcile execution, enabling: (a) last-run-date verification, (b) mismatch trend detection across runs, (c) repair convergence monitoring (was repair=true invoked and did the count drop?). Currently, 0 entries exist for action=reconcile — any non-zero count after deployment confirms the fix is working.
+**What to measure**: (1) Read reconcile.py and ops.py — confirm log_audit() calls are present for reconcile runs. (2) Trigger a reconcile dry_run: POST /admin/reconcile?dry_run=true. (3) Query GET /admin/audit?action=reconcile&limit=10 — confirm at least 1 entry exists with correct fields (mismatch_count, dry_run=True, timestamp). (4) Trigger a reconcile with repair=true: POST /admin/reconcile?repair=true. (5) Query audit again — confirm a second entry exists with dry_run=False and repair_count > 0; verify the response now shows post-repair importance_mismatches (Q22.6 post-repair visibility fix, if also deployed).
+**Verdict threshold**:
+- FAILURE: GET /admin/audit?action=reconcile returns 0 entries after triggering reconcile; fix not deployed; reconcile execution still invisible
+- WARNING: Reconcile audit entries exist but missing key fields (e.g., no mismatch_count, or dry_run flag absent); partial implementation
+- HEALTHY: At least 1 audit entry per reconcile invocation with fields: action=reconcile, mismatch_count (int), dry_run (bool), timestamp; repair runs show repair_count > 0; last-run-date query returns correct timestamp
+**Priority**: Tier 1b — verify after Q21.6 fix deployed; enables monitoring of all other fix verifications
+**Derived from**: Q21.6 HEALTHY — "~9 LOC across reconcile.py + ops.py closes Q20.1 reconcile observability gap"; Q20.1 WARNING — "reconcile has zero audit_log entries — execution history unverifiable"; synthesis §13 Tier 1b item #7
+
 **Derived from**: Q22.1 FAILURE — double-decay pushes memories to near-zero faster than intended; Q23.1 — quantifies how many memories are in the danger zone
