@@ -584,7 +584,7 @@ findings that have not yet been asked.
 ---
 
 ## Q13.1 [DOMAIN-5] Retrieval coverage rate — why are 86–93% of memories never surfaced?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: benchmark
 **Target**: GET /admin/health/distributions + recall_retrieve.js hook
 **Hypothesis**: With 20,536 stored memories but only ~447 injection events, the retrieval coverage rate is 7–14%. Most memories are permanently invisible because: (a) vector search returns top-K from a large pool so low-ranked memories are never selected, (b) the hook's `adaptiveFilter` raises the similarity floor over time, and (c) the hook skips short prompts entirely. The practical effect is that Recall accumulates memories faster than it can serve them, and the oldest/lowest-importance content never re-enters the context window.
@@ -599,8 +599,36 @@ findings that have not yet been asked.
 
 ---
 
-## Q13.2 [DOMAIN-1] fact_extraction empty rate — 30.2% of LLM extraction calls return nothing
+## Q13.1a [DOMAIN-5] MIN_SIMILARITY threshold sweep — what floor maximizes useful injections without noise?
 **Status**: PENDING
+**Mode**: benchmark
+**Target**: recall-retrieve.js MIN_SIMILARITY + injection_log feedback quality
+**Hypothesis**: Lowering MIN_SIMILARITY from 0.45 to 0.40 would expose the 2,456 memories in the 0.40–0.45 similarity band. If the implicit feedback loop rates ≥50% of these additional injections as useful (topic overlap on next prompt), the lower floor is warranted. If <30% useful, the floor is correctly calibrated.
+**Test**: Sample 30 injection events where max_raw_similarity falls in 0.40–0.45. Cross-reference against subsequent prompt terms using the implicit feedback heuristic (>20% term overlap = useful). Report: useful rate, noise rate, ambiguous rate.
+**Verdict threshold**:
+- FAILURE: >70% of 0.40–0.45 range injections would be noise (floor is correct, problem is structural)
+- WARNING: 30–70% useful (borderline — lower floor helps but doesn't solve the coverage problem)
+- HEALTHY: ≥70% useful (lower floor recommended — would expand coverage without hurting precision)
+**Derived from**: Q13.1 FAILURE finding — MIN_SIMILARITY=0.45 excludes 2,456 memories in the 0.40–0.44 band
+
+---
+
+## Q13.1b [DOMAIN-5] High-importance never-retrieved memories — content audit
+**Status**: PENDING
+**Mode**: benchmark
+**Target**: Qdrant recall_memories, importance ≥ 0.6, access_count = 0
+**Hypothesis**: Of the estimated 4,996 high-importance (≥0.6) memories with access_count=0, a meaningful fraction are genuinely high-value knowledge being buried. If ≥30% are high-value, the coverage problem is urgent and affects Tim's most important stored knowledge.
+**Test**: Sample 50 memories from Qdrant where importance ≥ 0.6 AND access_count = 0. Classify each as: high-value (specific, actionable, relevant to active projects), medium-value (generally useful but not urgent), low-value (synthetic/test content, outdated, redundant with existing memories).
+**Verdict threshold**:
+- FAILURE: ≥30% of high-importance never-retrieved memories are high-value (urgent: important knowledge is permanently buried)
+- WARNING: 15–30% are high-value (notable: some important knowledge is buried but not catastrophic)
+- HEALTHY: <15% are high-value (high-importance memories are mostly redundant/synthetic noise)
+**Derived from**: Q13.1 FAILURE finding — 3,945 memories with importance 0.6–0.8 and 1,351 with 0.8–1.0; estimated 94.6% never injected
+
+---
+
+## Q13.2 [DOMAIN-1] fact_extraction empty rate — 30.2% of LLM extraction calls return nothing
+**Status**: DONE
 **Mode**: simulation
 **Target**: observe-edit.js hook → /extract endpoint
 **Hypothesis**: 30.2% of fact_extraction pipeline calls return empty results (no facts extracted). This is wasted Ollama inference (qwen3:14b at ~15s/call). Root causes may be: (a) edits to config/JSON/YAML files where there are no facts to extract, (b) very small diffs below a meaningful content threshold, (c) LLM refusing to extract from non-prose content, or (d) structural prompt mismatch. If category (a)/(b) dominates, a pre-filter on file type or diff size could eliminate the waste without losing coverage.
@@ -615,8 +643,23 @@ findings that have not yet been asked.
 
 ---
 
-## Q13.3 [DOMAIN-5] p95 extraction latency — 15–16 second outliers in the extraction pipeline
+## Q13.2a [DOMAIN-1] fact_extraction file-type breakdown — what fraction of empty extractions come from config/JSON/YAML files?
 **Status**: PENDING
+**Mode**: benchmark
+**Target**: observe-edit.js → /extract endpoint + prompt_metrics.metadata
+**Hypothesis**: The 42.2% empty rate is dominated by config file edits (.json, .yaml, .toml, .md) which contain no extractable facts. If ≥60% of empty extractions come from these file types, adding them to a LOW_YIELD_EXTENSIONS filter in observe-edit.js would eliminate the majority of wasted Ollama calls without any loss of coverage.
+**Test**: After instrumenting the /extract endpoint to persist file_ext in prompt_metrics.metadata (see Q13.2 mitigation #2), sample 100 recent empty extractions and classify by file extension. Report: empty rate per file type, fraction of total empty calls attributable to config types vs code files.
+**Verdict threshold**:
+- FAILURE: ≥50% of empty extractions come from code files (.py, .js, .ts) — model is failing to extract from valid content (structural problem, not filterable)
+- WARNING: 30–60% from config types — filter helps but doesn't eliminate the problem
+- HEALTHY: ≥60% from config/small-diff types — filter eliminates majority of waste without coverage loss
+**Derived from**: Q13.2 WARNING finding — metadata.file_ext NULL prevented file-type analysis; gap must be closed before this question is answerable
+**Prerequisite**: metadata.file_ext observability gap must be closed first (instrument /extract endpoint, collect 48h of data)
+
+---
+
+## Q13.3 [DOMAIN-5] p95 extraction latency — 15–16 second outliers in the extraction pipeline
+**Status**: DONE
 **Mode**: benchmark
 **Target**: observe-edit.js → POST /extract (Ollama qwen3:14b)
 **Hypothesis**: The p95 extraction latency of 15–16 seconds is 3–5× the expected inference time for qwen3:14b on an RTX 3090. The outliers are likely caused by: (a) Ollama model cold-start (first inference after idle period loads model to VRAM), (b) context window overflow forcing multi-pass chunking, or (c) RTX 3090 thermal throttling under sustained load. The p50 latency may be acceptable while the p95 creates perceived hook "freezes" for the user.
@@ -631,8 +674,23 @@ findings that have not yet been asked.
 
 ---
 
-## Q13.4 [DOMAIN-1] observer supersedure rate — 46.7% of session summaries are over-deduped
+## Q13.3a [DOMAIN-5] Ollama concurrency limiter A/B — does max-1 in-flight extraction call reduce p95 below 10s?
 **Status**: PENDING
+**Mode**: benchmark
+**Target**: /extract endpoint → Ollama queue depth
+**Hypothesis**: Adding a concurrency limiter (max 1 in-flight Ollama extraction call from the /extract endpoint) will eliminate compound queuing and reduce p95 from 14s to ≤10s. With 1 in-flight call, queue depth is bounded at 1 waiting request, so max wait = 1× inference time ≈ 4s + actual inference = ≤8s total, within the 10s HEALTHY threshold.
+**Test**: Add a server-side semaphore (asyncio.Semaphore(1)) to the /extract endpoint. Measure p95 over 48h before/after. Compare: (a) p95 latency, (b) queue rejection rate (requests dropped due to full queue), (c) throughput (extractions/hour). A/B requires 48h of production traffic on both configurations.
+**Verdict threshold**:
+- FAILURE: p95 still >10s after limiter (queuing was not the cause — other mechanism responsible)
+- WARNING: p95 drops to 10–14s (improvement confirmed but target not met; Ollama parallelization may also be needed)
+- HEALTHY: p95 ≤10s (queuing was the dominant cause; limiter resolves the latency failure)
+**Derived from**: Q13.3 FAILURE finding — uniform 22% slow rate attributed to Ollama request queuing; M/D/1 queue model predicts concurrency=1 fixes p95
+**Prerequisite**: Implement asyncio.Semaphore(1) in /extract handler; deploy; collect 48h pre/post data
+
+---
+
+## Q13.4 [DOMAIN-1] observer supersedure rate — 46.7% of session summaries are over-deduped
+**Status**: DONE
 **Mode**: correctness
 **Target**: recall-session-summary.js hook → /store deduplication logic
 **Hypothesis**: The observer (session summary) pipeline shows a 46.7% supersedure rate — nearly half of all session summaries are being absorbed/merged into existing memories rather than stored as new entries. Session summaries are high-value durable memories that represent entire work sessions. If they are being collapsed into older memories with different content, recent session context is lost. The question is whether the dedup threshold is too aggressive for session-length content, or whether the summaries genuinely repeat the same topics.
@@ -647,8 +705,22 @@ findings that have not yet been asked.
 
 ---
 
-## Q13.5 [DOMAIN-1] corpus/retrieval capacity imbalance — does storing more memories hurt retrieval quality?
+## Q13.4a [DOMAIN-1] supersedure similarity threshold — what cosine score triggers deduplication?
 **Status**: PENDING
+**Mode**: benchmark
+**Target**: /store endpoint deduplication logic (server-side code)
+**Hypothesis**: The supersedure threshold is below 0.90, which causes false-positive session merges where topically similar but session-distinct summaries are collapsed. If the threshold were raised to 0.92–0.95, the 14996103→de31f553 false-positive merge would not have fired.
+**Test**: Inspect the /store endpoint source code to find the cosine similarity threshold for supersedure. Then query the audit_log supersede entries and cross-reference with Qdrant similarity scores (if stored in details) to compute the actual distribution of similarity scores at which supersedure fires. Report: threshold value, distribution of similarity scores for fired supersedures, recommended threshold.
+**Verdict threshold**:
+- FAILURE: threshold < 0.85 (too aggressive — semantically similar but content-distinct memories are being merged)
+- WARNING: threshold 0.85–0.92 (borderline — some false positives likely, especially for repeated-topic sessions)
+- HEALTHY: threshold ≥ 0.92 (calibrated correctly; rare false positives only)
+**Derived from**: Q13.4 WARNING finding — audit_log details lacks similarity scores; threshold value unknown; one confirmed false-positive merge observed
+
+---
+
+## Q13.5 [DOMAIN-1] corpus/retrieval capacity imbalance — does storing more memories hurt retrieval quality?
+**Status**: DONE
 **Mode**: simulation
 **Target**: simulate.py — vector search recall degradation model
 **Hypothesis**: Recall stores memories indefinitely (with decay, but the floor prevents deletion). As the corpus grows from 20K → 50K → 100K memories, the top-K vector search returns the same K results but from a larger haystack — the signal-to-noise ratio degrades. A memory that would rank #3 in a 10K corpus might rank #12 in a 100K corpus and fall below the injection threshold. The system has no mechanism to retire truly dead memories (importance = floor, access_count = 0, age > 90d), so the haystack grows monotonically.
@@ -663,8 +735,22 @@ findings that have not yet been asked.
 
 ---
 
-## Q13.6 [DOMAIN-3] vocabulary mismatch — do domain-specific queries fail to surface relevant memories?
+## Q13.5a [DOMAIN-1] synthetic testbed memory retirement — how many testbed memories are eligible for bulk deletion?
 **Status**: PENDING
+**Mode**: benchmark
+**Target**: Qdrant recall_memories — testbed:* tagged entries
+**Hypothesis**: ~15,000 of the 20,560 total memories are synthetic testbed entries (tagged testbed:a94448f4c891, testbed:1efb824d749c, etc. from autoresearch load testing). If ≥80% of these have access_count=0, a bulk delete would reduce corpus to ~6,000 real memories and restore top-5 hit rate to ~50%+ (from 5.4% current).
+**Test**: Query Qdrant for memories with tags matching testbed:* pattern. Count: total testbed memories, those with access_count=0, importance distribution. Compute: expected coverage rate after bulk delete of access_count=0 testbed memories.
+**Verdict threshold**:
+- FAILURE: <50% of testbed memories are access_count=0 (they ARE being retrieved for real queries — deletion would hurt coverage)
+- WARNING: 50–80% are access_count=0 (partial retirement viable)
+- HEALTHY: ≥80% are access_count=0 (bulk retirement safe; would restore effective coverage to ~50%)
+**Derived from**: Q13.5 FAILURE finding — ~15,000 synthetic testbed memories identified as primary corpus bloat; retirement could restore coverage from 5.4% to ~50%
+
+---
+
+## Q13.6 [DOMAIN-3] vocabulary mismatch — do domain-specific queries fail to surface relevant memories?
+**Status**: DONE
 **Mode**: benchmark
 **Target**: POST /search with domain-specific query terms
 **Hypothesis**: Recall's hook extracts "key terms" from conversational prompts and uses them as the search query. When a user asks about "the CasaOS Docker stack" or "the Relay AI project", the stored memories may use different vocabulary ("homelab containers", "AI phone receptionist"). The qwen3-embedding:0.6b model has a compressed similarity range (0.3–0.65), so vocabulary mismatch pushes relevant memories below the injection threshold even when they are semantically related. This would manifest as the retrieval hook returning zero results for specific project queries even though relevant memories exist.
@@ -679,8 +765,22 @@ findings that have not yet been asked.
 
 ---
 
-## Q13.7 [DOMAIN-1] signal classifier retraining readiness — is type_cv above 0.75 yet?
+## Q13.6a [DOMAIN-3] recall-retrieve.js query construction — does it include file/tool context or only user message terms?
 **Status**: PENDING
+**Mode**: benchmark
+**Target**: recall-retrieve.js hook query construction logic
+**Hypothesis**: The hook extracts key terms only from the user's message text, not from tool context (current file, tool_name, event_type). This means queries about abstract API concepts ("UserPromptSubmit") fail to surface concrete implementation memories ("observe-edit hook"). Including current_file and tool_name in the query construction would close this vocabulary gap.
+**Test**: Read recall-retrieve.js to find the query term extraction logic. Identify exactly what inputs are used to construct the Qdrant search query. Report: which fields are included, whether tool context is used, whether project name inference is applied.
+**Verdict threshold**:
+- FAILURE: only user message text is used; no file/tool/project context (vocabulary mismatch is structural and systematic)
+- WARNING: some context is included but project names or tool names are excluded
+- HEALTHY: full context included (user message + current_file + tool_name + project name inference)
+**Derived from**: Q13.6 WARNING finding — abstract API term "UserPromptSubmit" failed to surface concrete hook memories; alt phrasings with concrete names succeeded
+
+---
+
+## Q13.7 [DOMAIN-1] signal classifier retraining readiness — is type_cv above 0.75 yet?
+**Status**: DONE
 **Mode**: benchmark
 **Target**: GET /admin/health (signal_classifier section) + /admin/ml/metrics
 **Hypothesis**: Wave 12 found signal_classifier type_cv=0.6488, below the 0.75 target. The root cause was the audit_log content bug (fixed in commits a70246d + 93711a0). Two weeks of content accumulation were required before retraining would be meaningful. It is now approximately 2+ weeks since the fix. The classifier may be ready for retraining, or the content accumulation may still be insufficient.
@@ -692,3 +792,32 @@ findings that have not yet been asked.
 
 **Derived from**: Wave 12 Q12.4 fix (audit_log content bug) — retrain deferred 2 weeks; Wave 12 closing risk: "Re-train signal classifier after ~2 weeks of content accumulation; verify type_cv > 0.75"
 **Simulation path**: benchmark-engineer checks current metrics, counts accumulated content, triggers retrain if ready, re-measures type_cv
+
+## Q13.7a [DOMAIN-1] type classifier per-class precision/recall — should contradiction be merged into warning?
+**Status**: PENDING
+**Mode**: benchmark
+**Target**: GET /admin/ml/signal-classifier-status or retrain endpoint returning per-class metrics
+**Hypothesis**: The type classifier (type_cv=0.6539) has only 44 contradiction samples vs 150 fact samples. If contradiction precision < 0.5, it is misclassifying more than half the time and should be merged with warning (which has 54 samples, semantically similar). Merging contradiction+warning (98 combined) and decision+preference (121 combined) may push type_cv from 0.6539 to above 0.75 without adding new data.
+**Test**: Retrieve per-class precision, recall, and F1 from the signal classifier's cross-validation results. Identify which classes have precision < 0.5 and recall < 0.5. Model the expected type_cv if: (a) contradiction merged with warning, (b) decision merged with preference, (c) both merged. Compare against 0.75 target.
+**Verdict threshold**:
+- FAILURE: Per-class data unavailable (endpoint doesn't expose it); or contradiction precision > 0.7 (merge not justified)
+- WARNING: Contradiction precision < 0.5 but merged-class model doesn't reach type_cv ≥ 0.75
+- HEALTHY: Merged-class model projects type_cv ≥ 0.75; merge is the right next action
+
+**Derived from**: Q13.7 WARNING finding — type_cv=0.6539, minority classes (contradiction=44, decision=54) identified as bottleneck; Q13.7 recommends: "reduce to 5–6 types: merge contradiction into warning, decision into preference"
+
+---
+
+## Q13.8 [DOMAIN-5] Session Markov Chain — why are prefetch cache hits and predictions at zero?
+**Status**: PENDING
+**Mode**: benchmark
+**Target**: Session Markov Chain feature (/admin/features/stats)
+**Hypothesis**: The Markov Chain feature reports 3,988 file visits tracked and 2,256 transition pairs learned, but 0 prefetch cache hits and 0 predictions generated. The feature is accumulating state but never firing. Likely causes: (a) the prefetch trigger threshold is set too high, (b) the prefetch write path is broken and silently fails, (c) the hook consuming prefetched results was never wired to the retrieval path, or (d) prediction TTL expires before any prompt arrives to consume them.
+**Test**: Check the Markov Chain implementation for the prefetch trigger condition and hook integration. Verify whether prefetch entries are ever written to Redis/cache. Attempt a manual trigger by simulating a known file transition sequence. Check logs for any prefetch-related errors.
+**Verdict threshold**:
+- FAILURE: prefetch write path is broken or hook is not wired — feature accumulating state but delivering zero value
+- WARNING: feature fires but TTL too short or threshold too high — predictions generated but never consumed
+- HEALTHY: zero hits explained by low session repetition rate (new file pairs each session)
+
+**Derived from**: Live dashboard eval (2026-03-15) — 3,988 file visits, 2,256 transition pairs, prefetch_cache_hits=0 and predictions_generated=0 despite feature status "active"
+**Simulation path**: benchmark-engineer reads Markov Chain source, checks prefetch write path and hook wiring, tests manual trigger against live system
