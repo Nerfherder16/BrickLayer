@@ -1854,7 +1854,7 @@ findings that have not yet been asked.
 ---
 
 ## Q24.1 [DOMAIN-1] Double-decay fix verification — after deploying the Q22.1 fix to _user_conditions(), does each cron slot now apply decay exactly once per memory?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 24
 **Mode**: observability
 **Target**: decay audit_log (GET /admin/audit?action=decay_run), Qdrant active memory importance histogram
@@ -1870,7 +1870,7 @@ findings that have not yet been asked.
 ---
 
 ## Q24.2 [DOMAIN-5] mark_superseded importance=0.0 fix verification — after removing importance=0.0 from neo4j.mark_superseded(), does the reconcile mismatch count stop growing?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 24
 **Mode**: observability
 **Target**: neo4j_store.py mark_superseded() (code inspection), POST /admin/reconcile?dry_run=true (count trend), GET /admin/audit?action=supersede (rate measurement)
@@ -1886,7 +1886,7 @@ findings that have not yet been asked.
 ---
 
 ## Q24.3 [DOMAIN-5] Active-memory Neo4j sync gap root cause — what code path produces active memories with neo4j_importance=0.0 and how many exist now?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 24
 **Mode**: static code analysis + observability
 **Target**: memory.py POST /store path (Neo4j write sequence), neo4j_store.py add_memory() or create_memory(), reconcile active mismatch sample (the 50 from Q23.4)
@@ -1902,7 +1902,7 @@ findings that have not yet been asked.
 ---
 
 ## Q24.4 [DOMAIN-5] Reconcile scope regression — is the active-only scope of the current reconcile API intentional or a regression that should be reverted to full-corpus scanning?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 24
 **Mode**: static code analysis + observability
 **Target**: reconcile.py and ops.py reconcile logic (scroll_all call site, filter parameters), git log or code comments indicating scope change intent
@@ -1918,7 +1918,7 @@ findings that have not yet been asked.
 ---
 
 ## Q24.5 [DOMAIN-4] Consolidation user_id attribution fix verification — after fixing consolidation.py:235 to pass user_id to merged Memory(), do consolidated memories retain user attribution?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 24
 **Mode**: observability + static code analysis
 **Target**: consolidation.py Memory() constructor call at line ~235, GET /admin/users/{id}/export, get_distinct_user_ids() output
@@ -1934,7 +1934,7 @@ findings that have not yet been asked.
 ---
 
 ## Q24.6 [DOMAIN-4] Superseded GC first batch — the 30-day eligibility window has opened; how many memories are now GC-eligible and what is the correct deletion procedure?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 24
 **Mode**: observability + static code analysis
 **Target**: Qdrant superseded points (superseded_by IS NOT NULL AND invalid_at < now−30d), causal_extractor.py access patterns, neo4j_store.py delete_memory_node()
@@ -1950,7 +1950,7 @@ findings that have not yet been asked.
 ---
 
 ## Q24.7 [DOMAIN-1] Ghost-user decay fix verification — after fixing get_distinct_user_ids() to scan active-only, do ghost users disappear from the decay loop?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 24
 **Mode**: observability + static code analysis
 **Target**: qdrant.py get_distinct_user_ids() (IS NULL filter on superseded_by), decay audit_log per-slot entry count
@@ -1966,7 +1966,7 @@ findings that have not yet been asked.
 ---
 
 ## Q24.8 [DOMAIN-5] Reconcile audit trail fix verification — after deploying the 9-LOC reconcile audit changes (Q21.6), are reconcile runs now visible in the audit log?
-**Status**: PENDING
+**Status**: DONE
 **Wave**: 24
 **Mode**: observability + static code analysis
 **Target**: GET /admin/audit?action=reconcile, reconcile.py and ops.py (log_audit call sites)

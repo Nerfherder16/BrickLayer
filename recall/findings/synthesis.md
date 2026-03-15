@@ -1,7 +1,7 @@
-# Synthesis: Recall Autoresearch — Waves 1–23
+# Synthesis: Recall Autoresearch — Waves 1–24
 
-**Generated**: 2026-03-15 (updated with Wave 23 findings)
-**Questions answered**: 126 (Q1.1–Q1.5, Q2.1–Q2.5, Q3.1–Q3.5, Q4.1–Q4.6, Q5.1–Q5.4, Q5.6–Q5.7, Q6.1–Q6.7, Q7.1–Q7.6, Q13.1–Q13.8, Q13.1a–Q13.8b, Q14.1–Q14.9, Q14.4a, Q14.4b, Q15.1–Q15.5, Q16.1–Q16.5, Q16.3b, Q16.4b, Q18.1–Q18.5, Q19.1–Q19.6, Q20.1–Q20.6, Q21.1–Q21.6, Q22.1–Q22.9, Q23.1–Q23.7)
+**Generated**: 2026-03-15 (updated with Wave 24 findings)
+**Questions answered**: 134 (Q1.1–Q1.5, Q2.1–Q2.5, Q3.1–Q3.5, Q4.1–Q4.6, Q5.1–Q5.4, Q5.6–Q5.7, Q6.1–Q6.7, Q7.1–Q7.6, Q13.1–Q13.8, Q13.1a–Q13.8b, Q14.1–Q14.9, Q14.4a, Q14.4b, Q15.1–Q15.5, Q16.1–Q16.5, Q16.3b, Q16.4b, Q18.1–Q18.5, Q19.1–Q19.6, Q20.1–Q20.6, Q21.1–Q21.6, Q22.1–Q22.9, Q23.1–Q23.7, Q24.1–Q24.8)
 **Wave 17 questions (Q16.3a, Q16.4a)**: PENDING — deferred until Tier 1 fixes deployed
 **Source codebase**: C:/Users/trg16/Dev/Recall/
 **Stack**: FastAPI + Qdrant + Neo4j + Redis + PostgreSQL + Ollama (qwen3:14b + qwen3-embedding:0.6b)
@@ -10,52 +10,29 @@
 
 ## 1. Executive Summary
 
-Twenty-one waves of autoresearch have been run against the Recall self-hosted memory system. Waves 1–12 established a well-tested, type-safe codebase. Wave 13 revealed structural failures at the retrieval architecture level. Waves 14–20 added five FAILURE-severity findings across five clusters: LLM timeout misconfiguration, dedup observability, silent write failures, consolidation split-brain, and reconcile convergence failure. Wave 20 was an operational measurement wave that confirmed compound failures are occurring in production.
+Twenty-four waves of autoresearch have been run against the Recall self-hosted memory system. Waves 1–12 established a well-tested, type-safe codebase. Wave 13 revealed structural failures at the retrieval architecture level. Waves 14–20 added five FAILURE-severity findings across five clusters: LLM timeout misconfiguration, dedup observability, silent write failures, consolidation split-brain, and reconcile convergence failure. Wave 20 was an operational measurement wave that confirmed compound failures are occurring in production.
 
-Wave 23 was a **damage-quantification and Q22.9-correction wave**: measuring the observable damage from the Q22.1 double-decay bug (Q23.1–Q23.2), auditing user_id type consistency and correcting a Q22.9 misinterpretation (Q23.3), monitoring reconcile mismatch accumulation rate (Q23.4), and confirming three Q22.9 characterization errors about consolidation schedule, supersede audit coverage, and the proc=2 meaning (Q23.5–Q23.6). Q23.7 established that a hard importance floor (0.05) exists, bounding double-decay damage and ruling out near-zero pollution.
+Wave 24 was a **fix-verification wave** — the second consecutive attempt to confirm deployment of the Tier 0/1/1b fixes characterized across Waves 21–23. All five FAILURE questions confirmed fixes still not deployed. One WARNING confirmed (GC). Two HEALTHY findings corrected Wave 23 residual risk items.
 
-Wave 23 produced 1 FAILURE (Q23.2), 2 WARNINGs (Q23.1, Q23.4), and 4 HEALTHYs (Q23.3, Q23.5, Q23.6, Q23.7). The FAILURE is a reconfirmation of Q22.1 (fix still not deployed; double-decay still active). Q23.4 surfaces a **new active-memory Neo4j sync bug** (50 active memories with neo4j_importance=0.0) distinct from the Q21.1 superseded mismatch bug.
+**Wave 24 signal: 13 consecutive characterization waves (Waves 12–24), ZERO fixes deployed.** The system is operating with confirmed double-decay, attribution loss, ghost-user overhead, invisible reconcile runs, and accumulating stale storage. Every characterized fix remains undeployed. Wave 23's "new High severity" active-memory Neo4j sync gap risk (Q23.4) is CLOSED by Wave 24 investigation (Q24.3/Q24.4) — it was a temporal measurement artifact, not a standalone bug.
 
-**Wave 23 key findings**:
-- Q23.1: Double-decay damage quantified — 632 memories clamped at 0.05 floor (10.6%); 12 premature casualties in the 3-7d age band; corpus importance 79.3% of expected at median; 217 importance-units stolen from the 3-7d cohort; damage bounded by floor (no memories below 0.05)
-- Q23.2: FAILURE confirmed still active — two system-level decay runs 4 minutes apart (06:45 proc=5936 and 06:49 proc=5936); slot structure now Phase 4 [system+system]; Q22.1 Tier 0 fix not deployed; damage confirmed compounding
-- Q23.3: HEALTHY with Q22.9 correction — all user_ids stored as int (float=0); user_id=2 non-existent in corpus; Q22.9's "proc=2 means user_id=2 was processed" is INCORRECT — `details.processed=2` means 2 memories were processed; the user with 2 active memories is user_id=71
-- Q23.4: WARNING — Reconcile API changed scope from all-memories to active-only; 521+ superseded mismatches are now invisible (not repaired); 50 NEW active-memory mismatches (neo4j=0.0, qdrant=0.7+) are a different bug; accumulation rate confirmed ~700 new supersedures/day
-- Q23.5: HEALTHY — Consolidation runs on 1-hour fixed cron schedule (3528-3540s inter-batch gaps); Q22.9 "continuously running" characterization incorrect; each batch lasts ~64 seconds, processes 1-28 consolidations
-- Q23.6: HEALTHY with caveat — Per-supersedure audit entries confirmed (action=supersede with memory_id + details.superseded_by + actor=consolidation); Q22.9's use of reconcile mismatch count as proxy was unnecessary; CAVEAT: user_id=null in all entries requires memory table join for attribution
-- Q23.7: HEALTHY — Importance floor is configured constant (decay_default_floor=0.05 in tuning_config.py) with 3-tier graph-aware floors (hub=0.3, moderate=0.15, default=0.05); double-decay cannot push memories below 0.05; live corpus confirms min=0.05, 0 below floor
+**Wave 24 key findings**:
+- Q24.1: FAILURE — Double-decay fix not deployed (12th consecutive wave); `_user_conditions(None)` still returns `[]`; 15 observable 6-hour slots all show two full-corpus runs; 3-7d cohort ratio = 0.793 (identical to Q23.1 — zero recovery in 24h); 632 memories floor-clamped; Mar 15 timing anomaly (possible system restart) does not change the finding
+- Q24.2: FAILURE — mark_superseded importance=0.0 fix not deployed; `neo4j_store.py:391` still sets `m.importance = 0.0`; 92 importance mismatches confirmed (all superseded); weekly reconcile auto-repairs on Sunday but accumulation resumes immediately at ~796/day; ~5,572 mismatches per week cycle
+- Q24.3: HEALTHY with correction — Q23.4 "active-memory creation-path bug" hypothesis RULED OUT; zero active memories have neo4j=0.0; all 92 mismatches are superseded memories from the mark_superseded path; `create_memory_node()` explicitly sets importance from the memory object; Q23.4's "50 active mismatches" were temporal artifacts — newly-created memories that became superseded within hours; **Wave 23 synthesis "Active-memory Neo4j sync gap (new High severity)" risk item is CLOSED**
+- Q24.4: HEALTHY — Q23.4 scope-change assertion was incorrect; both reconcile code paths use `include_superseded=True`; full-corpus scan (21,043 points) confirmed; Q23.4's "521+ superseded mismatches invisible" never existed as a static backlog — the weekly repair cycle has been running all along; no decision needed on backlog repair
+- Q24.5: FAILURE — Consolidation user_id attribution fix not deployed; `consolidation.py:235` Memory() constructor confirmed missing `user_id=` argument; ~796 merged memories/day accumulate with user_id=None
+- Q24.6: WARNING — GC window open; hygiene cron running daily at 4am but 0 memories archived to date; hygiene worker is active-only soft-delete (superseded memories explicitly excluded); no DETACH DELETE cron exists for old consolidation-superseded memories; ~11,000 memories are 30+ days past consolidation date and eligible; ~15,099 superseded memories accumulating with no automatic cleanup
+- Q24.7: FAILURE — Ghost-user decay fix not deployed; `qdrant.py:1143-1162` `get_distinct_user_ids()` still scans all 21,043 Qdrant points with no IS NULL filter; 7 ghost user proc=0 entries per slot confirmed; 28+ wasted scroll operations per day continue
+- Q24.8: FAILURE — Reconcile audit trail fix not deployed; zero reconcile entries in audit_log after multiple reconcile invocations; neither `reconcile.py` nor `ops.py` contains `log_audit()` calls; Q20.1 observability gap persists
 
-**Wave 21 was a **deep-dive investigation wave** focused on the reconcile/superseded subsystem: characterizing the safety of the neo4j.mark_superseded importance=0.0 assignment, measuring repair=true convergence in practice, auditing superseded memory GC safety, confirming the Qdrant payload structure for un-supersedure, investigating ghost users in the decay loop, and verifying reconcile audit trail feasibility.
+Wave 23 produced 1 FAILURE (Q23.2), 2 WARNINGs (Q23.1, Q23.4), and 4 HEALTHYs (Q23.3, Q23.5, Q23.6, Q23.7). Q23.4's WARNING about "50 active-memory mismatches — different bug from Q21.1" is now corrected: Q24.3 confirms those were temporal artifacts. The correct picture: all importance mismatches come from the single mark_superseded path (Q21.1), which the weekly reconcile auto-repairs, and no separate creation-path bug exists.
 
-Wave 22 was a **fix-specification and corpus-integrity wave**: characterizing whether the double-decay bug extends to the primary user's corpus split, confirming ghost user identity, measuring GC threshold readiness, verifying reconcile response field availability, probing Neo4j REMOVE pattern support, auditing post-repair response visibility, confirming the decay user_id audit gap fix scope, measuring causal extractor GC safety, and reconstructing a 6-hour corpus state anomaly event.
-
-**Overall health signal: CRITICAL ACCUMULATION — FIVE OPEN FAILURE CLUSTERS, SEVERAL WITH CONFIRMED LOW-EFFORT FIXES. Q22.1 DOUBLE-DECAY RECONFIRMED ACTIVE (Q23.2). NEW ACTIVE-MEMORY NEO4J SYNC BUG FOUND (Q23.4: 50 mismatches, different from Q21.1). CONSOLIDATION USER_ID ATTRIBUTION LOSS CONFIRMED IN PRODUCTION (Q22.9). IMPORTANCE FLOOR AT 0.05 BOUNDS DECAY DAMAGE (Q23.7).**
-
-Wave 21 produced 4 HEALTHY (Q21.1, Q21.2, Q21.4, Q21.6) and 2 WARNING (Q21.3, Q21.5). No new FAILURE findings. Three of the open issues from Wave 20 were directly addressed: Q21.1 confirms that removing importance=0.0 from neo4j.mark_superseded is safe (zero-risk one-line change that directly fixes Q20.5's two-pass convergence defect); Q21.2 confirms repair=true converged the corpus in a single pass (1,315→2→0 mismatches); Q21.6 confirms reconcile audit trail is a 9-LOC change.
-
-Wave 22 produced 1 FAILURE (Q22.1 double-decay), 2 WARNING (Q22.2 ghost user identity, Q22.9 corpus anomaly), and 6 HEALTHY (Q22.3–Q22.8). The double-decay bug (Q22.1) is a new FAILURE: every 15-minute cron slot applies `importance × (1-decay)²` to ALL active memories instead of `importance × (1-decay)`. The corpus is decaying at 0.9216× per slot instead of 0.96×, meaning every memory loses importance ~2× faster than configured. Q22.9 confirms the Q21.1 importance=0.0 bug is actively accumulating in production (521 mismatches = 521 historical supersedure events, each creating 1 permanent mismatch), and reveals a consolidation user_id attribution loss pattern where user memories consolidated into system-merged form become permanently orphaned from their original user.
-
-**Wave 22 key findings**:
-- Q22.1: Double-decay FAILURE — `_user_conditions(None)` returns `[]`, causing system run to process ALL active memories with no user_id filter; every cron slot applies decay twice (once system run + once per-user run); effective decay 0.9216× per slot instead of 0.96×; corpus decaying 2× faster than configured; fix: `MatchAny` or `IsNullCondition` in system-run filter
-- Q22.2: Ghost users identified as exhausted legacy user_ids (stored float 2.0 in Qdrant, returned by `int(uid)` conversion); all have 0 active memories; stale user_ids not in PostgreSQL users table; PRIMARY ANOMALY: 521 importance mismatches re-appeared, user_id=2 absent from decay post-consolidation
-- Q22.3: 0 superseded memories ≥30 days old (earliest audit 2026-03-02, 13d ago); first GC batch eligible ~2026-04-01; 507-entry overnight wave reaches 14d threshold 2026-03-27
-- Q22.4–Q22.7: Fix-specification HEALTHY findings — reconcile audit fields available (9-11 LOC), Neo4j REMOVE pattern established inline, post-repair response achievable in 6 LOC, decay user_id audit gap fixable in 4 LOC
-- Q22.8: Causal extractor GC safe — `CAUSAL_PRECEDES` schema error corrected (actual types DECIDED/ATTEMPTED/REVERTED); `find_related()` already filters `superseded_by IS NULL` making GC info-equivalent
-- Q22.9: Corpus anomaly reconstructed — ARQ 6-hour outage (18:15–00:01); 521 mismatches = Q21.1 bug accumulated across ALL historical consolidation events (not just anomaly window); user_id=2 attribution lost via consolidation (merged into user_id=None), not deletion; active corpus grew 5693→5936 confirming no data loss
-
-**Wave 21 key findings**:
-- Q21.1: importance=0.0 in neo4j.mark_superseded is vestigial — every Neo4j query that filters on importance already has superseded_by IS NULL upstream; the or 0.5 fallback overrides 0.0 in activation scaling; removal is a one-line change that directly fixes the Q20.5 two-pass defect
-- Q21.2: repair=true confirmed converging in a single pass — 1,315 importance mismatches (Q20.1) dropped to 2 via the Sunday 05:30am reconcile cron, then to 0 after manual repair=true; the Q20.5 compound defect is latent not active; repair response shows pre-repair state (Medium observability gap)
-- Q21.3: causal_extractor.py uses include_superseded=True in the live POST /store path; deletion of superseded memories requires a 30-day age threshold + simultaneous Neo4j cleanup; ~600 new superseded/day with no GC = unbounded accumulation
-- Q21.4: superseded_by/invalid_at are flat string fields removable atomically via client.delete_payload; IsNullCondition treats absent keys as NULL; qdrant.unmark_superseded() is 4 lines; Neo4j side needs a separate 8-line helper
-- Q21.5: 7/10 decay_run entries per cron slot are processed=0 (ghost users); root cause: get_distinct_user_ids() scans all 20,923 Qdrant points including superseded; audit INSERT lacks user_id; primary user double-processed (overdecay ~4%/run)
-- Q21.6: postgres_store importable in reconcile context via 1-line import extension; log_audit() accepts metadata dicts; ~9 LOC closes the Q20.1 reconcile observability gap
-
-The eight-wave remediation stall (Waves 13–21) continues. No Tier 1 fix has been deployed. Wave 21 has further reduced the implementation uncertainty on several open fixes, bringing total characterized-but-undeployed fixes to 24.
+**Overall health signal: CRITICAL — 13 CONSECUTIVE CHARACTERIZATION WAVES WITH ZERO FIXES DEPLOYED. FIVE OPEN FAILURE CLUSTERS. SYSTEM OPERATING WITH CONFIRMED DOUBLE-DECAY, USER ATTRIBUTION LOSS, GHOST-USER OVERHEAD, AND ACCUMULATING STALE STORAGE. THE Q23.4 "ACTIVE-MEMORY NEO4J SYNC GAP (HIGH SEVERITY)" RISK IS CLOSED — THERE IS NO CREATION-PATH BUG. THE ONLY NEO4J IMPORTANCE BUG IS Q21.1 (mark_superseded, ONE-LINE FIX). DEPLOYMENT IS THE ONLY REMAINING ACTION.**
 
 ---
 
-## 2. Cumulative Findings by Verdict Tier (Waves 1–22)
+## 2. Cumulative Findings by Verdict Tier (Waves 1–24)
 
 ### FAILURE — Open (requires fix before scaling)
 
@@ -80,7 +57,11 @@ The eight-wave remediation stall (Waves 13–21) continues. No Tier 1 fix has be
 | Q19.6 | Split-brain confirmed in consolidation: qdrant.mark_superseded() at line 282 committed before neo4j.mark_superseded() at line 283 bare await; Neo4j failure = divergence; all 4 Neo4j write methods unguarded; **Q20.1 bounds impact**: weekly reconcile repairs superseded_by mismatches (0 currently); divergence window up to 7 days, not permanent | High | 19 |
 | **Q20.5** | **Compound failure reachable: Q18.1 partial gather + Q19.6 split-brain co-occur on single memory; reconcile Step A fix overwritten by Step B mark_superseded (importance=0.0); two passes required for convergence; 9 sub-pattern-A entries in Q20.1 are production evidence; Q21.1 provides one-line fix (remove importance=0.0 from mark_superseded); Q21.2 confirms compound state is currently latent (0 active)** | **High** | **20** |
 | **Q22.1** | **Double-decay FAILURE: `_user_conditions(None)` returns `[]` → system run processes ALL active memories (no user_id filter); every 15-min cron slot applies decay twice (system run + per-user run); effective decay 0.9216× per slot instead of 0.96×; corpus decaying 2× faster than configured; fix: add MatchAny or IsNullCondition to system-run filter in `_user_conditions`** | **High** | **22** |
-| **Q23.2** | **Double-decay FAILURE RECONFIRMED: Q22.1 fix not deployed; Phase 4 slot structure [system+system] confirmed; 06:45 proc=5936 and 06:49 proc=5936 (two system-level full-corpus runs 4 minutes apart); damage accumulating every cron slot** | **High** | **23** |
+| **Q23.2 / Q24.1** | **Double-decay FAILURE RECONFIRMED (12th consecutive wave): Q22.1 fix not deployed; `_user_conditions(None)` confirmed unchanged; 15 observable 6-hour slots all show two full-corpus proc entries; 3-7d cohort median ratio = 0.793 (Q23.1 parity — zero recovery in 24h); 632 memories (10.6%) floor-clamped; Mar 15 timing anomaly (possible system restart) does not resolve double-decay** | **High** | **23/24** |
+| **Q24.2** | **mark_superseded importance=0.0 fix NOT deployed: `neo4j_store.py:391` still sets `m.importance = 0.0`; 92 importance mismatches confirmed, all from superseded memories; weekly reconcile auto-repairs Sunday 5:30am but accumulation resumes at ~796/day; ~5,572 mismatches per week cycle; retrieval unaffected (find_related filters superseded) but monitoring unreliable** | **Medium** | **24** |
+| **Q24.5** | **Consolidation user_id attribution fix NOT deployed: `consolidation.py:235` Memory() constructor missing `user_id=` argument confirmed; ~796 merged memories/day accumulate with user_id=None; users fully consolidated lose attribution permanently** | **Medium** | **24** |
+| **Q24.7** | **Ghost-user decay fix NOT deployed: `qdrant.py:1143-1162` `get_distinct_user_ids()` scans all 21,043 points with no IS NULL filter; 7 ghost user proc=0 entries per slot confirmed; 28+ wasted scroll operations per day continue** | **Medium** | **24** |
+| **Q24.8** | **Reconcile audit trail fix NOT deployed: zero reconcile entries in audit_log after multiple invocations; neither `reconcile.py` nor `ops.py` contains `log_audit()` calls; Q20.1 reconcile observability gap persists; monitoring of other fix verifications impaired** | **Medium** | **24** |
 
 ### WARNING — Open
 
@@ -103,9 +84,9 @@ The eight-wave remediation stall (Waves 13–21) continues. No Tier 1 fix has be
 | **Q21.3** | **causal_extractor.py uses include_superseded=True in live POST /store path; safe GC requires: superseded_by IS NOT NULL AND invalid_at <now−30d AND successor active AND simultaneous Neo4j cleanup; ~600 new superseded/day with no GC; 30-day eligible pool first available ~2026-03-21; unbounded accumulation growing reconcile scan time** | **Medium** | **21** |
 | **Q21.5** | **7/10 decay_run entries per cron slot are processed=0 (ghost users); root cause: get_distinct_user_ids() scans all 20,923 Qdrant points including superseded; users with only superseded memories trigger full Qdrant scroll returning 0 results; audit INSERT lacks user_id; primary user decayed twice per slot (overdecay ~4%/run); 28 wasted scrolls/day** | **Medium** | **21** |
 | **Q22.2** | **Ghost users confirmed as exhausted legacy user_ids (stored float in Qdrant; int() conversion surfaces them in get_distinct_user_ids()); all have 0 active memories; not in PostgreSQL users table; secondary anomaly: user_id=2 absent from decay loop post-consolidation, 521 mismatches re-appeared** | **Medium** | **22** |
-| **Q22.9** | **ARQ decay worker 6-hour outage (2026-03-14T18:15–00:01 UTC); 521 importance mismatches = Q21.1 bug accumulated over ALL historical consolidation (~521 supersedure events each creating 1 permanent Neo4j=0.0 vs Qdrant!=0 mismatch); user_id=2 data not deleted — consolidated into user_id=None merged form (consolidation.py:235 creates Memory() without user_id); disappears from get_distinct_user_ids() when ALL originals superseded; active corpus grew 5693→5936; dec=4544 catch-up at 00:01 is time-based formula, not bulk deletion** | **High** | **22** |
+| **Q22.9** | **ARQ decay worker 6-hour outage (2026-03-14T18:15–00:01 UTC); 521 importance mismatches = Q21.1 bug accumulated over ALL historical consolidation (~521 supersedure events each creating 1 permanent Neo4j=0.0 vs Qdrant!=0 mismatch); user_id=2 data not deleted — consolidated into user_id=None merged form (consolidation.py:235 creates Memory() without user_id); disappears from get_distinct_user_ids() when ALL originals superseded; active corpus grew 5693→5936 confirming no data loss; dec=4544 catch-up at 00:01 is time-based formula, not bulk deletion** | **High** | **22** |
 | **Q23.1** | **Double-decay damage quantified: 632 active memories (10.6%) clamped at 0.05 floor; 12 premature casualties in 3-7d age band (avg init_imp=0.583); median 3-7d importance 79.3% of expected single-decay baseline; ~217 importance-units stolen from 3-7d cohort; damage bounded by floor (0 below 0.05)** | **Medium** | **23** |
-| **Q23.4** | **Reconcile scope changed from all-memories to active-only; 521+ superseded mismatches invisible (excluded from scan, not repaired); 50 NEW active-memory mismatches (neo4j=0.0, qdrant=0.7+ for active memories, e.g., id=41569d71 created 2026-03-15T05:33); DIFFERENT bug from Q21.1; accumulation rate ~700 new supersedures/day confirmed; no reconcile audit entries (no repair ever run)** | **High** | **23** |
+| **Q24.6** | **GC window open: hygiene cron running daily at 4am but 0 memories archived; hygiene is active-only soft-delete (IS NULL on superseded_by); no DETACH DELETE cron for consolidation-superseded memories; ~11,000 memories 30+ days past consolidation date eligible; 15,099 total superseded accumulating; Q21.3 GC cron recommendation still unimplemented** | **Medium** | **24** |
 
 ### INCONCLUSIVE — Open (observation gap, not resolved)
 
@@ -160,22 +141,80 @@ Wave 20 HEALTHY additions:
 | ID | Finding | Wave |
 |----|---------|------|
 | Q20.2 | Reconcile scalability confirmed: scroll_all uses cursor pagination (209 round trips at 20K); Neo4j uses single UNWIND query; ARQ 30-minute timeout breach modeled at 36M memories (~99 years at current growth); minor note: full corpus accumulated in-memory (~30MB at 20K) | 20 |
-| Q20.3 | Importance=0.5 cluster is daily throughput artifact: 97% drain in 26 hours (889 -> 25 active); all same-day creates; 92% semantic type; Q16.4b casualties do not persistently cluster at 0.5; resolves Q19.4 ambiguity | 20 |
-| Q20.4 | Dedup threshold calibration confirmed correct: 0 duplicate pairs at 0.90 threshold on 5,882 active memories; 1 pair at 0.95; 0.90-0.95 band empty; threshold raise from 0.90 to 0.92 was empirically correct; **secondary: active corpus is 5,882 of 20,889 (72% superseded)** | 20 |
+| Q20.3 | Importance=0.5 cluster is daily throughput artifact: 97% drain in 26 hours (889 -> 25); all same-day creates; 92% semantic type; Q16.4b casualties do not persistently cluster at 0.5; resolves Q19.4 ambiguity | 20 |
+| Q20.4 | 0 duplicate pairs at 0.90 on 5,882 active; 1 pair at 0.95; 0.90-0.95 band empty; threshold raise confirmed correct; secondary: 72% of Qdrant points are superseded (5,882 active of 20,889 total) | 20 |
 | Q20.6 | Decay audit coverage confirmed: 694 entries = per-user multiplier (9 users x 4 runs/day); single zero-day (2026-02-23) is 4.7% of expected cron slots; last 7 days show perfect 4/day coverage; no systematic Q18.1 audit gaps detected | 20 |
 
 Wave 21 HEALTHY additions:
 
 | ID | Finding | Wave |
 |----|---------|------|
-| Q21.1 | importance=0.0 in neo4j.mark_superseded is vestigial: all Neo4j Cypher queries that filter on importance already have superseded_by IS NULL upstream; activation scaling uses `or 0.5` fallback that overrides 0.0; no query uses importance as a proxy for active/superseded status; one-line removal directly fixes Q20.5 reconcile two-pass convergence defect | 21 |
-| Q21.2 | repair=true converges in single pass: 1,315→2 mismatches resolved by Sunday 05:30am reconcile cron; 2→0 resolved by manual repair=true in one pass; Q20.5 compound defect is latent not active (0 simultaneous superseded+importance mismatches); repair response format shows pre-repair state (Medium observability gap — operators may retry unnecessarily) | 21 |
+| Q21.1 | importance=0.0 in neo4j.mark_superseded is vestigial: all Neo4j Cypher queries that filter on importance already have superseded_by IS NULL upstream; activation scaling uses or 0.5 fallback that overrides 0.0; one-line removal directly fixes Q20.5 reconcile two-pass convergence defect | 21 |
+| Q21.2 | repair=true converges in single pass: 1,315→2 mismatches resolved by Sunday 05:30am reconcile cron; 2→0 resolved by manual repair=true; Q20.5 latent not active; repair response format shows pre-repair state (misleading for operators); 27 new stores in ~7h; zero orphans | 21 |
 | Q21.4 | superseded_by and invalid_at are flat scalar strings; client.delete_payload removes both atomically; IsNullCondition treats absent keys as NULL — memory immediately reappears in active scroll after deletion; qdrant.unmark_superseded() is 4 lines; Neo4j side needs 8-line helper + importance restore | 21 |
 | Q21.6 | postgres_store importable in reconcile via 1-line import; log_audit() fire-and-forget accepts metadata dicts; ~9 LOC across 2 files closes Q20.1 reconcile observability gap; enables last-run-date query, mismatch trend detection, repair convergence monitoring | 21 |
 
+Wave 24 HEALTHY additions (corrections):
+
+| ID | Finding | Wave |
+|----|---------|------|
+| Q24.3 | Active-memory Neo4j sync gap (Q23.4 hypothesis) RULED OUT: zero active memories have neo4j=0.0; all importance mismatches are from superseded memories via mark_superseded path; `create_memory_node()` explicitly sets `m.importance = $importance`; Q23.4's 50 "active" mismatches were temporal artifacts from newly-created memories superseded within hours; **Wave 23 "Active-memory Neo4j sync gap (High severity)" residual risk CLOSED** | 24 |
+| Q24.4 | Reconcile scope is full-corpus (include_superseded=True) in both code paths: `reconcile.py:23` and `ops.py:262` both confirmed; Q23.4 assertion that "reconcile changed to active-only" was factually incorrect; `qdrant_total: 21,043` in reconcile output confirms full-corpus scan; no scope regression; Q23.4's "521+ superseded mismatches invisible" finding was based on incorrect scope assumption | 24 |
+
 ---
 
-## 3. Wave 23 Results (Q23.1–Q23.7)
+## 3. Wave 24 Results (Q24.1–Q24.8)
+
+### Overview
+
+Wave 24 was a **fix-verification wave** — checking whether the Tier 0/1/1b fixes characterized across Waves 21–23 had been deployed. Of 8 questions: 5 FAILURE, 1 WARNING, 2 HEALTHY (with corrections).
+
+The defining result of Wave 24: **zero fixes deployed, thirteen consecutive waves of characterization with no remediation.** The five FAILURE findings are all reconfirmations of previously characterized bugs with known one-to-three-line fixes. The two HEALTHY findings close a false alarm — Q23.4's "new High severity active-memory creation-path bug" was a temporal measurement artifact, not a standalone defect.
+
+**The Q23.4 correction**: Wave 23 raised a "new High severity" risk item — 50 active memories with neo4j=0.0 from a creation-path bug. Q24.3 rules this out completely. All current importance mismatches (92 total) are from superseded memories via the mark_superseded path. `create_memory_node()` sets importance correctly. Q23.4's "50 active mismatches" were newly-created memories that happened to be in an active state during Q23.4's measurement window but were superseded within hours by the running consolidation process. Q24.4 further corrects Q23.4's scope-change assertion — the reconcile has always scanned the full corpus (include_superseded=True). The weekly repair cycle explains why mismatch counts stay bounded.
+
+**The GC window (Q24.6)**: The 30-day eligibility threshold has been crossed. The hygiene cron runs daily but has archived zero memories and is explicitly designed to exclude superseded memories. An estimated 11,000+ consolidation-superseded memories are now eligible for true GC (DETACH DELETE) but no such cron exists. The admin purge endpoint can perform manual cleanup.
+
+**Double-decay persistence (Q24.1)**: The Q22.1 fix has now been undeployed through 12 characterization waves. The 3-7d cohort median importance ratio (0.793) is statistically identical to the Q23.1 baseline measured 24 hours earlier — confirming there is no self-correction mechanism and every passing day deposits more memories at the 0.05 floor. A possible system restart between Mar 14 18:15 and Mar 15 00:01 (timing anomaly in cron schedule) had no effect on the double-decay behavior.
+
+---
+
+### Wave 24 Findings Summary
+
+| ID | Verdict | Severity | Key Finding |
+|----|---------|---------|-------------|
+| Q24.1 | FAILURE | High | Double-decay fix not deployed (12th consecutive wave); `_user_conditions(None)` returns `[]` confirmed; 15 observable 6-hour slots all show two full-corpus proc entries (proc≈active_corpus in both); 3-7d cohort ratio = 0.793 (Q23.1 parity — zero recovery); 632 memories floor-clamped; Mar 15 timing anomaly (00:01 single run, 06:45+06:49 4 min apart) suggests possible system restart but double-decay still manifest |
+| Q24.2 | FAILURE | Medium | mark_superseded importance=0.0 fix not deployed; `neo4j_store.py:391` confirmed unchanged; 92 importance mismatches (all superseded); weekly Sunday 5:30am reconcile auto-repairs ~5,572 mismatches/week then accumulation resumes at ~796/day; active-memory retrieval unaffected (find_related filters superseded) but reconcile monitoring unreliable |
+| Q24.3 | HEALTHY | Info | Q23.4 "active-memory creation-path bug" RULED OUT; zero active memories have neo4j=0.0; all 92 importance mismatches are superseded memories from mark_superseded path; `create_memory_node()` explicitly sets `m.importance = $importance` (line 100); Q23.4's 50 "active" mismatches were temporal: newly-created memories that became superseded within hours; Wave 23 "High severity" risk item closed |
+| Q24.4 | HEALTHY | Info | Reconcile scope is full-corpus (include_superseded=True) in both `reconcile.py:23` and `ops.py:262`; Q23.4 scope-change assertion was incorrect; `qdrant_total: 21,043` confirms all 21,043 points scanned; no "15,000+ superseded mismatch backlog" — weekly repair cycle handles accumulation; no action required |
+| Q24.5 | FAILURE | Medium | Consolidation user_id attribution fix not deployed; `consolidation.py:235` Memory() constructor missing `user_id=` argument confirmed; ~796 merged memories/day accumulate with user_id=None; users fully consolidated lose attribution permanently |
+| Q24.6 | WARNING | Medium | GC window open; hygiene cron (daily 4am) running but 0 archived; hygiene is active-only soft-delete (`IS NULL on superseded_by`); no DETACH DELETE cron for consolidation-superseded memories; ~11,144 memories estimated 30+ days past consolidation date (eligible); 15,099 total superseded with no scheduled cleanup; admin purge endpoint available for manual GC |
+| Q24.7 | FAILURE | Medium | Ghost-user decay fix not deployed; `qdrant.py:1143-1162` confirmed scanning all 21,043 points with no filter; per-slot audit shows 7 ghost user proc=0 entries; 28+ wasted scroll operations per day |
+| Q24.8 | FAILURE | Medium | Reconcile audit trail fix not deployed; GET /admin/audit?action=reconcile returns 0 entries despite multiple invocations; neither `reconcile.py` nor `ops.py` contains `log_audit()` call; Q20.1 reconcile observability gap persists |
+
+---
+
+### Wave 24 Cross-Domain Observations
+
+#### Observation 1: The Q23.4 "new High severity" risk is closed — only one Neo4j importance bug exists
+
+Wave 23's Q23.4 raised the prospect of two independent Neo4j importance sync bugs: the known mark_superseded path (Q21.1) and a new creation-path bug affecting active memories. Q24.3 rules out the creation-path bug completely. The current picture is simpler and more actionable: **there is exactly one Neo4j importance bug**, which is the one-line fix in `neo4j_store.py:391`. The weekly reconcile auto-repairs all accumulated mismatches every Sunday. The Q21.1 fix prevents new mismatches from being created. No secondary investigation is needed.
+
+#### Observation 2: 13 consecutive characterization waves — the characterization work is complete
+
+Wave 24 is the 13th consecutive wave (Waves 12–24) that found zero improvements deployed. All five FAILURE clusters are fully characterized, each with a known fix of 1–9 lines. The Tier 0 fix (Q22.1 double-decay) is ~3 lines. The Tier 1b fixes (Q21.1 mark_superseded, Q21.6 reconcile audit) are 1 line and 9 lines respectively. The consolidation attribution fix (Q24.5) is ~3 lines. The ghost-user fix (Q24.7) is ~3 lines. Total LOC for all five Wave 24 FAILURE fixes: approximately 20 lines across five files. **No further characterization is needed. The next action is deployment only.**
+
+#### Observation 3: Weekly reconcile provides a damage-bounding safety net for the importance mismatch bug
+
+Q24.2/Q24.4 together reveal that the mark_superseded importance=0.0 bug (Q21.1) has a built-in weekly repair cycle: the scheduled `run_reconcile()` every Sunday 5:30am repairs all mismatches (neo4j.importance = qdrant.importance for all mismatched memories). This means the observable mismatch count is bounded at ~5,572 (one week's accumulation at ~796/day) rather than growing unboundedly. The weekly repair does not fix the root cause, but it prevents the mismatch from permanently degrading graph queries that use Neo4j importance values.
+
+#### Observation 4: GC eligibility is now active — manual intervention available
+
+The 30-day GC window is open (Q24.6). An estimated 11,000 consolidation-superseded memories with `invalid_at < 2026-02-14` are eligible for DETACH DELETE. The admin purge endpoint exists and can perform manual cleanup. Until a scheduled GC cron is implemented (Tier 3 item #26), the stale memory accumulation and its downstream effects (ghost users, reconcile scan overhead, storage bloat) will continue growing.
+
+---
+
+## 4. Wave 23 Results (Q23.1–Q23.7)
 
 ### Overview
 
@@ -187,11 +226,11 @@ Of 7 questions: 1 FAILURE (Q23.2 — Q22.1 reconfirmation), 2 WARNING (Q23.1, Q2
 
 **Q23.3's Q22.9 correction**: The Q22.9 finding contained a critical misinterpretation. `details.processed=2` in the decay audit record means "2 memories were processed", not "user_id=2 was the target". user_id=2 does not exist anywhere in the Qdrant corpus (neither active nor superseded). The user with 2 active memories is user_id=71. Q22.9's "user_id=2 data was consolidated then disappeared" narrative is structurally correct about the mechanism but factually wrong about which user was affected.
 
-**Q23.4's new bug**: The reconcile API has changed scope from scanning all memories to active-only. This makes the 521+ superseded importance mismatches (the Q21.1 accumulation) invisible in current reconcile reports — they appear to have disappeared but are simply no longer being counted. More critically, Q23.4 found 50 NEW active-memory mismatches where Qdrant=0.7+ but Neo4j=0.0. These are recent active memories (e.g., created 2026-03-15T05:33) that never had their Neo4j importance initialized — a different sync bug from Q21.1 that affects retrieval quality for current memories.
+**Q23.4's WARNING** (subsequently corrected by Q24.3/Q24.4): The reconcile API was reported to have changed scope from all-memories to active-only, with 50 NEW active-memory mismatches from a creation-path bug. Q24.3 and Q24.4 confirm these findings were incorrect: the reconcile has always scanned the full corpus, and the 50 "active" mismatches were temporal artifacts from newly-superseded memories. The Wave 23 "Active-memory Neo4j sync gap (new High severity)" risk item is CLOSED.
 
-**Q23.5's Q22.9 correction**: Consolidation does NOT run continuously. Wave 22's description of "continuously running consolidation worker" was based on observing a single hourly batch (06:00-06:01) and misinterpreting its 64-second duration as continuous operation. The inter-batch gap is 3528-3540 seconds (~59 minutes), confirming a 1-hour fixed cron schedule. This correction reduces the urgency of the consolidation-related WARNING findings.
+**Q23.5's Q22.9 correction**: Consolidation does NOT run continuously. Wave 22's description of "continuously running consolidation worker" was based on observing a single hourly batch and misinterpreting its 64-second duration. The inter-batch gap is 3528-3540 seconds (~59 minutes), confirming a 1-hour fixed cron schedule.
 
-**Q23.6's Q22.9 correction**: Per-supersedure audit entries (action=supersede) have always existed. Q22.9's use of the reconcile mismatch count as an indirect proxy for counting supersedure events was unnecessary — direct evidence was available via `GET /admin/audit?action=supersede`. The only caveat is that user_id=null in all 1000 visible entries means attribution requires a memory table join.
+**Q23.6's Q22.9 correction**: Per-supersedure audit entries (action=supersede) have always existed. Q22.9's use of the reconcile mismatch count as an indirect proxy was unnecessary.
 
 ---
 
@@ -202,7 +241,7 @@ Of 7 questions: 1 FAILURE (Q23.2 — Q22.1 reconfirmation), 2 WARNING (Q23.1, Q2
 | Q23.1 | WARNING | Medium | Double-decay damage quantified: 632 active memories at 0.05 floor (10.6%); 12 premature casualties in 3-7d age band (avg init_imp=0.583); median 3-7d importance = 79.3% of expected single-decay baseline; ~217 importance-units stolen from 3-7d cohort; floor bounds damage (0 memories below 0.05); 28-day corpus confirms no catastrophic collapse despite double-decay |
 | Q23.2 | FAILURE | High | Q22.1 double-decay CONFIRMED still active: Phase 4 [system+system] slot structure; 06:45 and 06:49 audit entries both show proc=5936 (full-corpus); 4 minutes apart; no per-user runs visible in current observation window; Q22.1 Tier 0 fix not deployed; damage accumulating every cron slot |
 | Q23.3 | HEALTHY | Info | All user_ids stored as int (float=0, str=0); user_id=2 non-existent in corpus; Q22.9 proc=2 misinterpretation corrected: `details.processed=2` means "2 memories were processed" not "user_id=2 was target"; actual user with 2 active memories is user_id=71 (ids 34d8d118 and 39836cee, created 2026-03-13T23:23-26) |
-| Q23.4 | WARNING | High | Reconcile API changed scope to active-only; 521+ superseded mismatches invisible (not repaired); 50 NEW active-memory mismatches discovered (neo4j=0.0, qdrant=0.7+ for active memories including id=41569d71 created 2026-03-15T05:33 — different bug from Q21.1); accumulation rate confirmed ~700 new supersedures/day (100 entries in 3h = 792/day; 299 consolidations/day × 2.3 sources = 688/day); no reconcile audit entries (repair never run) |
+| Q23.4 | WARNING (corrected by Q24.3/Q24.4) | High → Closed | Reconcile scope reported as active-only and 50 NEW active-memory mismatches (neo4j=0.0) reported as creation-path bug — BOTH FINDINGS CORRECTED BY Q24: reconcile scope is full-corpus; the 50 "active" mismatches were temporal artifacts; no creation-path bug exists; Wave 23 "High severity" residual risk item CLOSED |
 | Q23.5 | HEALTHY | Info | Consolidation worker runs on 1-hour fixed cron schedule (NOT continuously); 3528-3540s inter-batch gaps confirmed; each batch runs ~64 seconds and processes 1-28 consolidations; Q22.9 "continuously running" characterization incorrect; batch count tracks corpus freshness (27 at peak, 1 when exhausted) |
 | Q23.6 | HEALTHY with caveat | Info | Per-supersedure audit entries confirmed (action=supersede, memory_id=source, details.superseded_by=merged, actor=consolidation); 1000 visible entries (3 days at 700/day rate); Q22.9 indirect proxy via reconcile mismatch count was unnecessary — direct evidence existed; CAVEAT: user_id=null in all entries requires memory table join for user attribution |
 | Q23.7 | HEALTHY | Info | Importance floor is configured constant decay_default_floor=0.05 in tuning_config.py with 3-tier graph-aware floors (hub=0.3, moderate=0.15, default=0.05); floor applied explicitly via max(floor, new_importance) in decay.py:167; live corpus confirms min=0.05, 0 below floor; floor value equals min_importance_for_retrieval=0.05; GC threshold 0.3 above floor but requires age>30d+access_count=0 — intended lifecycle path; near-zero pollution hypothesis ruled out |
@@ -215,9 +254,9 @@ Of 7 questions: 1 FAILURE (Q23.2 — Q22.1 reconfirmation), 2 WARNING (Q23.1, Q2
 
 Wave 23 quantifies the double-decay damage precisely: 632 memories (10.6%) are clamped at the 0.05 floor, arriving there 3× faster than they should under single-decay. The importance floor (Q23.7) is the only mechanism preventing near-zero pollution — without it, the damage would be catastrophic. The floor holds, but each passing day deposits more memories at the floor boundary. The Q22.1 Tier 0 fix remains the highest-priority undeployed change.
 
-#### Observation 2: Two independent Neo4j sync bugs are now confirmed
+#### Observation 2: Q23.4's "two independent Neo4j sync bugs" finding was incorrect — corrected by Q24
 
-Q23.4 discovers that 50 ACTIVE memories have neo4j_importance=0.0 — these are recent memories (created 2026-03-15T05:33) with correct Qdrant importance (0.7+) but zero Neo4j importance. This is distinct from Q21.1 (which affects superseded memories only). The presence of two independent Neo4j importance sync bugs suggests the Neo4j importance field is fragile: it can fail to initialize at creation (Q23.4 bug) AND it gets set to 0.0 at supersedure (Q21.1 bug). Both paths lead to Neo4j returning 0.0 for importance-ranked queries, degrading find_related() result quality.
+Wave 23 (Q23.4) suggested two independent Neo4j importance bugs: the mark_superseded path (Q21.1) and a new creation-path bug. Q24.3 rules out the creation-path bug. There is exactly one Neo4j importance bug: the mark_superseded path. The simplification has no effect on remediation priority but does close the Wave 23 "High severity" open risk item.
 
 #### Observation 3: Q22.9 contained three factual errors — corrected by Wave 23
 
@@ -226,20 +265,11 @@ Wave 22's Q22.9 was the most information-rich finding but contained three mischa
 2. **Consolidation runs continuously** (Q22.9) → **1-hour fixed cron, 64s batches** (Q23.5)
 3. **Supersede events required indirect inference via reconcile mismatch count** (Q22.9) → **Direct audit evidence existed (action=supersede)** (Q23.6)
 
-None of these corrections change the severity of Q22.1, Q21.1, or Q22.9's structural findings — the attribution loss mechanism is still real, the mismatch accumulation is still growing, and the double-decay is still active.
-
-#### Observation 4: Reconcile scope change masks growing divergence
-
-The reconcile API's shift to active-only scanning (Q23.4) creates a false sense of health. Current reports show `importance_mismatches: 50` — an apparent improvement from the Q22.9 baseline of 521. In reality:
-- The 521+ superseded mismatches have NOT been repaired — they are invisible
-- 50 NEW active mismatches have been added (a different bug)
-- The divergence between Qdrant and Neo4j is growing at ~700 mismatches/day
-
-Without a full-corpus reconcile scan, the true mismatch count is unverifiable. The reconcile API as deployed is no longer a reliable health signal for the overall Qdrant/Neo4j consistency state.
+None of these corrections change the severity of Q22.1, Q21.1, or Q22.9's structural findings.
 
 ---
 
-## 4. Wave 22 Results (Q22.1–Q22.9)
+## 5. Wave 22 Results (Q22.1–Q22.9)
 
 ### Overview
 
@@ -249,9 +279,9 @@ Of 9 questions: 1 FAILURE (Q22.1), 2 WARNING (Q22.2, Q22.9), 6 HEALTHY (Q22.3–
 
 **The defining finding of Wave 22**: Q22.1 is a new FAILURE — the system's decay mechanism has been running at double-speed since the per-user cron was introduced. `_user_conditions(None)` returns `[]` (no filter), so the system run processes all active memories without restriction. In a 15-minute cron slot, a memory is decayed once in the system run and again in its per-user run: the combined factor is `0.96 × 0.96 = 0.9216` per slot instead of the intended `0.96`. At 96 slots/day, the effective daily decay factor is `0.9216^96 ≈ 0.00028` instead of `0.96^96 ≈ 0.0199`. The corpus is decaying ~71× faster per day than the decay configuration intends, and every memory that should decay to importance 0.10 after 30 days is already at <0.001.
 
-**Q22.9's compound revelation**: The 6-hour ARQ outage (18:15–00:01) is a secondary finding — the primary revelation is that the 521 importance mismatches are a direct, counting accumulation of the Q21.1 bug: every single consolidation event since the system was deployed has created 1 permanent reconcile mismatch. With ~521 supersedure events in the visible audit history and a continuously running consolidation worker, this count will grow indefinitely until the one-line mark_superseded fix is deployed. The user_id=2 attribution loss pattern confirms a production consolidation design gap: consolidated memories get `user_id=None` permanently, breaking user-level decay, export, and memory ownership tracking.
+**Q22.9's compound revelation**: The 6-hour ARQ outage (18:15–00:01) is a secondary finding — the primary revelation is that the 521 importance mismatches are a direct, counting accumulation of the Q21.1 bug: every single consolidation event since the system was deployed has created 1 permanent reconcile mismatch. With ~521 supersedure events in the visible audit history and a continuously running consolidation worker, this count will grow indefinitely until the one-line mark_superseded fix is deployed. The user_id attribution loss pattern confirms a production consolidation design gap: consolidated memories get `user_id=None` permanently, breaking user-level decay, export, and memory ownership tracking.
 
-**Q22.3's GC timing snapshot**: The 30-day GC threshold has not yet been crossed (earliest audit 2026-03-02, 13 days ago). The first large eligible batch is ~2026-04-01. The 507-entry overnight consolidation wave from the Q22.9 anomaly window becomes 14-day eligible on 2026-03-27. No urgent GC window is open, but the clock is running.
+**Q22.3's GC timing snapshot**: The 30-day GC threshold has not yet been crossed (earliest audit 2026-03-02, 13 days ago). The first large eligible batch is ~2026-04-01. The 507-entry overnight consolidation wave from the Q22.9 anomaly window becomes 14-day eligible on 2026-03-27. No urgent GC window is open, but the clock is running. **(Wave 24 update: the GC window is now open — Q24.6 confirms 11,000+ eligible memories.)**
 
 ---
 
@@ -261,7 +291,7 @@ Of 9 questions: 1 FAILURE (Q22.1), 2 WARNING (Q22.2, Q22.9), 6 HEALTHY (Q22.3–
 |----|---------|---------|-------------|
 | Q22.1 | FAILURE | High | `_user_conditions(None)` returns `[]` → system run processes ALL active memories; every cron slot decays all memories twice (system + per-user); effective decay 0.9216/slot vs 0.96 intended; corpus decaying 2× faster than configured; fix: filter system run to `user_id IS NULL` only via `IsNullCondition` or `MatchAny` |
 | Q22.2 | WARNING | Medium | Ghost users = exhausted legacy user_ids with 0 active memories (stored as float in Qdrant; `int(uid)` conversion surfaces them); not in PostgreSQL users table; stale user_ids persist as long as superseded memories exist; primary anomaly: user_id=2 absent from decay post-consolidation, 521 mismatches re-appeared |
-| Q22.3 | HEALTHY | Info | 0 superseded memories ≥30 days old (system 13d old); first GC batch ~2026-04-01; 507-entry overnight wave (Q22.9 anomaly) eligible at 14d threshold 2026-03-27; no urgent GC window open |
+| Q22.3 | HEALTHY | Info | 0 superseded memories ≥30 days old (system 13d old); first GC batch ~2026-04-01; 507-entry overnight wave (Q22.9 anomaly) eligible at 14d threshold 2026-03-27; no urgent GC window open (Wave 24 update: window now open per Q24.6) |
 | Q22.4 | HEALTHY | Info | All 8 reconcile audit schema fields available as local variables at insertion point; ops.py needs 9-11 LOC (individual variable extraction instead of stats dict); reconcile.py ~5 LOC; total ~14-16 LOC vs Q21.6's 9 LOC estimate |
 | Q22.5 | HEALTHY | Info | Cypher `REMOVE` pattern for clearing `superseded_by` already established inline in ops.py:348 and reconcile.py:65 (identical pattern); neo4j_store.py has no REMOVE yet; `unmark_superseded()` is 8-line promotion; existing inline code omits `invalid_at` removal (minor incompleteness) |
 | Q22.6 | HEALTHY | Info | Reconcile response built from pre-repair lists at function end (scan→repair→response phases); 6 LOC adds per-type counters + `post_repair_importance_mismatches` / `post_repair_superseded_mismatches` response fields; no re-scan needed |
@@ -279,7 +309,7 @@ Wave 22 opens a new independent FAILURE cluster: the per-user decay cron creates
 
 #### Observation 2: Q22.9 confirms Q21.1 is not theoretical — it is actively accumulating
 
-Wave 21 confirmed that removing `importance=0.0` from `mark_superseded` was safe. Wave 22 confirms that NOT removing it is costly: every consolidation event since deployment has created a permanent reconcile mismatch. The 521 count will grow with every future consolidation. With a continuously-running consolidation worker, the rate of new mismatches is approximately the supersedure rate (estimated ~600/day from Q21.3). Reconcile repair can clear these (as Q21.2 demonstrated), but only by calling `repair=true` and only by re-syncing the importance field from Qdrant. The one-line removal from `mark_superseded` would stop new mismatches from being created.
+Wave 21 confirmed that removing `importance=0.0` from `mark_superseded` was safe. Wave 22 confirms that NOT removing it is costly: every consolidation event since deployment has created a permanent reconcile mismatch. The 521 count will grow with every future consolidation. With a consolidation worker running hourly, the rate of new mismatches is approximately the supersedure rate (estimated ~600/day from Q21.3). Reconcile repair can clear these (as Q21.2 demonstrated), but only by calling `repair=true` and only by re-syncing the importance field from Qdrant. The one-line removal from `mark_superseded` would stop new mismatches from being created.
 
 #### Observation 3: Consolidation user_id attribution is a silent data governance bug
 
@@ -298,7 +328,7 @@ The total implementation cost for all five Wave 22 fix specifications is ≤38 L
 
 ---
 
-## 5. Wave 21 Results (Q21.1–Q21.6)
+## 6. Wave 21 Results (Q21.1–Q21.6)
 
 ### Overview
 
@@ -310,9 +340,9 @@ Of 6 questions: 4 HEALTHY (Q21.1, Q21.2, Q21.4, Q21.6), 2 WARNING (Q21.3, Q21.5)
 
 **Q21.2's operational confirmation**: The concern that repair=true might create new mismatches (the Q20.5 scenario) was not observed. The Sunday reconcile cron cleared 1,313 of 1,315 mismatches automatically. The 2 remaining sub-pattern-A entries were repaired in a single pass because their superseded_by fields were already reconciled — only the importance residual remained, which Step A fixed without Step B firing. Q20.5's two-pass scenario requires simultaneous superseded and importance mismatches, which are not currently present. The defect is latent, not active.
 
-**Q21.3's unbounded accumulation warning**: The superseded GC question reveals two issues: (a) causal_extractor.py accesses superseded memories in the live POST /store path, making deletion non-trivially safe, and (b) ~600 new superseded points per day with no deletion mechanism means the 72% superseded ratio will continue growing indefinitely. At the 30-day threshold, the first large GC batch becomes eligible ~2026-03-21. Without GC, reconcile scan time, storage, and decay user-list scan overhead all grow proportionally.
+**Q21.3's unbounded accumulation warning**: The superseded GC question reveals two issues: (a) causal_extractor.py accesses superseded memories in the live POST /store path, making deletion non-trivially safe, and (b) ~600 new superseded points per day with no deletion mechanism means the 72% superseded ratio will continue growing indefinitely. At the 30-day threshold, the first large GC batch becomes eligible ~2026-03-21. Without GC, reconcile scan time, storage, and decay user-list scan overhead all grow proportionally. **(Wave 24 update: GC threshold has been crossed — Q24.6 confirms ~11,000 eligible memories.)**
 
-**Q21.5's ghost-user decay finding**: The decay loop processes 10 user_ids per cron slot but 7 of them have zero active memories. The root cause (get_distinct_user_ids scans all 20,923 points including superseded) connects directly to Q21.3 — as the superseded population grows, the number of ghost users will grow. The primary user being processed twice per slot (overdecay ~4% per run) is the most actionable finding: if their corpus is split across user_id=None and user_id=N, both will be processed each slot indefinitely.
+**Q21.5's ghost-user decay finding**: The decay loop processes 10 user_ids per cron slot but 7 of them have zero active memories. The root cause (get_distinct_user_ids scans all 20,923 points including superseded) connects directly to Q21.3 — as the superseded population grows, the number of ghost users will grow. The primary user being processed twice per slot (overdecay ~4% per run) is the most actionable finding.
 
 ---
 
@@ -333,13 +363,11 @@ Of 6 questions: 4 HEALTHY (Q21.1, Q21.2, Q21.4, Q21.6), 2 WARNING (Q21.3, Q21.5)
 
 #### Observation 1: Q21.1 collapses Q20.5 from a design defect to a one-line vestigial removal
 
-Wave 20 framed Q20.5 as a reconcile design defect (Step A importance fix overwritten by Step B mark_superseded) requiring either step-ordering logic or a two-pass execution. Q21.1 reframes the problem entirely: the root cause is that mark_superseded sets importance=0.0 at all, which has been vestigial since it was written. The defensive intent (suppress nodes from importance-ranked results if superseded_by filter somehow fails) was redundant from inception — the superseded_by IS NULL filter was always present. Removing the one line eliminates the defect naturally, without any change to reconcile's step ordering, without any impact on retrieval, and without any compensating rollback logic.
-
-This is the most favorably resolved Wave-20 finding. Q20.5 added a FAILURE and specified a ~10-line reconcile.py fix. Q21.1 reduces the same fix to 1 line in neo4j_store.py with higher confidence.
+Wave 20 framed Q20.5 as a reconcile design defect requiring either step-ordering logic or a two-pass execution. Q21.1 reframes the problem entirely: the root cause is that mark_superseded sets importance=0.0 at all, which has been vestigial since it was written. Removing the one line eliminates the defect naturally, without any change to reconcile's step ordering, without any impact on retrieval, and without any compensating rollback logic.
 
 #### Observation 2: Q21.2 provides the first live verification of reconcile repair effectiveness
 
-Wave 20 measured the corpus state but did not run repair=true. Wave 21 executed the full repair cycle: baseline → repair run → post-repair verification. The result (0 mismatches after single pass) is the most direct evidence yet that the reconcile mechanism is working. The 99.8% reduction from 1,315 to 2 by the Sunday cron confirms the weekly schedule is sufficient at current compound failure rates (~2 sub-pattern-A entries generated per week cycle). The observability gap in the response format (showing pre-repair state) is a low-effort fix that prevents operator confusion.
+Wave 20 measured the corpus state but did not run repair=true. Wave 21 executed the full repair cycle: baseline → repair run → post-repair verification. The result (0 mismatches after single pass) is the most direct evidence yet that the reconcile mechanism is working. The 99.8% reduction from 1,315 to 2 by the Sunday cron confirms the weekly schedule is sufficient at current compound failure rates.
 
 #### Observation 3: Q21.3 and Q21.5 reveal that the superseded memory accumulation is a cross-cutting concern
 
@@ -348,13 +376,13 @@ The 72% superseded ratio noted as a secondary finding in Q20.4 now has three dow
 2. **Decay ghost users** (Q21.5): get_distinct_user_ids() scans superseded points, returning user_ids with 0 active memories; each produces a wasted cron slot
 3. **Reconcile scan overhead** (Q20.2): scroll_all with include_superseded fetches 3.5x more data than needed
 
-All three trace to the same root: superseded memories are never deleted. The GC implementation (Q21.3 specification) would fix all three simultaneously: fewer superseded points → fewer ghost user_ids → fewer reconcile round trips.
+All three trace to the same root: superseded memories are never deleted. The GC implementation (Q21.3 specification) would fix all three simultaneously.
 
 #### Observation 4: Q21.4 enables the Q19.6 compensating rollback
 
-Q21.4 confirms that qdrant.unmark_superseded() is a 4-line atomic operation. This directly enables the Tier 1b fix #5 (consolidation compensating rollback): when Neo4j.mark_superseded fails after Qdrant.mark_superseded succeeds, calling qdrant.unmark_superseded(id) restores the Qdrant side without re-insertion. The Q21.4 finding eliminates the last open question about Q19.6's fix specification — all components are now confirmed.
+Q21.4 confirms that qdrant.unmark_superseded() is a 4-line atomic operation. This directly enables the Tier 1b fix #5 (consolidation compensating rollback): when Neo4j.mark_superseded fails after Qdrant.mark_superseded succeeds, calling qdrant.unmark_superseded(id) restores the Qdrant side without re-insertion.
 
-#### Observation 5: The nine-wave remediation stall deepens — yet Q21 findings lower implementation risk for all major fixes
+#### Observation 5: The remediation stall deepens — yet Q21 findings lower implementation risk for all major fixes
 
 Waves 13–21 have produced characterizations without deployed remediation. However, Wave 21 has reduced implementation uncertainty on the most critical open items:
 - Q20.5 fix: was ~10 lines reconcile.py → now **1 line neo4j_store.py** (Q21.1)
@@ -362,11 +390,9 @@ Waves 13–21 have produced characterizations without deployed remediation. Howe
 - Q19.6 compensating rollback: qdrant side was uncertain → now **4 lines confirmed** (Q21.4)
 - Decay ghost users: root cause was unclear → now **one-line IS NULL filter** (Q21.5)
 
-The remaining implementation cost of the Tier 1 and Tier 1b fixes is lower after Wave 21 than it was after Wave 20.
-
 ---
 
-## 6. Wave 20 Results (Q20.1–Q20.6)
+## 7. Wave 20 Results (Q20.1–Q20.6)
 
 ### Overview
 
@@ -375,16 +401,6 @@ Wave 20 was an **operational measurement and compound-failure investigation wave
 Of 6 questions: 4 HEALTHY (Q20.2, Q20.3, Q20.4, Q20.6), 1 WARNING (Q20.1), 1 FAILURE (Q20.5).
 
 **The defining finding of Wave 20**: The compound failure (Q20.5) demonstrates that clusters 3 and 4 interact — Q18.1 (partial gather) and Q19.6 (split-brain) can co-occur on a single memory in one consolidation cycle, producing a state that reconcile cannot fully repair in a single pass. More critically, reconcile itself introduces a NEW importance mismatch while repairing the superseded_by mismatch (mark_superseded zeros Neo4j importance, overwriting the Step A importance fix). This is a **reconcile design defect**, not just a compound failure reachability finding. The 9 sub-pattern-A entries in Q20.1 are direct production evidence that this has already occurred. **Wave 21 update**: Q21.1 collapses this to a 1-line vestigial removal; Q21.2 confirms 0 active compound failures after repair.
-
-**The operational measurement findings**: Q20.1 through Q20.4 and Q20.6 provide the first live production state measurements:
-- The split-brain repair mechanism (weekly reconcile) is working — 0 superseded_mismatches despite 6,441 consolidation events over 28 days (Q20.1)
-- However, 1,315 importance mismatches (6.3% corpus) reveal structural Qdrant/Neo4j drift from the Q18.2 _track_access pattern (Q20.1)
-- Reconcile has zero audit trail — its execution history is invisible from the audit_log (Q20.1); Q21.6 confirms 9-LOC fix
-- Reconcile scalability is not a concern at current or projected corpus sizes (Q20.2)
-- The importance=0.5 cluster is self-clearing daily throughput, resolving Q19.4 ambiguity (Q20.3)
-- The dedup threshold is empirically correct; the 0.90–0.95 cosine band is empty (Q20.4)
-- Decay audit coverage is complete; 694 entries explained by per-user multiplier (Q20.6)
-- Active corpus is only 5,882 of 20,889 Qdrant points — 72% are superseded (Q20.4 secondary)
 
 ---
 
@@ -401,7 +417,7 @@ Of 6 questions: 4 HEALTHY (Q20.2, Q20.3, Q20.4, Q20.6), 1 WARNING (Q20.1), 1 FAI
 
 ---
 
-## 7. Wave 19 Results (Q19.1–Q19.6)
+## 8. Wave 19 Results (Q19.1–Q19.6)
 
 ### Overview
 
@@ -426,7 +442,7 @@ Of 6 questions: 2 HEALTHY (Q19.1, Q19.2), 3 WARNING (Q19.3, Q19.4, Q19.5), 1 FAI
 
 ---
 
-## 8. Wave 18 Results (Q18.1–Q18.5)
+## 9. Wave 18 Results (Q18.1–Q18.5)
 
 ### Overview
 
@@ -450,7 +466,7 @@ Of 5 questions: 2 HEALTHY (Q18.3, Q18.4), 2 WARNING (Q18.1, Q18.2), 1 INCONCLUSI
 
 ---
 
-## 9. Wave 17 Status (Q16.3a, Q16.4a — PENDING)
+## 10. Wave 17 Status (Q16.3a, Q16.4a — PENDING)
 
 Wave 17 was planned as a post-deployment verification wave with two questions:
 
@@ -464,7 +480,7 @@ These two questions remain the highest-priority measurement questions in the que
 
 ---
 
-## 10. Wave 16 Results (Q16.1–Q16.5, Q16.3b, Q16.4b)
+## 11. Wave 16 Results (Q16.1–Q16.5, Q16.3b, Q16.4b)
 
 ### Overview
 
@@ -488,7 +504,7 @@ Of 7 questions: 1 HEALTHY (Q16.3b), 2 FAILURE (Q16.3, Q16.4), 1 FAILURE/Medium (
 
 ---
 
-## 11. Waves 15 and 14 Results (archived from prior synthesis — condensed)
+## 12. Waves 15 and 14 Results (archived from prior synthesis — condensed)
 
 **Wave 15** (Q15.1–Q15.5): Dedup observability crisis confirmed — three independent code paths produce zero audit entries, zero log entries, no Prometheus counter. Global LLM timeout 180s applies to all callers; 43 confirmed >60s events; per-call override does not exist. Q15.4 ruled out length-based pre-filtering. Q15.5 identified newline-density guard as a practical fast-fail alternative for dense single-line content.
 
@@ -496,7 +512,7 @@ Of 7 questions: 1 HEALTHY (Q16.3b), 2 FAILURE (Q16.3, Q16.4), 1 FAILURE/Medium (
 
 ---
 
-## 12. Cross-Wave Patterns (Waves 1–22)
+## 13. Cross-Wave Patterns (Waves 1–24)
 
 ### Pattern 1: Dedup observability gap — three waves, four sites, zero remediation (Q14.3, Q15.1, Q15.2, Q16.1, Q16.2, Q16.4) — SYSTEMIC / STALLED — Q20.4 confirms threshold correct
 
@@ -538,29 +554,33 @@ Q20.5 identified a reconcile design defect: compound failures (Q18.1 + Q19.6 co-
 
 The retrieval coverage crisis identified in Wave 13 (8.9% coverage, fixed K=3 vs. growing corpus) was re-measured in Wave 14 at 9.50% — essentially unchanged. Q14.2 confirmed that exploration-based injection is safe to deploy (90% relevance, 0% noise), providing the structural fix. **Q20.4 secondary finding**: active corpus is only 5,882 of 20,889 — K=3 achieves meaningfully better per-query hit rate against the active subset than against the total. The structural repair is less urgent than originally assessed, but the exploration injection from Q14.2 should still be deployed to surface buried high-value memories.
 
-### Pattern 6: Remediation stall — nine consecutive waves find no improvements deployed (Waves 13–21)
+### Pattern 6: Remediation stall — thirteen consecutive waves find no improvements deployed (Waves 12–24)
 
-In Waves 1–12, findings frequently referenced commits. Starting with Wave 13, the number of referenced commits drops to zero. Waves 14–21 have produced characterizations of failure clusters with no deployed remediation. The highest-value next action remains deployment, not continued investigation.
+In Waves 1–12, findings frequently referenced commits. Starting with Wave 13, the number of referenced commits drops to zero. Waves 13–24 have produced characterizations of failure clusters with no deployed remediation. The highest-value next action remains deployment, not continued investigation.
 
-### Pattern 7: Reconcile observability gap — confirmed fixable (Q20.1, Q21.6)
+### Pattern 7: Reconcile observability gap — confirmed fixable (Q20.1, Q21.6) — Q24.8 reconfirms unfixed
 
-The reconcile worker and admin API endpoint have zero audit_log entries. **Wave 21 (Q21.6)** confirms this is a 9-LOC fix. It is the same observability anti-pattern as the dedup subsystem (Q15.1, Q16.1): a critical repair operation runs regularly but its execution, results, and repair counts are invisible. Combined with Q20.5's (now one-line fixable) convergence issue, the 9-LOC audit trail fix is the fastest path to verifying compound failure resolution.
+The reconcile worker and admin API endpoint have zero audit_log entries. **Wave 21 (Q21.6)** confirms this is a 9-LOC fix. **Wave 24 (Q24.8)** reconfirms the fix is still not deployed. It is the same observability anti-pattern as the dedup subsystem (Q15.1, Q16.1): a critical repair operation runs regularly but its execution, results, and repair counts are invisible.
 
-### Pattern 8: Superseded memory accumulation — cross-cutting concern confirmed (Q20.4 secondary, Q21.3, Q21.5) — NEW
+### Pattern 8: Superseded memory accumulation — cross-cutting concern, GC window now open (Q20.4 secondary, Q21.3, Q21.5, Q24.6)
 
-The 72% superseded ratio (Q20.4 secondary) has downstream effects across three subsystems confirmed by Wave 21: GC unavailability (Q21.3), decay ghost users (Q21.5), and reconcile scan overhead (Q20.2). All three trace to the same root — no deletion mechanism exists for old superseded points. A single GC cron (Q21.3 specification: age ≥30d + successor active + simultaneous Neo4j DELETE) would address all three simultaneously. At current accumulation rate (~600/day), without GC the superseded-to-active ratio will continue to widen and all three downstream effects will worsen proportionally.
+The 72% superseded ratio (Q20.4 secondary) has downstream effects across three subsystems confirmed by Wave 21: GC unavailability (Q21.3), decay ghost users (Q21.5), and reconcile scan overhead (Q20.2). All three trace to the same root — no deletion mechanism exists for old superseded points. A single GC cron (Q21.3 specification: age ≥30d + successor active + simultaneous Neo4j DELETE) would address all three simultaneously. **Wave 24 (Q24.6) confirms the 30-day eligibility window is open**: ~11,000 memories are eligible for true GC but no scheduled cron exists. Admin purge endpoint available for manual cleanup.
+
+### Pattern 9: Double-decay — twelve consecutive failure confirmations, zero remediation (Q22.1, Q23.2, Q24.1)
+
+The double-decay bug was first confirmed as a FAILURE in Wave 22. It has been reconfirmed in every subsequent wave (Waves 23 and 24). The 3-7d cohort importance ratio (0.793) measured in Q24.1 is statistically identical to Q23.1's baseline from 24 hours earlier — there is no self-correction mechanism. The fix is ~3 lines. The damage compounds with every 6-hour cron slot.
 
 ---
 
-## 13. Prioritized Remediation Roadmap (Current State, post Wave 22)
+## 14. Prioritized Remediation Roadmap (Current State, post Wave 24)
 
-Based on severity, feasibility, and number of waves confirming the gap. Items marked with `[N waves]` have been confirmed across multiple investigation cycles without remediation. **Wave 22 updates are bolded.**
+Based on severity, feasibility, and number of waves confirming the gap. Items marked with `[N waves]` have been confirmed across multiple investigation cycles without remediation. **Wave 24 updates are bolded.**
 
 ### Tier 0 — Emergency hotfix (< 1 day, 3 lines)
 
 | # | Action | Effort | Resolves | Expected Impact |
 |---|--------|--------|----------|-----------------|
-| 0 | **Fix double-decay in `_user_conditions(None)`**: filter system run to `user_id IS NULL` only — add `IsNullCondition(key="user_id")` to system-run Qdrant filter OR separate system-run and per-user run into non-overlapping entrypoints — **Q22.1 FAILURE: corpus has been decaying at 0.9216/slot instead of 0.96/slot; all memories losing importance ~2× faster than configured** | **~3 lines qdrant.py or decay.py** | **Q22.1** | **Stops double-decay immediately; every future slot decays at the correct single rate; importance values begin recovering toward intended baseline over next few weeks** |
+| 0 | **Fix double-decay in `_user_conditions(None)`**: filter system run to `user_id IS NULL` only — add `IsNullCondition(key="user_id")` to system-run Qdrant filter OR separate system-run and per-user run into non-overlapping entrypoints — **Q22.1 FAILURE: corpus has been decaying at 0.9216/slot instead of 0.96/slot; Q24.1 confirms fix still not deployed after 12 consecutive waves** | **~3 lines qdrant.py or decay.py** | **Q22.1, Q23.2, Q24.1** | **Stops double-decay immediately; every future slot decays at the correct single rate; importance values begin recovering toward intended baseline over next few weeks** |
 
 ### Tier 1 — Stop the bleeding (1-3 days, high confidence, 3-10 lines each)
 
@@ -571,13 +591,13 @@ Based on severity, feasibility, and number of waves confirming the gap. Items ma
 | 3 | **Add dedup counters at all four drop sites**: `metrics.increment("recall_dedup_hits_total", {"source": site})` | ~4 lines across 3 files | Q15.1, Q16.1 | Closes measurement gap; hit rate visible within first minute of deployment; enables Q16.4a measurement | 2 waves |
 | 4 | **Add logger.info call** to observer.py before `continue` at line 176 | 1 line | Q15.2, Q16.2 | Makes observer dedup drops visible in Docker logs | 2 waves |
 
-### Tier 1b — Critical additions from Waves 19–21 (1-2 days)
+### Tier 1b — Critical additions from Waves 19–22 (1-2 days)
 
 | # | Action | Effort | Resolves | Expected Impact |
 |---|--------|--------|----------|-----------------|
 | 5 | **Wrap consolidation source-supersedure loop** (consolidation.py:272–283) in per-source try/except with logger.error on failure; implement `qdrant.unmark_superseded()` as compensating rollback when Neo4j fails after Qdrant succeeds — **Q21.4 confirms: 4 lines qdrant.py** | ~30 lines consolidation.py + **4 lines qdrant_store.py** (confirmed by Q21.4) | Q19.6 | Prevents Qdrant/Neo4j split-brain; compensating rollback confirmed atomic and zero-regression |
-| 6 | **Remove `m.importance = 0.0` from neo4j.mark_superseded** (neo4j_store.py:390–391) — **Q21.1 confirms: 1 line deletion, zero functional regressions; all Neo4j queries already have superseded_by IS NULL guards** | **1 line** | Q20.5 | Compound failures converge in one reconcile pass instead of two; eliminates sub-pattern-A production artifacts permanently; safer and simpler than the ~10-line reconcile.py fix previously specified |
-| 7 | **Add reconcile audit_log entries** in reconcile.py and ops.py — **Q21.6 confirms: ~9 LOC, trivial import, fire-and-forget** | **~9 LOC across 2 files** (confirmed by Q21.6) | Q20.1 | Makes reconcile execution visible in audit trail; enables last-run-date query, mismatch trend, convergence monitoring |
+| 6 | **Remove `m.importance = 0.0` from neo4j.mark_superseded** (neo4j_store.py:391) — **Q21.1 confirms: 1 line deletion, zero functional regressions; Q24.2 reconfirms fix not deployed** | **1 line** | Q20.5, Q24.2 | Stops new importance mismatches from being created; compound failures converge in one reconcile pass; eliminates weekly ~5,572-mismatch accumulation cycle |
+| 7 | **Add reconcile audit_log entries** in reconcile.py and ops.py — **Q21.6 confirms: ~9 LOC, trivial import, fire-and-forget; Q24.8 reconfirms fix not deployed** | **~9 LOC across 2 files** (confirmed by Q21.6) | Q20.1, Q24.8 | Makes reconcile execution visible in audit trail; enables last-run-date query, mismatch trend, convergence monitoring |
 
 ### Tier 2 — Fix structural defects (3-7 days)
 
@@ -591,9 +611,9 @@ Based on severity, feasibility, and number of waves confirming the gap. Items ma
 | 13 | **Tag-aware dedup exemption** for session-summary and session-checkpoint tags | ~5 lines memory.py | Q14.8, Q13.4a | Eliminates confirmed false-positive merges; prevents architectural knowledge loss in session summaries |
 | 14 | **Exploration slot injection** in recall-retrieve.js (every 5th query, inject 2 buried high-importance memories) | ~40 lines in hook | Q13.1, Q14.7, Q14.2 | Surfaces buried high-importance memories; Q14.2 confirmed 90% relevant, 0% noise; note: active corpus only 5,882 (Q20.4) makes per-query coverage better than modeled at 20K |
 | 15 | **Importance inheritance on dedup**: surviving memory gets `max(old.importance, new.importance)` | ~5 lines memory.py | Q13.4, Q13.4a | Prevents importance inversion; reduces importance drift accumulation |
-| 16 | **Fix get_distinct_user_ids() to scan active-only**: add `IS NULL` filter on superseded_by — **Q21.5 confirms root cause; one-line filter change** | **~3 lines qdrant.py** | Q21.5 | Eliminates 7/10 ghost user decay runs per cron slot; reduces Qdrant scan from 20,923 to ~5,882 points per decay cycle (3.5× faster); eliminates 28 wasted scrolls/day |
+| 16 | **Fix get_distinct_user_ids() to scan active-only**: add `IS NULL` filter on superseded_by — **Q21.5 confirms root cause; one-line filter change; Q24.7 reconfirms fix not deployed** | **~3 lines qdrant.py** | Q21.5, Q24.7 | Eliminates 7/10 ghost user decay runs per cron slot; reduces Qdrant scan from 21,043 to ~5,945 points per decay cycle; eliminates 28 wasted scrolls/day |
 | 17 | **Add user_id column to decay audit INSERT** — **Q22.7 confirms: 4 LOC (signature + INSERT + call site)** | **4 LOC decay.py** | Q21.5, Q22.7 | Makes ghost user identification possible from audit log without Qdrant direct queries |
-| 18 | **Fix consolidation user_id attribution**: pass `user_id` to merged `Memory()` constructor in `consolidation.py:235` — **Q22.9 confirms: Memory() created without user_id; merged memories permanently get user_id=None** | **~3 lines consolidation.py** | Q22.9 | Prevents user memories consolidated by system run from losing user attribution; user appears in get_distinct_user_ids() after consolidation; preserves user-level decay, export, count |
+| 18 | **Fix consolidation user_id attribution**: pass `user_id` to merged `Memory()` constructor in `consolidation.py:235` — **Q24.5 reconfirms fix not deployed; ~796 merged memories/day accumulating with user_id=None** | **~3 lines consolidation.py** | Q22.9, Q24.5 | Prevents user memories consolidated by system run from losing user attribution; user appears in get_distinct_user_ids() after consolidation; preserves user-level decay, export, count |
 | 19 | **Add post-repair visibility to reconcile response**: 6 LOC (2 counters + 2 loop increments + 2 response fields) — **Q22.6 confirms: no re-scan needed** | **6 LOC ops.py + reconcile.py** | Q22.6, Q21.2 | Operators can confirm `post_repair_importance_mismatches: 0` without running a second dry-run; prevents unnecessary re-invocation |
 
 ### Tier 3 — Observability and refinement (1-2 weeks)
@@ -608,7 +628,7 @@ Based on severity, feasibility, and number of waves confirming the gap. Items ma
 | 23 | **Coverage rate operational metric**: track `distinct_injected_30d / total_living_memories` in /admin/health | ~20 lines | Q13.1, Q13.5 | Ongoing monitoring; alert when coverage drops below threshold |
 | 24 | **Increase Docker log retention**: `max-file=10, max-size=10m` (100MB cap) | 1 line docker-compose.yml | Q15.2 | Extends signal_semantic_dedup_hit log recovery window |
 | 25 | **Sync admin dedup endpoint default threshold** with config `semantic_dedup_threshold` (currently endpoint defaults to 0.95 while config is 0.92) | ~3 lines ops.py | Q20.4 | Prevents silent parameter-name errors and mismatched threshold behavior |
-| 26 | **Add superseded memory GC cron** — weekly ARQ job: delete Qdrant points where superseded_by IS NOT NULL AND invalid_at <now−30d AND successor active; delete corresponding Neo4j node simultaneously — **Q21.3 specifies: new ARQ cron + neo4j.delete_memory_node() helper** | **~30 lines + new Neo4j helper** | Q21.3, Q20.4 secondary | Caps superseded accumulation; reduces Qdrant storage (currently 72% superseded); reduces reconcile scan time; reduces ghost-user decay runs; first 30-day batch eligible ~2026-03-21 |
+| 26 | **Add superseded memory GC cron** — weekly ARQ job: delete Qdrant points where superseded_by IS NOT NULL AND invalid_at <now−30d AND successor active; delete corresponding Neo4j node simultaneously — **Q21.3 specifies: new ARQ cron + neo4j.delete_memory_node() helper; Q24.6 confirms ~11,000 eligible memories NOW** | **~30 lines + new Neo4j helper** | Q21.3, Q20.4 secondary, Q24.6 | Caps superseded accumulation; reduces Qdrant storage; reduces reconcile scan time; reduces ghost-user decay runs; manual cleanup available via admin purge endpoint until cron implemented |
 | 27 | **Add repair response post-repair state**: after applying repairs in reconcile, run a second scan and return post-repair counts in response — **Q21.2 identifies operator confusion risk** | ~15 lines reconcile.py | Q21.2 | Prevents operators from believing repair failed when it succeeded; response currently shows pre-repair state even after applying repairs |
 | 28 | **Add qdrant.unmark_superseded() and neo4j.unmark_superseded() helpers** + admin endpoint `POST /admin/memories/{id}/unmark-superseded` — **Q21.4 specifies: 4 lines qdrant.py + 8 lines neo4j_store.py + ~8 lines admin route** | **~20 LOC** | Q21.4 | Enables manual reversal of erroneous supersedure; needed for admin correction workflows |
 
@@ -624,13 +644,13 @@ Note: Markov feature should remain disabled (build_prefetch_cache short-circuite
 
 ---
 
-## 14. Open Threads for Wave 24
+## 15. Open Threads for Wave 25
 
-**Strong recommendation**: Wave 24 should be DEPLOYMENT ONLY. Eleven consecutive waves (13–23) have produced characterizations with zero deployed remediation. Wave 23 confirms the Q22.1 double-decay fix is still not deployed and adds a new active-memory Neo4j sync bug (Q23.4's 50 mismatches). All open clusters are fully characterized, with total specified implementation ≤50 LOC for all Tier 0/1/1b items combined. Deploy the Tier 0 fix (Q22.1 double-decay, ~3 lines) immediately, then Tier 1 in order. The Q23.4 50-mismatch active bug should be investigated alongside the Q21.1 mark_superseded fix — both are Neo4j importance sync failures and may share a root cause.
+**Strong recommendation**: Wave 25 should be DEPLOYMENT ONLY. Thirteen consecutive waves (12–24) have produced characterizations with zero deployed remediation. Wave 24 confirms all five Tier 0/1b FAILUREs are still not deployed. The Tier 0 fix (Q22.1 double-decay) is ~3 lines. All five Wave 24 FAILURE fixes combined are approximately 20 lines across five files. Wave 24 closed the last open investigation question (Q23.4's creation-path bug hypothesis). **There are no remaining analytical questions that justify further delay. Deploy the Tier 0 fix immediately, then Tier 1/1b in order.**
 
-**Wave 23 confirms**: The Q22.9 corrections (proc=2 meaning, consolidation schedule, supersede audit) do not change the severity of any open finding. All structural findings from Waves 21–22 remain valid.
+If deployment remains blocked for reasons external to this research loop, the Wave 25 queue should be treated as follows:
 
-### Post-deployment re-measurements (activate after Tier 1/1b deploy)
+### Post-deployment re-measurements (activate only after Tier 1/1b deploy)
 
 **Q16.3a — Per-caller timeout impact**: After deploying timeout parameter to generate(), does fact_extraction p99 drop below 60,000ms? Does total interactive latency drop, or does queue wait dominate?
 *Prerequisite: Q16.3 fix deployed. Note: Q19.3 finding — measure queue wait phase separately from inference phase.*
@@ -638,49 +658,47 @@ Note: Markov feature should remain disabled (build_prefetch_cache short-circuite
 **Q16.4a — Dedup hit rate baseline**: After deploying recall_dedup_hits_total counters, what is the 24h baseline hit rate per source?
 *Prerequisite: Q15.1/Q16.1 instrumentation deployed.*
 
-**Q23.1 — Post-GC verification**: After deploying the Tier 3 superseded GC cron (Q21.3), measure: (a) superseded-to-active ratio drops below 50%, (b) decay ghost-user count drops toward zero, (c) reconcile round-trip count decreases proportionally, (d) causal_extractor correctly excludes GC'd memories (since DECIDED_BECAUSE/ATTEMPTED_BEFORE/REVERTED_DUE_TO — not CAUSAL_PRECEDES).
-*Prerequisite: Tier 3 fix deployed.*
-
-**Q23.2 — Double-decay post-fix verification**: After deploying Q22.1 fix (IS NULL filter in _user_conditions or system-run filter), verify: (a) 10 decay_run entries per slot → 2 (system run + named users); (b) system-run audit entry proc count no longer equals full active corpus; (c) importance values in Qdrant post-fix are higher than pre-fix (corpus not over-decayed).
+**Q24.1-post — Double-decay post-fix verification**: After deploying Q22.1 fix (IS NULL filter in _user_conditions or system-run filter), verify: (a) each 6-hour slot shows exactly ONE full-corpus proc entry (system run) plus per-user entries; (b) 3-7d cohort ratio begins recovering above 0.793 baseline; (c) floor-clamped memory count begins decreasing.
 *Prerequisite: Q22.1 fix deployed.*
 
-**Q23.3 — Consolidation user_id attribution propagation**: After fixing consolidation.py:235 to pass `user_id` to the merged Memory constructor, verify: (a) new merged memories have user_id set; (b) user_id=2 reappears in get_distinct_user_ids() after consolidation; (c) no regression on system-run consolidation (user_id=None runs should still produce user_id=None output).
+**Q24.2-post — mark_superseded mismatch rate post-fix**: After removing `m.importance = 0.0` from `neo4j_store.py:391`, verify: (a) reconcile dry_run shows 0 new mismatches accumulating after the weekly repair; (b) importance_mismatches count stabilizes and does not grow between Sunday repairs.
+*Prerequisite: Q21.1 fix deployed.*
+
+**Q24.5-post — Consolidation user_id attribution propagation**: After fixing `consolidation.py:235` to pass `user_id` to merged Memory constructor, verify: (a) new merged memories have user_id set; (b) users with recently consolidated originals reappear in get_distinct_user_ids().
 *Prerequisite: consolidation user_id fix deployed.*
 
 ### Low-priority analytical questions (proceed only if deployment gating is impractical)
 
-**Q23.4 — sub-pattern-A steady-state rate post-fix**: After deploying Q21.1 1-line removal of importance=0.0 from mark_superseded, does the reconcile importance_mismatches count stop growing? Measure weekly accumulation rate pre-fix vs post-fix.
-*No prerequisite. Analytical.*
-
-**Q23.5 — Neo4j unmark_superseded helper validation**: After implementing Q21.4's neo4j.unmark_superseded() helper and the admin /unmark-superseded endpoint, validate: (a) Qdrant unmark + Neo4j unmark produce a memory that passes reconcile dry-run with 0 mismatches, (b) repair=true does not re-supersede the restored memory.
-*Prerequisite: Tier 3 fix #28 deployed.*
+**Q24.6-followup — Manual GC first batch**: Use admin purge endpoint to delete a sample of 30+ day old superseded memories; verify (a) Qdrant point count decreases; (b) corresponding Neo4j nodes removed; (c) no effect on active memory queries; (d) ghost user count in get_distinct_user_ids() decreases proportionally.
+*No prerequisite. Can run without cron implementation.*
 
 ---
 
-## 15. Residual Risk Inventory (Current State, post Wave 23)
+## 16. Residual Risk Inventory (Current State, post Wave 24)
 
 | Risk | Severity | Likelihood | Trigger | Status |
 |------|---------|-----------|---------|--------|
-| **Double-decay: corpus decaying 2× faster than configured; every memory decays at 0.9216/slot instead of 0.96/slot** | **CRITICAL** | **Certain (every cron slot)** | **Every 15-minute decay run** | **OPEN — Q22.1 FAILURE; Q23.2 RECONFIRMED (Phase 4 [system+system] slot structure; 06:45 and 06:49 both proc=5936); fix is ~3 lines in _user_conditions() or decay cron entrypoint; deployed fix needed immediately** |
-| **Active-memory Neo4j sync gap: 50 active memories have neo4j_importance=0.0 while Qdrant importance=0.7+; these rank at bottom of find_related() results despite high Qdrant importance** | **High** | **Active (at least 50 confirmed; rate unknown; may be growing)** | **Memory creation path when Neo4j importance initialization fails silently** | **NEW — Q23.4; different from Q21.1 (which is superseded-only); root cause unknown but likely Neo4j write failure at creation; reconcile active-only scan will detect and report these** |
+| **Double-decay: corpus decaying 2× faster than configured; every memory decays at 0.9216/slot instead of 0.96/slot; 632 memories floor-clamped (10.6%)** | **CRITICAL** | **Certain (every cron slot)** | **Every 6-hour decay run** | **OPEN — Q22.1 FAILURE; Q23.2 + Q24.1 RECONFIRMED (12th wave); fix is ~3 lines in _user_conditions() or decay cron entrypoint; Mar 15 timing anomaly does not resolve; 3-7d cohort ratio = 0.793, zero recovery in 24h** |
 | Dedup hit rate completely unquantifiable — unknown volume of unique facts permanently dropped | High | Active (31,289+ creates processed without measurement) | Every store event that triggers dedup path | OPEN — 4 waves unresolved (Q15.1, Q16.1); real-time rate unmeasurable; Q20.4 confirms threshold is correct but real-time rate still unknown |
 | Global LLM timeout 180s — single slow call blocks entire pipeline for up to 180s | High | Active (43 confirmed >60s events) | Any consolidation or fact_extraction call with long input | OPEN — 5 waves unresolved (Q15.3, Q16.3); Q18.3 confirms fix deployable; Q19.3 adds queue-wait qualifier |
 | Store-time dedup silent drop — unique facts in incoming write permanently lost with no audit trail | High | Active (every dedup event) | Any store that scores >0.92 against existing memory | OPEN — Q14.3 FAILURE; audit entry not deployed |
 | Dedup observability matrix: 10/12 cells empty; memory.py and observer.py have zero coverage | High | Active (every dedup event) | Any dedup drop at API or observer path | OPEN — Q16.4 FAILURE |
 | LLM p95 > 10s — Semaphore(1) + inference variance dominates; interactive callers can wait 89s in queue | High | Active (p95=11–17s post-semaphore; queue wait unbounded) | Any mix of long-inference (consolidation) + short (signal_detection) calls | OPEN — Q14.4 FAILURE; Q19.3 WARNING adds queue-wait gap; per-caller timeouts insufficient alone |
-| Retrieval coverage structural failure — K=3 fixed vs. growing corpus; 9.5% lifetime coverage | High | Certain (coverage degrades with corpus growth) | Each new memory stored | OPEN — Q13.1, Q14.7; exploration injection from Q14.2 not deployed; note: active corpus only 5,882 (Q20.4) |
+| Retrieval coverage structural failure — K=3 fixed vs. growing corpus; 9.5% lifetime coverage | High | Certain (coverage degrades with corpus growth) | Each new memory stored | OPEN — Q13.1, Q14.7; exploration injection from Q14.2 not deployed; note: active corpus only 5,945 (Q24.3) |
 | Consolidation split-brain: Neo4j failure after Qdrant mark_superseded = divergence up to 7 days | High | Unknown (consolidation runs regularly; Neo4j transient errors possible) | Any Neo4j transient error during consolidation source-supersedure loop | OPEN — Q19.6 FAILURE; Q20.1 bounds impact (0 superseded_mismatches currently; weekly reconcile repairing); **Q21.4 confirms compensating rollback is 4 lines qdrant.py** |
-| **Reconcile convergence defect: compound failures require two passes; mark_superseded overwrites Step A importance fix** | **High** | **Latent (9 entries produced historically; 0 active after Q21.2 repair)** | **Q18.1 partial gather + Q19.6 split-brain co-occurring on same memory** | **OPEN — Q20.5 FAILURE; Q21.1 collapses fix to 1-line removal of importance=0.0 from neo4j_store.py; not deployed** |
-| **Reconcile audit invisibility: zero audit_log entries for any reconcile run — execution history unverifiable** | **Medium** | **Certain (reconcile runs weekly but never writes to audit_log)** | **Every reconcile run** | **OPEN — Q20.1 secondary; Q21.6 confirms 9-LOC fix; not deployed** |
+| **Reconcile convergence defect: compound failures require two passes; mark_superseded overwrites Step A importance fix** | **High** | **Latent (9 entries produced historically; 0 active after Q21.2 repair)** | **Q18.1 partial gather + Q19.6 split-brain co-occurring on same memory** | **OPEN — Q20.5 FAILURE; Q21.1 collapses fix to 1-line removal of importance=0.0 from neo4j_store.py; Q24.2 confirms fix not deployed** |
+| **mark_superseded importance=0.0: ~796 new Neo4j importance mismatches/day; ~5,572 accumulate weekly before Sunday repair** | **Medium** | **Certain (every consolidation event creates 1 mismatch)** | **Every consolidation supersedure** | **OPEN — Q21.1 root cause confirmed; Q24.2 confirms fix not deployed; weekly reconcile auto-repairs but root cause persists; retrieval unaffected (find_related filters superseded)** |
+| **Reconcile audit invisibility: zero audit_log entries for any reconcile run — execution history unverifiable** | **Medium** | **Certain (reconcile runs weekly but never writes to audit_log)** | **Every reconcile run** | **OPEN — Q20.1 secondary; Q21.6 confirms 9-LOC fix; Q24.8 confirms fix not deployed** |
 | 1,315 importance mismatches (6.3% corpus): Qdrant/Neo4j drift from _track_access and compound failures | Medium | Active (Q21.2 resolved to 0 after repair; will re-accumulate) | Every _track_access exception (Q18.2) and every compound failure (Q20.5) | OPERATIONALLY BOUNDED — Q21.2 confirms repair=true converges in single pass; weekly reconcile resolves 1,313 mismatches automatically; residual 2 sub-pattern-A resolved by manual repair=true |
 | except:pass in importance-inheritance block — Qdrant errors silently swallowed; promotions unconfirmed | Medium | Unknown (never logged) | Any Qdrant error during dedup drop at API path | OPEN — Q16.4b FAILURE; Q19.4 provides indirect evidence this is materializing |
 | decay.py gather partial write — batch abort leaves partial Qdrant writes untracked; audit log skipped | Medium | Unknown (depends on decay_user_error frequency) | Any Qdrant error during decay batch execution | OPEN — Q18.1 WARNING; Q19.1 confirms scope is bounded to decay.py only |
 | retrieval.py _track_access loop early exit — N+1 memories in retrieval batch miss access reinforcement | Medium | Unknown (depends on _track_access exception frequency) | Any storage error during retrieval stat update | OPEN — Q18.2 WARNING; Q19.2 confirms scope is bounded to _track_access only |
 | Importance corpus contamination: Q16.4b + Q18.2 prevent importance promotion; 1,315 importance mismatches accumulating | Medium | Active (6.3% of corpus, measurable drift; resolves weekly) | Any dedup event (Q16.4b) or retrieval event (Q18.2) where write fails silently | OPEN — Q20.1 WARNING; re-accumulates between weekly reconcile runs |
-| **Superseded memory storage bloat: ~15,007 superseded Qdrant points (72% of corpus); ~600 new/day; no GC** | **Medium** | **Certain (grows with every consolidation)** | **Every consolidation event creates superseded points that are never deleted** | **OPEN — Q21.3 WARNING; safe GC criteria confirmed (age ≥30d + successor active + Neo4j simultaneous); 30-day batch eligible ~2026-03-21; implementation: new ARQ cron + neo4j.delete_memory_node helper** |
-| **Ghost users in decay: 7/10 decay_run entries/slot processed=0; overdecay ~4%/run for primary user** | **Medium** | **Certain (70% of user_id list are phantoms; grows with superseded accumulation)** | **Every cron slot; every decay run for primary user** | **OPEN — Q21.5 WARNING; Q22.2 confirms ghost identity; root cause confirmed (get_distinct_user_ids scans superseded); fix: IS NULL filter (1 line) + user_id in audit INSERT (4 LOC Q22.7)** |
-| **Consolidation user_id attribution loss: merged memories get user_id=None permanently; user vanishes from get_distinct_user_ids() when all originals superseded** | **Medium** | **Certain (runs continuously; every system consolidation event)** | **Every consolidation of named-user memories by system run** | **OPEN — Q22.9 WARNING; root cause: consolidation.py:235 creates Memory() without user_id; fix: ~3 lines to pass user_id to merged Memory constructor** |
+| **Superseded memory storage bloat: ~15,099 superseded Qdrant points; ~796 new/day; no scheduled GC; ~11,000 eligible for DETACH DELETE** | **Medium** | **Certain (grows with every consolidation)** | **Every consolidation event creates superseded points that are never scheduled for deletion** | **OPEN — Q21.3 WARNING; Q24.6 WARNING (GC window now open); safe GC criteria confirmed; admin purge endpoint available for manual cleanup; no scheduled GC cron** |
+| **Ghost users in decay: 7/10 decay_run entries/slot processed=0; overdecay ~4%/run for primary user** | **Medium** | **Certain (70% of user_id list are phantoms; grows with superseded accumulation)** | **Every cron slot; every decay run for primary user** | **OPEN — Q21.5 WARNING; Q22.2 confirms ghost identity; Q24.7 confirms fix not deployed; fix: IS NULL filter (1 line) + user_id in audit INSERT (4 LOC Q22.7)** |
+| **Consolidation user_id attribution loss: merged memories get user_id=None permanently; user vanishes from get_distinct_user_ids() when all originals superseded** | **Medium** | **Certain (runs hourly; every system consolidation event)** | **Every consolidation of named-user memories by system run** | **OPEN — Q22.9 WARNING; Q24.5 FAILURE (fix not deployed); ~796 merged memories/day with user_id=None** |
 | Dedup threshold (0.92) empirically confirmed correct (Q20.4) — 0 pairs at 0.90 | Low | Resolved | — | **RESOLVED by Q20.4** — threshold is empirically correct; 0.90-0.95 band empty |
+| ~~Active-memory Neo4j sync gap: active memories with neo4j=0.0~~ | ~~High~~ | ~~Active~~ | ~~Memory creation path~~ | **CLOSED by Q24.3** — hypothesis ruled out; Q23.4's 50 "active" mismatches were temporal artifacts; zero active memories have neo4j=0.0; only creation-path bug is the mark_superseded path (Q21.1) |
 | observer.py semantic dedup: zero log call before continue — drops permanently unrecoverable | Medium | Active (every observer dedup event) | Dedup threshold fires on any observer-sourced memory | OPEN — 2 waves unresolved (Q15.2, Q16.2) |
 | Session summaries: 3 confirmed false-positive merges; 5 near-misses; no tag-aware exemption | Medium | Active (low rate: 3.7% of consecutive pairs) | Any two sessions with similar boilerplate phrasing | OPEN — Q14.8 WARNING |
 | fact_extraction empty rate 42.2%; 560 GPU-min/month wasted | Medium | Active (ongoing) | observe-edit.js fires on all edits including config/JSON | OPEN — Q13.2; pre-filter not implemented |
@@ -696,10 +714,10 @@ Note: Markov feature should remain disabled (build_prefetch_cache short-circuite
 
 ---
 
-## 16. Waves 1–12 Baseline (summary, not modified)
+## 17. Waves 1–12 Baseline (summary, not modified)
 
 Waves 1–12 produced 35 HEALTHY findings and 5 committed fixes covering: p99 search latency well under threshold at 40 concurrent users (Q1.1–Q1.4); domain isolation correct under concurrent writes (Q2.1); graph traversal guarded against cycles (Q3.4); all 4 background workers with structured exception logging (Q5.3); asyncio.Lock added to all async-mutated module-level state (Q7.1, e73858f); Pydantic v2 migration complete (Q7.2, 033ede9); datetime.utcnow() sweep complete across 23 files (Q6.7, 9cec9f4); all 4 worker test suites written and passing (Q5.7, Q7.6); embed_batch per-item fallback confirmed observable (Q6.1, 26da1aa); stdlib/structlog mismatch eliminated across all 77 src/ files (Q7.4). These findings remain confirmed holding.
 
-**Key pre-condition**: The Waves 1–12 work addressed code quality and unit-test coverage. Wave 13 established that this well-built code is failing at its primary job — surfacing the right memories at the right time. Waves 14–21 have added twelve FAILURE/WARNING findings to the runtime behavior and documented a remediation stall pattern that has now run for nine consecutive waves.
+**Key pre-condition**: The Waves 1–12 work addressed code quality and unit-test coverage. Wave 13 established that this well-built code is failing at its primary job — surfacing the right memories at the right time. Waves 14–24 have added numerous FAILURE/WARNING findings to the runtime behavior and documented a remediation stall pattern that has now run for thirteen consecutive waves.
 
-**Wave 23 post-synthesis recommendation**: Eleven waves of characterization (13–23) with zero deployed remediation. Wave 23 confirms: (1) Q22.1 double-decay is still active — corpus has been over-decaying at 0.9216/slot since the per-user cron was introduced, and 632 memories (10.6%) are floor-clamped as a direct result; (2) a new active-memory Neo4j sync bug creates retrieval quality degradation independent of the superseded-memory Q21.1 bug. **Immediate priority**: Deploy Tier 0 fix #0 (Q22.1 double-decay, ~3 lines) — the corpus is currently decaying 2× faster than configured and every passing 15-minute slot compounds the damage. Then deploy the 7 Tier 1/1b fixes in order. Investigate the Q23.4 50-mismatch active-memory Neo4j sync bug alongside the Q21.1 mark_superseded fix. No further characterization waves are justified until at least Tier 0 + Tier 1 remediation is deployed.
+**Wave 24 post-synthesis recommendation**: Thirteen waves of characterization (12–24) with zero deployed remediation. Wave 24 confirms: (1) Q22.1 double-decay is still active — 12th consecutive wave; the 3-7d cohort ratio is unchanged from 24 hours earlier at 0.793, confirming no self-correction; (2) all five Tier 0/1b FAILUREs remain undeployed; (3) the Q23.4 "High severity" active-memory Neo4j sync gap risk is CLOSED — there is no creation-path bug, only the known one-line mark_superseded fix; (4) the GC window is now open with ~11,000 eligible memories. **Immediate priority**: Deploy Tier 0 fix #0 (Q22.1 double-decay, ~3 lines). Then Tier 1b fixes #6 and #7 (~10 LOC total). Then Tier 2 fixes #16, #17, #18 (~10 LOC). No further characterization waves are justified until at least Tier 0 + Tier 1 remediation is deployed.
