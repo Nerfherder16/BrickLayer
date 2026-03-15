@@ -600,7 +600,7 @@ findings that have not yet been asked.
 ---
 
 ## Q13.1a [DOMAIN-5] MIN_SIMILARITY threshold sweep — what floor maximizes useful injections without noise?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: benchmark
 **Target**: recall-retrieve.js MIN_SIMILARITY + injection_log feedback quality
 **Hypothesis**: Lowering MIN_SIMILARITY from 0.45 to 0.40 would expose the 2,456 memories in the 0.40–0.45 similarity band. If the implicit feedback loop rates ≥50% of these additional injections as useful (topic overlap on next prompt), the lower floor is warranted. If <30% useful, the floor is correctly calibrated.
@@ -614,7 +614,7 @@ findings that have not yet been asked.
 ---
 
 ## Q13.1b [DOMAIN-5] High-importance never-retrieved memories — content audit
-**Status**: PENDING
+**Status**: DONE
 **Mode**: benchmark
 **Target**: Qdrant recall_memories, importance ≥ 0.6, access_count = 0
 **Hypothesis**: Of the estimated 4,996 high-importance (≥0.6) memories with access_count=0, a meaningful fraction are genuinely high-value knowledge being buried. If ≥30% are high-value, the coverage problem is urgent and affects Tim's most important stored knowledge.
@@ -644,7 +644,7 @@ findings that have not yet been asked.
 ---
 
 ## Q13.2a [DOMAIN-1] fact_extraction file-type breakdown — what fraction of empty extractions come from config/JSON/YAML files?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: benchmark
 **Target**: observe-edit.js → /extract endpoint + prompt_metrics.metadata
 **Hypothesis**: The 42.2% empty rate is dominated by config file edits (.json, .yaml, .toml, .md) which contain no extractable facts. If ≥60% of empty extractions come from these file types, adding them to a LOW_YIELD_EXTENSIONS filter in observe-edit.js would eliminate the majority of wasted Ollama calls without any loss of coverage.
@@ -675,7 +675,7 @@ findings that have not yet been asked.
 ---
 
 ## Q13.3a [DOMAIN-5] Ollama concurrency limiter A/B — does max-1 in-flight extraction call reduce p95 below 10s?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: benchmark
 **Target**: /extract endpoint → Ollama queue depth
 **Hypothesis**: Adding a concurrency limiter (max 1 in-flight Ollama extraction call from the /extract endpoint) will eliminate compound queuing and reduce p95 from 14s to ≤10s. With 1 in-flight call, queue depth is bounded at 1 waiting request, so max wait = 1× inference time ≈ 4s + actual inference = ≤8s total, within the 10s HEALTHY threshold.
@@ -706,7 +706,7 @@ findings that have not yet been asked.
 ---
 
 ## Q13.4a [DOMAIN-1] supersedure similarity threshold — what cosine score triggers deduplication?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: benchmark
 **Target**: /store endpoint deduplication logic (server-side code)
 **Hypothesis**: The supersedure threshold is below 0.90, which causes false-positive session merges where topically similar but session-distinct summaries are collapsed. If the threshold were raised to 0.92–0.95, the 14996103→de31f553 false-positive merge would not have fired.
@@ -736,7 +736,7 @@ findings that have not yet been asked.
 ---
 
 ## Q13.5a [DOMAIN-1] synthetic testbed memory retirement — how many testbed memories are eligible for bulk deletion?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: benchmark
 **Target**: Qdrant recall_memories — testbed:* tagged entries
 **Hypothesis**: ~15,000 of the 20,560 total memories are synthetic testbed entries (tagged testbed:a94448f4c891, testbed:1efb824d749c, etc. from autoresearch load testing). If ≥80% of these have access_count=0, a bulk delete would reduce corpus to ~6,000 real memories and restore top-5 hit rate to ~50%+ (from 5.4% current).
@@ -766,7 +766,7 @@ findings that have not yet been asked.
 ---
 
 ## Q13.6a [DOMAIN-3] recall-retrieve.js query construction — does it include file/tool context or only user message terms?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: benchmark
 **Target**: recall-retrieve.js hook query construction logic
 **Hypothesis**: The hook extracts key terms only from the user's message text, not from tool context (current file, tool_name, event_type). This means queries about abstract API concepts ("UserPromptSubmit") fail to surface concrete implementation memories ("observe-edit hook"). Including current_file and tool_name in the query construction would close this vocabulary gap.
@@ -794,7 +794,7 @@ findings that have not yet been asked.
 **Simulation path**: benchmark-engineer checks current metrics, counts accumulated content, triggers retrain if ready, re-measures type_cv
 
 ## Q13.7a [DOMAIN-1] type classifier per-class precision/recall — should contradiction be merged into warning?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: benchmark
 **Target**: GET /admin/ml/signal-classifier-status or retrain endpoint returning per-class metrics
 **Hypothesis**: The type classifier (type_cv=0.6539) has only 44 contradiction samples vs 150 fact samples. If contradiction precision < 0.5, it is misclassifying more than half the time and should be merged with warning (which has 54 samples, semantically similar). Merging contradiction+warning (98 combined) and decision+preference (121 combined) may push type_cv from 0.6539 to above 0.75 without adding new data.
@@ -809,7 +809,7 @@ findings that have not yet been asked.
 ---
 
 ## Q13.8 [DOMAIN-5] Session Markov Chain — why are prefetch cache hits and predictions at zero?
-**Status**: PENDING
+**Status**: DONE
 **Mode**: benchmark
 **Target**: Session Markov Chain feature (/admin/features/stats)
 **Hypothesis**: The Markov Chain feature reports 3,988 file visits tracked and 2,256 transition pairs learned, but 0 prefetch cache hits and 0 predictions generated. The feature is accumulating state but never firing. Likely causes: (a) the prefetch trigger threshold is set too high, (b) the prefetch write path is broken and silently fails, (c) the hook consuming prefetched results was never wired to the retrieval path, or (d) prediction TTL expires before any prompt arrives to consume them.
@@ -821,3 +821,29 @@ findings that have not yet been asked.
 
 **Derived from**: Live dashboard eval (2026-03-15) — 3,988 file visits, 2,256 transition pairs, prefetch_cache_hits=0 and predictions_generated=0 despite feature status "active"
 **Simulation path**: benchmark-engineer reads Markov Chain source, checks prefetch write path and hook wiring, tests manual trigger against live system
+
+## Q13.8a [DOMAIN-5] Markov Chain transition confidence — after fixing the tag bug, how many file pairs have ≥5 transitions?
+**Status**: DONE
+**Mode**: benchmark
+**Target**: Redis keys recall:markov:trans:* (HGETALL on a sample of trans keys)
+**Hypothesis**: After the tag vocabulary fix is applied, prefetch will only deliver value for file pairs with enough transition history to produce confident predictions. If most file pairs have only 1–2 observed transitions (driven by one-off session patterns), the Markov model will generate noisy predictions. The fix is necessary but may not be sufficient for meaningful value.
+**Test**: Sample all recall:markov:trans:* keys. For each, get the top transition count. Distribution: what fraction of source files have a highest-count transition ≥5? ≥10? Report the top-20 most confident file transition pairs (source → predicted, count).
+**Verdict threshold**:
+- FAILURE: <10% of source files have any transition with count ≥5 (insufficient history for reliable prediction)
+- WARNING: 10–30% of source files have transitions ≥5 (marginal — some predictions reliable, most noisy)
+- HEALTHY: ≥30% of source files have transitions ≥5 (enough stable patterns for the prefetch to deliver value)
+
+**Derived from**: Q13.8 FAILURE finding — tag vocabulary mismatch root cause identified; question is whether the learning side has accumulated enough data to justify fixing the prediction side
+
+## Q13.8b [DOMAIN-5] Markov prefetch O(N) scan — does build_prefetch_cache need scroll_all() or can it use a targeted tag filter?
+**Status**: DONE
+**Mode**: correctness
+**Target**: C:/Users/trg16/Dev/Recall/src/core/markov_chain.py — build_prefetch_cache implementation
+**Hypothesis**: build_prefetch_cache currently calls qdrant_store.scroll_all() (O(N) — 20,560 memories) then filters Python-side for file: tags. After the tag fix, this should be replaced with a targeted Qdrant tag filter: {must: [{key: "tags", match: {any: ["file:foo", "file:bar"]}}]} which is O(matching memories) instead of O(total corpus). At current corpus size the difference is ~20,560 reads vs ~1–5 reads. As corpus grows, the current approach becomes increasingly expensive.
+**Test**: Check whether qdrant_store exposes a filtered scroll method. Review the scroll_all() caller signature. Confirm that the Qdrant collection has a payload index on the "tags" field (required for efficient tag filter). If no payload index exists, a filter scan is still O(N) at the Qdrant layer.
+**Verdict threshold**:
+- FAILURE: No payload index on tags field AND no targeted search method available; scroll_all() is the only option
+- WARNING: Targeted filter available but tags field has no payload index (filter scan still O(N) at Qdrant level)
+- HEALTHY: Targeted filter available AND tags field has a payload index (O(matching) retrieval)
+
+**Derived from**: Q13.8 FAILURE finding — O(N) scroll_all() identified as secondary performance concern; fix should address both the tag vocabulary mismatch AND the search efficiency
