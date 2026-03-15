@@ -967,7 +967,7 @@ The total implementation cost for all five Wave 22 fix specifications is ≤38 L
 
 ---
 
-## 14. Wave 21 Results (Q21.1–Q21.6)
+## 15. Wave 21 Results (Q21.1–Q21.6)
 
 ### Overview
 
@@ -1031,7 +1031,7 @@ Waves 13–21 have produced characterizations without deployed remediation. Howe
 
 ---
 
-## 15. Wave 20 Results (Q20.1–Q20.6)
+## 16. Wave 20 Results (Q20.1–Q20.6)
 
 ### Overview
 
@@ -1056,7 +1056,7 @@ Of 6 questions: 4 HEALTHY (Q20.2, Q20.3, Q20.4, Q20.6), 1 WARNING (Q20.1), 1 FAI
 
 ---
 
-## 16. Wave 19 Results (Q19.1–Q19.6)
+## 17. Wave 19 Results (Q19.1–Q19.6)
 
 ### Overview
 
@@ -1081,7 +1081,7 @@ Of 6 questions: 2 HEALTHY (Q19.1, Q19.2), 3 WARNING (Q19.3, Q19.4, Q19.5), 1 FAI
 
 ---
 
-## 17. Wave 18 Results (Q18.1–Q18.5)
+## 18. Wave 18 Results (Q18.1–Q18.5)
 
 ### Overview
 
@@ -1105,7 +1105,7 @@ Of 5 questions: 2 HEALTHY (Q18.3, Q18.4), 2 WARNING (Q18.1, Q18.2), 1 INCONCLUSI
 
 ---
 
-## 18. Wave 17 Status (Q16.3a, Q16.4a — PENDING)
+## 19. Wave 17 Status (Q16.3a, Q16.4a — PENDING)
 
 Wave 17 was planned as a post-deployment verification wave with two questions:
 
@@ -1119,7 +1119,7 @@ These two questions remain the highest-priority measurement questions in the que
 
 ---
 
-## 19. Wave 16 Results (Q16.1–Q16.5, Q16.3b, Q16.4b)
+## 20. Wave 16 Results (Q16.1–Q16.5, Q16.3b, Q16.4b)
 
 ### Overview
 
@@ -1143,7 +1143,7 @@ Of 7 questions: 1 HEALTHY (Q16.3b), 2 FAILURE (Q16.3, Q16.4), 1 FAILURE/Medium (
 
 ---
 
-## 20. Waves 15 and 14 Results (archived from prior synthesis — condensed)
+## 21. Waves 15 and 14 Results (archived from prior synthesis — condensed)
 
 **Wave 15** (Q15.1–Q15.5): Dedup observability crisis confirmed — three independent code paths produce zero audit entries, zero log entries, no Prometheus counter. Global LLM timeout 180s applies to all callers; 43 confirmed >60s events; per-call override does not exist. Q15.4 ruled out length-based pre-filtering. Q15.5 identified newline-density guard as a practical fast-fail alternative for dense single-line content.
 
@@ -1151,7 +1151,7 @@ Of 7 questions: 1 HEALTHY (Q16.3b), 2 FAILURE (Q16.3, Q16.4), 1 FAILURE/Medium (
 
 ---
 
-## 21. Cross-Wave Patterns (Waves 1–33)
+## 22. Cross-Wave Patterns (Waves 1–34)
 
 ### Pattern 1: Dedup observability gap — three waves, four sites, zero remediation (Q14.3, Q15.1, Q15.2, Q16.1, Q16.2, Q16.4) — SYSTEMIC / STALLED — Q20.4 confirms threshold correct
 
@@ -1215,7 +1215,7 @@ The hygiene archival cron has been running daily at 4am with zero output for the
 
 ---
 
-## 22. Prioritized Remediation Roadmap (Current State, post Wave 33)
+## 23. Prioritized Remediation Roadmap (Current State, post Wave 34)
 
 Based on severity, feasibility, and number of waves confirming the gap. Items marked with `[N waves]` have been confirmed across multiple investigation cycles without remediation. **Wave 25 updates are bolded.**
 
@@ -1287,7 +1287,7 @@ Note: Markov feature should remain disabled (build_prefetch_cache short-circuite
 
 ---
 
-## 23. Open Threads for Wave 34+
+## 24. Open Threads for Wave 35+
 
 **Critical requirement**: Wave 31 MUST begin with a deployment check. Nineteen consecutive waves (Waves 12–30) have produced characterizations with zero deployed remediation. The Tier 0 double-decay fix (~3 lines) has been confirmed undeployed 18 times. **Before running any questions, Wave 30 should check: has any code changed in the repo since Wave 29? If yes, run post-fix verification questions. If no (still the same code), continue with time-sensitive verification below.**
 
@@ -1340,7 +1340,7 @@ Q28.7 was INCONCLUSIVE pending Q28.1 and Week 13 dates. Q27.7 projected ~128 arc
 
 ---
 
-## 24. Residual Risk Inventory (Current State, post Wave 33)
+## 25. Residual Risk Inventory (Current State, post Wave 34)
 
 | Risk | Severity | Likelihood | Trigger | Status |
 |------|---------|-----------|---------|--------|
@@ -1381,7 +1381,7 @@ Q28.7 was INCONCLUSIVE pending Q28.1 and Week 13 dates. Q27.7 projected ~128 arc
 
 ---
 
-## 25. Waves 1�12 Baseline (summary, not modified)
+## 26. Waves 1�12 Baseline (summary, not modified)
 
 Waves 1–12 produced 35 HEALTHY findings and 5 committed fixes covering: p99 search latency well under threshold at 40 concurrent users (Q1.1–Q1.4); domain isolation correct under concurrent writes (Q2.1); graph traversal guarded against cycles (Q3.4); all 4 background workers with structured exception logging (Q5.3); asyncio.Lock added to all async-mutated module-level state (Q7.1, e73858f); Pydantic v2 migration complete (Q7.2, 033ede9); datetime.utcnow() sweep complete across 23 files (Q6.7, 9cec9f4); all 4 worker test suites written and passing (Q5.7, Q7.6); embed_batch per-item fallback confirmed observable (Q6.1, 26da1aa); stdlib/structlog mismatch eliminated across all 77 src/ files (Q7.4). These findings remain confirmed holding.
 
@@ -1402,3 +1402,48 @@ Q34.7 identified 644 premature casualties — floor-clamped memories (importance
 **Step 3 (this week):** Fix hygiene cron (never fired since Feb 14). Register the hygiene task in `cron_jobs`. Without this, floor-clamped and expired memories have no automated drain.
 
 No further characterization waves are justified until Step 0 (bulk re-score) and Steps 1–2 (code fixes) are executed. The 16.6-day deadline is the binding constraint.
+
+
+---
+
+## 27. Wave 35-36 Findings: Amnesty Execution and Crisis Triage (2026-03-15)
+
+**Updated**: 2026-03-15 (Waves 35-36 complete -- 12 additional findings)
+
+### Wave 35 Summary (2 FAILURE, 3 WARNING, 1 HEALTHY)
+
+**Q35.1 FAILURE** -- rehabilitate endpoint uses >= 0.05 (misses floor at exactly 0.050); never run.
+**Q35.2 WARNING** -- hygiene ran once (2026-03-15T14:47 UTC, first ever); 0 candidates scanned.
+**Q35.3 FAILURE** -- 846 floor-clamped null-pool (+202 from Q34.7); development domain 229 (>100 FAILURE threshold); 413/846 (48.8%) in critical domains.
+**Q35.4 WARNING** -- 2/3 fixes deployed; Fix-1 (qdrant.py uid>0 guard) NOT DEPLOYED; double-decay continues.
+**Q35.5 WARNING** -- POST /admin/importance/amnesty?dry_run=false can rescue floor-clamped (4,173 eligible in dry-run); rehabilitate broken; amnesty is the only no-code mitigation.
+**Q35.6 HEALTHY** -- 0 net floor-clamped change over 2h14m (no consolidation run in window).
+
+### Wave 36 Summary (4 HEALTHY, 2 WARNING)
+
+**Q36.1 HEALTHY** -- Amnesty ran live 2026-03-15T15:42 UTC: 4,173 of 5,211 floor-clamped rescued (80.1%). Null-pool 846 reduced to ~1 eligible residual (99.9% rescue rate). 0.0-0.2 importance bucket: ~23% -> 3.9% of active corpus. 899 skipped (ephemeral/pinned/permanent -- correctly excluded). Amnesty writes no audit rows (observability gap).
+
+**Q36.2 WARNING** -- Hygiene 0-candidate is CORRECT. Oldest memory: 2026-02-14 (29 days). Hygiene cutoff: 2026-02-13 (30 days). Zero memories older than 30 days. Filter implementation is correct. First eligibility opens 2026-03-16.
+
+**Q36.3 HEALTHY** -- One-char rehabilitate fix (>= to >) would rescue ~838/846 (99.1%) via durable branch. Only ~8 ephemeral ac<3 permanently stranded. Amnesty+rehabilitate combined >99% rescue. Over-inflation risk LOW.
+
+**Q36.4 HEALTHY** -- Post-amnesty: only 5 memories still eligible (importance 0.37-0.40, naturally decayed post-run -- not v3.2.5 victims). Null-pool residual ~1. Crisis structurally resolved.
+
+**Q36.5 WARNING** -- Fix-1 safe but edge cases: 74 FamilyHub memories (uid 53-71) exist and correctly stay in per-user loop. 3 other callers of get_distinct_user_ids (patterns.py, dream_consolidation.py, consolidation.py) have no system fallback (pre-existing gap). Deployment requires: docker compose restart recall-worker.
+
+**Q36.6 HEALTHY** -- N3 (stranded) ~8 (threshold FAILURE >500). Graph strength does NOT gate amnesty eligibility -- it modulates boost amount only. N2 segment does not exist.
+
+### Revised Action Checklist (post-Wave 36)
+
+The Wave 34 16.6-day urgency is RESOLVED. Amnesty executed 2026-03-15.
+
+| Step | Action | Status |
+|------|--------|--------|
+| Step 0 | Run amnesty | DONE (4,173 rescued) |
+| Step 0b | Fix rehabilitate filter (>= to >) | OPEN (admin.py:1123) |
+| Step 1 | Deploy qdrant.py Fix-1 (uid>0 guard) | OPEN -- only remaining fix to stop double-decay |
+| Step 2 | Consolidation user_id fix | DEPLOYED |
+| Step 3 | Hygiene cron | REGISTERED + RUNNING (0 candidates; system <30 days) |
+| Step 4 | Amnesty audit trail | OPEN (bulk ops leave no audit rows) |
+
+Remaining critical path: Deploy qdrant.py Fix-1 (if uid is not None and uid > 0:) with docker compose restart recall-worker. 74 FamilyHub users (uid 53-71) correctly processed in per-user loop after fix.

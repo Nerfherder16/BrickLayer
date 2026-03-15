@@ -3462,10 +3462,10 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 
 ---
 
-## Wave 36 Questions — Amnesty Execution, Hygiene 0-Candidate Root Cause, Rehabilitate Fix Analysis, Fix-1 Deployment Triage
+## Wave 36 Questions ï¿½ Amnesty Execution, Hygiene 0-Candidate Root Cause, Rehabilitate Fix Analysis, Fix-1 Deployment Triage
 
-## Q36.1 [DOMAIN-5] Amnesty endpoint live run — rescue floor-clamped memories without code deployment
-**Status**: PENDING
+## Q36.1 [DOMAIN-5] Amnesty endpoint live run ï¿½ rescue floor-clamped memories without code deployment
+**Status**: DONE (HEALTHY)
 **Wave**: 36
 **Mode**: operational action
 **Target**: POST /admin/importance/amnesty?dry_run=false (CasaOS 192.168.50.19:8200); GET /admin/audit?action=amnesty&limit=5; post-run floor-clamped count via Qdrant scroll
@@ -3481,13 +3481,13 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 - FAILURE: Endpoint returns error; OR boosted count < 500; OR audit log shows no entry (silent failure)
 - WARNING: boosted >= 500 but < 2,000; OR post-run floor-clamped reduced by < 50% of the 846 null-pool casualties
 - HEALTHY: boosted >= 2,000; post-run null-pool floor-clamped reduced by >= 50%; audit entry confirmed
-**Priority**: Tier 0 — immediate actionable rescue; no code deployment required; 16.6-day hygiene window makes this time-critical
+**Priority**: Tier 0 ï¿½ immediate actionable rescue; no code deployment required; 16.6-day hygiene window makes this time-critical
 **Derived from**: Q35.5 WARNING (amnesty dry-run shows 4,173 boostable; only actionable no-code mitigation); Q35.1 FAILURE (rehabilitate endpoint broken); Q34.7 FAILURE (644 premature casualties; bulk re-score mandatory); Q35.3 FAILURE (846 floor-clamped, up from 644)
 
 ---
 
-## Q36.2 [DOMAIN-4] Hygiene 0-candidate root cause — why did scroll_hygiene_candidates return 0 on first run?
-**Status**: PENDING
+## Q36.2 [DOMAIN-4] Hygiene 0-candidate root cause ï¿½ why did scroll_hygiene_candidates return 0 on first run?
+**Status**: DONE (WARNING)
 **Wave**: 36
 **Mode**: code analysis
 **Target**: C:/Users/trg16/Dev/Recall/src/storage/qdrant.py (scroll_hygiene_candidates); C:/Users/trg16/Dev/Recall/src/workers/hygiene.py; system memory age distribution
@@ -3507,8 +3507,8 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 
 ---
 
-## Q36.3 [DOMAIN-5] Rehabilitate one-char fix — coverage of floor-clamped after correcting >= to >
-**Status**: PENDING
+## Q36.3 [DOMAIN-5] Rehabilitate one-char fix ï¿½ coverage of floor-clamped after correcting >= to >
+**Status**: DONE (HEALTHY)
 **Wave**: 36
 **Mode**: code analysis + impact projection
 **Target**: C:/Users/trg16/Dev/Recall/src/api/routes/admin.py lines 1097-1160 (full rehabilitate function)
@@ -3528,8 +3528,8 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 
 ---
 
-## Q36.4 [DOMAIN-1] Post-amnesty residual — how many floor-clamped remain after amnesty and their characteristics?
-**Status**: PENDING
+## Q36.4 [DOMAIN-1] Post-amnesty residual ï¿½ how many floor-clamped remain after amnesty and their characteristics?
+**Status**: DONE (HEALTHY)
 **Wave**: 36
 **Mode**: quantitative analysis
 **Target**: Qdrant scroll post-Q36.1 for null-user_id + importance <= 0.051 + superseded_by IS NULL; domain and durability cross-tabulation
@@ -3549,8 +3549,8 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 
 ---
 
-## Q36.5 [DOMAIN-4] Fix-1 deployment risk — uid>0 guard interaction with deployed Fix-2 and Fix-3
-**Status**: PENDING
+## Q36.5 [DOMAIN-4] Fix-1 deployment risk ï¿½ uid>0 guard interaction with deployed Fix-2 and Fix-3
+**Status**: DONE (WARNING)
 **Wave**: 36
 **Mode**: code analysis
 **Target**: C:/Users/trg16/Dev/Recall/src/storage/qdrant.py (get_distinct_user_ids lines 1200-1215); C:/Users/trg16/Dev/Recall/src/workers/decay.py (per-user loop and explicit system block)
@@ -3570,8 +3570,8 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 
 ---
 
-## Q36.6 [DOMAIN-1] Graph connectivity of floor-clamped premature casualties — amnesty eligibility mapping
-**Status**: PENDING
+## Q36.6 [DOMAIN-1] Graph connectivity of floor-clamped premature casualties ï¿½ amnesty eligibility mapping
+**Status**: DONE (HEALTHY)
 **Wave**: 36
 **Mode**: quantitative analysis
 **Target**: Qdrant scroll for 846 floor-clamped null-pool memory IDs; Neo4j graph query for edge counts; Qdrant payload durability field
