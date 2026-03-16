@@ -24,7 +24,7 @@ def parse_questions() -> list[dict]:
         re.MULTILINE,
     )
     field_pattern = re.compile(
-        r"^\*\*(Mode|Target|Hypothesis|Test|Verdict threshold|Agent|Finding|Source)\*\*:\s*(.+?)(?=\n\*\*|\Z)",
+        r"^\*\*(Mode|Target|Hypothesis|Test|Verdict threshold|Agent|Finding|Source|Operational Mode|Resume After)\*\*:\s*(.+?)(?=\n\*\*|\Z)",
         re.MULTILINE | re.DOTALL,
     )
 
@@ -73,6 +73,8 @@ def parse_questions() -> list[dict]:
                 "agent_name": fields.get("agent", "").strip(),
                 "finding": fields.get("finding", "").strip(),
                 "source": fields.get("source", "").strip(),
+                "operational_mode": fields.get("operational_mode", "diagnose"),
+                "resume_after": fields.get("resume_after", "").strip(),
             }
         )
 
@@ -92,11 +94,41 @@ def get_question_status(qid: str) -> str:
     return "PENDING"
 
 
+_PARKED_STATUSES = frozenset(
+    (
+        "DIAGNOSIS_COMPLETE",
+        "PENDING_EXTERNAL",
+        "DONE",
+        "INCONCLUSIVE",
+        "FIXED",
+        "FIX_FAILED",
+        "COMPLIANT",
+        "NON_COMPLIANT",
+        "CALIBRATED",
+        "BLOCKED",
+    )
+)
+
+
 def get_next_pending(questions: list[dict]) -> dict | None:
-    """Return the first PENDING question, or None."""
+    """Return the first PENDING question, skipping parked/terminal statuses."""
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
     for q in questions:
-        if q["status"] == "PENDING":
-            return q
+        if q["status"] in _PARKED_STATUSES:
+            continue
+        if q["status"] != "PENDING":
+            continue
+        resume_after = q.get("resume_after", "")
+        if resume_after:
+            try:
+                gate = datetime.fromisoformat(resume_after.replace("Z", "+00:00"))
+                if now < gate:
+                    continue
+            except ValueError:
+                pass
+        return q
     return None
 
 
@@ -124,9 +156,53 @@ def sync_status_from_results() -> int:
         parts = line.split("\t")
         if len(parts) >= 2 and parts[0] not in ("question_id", ""):
             verdict = parts[1].strip()
-            if verdict in ("HEALTHY", "WARNING", "FAILURE", "INCONCLUSIVE"):
+            _TERMINAL_VERDICTS = frozenset(
+                {
+                    "HEALTHY",
+                    "WARNING",
+                    "FAILURE",
+                    "INCONCLUSIVE",
+                    "DIAGNOSIS_COMPLETE",
+                    "PENDING_EXTERNAL",
+                    "FIXED",
+                    "FIX_FAILED",
+                    "PROMISING",
+                    "WEAK",
+                    "BLOCKED",
+                    "CALIBRATED",
+                    "UNCALIBRATED",
+                    "NOT_MEASURABLE",
+                    "COMPLIANT",
+                    "NON_COMPLIANT",
+                    "PARTIAL",
+                    "NOT_APPLICABLE",
+                    "IMPROVEMENT",
+                    "REGRESSION",
+                    "IMMINENT",
+                    "PROBABLE",
+                    "POSSIBLE",
+                    "UNLIKELY",
+                    "OK",
+                    "DEGRADED",
+                    "ALERT",
+                    "UNKNOWN",
+                    "SUBJECTIVE",
+                    "DEGRADED_TRENDING",
+                }
+            )
+            if verdict in _TERMINAL_VERDICTS:
                 done_ids[parts[0]] = (
-                    "DONE" if verdict != "INCONCLUSIVE" else "INCONCLUSIVE"
+                    verdict
+                    if verdict
+                    in (
+                        "INCONCLUSIVE",
+                        "DIAGNOSIS_COMPLETE",
+                        "PENDING_EXTERNAL",
+                        "FIXED",
+                        "FIX_FAILED",
+                        "BLOCKED",
+                    )
+                    else "DONE"
                 )
 
     # Update questions.md

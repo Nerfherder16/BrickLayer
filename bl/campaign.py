@@ -21,6 +21,22 @@ from bl.runners.agent import _strip_frontmatter
 
 
 # ---------------------------------------------------------------------------
+# BL 2.0: Mode context loader
+# ---------------------------------------------------------------------------
+
+
+def _load_mode_context(operational_mode: str) -> str:
+    """Load the mode program markdown for the given operational mode."""
+    if not operational_mode:
+        return ""
+    modes_dir = cfg.project_root / "modes"
+    mode_file = modes_dir / f"{operational_mode}.md"
+    if mode_file.exists():
+        return mode_file.read_text(encoding="utf-8")
+    return ""
+
+
+# ---------------------------------------------------------------------------
 # Core run-and-record
 # ---------------------------------------------------------------------------
 
@@ -32,6 +48,14 @@ def run_and_record(question: dict) -> dict:
         f"Running {qid} [{question['mode']}]: {question['title']}",
         file=sys.stderr,
     )
+    # BL 2.0: inject operational mode context
+    op_mode = question.get("operational_mode", "")
+    if op_mode:
+        mode_ctx = _load_mode_context(op_mode)
+        if mode_ctx:
+            question = dict(question)
+            question["mode_context"] = mode_ctx
+
     result = run_question(question)
     failure_type = classify_failure_type(result, question["mode"])
     if failure_type:
@@ -421,9 +445,56 @@ def _preflight_mode_check(pending: list[dict]) -> list[dict]:
     return runnable
 
 
+def _reactivate_pending_external(questions: list[dict]) -> int:
+    """
+    Re-activate PENDING_EXTERNAL questions whose resume_after date has passed.
+    Updates results.tsv to remove the row so the question becomes PENDING again.
+    Returns count of reactivated questions.
+    """
+    from datetime import datetime, timezone
+
+    if not cfg.results_tsv.exists():
+        return 0
+
+    now = datetime.now(timezone.utc)
+    reactivated = 0
+
+    lines = cfg.results_tsv.read_text(encoding="utf-8", errors="replace").splitlines()
+    new_lines = []
+    for line in lines:
+        parts = line.split("\t")
+        if len(parts) >= 2 and parts[1].strip() == "PENDING_EXTERNAL":
+            qid = parts[0]
+            q = next((q for q in questions if q["id"] == qid), None)
+            resume_after = q.get("resume_after", "") if q else ""
+            reactivate = False
+            if resume_after:
+                try:
+                    gate = datetime.fromisoformat(resume_after.replace("Z", "+00:00"))
+                    reactivate = now >= gate
+                except ValueError:
+                    reactivate = True
+            else:
+                reactivate = True
+            if reactivate:
+                print(
+                    f"[campaign] Re-activated {qid} (resume_after elapsed: {resume_after})",
+                    file=sys.stderr,
+                )
+                reactivated += 1
+                continue  # drop row → question becomes PENDING again
+        new_lines.append(line)
+
+    if reactivated:
+        cfg.results_tsv.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    return reactivated
+
+
 def run_campaign() -> None:
     """Run all PENDING questions in sequence with sentinel checks."""
     questions = parse_questions()
+    _reactivate_pending_external(questions)
+    questions = parse_questions()  # re-parse after reactivation
     pending = [q for q in questions if q["status"] == "PENDING"]
     pending = _preflight_mode_check(pending)
 

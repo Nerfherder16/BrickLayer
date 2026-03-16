@@ -101,15 +101,25 @@ Findings in one mode can seed questions in another:
 
 | Source | Trigger | Target mode |
 |--------|---------|-------------|
-| Frontier PROMISING | Human approves idea | Research — stress-test the idea |
+| Frontier PROMISING (F_now ≥ 0.3) | Human approves | Research — stress-test the idea's assumptions |
+| Frontier PROMISING (F_now < 0.3) | Human approves | Validate — confirm design before building prerequisites |
+| Frontier BLOCKED | Prerequisite identified | Diagnose — trace what is missing |
+| Research HEALTHY (all assumptions) | All assumptions confirmed | Validate — review the design |
 | Research FAILURE | Critical assumption refuted | Frontier — rethink the concept |
-| Validate FAILURE | Design flaw found | Diagnose — find root cause in existing system |
+| Validate FAILURE (new system) | Design flaw, no deployed code yet | Research — revisit assumptions |
+| Validate FAILURE (existing system) | Behavior mismatch with deployed code | Diagnose — find root cause |
 | Diagnose DIAGNOSIS_COMPLETE | Root cause + fix spec | Fix — implement it |
 | Fix FIXED | Verified | Benchmark — measure the delta |
+| Fix FIXED | Verified | Monitor — add fixed metric to monitoring targets |
+| Fix FIX_FAILED | Fix approach wrong | Diagnose — re-investigate with updated hypothesis |
+| Benchmark CALIBRATED | Baseline established | Evolve — improve against the baseline |
+| Benchmark UNCALIBRATED | Cannot measure | Diagnose — investigate why measurement fails |
 | Audit NON_COMPLIANT | Gap found | Diagnose — trace root cause |
 | Monitor ALERT | Threshold crossed | Diagnose — investigate the metric |
+| Monitor DEGRADED (sustained) | Degradation pattern persists | Predict — project cascade risk |
 | Predict IMMINENT | Cascade identified | Fix — prioritize that finding |
 | Evolve IMPROVEMENT | Baseline updated | Benchmark — record new baseline |
+| Evolve REGRESSION | Improvement caused regression | Fix — treat as DIAGNOSIS_COMPLETE |
 
 ---
 

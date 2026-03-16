@@ -275,7 +275,12 @@ If the action is infeasible, record: "remediation_infeasible: projected_delta={d
 This prevents applying ineffective patches that create false confidence.
 """
 
-    full_prompt = f"""{doctrine_prefix}{agent_prompt}
+    mode_ctx = question.get("mode_context", "")
+    mode_ctx_block = (
+        f"## Operational Mode Program\n\n{mode_ctx}\n\n---\n\n" if mode_ctx else ""
+    )
+
+    full_prompt = f"""{mode_ctx_block}{doctrine_prefix}{agent_prompt}
 
 ---
 
