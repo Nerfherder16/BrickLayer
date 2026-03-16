@@ -2941,7 +2941,7 @@ Time anchor: Wave 33 runs AFTER 2026-03-16T05:30 UTC (Sunday reconcile window) a
 ---
 
 ## Q33.1 [DOMAIN-2] Hygiene cron — did the 2026-03-16T04:00 UTC window fire (9th check)?
-**Status**: PENDING
+**Status**: DONE (WARNING)
 **Wave**: 33
 **Mode**: observability
 **Target**: GET /admin/audit?action=hygiene_run&limit=10; GET /admin/audit?action=archive&limit=20; GET /admin/audit?action=auto_archive&limit=10
@@ -3049,7 +3049,7 @@ Time anchor: Wave 33 runs AFTER 2026-03-16T05:30 UTC (Sunday reconcile window) a
 ---
 
 ## Q33.3 [DOMAIN-1] Floor-clamped 24h rate — true daily accumulation from Q31.3 baseline (re-run of Q32.3)
-**Status**: PENDING
+**Status**: DONE (INCONCLUSIVE)
 **Wave**: 33
 **Mode**: quantitative analysis
 **Target**: GET /admin/export (all memories) or GET /admin/stats with importance distribution; filter importance <= 0.051 AND access_count = 0
@@ -3071,7 +3071,7 @@ Time anchor: Wave 33 runs AFTER 2026-03-16T05:30 UTC (Sunday reconcile window) a
 ---
 
 ## Q33.4 [DOMAIN-3] Sunday reconcile cron — post-hoc verification that the 2026-03-16T05:30 UTC run fired
-**Status**: PENDING
+**Status**: DONE (FAILURE)
 **Wave**: 33
 **Mode**: observability
 **Target**: GET /admin/audit?action=reconcile&limit=10; note timestamps relative to 2026-03-16T05:30 UTC
@@ -3092,7 +3092,7 @@ Time anchor: Wave 33 runs AFTER 2026-03-16T05:30 UTC (Sunday reconcile window) a
 ---
 
 ## Q33.5 [DOMAIN-1] Importance mismatch 24h trajectory — sustained or burst? (re-run of Q32.5 at 24h mark)
-**Status**: PENDING
+**Status**: DONE (FAILURE)
 **Wave**: 33
 **Mode**: quantitative analysis
 **Target**: POST /admin/reconcile (repair=false); note importance_mismatches in response; compute rate from Q31.5 repair baseline
@@ -3115,7 +3115,7 @@ Time anchor: Wave 33 runs AFTER 2026-03-16T05:30 UTC (Sunday reconcile window) a
 ---
 
 ## Q33.6 [DOMAIN-3] Superseded pool 24h rate — reliable daily measurement at Q31.6 baseline + 24h (re-run of Q32.7)
-**Status**: PENDING
+**Status**: DONE (WARNING)
 **Wave**: 33
 **Mode**: quantitative analysis
 **Target**: GET /admin/stats (active count); POST /admin/reconcile (qdrant_total); compute superseded = qdrant_total − active
