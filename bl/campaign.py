@@ -56,6 +56,29 @@ def run_and_record(question: dict) -> dict:
             question = dict(question)
             question["mode_context"] = mode_ctx
 
+    # BL 2.0: inject session context from previous findings this session
+    session_ctx_path = cfg.project_root / "session-context.md"
+    session_context = ""
+    if session_ctx_path.exists():
+        text = session_ctx_path.read_text(encoding="utf-8")
+        session_context = text[-2000:] if len(text) > 2000 else text
+    if session_context:
+        question = dict(question)
+        question["session_context"] = session_context
+
+    # BL 2.0: search Recall for relevant prior context (optional, graceful-fail)
+    try:
+        from bl.recall_bridge import search_before_question
+
+        project_name = cfg.project_root.name
+        recall_ctx = search_before_question(question, project_name)
+        if recall_ctx:
+            question = dict(question)  # may already be a copy from above
+            existing_ctx = question.get("session_context", "")
+            question["session_context"] = (recall_ctx + "\n" + existing_ctx).strip()
+    except Exception:
+        pass  # Recall bridge is optional — never block campaign on it
+
     result = run_question(question)
     failure_type = classify_failure_type(result, question["mode"])
     if failure_type:
@@ -101,6 +124,20 @@ def run_and_record(question: dict) -> dict:
                 qid, "HEALTHY", fixed_result.get("summary", "Fixed"), None
             )
             result = fixed_result
+
+    # BL 2.0: append one-line insight to session-context.md
+    insight_line = f"[{qid}] {result['verdict']} [{question.get('operational_mode', question['mode'])}]: {result['summary'][:120]}\n"
+    with open(session_ctx_path, "a", encoding="utf-8") as f:
+        f.write(insight_line)
+
+    # BL 2.0: store significant findings to Recall
+    try:
+        from bl.recall_bridge import store_finding
+
+        project_name = cfg.project_root.name
+        store_finding(question, result, project_name)
+    except Exception:
+        pass  # optional — never block campaign on it
 
     print(json.dumps(result, indent=2))
     print(f"\nFinding written to: {finding_path}", file=sys.stderr)

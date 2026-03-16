@@ -280,7 +280,14 @@ This prevents applying ineffective patches that create false confidence.
         f"## Operational Mode Program\n\n{mode_ctx}\n\n---\n\n" if mode_ctx else ""
     )
 
-    full_prompt = f"""{mode_ctx_block}{doctrine_prefix}{agent_prompt}
+    session_ctx = question.get("session_context", "")
+    session_ctx_block = (
+        f"## Session Context (recent findings)\n\n{session_ctx}\n\n---\n\n"
+        if session_ctx
+        else ""
+    )
+
+    full_prompt = f"""{mode_ctx_block}{session_ctx_block}{doctrine_prefix}{agent_prompt}
 
 ---
 
