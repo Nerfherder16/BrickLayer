@@ -110,7 +110,7 @@ def run_and_record(question: dict) -> dict:
         if followup_ids:
             result["followup_questions"] = followup_ids
 
-    # C-06: fix loop — attempt to repair FAILURE automatically (opt-in)
+    # C-06: fix loop — attempt to repair FAILURE automatically (opt-in, BL 1.x)
     if (
         result.get("verdict") == "FAILURE"
         and os.environ.get("BRICKLAYER_FIX_LOOP") == "1"
@@ -124,6 +124,18 @@ def run_and_record(question: dict) -> dict:
                 qid, "HEALTHY", fixed_result.get("summary", "Fixed"), None
             )
             result = fixed_result
+
+    # BL 2.0: self-healing loop — diagnose-analyst → fix-implementer → repeat (opt-in)
+    if (
+        result.get("verdict") in ("FAILURE", "DIAGNOSIS_COMPLETE")
+        and os.environ.get("BRICKLAYER_HEAL_LOOP") == "1"
+    ):
+        from bl.healloop import run_heal_loop
+
+        heal_finding_path = cfg.findings_dir / f"{qid}.md"
+        healed_result = run_heal_loop(question, result, heal_finding_path)
+        if healed_result.get("verdict") != result.get("verdict"):
+            result = healed_result
 
     # BL 2.0: append one-line insight to session-context.md
     insight_line = f"[{qid}] {result['verdict']} [{question.get('operational_mode', question['mode'])}]: {result['summary'][:120]}\n"
