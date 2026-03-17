@@ -24,7 +24,7 @@ app.add_middleware(
 
 def get_project_path(project: str | None = None) -> Path:
     path_str = project or os.environ.get(
-        "AUTOSEARCH_PROJECT", "C:/Users/trg16/Dev/autosearch/adbp"
+        "AUTOSEARCH_PROJECT", "C:/Users/trg16/Dev/Bricklayer2.0/adbp"
     )
     resolved = Path(path_str).resolve()
     base = Path(
