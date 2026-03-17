@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/autosearch/recall/.claude/hooks/bricklayer-stop-guard.js"
+          }
+        ]
+      }
+    ]
+  }
+}
