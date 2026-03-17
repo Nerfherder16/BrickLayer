@@ -1,0 +1,8 @@
+{
+  "name": "bl2",
+  "display_name": "BrickLayer 2.0 Engine",
+  "recall_src": "C:/Users/trg16/Dev/autosearch",
+  "target_live_url": "none",
+  "stack": ["Python"],
+  "fix_branch_prefix": "bl2-fix/"
+}

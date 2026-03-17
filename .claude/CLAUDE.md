@@ -91,19 +91,29 @@ Open: http://localhost:3100
 
 ## Starting the Research Loop
 
+> **IMPORTANT — always set `DISABLE_OMC=1` before launching BrickLayer.**
+> BrickLayer runs in its own isolated `claude` subprocess. Without this, OMC hooks in the
+> parent session will intercept agent spawns and replace BrickLayer's domain-specific agents
+> (benchmark-engineer, quantitative-analyst, etc.) with OMC's generic agents, breaking the loop.
+
 **New project — after question bank is ready:**
 ```bash
 cd C:/Users/trg16/Dev/autosearch/{project}
 git init && git add . && git commit -m "chore: init {project} autoresearch"
 git checkout -b {project}/$(date +%b%d | tr '[:upper:]' '[:lower:]')
-claude --dangerously-skip-permissions "Read program.md and questions.md. Begin the research loop from the first PENDING question. If any file edit fails, follow the self-recovery steps in program.md immediately — do not pause. NEVER STOP."
+DISABLE_OMC=1 claude --dangerously-skip-permissions "Read program.md and questions.md. Begin the research loop from the first PENDING question. If any file edit fails, follow the self-recovery steps in program.md immediately — do not pause. NEVER STOP."
 ```
 
 **Resuming an existing project:**
 ```bash
 cd C:/Users/trg16/Dev/autosearch/{project}
 git checkout -b {project}/$(date +%b%d | tr '[:upper:]' '[:lower:]')
-claude --dangerously-skip-permissions "Read program.md, questions.md, and findings/synthesis.md. Resume the research loop from the first PENDING question. If any file edit fails, follow the self-recovery steps in program.md immediately — do not pause. NEVER STOP."
+DISABLE_OMC=1 claude --dangerously-skip-permissions "Read program.md, questions.md, and findings/synthesis.md. Resume the research loop from the first PENDING question. If any file edit fails, follow the self-recovery steps in program.md immediately — do not pause. NEVER STOP."
+```
+
+**PowerShell equivalent (Windows):**
+```powershell
+$env:DISABLE_OMC=1; claude --dangerously-skip-permissions "Read program.md and questions.md. Begin the research loop from the first PENDING question. NEVER STOP."
 ```
 
 **Starting Wave 2 (question bank exhausted):**

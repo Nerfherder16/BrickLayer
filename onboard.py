@@ -577,6 +577,12 @@ def cmd_create(name: str | None) -> None:
         "question_id\tverdict\tsummary\ttimestamp\n", encoding="utf-8"
     )
 
+    # Copy analyze.py and create reports/ for PDF report generation
+    analyze_src = TEMPLATE_DIR / "analyze.py"
+    if analyze_src.exists():
+        shutil.copy(analyze_src, project_dir / "analyze.py")
+    (project_dir / "reports").mkdir(exist_ok=True)
+
     # Write prepare.md
     (project_dir / "prepare.md").write_text(
         PREPARE_TEMPLATE.format(

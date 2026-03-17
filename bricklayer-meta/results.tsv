@@ -1,0 +1,21 @@
+question_id	verdict	summary	failure_type	timestamp
+Q1.1	HEALTHY	Baseline: yield=0.786, coherence=0.670, wave4_floor=0.429		2026-03-16T04:05:20Z
+Q1.2	FAILURE	No novelty cliff with full peer review — model overcorrects at frontier domains	calibration	2026-03-16T04:06:14Z
+Q1.3	FAILURE	No specialization floor at nominal novelty — generalist baseline too high, peer review absorbs gap	calibration	2026-03-16T04:07:08Z
+Q1.4	HEALTHY	Wave ceiling at wave 7 (final_wave_yield=0.143 < floor 0.15); plateau at 29 actionable beyond wave 8		2026-03-16T04:08:08Z
+Q1.5	HEALTHY	Optimum: 12 q/wave (29 actionable); default 7 q/wave efficient at 78.6%; WARNING at 15+		2026-03-16T04:08:16Z
+Q2.1	FAILURE	Empirically 0% OVERRIDE in 14 peer-reviewed findings; BASE_SPECIALIST/GENERALIST_ACCURACY are unvalidated assumptions	VERDICT_DRIFT	2026-03-16T04:11:35Z
+Q2.2	HEALTHY	Signal rate 4.4x increase from early to mid waves (15% to 65%) — adaptive expansion confirmed, simulation saturation model is backwards		2026-03-16T04:12:38Z
+Q2.3	WARNING	Peer review applied in only waves 13-16 (4 of 36 waves), stopped after wave 16; format inconsistency detected	VERDICT_DRIFT	2026-03-16T04:13:26Z
+Q2.4	FAILURE	Fix loop divergence confirmed — double-decay bug re-checked 18 consecutive waves; reconcile audit 5 consecutive; simulation cap of 2 attempts not enforced	FIX_LOOP_DIVERGENCE	2026-03-16T04:14:47Z
+Q3.1	FAILURE	Empirical novelty curve is J-shaped (low early, high late) — opposite of simulation's monotonic decay; simulation model is structurally inverted	COVERAGE_COLLAPSE	2026-03-16T04:15:40Z
+Q3.2	WARNING	Only 9 failure themes; retrieval+decay dominate 83% of findings; 6+ likely failure categories have near-zero coverage; hypothesis generator clustering detected	COVERAGE_COLLAPSE	2026-03-16T04:16:41Z
+Q3.3	HEALTHY	Synthesis coherence excellent — correctly tracks 7 FALSE NEGATIVE reversals, 6-finding investigation chains, 4 deployment blockers; estimated coherence 0.87		2026-03-16T04:17:28Z
+Q3.4	HEALTHY	81.9% novel questions; 8.5% deployment re-checks (true redundancy); 9.6% productive follow-ups; simulation 15% saturation slightly overestimates real rate		2026-03-16T04:18:29Z
+Q4.1	FAILURE	Fix convergence rate ~8% — 23+ open failures at wave 36; human deployment bottleneck is not modeled; BrickLayer is a diagnosis loop not a fix loop	FIX_LOOP_DIVERGENCE	2026-03-16T04:20:37Z
+Q4.2	HEALTHY	0 fix-introduced regressions in 2 deployed fixes; simulation 8% regression rate is too pessimistic for carefully targeted fixes in tested codebase		2026-03-16T04:20:37Z
+Q4.3	WARNING	15.4% INCONCLUSIVE rate from external timing dependencies (cron windows, GC gates); simulation timeout model doesn't capture multi-wave blocking chains	FIX_LOOP_DIVERGENCE	2026-03-16T04:20:37Z
+Q5.1	HEALTHY	BrickLayer already portable to any codebase; 4-step setup (~5-6h); Recall campaign proves multi-service stack portability		2026-03-16T04:22:49Z
+Q5.2	HEALTHY	Research/business portability inherent — evidence collection replaces simulation; bricklayer-meta itself is this use case		2026-03-16T04:22:49Z
+Q5.3	WARNING	Creative domain partially portable — works for constraint-based auditing; fails for aesthetic quality; SUBJECTIVE verdict needed		2026-03-16T04:22:49Z
+Q5.4	HEALTHY	85% universal already; 4 changes (SUBJECTIVE verdict, runner contract, evaluate.py interface, diagnosis/deployment split) complete the framework; ~9 days		2026-03-16T04:22:49Z

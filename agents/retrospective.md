@@ -96,7 +96,7 @@ Do NOT make broad rewrites. Each improvement is a surgical addition to one speci
 After all improvements are applied:
 ```bash
 cd {autosearch_root}
-git add agents/ recall/simulate.py
+git add agents/ simulate.py
 git commit -m "retro({project}): {one-line summary of top improvement}
 
 {bullet list of all changes made}

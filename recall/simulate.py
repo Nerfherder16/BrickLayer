@@ -73,6 +73,7 @@ PROJECT_ROOT = Path(__file__).parent  # recall/ (legacy default)
 FINDINGS_DIR: Path = PROJECT_ROOT / "findings"
 RESULTS_TSV: Path = PROJECT_ROOT / "results.tsv"
 QUESTIONS_MD: Path = PROJECT_ROOT / "questions.md"
+INTROSPECT_LOG: Path = PROJECT_ROOT / "introspect.jsonl"
 AGENTS_DIR = AUTOSEARCH_ROOT / "agents"
 
 # mkdir deferred to init_project to support path overrides
@@ -85,7 +86,7 @@ AGENTS_DIR = AUTOSEARCH_ROOT / "agents"
 def init_project(project_name: str | None) -> None:
     """Load project config from project.json and update module-level path constants."""
     global BASE_URL, API_KEY, AUTH_HEADERS, RECALL_SRC
-    global FINDINGS_DIR, RESULTS_TSV, QUESTIONS_MD
+    global FINDINGS_DIR, RESULTS_TSV, QUESTIONS_MD, INTROSPECT_LOG
 
     if project_name:
         # Search: projects/{name}/ first, then sibling {name}/ (legacy layout)
@@ -117,12 +118,14 @@ def init_project(project_name: str | None) -> None:
         FINDINGS_DIR = project_dir / "findings"
         RESULTS_TSV = project_dir / "results.tsv"
         QUESTIONS_MD = project_dir / "questions.md"
+        INTROSPECT_LOG = project_dir / "introspect.jsonl"
     else:
         # Legacy: use the directory simulate.py lives in
         project_dir = Path(__file__).parent
         FINDINGS_DIR = project_dir / "findings"
         RESULTS_TSV = project_dir / "results.tsv"
         QUESTIONS_MD = project_dir / "questions.md"
+        INTROSPECT_LOG = project_dir / "introspect.jsonl"
 
     FINDINGS_DIR.mkdir(exist_ok=True)
 
@@ -1113,7 +1116,7 @@ def run_agent(question: dict) -> dict:
     if finding_id:
         finding_path = FINDINGS_DIR / f"{finding_id}.md"
         if finding_path.exists():
-            finding_context = finding_path.read_text(encoding="utf-8")
+            finding_context = finding_path.read_text(encoding="utf-8", errors="replace")
         else:
             finding_context = (
                 f"(Finding {finding_id} not found — run that question first)"
@@ -1455,6 +1458,345 @@ def _analyze_quality_patterns(
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Failure taxonomy
+# ---------------------------------------------------------------------------
+
+# Failure type taxonomy: syntax | logic | hallucination | tool_failure | timeout | unknown
+_FAILURE_TYPES = frozenset(
+    ("syntax", "logic", "hallucination", "tool_failure", "timeout", "unknown")
+)
+
+
+def classify_failure_type(result: dict, mode: str) -> str | None:
+    """
+    Classify why a question failed. Returns one of:
+      syntax | logic | hallucination | tool_failure | timeout | unknown
+    Returns None when verdict is HEALTHY or WARNING — no failure to classify.
+    """
+    verdict = result.get("verdict", "")
+    if verdict in ("HEALTHY", "WARNING"):
+        return None
+
+    details = (result.get("details", "") or "").lower()
+    summary = (result.get("summary", "") or "").lower()
+    combined = details + " " + summary
+
+    # Timeout — most specific, check first
+    if any(
+        s in combined
+        for s in (
+            "timeout",
+            "timed out",
+            "readtimeout",
+            "connecttimeout",
+            "time limit exceeded",
+        )
+    ):
+        return "timeout"
+
+    # Tool failure — infrastructure/runner errors, not logic errors
+    if any(
+        s in combined
+        for s in (
+            "connection refused",
+            "connection error",
+            "importerror",
+            "modulenotfounderror",
+            "no module named",
+            "oserror",
+            "permissionerror",
+            "filenotfounderror",
+            "subprocess failed",
+            "process exited",
+            "exit code",
+            "returncode",
+            "could not connect",
+            "httpstatuserror",
+            "network error",
+        )
+    ):
+        return "tool_failure"
+
+    # Syntax errors
+    if any(
+        s in combined
+        for s in (
+            "syntaxerror",
+            "indentationerror",
+            "parse error",
+            "syntax error",
+            "invalid syntax",
+        )
+    ):
+        return "syntax"
+
+    # Correctness mode failures are logic by default (assertion failures, test failures)
+    if mode == "correctness":
+        return "logic"
+
+    # Performance mode: metric didn't meet threshold → logic
+    if mode == "performance":
+        return "logic"
+
+    # Agent/quality/static mode with no concrete evidence → hallucination
+    if mode in ("agent", "quality", "static"):
+        if any(
+            s in combined
+            for s in (
+                "no evidence",
+                "cannot verify",
+                "no concrete",
+                "assumed",
+                "unclear",
+                "speculative",
+                "no data",
+                "not found in",
+                "could not find evidence",
+            )
+        ):
+            return "hallucination"
+
+    return "unknown"
+
+
+# ---------------------------------------------------------------------------
+# Confidence signaling
+# ---------------------------------------------------------------------------
+
+# Confidence levels: high | medium | low | uncertain
+# Routing actions the orchestrator uses to decide next step
+CONFIDENCE_ROUTING: dict[str, str] = {
+    "high": "accept",  # proceed directly — evidence is solid
+    "medium": "validate",  # log a note, proceed with caution
+    "low": "escalate",  # flag for human review before acting on verdict
+    "uncertain": "re-run",  # re-run or try a different approach
+}
+
+
+def classify_confidence(result: dict, mode: str) -> str:
+    """
+    Estimate how much trust to place in this verdict.
+    Returns: high | medium | low | uncertain
+    """
+    verdict = result.get("verdict", "")
+    data = result.get("data", {}) or {}
+    details = (result.get("details", "") or "").lower()
+
+    # INCONCLUSIVE always uncertain — we don't know what happened
+    if verdict == "INCONCLUSIVE":
+        return "uncertain"
+
+    # --- Performance mode ---
+    if mode == "performance":
+        stages = data.get("stages", [])
+        if not stages:
+            return "uncertain"
+        early_stop = data.get("early_stop_at")
+        if early_stop:
+            return "low"  # stopped early, incomplete picture
+        return "high" if len(stages) >= 3 else "medium"
+
+    # --- Correctness mode ---
+    if mode == "correctness":
+        passed = data.get("passed", 0) or 0
+        failed = data.get("failed", 0) or 0
+        total = passed + failed
+        if total == 0:
+            return "uncertain"
+        if total >= 10:
+            return "high"
+        if total >= 3:
+            return "medium"
+        return "low"
+
+    # --- Agent / quality / static mode ---
+    if mode in ("agent", "quality", "static"):
+        # Signals of concrete evidence in the details or data
+        concrete_signals = (
+            "line ",
+            "line:",
+            ".py:",
+            ".rs:",
+            ".ts:",
+            ".kt:",
+            "function ",
+            "def ",
+            "file:",
+            "/src/",
+            "test_",
+            "error:",
+            "warning:",
+            "assert",
+            "found ",
+        )
+        evidence_count = sum(1 for s in concrete_signals if s in details)
+        if evidence_count >= 4:
+            return "high"
+        if evidence_count >= 2:
+            return "medium"
+        if evidence_count >= 1:
+            return "low"
+        # Check if data dict has real content
+        if data and data != {}:
+            return "medium"
+        return "uncertain"
+
+    # --- Generic fallback by verdict ---
+    if verdict == "FAILURE":
+        return "high" if details.strip() else "low"
+    if verdict == "WARNING":
+        return "medium"
+    if verdict == "HEALTHY":
+        return "high" if details.strip() else "medium"
+
+    return "uncertain"
+
+
+# ---------------------------------------------------------------------------
+# Introspection decorator
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Eval / scoring harness
+# ---------------------------------------------------------------------------
+
+# Score = evidence_quality * 0.4 + verdict_clarity * 0.4 + execution_success * 0.2
+# Range: 0.0 (useless) → 1.0 (perfect)
+# Written to results.tsv and included in introspect trace.
+
+_VERDICT_CLARITY: dict[str, float] = {
+    "HEALTHY": 1.0,
+    "FAILURE": 1.0,
+    "WARNING": 0.7,
+    "INCONCLUSIVE": 0.0,
+}
+
+_CONFIDENCE_EVIDENCE: dict[str, float] = {
+    "high": 1.0,
+    "medium": 0.7,
+    "low": 0.3,
+    "uncertain": 0.0,
+}
+
+_FAILURE_EXECUTION: dict[str, float] = {
+    # These failure types mean the question ran and produced signal
+    None: 1.0,
+    "logic": 0.9,
+    "syntax": 0.8,
+    "hallucination": 0.4,
+    "unknown": 0.5,
+    "timeout": 0.3,
+    "tool_failure": 0.0,
+}
+
+
+def score_result(result: dict) -> float:
+    """
+    Score a verdict envelope on a 0.0-1.0 scale.
+    evidence_quality * 0.4 + verdict_clarity * 0.4 + execution_success * 0.2
+    """
+    verdict = result.get("verdict", "INCONCLUSIVE")
+    confidence = result.get("confidence", "uncertain")
+    failure_type = result.get("failure_type")
+
+    evidence_quality = _CONFIDENCE_EVIDENCE.get(confidence, 0.0)
+    verdict_clarity = _VERDICT_CLARITY.get(verdict, 0.0)
+    execution_success = _FAILURE_EXECUTION.get(failure_type, 0.5)
+
+    score = (
+        (evidence_quality * 0.4) + (verdict_clarity * 0.4) + (execution_success * 0.2)
+    )
+    return round(score, 3)
+
+
+import functools  # noqa: E402 — placed here so linter sees usage alongside _write_introspect_trace
+
+
+def _write_introspect_trace(trace: dict) -> None:
+    """
+    Append a structured trace record to introspect.jsonl.
+    Fire-and-forget POST to Recall if BASE_URL is configured.
+    Never raises — introspection must not break the campaign.
+    """
+    line = json.dumps(trace, ensure_ascii=False)
+    try:
+        with INTROSPECT_LOG.open("a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except Exception as exc:
+        print(f"[introspect] local write failed: {exc}", file=sys.stderr)
+
+    # Fire-and-forget POST to Recall — skip if BASE_URL is unset or "none"
+    if not BASE_URL or BASE_URL.lower() in ("none", ""):
+        return
+    try:
+        import httpx as _httpx  # noqa: PLC0415
+
+        payload = {
+            "content": (
+                f"BrickLayer trace: {trace.get('agent', '?')} | "
+                f"{trace.get('tool_call', '?')} | "
+                f"verdict={trace.get('tool_result', '?')} | "
+                f"confidence={trace.get('confidence', '?')} | "
+                f"latency={trace.get('latency_ms', '?')}ms"
+            ),
+            "domain": "bricklayer",
+            "tags": [
+                "trace",
+                f"phase:{trace.get('phase', 'campaign')}",
+                f"agent:{trace.get('agent', 'unknown')}",
+                f"tool:{trace.get('tool_call', 'unknown')}",
+                f"confidence:{trace.get('confidence', 'uncertain')}",
+                f"error_type:{trace.get('error_type', 'none')}",
+            ],
+            "importance": 0.6,
+        }
+        _httpx.post(
+            f"{BASE_URL}{STORE_ROUTE}",
+            json=payload,
+            headers=AUTH_HEADERS,
+            timeout=2.0,
+        )
+    except Exception:
+        pass  # Recall unavailable — local log is the source of truth
+
+
+def introspect_step(fn):
+    """
+    Decorator that captures timing and writes a structured trace for every
+    question run. Apply to _run_and_record.
+    """
+
+    @functools.wraps(fn)
+    def wrapper(question: dict) -> dict:
+        start = time.monotonic()
+        result = fn(question)
+        latency_ms = int((time.monotonic() - start) * 1000)
+
+        trace = {
+            "agent": question.get("agent_name") or "bricklayer",
+            "phase": "campaign",
+            "thought": question.get("hypothesis") or question.get("title", ""),
+            "tool_call": question.get("mode", "unknown"),
+            "tool_result": f"{result.get('verdict', '?')}: {result.get('summary', '')[:120]}",
+            "tokens_used": None,  # not available from subprocess runners
+            "latency_ms": latency_ms,
+            "confidence": result.get("confidence", "uncertain"),
+            "error_type": result.get("failure_type"),
+            "question_id": result.get("question_id"),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        _write_introspect_trace(trace)
+        return result
+
+    return wrapper
+
+
+# ---------------------------------------------------------------------------
+# Finding writer
+# ---------------------------------------------------------------------------
+
+
 def write_finding(question: dict, result: dict) -> Path:
     """Write findings/{qid}.md in BrickLayer finding format."""
     qid = question["id"]
@@ -1469,11 +1811,17 @@ def write_finding(question: dict, result: dict) -> Path:
     }
     severity = severity_map.get(verdict, "Low")
 
+    failure_type = result.get("failure_type")
+    confidence = result.get("confidence", "uncertain")
+    failure_type_line = f"\n**Failure Type**: {failure_type}" if failure_type else ""
+    routing_action = CONFIDENCE_ROUTING.get(confidence, "re-run")
+
     content = f"""# Finding: {qid} — {question["title"]}
 
 **Question**: {question["hypothesis"]}
 **Verdict**: {verdict}
-**Severity**: {severity}
+**Severity**: {severity}{failure_type_line}
+**Confidence**: {confidence} → {routing_action}
 **Mode**: {question["mode"]}
 **Target**: {question["target"]}
 
@@ -1508,34 +1856,109 @@ def write_finding(question: dict, result: dict) -> Path:
     return finding_path
 
 
-def update_results_tsv(qid: str, verdict: str, summary: str) -> None:
+def update_results_tsv(
+    qid: str,
+    verdict: str,
+    summary: str,
+    failure_type: str | None = None,
+    confidence: str | None = None,
+    score: float | None = None,
+) -> None:
     """Update results.tsv with the verdict for this question."""
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     if not RESULTS_TSV.exists():
         RESULTS_TSV.write_text(
-            "question_id\tverdict\tsummary\ttimestamp\n", encoding="utf-8"
+            "question_id\tverdict\tfailure_type\tconfidence\tscore\tsummary\ttimestamp\n",
+            encoding="utf-8",
         )
 
     lines = RESULTS_TSV.read_text(encoding="utf-8", errors="replace").splitlines()
     updated = False
     new_lines = []
+    ft = failure_type or ""
+    conf = confidence or "uncertain"
+    sc = f"{score:.3f}" if score is not None else ""
 
     for line in lines:
         parts = line.split("\t")
         if parts and parts[0] == qid:
-            # Replace this line
             safe_summary = summary.replace("\t", " ")[:120]
-            new_lines.append(f"{qid}\t{verdict}\t{safe_summary}\t{timestamp}")
+            new_lines.append(
+                f"{qid}\t{verdict}\t{ft}\t{conf}\t{sc}\t{safe_summary}\t{timestamp}"
+            )
             updated = True
         else:
             new_lines.append(line)
 
     if not updated:
         safe_summary = summary.replace("\t", " ")[:120]
-        new_lines.append(f"{qid}\t{verdict}\t{safe_summary}\t{timestamp}")
+        new_lines.append(
+            f"{qid}\t{verdict}\t{ft}\t{conf}\t{sc}\t{safe_summary}\t{timestamp}"
+        )
 
     RESULTS_TSV.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    _mark_question_done(qid, verdict)
+
+
+def _mark_question_done(qid: str, verdict: str) -> None:
+    """C-31: Update **Status**: PENDING → DONE/INCONCLUSIVE in questions.md for this qid."""
+    if not QUESTIONS_MD.exists():
+        return
+    new_status = "DONE" if verdict != "INCONCLUSIVE" else "INCONCLUSIVE"
+    text = QUESTIONS_MD.read_text(encoding="utf-8", errors="replace")
+    block_start = text.find(f"## {qid} [")
+    if block_start == -1:
+        block_start = text.find(f"## {qid}\n")
+    if block_start == -1:
+        return
+    next_block = text.find("\n## Q", block_start + 1)
+    block_end = next_block if next_block != -1 else len(text)
+    block = text[block_start:block_end]
+    if "**Status**: PENDING" not in block:
+        return
+    new_block = block.replace("**Status**: PENDING", f"**Status**: {new_status}", 1)
+    QUESTIONS_MD.write_text(
+        text[:block_start] + new_block + text[block_end:], encoding="utf-8"
+    )
+
+
+def _sync_status_from_results() -> int:
+    """C-31: Reconcile questions.md Status fields against results.tsv. Returns count updated."""
+    if not RESULTS_TSV.exists() or not QUESTIONS_MD.exists():
+        return 0
+
+    done_ids: dict[str, str] = {}
+    for line in RESULTS_TSV.read_text(encoding="utf-8", errors="replace").splitlines():
+        parts = line.split("\t")
+        if len(parts) >= 2 and parts[0] not in ("question_id", ""):
+            verdict = parts[1].strip()
+            if verdict in ("HEALTHY", "WARNING", "FAILURE", "INCONCLUSIVE"):
+                done_ids[parts[0]] = (
+                    "DONE" if verdict != "INCONCLUSIVE" else "INCONCLUSIVE"
+                )
+
+    text = QUESTIONS_MD.read_text(encoding="utf-8")
+    updated = 0
+    for qid, new_status in done_ids.items():
+        block_start = text.find(f"## {qid} [")
+        if block_start == -1:
+            block_start = text.find(f"## {qid}\n")
+        if block_start == -1:
+            continue
+        next_block = text.find("\n## Q", block_start + 1)
+        block_end = next_block if next_block != -1 else len(text)
+        block = text[block_start:block_end]
+        if "**Status**: PENDING" in block:
+            new_block = block.replace(
+                "**Status**: PENDING", f"**Status**: {new_status}", 1
+            )
+            text = text[:block_start] + new_block + text[block_end:]
+            updated += 1
+
+    if updated:
+        QUESTIONS_MD.write_text(text, encoding="utf-8")
+    return updated
 
 
 # ---------------------------------------------------------------------------
@@ -1569,6 +1992,7 @@ def run_question(question: dict) -> dict:
     return result
 
 
+@introspect_step
 def _run_and_record(question: dict) -> dict:
     """Run a single question, write finding, update results.tsv, print JSON."""
     print(
@@ -1576,11 +2000,26 @@ def _run_and_record(question: dict) -> dict:
         file=sys.stderr,
     )
     result = run_question(question)
+    result["failure_type"] = classify_failure_type(result, question["mode"])
+    result["confidence"] = classify_confidence(result, question["mode"])
+    result["score"] = score_result(result)
     finding_path = write_finding(question, result)
-    update_results_tsv(question["id"], result["verdict"], result["summary"])
+    update_results_tsv(
+        question["id"],
+        result["verdict"],
+        result["summary"],
+        result["failure_type"],
+        result["confidence"],
+        result["score"],
+    )
     print(json.dumps(result, indent=2))
     print(f"\nFinding written to: {finding_path}", file=sys.stderr)
     print(f"Verdict: {result['verdict']}", file=sys.stderr)
+    routing = CONFIDENCE_ROUTING.get(result["confidence"], "re-run")
+    print(f"Confidence: {result['confidence']} → {routing}", file=sys.stderr)
+    print(f"Score: {result['score']:.3f}", file=sys.stderr)
+    if result["failure_type"]:
+        print(f"Failure type: {result['failure_type']}", file=sys.stderr)
     return result
 
 
@@ -1735,6 +2174,16 @@ def main():
         action="store_true",
         help="Run end-of-session retrospective to improve BrickLayer",
     )
+    parser.add_argument(
+        "--list-modes",
+        action="store_true",
+        help="List all registered runner modes and exit",
+    )
+    parser.add_argument(
+        "--sync-status",
+        action="store_true",
+        help="Sync questions.md Status fields from results.tsv and exit",
+    )
     args = parser.parse_args()
 
     init_project(args.project)
@@ -1745,6 +2194,27 @@ def main():
             "Warning: using default API key — set api_key in project.json before targeting a live service.",
             file=sys.stderr,
         )
+
+    if args.list_modes:
+        # Derive registered modes from run_question dispatch in this file
+        _modes = [
+            "performance",
+            "correctness",
+            "quality",
+            "agent",
+            "static",
+            "http",
+            "subprocess",
+        ]
+        print("Registered runner modes:")
+        for m in _modes:
+            print(f"  {m}")
+        return
+
+    if args.sync_status:
+        count = _sync_status_from_results()
+        print(f"sync-status: {count} question(s) updated in questions.md")
+        return
 
     if args.scout:
         _run_scout_for_project()

@@ -41,8 +41,10 @@ def _is_leaf_id(qid: str) -> bool:
     elif stripped.startswith("Q"):
         stripped = stripped[1:]
     else:
-        # Unknown format — treat as leaf to be safe
-        return True
+        # F7.2: BL 2.0 IDs (D1, D5.1, F4.3, A6.1) — use dot count
+        # D1 (1 part) and D5.1 (2 parts) can drill down; D5.1.1 (3 parts) is leaf
+        parts = qid.split(".")
+        return len(parts) >= 3
 
     parts = stripped.split(".")
     return len(parts) >= 3
@@ -97,6 +99,7 @@ def _build_followup_prompt(question: dict, result: dict, max_questions: int) -> 
     details = result.get("details", "")[:500]
     failure_type = result.get("failure_type", "")
     mode = question.get("mode", "agent")
+    agent = question.get("agent_name", "quantitative-analyst")
     hypothesis = question.get("hypothesis", "")
     test = question.get("test", "")
 
@@ -123,6 +126,7 @@ EXACT FORMAT (use this precisely):
 ---
 ## {parent_id}.N [DOMAIN] Short drill-down title
 **Mode**: {mode}
+**Agent**: {agent}
 **Status**: PENDING
 **Hypothesis**: Specific follow-on hypothesis targeting the observed failure.
 **Test**: Concrete test command or agent instruction targeting the specific failure.
@@ -198,6 +202,22 @@ def _parse_followup_blocks(raw: str, parent_id: str, start_index: int) -> list[s
             count=1,
             flags=re.MULTILINE,
         )
+
+        # Ensure [MODE] tag is present in the header — LLMs sometimes omit it.
+        # Extract mode from **Mode**: field and inject it if missing.
+        header_match = re.match(r"^## \S+(.*)$", seg, re.MULTILINE)
+        if header_match and "[" not in header_match.group(1):
+            mode_match = re.search(r"\*\*Mode\*\*:\s*(\w+)", seg)
+            if mode_match:
+                mode_tag = f"[{mode_match.group(1).upper()}]"
+                seg = re.sub(
+                    r"^(## \S+) ",
+                    rf"\1 {mode_tag} ",
+                    seg,
+                    count=1,
+                    flags=re.MULTILINE,
+                )
+
         valid.append(seg)
         current_index += 1
 

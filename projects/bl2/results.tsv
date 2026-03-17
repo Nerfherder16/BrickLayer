@@ -1,0 +1,75 @@
+question_id	verdict	failure_type	summary	timestamp
+D1	FAILURE		_verdict_from_agent_output() only accepts 4 verdicts; all BL 2.0 verdicts fall to INCONCLUSIVE — heal loop structurally 	2026-03-16T00:00:00Z
+D2	FAILURE		DEGRADED, ALERT, UNKNOWN, BLOCKED missing from _NON_FAILURE_VERDICTS — Monitor/Frontier verdicts misclassified as failur	2026-03-16T00:00:00Z
+D3	FAILURE		diagnose-analyst sees ID _heal{n}_diagnose but finding written as _heal{n}_diag — agent context ID mismatch	2026-03-16T00:00:00Z
+D4	FAILURE		_reactivate_pending_external() is in campaign.py, spec says questions.py — location mismatch	2026-03-16T00:00:00Z
+D5	FAILURE		EXHAUSTED note always uses max_cycles; on early break falsely reports max_cycles exhausted	2026-03-16T00:00:00Z
+D6	FAILURE		current_result=fix_result is alias; verdict mutated to FAILURE; run_heal_loop returns wrong verdict	2026-03-16T00:00:00Z
+D7	WARNING		_STORE_VERDICTS defined as local set inside store_finding() — not importable for testing	2026-03-16T00:00:00Z
+D8	HEALTHY		Prompt order matches spec exactly	2026-03-16T00:00:00Z
+D9	FAILURE		heal loop result discarded when verdict unchanged; enriched context lost	2026-03-16T00:00:00Z
+D10	HEALTHY		Double-gate is redundant but correct; no scenario allows completed question re-run	2026-03-16T00:00:00Z
+A1	COMPLIANT		_PARKED_STATUSES contains all 10 required verdicts — fully compliant	2026-03-16T00:00:00Z
+A2	NON_COMPLIANT		DEGRADED, ALERT, UNKNOWN, BLOCKED missing from _NON_FAILURE_VERDICTS (4 of 18 required absent)	2026-03-16T00:00:00Z
+A3	COMPLIANT		Bounded for loop, explicit break paths — termination guaranteed	2026-03-16T00:00:00Z
+A4	COMPLIANT		All 3 httpx calls wrapped in try/except — graceful-fail confirmed	2026-03-16T00:00:00Z
+A5	COMPLIANT		session-context.md opened with "a" mode only — confirmed	2026-03-16T00:00:00Z
+A6	COMPLIANT		operational_mode defaults to "diagnose" — BL 1.x backwards compat confirmed	2026-03-16T00:00:00Z
+A7	COMPLIANT		_agent_exists() called before both agent spawns — confirmed	2026-03-16T00:00:00Z
+A8	COMPLIANT		mode_context injected before run_question() — confirmed	2026-03-16T00:00:00Z
+A9	COMPLIANT		Prompt order mode_ctx->session_ctx->doctrine->agent confirmed	2026-03-16T00:00:00Z
+A10	COMPLIANT		Intermediate IDs follow {qid}_heal{n}_diag and {qid}_heal{n}_fix — no collision	2026-03-16T00:00:00Z
+A11	COMPLIANT		Both intermediates call update_results_tsv() — confirmed	2026-03-16T00:00:00Z
+A12	COMPLIANT		FIX_LOOP and HEAL_LOOP are independent if blocks — confirmed	2026-03-16T00:00:00Z
+F2.1	FIXED		_verdict_from_agent_output() now accepts all 30 BL 2.0 verdicts via _ALL_VERDICTS frozenset — heal loop unblocked	2026-03-16T00:00:00Z
+F2.2	FIXED		DEGRADED, ALERT, UNKNOWN, BLOCKED added to _NON_FAILURE_VERDICTS — Monitor/Frontier verdicts no longer misclassified	2026-03-16T00:00:00Z
+F2.3	FIXED		current_result = dict(fix_result) — alias mutation eliminated, fix_result preserves FIX_FAILED verdict	2026-03-16T00:00:00Z
+F2.4	FIXED		identity check (healed_result is not result) replaces verdict-diff — all heal loop output now propagated	2026-03-16T00:00:00Z
+F2.5	FIXED		_synthetic_question() uses short_type="diag" — agent context ID now matches written finding ID	2026-03-16T00:00:00Z
+F2.6	FIXED		last_cycle tracks actual exit cycle — EXHAUSTED note no longer falsely reports max_cycles on early break	2026-03-16T00:00:00Z
+M2.1	WARNING		No RECALL_STORE_VERDICTS constant in constants.py — _STORE_VERDICTS drift remains undetectable	2026-03-16T00:00:00Z
+F3.1	FIXED		RECALL_STORE_VERDICTS promoted to module-level frozenset in recall_bridge.py — drift now detectable	2026-03-16T00:00:00Z
+D3.1	FAILURE		Print at healloop.py line 338 still used max_cycles after F2.6 fix — fixed inline	2026-03-16T00:00:00Z
+D3.2	HEALTHY		parse_questions() reads status from results.tsv — reactivation + re-parse flow is correct, no race	2026-03-16T00:00:00Z
+V3.1	COMPLIANT		FIX_FAILED-then-FIXED trace verified: F2.1+F2.3+F2.4 work correctly together	2026-03-16T00:00:00Z
+D4.1	DIAGNOSIS_COMPLETE		parse_questions() Q-prefix regex (Q[\w.-]+) matches 0 of 38 BL 2.0 questions — campaign engine blind to entire BL 2.0 qu	2026-03-16T00:00:00Z
+D4.2	FAILURE		write_finding() writes **Mode**: {question["mode"]} (runner tag "agent"/"correctness") not operational_mode — synthetic 	2026-03-16T00:00:00Z
+D4.3	FAILURE		_synthetic_question() inherits question_type from original; C-30 caps confidence at "medium" for synthetic diagnose/fix 	2026-03-16T00:00:00Z
+F4.1	FIXED		project-brief.md corrected: _reactivate_pending_external() moved from questions.py section to campaign.py section	2026-03-16T00:00:00Z
+F4.2	FIXED		Redundant fix_q["id"] overwrite removed from healloop.py:280 — ID already set correctly by _synthetic_question() (F2.5)	2026-03-16T00:00:00Z
+F4.3	FIXED		parse_questions() regex changed from Q[\\w.-]+ to [\\w][\\w.-]* — all 40 BL 2.0 questions now parsed; _mark_question_don	2026-03-16T00:00:00Z
+F4.4	FIXED		write_finding() Mode header uses operational_mode; _synthetic_question() resets question_type to behavioral — C-30 confi	2026-03-16T00:00:00Z
+D5.1	DIAGNOSIS_COMPLETE		parse_questions() line 65 "mode": mode_raw uses bracket tag; body **Mode**: agent discarded — all non-correctness BL 2.0	2026-03-16T00:00:00Z
+A5.1	COMPLIANT		All BL 2.0 bracket tags correctly classified: FIX/AUDIT/MONITOR/DIAGNOSE/VALIDATE default to behavioral — no C-30 cap mi	2026-03-16T00:00:00Z
+F5.1	FIXED		parse_questions() uses fields.get("mode", mode_raw) — body **Mode** field now controls runner dispatch; bracket tag is B	2026-03-16T00:00:00Z
+V5.1	COMPLIANT		All 7 BL 2.0 pipeline stages verified correct after Waves 1-5 fixes: parse→dispatch→run_agent→verdict→write_finding→upse	2026-03-16T00:00:00Z
+D6.1	DIAGNOSIS_COMPLETE		"code_audit" body Mode dispatches to unregistered runner — F5.1 regression; 11 questions produce INCONCLUSIVE	2026-03-16T00:00:00Z
+D6.2	FAILURE		results.tsv BL 1.x format (commit first) — get_question_status() returns PENDING for all 44 rows	2026-03-16T00:00:00Z
+A6.1	COMPLIANT		All body **Mode** values (agent, code_audit) registered after F6.1 — no INCONCLUSIVE from unregistered dispatch	2026-03-16T00:00:00Z
+F6.1	FIXED		register("code_audit", run_agent) added to _register_builtins() — all 11 code_audit questions now dispatch correctly	2026-03-16T00:00:00Z
+F6.2	FIXED		results.tsv rewritten in BL 2.0 format (qid first) — get_question_status() now reads all 44 rows correctly	2026-03-16T00:00:00Z
+V6.1	COMPLIANT		Runner dispatch + status tracking correct after F6.1+F6.2; get_next_pending() correctly returns Wave 6 questions only	2026-03-16T00:00:00Z
+D7.1	DIAGNOSIS_COMPLETE		else-branch in _verdict_from_agent_output() checks changes_committed > 0 before self_verdict — fix-implementer FIXED masked as HEALTHY	2026-03-16T00:00:00Z
+D7.2	FAILURE		_is_leaf_id() else: return True for all BL 2.0 IDs — C-04 adaptive drill-down non-functional for entire BL 2.0 campaign	2026-03-16T00:00:00Z
+F7.1	FIXED		self_verdict_early checked first in else-branch — BL 2.0 agent verdicts (FIXED, DIAGNOSIS_COMPLETE) now correctly surfaced	2026-03-16T00:00:00Z
+F7.2	FIXED		_is_leaf_id() else-branch now uses dot-count: len(parts) >= 3 → leaf; BL 1.x Q/QG paths unaffected	2026-03-16T00:00:00Z
+A7.1	COMPLIANT		followup sub-question IDs, block headers, mode fields, injection mechanism all compatible with BL 2.0 parse_questions()	2026-03-16T00:00:00Z
+V7.1	COMPLIANT		Verdict extraction and C-04 drill-down both verified correct after F7.1+F7.2; no BL 1.x regressions	2026-03-16T00:00:00Z
+D8.1	FAILURE		glob("Q*.md") in _inject_override_questions() excludes all BL 2.0 findings — peer OVERRIDE injection non-functional	2026-03-16T00:00:00Z
+D8.2	FAILURE		_PRESERVE_AS_IS missing FAILURE/NON_COMPLIANT/WARNING — these verdicts written as "DONE" in questions.md	2026-03-16T00:00:00Z
+F8.1	FIXED		glob("Q*.md") → glob("*.md") — all finding files (BL 1.x and BL 2.0) now scanned for OVERRIDE peer reviews	2026-03-16T00:00:00Z
+F8.2	FIXED		FAILURE/NON_COMPLIANT/WARNING/REGRESSION/ALERT added to _PRESERVE_AS_IS — preserved in questions.md status	2026-03-16T00:00:00Z
+A8.1	COMPLIANT		modes/ has all 10 BL 2.0 operational mode files; _load_mode_context() silent fallback is acceptable	2026-03-16T00:00:00Z
+V8.1	COMPLIANT		Override injection, status preservation, mode context loading all correct after F8.1+F8.2; no regressions	2026-03-16T00:00:00Z
+D9.1	FAILURE		_QUESTION_BLOCK_HEADER regex Q-only — wave detection returns 1 and ID extraction returns empty for BL 2.0 questions.md	2026-03-16T00:00:00Z
+D9.2	FAILURE		agent_db recording condition mode=="agent" excludes code_audit; agent_db.json not found — 0 BL 2.0 agents tracked	2026-03-16T00:00:00Z
+F9.1	FIXED		_QUESTION_BLOCK_HEADER regex changed to [\w][\w.-]* — matches D8.1, F5.1 etc; wave detection returns 9 correctly	2026-03-16T00:00:00Z
+F9.2	FIXED		agent_db condition expanded to mode in ("agent","code_audit") — all BL 2.0 agents now tracked	2026-03-16T00:00:00Z
+A9.1	COMPLIANT		"DONE" in _SUCCESS_VERDICTS is dead code — no runner returns verdict="DONE"; no correctness impact	2026-03-16T00:00:00Z
+V9.1	COMPLIANT		Hypothesis wave detection and agent tracking both correct after F9.1+F9.2; BL 1.x Q-pattern preserved	2026-03-16T00:00:00Z
+D10.1	FAILURE		_parse_question_blocks() uses Q-only regex; prompt hardcodes Q-format IDs — hypothesis generation returns 0 blocks for BL 2.0	2026-03-16T00:00:00Z
+D10.2	FAILURE		parse_recommendation() scans all lines; Dead Ends template "stop probing here" triggers false STOP before recommendation section	2026-03-16T00:00:00Z
+F10.1	FIXED		_parse_question_blocks() regex changed to \w+{wave}.\d+; prompt rule 5 updated to allow any letter prefix	2026-03-16T00:00:00Z
+F10.2	FIXED		parse_recommendation() now locates Recommended Next Action section header and scans only subsequent lines	2026-03-16T00:00:00Z
+A10.1	NON_COMPLIANT		pop(0) on alphabetical sort drops A*/D* findings before V* findings; corpus biased under budget pressure	2026-03-16T00:00:00Z
+V10.1	COMPLIANT		Both fixes verified: BL 2.0 IDs accepted in _parse_question_blocks(); CONTINUE returned despite Dead Ends prose	2026-03-16T00:00:00Z

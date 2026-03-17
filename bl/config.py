@@ -78,7 +78,10 @@ def init_project(project_name: str | None) -> None:
         project_cfg = json.loads(
             (project_dir / "project.json").read_text(encoding="utf-8")
         )
-        cfg.recall_src = Path(project_cfg["target_git"])
+        # Support both "recall_src" (BL 2.0) and legacy "target_git" field names
+        recall_src_raw = project_cfg.get("recall_src") or project_cfg.get("target_git")
+        if recall_src_raw:
+            cfg.recall_src = Path(recall_src_raw)
         cfg.base_url = project_cfg.get("target_live_url", cfg.base_url)
         cfg.api_key = project_cfg.get("api_key", cfg.api_key)
         cfg.project_root = project_dir
@@ -86,6 +89,7 @@ def init_project(project_name: str | None) -> None:
         cfg.results_tsv = project_dir / "results.tsv"
         cfg.questions_md = project_dir / "questions.md"
         cfg.history_db = project_dir / "history.db"
+        cfg.agents_dir = project_dir / ".claude" / "agents"
     else:
         project_dir = _autosearch_root
         cfg.project_root = project_dir
@@ -93,5 +97,6 @@ def init_project(project_name: str | None) -> None:
         cfg.results_tsv = project_dir / "results.tsv"
         cfg.questions_md = project_dir / "questions.md"
         cfg.history_db = project_dir / "history.db"
+        cfg.agents_dir = project_dir / ".claude" / "agents"
 
     cfg.findings_dir.mkdir(exist_ok=True)

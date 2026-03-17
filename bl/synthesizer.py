@@ -104,10 +104,22 @@ def _call_claude(prompt: str) -> str | None:
 def parse_recommendation(synthesis_text: str) -> str:
     """
     Extracts the recommendation from synthesis output.
-    Looks for lines containing CONTINUE, STOP, or PIVOT (case-insensitive).
+    Scans lines after the '## Recommended Next Action' section header.
+    Falls back to full-text scan if the section header is absent.
     Returns "CONTINUE" as default if not found.
     """
-    for line in synthesis_text.splitlines():
+    lines = synthesis_text.splitlines()
+
+    # F10.2: locate the Recommended Next Action section, scan only lines after it
+    section_start = None
+    for i, line in enumerate(lines):
+        if "recommended next action" in line.lower():
+            section_start = i + 1
+            break
+
+    scan_lines = lines[section_start:] if section_start is not None else lines
+
+    for line in scan_lines:
         upper = line.upper()
         if "STOP" in upper:
             return "STOP"

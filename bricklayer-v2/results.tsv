@@ -1,0 +1,21 @@
+question_id	verdict	summary	failure_type	timestamp
+Q1.1	DIAGNOSIS_COMPLETE	Mode dispatch: _load_mode_context() helper + inject mode_context into question dict + agent runner preamble. ~15 lines, 2 files.	NONE	2026-03-16T00:00:00Z
+Q1.2	DIAGNOSIS_COMPLETE	No rename of mode field. Add Operational Mode body field. Update field_pattern + operational_mode key in question dict. 5 lines.	NONE	2026-03-16T00:00:00Z
+Q1.3	DIAGNOSIS_COMPLETE	26 new verdict types. Expand severity_map, _VERDICT_CLARITY, classify_failure_type guard, _mark_question_done, sync_status_from_results.	NONE	2026-03-16T00:00:00Z
+Q1.4	DIAGNOSIS_COMPLETE	DIAGNOSIS_COMPLETE suppression: 3 mechanisms — status auto-exclude, suppress_ids, git-diff reactivation. ~80 lines, 3 files.	NONE	2026-03-16T00:00:00Z
+Q1.5	DIAGNOSIS_COMPLETE	PENDING_EXTERNAL: new resume_after: field, _mark_question_done writes status, _reactivate_pending_external() at startup. ~50 lines.	NONE	2026-03-16T00:00:00Z
+Q2.1	HEALTHY	Frontier mode complete and actionable. Wave 1 Uncreated App example valid. Mode dispatch advisory gap is non-blocking.	NONE	2026-03-16T00:00:00Z
+Q2.2	WARNING	Fix pre-flight specificity gap: existence check passes underspecified specs. Add file+line+edit+command gate.	SPECIFICATION_GAP	2026-03-16T00:00:00Z
+Q2.3	HEALTHY	Monitor correctly scoped to known metrics. Missing: DEGRADED_TRENDING verdict for metrics approaching threshold.	NONE	2026-03-16T00:00:00Z
+Q2.4	WARNING	POSSIBLE/UNLIKELY in Predict mode lack decision criteria — subjective. Add 3-instance rule for qualitative chains.	SPECIFICATION_GAP	2026-03-16T00:00:00Z
+Q2.5	WARNING	3 missing handoffs: Benchmark→Evolve, Research→Validate, Fix→Monitor. 1 incorrect: Validate FAILURE→Diagnose.	SPECIFICATION_GAP	2026-03-16T00:00:00Z
+Q3.1	HEALTHY	Recall Fix priority via Predict-mode causal chains: Q33.2b > Q24.5 > Q32.1 > Q34.7 > Q24.2.	NONE	2026-03-16T00:00:00Z
+Q3.2	HEALTHY	ADBP: Wave 9, mid-research. Next mode = Predict (not Validate). Cascade projection before validation.	NONE	2026-03-16T00:00:00Z
+Q3.3	PROMISING	Uncreated App: F1.1 RaaS PROMISING, F1.2 Homelab Copilot PROMISING, F1.3 BLOCKED (Cloudflare+Stripe prereqs).	NONE	2026-03-16T00:00:00Z
+Q3.4	INCONCLUSIVE	No legal/ project found. Two candidates: ADBP compliance or Relay AI TCPA. Resume: create legal/project-brief.md.	MISSING_CONTEXT	2026-03-16T00:00:00Z
+Q3.5	HEALTHY	10-item UI/UX audit checklist from design philosophy. NON_COMPLIANT threshold: any A1/A3/A4/A7 fail OR 4+ total fails.	NONE	2026-03-16T00:00:00Z
+Q4.1	HEALTHY	Keep single template/. Add modes/ dir + 6 stub files + evaluate.py. No per-mode template directories needed.	NONE	2026-03-16T00:00:00Z
+Q4.2	HEALTHY	Bootstrap adds one step: mode decision tree. Question-designer gains starting mode as input.	NONE	2026-03-16T00:00:00Z
+Q4.3	HEALTHY	Keep simulate.py. Add optional evaluate.py stub for evidence-based modes. Two complementary tools.	NONE	2026-03-16T00:00:00Z
+Q5.1	PROMISING	Multi-agent BrickLayer: question ID namespacing prevents mode conflicts. synthesis.md race condition has 3 solutions.	NONE	2026-03-16T00:00:00Z
+Q5.2	PROMISING	BrickLayer dashboard: Project Command Center layout. Left sidebar + lifecycle bar + findings panel + activity feed.	NONE	2026-03-16T00:00:00Z
