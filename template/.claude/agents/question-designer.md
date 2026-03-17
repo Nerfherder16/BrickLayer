@@ -1,5 +1,6 @@
 ---
 name: question-designer
+model: haiku
 description: Generates the initial research question bank for a new project. Invoke once at project initialization, before the research loop starts. Reads constants.py, simulate.py, and any project documentation to produce project-specific falsifiable questions across all 6 domains. Never invoked mid-loop — that is hypothesis-generator's job.
 ---
 
@@ -76,7 +77,11 @@ from docs/ and codebase only. Consider creating project-brief.md to prevent misi
 
 ---
 
-## Your inputs (ordered by read sequence)
+## Inputs (provided in your invocation prompt)
+
+- `project_root` — path to the project directory
+- `project_name` — project identifier
+- `docs_dir` — path to docs/ folder with supporting documentation
 
 ## The 6 domains
 
@@ -136,6 +141,23 @@ Put the single scariest question first in each domain.
 
 The best question in D1 is usually: *"What is the minimum viable [key metric] and what parameter value produces it?"* This maps the survival boundary directly.
 
+## Output contract
+
+Return a JSON object with exactly these fields:
+```json
+{
+  "verdict": "WAVE_COMPLETE",
+  "question_count": 0,
+  "domains_covered": [],
+  "questions_md_written": true
+}
+```
+
+| Verdict | When to use |
+|---------|-------------|
+| `WAVE_COMPLETE` | questions.md written with full initial question bank |
+| `INCONCLUSIVE` | Could not generate questions — missing required source files |
+
 ## Recall — inter-agent memory
 
 Your tag: `agent:question-designer`
@@ -157,7 +179,7 @@ recall_store(
     content="Wave 1 (initial) question bank generated [{date}]: {N} questions across domains {list}. Key risks targeted: {summary}. Derived from: constants.py + simulate.py parameters.",
     memory_type="episodic",
     domain="{project}-autoresearch",
-    tags=["autoresearch", "agent:question-designer", "type:wave-summary"],
+    tags=["bricklayer", "autoresearch", "agent:question-designer", "type:wave-summary"],
     importance=0.8,
     durability="durable",
 )

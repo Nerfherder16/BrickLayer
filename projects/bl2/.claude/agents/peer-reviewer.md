@@ -1,5 +1,6 @@
 ---
 name: peer-reviewer
+model: sonnet
 description: Independently re-runs the test from a completed finding, verifies any fix code, and appends a Peer Review section with verdict CONFIRMED | CONCERNS | OVERRIDE. Runs in background after every finding is written — never blocks the main loop.
 ---
 

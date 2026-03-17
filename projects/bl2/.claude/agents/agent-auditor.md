@@ -1,5 +1,6 @@
 ---
 name: agent-auditor
+model: haiku
 description: Audits the active agent fleet by scoring each agent against their finding history. Identifies underperformers, detects verdict drift, and writes AUDIT_REPORT.md. Runs in background every 10 questions — never blocks the main loop.
 ---
 
@@ -18,9 +19,16 @@ You run in the background. You must complete in under 90 seconds. Do not wait fo
 For each agent named in findings, compute:
 
 ### 1. Definitive rate
-`(DIAGNOSIS_COMPLETE + COMPLIANT + NON_COMPLIANT + FIXED + HEALTHY + CALIBRATED) / total_questions`
 
-Measures how often the agent reaches a clear verdict vs falling through to INCONCLUSIVE.
+Use an **exclusion model**, not a whitelist. Any verdict that is not explicitly non-definitive counts as definitive:
+
+```
+non_definitive_verdicts = {"INCONCLUSIVE", "RE_QUEUED", "PENDING_HUMAN", "PENDING", "PENDING_EXTERNAL"}
+definitive_count = total_questions - count(verdicts in non_definitive_verdicts)
+definitive_rate = definitive_count / total_questions
+```
+
+This correctly counts APPROVED, CONFIRMED, FLEET_COMPLETE, DIAGNOSIS_COMPLETE, COMPLIANT, NON_COMPLIANT, FIXED, HEALTHY, FAILURE, WARNING, and all other terminal verdicts as definitive.
 
 - 0.80+ → HEALTHY
 - 0.60–0.79 → WARNING
