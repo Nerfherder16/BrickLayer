@@ -105,7 +105,6 @@ def score_agent(name: str, agent: dict) -> dict:
 
     content = agent["content"]
     description = agent["description"]
-    sections = [s.lower() for s in agent["sections"]]
 
     # 1. Description quality
     if len(description) < MIN_DESCRIPTION_LENGTH:
@@ -114,13 +113,37 @@ def score_agent(name: str, agent: dict) -> dict:
         )
         score -= 15
 
-    # 2. Required sections (prefix match — "## Inputs" matches "## Inputs (provided ...)")
+    # 2. Required sections — check presence AND that section has substantive content
+    # (hollow section bypass: "## Output contract" header with empty body scored as present)
+    content_lines = content.splitlines()
     for required in REQUIRED_SECTIONS:
         req_lower = required.lower()
-        # Match if any section heading starts with the required prefix
-        if not any(s.startswith(req_lower) for s in sections):
+        # Find the first section heading that starts with the required prefix
+        section_idx = None
+        for i, line in enumerate(content_lines):
+            if re.match(r"^#{1,3} ", line) and line.lower().lstrip(
+                "#"
+            ).strip().startswith(req_lower.lstrip("#").strip()):
+                section_idx = i
+                break
+
+        if section_idx is None:
             issues.append(f"Missing required section: {required}")
             score -= 10
+        else:
+            # Check that the section has substantive content (> 10 non-whitespace chars
+            # before the next section heading)
+            section_body = []
+            for line in content_lines[section_idx + 1 :]:
+                if re.match(r"^#{1,3} ", line):
+                    break
+                section_body.append(line)
+            body_text = " ".join(section_body).strip()
+            if len(body_text) < 10:
+                issues.append(
+                    f"Section '{required}' exists but has hollow content (< 10 chars)"
+                )
+                score -= 20  # Harsher penalty than missing — intentional bypass
 
     # 3. Output contract
     if "output contract" not in content.lower():
