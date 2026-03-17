@@ -49,3 +49,9 @@ A6.1	COMPLIANT		All body **Mode** values (agent, code_audit) registered after F6
 F6.1	FIXED		register("code_audit", run_agent) added to _register_builtins() — all 11 code_audit questions now dispatch correctly	2026-03-16T00:00:00Z
 F6.2	FIXED		results.tsv rewritten in BL 2.0 format (qid first) — get_question_status() now reads all 44 rows correctly	2026-03-16T00:00:00Z
 V6.1	COMPLIANT		Runner dispatch + status tracking correct after F6.1+F6.2; get_next_pending() correctly returns Wave 6 questions only	2026-03-16T00:00:00Z
+D7.1	DIAGNOSIS_COMPLETE		else-branch in _verdict_from_agent_output() checks changes_committed > 0 before self_verdict — fix-implementer FIXED masked as HEALTHY	2026-03-16T00:00:00Z
+D7.2	FAILURE		_is_leaf_id() else: return True for all BL 2.0 IDs — C-04 adaptive drill-down non-functional for entire BL 2.0 campaign	2026-03-16T00:00:00Z
+F7.1	FIXED		self_verdict_early checked first in else-branch — BL 2.0 agent verdicts (FIXED, DIAGNOSIS_COMPLETE) now correctly surfaced	2026-03-16T00:00:00Z
+F7.2	FIXED		_is_leaf_id() else-branch now uses dot-count: len(parts) >= 3 → leaf; BL 1.x Q/QG paths unaffected	2026-03-16T00:00:00Z
+A7.1	COMPLIANT		followup sub-question IDs, block headers, mode fields, injection mechanism all compatible with BL 2.0 parse_questions()	2026-03-16T00:00:00Z
+V7.1	COMPLIANT		Verdict extraction and C-04 drill-down both verified correct after F7.1+F7.2; no BL 1.x regressions	2026-03-16T00:00:00Z

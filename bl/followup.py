@@ -41,8 +41,10 @@ def _is_leaf_id(qid: str) -> bool:
     elif stripped.startswith("Q"):
         stripped = stripped[1:]
     else:
-        # Unknown format — treat as leaf to be safe
-        return True
+        # F7.2: BL 2.0 IDs (D1, D5.1, F4.3, A6.1) — use dot count
+        # D1 (1 part) and D5.1 (2 parts) can drill down; D5.1.1 (3 parts) is leaf
+        parts = qid.split(".")
+        return len(parts) >= 3
 
     parts = stripped.split(".")
     return len(parts) >= 3

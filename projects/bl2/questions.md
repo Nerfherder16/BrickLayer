@@ -760,3 +760,92 @@ Status is tracked in results.tsv — do not edit manually.
 **Verdict threshold**:
 - COMPLIANT: All 4 fixes interact correctly; no PENDING questions that should be DONE; code_audit questions dispatch to run_agent
 - NON_COMPLIANT: Any regression or remaining status/dispatch error
+
+---
+
+## Wave 7 — Verdict Priority Fix + C-04 Drill-down BL 2.0 Compatibility
+
+**Generated from findings**: V6.1 COMPLIANT triggered deep audit of run_and_record; static analysis of _verdict_from_agent_output() else-branch and followup.py _is_leaf_id() revealed two systemic bugs affecting BL 2.0 agent verdict accuracy and adaptive drill-down
+**Mode transitions applied**: D7.1 DIAGNOSIS_COMPLETE -> F7.1 Fix; D7.2 DIAGNOSIS_COMPLETE -> F7.2 Fix; A7.1 audit; F7.1+F7.2 FIXED -> V7.1 Validate
+
+---
+
+## D7.1 [CORRECTNESS] _verdict_from_agent_output() checks changes_committed before self_verdict in else-branch
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Hypothesis**: In bl/runners/agent.py _verdict_from_agent_output(), the else branch (for all agents not matching the 4 hardcoded names) checks output.get("changes_committed", 0) > 0 and returns HEALTHY before reaching the self_verdict check. For BL 2.0 agents like fix-implementer that both commit code AND return a structured verdict (FIXED, FIX_FAILED), HEALTHY fires first. A fix-implementer returning {"verdict": "FIXED", "changes_committed": 2} produces HEALTHY instead of FIXED.
+**Test**: Read bl/runners/agent.py lines 80-130. Verify: (1) else-branch checks changes_committed > 0 before self_verdict in _ALL_VERDICTS. (2) diagnose-analyst returning {"verdict": "DIAGNOSIS_COMPLETE"} with no changes_committed works correctly. (3) fix-implementer returning {"verdict": "FIXED", "changes_committed": 2} traces to HEALTHY (wrong).
+**Verdict threshold**:
+- FAILURE: else-branch returns HEALTHY on changes_committed > 0 before checking self_verdict
+- HEALTHY: self_verdict is checked before or instead of changes_committed heuristic
+**Fix Specification** (for DIAGNOSIS_COMPLETE transition):
+- **File**: bl/runners/agent.py, _verdict_from_agent_output(), else-branch
+- **Change**: Move self_verdict check before changes_committed heuristic. If self_verdict in _ALL_VERDICTS, return immediately. Fall through to changes_committed heuristic only if self_verdict empty/unrecognized.
+- **Verification**: _verdict_from_agent_output("fix-implementer", {"verdict": "FIXED", "changes_committed": 2}) -> FIXED not HEALTHY
+
+---
+
+## D7.2 [CORRECTNESS] _is_leaf_id() treats all BL 2.0 question IDs as leaf nodes
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: FAILURE
+**Hypothesis**: In bl/followup.py _is_leaf_id(qid), for BL 2.0 IDs like "D5.1", "F4.3", "A6.1": not "QG" prefix, not "Q" prefix -> else: return True (leaf). Every BL 2.0 question ID is classified as a leaf — generate_followup() skips drill-down for all BL 2.0 FAILURE/WARNING questions. C-04 adaptive follow-up is completely non-functional for this entire BL 2.0 campaign.
+**Test**: Read bl/followup.py _is_leaf_id(). Trace: "D5.1" -> not QG, not Q -> else -> True (WRONG — should be non-leaf). "D5.1.1" -> same -> True (CORRECT — sub-question is leaf). "Q2.4" -> Q prefix -> "2.4" -> 2 parts -> False (CORRECT for BL 1.x).
+**Verdict threshold**:
+- FAILURE: _is_leaf_id("D5.1") returns True (BL 2.0 IDs treated as leaf)
+- HEALTHY: _is_leaf_id("D5.1") returns False; _is_leaf_id("D5.1.1") returns True
+
+---
+
+## F7.1 [FIX] Fix _verdict_from_agent_output() to check self_verdict before changes_committed heuristic
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: DONE
+**Motivated by**: D7.1 DIAGNOSIS_COMPLETE
+**Method**: In bl/runners/agent.py _verdict_from_agent_output() else-branch: move self_verdict check first. Return self_verdict if in _ALL_VERDICTS. Fall through to changes_committed heuristic only if self_verdict empty/unrecognized.
+**Verdict threshold**:
+- FIXED: _verdict_from_agent_output("fix-implementer", {"verdict": "FIXED", "changes_committed": 2}) -> FIXED; _verdict_from_agent_output("legacy", {"changes_committed": 1}) -> HEALTHY (heuristic still works)
+- FIX_FAILED: Change not applied or breaks legacy heuristic
+
+---
+
+## F7.2 [FIX] Fix _is_leaf_id() to correctly classify BL 2.0 question IDs
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: DONE
+**Motivated by**: D7.2 DIAGNOSIS_COMPLETE
+**Method**: In bl/followup.py _is_leaf_id(), before else: return True, add BL 2.0 handling: split qid on ".", return len(parts) >= 3. D1 (1 part) -> False; D5.1 (2 parts) -> False; D5.1.1 (3 parts) -> True.
+**Verdict threshold**:
+- FIXED: _is_leaf_id("D5.1") -> False; _is_leaf_id("D5.1.1") -> True; _is_leaf_id("D1") -> False; _is_leaf_id("Q2.4.1") -> True (BL 1.x unbroken)
+- FIX_FAILED: Wrong classification or BL 1.x regression
+
+---
+
+## A7.1 [COMPLIANCE] followup.py sub-question generation format compatibility with BL 2.0
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Operational Mode**: audit
+**Status**: DONE
+**Hypothesis**: Even after F7.2 fixes _is_leaf_id(), the generated sub-question ID format and block injection may be wrong for BL 2.0 parents. _get_existing_sub_ids() searches for ## {parent_id}.N. For parent "D5.1", searches "## D5.1.N". Audit whether generated sub-question IDs, block format, and questions.md injection are compatible with BL 2.0 parse_questions() block_pattern regex ([\w][\w.-]*).
+**Test**: Read bl/followup.py fully. Check: (1) generated sub-question ID format for parent "D5.1" -> should be "D5.1.1". (2) Injected block header -> must match "## D5.1.1 [TAG] title". (3) Whether _get_existing_sub_ids() pattern works for BL 2.0 IDs.
+**Verdict threshold**:
+- COMPLIANT: Generated sub-question IDs "D5.1.1" conform to block_pattern; injection format correct
+- NON_COMPLIANT: Sub-question IDs or block format incompatible with BL 2.0 parse_questions()
+
+---
+
+## V7.1 [VALIDATE] Verdict accuracy and C-04 drill-down after F7.1 + F7.2 fixes
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Operational Mode**: validate
+**Status**: DONE
+**Motivated by**: F7.1 + F7.2 + A7.1
+**Hypothesis**: After F7.1, fix-implementer FIXED verdicts preserved; DIAGNOSIS_COMPLETE from diagnose-analyst (no changes_committed) already worked. After F7.2, C-04 drill-down generates correctly-formatted BL 2.0 sub-questions for FAILURE/WARNING parents.
+**Verdict threshold**:
+- COMPLIANT: All targeted functions produce correct output; no BL 1.x regression; BL 2.0 self-healing loop and drill-down fully functional
+- NON_COMPLIANT: Any regression or remaining verdict/drill-down error

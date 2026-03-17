@@ -120,6 +120,11 @@ def _verdict_from_agent_output(agent_name: str, output: dict) -> str:
             return "WARNING"
 
     else:
+        # F7.1: check self_verdict first — BL 2.0 agents report explicit verdicts
+        self_verdict_early = output.get("verdict", "").upper()
+        if self_verdict_early in _ALL_VERDICTS:
+            return self_verdict_early
+        # Legacy BL 1.x heuristic: changes_committed > 0 implies success
         if output.get("changes_committed", 0) > 0:
             return "HEALTHY"
 
