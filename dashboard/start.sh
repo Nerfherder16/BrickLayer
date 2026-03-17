@@ -1,9 +1,9 @@
 #!/bin/bash
 # Start the autosearch dashboard
 # Usage: ./start.sh [project-path]
-# Example: ./start.sh C:/Users/trg16/Dev/autosearch/adbp
+# Example: ./start.sh C:/Users/trg16/Dev/Bricklayer2.0/adbp
 
-PROJECT=${1:-"C:/Users/trg16/Dev/autosearch/adbp"}
+PROJECT=${1:-"C:/Users/trg16/Dev/Bricklayer2.0/adbp"}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "Starting autosearch dashboard..."

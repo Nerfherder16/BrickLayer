@@ -44,8 +44,8 @@ reports/              — Generated PDF reports (python analyze.py)
 ## Starting a New Project
 
 ```bash
-cp -r C:/Users/trg16/Dev/autosearch/template/ C:/Users/trg16/Dev/autosearch/{project}/
-cd C:/Users/trg16/Dev/autosearch/{project}/
+cp -r C:/Users/trg16/Dev/Bricklayer2.0/template/ C:/Users/trg16/Dev/Bricklayer2.0/{project}/
+cd C:/Users/trg16/Dev/Bricklayer2.0/{project}/
 ```
 
 1. Edit `project-brief.md` — what the system does, key invariants, past misunderstandings
@@ -68,20 +68,20 @@ cd C:/Users/trg16/Dev/autosearch/{project}/
 
 In a separate terminal (use Git Bash or WSL — not PowerShell):
 ```bash
-bash C:/Users/trg16/Dev/autosearch/dashboard/start.sh C:/Users/trg16/Dev/autosearch/{project}
+bash C:/Users/trg16/Dev/Bricklayer2.0/dashboard/start.sh C:/Users/trg16/Dev/Bricklayer2.0/{project}
 ```
 
 Or manually in two PowerShell terminals:
 
 **Backend:**
 ```powershell
-cd C:\Users\trg16\Dev\autosearch\dashboard\backend
-$env:AUTOSEARCH_PROJECT="C:/Users/trg16/Dev/autosearch/{project}"; uvicorn main:app --host 0.0.0.0 --port 8100 --reload
+cd C:\Users\trg16\Dev\Bricklayer2.0\dashboard\backend
+$env:AUTOSEARCH_PROJECT="C:/Users/trg16/Dev/Bricklayer2.0/{project}"; uvicorn main:app --host 0.0.0.0 --port 8100 --reload
 ```
 
 **Frontend:**
 ```powershell
-cd C:\Users\trg16\Dev\autosearch\dashboard\frontend
+cd C:\Users\trg16\Dev\Bricklayer2.0\dashboard\frontend
 npm run dev
 ```
 
@@ -98,7 +98,7 @@ Open: http://localhost:3100
 
 **New project — after question bank is ready:**
 ```bash
-cd C:/Users/trg16/Dev/autosearch/{project}
+cd C:/Users/trg16/Dev/Bricklayer2.0/{project}
 git init && git add . && git commit -m "chore: init {project} autoresearch"
 git checkout -b {project}/$(date +%b%d | tr '[:upper:]' '[:lower:]')
 DISABLE_OMC=1 claude --dangerously-skip-permissions "Read program.md and questions.md. Begin the research loop from the first PENDING question. If any file edit fails, follow the self-recovery steps in program.md immediately — do not pause. NEVER STOP."
@@ -106,7 +106,7 @@ DISABLE_OMC=1 claude --dangerously-skip-permissions "Read program.md and questio
 
 **Resuming an existing project:**
 ```bash
-cd C:/Users/trg16/Dev/autosearch/{project}
+cd C:/Users/trg16/Dev/Bricklayer2.0/{project}
 git checkout -b {project}/$(date +%b%d | tr '[:upper:]' '[:lower:]')
 DISABLE_OMC=1 claude --dangerously-skip-permissions "Read program.md, questions.md, and findings/synthesis.md. Resume the research loop from the first PENDING question. If any file edit fails, follow the self-recovery steps in program.md immediately — do not pause. NEVER STOP."
 ```
@@ -138,7 +138,7 @@ Write it to findings/synthesis.md.
 
 **Step 2 — Generate PDF:**
 ```bash
-cd C:/Users/trg16/Dev/autosearch/{project}
+cd C:/Users/trg16/Dev/Bricklayer2.0/{project}
 python analyze.py
 # PDF saved to reports/
 ```
