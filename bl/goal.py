@@ -124,7 +124,9 @@ def _read_sim_params(project_dir: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _build_prompt(goal: dict, sim_context: str) -> str:
+def _build_prompt(
+    goal: dict, sim_context: str, runner_context: str = "", campaign_plan: str = ""
+) -> str:
     focus_str = (
         ", ".join(goal["focus"])
         if goal["focus"]
@@ -146,8 +148,14 @@ DOMAIN FOCUS:
 ADDITIONAL CONTEXT:
   {goal["context"] or "None provided."}
 
+CAMPAIGN PLAN (from planner — use domain priorities from this):
+{campaign_plan or "No campaign plan available — generate questions from goal directly."}
+
 SIMULATION CONTEXT (parameter space):
 {sim_context}
+
+AVAILABLE RUNNERS (choose the best **Mode** for each question):
+{runner_context or "agent (default), http, subprocess, quality, performance, correctness"}
 
 Generate exactly {n} questions in the format below. Each question must:
 - Be directly motivated by the stated goal
@@ -255,6 +263,46 @@ def _parse_goal_questions(raw: str, wave_label: str = "Goal Campaign") -> list[s
 
 
 # ---------------------------------------------------------------------------
+# Claude fallback
+# ---------------------------------------------------------------------------
+
+
+def _call_claude_fallback(prompt: str) -> str | None:
+    """Call Claude via subprocess as fallback when Ollama is unavailable."""
+    import shutil
+    import subprocess
+
+    claude_bin = shutil.which("claude") or "claude"
+    try:
+        result = subprocess.run(
+            [
+                claude_bin,
+                "-p",
+                prompt,
+                "--output-format",
+                "text",
+                "--model",
+                "claude-haiku-4-5-20251001",
+                "--no-mcp",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+        print(
+            f"[goal] Claude fallback failed (rc={result.returncode})", file=sys.stderr
+        )
+        return None
+    except Exception as e:
+        print(f"[goal] Claude fallback error: {e}", file=sys.stderr)
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -285,9 +333,37 @@ def generate_goal_questions(
 
     project_dir = goal_md.parent
     sim_context = _read_sim_params(project_dir)
-    prompt = _build_prompt(goal, sim_context)
+
+    # Inject campaign plan if planner has already run
+    campaign_plan_path = project_dir / "CAMPAIGN_PLAN.md"
+    campaign_plan = ""
+    if campaign_plan_path.exists():
+        plan_text = campaign_plan_path.read_text(encoding="utf-8")
+        # Extract the targeting brief section only (keep it tight)
+        brief_match = re.search(
+            r"## Targeting Brief.*?(?=\n## |\Z)", plan_text, re.DOTALL
+        )
+        if brief_match:
+            campaign_plan = brief_match.group(0)[:1500]
+        else:
+            campaign_plan = plan_text[:1500]
+
+    try:
+        from bl.runners import runner_menu
+
+        runner_context = runner_menu()
+    except Exception:
+        runner_context = ""
+
+    prompt = _build_prompt(goal, sim_context, runner_context, campaign_plan)
 
     raw = _call_ollama(prompt)
+    if raw is None:
+        print(
+            "[goal] Falling back to Claude claude-haiku-4-5-20251001...",
+            file=sys.stderr,
+        )
+        raw = _call_claude_fallback(prompt)
     if raw is None:
         print("[goal] No output from local model — aborting.", file=sys.stderr)
         return []

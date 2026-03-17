@@ -13,11 +13,19 @@ import subprocess
 import sys
 
 from bl.config import cfg
-from bl.findings import classify_failure_type, update_results_tsv, write_finding
+from bl.findings import (
+    classify_failure_type,
+    score_result,
+    update_results_tsv,
+    write_finding,
+)
 from bl.history import detect_regression, record_verdict
 from bl.questions import get_question_by_id, get_next_pending, parse_questions
 from bl.runners import run_question
 from bl.runners.agent import _strip_frontmatter
+from bl.tracer import traced
+
+run_question = traced(run_question)  # C-23: instrument all question executions
 
 
 # ---------------------------------------------------------------------------
@@ -79,12 +87,33 @@ def run_and_record(question: dict) -> dict:
     except Exception:
         pass  # Recall bridge is optional — never block campaign on it
 
+    # BL 2.0 C-24: inject available skills so agents know what patterns are already solved
+    try:
+        from bl.skill_forge import global_skill_inventory
+
+        skills = global_skill_inventory()
+        if skills:
+            skill_lines = "\n".join(
+                f"- `{s['name']}`: {s.get('description', '').splitlines()[0]}"
+                for s in skills[:20]  # cap at 20 to avoid bloating context
+                if s.get("name")
+            )
+            skill_block = f"## Available Skills (solved patterns — avoid re-investigating)\n\n{skill_lines}\n"
+            question = dict(question)
+            existing_ctx = question.get("session_context", "")
+            question["session_context"] = (existing_ctx + "\n" + skill_block).strip()
+    except Exception:
+        pass  # skill_forge is optional — never block campaign on it
+
     result = run_question(question)
     failure_type = classify_failure_type(result, question["mode"])
     if failure_type:
         result["failure_type"] = failure_type
     finding_path = write_finding(question, result)
-    update_results_tsv(qid, result["verdict"], result["summary"], failure_type)
+    eval_score = score_result(result)
+    update_results_tsv(
+        qid, result["verdict"], result["summary"], failure_type, eval_score
+    )
 
     # Record to history ledger and check for regression
     record_verdict(
@@ -121,7 +150,11 @@ def run_and_record(question: dict) -> dict:
         fixed_result = run_fix_loop(question, result, finding_path)
         if fixed_result.get("verdict") == "HEALTHY":
             update_results_tsv(
-                qid, "HEALTHY", fixed_result.get("summary", "Fixed"), None
+                qid,
+                "HEALTHY",
+                fixed_result.get("summary", "Fixed"),
+                None,
+                score_result(fixed_result),
             )
             result = fixed_result
 
@@ -520,7 +553,11 @@ def _preflight_mode_check(pending: list[dict]) -> list[dict]:
             }
             write_finding(q, result)
             update_results_tsv(
-                q["id"], result["verdict"], result["summary"], "configuration"
+                q["id"],
+                result["verdict"],
+                result["summary"],
+                "configuration",
+                score_result(result),
             )
         print(f"[C-28] {len(runnable)} question(s) will run normally.", file=sys.stderr)
     return runnable
@@ -573,6 +610,11 @@ def _reactivate_pending_external(questions: list[dict]) -> int:
 
 def run_campaign() -> None:
     """Run all PENDING questions in sequence with sentinel checks."""
+    # Load project-specific runners if present
+    from bl.runners import load_project_runners
+
+    load_project_runners(cfg.project_root)
+
     questions = parse_questions()
     _reactivate_pending_external(questions)
     questions = parse_questions()  # re-parse after reactivation

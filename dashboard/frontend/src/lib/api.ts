@@ -69,6 +69,12 @@ export interface Project {
   path: string;
 }
 
+export interface AgentInfo {
+  name: string;
+  model: "opus" | "sonnet" | "haiku" | "";
+  description: string;
+}
+
 export interface ResultRow {
   commit: string;
   question_id: string;
@@ -93,4 +99,5 @@ export const api = {
     post<{ ok: boolean }>(`/api/findings/${id}/correct`, { correction }),
   getProjects: () => get<Project[]>("/api/projects"),
   getResults: () => get<ResultRow[]>("/api/results"),
+  getAgents: () => get<AgentInfo[]>("/api/agents"),
 };

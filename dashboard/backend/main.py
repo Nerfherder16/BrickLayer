@@ -369,6 +369,68 @@ def get_results(project: str | None = Query(None)):
     return parse_results(project_path)
 
 
+_MODEL_TIERS = {"opus", "sonnet", "haiku"}
+_FULL_TO_SHORT = {
+    "claude-opus-4-6": "opus",
+    "claude-opus-4-5": "opus",
+    "claude-sonnet-4-6": "sonnet",
+    "claude-haiku-4-5-20251001": "haiku",
+}
+
+
+@app.get("/api/agents")
+def get_agents(project: str | None = Query(None)):
+    """Return agent metadata (name, model tier, description) from .claude/agents/."""
+    project_path = get_project_path(project)
+    agents_dir = project_path / ".claude" / "agents"
+    if not agents_dir.exists():
+        # Fall back to template agents directory
+        agents_dir = (
+            Path(__file__).parent.parent.parent / "template" / ".claude" / "agents"
+        )
+    if not agents_dir.exists():
+        return []
+
+    agents = []
+    for md_path in sorted(agents_dir.glob("*.md")):
+        if md_path.stem.upper() in ("AUDIT_REPORT", "FORGE_NEEDED", "SCHEMA"):
+            continue
+        text = md_path.read_text(encoding="utf-8")
+        name = md_path.stem
+        model_raw = ""
+        description = ""
+
+        if text.startswith("---"):
+            try:
+                end = text.index("---", 3)
+                fm = text[3:end]
+                for line in fm.splitlines():
+                    if line.strip().startswith("name:"):
+                        name = line.split(":", 1)[1].strip().strip('"').strip("'")
+                    elif line.strip().startswith("model:"):
+                        model_raw = line.split(":", 1)[1].strip().strip('"').strip("'")
+                    elif line.strip().startswith("description:") and not description:
+                        val = (
+                            line.split(":", 1)[1]
+                            .strip()
+                            .strip('"')
+                            .strip("'")
+                            .strip(">")
+                        )
+                        if val:
+                            description = val
+            except ValueError:
+                pass
+
+        # Normalise model to short name
+        tier = _FULL_TO_SHORT.get(
+            model_raw, model_raw if model_raw in _MODEL_TIERS else ""
+        )
+        agents.append({"name": name, "model": tier, "description": description[:120]})
+
+    return agents
+
+
 @app.get("/api/projects")
 def get_projects():
     base = Path(os.getenv("AUTOSEARCH_BASE", str(Path(__file__).parent.parent.parent)))

@@ -40,13 +40,28 @@ before generating questions. These are your authoritative sources.
 - `simulate.py` — replace the stub revenue model with your actual model
 - Verify: `python simulate.py` → should print `verdict: HEALTHY`
 
-### 5. Generate the question bank
+### 5a. (Recommended) Run the planner first
+
+For new or complex projects, run the planner before generating questions. It ranks research domains by risk, queries Recall for prior campaign findings, and produces a `CAMPAIGN_PLAN.md` targeting brief that question-designer uses to set mode allocations.
+
+```
+Act as the planner agent in .claude/agents/planner.md.
+Inputs: project_brief=project-brief.md, docs_dir=docs/, constants_file=constants.py, simulate_file=simulate.py, prior_campaign=none
+```
+
+Skip this step for simple projects where all domains are equally uncertain.
+
+### 5b. Generate the question bank
+
 Open Claude Code in the project directory and invoke the question-designer agent:
+
 ```
+Act as the question-designer-bl2 agent in .claude/agents/question-designer-bl2.md.
 Read project-brief.md, all files in docs/, constants.py, and simulate.py.
-Check for conflicts between sources. Then generate the initial question bank
-in questions.md following the format in program.md.
+If CAMPAIGN_PLAN.md exists, read it first and use its BL 2.0 Mode Allocation table.
+Generate the initial question bank in questions.md.
 ```
+
 If `CONFLICTS.md` is created, resolve the conflicts before continuing.
 
 ### 6. Initialize git
@@ -166,7 +181,9 @@ Write it to findings/synthesis.md.
 
 | Agent | When to invoke |
 |-------|---------------|
-| `question-designer` | Once at project init — generates questions.md |
+| `planner` | Once at project init (before question-designer) — ranks domains by risk, writes CAMPAIGN_PLAN.md |
+| `question-designer-bl2` | Once at project init (after planner) — generates questions.md using BL 2.0 modes |
+| `question-designer` | BL 1.x only — use question-designer-bl2 for new projects |
 | `quantitative-analyst` | D1/D5/D6 simulation questions |
 | `regulatory-researcher` | D2 legal/compliance questions |
 | `competitive-analyst` | D3 market/analogues questions |
