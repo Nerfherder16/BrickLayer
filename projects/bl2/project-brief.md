@@ -1,0 +1,115 @@
+# Project Brief — BrickLayer 2.0 Engine
+
+**Target codebase**: `C:/Users/trg16/Dev/autosearch`
+**Primary focus**: `bl/` directory — the BrickLayer engine
+**Campaign purpose**: Stress-test BL 2.0's own implementation against its spec.
+
+---
+
+## What BrickLayer 2.0 Is
+
+BrickLayer is an autonomous research loop that runs campaigns of questions against
+a target codebase or system. BL 2.0 adds a 9-mode lifecycle ontology on top of the
+BL 1.x engine:
+
+| Mode | Verdict vocab | Purpose |
+|------|--------------|---------|
+| Diagnose | HEALTHY / FAILURE / DIAGNOSIS_COMPLETE / PENDING_EXTERNAL | Root cause analysis |
+| Fix | FIXED / FIX_FAILED / INCONCLUSIVE | Implement a DIAGNOSIS_COMPLETE spec |
+| Research | HEALTHY / WARNING / FAILURE / INCONCLUSIVE | Evidence-based assumption testing |
+| Audit | COMPLIANT / NON_COMPLIANT / PARTIAL / NOT_APPLICABLE | Compliance checklist |
+| Validate | HEALTHY / WARNING / FAILURE / INCONCLUSIVE | Design review before build |
+| Benchmark | CALIBRATED / UNCALIBRATED / NOT_MEASURABLE | Performance baseline |
+| Evolve | IMPROVEMENT / REGRESSION / INCONCLUSIVE | Optimization with measurement |
+| Monitor | OK / DEGRADED / DEGRADED_TRENDING / ALERT / UNKNOWN | Live metric checks |
+| Predict | IMMINENT / PROBABLE / POSSIBLE / UNLIKELY | Cascade risk projection |
+| Frontier | PROMISING / BLOCKED / WEAK / INCONCLUSIVE | Novel mechanism discovery |
+
+---
+
+## New Components Added in BL 2.0
+
+### `bl/healloop.py` (NEW — highest risk, most complex)
+Self-healing state machine. Activated by `BRICKLAYER_HEAL_LOOP=1`.
+
+State transitions:
+- FAILURE → `diagnose-analyst` agent → DIAGNOSIS_COMPLETE (with Fix Spec)
+- DIAGNOSIS_COMPLETE → `fix-implementer` agent → FIXED or FIX_FAILED
+- FIX_FAILED → `diagnose-analyst` again (with Root Cause Update as context)
+- Repeats up to `BRICKLAYER_HEAL_MAX_CYCLES` (default 3)
+
+Key contracts:
+- Writes intermediate findings `{qid}_heal{n}_diag.md` and `{qid}_heal{n}_fix.md`
+- Appends "Heal Cycle N" sections to original finding file
+- Calls `update_results_tsv()` for each intermediate finding
+- On FIXED: also updates the original question's results.tsv row to FIXED
+- Gracefully skips if `diagnose-analyst.md` or `fix-implementer.md` are absent
+- Never blocks campaign — all failures are logged and loop exits
+
+### `bl/recall_bridge.py` (NEW — optional integration)
+Optional Recall memory bridge. Uses httpx to POST/GET from `http://192.168.50.19:8200`.
+
+Contracts:
+- `store_finding(question, result, project)` — only stores significant verdicts (defined in `_STORE_VERDICTS` frozenset)
+- `search_before_question(question, project)` — returns formatted string or "" on any failure
+- `_is_available()` — 2-second health check timeout
+- All functions: graceful-fail when httpx is missing OR Recall is unreachable (5s timeout)
+- Domain format: `{project}-bricklayer`
+
+### `bl/campaign.py` — three additions
+
+1. **`_load_mode_context(operational_mode)`** — reads `modes/{mode}.md`, returns empty string if not found
+2. **Session context accumulator** — reads last 2000 chars of `session-context.md` before each question; appends one-line insight after each question
+3. **Heal loop wiring** — calls `run_heal_loop()` when BRICKLAYER_HEAL_LOOP=1 and verdict is FAILURE or DIAGNOSIS_COMPLETE
+
+### `bl/runners/agent.py` — one addition
+
+`session_ctx_block` injected into `full_prompt` between `mode_ctx_block` and `doctrine_prefix`:
+```
+{mode_ctx_block}{session_ctx_block}{doctrine_prefix}{agent_prompt}...
+```
+
+### `bl/questions.py` — three additions
+
+1. **`operational_mode` field** — parsed from `**Operational Mode**:` in questions.md, defaults to `"diagnose"`
+2. **`resume_after` field** — parsed from `**Resume After**:` (ISO-8601)
+3. **`_PARKED_STATUSES` frozenset** — 12 terminal verdicts that suppress re-running
+4. **`_reactivate_pending_external()`** — removes PENDING_EXTERNAL rows from results.tsv when `resume_after` has passed
+
+### `bl/findings.py` — three additions
+
+1. **`_NON_FAILURE_VERDICTS` frozenset** — 18 verdicts that should not be classified as failures
+2. **`severity_map`** — expanded from 4 to 32 entries
+3. **`_VERDICT_CLARITY`** — expanded from 4 to 35 entries
+
+---
+
+## Known Invariants (Never Violate)
+
+1. The campaign loop (`run_campaign()`, `run_and_record()`) must NEVER raise an exception and kill the loop. All errors are caught, logged to stderr, and turned into INCONCLUSIVE verdicts.
+2. `session-context.md` writes use `open(..., "a")` — append-only, never overwrite.
+3. Recall bridge operations are ALWAYS wrapped in `try/except Exception: pass` — they can never block the campaign.
+4. The heal loop exits cleanly after `max_cycles` — it never loops infinitely.
+5. Intermediate heal findings (`_heal{n}_*`) are written with a unique ID to avoid collisions with real question IDs.
+6. `_PARKED_STATUSES` must be a strict superset of `_PRESERVE_AS_IS` in findings.py — any verdict in PRESERVE_AS_IS must also be in PARKED_STATUSES.
+7. The `operational_mode` field defaults to `"diagnose"` — existing BL 1.x projects continue to work without modification.
+
+---
+
+## Known Risks and Edge Cases
+
+- **Session context accumulator**: no file lock on `session-context.md`. Concurrent campaigns on the same project root will interleave writes.
+- **Heal loop with no agents**: if neither `diagnose-analyst.md` nor `fix-implementer.md` exists in `cfg.agents_dir`, the heal loop immediately returns the original result without error.
+- **`_reactivate_pending_external()` re-parse**: called at campaign start, then `parse_questions()` is called again. If results.tsv is large, this is slow but correct.
+- **Recall bridge httpx import**: if httpx is not installed, `_HTTPX_AVAILABLE = False` — all bridge functions no-op silently.
+- **Verdict SUBJECTIVE**: design-reviewer can output SUBJECTIVE. Campaign records it but does NOT generate followup questions for SUBJECTIVE.
+
+---
+
+## Past Misunderstandings (Do Not Repeat)
+
+- **`mode` vs `operational_mode`**: `mode` = runner type (agent/http/subprocess/correctness). `operational_mode` = BL 2.0 lifecycle mode (diagnose/fix/research/etc). They are different fields.
+- **`cfg.agents_dir`**: points to `.claude/agents/` inside the PROJECT directory. Each project has its own agent fleet.
+- **`cfg.recall_src`**: the target codebase being analyzed (`C:/Users/trg16/Dev/autosearch`). NOT the campaign project directory.
+- **Heal loop intermediate findings**: `{qid}_heal{n}_diag` and `{qid}_heal{n}_fix` IDs are synthetic — they appear in results.tsv but are NOT in questions.md.
+- **`_PARKED_STATUSES`**: lives in `questions.py`, not `findings.py`. The corresponding `_PRESERVE_AS_IS` in findings.py is a separate (smaller) set.
