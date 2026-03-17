@@ -73,3 +73,9 @@ F10.1	FIXED		_parse_question_blocks() regex changed to \w+{wave}.\d+; prompt rul
 F10.2	FIXED		parse_recommendation() now locates Recommended Next Action section header and scans only subsequent lines	2026-03-16T00:00:00Z
 A10.1	NON_COMPLIANT		pop(0) on alphabetical sort drops A*/D* findings before V* findings; corpus biased under budget pressure	2026-03-16T00:00:00Z
 V10.1	COMPLIANT		Both fixes verified: BL 2.0 IDs accepted in _parse_question_blocks(); CONTINUE returned despite Dead Ends prose	2026-03-16T00:00:00Z
+D11.1	FAILURE		crucible.py _score_hypothesis_generator/question_designer use Q-only regex and Wave-header detection — return 0.0 for all BL 2.0	2026-03-16T00:00:00Z
+D11.2	FAILURE		sync_status_from_results() preserve list excludes FAILURE/NON_COMPLIANT — maps to DONE; diverges from F8.2 fix in findings.py	2026-03-16T00:00:00Z
+F11.1	FIXED		crucible.py scorers now use wave-number extraction from IDs and \w+-prefixed block regex; BL 1.x unbroken	2026-03-16T00:00:00Z
+F11.2	FIXED		sync_status_from_results() preserve set extended with FAILURE/NON_COMPLIANT/WARNING/REGRESSION/ALERT; matches F8.2	2026-03-16T00:00:00Z
+F11.3	FIXED		_build_findings_corpus() now sorts by severity (FAILURE first), drops low-severity findings first under budget	2026-03-16T00:00:00Z
+V11.1	COMPLIANT		All three fixes verified; crucible scores BL 2.0 questions; sync preserves failures; corpus bias resolved	2026-03-16T00:00:00Z

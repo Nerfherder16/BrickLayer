@@ -1100,3 +1100,81 @@ Status is tracked in results.tsv — do not edit manually.
 **Verdict threshold**:
 - COMPLIANT: Both fixes verified correct; no BL 1.x regression; corpus truncation behavior documented
 - NON_COMPLIANT: Either fix broke BL 1.x behavior or failed to resolve the BL 2.0 issue
+
+---
+
+## D11.1 [CORRECTNESS] crucible.py scoring functions return 0.0 for all BL 2.0 campaigns
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: FAILURE
+**Hypothesis**: `_score_hypothesis_generator()` and `_score_question_designer()` in crucible.py both rely on (1) "## Wave N" section headers that don't exist in BL 2.0 questions.md, and (2) Q-only regex patterns `## Q[2-9]\d*\.\d+` / `## Q\d+\.\d+` that don't match BL 2.0 IDs. Both scorers return AgentScore with score=0.0 and an error message for any BL 2.0 campaign, making crucible benchmarks meaningless.
+**Test**: Read bl/crucible.py _score_hypothesis_generator() (lines 154-213) and _score_question_designer() (lines 216-282). Confirm: (1) wave_match regex requires "## Wave N" headers; (2) block-split regex is Q-prefix only; (3) For BL 2.0 questions.md (with no Wave headers and D/F/A/V IDs), both functions return score=0.0 before reaching any per-question scoring logic.
+**Verdict threshold**:
+- FAILURE: Both scorers return 0.0 for BL 2.0 campaigns due to missing Wave headers and Q-only block detection
+- COMPLIANT: Scorers correctly handle BL 2.0 question ID format
+
+---
+
+## D11.2 [CORRECTNESS] questions.py sync_status_from_results() maps FAILURE/NON_COMPLIANT to DONE
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: FAILURE
+**Hypothesis**: `sync_status_from_results()` in questions.py (lines 199-207) has its own verdict→status mapping that preserves only {INCONCLUSIVE, DIAGNOSIS_COMPLETE, PENDING_EXTERNAL, FIXED, FIX_FAILED, BLOCKED} and maps all other verdicts to "DONE". This means FAILURE, NON_COMPLIANT, WARNING, REGRESSION, ALERT are all mapped to "DONE" in the sync path — the same bug fixed by F8.2 in findings.py but left unfixed in this separate code path.
+**Test**: Read bl/questions.py sync_status_from_results() lines 145-231. Identify the preserve list at lines 199-207. Confirm: verdict="FAILURE" maps to "DONE" (not "FAILURE"). Contrast with findings.py _PRESERVE_AS_IS (fixed by F8.2) which correctly preserves FAILURE.
+**Verdict threshold**:
+- FAILURE: sync_status_from_results() maps FAILURE/NON_COMPLIANT/WARNING → "DONE" in its preserve logic; diverges from findings.py F8.2 fix
+- COMPLIANT: sync_status_from_results() correctly preserves all terminal failure verdicts
+
+---
+
+## F11.1 [FIX] Fix crucible.py scoring functions for BL 2.0 question ID format
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: DONE
+**Source finding**: D11.1 (FAILURE)
+**Fix**: In bl/crucible.py: (1) Replace "## Wave [2-9]" section header detection with wave number extraction from question IDs (same approach as hypothesis.py after F9.1). (2) Change block-split regex from Q-only to `## \w+\d+\.\d+` to match any letter-prefixed question ID. Apply to both _score_hypothesis_generator() and _score_question_designer().
+**Verdict threshold**:
+- FIXED: Both scorers correctly identify and score BL 2.0 question blocks; BL 1.x Q-format still works
+- FIX_FAILED: Scorers still return 0.0 for BL 2.0 format question banks
+
+---
+
+## F11.2 [FIX] Fix questions.py sync_status_from_results() preserve list to match F8.2
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: DONE
+**Source finding**: D11.2 (FAILURE)
+**Fix**: In bl/questions.py sync_status_from_results() lines 199-207, extend the inner preserve set to include FAILURE, NON_COMPLIANT, WARNING, REGRESSION, ALERT — matching the F8.2 fix applied to findings.py _PRESERVE_AS_IS. These verdicts should appear verbatim in questions.md status, not be overwritten with "DONE".
+**Verdict threshold**:
+- FIXED: sync_status_from_results() maps FAILURE → "FAILURE", NON_COMPLIANT → "NON_COMPLIANT", etc. in questions.md
+- FIX_FAILED: Still maps failure verdicts to "DONE"
+
+---
+
+## F11.3 [FIX] Fix synthesizer.py _build_findings_corpus() to preserve high-severity findings
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: DONE
+**Source finding**: A10.1 (NON_COMPLIANT)
+**Fix**: In bl/synthesizer.py _build_findings_corpus() lines 43-45, replace alphabetical pop(0) truncation with severity-aware truncation: findings containing COMPLIANT or FIXED verdicts are dropped before findings containing FAILURE or NON_COMPLIANT verdicts. Alternatively, sort findings by severity descending (FAILURE first) and truncate from the low-severity tail.
+**Verdict threshold**:
+- FIXED: Under budget pressure, FAILURE/NON_COMPLIANT findings are retained while COMPLIANT/FIXED findings are dropped first
+- FIX_FAILED: Alphabetical truncation behavior unchanged
+
+---
+
+## V11.1 [VALIDATE] Crucible scoring, sync status, and corpus truncation correct after F11.1-F11.3
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Operational Mode**: validate
+**Status**: DONE
+**Motivated by**: F11.1 + F11.2 + F11.3
+**Hypothesis**: After F11.1, crucible scorers correctly identify BL 2.0 question blocks and produce meaningful scores. After F11.2, sync_status_from_results() maps FAILURE → "FAILURE" matching F8.2 behavior. After F11.3, corpus truncation preserves high-severity findings over COMPLIANT/FIXED findings.
+**Verdict threshold**:
+- COMPLIANT: All three fixes verified with test cases; BL 1.x behavior preserved for F11.1 and F11.2
+- NON_COMPLIANT: Any fix regressed BL 1.x behavior or failed to address the BL 2.0 issue

@@ -203,6 +203,12 @@ def sync_status_from_results() -> int:
                         "FIXED",
                         "FIX_FAILED",
                         "BLOCKED",
+                        # F11.2: preserve failure/violation verdicts for human visibility (matches F8.2 in findings.py)
+                        "FAILURE",
+                        "NON_COMPLIANT",
+                        "WARNING",
+                        "REGRESSION",
+                        "ALERT",
                     )
                     else "DONE"
                 )
