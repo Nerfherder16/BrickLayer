@@ -2133,3 +2133,61 @@ Status is tracked in results.tsv — do not edit manually.
 **Method**: Run `grep -rn "Verdict.*DIAGNOSIS_COMPLETE" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/findings/*.md | grep -v synthesis` to list all DIAGNOSIS_COMPLETE findings. For each, check whether the finding contains all four Fix Specification fields: "Target file", "Target location", "Concrete edit", "Verification command". Group findings by wave number. Calculate per-wave completeness to determine whether the gap is concentrated in early waves or distributed across all waves. For findings missing the spec, check whether the finding conclusion is "no fix needed" (intentional omission) or a genuine fix recommendation without the structured spec (agent failure).
 **Success criterion**: DIAGNOSIS_COMPLETE with Fix Specification if the gap is caused by agent failures on fixable findings — fix is to add a validation step to the diagnose-analyst prompt requiring Fix Specification population for all DIAGNOSIS_COMPLETE findings that recommend a code change. HEALTHY if the gap is entirely explained by early-wave pre-template findings and "no fix needed" subtypes — document as a known historical artifact requiring no code change.
 
+---
+
+## Wave 22 — Fix D21.1 + Validate F21.1 + Validate F21.2
+
+**Generated from findings**: F21.1, F21.2, D21.1
+**Mode transitions applied**: F21.1 FIXED → V22.2 Validate (confirm HEAL_EXHAUSTED amber-red badge renders and is not using gray fallback); F21.2 FIXED → V22.1 Validate (confirm fix_rows count reduced by 1 and fixed_rate is net-zero); D21.1 DIAGNOSIS_COMPLETE → F22.1 Fix (apply frontmatter-position guard to fix_spec_completeness in _score_diagnose_analyst)
+
+---
+
+### F22.1: Apply the D21.1 fix — replace the F19.2 full-text guard in _score_diagnose_analyst() with a frontmatter-position check restricted to the first 6 lines of each finding file
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: D21.1 (DIAGNOSIS_COMPLETE) — the current guard `"**Verdict**: DIAGNOSIS_COMPLETE" not in content` still admits V16.1, V18.2, F19.2, and V20.2 as false positives because those non-diagnosis findings quote the pattern in their body text; the correct guard checks only the frontmatter header (first 6 lines) where genuine diagnosis findings exclusively place their verdict declaration
+**Hypothesis**: Replacing the substring guard with a first-6-lines position check will exclude the four false-positive findings (V16.1, V18.2, F19.2, V20.2) from spec_scores, leaving only the 16 genuine DIAGNOSIS_COMPLETE findings; spec_completeness will drop from ~0.29 to ~0.25 (4 complete / 16 genuine = 0.25), which is the accurate metric
+**Method**: fix-implementer
+**Fix Specification**:
+- Target file: `bl/crucible.py`
+- Target location: `_score_diagnose_analyst()` — fix_spec_completeness guard (line 421 post-F19.2, the `if "**Verdict**: DIAGNOSIS_COMPLETE" not in content: continue` line)
+- Concrete edit:
+  ```python
+  # Before (F19.2 guard — still too broad, admits body-quoted occurrences):
+  if "**Verdict**: DIAGNOSIS_COMPLETE" not in content:
+      continue
+
+  # After (frontmatter-position guard — exact standalone line in first 6 lines only):
+  first_lines = content.split("\n")[:6]
+  if not any(line.strip() == "**Verdict**: DIAGNOSIS_COMPLETE" for line in first_lines):
+      continue
+  ```
+- Verification command: `python -c "from bl.crucible import run_all_benchmarks; import json; r = run_all_benchmarks('projects/bl2'); import pprint; pprint.pprint(r)"` — confirm spec_completeness is approximately 0.25 (4 complete / 16 genuine findings) and that V16.1, V18.2, F19.2, V20.2 are no longer counted in the spec_scores denominator
+**Success criterion**: FIXED if re-running run_all_benchmarks() shows spec_completeness between 0.20 and 0.30 with exactly 16 findings in the denominator (not 20), and the four false-positive findings are absent from the spec_scores scan
+
+---
+
+### V22.1: Post-F21.2 validate — does run_all_benchmarks() show fix-implementer score unchanged after the _is_fix_row() guard excludes D-mid.4 from fix_rows?
+
+**Status**: COMPLIANT
+**Operational Mode**: validate
+**Priority**: LOW
+**Motivated by**: F21.2 (FIXED) — _is_fix_row() was added and D-mid.4 (D-prefix, FIXED verdict, new-format row) is now structurally excluded from fix_rows; the F21.2 finding states the expected impact is "net-zero for fixed_rate" because D-mid.4 was a 1:1 entry in both FIXED count and total, but this has not been confirmed by an actual benchmark run
+**Hypothesis**: Running run_all_benchmarks() against projects/bl2/results.tsv will show fix-implementer fixed_rate within 0.01 of the pre-fix baseline (~0.96); fix_rows count will be exactly 1 lower than the pre-F21.2 count; all old-format BL 1.x fix rows (F2.1-F2.6) will still be present via the fallback path and are unaffected by the guard
+**Method**: Run `python -c "from bl.crucible import run_all_benchmarks; import json; r = run_all_benchmarks('projects/bl2'); print(json.dumps(r, indent=2))"` from the Bricklayer2.0 root directory. Record fix-implementer fixed_rate. Also run `grep -c "^N/A.*\tF.*\tFIXED\t" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/results.tsv` to get the post-fix F-prefix FIXED row count and confirm it is exactly 1 fewer than the total FIXED row count (which previously included D-mid.4)
+**Success criterion**: HEALTHY if fix-implementer fixed_rate is within 0.01 of ~0.96 and the F-prefix FIXED row count is exactly 1 fewer than total FIXED rows (confirming D-mid.4 exclusion). DIAGNOSIS_COMPLETE with root cause if fixed_rate changed by more than 0.01 — this would indicate either multiple D-prefix FIXED rows exist (wider contamination than detected) or the fallback path is incorrectly filtering old-format rows
+
+---
+
+### V22.2: Post-F21.1 validate — does STATUS_COLORS in QuestionQueue.tsx now include HEAL_EXHAUSTED with amber-red styling, and is the badge render fallback correctly bypassed for HEAL_EXHAUSTED questions?
+
+**Status**: COMPLIANT
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Motivated by**: F21.1 (FIXED) — STATUS_COLORS was updated with HEAL_EXHAUSTED and seven other BL 2.0 statuses via code inspection and agent report; the F21.1 finding confirms the edit but no runtime screenshot or compiled output was captured to verify the badge renders correctly rather than falling through to the gray fallback (which would happen if the TypeScript key lookup fails at compile time or if the status string passed at runtime uses a different casing)
+**Hypothesis**: The STATUS_COLORS entry for HEAL_EXHAUSTED uses key `"HEAL_EXHAUSTED"` (uppercase, underscore) which matches the status string produced by the BL 2.0 heal loop; the badge render path does a direct map lookup, so the amber-red classes `bg-[#7c2d12] text-[#f97316]` will be applied rather than the gray fallback; no TypeScript compile errors were introduced because the key is a plain string constant
+**Method**: Read `dashboard/frontend/src/components/QuestionQueue.tsx` and verify: (1) STATUS_COLORS contains `HEAL_EXHAUSTED: "bg-[#7c2d12] text-[#f97316]"` as a top-level key, (2) the badge render expression uses a lookup pattern that will resolve to this entry for status value `"HEAL_EXHAUSTED"`, (3) the filter dropdown `<option>` element for HEAL_EXHAUSTED uses the exact same string as the STATUS_COLORS key. If the dashboard is running, also open http://localhost:3100 and filter by HEAL_EXHAUSTED to confirm the badge renders amber-red
+**Success criterion**: HEALTHY if STATUS_COLORS contains the HEAL_EXHAUSTED entry with correct amber-red Tailwind classes, the badge render path would resolve the key at runtime, and the filter dropdown option string matches exactly. DIAGNOSIS_COMPLETE with Fix Specification if the key is present but the render path uses a different lookup expression that would still fall through to the gray fallback for HEAL_EXHAUSTED questions
+

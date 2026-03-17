@@ -417,8 +417,12 @@ def _score_diagnose_analyst(project_dir: Path) -> AgentScore:
             content = fpath.read_text(encoding="utf-8", errors="replace")
         except Exception:
             continue
-        # V18.2: exact verdict line match — excludes FIXED findings that embed "Fix Specification"
-        if "**Verdict**: DIAGNOSIS_COMPLETE" not in content:
+        # D21.1: frontmatter-position check — only match if verdict line is in first 6 lines
+        # Excludes findings that quote "**Verdict**: DIAGNOSIS_COMPLETE" in body text/code blocks
+        first_lines = content.split("\n")[:6]
+        if not any(
+            line.strip() == "**Verdict**: DIAGNOSIS_COMPLETE" for line in first_lines
+        ):
             continue
         hit = sum(1 for field in spec_fields if field in content) / len(spec_fields)
         spec_scores.append(hit)
