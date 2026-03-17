@@ -21,6 +21,36 @@ _FAILURE_TYPES = frozenset(
     ("syntax", "logic", "hallucination", "tool_failure", "timeout", "unknown")
 )
 
+_NON_FAILURE_VERDICTS = frozenset(
+    {
+        "HEALTHY",
+        "WARNING",
+        "DIAGNOSIS_COMPLETE",
+        "PENDING_EXTERNAL",
+        "PROMISING",
+        "WEAK",
+        "CALIBRATED",
+        "FIXED",
+        "COMPLIANT",
+        "PARTIAL",
+        "NOT_APPLICABLE",
+        "IMPROVEMENT",
+        "OK",
+        "POSSIBLE",
+        "UNLIKELY",
+        "DEGRADED_TRENDING",
+        "SUBJECTIVE",
+        "NOT_MEASURABLE",
+        "UNCALIBRATED",
+        # Monitor-mode verdicts (F2.2 fix — previously missing, caused false failure classification)
+        "DEGRADED",
+        "ALERT",
+        "UNKNOWN",
+        # Frontier verdict (F2.2 fix — BLOCKED is not a failure, it's a prerequisite gap)
+        "BLOCKED",
+    }
+)
+
 
 def classify_failure_type(result: dict, mode: str) -> str | None:
     """
@@ -32,7 +62,7 @@ def classify_failure_type(result: dict, mode: str) -> str | None:
     local inference is unavailable or returns an unexpected value.
     """
     verdict = result.get("verdict", "")
-    if verdict in ("HEALTHY", "WARNING"):
+    if verdict in _NON_FAILURE_VERDICTS:
         return None
 
     # Try local model first
@@ -217,10 +247,46 @@ def classify_confidence(result: dict, mode: str) -> str:
 # ---------------------------------------------------------------------------
 
 _VERDICT_CLARITY: dict[str, float] = {
+    # Original
     "HEALTHY": 1.0,
     "FAILURE": 1.0,
     "WARNING": 0.7,
     "INCONCLUSIVE": 0.0,
+    # Frontier
+    "PROMISING": 0.8,
+    "WEAK": 0.6,
+    "BLOCKED": 0.5,
+    # Benchmark
+    "CALIBRATED": 1.0,
+    "UNCALIBRATED": 0.7,
+    "NOT_MEASURABLE": 0.3,
+    # Fix
+    "FIXED": 1.0,
+    "FIX_FAILED": 1.0,
+    # Diagnose
+    "DIAGNOSIS_COMPLETE": 1.0,
+    # Audit
+    "COMPLIANT": 1.0,
+    "NON_COMPLIANT": 1.0,
+    "PARTIAL": 0.7,
+    "NOT_APPLICABLE": 0.5,
+    # Evolve
+    "IMPROVEMENT": 1.0,
+    "REGRESSION": 1.0,
+    # Predict
+    "IMMINENT": 1.0,
+    "PROBABLE": 0.8,
+    "POSSIBLE": 0.6,
+    "UNLIKELY": 0.4,
+    # Monitor
+    "OK": 1.0,
+    "DEGRADED": 0.8,
+    "DEGRADED_TRENDING": 0.7,
+    "ALERT": 1.0,
+    "UNKNOWN": 0.1,
+    # Any
+    "PENDING_EXTERNAL": 0.5,
+    "SUBJECTIVE": 0.2,
 }
 
 _CONFIDENCE_EVIDENCE: dict[str, float] = {
@@ -279,23 +345,80 @@ def write_finding(question: dict, result: dict) -> Path:
     finding_path = cfg.findings_dir / f"{qid}.md"
 
     severity_map = {
+        # Original
         "FAILURE": "High",
         "WARNING": "Medium",
         "HEALTHY": "Info",
         "INCONCLUSIVE": "Low",
+        # Frontier
+        "PROMISING": "Info",
+        "WEAK": "Low",
+        "BLOCKED": "Medium",
+        # Benchmark
+        "CALIBRATED": "Info",
+        "UNCALIBRATED": "Medium",
+        "NOT_MEASURABLE": "Low",
+        # Fix
+        "FIXED": "Info",
+        "FIX_FAILED": "High",
+        # Audit
+        "COMPLIANT": "Info",
+        "NON_COMPLIANT": "High",
+        "PARTIAL": "Medium",
+        "NOT_APPLICABLE": "Low",
+        # Evolve
+        "IMPROVEMENT": "Info",
+        "REGRESSION": "High",
+        # Predict
+        "IMMINENT": "Critical",
+        "PROBABLE": "High",
+        "POSSIBLE": "Medium",
+        "UNLIKELY": "Low",
+        # Monitor
+        "OK": "Info",
+        "DEGRADED": "Medium",
+        "DEGRADED_TRENDING": "Medium",
+        "ALERT": "High",
+        "UNKNOWN": "Low",
+        # Any mode
+        "DIAGNOSIS_COMPLETE": "Info",
+        "PENDING_EXTERNAL": "Low",
+        "SUBJECTIVE": "Low",
     }
+
+    # C-30: enforce code_audit constraints
+    question_type = question.get("question_type", "behavioral")
+    if question_type == "code_audit":
+        # Cap confidence at medium
+        current_conf = result.get("confidence", "")
+        if current_conf == "high":
+            result = dict(result)
+            result["confidence"] = "medium"
+        # Downgrade HEALTHY → WARNING for code_audit
+        if result.get("verdict") == "HEALTHY":
+            result = dict(result)
+            result["verdict"] = "WARNING"
+            orig_summary = result.get("summary", "")
+            result["summary"] = (
+                orig_summary
+                + " (C-30: CODE-AUDIT questions cannot produce HEALTHY verdicts"
+                " — requires live HTTP/test evidence)"
+            )
+
     verdict = result["verdict"]
     severity = severity_map.get(verdict, "Low")
 
     failure_type = result.get("failure_type")
     failure_type_line = f"\n**Failure Type**: {failure_type}" if failure_type else ""
+    type_label = "CODE-AUDIT" if question_type == "code_audit" else "BEHAVIORAL"
 
     content = f"""# Finding: {qid} — {question["title"]}
 
 **Question**: {question["hypothesis"]}
 **Verdict**: {verdict}
 **Severity**: {severity}{failure_type_line}
-**Mode**: {question["mode"]}
+**Mode**: {question.get("operational_mode", question["mode"])}
+**Type**: {type_label}
 **Target**: {question["target"]}
 
 ## Summary
@@ -364,3 +487,49 @@ def update_results_tsv(
         new_lines.append(new_row)
 
     cfg.results_tsv.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    _mark_question_done(qid, verdict)
+
+
+# ---------------------------------------------------------------------------
+# C-31: atomic questions.md status update
+# ---------------------------------------------------------------------------
+
+
+def _mark_question_done(qid: str, verdict: str) -> None:
+    """Update **Status**: PENDING → DONE/INCONCLUSIVE in questions.md for this qid."""
+    if not cfg.questions_md.exists():
+        return
+    _PRESERVE_AS_IS = frozenset(
+        {
+            "INCONCLUSIVE",
+            "DIAGNOSIS_COMPLETE",
+            "PENDING_EXTERNAL",
+            "FIXED",
+            "FIX_FAILED",
+            "BLOCKED",
+            # F8.2: preserve failure/violation verdicts for human visibility in questions.md
+            "FAILURE",
+            "NON_COMPLIANT",
+            "WARNING",
+            "REGRESSION",
+            "ALERT",
+        }
+    )
+    new_status = verdict if verdict in _PRESERVE_AS_IS else "DONE"
+    text = cfg.questions_md.read_text(encoding="utf-8", errors="replace")
+    block_start = text.find(f"## {qid} [")
+    if block_start == -1:
+        block_start = text.find(f"## {qid}\n")
+    if block_start == -1:
+        return
+    next_block = text.find(
+        "\n## ", block_start + 1
+    )  # F4.3: match any ## header (not just Q-prefix)
+    block_end = next_block if next_block != -1 else len(text)
+    block = text[block_start:block_end]
+    if "**Status**: PENDING" not in block:
+        return
+    new_block = block.replace("**Status**: PENDING", f"**Status**: {new_status}", 1)
+    cfg.questions_md.write_text(
+        text[:block_start] + new_block + text[block_end:], encoding="utf-8"
+    )

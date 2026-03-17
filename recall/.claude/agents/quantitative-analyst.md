@@ -35,6 +35,29 @@ Always report:
 - The implied real-world meaning (e.g., "2.78%/mo churn = 5.6x baseline = FAILURE boundary")
 - Whether this is a hard cliff (sudden collapse) or gradual degradation
 
+## "By design?" content audit (run automatically on FAILURE or WARNING)
+
+Before finalizing a FAILURE or WARNING verdict, check whether the finding reflects a
+genuine defect or expected behavior driven by data distribution. This step is mandatory
+when the metric is population-based (counts of things, averages over items, distributions).
+
+**Protocol:**
+1. Sample 10–20 actual items that contributed to the failing metric from the live API
+2. Ask: "Are these items genuinely low-quality / problematic, or does the measurement
+   misrepresent them?"
+3. Check for confounders: new vs old data, model calibration differences, small sample
+   bias, natural lifecycle stages
+4. Add a `by_design_confidence` field to your result JSON: `"low"` (genuine defect),
+   `"medium"` (unclear), or `"high"` (likely by design)
+5. Include a 2–3 sentence content sample summary in `details`
+
+**Example triggers:**
+- Decay rate non-uniform across tiers → sample actual mid-low memories, check if they're
+  transient artifacts (→ confirmed by design for Recall on 2026-03-14)
+- Retrieval quality skewed poor → check if thresholds match the embedding model's range
+- Memory quality mean below threshold → sample bottom-quintile memories for genuine
+  low-value content vs important memories being under-scored
+
 ## Recall — inter-agent memory
 
 Your tag: `agent:quantitative-analyst`

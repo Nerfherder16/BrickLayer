@@ -21,6 +21,22 @@ from bl.runners.agent import _strip_frontmatter
 
 
 # ---------------------------------------------------------------------------
+# BL 2.0: Mode context loader
+# ---------------------------------------------------------------------------
+
+
+def _load_mode_context(operational_mode: str) -> str:
+    """Load the mode program markdown for the given operational mode."""
+    if not operational_mode:
+        return ""
+    modes_dir = cfg.project_root / "modes"
+    mode_file = modes_dir / f"{operational_mode}.md"
+    if mode_file.exists():
+        return mode_file.read_text(encoding="utf-8")
+    return ""
+
+
+# ---------------------------------------------------------------------------
 # Core run-and-record
 # ---------------------------------------------------------------------------
 
@@ -32,6 +48,37 @@ def run_and_record(question: dict) -> dict:
         f"Running {qid} [{question['mode']}]: {question['title']}",
         file=sys.stderr,
     )
+    # BL 2.0: inject operational mode context
+    op_mode = question.get("operational_mode", "")
+    if op_mode:
+        mode_ctx = _load_mode_context(op_mode)
+        if mode_ctx:
+            question = dict(question)
+            question["mode_context"] = mode_ctx
+
+    # BL 2.0: inject session context from previous findings this session
+    session_ctx_path = cfg.project_root / "session-context.md"
+    session_context = ""
+    if session_ctx_path.exists():
+        text = session_ctx_path.read_text(encoding="utf-8")
+        session_context = text[-2000:] if len(text) > 2000 else text
+    if session_context:
+        question = dict(question)
+        question["session_context"] = session_context
+
+    # BL 2.0: search Recall for relevant prior context (optional, graceful-fail)
+    try:
+        from bl.recall_bridge import search_before_question
+
+        project_name = cfg.project_root.name
+        recall_ctx = search_before_question(question, project_name)
+        if recall_ctx:
+            question = dict(question)  # may already be a copy from above
+            existing_ctx = question.get("session_context", "")
+            question["session_context"] = (recall_ctx + "\n" + existing_ctx).strip()
+    except Exception:
+        pass  # Recall bridge is optional — never block campaign on it
+
     result = run_question(question)
     failure_type = classify_failure_type(result, question["mode"])
     if failure_type:
@@ -63,7 +110,7 @@ def run_and_record(question: dict) -> dict:
         if followup_ids:
             result["followup_questions"] = followup_ids
 
-    # C-06: fix loop — attempt to repair FAILURE automatically (opt-in)
+    # C-06: fix loop — attempt to repair FAILURE automatically (opt-in, BL 1.x)
     if (
         result.get("verdict") == "FAILURE"
         and os.environ.get("BRICKLAYER_FIX_LOOP") == "1"
@@ -77,6 +124,51 @@ def run_and_record(question: dict) -> dict:
                 qid, "HEALTHY", fixed_result.get("summary", "Fixed"), None
             )
             result = fixed_result
+
+    # BL 2.0: self-healing loop — diagnose-analyst → fix-implementer → repeat (opt-in)
+    if (
+        result.get("verdict") in ("FAILURE", "DIAGNOSIS_COMPLETE")
+        and os.environ.get("BRICKLAYER_HEAL_LOOP") == "1"
+    ):
+        from bl.healloop import run_heal_loop
+
+        heal_finding_path = cfg.findings_dir / f"{qid}.md"
+        healed_result = run_heal_loop(question, result, heal_finding_path)
+        if (
+            healed_result is not result
+        ):  # F2.4: identity check — always propagate heal loop output
+            result = healed_result
+
+    # BL 2.0: append one-line insight to session-context.md
+    insight_line = f"[{qid}] {result['verdict']} [{question.get('operational_mode', question['mode'])}]: {result['summary'][:120]}\n"
+    with open(session_ctx_path, "a", encoding="utf-8") as f:
+        f.write(insight_line)
+
+    # BL 2.0: store significant findings to Recall
+    try:
+        from bl.recall_bridge import store_finding
+
+        project_name = cfg.project_root.name
+        store_finding(question, result, project_name)
+    except Exception:
+        pass  # optional — never block campaign on it
+
+    # BL 2.0: record agent performance in agent_db
+    agent_name = question.get("agent_name")
+    if (
+        question.get("mode") in ("agent", "code_audit") and agent_name
+    ):  # F9.2: track code_audit BL 2.0 agents too
+        try:
+            from bl import agent_db
+
+            score = agent_db.record_run(cfg.project_root, agent_name, result["verdict"])
+            if score < agent_db.UNDERPERFORMER_THRESHOLD:
+                print(
+                    f"[agent-db] {agent_name} score={score:.2f} — below threshold",
+                    file=sys.stderr,
+                )
+        except Exception as e:
+            print(f"[agent-db] Warning: could not record run: {e}", file=sys.stderr)
 
     print(json.dumps(result, indent=2))
     print(f"\nFinding written to: {finding_path}", file=sys.stderr)
@@ -303,7 +395,9 @@ def _inject_override_questions() -> None:
     questions_text = cfg.questions_md.read_text(encoding="utf-8")
 
     injected = 0
-    for finding_file in sorted(cfg.findings_dir.glob("Q*.md")):
+    for finding_file in sorted(
+        cfg.findings_dir.glob("*.md")
+    ):  # F8.1: include all findings, not just Q-prefixed BL 1.x
         content = finding_file.read_text(encoding="utf-8")
         if not override_pattern.search(content):
             continue
@@ -368,10 +462,111 @@ def check_sentinels() -> None:
 # ---------------------------------------------------------------------------
 
 
+def _preflight_mode_check(pending: list[dict]) -> list[dict]:
+    """Warn about unregistered modes or missing agent files; return questions that can run."""
+    from bl.runners.base import registered_modes
+
+    valid = set(registered_modes())
+    skipped = []
+    runnable = []
+    for q in pending:
+        if q["mode"] not in valid:
+            skipped.append((q, "mode_missing", f"mode '{q['mode']}' not registered"))
+        elif q["mode"] == "agent" and q.get("agent_name"):
+            agent_file = cfg.agents_dir / f"{q['agent_name']}.md"
+            if not agent_file.exists():
+                available = [
+                    f.stem for f in cfg.agents_dir.glob("*.md") if f.stem != "SCHEMA"
+                ]
+                skipped.append(
+                    (
+                        q,
+                        "agent_missing",
+                        f"agent file '{q['agent_name']}.md' not found — available: {available}",
+                    )
+                )
+            else:
+                runnable.append(q)
+        else:
+            runnable.append(q)
+    if skipped:
+        print(
+            f"\n[C-28] Pre-flight: {len(skipped)} question(s) blocked — will record INCONCLUSIVE immediately:",
+            file=sys.stderr,
+        )
+        for q, fail_class, reason in skipped:
+            print(f"  {q['id']} [{fail_class}]: {reason}", file=sys.stderr)
+            result = {
+                "verdict": "INCONCLUSIVE",
+                "summary": f"C-28 {fail_class}: {reason}",
+                "data": {"registered_modes": sorted(valid), "fail_class": fail_class},
+                "details": (
+                    f"Pre-flight check blocked question '{q['id']}': {reason}. "
+                    "Fix the question's Agent or Mode field to continue."
+                ),
+                "failure_type": "configuration",
+                "confidence": "high",
+            }
+            write_finding(q, result)
+            update_results_tsv(
+                q["id"], result["verdict"], result["summary"], "configuration"
+            )
+        print(f"[C-28] {len(runnable)} question(s) will run normally.", file=sys.stderr)
+    return runnable
+
+
+def _reactivate_pending_external(questions: list[dict]) -> int:
+    """
+    Re-activate PENDING_EXTERNAL questions whose resume_after date has passed.
+    Updates results.tsv to remove the row so the question becomes PENDING again.
+    Returns count of reactivated questions.
+    """
+    from datetime import datetime, timezone
+
+    if not cfg.results_tsv.exists():
+        return 0
+
+    now = datetime.now(timezone.utc)
+    reactivated = 0
+
+    lines = cfg.results_tsv.read_text(encoding="utf-8", errors="replace").splitlines()
+    new_lines = []
+    for line in lines:
+        parts = line.split("\t")
+        if len(parts) >= 2 and parts[1].strip() == "PENDING_EXTERNAL":
+            qid = parts[0]
+            q = next((q for q in questions if q["id"] == qid), None)
+            resume_after = q.get("resume_after", "") if q else ""
+            reactivate = False
+            if resume_after:
+                try:
+                    gate = datetime.fromisoformat(resume_after.replace("Z", "+00:00"))
+                    reactivate = now >= gate
+                except ValueError:
+                    reactivate = True
+            else:
+                reactivate = True
+            if reactivate:
+                print(
+                    f"[campaign] Re-activated {qid} (resume_after elapsed: {resume_after})",
+                    file=sys.stderr,
+                )
+                reactivated += 1
+                continue  # drop row → question becomes PENDING again
+        new_lines.append(line)
+
+    if reactivated:
+        cfg.results_tsv.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    return reactivated
+
+
 def run_campaign() -> None:
     """Run all PENDING questions in sequence with sentinel checks."""
     questions = parse_questions()
+    _reactivate_pending_external(questions)
+    questions = parse_questions()  # re-parse after reactivation
     pending = [q for q in questions if q["status"] == "PENDING"]
+    pending = _preflight_mode_check(pending)
 
     if not pending:
         print("No PENDING questions remain.", file=sys.stderr)
@@ -427,7 +622,89 @@ def run_campaign() -> None:
                 f"Write fleet health report to {cfg.agents_dir}/AUDIT_REPORT.md.",
             )
 
+            # BL 2.0: spawn overseer if any agents are underperforming
+            try:
+                from bl import agent_db
+
+                underperformers = agent_db.get_underperformers(cfg.project_root)
+                if underperformers:
+                    names = ", ".join(u["name"] for u in underperformers)
+                    print(
+                        f"[campaign] Overseer trigger: {len(underperformers)} underperformer(s): {names}",
+                        file=sys.stderr,
+                    )
+                    project_brief = cfg.project_root / "project-brief.md"
+                    _spawn_agent_background(
+                        "overseer",
+                        f"agent_db_json={cfg.project_root / 'agent_db.json'}\n"
+                        f"agents_dir={cfg.agents_dir}\n"
+                        f"findings_dir={cfg.findings_dir}\n"
+                        f"project_brief={project_brief}\n"
+                        f"skill_registry_json={cfg.project_root / 'skill_registry.json'}\n"
+                        f"project_root={cfg.project_root}\n\n"
+                        f"Underperforming agents (score < {agent_db.UNDERPERFORMER_THRESHOLD}): {names}\n\n"
+                        f"Review their recent findings, diagnose failure patterns, and "
+                        f"apply surgical improvements to their instruction files. "
+                        f"Also review any registered skills for staleness. "
+                        f"Write OVERSEER_REPORT.md to agents_dir when done.",
+                    )
+            except Exception as e:
+                print(f"[campaign] Overseer check failed: {e}", file=sys.stderr)
+
     print("\nCampaign complete.", file=sys.stderr)
+
+    # BL 2.0: synthesizer-bl2 — wave synthesis + doc maintenance + commit
+    # Runs first so CHANGELOG/ARCHITECTURE/ROADMAP are updated before overseer/skill-forge
+    _spawn_agent_background(
+        "synthesizer-bl2",
+        f"findings_dir={cfg.findings_dir}\n"
+        f"results_tsv={cfg.results_tsv}\n"
+        f"project_root={cfg.project_root}\n"
+        f"project_name={cfg.project_root.name}\n"
+        f"wave_number=auto-detect\n\n"
+        f"Wave complete. Synthesize all findings, update CHANGELOG.md, "
+        f"ARCHITECTURE.md, and ROADMAP.md (mark completed roadmap items ✅), "
+        f"then stage and commit the documentation.",
+    )
+
+    # BL 2.0: wave-end overseer run — catch underperformers missed by the 10-question trigger
+    try:
+        from bl import agent_db
+
+        underperformers = agent_db.get_underperformers(cfg.project_root)
+        if underperformers:
+            names = ", ".join(u["name"] for u in underperformers)
+            print(
+                f"\n[campaign] Wave-end overseer: {len(underperformers)} agent(s) need attention: {names}",
+                file=sys.stderr,
+            )
+            project_brief = cfg.project_root / "project-brief.md"
+            _spawn_agent_background(
+                "overseer",
+                f"agent_db_json={cfg.project_root / 'agent_db.json'}\n"
+                f"agents_dir={cfg.agents_dir}\n"
+                f"findings_dir={cfg.findings_dir}\n"
+                f"project_brief={project_brief}\n\n"
+                f"Wave-end fleet review. Underperformers: {names}\n"
+                f"Scores: {[{u['name']: u['score']} for u in underperformers]}\n\n"
+                f"Diagnose, repair, and write OVERSEER_REPORT.md.",
+            )
+        else:
+            _spawn_agent_background(
+                "overseer",
+                f"agent_db_json={cfg.project_root / 'agent_db.json'}\n"
+                f"agents_dir={cfg.agents_dir}\n"
+                f"findings_dir={cfg.findings_dir}\n"
+                f"project_brief={cfg.project_root / 'project-brief.md'}\n"
+                f"skill_registry_json={cfg.project_root / 'skill_registry.json'}\n"
+                f"project_root={cfg.project_root}\n\n"
+                f"Wave complete — all agents within score threshold. "
+                f"Write a fleet health summary to OVERSEER_REPORT.md. "
+                f"Review registered skills for staleness. "
+                f"Check FORGE_NEEDED.md if it exists and create any missing agents.",
+            )
+    except Exception as e:
+        print(f"[campaign] Wave-end overseer failed: {e}", file=sys.stderr)
 
     # Run synthesizer at end of each wave
     from bl.synthesizer import parse_recommendation, synthesize
@@ -449,6 +726,50 @@ def run_campaign() -> None:
                 "[campaign] Synthesizer recommends PIVOT — see synthesis.md",
                 file=sys.stderr,
             )
+
+    # BL 2.0: post-wave skill forge — distill findings into reusable skills
+    synthesis_path = cfg.project_root / "findings" / "synthesis.md"
+    _spawn_agent_background(
+        "skill-forge",
+        f"synthesis_md={synthesis_path}\n"
+        f"findings_dir={cfg.findings_dir}\n"
+        f"project_root={cfg.project_root}\n"
+        f"skill_registry_json={cfg.project_root / 'skill_registry.json'}\n"
+        f"skills_dir={os.path.expanduser('~/.claude/skills')}\n"
+        f"project_name={cfg.project_root.name}\n\n"
+        f"Wave complete. Read the synthesis and recent findings. "
+        f"Identify 2–5 recurring patterns worth encoding as reusable skills. "
+        f"Create them in ~/.claude/skills/ and register in skill_registry.json.",
+    )
+
+    # BL 2.0: MCP gap analysis — identify tooling holes from INCONCLUSIVE/FAILURE patterns
+    _spawn_agent_background(
+        "mcp-advisor",
+        f"findings_dir={cfg.findings_dir}\n"
+        f"results_tsv={cfg.results_tsv}\n"
+        f"project_root={cfg.project_root}\n"
+        f"project_brief={cfg.project_root / 'project-brief.md'}\n\n"
+        f"Analyze all INCONCLUSIVE and FAILURE findings for tooling gaps. "
+        f"Identify MCP servers and Python packages that would have unblocked them. "
+        f"Write MCP_RECOMMENDATIONS.md to the project root.",
+    )
+
+    # BL 2.0: git-nerd — commit any remaining changes, create/update campaign PR,
+    # write GITHUB_HANDOFF.md so Tim knows exactly what (if anything) to do
+    _spawn_agent_background(
+        "git-nerd",
+        f"project_root={cfg.project_root}\n"
+        f"task=wave-end\n\n"
+        f"A BrickLayer wave just completed. synthesizer-bl2 has already committed the "
+        f"synthesis and documentation files. Your job:\n"
+        f"1. Verify the synthesizer commit landed (git log)\n"
+        f"2. Stage and commit anything remaining (questions.md status, results.tsv, "
+        f"any code fixes from this wave)\n"
+        f"3. Create or update the GitHub PR for this campaign branch\n"
+        f"4. Write GITHUB_HANDOFF.md at the project root — tell Tim exactly what "
+        f"he needs to do (usually just 'git push' or 'nothing')\n"
+        f"Keep GITHUB_HANDOFF.md short and actionable.",
+    )
 
     # Auto-generate next wave if question bank is exhausted
     remaining = [q for q in parse_questions() if q["status"] == "PENDING"]

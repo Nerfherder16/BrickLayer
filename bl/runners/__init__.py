@@ -27,6 +27,9 @@ def _register_builtins() -> None:
     register("correctness", run_correctness)
     register("quality", run_quality)
     register("agent", run_agent)
+    register(
+        "code_audit", run_agent
+    )  # F6.1: semantic alias — code audit questions use LLM agent (diagnose-analyst)
     register("static", run_quality)
     register("http", run_http)
     register("subprocess", run_subprocess)

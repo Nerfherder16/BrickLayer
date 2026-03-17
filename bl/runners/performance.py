@@ -448,6 +448,152 @@ async def run_performance_q_c24_3(client: httpx.AsyncClient) -> dict:
     }
 
 
+async def run_performance_q9_1(client: httpx.AsyncClient) -> dict:
+    """Q9.1 — 100 sequential stores: does latency spike as HNSW index grows?"""
+    latencies: list[float] = []
+    errors = 0
+    for i in range(100):
+        payload = {
+            "content": f"Scale test memory {i}: BrickLayer Q9.1 burst insertion — testing Qdrant HNSW index pressure under sequential writes. Topic variant {i % 10}.",
+            "memory_type": "episodic",
+            "domain": "autoresearch-scale-test",
+        }
+        t0 = time.time()
+        try:
+            resp = await client.post(STORE_ROUTE, json=payload, timeout=30.0)
+            elapsed = (time.time() - t0) * 1000
+            latencies.append(elapsed)
+            if resp.status_code >= 500:
+                errors += 1
+        except Exception:
+            errors += 1
+            latencies.append(30_000)
+
+    n = len(latencies)
+    latencies_sorted = sorted(latencies)
+    p50 = latencies_sorted[n // 2]
+    p95 = latencies_sorted[int(n * 0.95) - 1]
+    p99 = latencies_sorted[int(n * 0.99) - 1]
+    # Check for spike in second half vs first half
+    first_half_avg = sum(latencies[:50]) / 50
+    second_half_avg = sum(latencies[50:]) / 50
+    spike_ratio = second_half_avg / first_half_avg if first_half_avg > 0 else 1.0
+    max_single = max(latencies)
+
+    if max_single > 5000 or p95 > 2000:
+        verdict = "FAILURE"
+    elif p95 > 1000 or max_single > 2000:
+        verdict = "WARNING"
+    else:
+        verdict = "HEALTHY"
+
+    return {
+        "verdict": verdict,
+        "summary": f"100-store burst: p50={p50:.0f}ms p95={p95:.0f}ms p99={p99:.0f}ms max={max_single:.0f}ms spike_ratio={spike_ratio:.2f}x errors={errors}",
+        "data": {
+            "p50_ms": p50,
+            "p95_ms": p95,
+            "p99_ms": p99,
+            "max_ms": max_single,
+            "spike_ratio": spike_ratio,
+            "errors": errors,
+            "n": n,
+        },
+        "details": f"100 sequential stores. First-half avg={first_half_avg:.0f}ms, second-half avg={second_half_avg:.0f}ms (ratio={spike_ratio:.2f}x). P95={p95:.0f}ms. FAILURE>2000ms p95 or >5000ms single.",
+    }
+
+
+async def run_performance_q9_2(client: httpx.AsyncClient) -> dict:
+    """Q9.2 — 3 successive consolidation runs: time complexity at 20K+ memories."""
+    durations: list[float] = []
+    statuses: list[int] = []
+    for _ in range(3):
+        t0 = time.time()
+        try:
+            resp = await client.post(CONSOLIDATE_ROUTE, timeout=180.0)
+            elapsed = (time.time() - t0) * 1000
+            durations.append(elapsed)
+            statuses.append(resp.status_code)
+        except Exception:
+            durations.append(180_000)
+            statuses.append(0)
+
+    max_duration = max(durations)
+    growing = len(durations) >= 2 and durations[-1] > durations[0] * 1.5
+
+    if max_duration > 120_000:
+        verdict = "FAILURE"
+    elif max_duration > 60_000 or growing:
+        verdict = "WARNING"
+    else:
+        verdict = "HEALTHY"
+
+    parts = [
+        f"run{i + 1}={d:.0f}ms(status={s})"
+        for i, (d, s) in enumerate(zip(durations, statuses))
+    ]
+    summary = " | ".join(parts)
+
+    return {
+        "verdict": verdict,
+        "summary": f"consolidation x3: {summary} growing={growing}",
+        "data": {
+            "durations_ms": durations,
+            "statuses": statuses,
+            "max_ms": max_duration,
+            "growing": growing,
+        },
+        "details": f"3 successive POST /admin/consolidate. Max={max_duration:.0f}ms. Growing={growing}. FAILURE>120s, WARNING>60s or growing.",
+    }
+
+
+async def run_performance_q9_3(client: httpx.AsyncClient) -> dict:
+    """Q9.3 — 5 concurrent search queries x10 rounds: multi-session hook latency."""
+    all_latencies: list[float] = []
+
+    async def single_search() -> float:
+        t0 = time.time()
+        try:
+            resp = await client.post(SEARCH_ROUTE, json=SEARCH_PAYLOAD, timeout=10.0)
+            elapsed = (time.time() - t0) * 1000
+            if resp.status_code >= 500:
+                return 10_000
+            return elapsed
+        except Exception:
+            return 10_000
+
+    for _ in range(10):
+        round_results = await asyncio.gather(*[single_search() for _ in range(5)])
+        all_latencies.extend(round_results)
+
+    n = len(all_latencies)
+    latencies_sorted = sorted(all_latencies)
+    p50 = latencies_sorted[n // 2]
+    p95 = latencies_sorted[int(n * 0.95) - 1]
+    p99 = latencies_sorted[int(n * 0.99) - 1]
+
+    if p99 > 2000:
+        verdict = "FAILURE"
+    elif p99 > 500:
+        verdict = "WARNING"
+    else:
+        verdict = "HEALTHY"
+
+    return {
+        "verdict": verdict,
+        "summary": f"5-concurrent x10 rounds: p50={p50:.0f}ms p95={p95:.0f}ms p99={p99:.0f}ms (n={n})",
+        "data": {
+            "p50_ms": p50,
+            "p95_ms": p95,
+            "p99_ms": p99,
+            "n": n,
+            "rounds": 10,
+            "concurrency": 5,
+        },
+        "details": f"50 total search requests (5 concurrent x 10 rounds). P99={p99:.0f}ms. FAILURE>2000ms, WARNING>500ms.",
+    }
+
+
 # ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
@@ -459,6 +605,9 @@ _RUNNERS = {
     "Q1.4": run_performance_q1_4,
     "Q1.5": run_performance_q1_5,
     "Q-C24.3": run_performance_q_c24_3,
+    "Q9.1": run_performance_q9_1,
+    "Q9.2": run_performance_q9_2,
+    "Q9.3": run_performance_q9_3,
 }
 
 
