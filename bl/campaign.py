@@ -393,6 +393,9 @@ def _inject_override_questions() -> None:
     )
 
     questions_text = cfg.questions_md.read_text(encoding="utf-8")
+    all_questions = (
+        parse_questions()
+    )  # A17.1: hoist above loop — one parse per invocation
 
     injected = 0
     for finding_file in sorted(
@@ -408,7 +411,7 @@ def _inject_override_questions() -> None:
             continue
 
         # D16.2.F1: skip code_audit findings — their test fields are prose, not runnable
-        original_question = get_question_by_id(parse_questions(), qid)
+        original_question = get_question_by_id(all_questions, qid)
         if original_question and original_question.get("mode") == "code_audit":
             continue
         original_mode = (
