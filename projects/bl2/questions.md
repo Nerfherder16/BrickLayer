@@ -1786,3 +1786,82 @@ Status is tracked in results.tsv — do not edit manually.
 **Verdict threshold**:
 - NON_COMPLIANT: at least one `.R` re-exam question exists with a code_audit parent — document which ones and recommend removal or conversion to code_audit mode
 - COMPLIANT: no `.R` questions exist, or all existing `.R` questions have executable test commands from non-code_audit parents
+
+<!-- Wave 17 -->
+
+---
+
+## Wave 17
+
+**Generated from findings**: F-mid.1, F-mid.2, F-mid.3, D-mid.4, F-mid.5, D16.2.F1.fix, D16.2.F1.F1, D16.1.F1
+**Mode transitions applied**: 5x FIXED (F-mid.1, F-mid.2, F-mid.3, D-mid.4, F-mid.5) → V17.1 consolidated validate; D16.2 DIAGNOSIS_COMPLETE follow-up → D17.1 diagnose (unconditional background-agent spawns); D16.3 DIAGNOSIS_COMPLETE → D17.2 diagnose (_ALL_VERDICTS completeness); V16.1 COMPLIANT (scorer design validated) → F17.1 fix (implement BL 2.0 Crucible scorers); D16.2.F1 FIXED → A17.1 audit (O(N) parse_questions inside per-finding loop)
+
+---
+
+## V17.1 [VALIDATE] Wave-mid fixes correct — HEAL_EXHAUSTED propagation, mode guards, and text-fallback extraction all verified with no regressions
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Operational Mode**: validate
+**Status**: COMPLIANT
+**Motivated by**: F-mid.1 (FIXED) + F-mid.2 (FIXED) + F-mid.3 (FIXED) + D-mid.4 (FIXED) + F-mid.5 (FIXED) — five fixes applied across bl/healloop.py, bl/questions.py, bl/findings.py, bl/agent_db.py, bl/runners/agent.py, and bl/campaign.py
+**Hypothesis**: After F-mid.1: update_results_tsv(original_qid, "HEAL_EXHAUSTED", ...) is present in healloop.py exhausted path and "HEAL_EXHAUSTED" appears in all four downstream frozensets (_PARKED_STATUSES, _TERMINAL_VERDICTS, _PRESERVE_AS_IS, agent_db._PARTIAL_VERDICTS). After F-mid.2: peer-reviewer spawn is inside `if question.get("mode") not in ("code_audit",):`. After F-mid.3 and D-mid.4: _parse_text_output() has an else clause with re.search(r"^verdict:") extraction, and _summary_from_agent_output() has an early `if output.get("summary"): return str(output["summary"])` check. After F-mid.5: an explanatory comment at the pending-list refresh site in run_campaign(). No BL 1.x agent regressions introduced.
+**Test**: (1) `grep -n "HEAL_EXHAUSTED" bl/healloop.py bl/questions.py bl/findings.py bl/agent_db.py` — confirm presence in all four files including update_results_tsv call in healloop.py before return current_result. (2) `grep -n "code_audit" bl/campaign.py` — confirm peer-reviewer guard uses `not in ("code_audit",)`. (3) `grep -n "else:" bl/runners/agent.py` — confirm else-clause after perf-optimizer branch contains re.search for verdict extraction. (4) `grep -n "output.get" bl/runners/agent.py` — confirm early summary check in _summary_from_agent_output(). (5) `grep -n "rebind\|next invocation\|display only\|pre-loop snapshot" bl/campaign.py` — confirm explanatory comment at refresh site.
+**Verdict threshold**:
+- COMPLIANT: all five checks pass; the four BL 1.x agent-name branches in _parse_text_output() are unmodified (no regressions for security-hardener, test-writer, type-strictener, perf-optimizer)
+- NON_COMPLIANT: any check fails — document which fix is incomplete or introduced a regression
+
+---
+
+## D17.1 [DIAGNOSE] campaign.py background-agent spawns other than peer-reviewer are mode-unconditional — forge-check and other spawns may misfire for code_audit questions
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: HEALTHY
+**Motivated by**: D16.2 (DIAGNOSIS_COMPLETE) — suggested follow-up: "Are there other background agent spawns in run_campaign() that are also mode-unconditional and should be guarded similarly (e.g., forge-check, hypothesis-generator)?"
+**Hypothesis**: run_campaign() in bl/campaign.py contains multiple _spawn_agent_background(...) call sites. The D16.2 fix (F-mid.2) guarded only the peer-reviewer spawn. Other spawns — specifically forge-check and/or hypothesis-generator, if they exist inside the per-question loop — may also fire unconditionally for all question modes including code_audit. A forge-check agent attempting to re-run a prose code-read test command would fail silently or produce a spurious verdict. A hypothesis-generator spawned per-question rather than per-wave would produce redundant follow-up waves that collide on wave numbering.
+**Test**: Read bl/campaign.py in full — locate all _spawn_agent_background(...) call sites inside run_campaign(). For each: (1) identify the agent name, (2) check whether a mode guard of the form `if question.get("mode") not in (...)` wraps the call, (3) determine whether the agent behaviour is mode-sensitive (would it fail or produce incorrect output for code_audit questions with prose-only test fields). List all unconditional spawns that are mode-sensitive.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: at least one background-agent spawn other than peer-reviewer is unconditional AND mode-sensitive for code_audit questions; fix requires adding mode guards to those spawns using the same pattern as F-mid.2
+- HEALTHY: all remaining background-agent spawns are either already guarded by mode or are mode-insensitive (their behavior is correct for both agent and code_audit question types regardless of mode)
+
+---
+
+## D17.2 [DIAGNOSE] _ALL_VERDICTS in runners/agent.py may be missing BL 2.0 verdict strings — F-mid.3 regex extraction succeeds but extracted verdict is discarded if not in _ALL_VERDICTS
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: HEALTHY
+**Motivated by**: D16.3 (DIAGNOSIS_COMPLETE) + F-mid.3 (FIXED) — F-mid.3 adds re.search(r"^verdict:\s*(\w+)") extraction to _parse_text_output(), storing the result in out["verdict"]. In _verdict_from_agent_output() the else-branch reads output.get("verdict", "").upper() and checks `if self_verdict_early in _ALL_VERDICTS`. If _ALL_VERDICTS does not contain DIAGNOSIS_COMPLETE or other BL 2.0 verdicts, the extracted verdict is silently discarded and the function returns INCONCLUSIVE — nullifying the F-mid.3 fix entirely for those verdicts.
+**Hypothesis**: _ALL_VERDICTS in bl/runners/agent.py was defined in the BL 1.x era and may contain only the original four verdicts (HEALTHY, WARNING, FAILURE, INCONCLUSIVE) or a partial expansion. If BL 2.0 verdicts (DIAGNOSIS_COMPLETE, FIX_FAILED, FIXED, NON_COMPLIANT, COMPLIANT, BLOCKED, PROMISING, CALIBRATED, REGRESSION, ALERT, DEGRADED, IMMINENT, PROBABLE) are absent, the F-mid.3 text-fallback path is a no-op for those verdicts: regex extraction succeeds, but the _ALL_VERDICTS guard immediately discards the result.
+**Test**: `grep -n "_ALL_VERDICTS" bl/runners/agent.py` — locate the definition and list all verdict strings it contains. Compare against the full verdict list in constants.py. Specifically confirm whether DIAGNOSIS_COMPLETE is present. Trace _verdict_from_agent_output("diagnose-analyst", {"verdict": "DIAGNOSIS_COMPLETE", "summary": "..."}) through the else-branch — confirm whether "DIAGNOSIS_COMPLETE" in _ALL_VERDICTS evaluates to True or False.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: _ALL_VERDICTS is missing one or more BL 2.0 verdict strings; DIAGNOSIS_COMPLETE (or any other BL 2.0 verdict) absent from _ALL_VERDICTS causes F-mid.3 extraction to be silently discarded; fix requires adding all BL 2.0 verdicts to _ALL_VERDICTS or replacing the guard with a reference to the canonical set in constants.py
+- HEALTHY: _ALL_VERDICTS already contains all BL 2.0 verdict strings including DIAGNOSIS_COMPLETE; F-mid.3 extraction is fully functional end-to-end
+
+---
+
+## F17.1 [FIX] Implement BL 2.0 Crucible scorer stubs for diagnose-analyst, fix-implementer, compliance-auditor, and design-reviewer
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: FIXED
+**Motivated by**: V16.1 (COMPLIANT) — design validated: _SCORERS is a plain dict; AgentScore fields cover rate + completeness + notes; _score_synthesizer() static-file pattern is directly reusable; adding "diagnose-analyst": _score_diagnose_analyst to _SCORERS is the only structural change required. The four BL 2.0 agents were added to _KNOWN_AGENTS by F15.2 but have no scorer entries in _SCORERS — run_all_benchmarks() will KeyError or return 0.0 for them.
+**Hypothesis**: Adding four scorer functions to bl/crucible.py and registering them in _SCORERS will make the BL 2.0 operational agents visible to Crucible benchmarking. Rubric design per V16.1: (1) _score_diagnose_analyst — DIAGNOSIS_COMPLETE rate from results.tsv for diagnose-analyst runs; fix-spec completeness fraction (findings containing all four fields: Target file, Target location, Concrete edit, Verification command). (2) _score_fix_implementer — FIXED rate, FIX_FAILED rate, presence of a Verification or Fix Applied section in each FIXED finding. (3) _score_compliance_auditor — NON_COMPLIANT + COMPLIANT rate (fraction answered definitively vs INCONCLUSIVE), NON_COMPLIANT findings that include a Fix Specification section. (4) _score_design_reviewer — COMPLIANT rate, presence of specific line-number references in findings. All four follow the _score_synthesizer() static-file pattern: read findings/*.md, extract text metrics, return AgentScore(name, score, checks_raw, notes).
+**Test**: After fix: `python -c "from bl.crucible import run_all_benchmarks, CrucibleConfig; import pathlib; cfg = CrucibleConfig(pathlib.Path('.')); s = run_all_benchmarks(cfg); names = {a.name for a in s}; assert names >= {'diagnose-analyst','fix-implementer','compliance-auditor','design-reviewer','hypothesis-generator'}; print('PASS')"` — all four BL 2.0 agents return AgentScore without KeyError; BL 1.x scorers unaffected.
+**Verdict threshold**:
+- FIXED: all four scorer functions implemented; all four registered in _SCORERS; run_all_benchmarks() returns scores for all eight agents (4 BL 1.x + 4 BL 2.0) without raising KeyError; BL 1.x scorer outputs unchanged
+- FIX_FAILED: any scorer raises an exception, returns wrong type, or _SCORERS registration is missing for any of the four agents
+
+---
+
+## A17.1 [AUDIT] D16.2.F1.fix calls parse_questions() inside per-finding loop — O(N) parse overhead per _inject_override_questions() invocation
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Operational Mode**: audit
+**Status**: NON_COMPLIANT
+**Motivated by**: D16.2.F1 (DIAGNOSIS_COMPLETE) → D16.2.F1.fix (FIXED) — the fix calls get_question_by_id(parse_questions(), qid) inside the `for finding_file in sorted(cfg.findings_dir.glob("*.md")):` loop, re-parsing all of questions.md on every iteration
+**Hypothesis**: The D16.2.F1 fix is functionally correct but introduces an O(N) parse overhead: parse_questions() reads and parses the entire questions.md file once per finding file in the loop. In a campaign with 50 finding files, _inject_override_questions() performs 50 full parses of questions.md per invocation. At BL 2.0 campaign scale (current: ~60 questions, ~50 findings, questions.md ~1800 lines), this is measurable. The fix is correct (question mode is set at creation and never modified, ruling out staleness risk), but parse_questions() should be hoisted above the loop and the cached result passed to get_question_by_id() inside it.
+**Test**: Read bl/campaign.py _inject_override_questions() — confirm whether parse_questions() is called (a) once before the for-finding_file loop, or (b) inside the loop on each iteration. Count the number of parse_questions() calls that would occur for a campaign with 50 finding files under the current implementation. Confirm that question["mode"] is immutable (never modified after initial write) so hoisting introduces no staleness risk.
+**Verdict threshold**:
+- NON_COMPLIANT: parse_questions() is called inside the per-finding loop (once per finding, not hoisted); at 50 findings this performs 50 full parses of questions.md; fix requires hoisting `all_questions = parse_questions()` above the loop and passing it into get_question_by_id() on each iteration
+- COMPLIANT: parse_questions() is already hoisted above the per-finding loop (called once per _inject_override_questions() invocation), or the per-call cost is negligible and the staleness risk is confirmed absent
