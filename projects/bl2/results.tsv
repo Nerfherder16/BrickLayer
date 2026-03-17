@@ -131,3 +131,5 @@ N/A	V18.2	NON_COMPLIANT	N/A	fix_spec_completeness guard uses substring match —
 N/A	A18.1	COMPLIANT	N/A	parse_questions() hoisted before loop at lines 396-398; all_questions passed to get_question_by_id() inside loop; no residual inner call	A18.1-parse-questions-hoist-confirmed
 N/A	D18.1	HEALTHY	N/A	HEAL_EXHAUSTED is in _TERMINAL_VERDICTS at line 194; write-back path is complete: healloop -> results.tsv -> sync_status -> questions.md HEAL_EXHAUSTED status	D18.1-heal-exhausted-writeback-complete
 N/A	D18.2	HEALTHY	N/A	fix_rows are all F-prefix questions (F2.1-F2.6, F-mid.1-F17.1, D-mid.4); no cross-agent contamination; fix_rate=1.0 is accurate for current campaign; latent fragility documented	D18.2-fix-rows-scoped-correctly
+N/A	F19.1	FIXED	N/A	_score_diagnose_analyst dc_rate scoped to BL 2.0 D-prefix rows via _is_bl2_diag_row(); excludes 22+ BL 1.x FAILURE rows from denominator	F19.1-dc-rate-scoped-bl2-dprefix
+N/A	F19.2	FIXED	N/A	fix_spec_completeness guard changed to exact **Verdict**: DIAGNOSIS_COMPLETE match; FIXED findings with embedded Fix Specification now excluded	F19.2-fix-spec-exact-verdict-guard
