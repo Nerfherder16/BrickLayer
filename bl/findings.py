@@ -507,6 +507,12 @@ def _mark_question_done(qid: str, verdict: str) -> None:
             "FIXED",
             "FIX_FAILED",
             "BLOCKED",
+            # F8.2: preserve failure/violation verdicts for human visibility in questions.md
+            "FAILURE",
+            "NON_COMPLIANT",
+            "WARNING",
+            "REGRESSION",
+            "ALERT",
         }
     )
     new_status = verdict if verdict in _PRESERVE_AS_IS else "DONE"

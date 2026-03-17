@@ -55,3 +55,9 @@ F7.1	FIXED		self_verdict_early checked first in else-branch — BL 2.0 agent ver
 F7.2	FIXED		_is_leaf_id() else-branch now uses dot-count: len(parts) >= 3 → leaf; BL 1.x Q/QG paths unaffected	2026-03-16T00:00:00Z
 A7.1	COMPLIANT		followup sub-question IDs, block headers, mode fields, injection mechanism all compatible with BL 2.0 parse_questions()	2026-03-16T00:00:00Z
 V7.1	COMPLIANT		Verdict extraction and C-04 drill-down both verified correct after F7.1+F7.2; no BL 1.x regressions	2026-03-16T00:00:00Z
+D8.1	FAILURE		glob("Q*.md") in _inject_override_questions() excludes all BL 2.0 findings — peer OVERRIDE injection non-functional	2026-03-16T00:00:00Z
+D8.2	FAILURE		_PRESERVE_AS_IS missing FAILURE/NON_COMPLIANT/WARNING — these verdicts written as "DONE" in questions.md	2026-03-16T00:00:00Z
+F8.1	FIXED		glob("Q*.md") → glob("*.md") — all finding files (BL 1.x and BL 2.0) now scanned for OVERRIDE peer reviews	2026-03-16T00:00:00Z
+F8.2	FIXED		FAILURE/NON_COMPLIANT/WARNING/REGRESSION/ALERT added to _PRESERVE_AS_IS — preserved in questions.md status	2026-03-16T00:00:00Z
+A8.1	COMPLIANT		modes/ has all 10 BL 2.0 operational mode files; _load_mode_context() silent fallback is acceptable	2026-03-16T00:00:00Z
+V8.1	COMPLIANT		Override injection, status preservation, mode context loading all correct after F8.1+F8.2; no regressions	2026-03-16T00:00:00Z

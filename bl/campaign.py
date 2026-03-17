@@ -153,6 +153,21 @@ def run_and_record(question: dict) -> dict:
     except Exception:
         pass  # optional — never block campaign on it
 
+    # BL 2.0: record agent performance in agent_db
+    agent_name = question.get("agent_name")
+    if question.get("mode") == "agent" and agent_name:
+        try:
+            from bl import agent_db
+
+            score = agent_db.record_run(cfg.project_root, agent_name, result["verdict"])
+            if score < agent_db.UNDERPERFORMER_THRESHOLD:
+                print(
+                    f"[agent-db] {agent_name} score={score:.2f} — below threshold",
+                    file=sys.stderr,
+                )
+        except Exception as e:
+            print(f"[agent-db] Warning: could not record run: {e}", file=sys.stderr)
+
     print(json.dumps(result, indent=2))
     print(f"\nFinding written to: {finding_path}", file=sys.stderr)
     print(f"Verdict: {result['verdict']}", file=sys.stderr)
@@ -378,7 +393,9 @@ def _inject_override_questions() -> None:
     questions_text = cfg.questions_md.read_text(encoding="utf-8")
 
     injected = 0
-    for finding_file in sorted(cfg.findings_dir.glob("Q*.md")):
+    for finding_file in sorted(
+        cfg.findings_dir.glob("*.md")
+    ):  # F8.1: include all findings, not just Q-prefixed BL 1.x
         content = finding_file.read_text(encoding="utf-8")
         if not override_pattern.search(content):
             continue
@@ -603,7 +620,89 @@ def run_campaign() -> None:
                 f"Write fleet health report to {cfg.agents_dir}/AUDIT_REPORT.md.",
             )
 
+            # BL 2.0: spawn overseer if any agents are underperforming
+            try:
+                from bl import agent_db
+
+                underperformers = agent_db.get_underperformers(cfg.project_root)
+                if underperformers:
+                    names = ", ".join(u["name"] for u in underperformers)
+                    print(
+                        f"[campaign] Overseer trigger: {len(underperformers)} underperformer(s): {names}",
+                        file=sys.stderr,
+                    )
+                    project_brief = cfg.project_root / "project-brief.md"
+                    _spawn_agent_background(
+                        "overseer",
+                        f"agent_db_json={cfg.project_root / 'agent_db.json'}\n"
+                        f"agents_dir={cfg.agents_dir}\n"
+                        f"findings_dir={cfg.findings_dir}\n"
+                        f"project_brief={project_brief}\n"
+                        f"skill_registry_json={cfg.project_root / 'skill_registry.json'}\n"
+                        f"project_root={cfg.project_root}\n\n"
+                        f"Underperforming agents (score < {agent_db.UNDERPERFORMER_THRESHOLD}): {names}\n\n"
+                        f"Review their recent findings, diagnose failure patterns, and "
+                        f"apply surgical improvements to their instruction files. "
+                        f"Also review any registered skills for staleness. "
+                        f"Write OVERSEER_REPORT.md to agents_dir when done.",
+                    )
+            except Exception as e:
+                print(f"[campaign] Overseer check failed: {e}", file=sys.stderr)
+
     print("\nCampaign complete.", file=sys.stderr)
+
+    # BL 2.0: synthesizer-bl2 — wave synthesis + doc maintenance + commit
+    # Runs first so CHANGELOG/ARCHITECTURE/ROADMAP are updated before overseer/skill-forge
+    _spawn_agent_background(
+        "synthesizer-bl2",
+        f"findings_dir={cfg.findings_dir}\n"
+        f"results_tsv={cfg.results_tsv}\n"
+        f"project_root={cfg.project_root}\n"
+        f"project_name={cfg.project_root.name}\n"
+        f"wave_number=auto-detect\n\n"
+        f"Wave complete. Synthesize all findings, update CHANGELOG.md, "
+        f"ARCHITECTURE.md, and ROADMAP.md (mark completed roadmap items ✅), "
+        f"then stage and commit the documentation.",
+    )
+
+    # BL 2.0: wave-end overseer run — catch underperformers missed by the 10-question trigger
+    try:
+        from bl import agent_db
+
+        underperformers = agent_db.get_underperformers(cfg.project_root)
+        if underperformers:
+            names = ", ".join(u["name"] for u in underperformers)
+            print(
+                f"\n[campaign] Wave-end overseer: {len(underperformers)} agent(s) need attention: {names}",
+                file=sys.stderr,
+            )
+            project_brief = cfg.project_root / "project-brief.md"
+            _spawn_agent_background(
+                "overseer",
+                f"agent_db_json={cfg.project_root / 'agent_db.json'}\n"
+                f"agents_dir={cfg.agents_dir}\n"
+                f"findings_dir={cfg.findings_dir}\n"
+                f"project_brief={project_brief}\n\n"
+                f"Wave-end fleet review. Underperformers: {names}\n"
+                f"Scores: {[{u['name']: u['score']} for u in underperformers]}\n\n"
+                f"Diagnose, repair, and write OVERSEER_REPORT.md.",
+            )
+        else:
+            _spawn_agent_background(
+                "overseer",
+                f"agent_db_json={cfg.project_root / 'agent_db.json'}\n"
+                f"agents_dir={cfg.agents_dir}\n"
+                f"findings_dir={cfg.findings_dir}\n"
+                f"project_brief={cfg.project_root / 'project-brief.md'}\n"
+                f"skill_registry_json={cfg.project_root / 'skill_registry.json'}\n"
+                f"project_root={cfg.project_root}\n\n"
+                f"Wave complete — all agents within score threshold. "
+                f"Write a fleet health summary to OVERSEER_REPORT.md. "
+                f"Review registered skills for staleness. "
+                f"Check FORGE_NEEDED.md if it exists and create any missing agents.",
+            )
+    except Exception as e:
+        print(f"[campaign] Wave-end overseer failed: {e}", file=sys.stderr)
 
     # Run synthesizer at end of each wave
     from bl.synthesizer import parse_recommendation, synthesize
@@ -625,6 +724,50 @@ def run_campaign() -> None:
                 "[campaign] Synthesizer recommends PIVOT — see synthesis.md",
                 file=sys.stderr,
             )
+
+    # BL 2.0: post-wave skill forge — distill findings into reusable skills
+    synthesis_path = cfg.project_root / "findings" / "synthesis.md"
+    _spawn_agent_background(
+        "skill-forge",
+        f"synthesis_md={synthesis_path}\n"
+        f"findings_dir={cfg.findings_dir}\n"
+        f"project_root={cfg.project_root}\n"
+        f"skill_registry_json={cfg.project_root / 'skill_registry.json'}\n"
+        f"skills_dir={os.path.expanduser('~/.claude/skills')}\n"
+        f"project_name={cfg.project_root.name}\n\n"
+        f"Wave complete. Read the synthesis and recent findings. "
+        f"Identify 2–5 recurring patterns worth encoding as reusable skills. "
+        f"Create them in ~/.claude/skills/ and register in skill_registry.json.",
+    )
+
+    # BL 2.0: MCP gap analysis — identify tooling holes from INCONCLUSIVE/FAILURE patterns
+    _spawn_agent_background(
+        "mcp-advisor",
+        f"findings_dir={cfg.findings_dir}\n"
+        f"results_tsv={cfg.results_tsv}\n"
+        f"project_root={cfg.project_root}\n"
+        f"project_brief={cfg.project_root / 'project-brief.md'}\n\n"
+        f"Analyze all INCONCLUSIVE and FAILURE findings for tooling gaps. "
+        f"Identify MCP servers and Python packages that would have unblocked them. "
+        f"Write MCP_RECOMMENDATIONS.md to the project root.",
+    )
+
+    # BL 2.0: git-nerd — commit any remaining changes, create/update campaign PR,
+    # write GITHUB_HANDOFF.md so Tim knows exactly what (if anything) to do
+    _spawn_agent_background(
+        "git-nerd",
+        f"project_root={cfg.project_root}\n"
+        f"task=wave-end\n\n"
+        f"A BrickLayer wave just completed. synthesizer-bl2 has already committed the "
+        f"synthesis and documentation files. Your job:\n"
+        f"1. Verify the synthesizer commit landed (git log)\n"
+        f"2. Stage and commit anything remaining (questions.md status, results.tsv, "
+        f"any code fixes from this wave)\n"
+        f"3. Create or update the GitHub PR for this campaign branch\n"
+        f"4. Write GITHUB_HANDOFF.md at the project root — tell Tim exactly what "
+        f"he needs to do (usually just 'git push' or 'nothing')\n"
+        f"Keep GITHUB_HANDOFF.md short and actionable.",
+    )
 
     # Auto-generate next wave if question bank is exhausted
     remaining = [q for q in parse_questions() if q["status"] == "PENDING"]

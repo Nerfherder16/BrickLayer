@@ -849,3 +849,90 @@ Status is tracked in results.tsv — do not edit manually.
 **Verdict threshold**:
 - COMPLIANT: All targeted functions produce correct output; no BL 1.x regression; BL 2.0 self-healing loop and drill-down fully functional
 - NON_COMPLIANT: Any regression or remaining verdict/drill-down error
+
+---
+
+## D8.1 [CORRECTNESS] _inject_override_questions() glob("Q*.md") excludes all BL 2.0 findings
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: FAILURE
+**Hypothesis**: In bl/campaign.py _inject_override_questions() (line 396): `for finding_file in sorted(cfg.findings_dir.glob("Q*.md"))`. BL 2.0 findings are named D5.1.md, F7.1.md, A7.1.md etc — none start with "Q". If a peer reviewer returns OVERRIDE on a BL 2.0 finding, _inject_override_questions() silently skips it. Re-exam questions are never injected. This makes the peer OVERRIDE mechanism non-functional for the entire BL 2.0 campaign.
+**Test**: Read bl/campaign.py _inject_override_questions(). Confirm: glob pattern is "Q*.md". Verify BL 2.0 finding filenames (D5.1.md, F7.1.md) would not match. Assess whether any BL 2.0 peer review OVERRIDEs have been silently dropped.
+**Verdict threshold**:
+- FAILURE: glob("Q*.md") confirmed; BL 2.0 OVERRIDE peer reviews silently excluded; fix needed
+- HEALTHY: glob includes non-Q files or BL 2.0 doesn't use peer review OVERRIDE
+**Fix Specification** (for DIAGNOSIS_COMPLETE transition):
+- **File**: bl/campaign.py, _inject_override_questions(), glob call
+- **Change**: Replace glob("Q*.md") with glob("*.md") to include all finding files
+- **Verification**: A finding named D5.1.md with OVERRIDE peer review section gets a re-exam question injected
+
+---
+
+## D8.2 [CORRECTNESS] _mark_question_done() _PRESERVE_AS_IS missing FAILURE and NON_COMPLIANT
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: FAILURE
+**Hypothesis**: In bl/findings.py _mark_question_done(), `_PRESERVE_AS_IS = frozenset({"INCONCLUSIVE", "DIAGNOSIS_COMPLETE", "PENDING_EXTERNAL", "FIXED", "FIX_FAILED", "BLOCKED"})`. Verdicts NOT in this set get status "DONE". FAILURE → DONE, NON_COMPLIANT → DONE, WARNING → DONE in questions.md. A human inspecting questions.md cannot distinguish a question that PASSED from one that produced a critical FAILURE. The status field loses diagnostic signal for the most important verdicts.
+**Test**: Read bl/findings.py _mark_question_done(). Verify _PRESERVE_AS_IS does not include FAILURE, NON_COMPLIANT, WARNING, FIX_FAILED (wait — FIX_FAILED IS listed), REGRESSION. Trace: verdict="FAILURE" → new_status = "DONE". Confirm the status written to questions.md is "DONE" not "FAILURE".
+**Verdict threshold**:
+- FAILURE: FAILURE and NON_COMPLIANT not in _PRESERVE_AS_IS; these verdicts → status "DONE" (visibility bug)
+- HEALTHY: All important failure verdicts preserved as-is in questions.md status
+**Fix Specification** (for DIAGNOSIS_COMPLETE transition):
+- **File**: bl/findings.py, _mark_question_done(), _PRESERVE_AS_IS
+- **Change**: Add "FAILURE", "NON_COMPLIANT", "WARNING", "REGRESSION", "ALERT" to _PRESERVE_AS_IS
+- **Verification**: verdict="FAILURE" → questions.md shows **Status**: FAILURE (not DONE)
+
+---
+
+## F8.1 [FIX] Fix _inject_override_questions() to glob all finding files not just Q-prefixed
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: DONE
+**Motivated by**: D8.1 DIAGNOSIS_COMPLETE
+**Method**: In bl/campaign.py _inject_override_questions(): change `cfg.findings_dir.glob("Q*.md")` to `cfg.findings_dir.glob("*.md")`. Ensure the injected re-exam question ID uses the original question ID from the finding filename (stem), not a Q-prefix assumption.
+**Verdict threshold**:
+- FIXED: glob("*.md") applied; D5.1.md and other BL 2.0 findings scanned for OVERRIDE; injected question IDs correct
+- FIX_FAILED: glob not changed or injected question ID format broken
+
+---
+
+## F8.2 [FIX] Fix _mark_question_done() to preserve FAILURE and NON_COMPLIANT status
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: DONE
+**Motivated by**: D8.2 DIAGNOSIS_COMPLETE
+**Method**: In bl/findings.py _mark_question_done(), add "FAILURE", "NON_COMPLIANT", "WARNING", "REGRESSION", "ALERT" to _PRESERVE_AS_IS frozenset. These verdicts should be written as-is to questions.md status for human visibility.
+**Verdict threshold**:
+- FIXED: verdict="FAILURE" → status "FAILURE" in questions.md; verdict="NON_COMPLIANT" → status "NON_COMPLIANT"; DONE still applies to HEALTHY/COMPLIANT/IMPROVEMENT/etc.
+- FIX_FAILED: _PRESERVE_AS_IS unchanged or wrong verdicts added
+
+---
+
+## A8.1 [COMPLIANCE] _load_mode_context() mode file resolution for BL 2.0 operational modes
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Operational Mode**: audit
+**Status**: DONE
+**Hypothesis**: campaign.py _load_mode_context() reads `{project_root}/modes/{operational_mode}.md`. For BL 2.0 questions with operational_mode values (diagnose, fix, monitor, audit, validate, frontier, predict, research, evolve), the mode files must exist in the project's modes/ directory. If they don't, _load_mode_context() silently returns "" and agents run without mode context. Audit whether: (1) the modes/ directory exists in the bl2 project; (2) all 9 BL 2.0 operational modes have corresponding .md files; (3) the empty fallback is acceptable or causes degraded agent behavior.
+**Test**: Check whether C:/Users/trg16/Dev/autosearch/projects/bl2/modes/ exists. List its contents. Verify each BL 2.0 mode (diagnose, fix, audit, validate) has a .md file. Read _load_mode_context() in campaign.py to confirm silent fallback behavior.
+**Verdict threshold**:
+- COMPLIANT: modes/ exists with all 9 operational mode files; _load_mode_context() correctly injects context
+- NON_COMPLIANT: modes/ missing or incomplete; agents running without mode context
+- PARTIAL: Some mode files present but not all
+
+---
+
+## V8.1 [VALIDATE] Campaign BL 2.0 integration after F8.1+F8.2: override injection and status preservation
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Operational Mode**: validate
+**Status**: DONE
+**Motivated by**: F8.1 + F8.2 + A8.1
+**Hypothesis**: After F8.1, peer review OVERRIDE findings for BL 2.0 question IDs correctly trigger re-exam injection. After F8.2, FAILURE and NON_COMPLIANT verdicts are visible in questions.md status. _load_mode_context() either provides mode context or silently degrades — both are acceptable behaviors.
+**Verdict threshold**:
+- COMPLIANT: All campaign BL 2.0 integration points verified correct after fixes; no BL 1.x regressions
+- NON_COMPLIANT: F8.1 or F8.2 not applied, or introduced new bugs in the override/status path
