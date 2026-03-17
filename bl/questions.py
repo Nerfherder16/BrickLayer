@@ -222,7 +222,7 @@ def sync_status_from_results() -> int:
             block_start = text.find(f"## {qid}\n")
         if block_start == -1:
             continue
-        next_block = text.find("\n## Q", block_start + 1)
+        next_block = text.find("\n## ", block_start + 1)
         block_end = next_block if next_block != -1 else len(text)
         block = text[block_start:block_end]
         if "**Status**: PENDING" in block:
