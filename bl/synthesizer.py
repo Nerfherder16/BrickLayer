@@ -43,7 +43,15 @@ def _build_findings_corpus(findings_dir: Path, results_tsv: Path) -> str:
     # F11.3: severity-aware truncation — drop COMPLIANT/FIXED findings before FAILURE/NON_COMPLIANT
     # Sort: high-severity (FAILURE, NON_COMPLIANT) first, low-severity (COMPLIANT, FIXED) last
     _HIGH_SEVERITY = frozenset(
-        {"FAILURE", "NON_COMPLIANT", "WARNING", "REGRESSION", "ALERT"}
+        {
+            "FAILURE",
+            "NON_COMPLIANT",
+            "WARNING",
+            "REGRESSION",
+            "ALERT",
+            "DIAGNOSIS_COMPLETE",
+            "FIX_FAILED",
+        }
     )
 
     def _finding_priority(section: str) -> int:
@@ -223,6 +231,6 @@ Then one paragraph of specific reasoning for the recommendation."""
         print(output)
         return None
 
-    synthesis_path = project_dir / "synthesis.md"
+    synthesis_path = project_dir / "findings" / "synthesis.md"
     synthesis_path.write_text(output, encoding="utf-8")
     return synthesis_path

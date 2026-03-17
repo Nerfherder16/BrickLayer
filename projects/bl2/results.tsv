@@ -92,3 +92,11 @@ A13.1	NON_COMPLIANT		followup.py line 212 mode.upper() produces [CODE_AUDIT] for
 F13.1	FIXED		_build_followup_prompt() uses 'or' fallback for agent_name; **Operational Mode** field added to sub-question template	2026-03-16T00:00:00Z
 F13.2	FIXED		_parse_followup_blocks() bracket tag injection uses _OP_MODE_TO_TAG from **Operational Mode** field — [CODE_AUDIT] eliminated	2026-03-16T00:00:00Z
 V13.1	COMPLIANT		All fixes verified: agent fallback, Operational Mode injection, bracket tag lookup all correct; no regressions	2026-03-16T00:00:00Z
+D14.1	DIAGNOSIS_COMPLETE		goal.py _get_next_wave_index() QG-only regex returns 1 for BL 2.0 questions.md; all goal campaigns collide at wave 1	2026-03-16T00:00:00Z
+D14.2	DIAGNOSIS_COMPLETE		goal.py focus default 'all domains (D1-D6)' and [D1]/[D4] bracket tag examples produce unroutable BL 1.x tags	2026-03-16T00:00:00Z
+D14.3	DIAGNOSIS_COMPLETE		synthesizer.py writes synthesis.md to project root; campaign.py skill-forge agent reads findings/synthesis.md — never written	2026-03-16T00:00:00Z
+A14.1	NON_COMPLIANT		synthesizer.py _HIGH_SEVERITY missing DIAGNOSIS_COMPLETE and FIX_FAILED; both dropped under corpus budget pressure	2026-03-16T00:00:00Z
+V14.1	COMPLIANT		skill_forge.py and quality.py are pure utilities — no BL version-specific logic, no fixes required	2026-03-16T00:00:00Z
+F14.1	FIXED		goal.py wave-index scans BL 2.0 headers; focus default and prompt examples use BL 2.0 operational modes	2026-03-16T00:00:00Z
+F14.2	FIXED		synthesizer.py writes to findings/synthesis.md; DIAGNOSIS_COMPLETE and FIX_FAILED added to _HIGH_SEVERITY	2026-03-16T00:00:00Z
+V14.2	COMPLIANT		All F14.1/F14.2 fixes verified; goal.py and synthesizer.py correct; no regressions	2026-03-16T00:00:00Z
