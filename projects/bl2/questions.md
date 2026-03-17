@@ -2191,3 +2191,58 @@ Status is tracked in results.tsv — do not edit manually.
 **Method**: Read `dashboard/frontend/src/components/QuestionQueue.tsx` and verify: (1) STATUS_COLORS contains `HEAL_EXHAUSTED: "bg-[#7c2d12] text-[#f97316]"` as a top-level key, (2) the badge render expression uses a lookup pattern that will resolve to this entry for status value `"HEAL_EXHAUSTED"`, (3) the filter dropdown `<option>` element for HEAL_EXHAUSTED uses the exact same string as the STATUS_COLORS key. If the dashboard is running, also open http://localhost:3100 and filter by HEAL_EXHAUSTED to confirm the badge renders amber-red
 **Success criterion**: HEALTHY if STATUS_COLORS contains the HEAL_EXHAUSTED entry with correct amber-red Tailwind classes, the badge render path would resolve the key at runtime, and the filter dropdown option string matches exactly. DIAGNOSIS_COMPLETE with Fix Specification if the key is present but the render path uses a different lookup expression that would still fall through to the gray fallback for HEAL_EXHAUSTED questions
 
+---
+
+## Wave 23 — Scorer Accuracy + Field Name Alignment
+
+**Generated from findings**: F22.1 (FIXED), V22.1 (COMPLIANT), V22.2 (COMPLIANT)
+**Mode transitions applied**: Wave 22 all COMPLIANT/FIXED → adjacent gap questions. V22.1 COMPLIANT + synthesizer=0.0 → V23.1 Validate (is synthesis.md absent by design or oversight?); hypothesis-generator has_derived_from=0.00 → D23.1 Diagnose (field name mismatch between scorer expectation and BL 2.0 format); fix_spec_completeness=0.29 pre-template gap → D23.2 Diagnose (characterize the 12 pre-template findings); compliance-auditor fix_spec_rate full-text scan → A23.1 Audit (does it suffer the same frontmatter gap as the now-fixed _score_diagnose_analyst?)
+
+---
+
+### V23.1: Is synthesizer score=0.0 because findings/synthesis.md does not exist in this campaign, or because the synthesizer agent was never run — and is running the synthesizer expected at this stage of the campaign?
+
+**Status**: COMPLIANT
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Motivated by**: V22.1 (COMPLIANT) — run_all_benchmarks() shows synthesizer=0.0 with message "findings/synthesis.md not found"; _score_synthesizer in crucible.py returns 0.0 immediately if `project_dir / "findings" / "synthesis.md"` does not exist; the question is whether this is expected (the synthesizer is designed to be run manually at session end per CLAUDE.md, not automatically mid-campaign) or whether an operator oversight has left the file absent when it should exist
+**Hypothesis**: findings/synthesis.md is absent because the synthesizer agent has not been run for this campaign yet — this is the expected state for an active mid-campaign. CLAUDE.md instructs: "Run the synthesizer at session end before analyze.py." The campaign is mid-wave (Wave 22 findings present, Wave 23 just generated), so the synthesizer has not been triggered. The synthesizer score=0.0 is a structural false negative in the benchmark, not an agent failure.
+**Method**: Check whether `C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/findings/synthesis.md` exists: `ls C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/findings/synthesis.md`. If absent, confirm this is the expected mid-campaign state by reading CLAUDE.md section "Generating the End-of-Session Report" — verify the synthesizer is explicitly described as a session-end operation. If present but empty or malformed, that is a separate issue.
+**Success criterion**: COMPLIANT if synthesis.md is absent and CLAUDE.md confirms the synthesizer is a session-end operation — score=0.0 is the correct mid-campaign benchmark reading and requires no remediation. DIAGNOSIS_COMPLETE with Fix Specification if synthesis.md should exist at this stage (e.g., per-wave synthesis is a BL 2.0 requirement) but the agent has not been run — fix is to add a synthesizer invocation step to the Wave N completion checklist.
+
+---
+
+### D23.1: Why is hypothesis-generator has_derived_from=0.00 — does _score_hypothesis_generator check for "Derived from" while BL 2.0 questions use "Motivated by" as the field name?
+
+**Status**: DIAGNOSIS_COMPLETE
+**Operational Mode**: diagnose
+**Priority**: HIGH
+**Motivated by**: V22.1 (COMPLIANT) — run_all_benchmarks() shows hypothesis-generator score=0.1511 with has_derived_from=0.00 across all scored Wave 2+ questions; the benchmark description context identifies this as a potential field-name mismatch between the scorer and the BL 2.0 question format
+**Hypothesis**: `_score_hypothesis_generator` at line 191 of bl/crucible.py checks `"Derived from" in b` for the has_derived_from metric. BL 1.x questions used `**Derived from**: {finding_id}` as the lineage field. BL 2.0 questions (Waves 15+) use `**Motivated by**: {source finding ID}` instead. Since no Wave 2+ question in this campaign contains the string "Derived from" (they all use "Motivated by"), the has_derived_from rate is 0.00 for every scored question block, and this single metric (weight=0.35) suppresses the overall score from its true value of ~0.42 to 0.1511.
+**Method**: Read `bl/crucible.py` lines 159-205 (_score_hypothesis_generator). Confirm line 191 checks for `"Derived from"`. Then check a sample of Wave 15-22 question blocks in `questions.md` — grep for the lineage field: `grep -n "Derived from\|Motivated by" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/questions.md | head -20`. Count how many questions use each field name. If "Motivated by" is used exclusively from Wave 15 onward, the scorer is measuring a BL 1.x field that does not exist in BL 2.0 question format.
+**Success criterion**: DIAGNOSIS_COMPLETE with Fix Specification if the scorer checks "Derived from" while all BL 2.0 questions use "Motivated by" — fix is to update the has_derived_from check in _score_hypothesis_generator to accept both field names (or "Motivated by" exclusively for BL 2.0 format, with the BL 1.x fallback). HEALTHY if "Derived from" is found in a material fraction of Wave 2+ questions — the 0.00 score would then indicate a genuine quality gap in question lineage documentation.
+
+---
+
+### D23.2: Are the 12 pre-template DIAGNOSIS_COMPLETE findings (Waves 1-14) missing Fix Specification fields because diagnose-analyst was not prompted with the spec template at that stage, or because those findings had non-fixable verdicts such as "no code change needed" or partial diagnosis conclusions?
+
+**Status**: HEALTHY
+**Operational Mode**: diagnose
+**Priority**: LOW
+**Motivated by**: D21.1 (DIAGNOSIS_COMPLETE) — D21.1 found fix_spec_completeness=0.29 and diagnosed that early-wave findings (pre-template) are the primary cause; the D21.1 finding states the gap is "primarily caused by early-wave DIAGNOSIS_COMPLETE findings written before the BL 2.0 Fix Specification template was standardized"; this question validates that characterization by examining the 12 pre-template findings individually
+**Hypothesis**: The 12 pre-template DIAGNOSIS_COMPLETE findings (D4.1, D5.1, D6.1, D7.1, D12.1, D12.2, D13.1, D13.2, D14.1, D15.1, D15.2, D15.3) all predate the Fix Specification template introduction (F16.x wave). Each finding ends with a fix recommendation expressed as prose (not structured fields). The agent was not presented with the four-field template ("Target file", "Target location", "Concrete edit", "Verification command") at generation time. Retroactively adding the structured spec fields to these findings would improve fix_spec_completeness from 0.25 to 1.00, but this is a cosmetic change to historical findings — it does not improve any running code and may not be worth the effort.
+**Method**: For each of the following findings, read the first 30 lines: D4.1.md, D5.1.md, D6.1.md, D7.1.md, D12.1.md, D12.2.md, D13.1.md, D13.2.md, D14.1.md, D15.1.md, D15.2.md, D15.3.md (in `C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/findings/`). For each: (1) confirm the verdict is DIAGNOSIS_COMPLETE, (2) check whether the finding contains any of: "Target file", "Target location", "Concrete edit", "Verification command", "Fix Specification", (3) classify the fix recommendation as: prose-only, partial-spec, no-fix-needed, or already-fixed-by-later-wave. Report the breakdown across all 12 findings.
+**Success criterion**: DIAGNOSIS_COMPLETE with Fix Specification (retroactive spec addition is warranted) if the majority of the 12 findings have clear fixable code changes documented in prose with no structural barrier to adding the four template fields. HEALTHY (no action needed) if the majority are either already addressed by later Fix questions, are "no code change needed" conclusions, or have partial diagnoses that would require a new investigation to complete the spec.
+
+---
+
+### A23.1: Does _score_compliance_auditor in crucible.py use a full-text scan for "NON_COMPLIANT" when building the fix_spec_scores denominator — the same structural gap that caused false positives in _score_diagnose_analyst before F22.1?
+
+**Status**: NON_COMPLIANT
+**Operational Mode**: audit
+**Priority**: MEDIUM
+**Motivated by**: F22.1 (FIXED) — F22.1 replaced the full-text DIAGNOSIS_COMPLETE guard in _score_diagnose_analyst with a frontmatter-position check (first 6 lines only) to exclude findings that quote the verdict in their body text; the compliance-auditor scorer uses an analogous pattern at bl/crucible.py line 527: `if "NON_COMPLIANT" not in content: continue` — this full-text scan would include any finding that mentions "NON_COMPLIANT" anywhere in its text (e.g., in the question motivation field, a hypothesis describing expected outcomes, or a code block), inflating the fix_spec_scores denominator the same way
+**Hypothesis**: Line 527 of bl/crucible.py scans the full file content for "NON_COMPLIANT" without restricting to the frontmatter verdict line. Finding files for questions that describe NON_COMPLIANT as an expected outcome (e.g., V-prefix or D-prefix findings whose success criterion says "NON_COMPLIANT if...") will be included in fix_spec_scores even though they are not genuine compliance-auditor findings. This inflates the denominator, suppressing fix_spec_rate below its true value. The same structural fix applied in F22.1 (restrict to first 6 lines) should be applied here.
+**Method**: Read `bl/crucible.py` lines 519-533 (_score_compliance_auditor fix_spec_scores loop). Confirm line 527 uses a full-text `"NON_COMPLIANT" not in content` scan with no frontmatter position restriction. Then run: `grep -rln "NON_COMPLIANT" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/findings/*.md | grep -v synthesis` to list all finding files containing the string. Subtract the count of A-prefix findings (genuine audit findings) from the total — the remainder are non-audit findings that are being incorrectly included in the denominator. If the remainder is greater than zero, the false-positive inflation is confirmed.
+**Success criterion**: DIAGNOSIS_COMPLETE with Fix Specification (apply frontmatter-position guard parallel to F22.1) if any non-A-prefix finding files contain "NON_COMPLIANT" and would be incorrectly included in fix_spec_scores. HEALTHY if the string "NON_COMPLIANT" appears exclusively in A-prefix finding files — in that case the full-text scan is incidentally correct for this campaign even without a structural guard.
+
