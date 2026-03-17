@@ -42,6 +42,12 @@ _NON_FAILURE_VERDICTS = frozenset(
         "SUBJECTIVE",
         "NOT_MEASURABLE",
         "UNCALIBRATED",
+        # Monitor-mode verdicts (F2.2 fix — previously missing, caused false failure classification)
+        "DEGRADED",
+        "ALERT",
+        "UNKNOWN",
+        # Frontier verdict (F2.2 fix — BLOCKED is not a failure, it's a prerequisite gap)
+        "BLOCKED",
     }
 )
 

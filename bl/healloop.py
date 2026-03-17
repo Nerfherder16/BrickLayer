@@ -72,7 +72,10 @@ def _synthetic_question(
     The agent reads that finding, does its work, and returns a result dict.
     """
     q = dict(original_question)
-    q["id"] = f"{original_question['id']}_heal{cycle}_{agent_name.split('-')[0]}"
+    short_type = (
+        "diag" if "diagnose" in agent_name else "fix"
+    )  # F2.5: use intended short form
+    q["id"] = f"{original_question['id']}_heal{cycle}_{short_type}"
     q["mode"] = "agent"
     q["agent_name"] = agent_name
     q["finding"] = finding_id
@@ -154,8 +157,10 @@ def run_heal_loop(
     )
 
     current_result = initial_result
+    last_cycle = 0  # F2.6: track actual exit cycle for EXHAUSTED note
 
     for cycle in range(1, max_cycles + 1):
+        last_cycle = cycle  # F2.6: updated at each iteration
         verdict = current_result.get("verdict")
         print(
             f"\n[heal-loop] Cycle {cycle}/{max_cycles} — current verdict: {verdict}",
@@ -215,7 +220,7 @@ def run_heal_loop(
                 break
 
             # Write the DIAGNOSIS_COMPLETE finding so fix-implementer can read it
-            diag_q["id"] = f"{original_qid}_heal{cycle}_diag"
+            # (ID already set correctly by _synthetic_question — see F2.5 fix)
             write_finding(diag_q, diag_result)
             update_results_tsv(
                 diag_q["id"],
@@ -306,7 +311,9 @@ def run_heal_loop(
                 f"fix-implementer failed: {fix_result.get('summary', '')}. "
                 f"Looping back to diagnose with updated hypothesis.",
             )
-            current_result = fix_result
+            current_result = dict(
+                fix_result
+            )  # F2.3: copy, not alias — preserves fix_result["verdict"]="FIX_FAILED"
             # The FIX_FAILED finding contains the Root Cause Update — use it as input
             # for the next diagnose cycle
             current_finding_id = fix_q["id"]
@@ -322,9 +329,9 @@ def run_heal_loop(
 
     _append_heal_note(
         finding_path,
-        max_cycles,
+        last_cycle,  # F2.6: actual exit cycle, not max_cycles
         "EXHAUSTED",
-        f"Self-healing exhausted {max_cycles} cycle(s) — human intervention required. "
+        f"Self-healing exhausted {last_cycle} cycle(s) — human intervention required. "
         f"Review the heal cycle notes above for root cause history.",
     )
     print(

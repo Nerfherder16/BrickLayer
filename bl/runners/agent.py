@@ -15,6 +15,54 @@ from bl.config import cfg
 
 
 # ---------------------------------------------------------------------------
+# All recognised BL 2.0 verdict strings (used by _verdict_from_agent_output)
+# ---------------------------------------------------------------------------
+
+_ALL_VERDICTS: frozenset[str] = frozenset(
+    {
+        # Core / BL 1.x
+        "HEALTHY",
+        "WARNING",
+        "FAILURE",
+        "INCONCLUSIVE",
+        # Diagnose / Fix lifecycle
+        "DIAGNOSIS_COMPLETE",
+        "FIXED",
+        "FIX_FAILED",
+        # Audit mode
+        "COMPLIANT",
+        "NON_COMPLIANT",
+        "PARTIAL",
+        "NOT_APPLICABLE",
+        # Benchmark / Evolve
+        "CALIBRATED",
+        "UNCALIBRATED",
+        "NOT_MEASURABLE",
+        "IMPROVEMENT",
+        "REGRESSION",
+        # Predict mode
+        "IMMINENT",
+        "PROBABLE",
+        "POSSIBLE",
+        "UNLIKELY",
+        # Monitor mode
+        "OK",
+        "DEGRADED",
+        "DEGRADED_TRENDING",
+        "ALERT",
+        "UNKNOWN",
+        # Frontier / Research
+        "PROMISING",
+        "BLOCKED",
+        "WEAK",
+        "SUBJECTIVE",
+        # Campaign flow
+        "PENDING_EXTERNAL",
+    }
+)
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -76,7 +124,7 @@ def _verdict_from_agent_output(agent_name: str, output: dict) -> str:
             return "HEALTHY"
 
     self_verdict = output.get("verdict", "").upper()
-    if self_verdict in ("HEALTHY", "WARNING", "FAILURE", "INCONCLUSIVE"):
+    if self_verdict in _ALL_VERDICTS:
         return self_verdict
 
     return "INCONCLUSIVE"

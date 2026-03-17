@@ -134,7 +134,9 @@ def run_and_record(question: dict) -> dict:
 
         heal_finding_path = cfg.findings_dir / f"{qid}.md"
         healed_result = run_heal_loop(question, result, heal_finding_path)
-        if healed_result.get("verdict") != result.get("verdict"):
+        if (
+            healed_result is not result
+        ):  # F2.4: identity check — always propagate heal loop output
             result = healed_result
 
     # BL 2.0: append one-line insight to session-context.md

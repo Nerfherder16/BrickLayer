@@ -21,3 +21,10 @@ N/A	A9	COMPLIANT	N/A	Prompt order mode_ctx->session_ctx->doctrine->agent confirm
 N/A	A10	COMPLIANT	N/A	Intermediate IDs follow {qid}_heal{n}_diag and {qid}_heal{n}_fix — no collision	Code audit: bl/healloop.py lines 218, 275
 N/A	A11	COMPLIANT	N/A	Both intermediates call update_results_tsv() — confirmed	Code audit: bl/healloop.py lines 220-225, 275-279
 N/A	A12	COMPLIANT	N/A	FIX_LOOP and HEAL_LOOP are independent if blocks — confirmed	Code audit: bl/campaign.py lines 113-138
+N/A	F2.1	FIXED	N/A	_verdict_from_agent_output() now accepts all 30 BL 2.0 verdicts via _ALL_VERDICTS frozenset — heal loop unblocked	Fix: bl/runners/agent.py
+N/A	F2.2	FIXED	N/A	DEGRADED, ALERT, UNKNOWN, BLOCKED added to _NON_FAILURE_VERDICTS — Monitor/Frontier verdicts no longer misclassified	Fix: bl/findings.py
+N/A	F2.3	FIXED	N/A	current_result = dict(fix_result) — alias mutation eliminated, fix_result preserves FIX_FAILED verdict	Fix: bl/healloop.py line 309
+N/A	F2.4	FIXED	N/A	identity check (healed_result is not result) replaces verdict-diff — all heal loop output now propagated	Fix: bl/campaign.py lines 136-138
+N/A	F2.5	FIXED	N/A	_synthetic_question() uses short_type="diag" — agent context ID now matches written finding ID	Fix: bl/healloop.py line 75
+N/A	F2.6	FIXED	N/A	last_cycle tracks actual exit cycle — EXHAUSTED note no longer falsely reports max_cycles on early break	Fix: bl/healloop.py
+N/A	M2.1	WARNING	N/A	No RECALL_STORE_VERDICTS constant in constants.py — _STORE_VERDICTS drift remains undetectable	Monitor: bl/recall_bridge.py vs constants.py
