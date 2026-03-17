@@ -17,7 +17,9 @@ _SYSTEM_PROMPT = (
     "BrickLayer runs structured question campaigns against production systems (APIs, codebases, databases). "
     "Each result has a verdict (HEALTHY/WARNING/FAILURE/INCONCLUSIVE), a summary, and evidence details. "
     "Verdict meanings: HEALTHY=condition confirmed safe, FAILURE=condition confirmed broken, "
-    "WARNING=risk identified but not confirmed, INCONCLUSIVE=could not determine. "
+    "WARNING=risk identified but not confirmed, INCONCLUSIVE=could not determine, "
+    "NON_COMPLIANT=audit found a rule violation or constraint breach, "
+    "REGRESSION=previously passing condition has deteriorated or broken. "
     "Respond only with the exact value requested. No explanation, no preamble."
 )
 
@@ -52,7 +54,7 @@ def classify_failure_type_local(result: dict, mode: str) -> str | None:
     or None if HEALTHY/WARNING (no failure).
     """
     verdict = result.get("verdict", "")
-    if verdict not in ("FAILURE", "INCONCLUSIVE"):
+    if verdict not in ("FAILURE", "INCONCLUSIVE", "NON_COMPLIANT", "REGRESSION"):
         return None
 
     summary = result.get("summary", "")[:300]

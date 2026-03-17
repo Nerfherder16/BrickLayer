@@ -79,3 +79,10 @@ F11.1	FIXED		crucible.py scorers now use wave-number extraction from IDs and \w+
 F11.2	FIXED		sync_status_from_results() preserve set extended with FAILURE/NON_COMPLIANT/WARNING/REGRESSION/ALERT; matches F8.2	2026-03-16T00:00:00Z
 F11.3	FIXED		_build_findings_corpus() now sorts by severity (FAILURE first), drops low-severity findings first under budget	2026-03-16T00:00:00Z
 V11.1	COMPLIANT		All three fixes verified; crucible scores BL 2.0 questions; sync preserves failures; corpus bias resolved	2026-03-16T00:00:00Z
+D12.1	DIAGNOSIS_COMPLETE		_REGRESSIONS has only 3 BL 1.x pairs; COMPLIANT→NON_COMPLIANT, FIXED→FAILURE etc. return None from detect_regression()	2026-03-16T00:00:00Z
+D12.2	FAILURE		classify_failure_type_local() line 55 excludes NON_COMPLIANT/REGRESSION; heuristic compensates; _SYSTEM_PROMPT BL 1.x-only	2026-03-16T00:00:00Z
+A12.1	NON_COMPLIANT		C-04 follow-up guard in campaign.py:106 and followup.py:251 omits NON_COMPLIANT — audit drill-down is dead	2026-03-16T00:00:00Z
+F12.1	FIXED		8 BL 2.0 regression pairs added to _REGRESSIONS; detect_regression() now covers COMPLIANT→NON_COMPLIANT, FIXED→FAILURE, etc.	2026-03-16T00:00:00Z
+F12.2	FIXED		classify_failure_type_local() now handles NON_COMPLIANT/REGRESSION; _SYSTEM_PROMPT updated with BL 2.0 definitions	2026-03-16T00:00:00Z
+F12.3	FIXED		NON_COMPLIANT added to C-04 follow-up guards in campaign.py and followup.py — audit drill-down now functional	2026-03-16T00:00:00Z
+V12.1	COMPLIANT		All three fixes verified; BL 2.0 regression detection, failure classification, and follow-up drill-down now functional	2026-03-16T00:00:00Z
