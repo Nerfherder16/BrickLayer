@@ -581,6 +581,11 @@ def run_campaign() -> None:
 
         if questions_done > 0:
             refreshed = parse_questions()
+            # A16.1/F-mid.5: NOTE — this rebind affects only len(pending) in the progress
+            # display below. The enumerate iterator is already bound to the original list,
+            # so 'question' always comes from the pre-loop snapshot. Questions injected
+            # mid-run (by generate_followup or _inject_override_questions) are NOT
+            # executed in the current invocation — they execute on the next campaign run.
             pending = [q for q in refreshed if q["status"] == "PENDING"]
 
         print(
@@ -590,15 +595,19 @@ def run_campaign() -> None:
         run_and_record(question)
         questions_done += 1
 
-        _spawn_agent_background(
-            "peer-reviewer",
-            f"primary_finding={cfg.findings_dir / (question['id'] + '.md')}\n"
-            f"target_git={cfg.project_root.parent}\n"
-            f"agents_dir={cfg.agents_dir}\n\n"
-            f"Re-run the original test for {question['id']}, review the fix code, "
-            f"and append a ## Peer Review section with verdict "
-            f"CONFIRMED | CONCERNS | OVERRIDE to the finding file.",
-        )
+        # F-mid.2: skip peer-reviewer for code_audit questions — their test fields
+        # contain prose instructions, not executable commands; peer-reviewer cannot
+        # run them and emits OVERRIDE, injecting unresolvable .R re-exam questions.
+        if question.get("mode") not in ("code_audit",):
+            _spawn_agent_background(
+                "peer-reviewer",
+                f"primary_finding={cfg.findings_dir / (question['id'] + '.md')}\n"
+                f"target_git={cfg.project_root.parent}\n"
+                f"agents_dir={cfg.agents_dir}\n\n"
+                f"Re-run the original test for {question['id']}, review the fix code, "
+                f"and append a ## Peer Review section with verdict "
+                f"CONFIRMED | CONCERNS | OVERRIDE to the finding file.",
+            )
 
         if questions_done % 5 == 0:
             _spawn_agent_background(
