@@ -2062,3 +2062,74 @@ Status is tracked in results.tsv — do not edit manually.
 **Method**: Run: `python -c "from bl.crucible import run_all_benchmarks; import json; r = run_all_benchmarks('projects/bl2'); print(json.dumps(r, indent=2))"` from the Bricklayer2.0 root directory. Record the diagnose-analyst dc_rate value in the output. Compare against the pre-fix baseline of ~0.51. If dc_rate is between 0.80 and 0.95, the fix is functioning as expected. If dc_rate is below 0.70, run a diagnostic count: `grep -c "^N/A.*\tD.*\tDIAGNOSIS_COMPLETE\t" projects/bl2/results.tsv` vs `grep -c "^N/A.*\tD.*\t" projects/bl2/results.tsv` to verify all_diag row count.
 **Success criterion**: HEALTHY if dc_rate is >= 0.80 after the fix (consistent with ~85% BL 2.0 diagnose-analyst success rate). DIAGNOSIS_COMPLETE with root cause if dc_rate remains at or near the pre-fix ~0.51 baseline — this would indicate the filter is not working as intended and requires a follow-up Fix question.
 
+---
+
+## Wave 21 — Dashboard Status Coverage + crucible.py Fix Guard
+
+**Generated from findings**: A20.1, A20.2, D20.1
+**Mode transitions applied**: A20.1 NON_COMPLIANT → F21.1 Fix (add BL 2.0 statuses to STATUS_COLORS and filter dropdown in QuestionQueue.tsx); A20.2 NON_COMPLIANT → F21.2 Fix (add _is_fix_row() F-prefix guard to _score_fix_implementer in crucible.py); D20.1 HEALTHY (fix_spec_completeness=0.29 noted as separate quality gap) → D21.1 Diagnose (identify which DIAGNOSIS_COMPLETE findings are missing Fix Specification fields and why)
+
+---
+
+### F21.1: Implement the A20.1 fix — add HEAL_EXHAUSTED and all BL 2.0 terminal statuses to STATUS_COLORS and the filter dropdown in QuestionQueue.tsx
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: A20.1 (NON_COMPLIANT) — HEAL_EXHAUSTED renders with the same gray fallback as PENDING; BL 2.0 statuses FIXED, FIX_FAILED, DIAGNOSIS_COMPLETE, COMPLIANT, NON_COMPLIANT, BLOCKED are absent from STATUS_COLORS and the filter dropdown entirely
+**Hypothesis**: Adding the entries from the A20.1 Fix Specification will make HEAL_EXHAUSTED visually distinct (amber-red) and filterable, and will give all BL 2.0 terminal statuses correct color treatment in the dashboard
+**Method**: fix-implementer
+**Fix Specification**:
+- Target file: `dashboard/frontend/src/components/QuestionQueue.tsx`
+- Target location: Lines 9-14 (STATUS_COLORS map) and lines 152-156 (filter dropdown `<option>` elements)
+- Concrete edit: Extend STATUS_COLORS with the following entries (colors from A20.1 Fix Specification):
+  - `HEAL_EXHAUSTED: "bg-[#7c2d12] text-[#f97316]"` (amber-red — requires human action)
+  - `FIXED: "bg-[#064e3b] text-[#34d399]"` (green — success, same as DONE)
+  - `FIX_FAILED: "bg-[#4c0519] text-[#f43f5e]"` (rose-red — active failure)
+  - `DIAGNOSIS_COMPLETE: "bg-[#1e3a5f] text-[#38bdf8]"` (blue — ready for fix)
+  - `COMPLIANT: "bg-[#064e3b] text-[#34d399]"` (green — pass)
+  - `NON_COMPLIANT: "bg-[#451a03] text-[#f59e0b]"` (amber — needs fix)
+  - `BLOCKED: "bg-[#4a1d96] text-[#c4b5fd]"` (purple — blocked)
+  Add corresponding `<option>` elements for each status in the filter dropdown, with HEAL_EXHAUSTED placed first after the existing four options (highest-priority operator signal)
+- Verification command: Open dashboard at http://localhost:3100 — confirm a HEAL_EXHAUSTED question renders in amber-red (not gray), and the filter dropdown lists all newly added statuses as selectable options
+**Success criterion**: FIXED if STATUS_COLORS contains all seven new entries and the filter dropdown contains matching `<option>` elements for each, with no TypeScript compile errors
+
+---
+
+### F21.2: Implement the A20.2 fix — add _is_fix_row() F-prefix guard to _score_fix_implementer in crucible.py to exclude non-F-prefix FIXED/FIX_FAILED rows from fix_rows
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Priority**: LOW
+**Motivated by**: A20.2 (NON_COMPLIANT) — fix_rows is currently a verdict-only filter with no question_id prefix check; D-mid.4 (a D-prefix question with FIXED verdict) is already in fix_rows and confirmed by A20.2; project-brief.md designates FIXED/FIX_FAILED as exclusive Fix-mode verdicts; structural guard is warranted to prevent future D-prefix contamination
+**Hypothesis**: Adding _is_fix_row() as a nested helper mirroring _is_bl2_diag_row() will exclude the D-mid.4 row from fix_rows for new-format rows (col[0]="N/A") while preserving old-format BL 1.x rows via the fallback path — net effect is fix_rows shrinks by exactly 1 (the D-mid.4 row)
+**Method**: fix-implementer
+**Fix Specification**:
+- Target file: `bl/crucible.py`
+- Target location: `_score_fix_implementer()` — the `fix_rows` list comprehension at line 447 (verdict-only filter)
+- Concrete edit: Replace the single-line list comprehension with a nested `_is_fix_row(ln)` helper, as specified in A20.2 Fix Specification:
+  ```python
+  def _is_fix_row(ln: str) -> bool:
+      parts = ln.split("\t")
+      if len(parts) >= 3 and parts[0] == "N/A":
+          return parts[1].startswith("F") and bool(
+              re.search(r"^(FIXED|FIX_FAILED)$", parts[2])
+          )
+      return bool(re.search(r"\t(FIXED|FIX_FAILED)\t", ln))
+  fix_rows = [ln for ln in lines if _is_fix_row(ln)]
+  ```
+- Verification command: Run `python -c "from bl.crucible import run_all_benchmarks; import json; r = run_all_benchmarks('projects/bl2'); print(json.dumps(r, indent=2))"` — confirm fix-implementer fix_rows count drops by 1 (from ~40 to ~39 new-format rows) and fixed_rate is unchanged or marginally adjusted
+**Success criterion**: FIXED if fix_rows excludes D-mid.4 for the BL 2.0 new-format path and the fix-implementer benchmark score remains within 0.01 of the pre-fix value (D-mid.4 was FIXED, so fixed_rate numerator and denominator both drop by 1 — net rate impact near zero)
+
+---
+
+### D21.1: Why is fix_spec_completeness=0.29 in run_all_benchmarks() — which DIAGNOSIS_COMPLETE findings are missing the four required Fix Specification fields, and is the gap caused by findings that omit the spec intentionally (e.g., "no fix needed" subtypes) or by diagnose-analyst agents failing to populate the template?
+
+**Status**: DIAGNOSIS_COMPLETE
+**Operational Mode**: diagnose
+**Priority**: MEDIUM
+**Motivated by**: D20.1 (HEALTHY) — run_all_benchmarks() post-fix shows diagnose-analyst score=0.7158 with dc_rate=1.00 but fix_spec_completeness=0.29; at 1.00 dc_rate every DIAGNOSIS_COMPLETE finding should include all four Fix Specification fields (target file, target location, concrete edit, verification command), but only 29% do; this is a separate quality gap from the dc_rate measurement error fixed in F19.1 and represents either findings that predate the Fix Specification template requirement or agent failures to populate it
+**Hypothesis**: The low fix_spec_completeness is primarily caused by early-wave DIAGNOSIS_COMPLETE findings (Waves 1-14) that were written before the BL 2.0 Fix Specification template was standardized; later waves (15-20) should have higher completeness. A secondary cause may be DIAGNOSIS_COMPLETE findings for "no code change needed" conclusions (e.g., design decisions, architecture confirmations) where a Fix Specification is not applicable — these inflate the denominator without being genuine agent failures.
+**Method**: Run `grep -rn "Verdict.*DIAGNOSIS_COMPLETE" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/findings/*.md | grep -v synthesis` to list all DIAGNOSIS_COMPLETE findings. For each, check whether the finding contains all four Fix Specification fields: "Target file", "Target location", "Concrete edit", "Verification command". Group findings by wave number. Calculate per-wave completeness to determine whether the gap is concentrated in early waves or distributed across all waves. For findings missing the spec, check whether the finding conclusion is "no fix needed" (intentional omission) or a genuine fix recommendation without the structured spec (agent failure).
+**Success criterion**: DIAGNOSIS_COMPLETE with Fix Specification if the gap is caused by agent failures on fixable findings — fix is to add a validation step to the diagnose-analyst prompt requiring Fix Specification population for all DIAGNOSIS_COMPLETE findings that recommend a code change. HEALTHY if the gap is entirely explained by early-wave pre-template findings and "no fix needed" subtypes — document as a known historical artifact requiring no code change.
+

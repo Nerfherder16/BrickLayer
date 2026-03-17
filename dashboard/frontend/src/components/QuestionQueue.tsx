@@ -11,6 +11,15 @@ const STATUS_COLORS: Record<string, string> = {
   DONE: "bg-[#064e3b] text-[#34d399]",
   INCONCLUSIVE: "bg-[#451a03] text-[#f59e0b]",
   IN_PROGRESS: "bg-[#1e3a5f] text-[#38bdf8]",
+  // A20.1: BL 2.0 terminal statuses
+  HEAL_EXHAUSTED: "bg-[#7c2d12] text-[#f97316]",
+  FIXED: "bg-[#064e3b] text-[#34d399]",
+  FIX_FAILED: "bg-[#4c0519] text-[#f43f5e]",
+  DIAGNOSIS_COMPLETE: "bg-[#1e3a5f] text-[#38bdf8]",
+  COMPLIANT: "bg-[#064e3b] text-[#34d399]",
+  NON_COMPLIANT: "bg-[#451a03] text-[#f59e0b]",
+  BLOCKED: "bg-[#4a1d96] text-[#c4b5fd]",
+  HEALTHY: "bg-[#064e3b] text-[#34d399]",
 };
 
 const DOMAINS = ["D1", "D2", "D3", "D4", "D5", "D6"];
@@ -154,6 +163,14 @@ export function QuestionQueue({ questions, onRefresh }: Props) {
           <option value="DONE">DONE</option>
           <option value="INCONCLUSIVE">INCONCLUSIVE</option>
           <option value="IN_PROGRESS">IN_PROGRESS</option>
+          <option value="HEAL_EXHAUSTED">HEAL_EXHAUSTED</option>
+          <option value="FIXED">FIXED</option>
+          <option value="FIX_FAILED">FIX_FAILED</option>
+          <option value="DIAGNOSIS_COMPLETE">DIAGNOSIS_COMPLETE</option>
+          <option value="NON_COMPLIANT">NON_COMPLIANT</option>
+          <option value="COMPLIANT">COMPLIANT</option>
+          <option value="BLOCKED">BLOCKED</option>
+          <option value="HEALTHY">HEALTHY</option>
         </select>
       </div>
 
