@@ -379,17 +379,27 @@ def _score_diagnose_analyst(project_dir: Path) -> AgentScore:
         return AgentScore("diagnose-analyst", 0.0, {}, "findings/ not found")
 
     # DIAGNOSIS_COMPLETE rate from results.tsv
+    # V18.1: scope to BL 2.0 D-prefix rows only (new format: col[0]="N/A", col[1] starts with "D")
+    def _is_bl2_diag_row(ln: str) -> bool:
+        parts = ln.split("\t")
+        if len(parts) >= 3 and parts[0] == "N/A":
+            return parts[1].startswith("D") and bool(
+                re.search(
+                    r"^(DIAGNOSIS_COMPLETE|HEALTHY|FAILURE|INCONCLUSIVE)$", parts[2]
+                )
+            )
+        return False
+
     dc_rate = 0.0
     if results_tsv.exists():
         lines = results_tsv.read_text(encoding="utf-8", errors="replace").splitlines()
         diag_rows = [
-            ln for ln in lines if "\tDIAGNOSIS_COMPLETE\t" in ln or "\tHEALTHY\t" in ln
-        ]
-        all_diag = [
             ln
             for ln in lines
-            if re.search(r"\t(DIAGNOSIS_COMPLETE|HEALTHY|FAILURE|INCONCLUSIVE)\t", ln)
+            if _is_bl2_diag_row(ln)
+            and ("\tDIAGNOSIS_COMPLETE\t" in ln or "\tHEALTHY\t" in ln)
         ]
+        all_diag = [ln for ln in lines if _is_bl2_diag_row(ln)]
         dc_rate = len(diag_rows) / len(all_diag) if all_diag else 0.0
 
     # Fix-spec completeness: findings containing all 4 required fields
@@ -407,7 +417,8 @@ def _score_diagnose_analyst(project_dir: Path) -> AgentScore:
             content = fpath.read_text(encoding="utf-8", errors="replace")
         except Exception:
             continue
-        if "DIAGNOSIS_COMPLETE" not in content and "Fix Specification" not in content:
+        # V18.2: exact verdict line match — excludes FIXED findings that embed "Fix Specification"
+        if "**Verdict**: DIAGNOSIS_COMPLETE" not in content:
             continue
         hit = sum(1 for field in spec_fields if field in content) / len(spec_fields)
         spec_scores.append(hit)
