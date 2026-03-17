@@ -1674,7 +1674,7 @@ Status is tracked in results.tsv — do not edit manually.
 **Mode**: code_audit
 **Agent**: diagnose-analyst
 **Operational Mode**: diagnose
-**Status**: PENDING
+**Status**: HEALTHY
 **Motivated by**: D16.1 follow-up — HEAL_EXHAUSTED verdict must be in terminal frozensets to prevent re-queueing
 **Hypothesis**: `agent_db.py` contains frozensets of terminal verdicts that determine whether a question is re-queued (e.g., `_TERMINAL_VERDICTS` or similar). Because `HEAL_EXHAUSTED` is a new verdict not currently in any frozenset, a question with `HEAL_EXHAUSTED` status in results.tsv will be treated as non-terminal and re-added to the pending list on the next campaign run, re-triggering the heal loop indefinitely.
 **Test**: Read `bl/agent_db.py` — identify all frozensets of terminal or parked verdicts. Confirm whether `HEAL_EXHAUSTED` is present or absent. Read `bl/questions.py _PARKED_STATUSES` — confirm whether `HEAL_EXHAUSTED` is present. Read `bl/findings.py _PRESERVE_AS_IS` — confirm presence/absence.
@@ -1688,7 +1688,7 @@ Status is tracked in results.tsv — do not edit manually.
 **Mode**: code_audit
 **Agent**: diagnose-analyst
 **Operational Mode**: diagnose
-**Status**: PENDING
+**Status**: DIAGNOSIS_COMPLETE
 **Motivated by**: D16.2 follow-up — secondary injection path via _inject_override_questions also needs a mode filter
 **Hypothesis**: Even after guarding the peer-reviewer spawn in `run_campaign()`, the `_inject_override_questions()` function at lines 398-437 has no mode filter on the findings it scans. If a code_audit finding somehow acquires an OVERRIDE Peer Review section (e.g., from a prior unguarded run), `_inject_override_questions()` will inject a `.R` re-exam question with `**Mode**: agent` and a prose test command. This re-exam question will be picked up by the campaign and routed to the agent runner, which will fail because the test command is not executable. A secondary fix is needed in `_inject_override_questions()` to skip findings from code_audit questions.
 **Test**: Read `bl/campaign.py` `_inject_override_questions()` lines 385-437. Confirm no mode filter exists on `finding_file` before generating the `reexam_block`. Check whether the injected `reexam_block` hard-codes `**Mode**: agent` or inherits the original question's mode. Confirm that a `.R` re-exam question with `**Mode**: agent` and a prose test command would be routed to `run_agent()` and would fail silently.
@@ -1772,3 +1772,17 @@ Status is tracked in results.tsv — do not edit manually.
 **Hypothesis**: The non-execution of mid-run injected questions is either (a) intentional design — next-run pickup is acceptable — or (b) a latent bug. Either way, a code comment at lines 582-584 explaining "this rebind affects only the progress display denominator, not the active iterator; injected questions execute on the next campaign invocation" eliminates the misleading appearance. If the intent was dynamic pickup, a structural fix (rebuilding the iterator, or switching to a while-loop with a deque) is needed instead.
 **Method**: (1) Determine intent by reading surrounding comments and git history for lines 582-584. (2) If intentional: add a comment `# NOTE: rebind affects len() display only — enumerate iterator is already bound to original pending list; injected questions run next invocation`. (3) If unintentional: replace `enumerate(pending, 1)` with a deque-based while loop that re-checks the question bank after each iteration.
 **Success criterion**: `grep -n "rebind\|next invocation\|display only" bl/campaign.py` — confirms an explanatory comment exists at the refresh site, OR the loop structure is changed to actually process injected questions within the same run
+
+---
+
+## D16.2.F1.F1 [AUDIT] Existing .R re-exam questions in questions.md with prose-only test fields from code_audit parents — identify and remove or convert
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Operational Mode**: audit
+**Status**: PENDING
+**Motivated by**: D16.2.F1 follow-up — unresolvable .R re-exam questions may already exist in questions.md
+**Hypothesis**: If the peer-reviewer was spawned for code_audit questions before D16.2 is fixed, some `.R` re-exam questions may already have been injected into questions.md. These questions have `**Mode**: agent` and `**Test**: Re-run the original test command from {qid}` where the test command is prose. They cannot be resolved. Audit questions.md for any `.R` questions where the referenced original question has `**Mode**: code_audit`, and classify them for removal or conversion.
+**Test**: Search questions.md for all `## \w+\.R ` sections. For each, look up the parent question ID (strip `.R`) in questions.md. Check if the parent has `**Mode**: code_audit`. If so, flag the `.R` question as unresolvable.
+**Verdict threshold**:
+- NON_COMPLIANT: at least one `.R` re-exam question exists with a code_audit parent — document which ones and recommend removal or conversion to code_audit mode
+- COMPLIANT: no `.R` questions exist, or all existing `.R` questions have executable test commands from non-code_audit parents
