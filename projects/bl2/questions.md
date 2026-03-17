@@ -2246,3 +2246,58 @@ Status is tracked in results.tsv — do not edit manually.
 **Method**: Read `bl/crucible.py` lines 519-533 (_score_compliance_auditor fix_spec_scores loop). Confirm line 527 uses a full-text `"NON_COMPLIANT" not in content` scan with no frontmatter position restriction. Then run: `grep -rln "NON_COMPLIANT" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/findings/*.md | grep -v synthesis` to list all finding files containing the string. Subtract the count of A-prefix findings (genuine audit findings) from the total — the remainder are non-audit findings that are being incorrectly included in the denominator. If the remainder is greater than zero, the false-positive inflation is confirmed.
 **Success criterion**: DIAGNOSIS_COMPLETE with Fix Specification (apply frontmatter-position guard parallel to F22.1) if any non-A-prefix finding files contain "NON_COMPLIANT" and would be incorrectly included in fix_spec_scores. HEALTHY if the string "NON_COMPLIANT" appears exclusively in A-prefix finding files — in that case the full-text scan is incidentally correct for this campaign even without a structural guard.
 
+---
+
+## Wave 24 — Fix D23.1 + Fix A23.1 + Validate + Audit Adjacent Scorers
+
+**Generated from findings**: D23.1 (DIAGNOSIS_COMPLETE), A23.1 (NON_COMPLIANT), V23.1 (COMPLIANT), D23.2 (HEALTHY)
+**Mode transitions applied**: D23.1 DIAGNOSIS_COMPLETE → F24.1 Fix; A23.1 NON_COMPLIANT → F24.2 Fix; V23.1 COMPLIANT → V24.1 Validate (confirm F24.1 effect on has_derived_from score); D23.2 HEALTHY → no follow-up; structural pattern of full-text verdict scans in crucible.py → A24.1 Audit (check remaining scorers for same gap)
+
+---
+
+### F24.1: Apply the D23.1 fix — update _score_hypothesis_generator check_block to accept both "Derived from" (BL 1.x) and "Motivated by" (BL 2.0) as valid lineage field names
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: D23.1 (DIAGNOSIS_COMPLETE) — `check_block()` in `_score_hypothesis_generator` at `bl/crucible.py` line 191 checks `"Derived from" in b` exclusively; all BL 2.0 Wave 2+ questions use `**Motivated by**` as the lineage field; has_derived_from rate is 0.00 across every scored BL 2.0 question block, and the 0.35 weight contributes nothing to the overall score, suppressing it from ~0.42 to ~0.15
+**Hypothesis**: Changing the check to `("Derived from" in b or "Motivated by" in b)` will cause has_derived_from to return 1.00 for every BL 2.0 Wave 2+ question that contains the `**Motivated by**` field, raising the overall hypothesis-generator score from ~0.15 to ~0.45+
+**Method**: Edit `bl/crucible.py`: in `_score_hypothesis_generator()` → `check_block()`, change line 191 from `"has_derived_from": 1.0 if "Derived from" in b else 0.0,` to `"has_derived_from": 1.0 if ("Derived from" in b or "Motivated by" in b) else 0.0,`. Then re-run benchmarks for the bl2 project and confirm has_derived_from rate and overall hypothesis-generator score.
+**Success criterion**: FIXED if `has_derived_from` rate rises from 0.00 to near 1.00 for BL 2.0 campaigns and overall hypothesis-generator score rises above 0.40. FIX_FAILED if the rate remains 0.00 or the score does not improve.
+
+---
+
+### F24.2: Apply the A23.1 fix — replace bare "NON_COMPLIANT" full-text scan in _score_compliance_auditor with a frontmatter-position guard (first 6 lines only), mirroring the F22.1 fix pattern
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Motivated by**: A23.1 (NON_COMPLIANT) — `_score_compliance_auditor()` at `bl/crucible.py` line 527 uses `if "NON_COMPLIANT" not in content: continue`, a bare substring match with no restriction to the verdict frontmatter; this admits any finding that mentions "NON_COMPLIANT" in body text (e.g., Fix findings that describe what they fixed, Diagnose findings whose success criteria mention the verdict) into the fix_spec_scores denominator, inflating it and suppressing fix_spec_rate; the identical structural gap in `_score_diagnose_analyst` was fixed in F22.1 using a first-6-lines frontmatter check
+**Hypothesis**: Replacing the full-text scan with a frontmatter-position check (`first_lines = content.split("\n")[:6]; if not any(line.strip() == "**Verdict**: NON_COMPLIANT" for line in first_lines): continue`) will exclude non-audit findings that mention "NON_COMPLIANT" in body text, giving fix_spec_scores a denominator of only genuine compliance-auditor findings
+**Method**: Edit `bl/crucible.py` `_score_compliance_auditor()` NON_COMPLIANT guard (line 527): replace `if "NON_COMPLIANT" not in content: continue` with a first-6-lines check that matches `**Verdict**: NON_COMPLIANT` exactly. Re-run benchmarks; confirm F21.1.md (a FIXED finding that mentions NON_COMPLIANT in its body) is excluded from fix_spec_scores.
+**Success criterion**: FIXED if F21.1.md and any other non-A-prefix finding files mentioning "NON_COMPLIANT" are excluded from fix_spec_scores after the change, and only genuine `**Verdict**: NON_COMPLIANT` findings remain in the denominator. FIX_FAILED if F21.1.md is still included or if genuine NON_COMPLIANT findings are erroneously excluded.
+
+---
+
+### V24.1: Confirm F24.1 took effect — verify has_derived_from rate and overall hypothesis-generator benchmark score improved from the pre-fix baseline of 0.1511
+
+**Status**: COMPLIANT
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Motivated by**: D23.1 (DIAGNOSIS_COMPLETE) — D23.1 established the pre-fix baseline: has_derived_from=0.00 across all BL 2.0 Wave 2+ questions, overall hypothesis-generator score=0.1511; F24.1 applies the fix; this question validates the fix had the predicted effect
+**Hypothesis**: After F24.1 is applied and benchmarks are re-run, `has_derived_from` will be 1.00 for every question block containing `**Motivated by**` (all Wave 2+ questions in bl2), and the overall hypothesis-generator score will rise to approximately 0.45–0.50 (the 0.35 weight now contributing in full, offset by any blocks still missing other fields)
+**Method**: Run `python -c "from bl.crucible import run_all_benchmarks; import json; r = run_all_benchmarks('C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2'); print(json.dumps(r, indent=2))"` (or equivalent benchmark invocation). Read the hypothesis-generator section: check `has_derived_from` rate and overall score. Compare to the D23.1 baseline (score=0.1511, has_derived_from=0.00).
+**Success criterion**: COMPLIANT if hypothesis-generator score is measurably above 0.40 and has_derived_from rate is above 0.90. DIAGNOSIS_COMPLETE with Fix Specification if the score did not improve (F24.1 may not have been applied, or the field name used in questions.md differs from what was assumed).
+
+---
+
+### A24.1: Do other crucible.py scorers (_score_monitor_agent, _score_predict_agent, _score_frontier_agent, _score_evolve_agent) use bare full-text verdict substring scans analogous to the pre-fix guards in _score_diagnose_analyst and _score_compliance_auditor?
+
+**Status**: NON_COMPLIANT
+**Operational Mode**: audit
+**Priority**: LOW
+**Motivated by**: A23.1 (NON_COMPLIANT) — A23.1 identified `_score_compliance_auditor` as having the same structural gap (full-text verdict scan) as `_score_diagnose_analyst` before F22.1; F22.1 and F24.2 fix two scorers; the pattern may be present in other scorer functions that filter findings by verdict string before computing fix_spec_rate or equivalent metrics; an audit of all remaining scorer functions will determine whether the fix needs to propagate further
+**Hypothesis**: The pattern `if "{VERDICT_STRING}" not in content: continue` (or equivalent bare substring check) exists in at least one other scorer beyond `_score_diagnose_analyst` and `_score_compliance_auditor`. Scorers for Monitor (CALIBRATED), Predict (PROBABLE/IMMINENT), Frontier (PROMISING/BLOCKED), and Evolve (IMPROVEMENT) that compute fix_spec or quality rates over finding files are the most likely candidates.
+**Method**: Read `bl/crucible.py` in full for all `_score_*` functions beyond `_score_diagnose_analyst` and `_score_compliance_auditor`. For each scorer, identify any line that checks for a verdict string in `content` without restricting to the first N lines. List: scorer name, line number, verdict string checked, whether a frontmatter-position guard is present. Report all bare full-text scans as NON_COMPLIANT; report frontmatter-guarded checks as COMPLIANT.
+**Success criterion**: COMPLIANT if all remaining scorers either use frontmatter-position guards or do not perform verdict-based filtering at all. NON_COMPLIANT with Fix Specification (one fix per affected scorer) if any bare full-text verdict scan is found in a scorer not yet covered by F22.1 or F24.2.
+

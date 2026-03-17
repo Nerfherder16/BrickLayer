@@ -188,7 +188,9 @@ def _score_hypothesis_generator(project_dir: Path) -> AgentScore:
     def check_block(b: str) -> dict[str, float]:
         return {
             "has_status": 1.0 if re.search(r"PENDING|DONE|Status", b) else 0.0,
-            "has_derived_from": 1.0 if "Derived from" in b else 0.0,
+            "has_derived_from": 1.0
+            if ("Derived from" in b or "Motivated by" in b)
+            else 0.0,
             "has_test": 1.0 if re.search(r"Test:|pytest|Simulation path", b) else 0.0,
             "has_verdict_threshold": 1.0
             if ("FAILURE:" in b and "HEALTHY:" in b)
@@ -524,7 +526,12 @@ def _score_compliance_auditor(project_dir: Path) -> AgentScore:
             content = fpath.read_text(encoding="utf-8", errors="replace")
         except Exception:
             continue
-        if "NON_COMPLIANT" not in content:
+        # A23.1: frontmatter-position guard — only match if NON_COMPLIANT verdict is in first 6 lines
+        # Excludes findings that mention "NON_COMPLIANT" in body text (hypotheses, evidence, code blocks)
+        first_lines_ca = content.split("\n")[:6]
+        if not any(
+            line.strip() == "**Verdict**: NON_COMPLIANT" for line in first_lines_ca
+        ):
             continue
         has_spec = "Fix Specification" in content or "Concrete edit" in content
         fix_spec_scores.append(1.0 if has_spec else 0.0)
