@@ -1593,3 +1593,105 @@ Status is tracked in results.tsv — do not edit manually.
 - COMPLIANT: all fixes verified; no regressions
 - NON_COMPLIANT: any check fails
 
+<!-- Wave 16 -->
+
+---
+
+## D16.1 [DIAGNOSE] healloop.py exhausted-loop leaves results.tsv with stale FAILURE verdict — final state is never written back when max cycles expire
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Motivated by**: healloop.py deep audit — Wave 16 hypothesis generation
+**Hypothesis**: `run_heal_loop()` in `bl/healloop.py` updates `results.tsv` for intermediate heal findings (lines 228-233 and 284-286) and writes a FIXED row for the original question only on the FIXED path (lines 296-300). On the exhausted path — when the for-loop in `range(1, max_cycles + 1)` exits without returning — no `update_results_tsv()` call is made for the original `original_qid`. The original question row therefore permanently retains the pre-heal verdict (FAILURE or DIAGNOSIS_COMPLETE) in results.tsv, even though the heal loop appended an EXHAUSTED note to the finding file and ran multiple additional diagnose/fix sub-cycles. The synthesizer, crucible, and agent_db all treat results.tsv as the authoritative verdict store — they will read the original FAILURE and score the question as a clean failure, potentially triggering redundant followup questions and incorrect agent performance penalties.
+**Test**: Read `bl/healloop.py` lines 288-343. Trace the code path when `fix_verdict != "FIXED"` and the loop exhausts all cycles. Confirm `update_results_tsv(original_qid, ...)` is never called after the for-loop ends. Read `bl/campaign.py` lines 129-140 — confirm the caller only propagates the `healed_result` dict but does not re-call `update_results_tsv` for the original `qid` after `run_heal_loop` returns with an exhausted result. Confirm that `findings.py`'s `update_results_tsv()` is the sole mechanism for writing verdict state to results.tsv.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: the exhausted-loop path calls no `update_results_tsv` for `original_qid`; results.tsv retains the pre-heal FAILURE verdict; the campaign.py caller does not compensate; fix requires calling `update_results_tsv(original_qid, "HEAL_EXHAUSTED", ...)` after the loop exits without FIXED, and adding `"HEAL_EXHAUSTED"` to the appropriate frozenset in agent_db.py
+- HEALTHY: `update_results_tsv` is called for `original_qid` on the exhausted path, or the campaign.py caller compensates
+
+---
+
+## D16.2 [DIAGNOSE] campaign.py peer-reviewer spawned unconditionally for code_audit questions — produces vacuous verdicts that inject spurious re-exam questions
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Motivated by**: campaign.py deep audit — Wave 16 hypothesis generation
+**Hypothesis**: `run_campaign()` in `bl/campaign.py` calls `_spawn_agent_background("peer-reviewer", ...)` at lines 593-601 after every question with no guard on `question["mode"]`. The peer-reviewer prompt instructs it to "re-run the original test for {question['id']}" and append a Peer Review section with verdict CONFIRMED, CONCERNS, or OVERRIDE. For `code_audit` mode questions (all BL 2.0 diagnose, fix, audit, validate questions), there is no runnable test command — the "test" field contains prose instructions such as "Read bl/crucible.py lines 31-36 and confirm...". The peer-reviewer will be unable to find or execute a test and will likely emit CONCERNS or OVERRIDE as a safe default. Any OVERRIDE verdict causes `_inject_override_questions()` (lines 391-437) to append a `{qid}.R` re-exam block to questions.md with status PENDING. This means every code_audit question that the peer-reviewer cannot verify produces a spurious re-exam question, growing the question bank with items that cannot be resolved by re-running a non-existent test command.
+**Test**: Read `bl/campaign.py` lines 579-601. Confirm `_spawn_agent_background("peer-reviewer", ...)` is inside the for-loop over `pending` with no `if question["mode"] != "code_audit"` guard. Read `_inject_override_questions()` lines 391-437 — confirm it scans ALL finding files for the OVERRIDE pattern regardless of mode. Inspect the peer-reviewer context string at lines 596-601 — confirm "re-run the original test" is present with no mode-conditional branch. Read the peer-reviewer agent file at `{agents_dir}/peer-reviewer.md` if it exists — confirm whether it contains any special handling for code_audit questions.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: peer-reviewer is spawned for all modes without a guard; the peer-reviewer prompt lacks code_audit awareness; OVERRIDE verdicts from code_audit questions feed `_inject_override_questions()`; fix requires either (a) guarding `_spawn_agent_background("peer-reviewer", ...)` with `if question["mode"] not in ("code_audit",)` or (b) injecting `question_mode` into the peer-reviewer context so it skips the test re-run for non-executable question types
+- HEALTHY: the peer-reviewer prompt already handles code_audit mode gracefully without emitting OVERRIDE, or the spawn call is already guarded by mode
+
+---
+
+## D16.3 [DIAGNOSE] runners/agent.py _parse_text_output() has no fallback for BL 2.0 agents — plain-text output from any agent not in the BL 1.x name list returns empty dict and forces INCONCLUSIVE
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Motivated by**: runners/agent.py audit — Wave 16 hypothesis generation
+**Hypothesis**: `_parse_text_output()` in `bl/runners/agent.py` lines 138-198 dispatches on `agent_name` with `if/elif` branches for `security-hardener`, `test-writer`, `type-strictener`, and `perf-optimizer`. There is no `else` clause. For any agent name outside these four — including all BL 2.0 agents (`diagnose-analyst`, `fix-implementer`, `compliance-auditor`, `design-reviewer`) — the function returns an empty dict `{}`. This empty dict is passed to `_verdict_from_agent_output()`, which enters the `else` branch (line 122), reads `output.get("verdict", "")` from the empty dict, gets `""`, which is not in `_ALL_VERDICTS`, falls through the legacy heuristic check (`changes_committed` also missing), and returns `"INCONCLUSIVE"`. The consequence: any BL 2.0 agent that emits plain text instead of a JSON block — whether due to a prompt compliance failure, a claude CLI version difference, or a transient formatting issue — will always produce INCONCLUSIVE regardless of what verdict text appears in the plain-text output. A BL 1.x agent in the same situation would at least have its specific heuristic metrics extracted, giving a non-INCONCLUSIVE result.
+**Test**: Read `bl/runners/agent.py` lines 138-198. Confirm `_parse_text_output()` has no `else` clause and returns `out` (which equals `{}`) for any unrecognized agent name. Trace `run_agent()` lines 398-401: confirm `_parse_text_output(agent_name, agent_text)` is called when `not agent_output and agent_text`, meaning the JSON block extraction at line 391-396 failed. Trace `_verdict_from_agent_output("diagnose-analyst", {})` through the `else` branch — confirm it returns `"INCONCLUSIVE"`. Confirm that a plain-text response containing the literal string `"verdict: DIAGNOSIS_COMPLETE"` from a diagnose-analyst would produce INCONCLUSIVE rather than DIAGNOSIS_COMPLETE via the text-output fallback path.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: `_parse_text_output()` has no `else` clause; BL 2.0 agent plain-text output returns `{}`; `_verdict_from_agent_output` returns INCONCLUSIVE for all BL 2.0 agents on the text-fallback path; fix requires adding an `else` clause to `_parse_text_output()` that searches for `verdict:\s*(\w+)` and `summary:\s*(.+)` in the plain text as a universal BL 2.0 fallback
+- HEALTHY: an `else` clause already extracts `verdict` and `summary` from plain text, or the text-fallback path is unreachable for BL 2.0 agents
+
+---
+
+## V16.1 [VALIDATE] Minimum viable scorer design for the four new BL 2.0 agents in crucible.py _SCORERS — validate architecture is correct before implementation
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Operational Mode**: validate
+**Status**: COMPLIANT
+**Motivated by**: V15.1 informational gap — _SCORERS has no rubric functions for BL 2.0 agents
+**Hypothesis**: After F15.2, `_KNOWN_AGENTS` includes the four BL 2.0 operational agents but `_SCORERS` (lines 378-383) maps only the four BL 1.x agents to scorer functions. A minimum viable scorer for each BL 2.0 agent should evaluate quality from existing finding files without subprocess calls: (1) `_score_diagnose_analyst` — DIAGNOSIS_COMPLETE rate from results.tsv, fix-specification completeness (4 required fields: target file, target location, concrete edit, verification command) detected via regex in finding markdown; (2) `_score_fix_implementer` — FIXED rate, FIX_FAILED rate, presence of a verification command output block in the finding; (3) `_score_compliance_auditor` — NON_COMPLIANT/COMPLIANT/PARTIAL distribution, whether NON_COMPLIANT findings include a Fix Specification section; (4) `_score_design_reviewer` — COMPLIANT/NON_COMPLIANT distribution, whether findings reference specific line numbers. All scorers must follow the static-file pattern of `_score_synthesizer()`: read files from `findings/`, extract text metrics, return `AgentScore(name, score, checks_raw, notes)`. Validate that this design is compatible with the existing `run_all_benchmarks()` loop and `AgentScore` dataclass with no structural changes required.
+**Test**: Read `bl/crucible.py` lines 370-440. Confirm `_SCORERS` is a plain dict mapping agent name strings to scorer callables. Confirm `run_all_benchmarks()` iterates `_KNOWN_AGENTS`, looks up each in `_SCORERS`, and calls the scorer — no hardwired logic beyond the dict lookup. Confirm `AgentScore` has fields sufficient to express: a float score (0.0-1.0), a dict of named check results (checks_raw), and a notes string. Read `_score_synthesizer()` as the canonical static-file scorer pattern — confirm it makes no subprocess calls, reads only from `findings/` and the project root, and returns `AgentScore`. Confirm that adding `"diagnose-analyst": _score_diagnose_analyst` to `_SCORERS` is the only change required to make the new scorer callable from `run_all_benchmarks()`.
+**Verdict threshold**:
+- COMPLIANT: `_SCORERS` is a plain dict requiring only a new key-value entry; `AgentScore` fields cover rate, completeness, and notes; the `_score_synthesizer()` static-file pattern is directly reusable; `run_all_benchmarks()` requires no structural changes; a concrete scorer stub for `diagnose-analyst` reading DIAGNOSIS_COMPLETE verdicts from `findings/*.md` is architecturally sound
+- NON_COMPLIANT: `run_all_benchmarks()` has hardwired logic beyond dict lookup that blocks new scorer addition, or `AgentScore` is missing a field needed for BL 2.0 scorer output; document exactly what structural change is required before implementation
+
+---
+
+## A16.1 [AUDIT] campaign.py run_campaign() pending-list refresh inside the loop is dead code for execution — injected questions are silently skipped in the current run
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Operational Mode**: audit
+**Status**: NON_COMPLIANT
+**Motivated by**: campaign.py deep audit — Wave 16 hypothesis generation
+**Hypothesis**: `run_campaign()` in `bl/campaign.py` lines 563-601 iterates `for i, question in enumerate(pending, 1)` where `pending` is constructed before the loop. Inside the loop at lines 582-584, when `questions_done > 0`, the code re-parses questions.md and rebinds the local name `pending`: `pending = [q for q in refreshed if q["status"] == "PENDING"]`. This rebind does not affect the `enumerate` iterator already in progress — `question` continues to be drawn from the original pre-loop list. The refreshed `pending` is only used for `len(pending)` on line 587 (the progress display denominator). Consequently: (1) questions injected mid-run by `generate_followup()` or `_inject_override_questions()` are never executed in the current invocation; (2) the progress display `[{i}/{len(pending)}]` shows a stale or inflated denominator after any injection; (3) the refresh on lines 582-584 creates a false impression that the campaign dynamically picks up new questions, when in fact it does not. This is likely a BL 1.x artifact — the refresh was originally meaningful when the loop could receive external question additions — but in BL 2.0 it is misleading dead code for the execution path.
+**Test**: Read `bl/campaign.py` lines 563-601. Confirm `enumerate(pending, 1)` creates an iterator over the pre-loop `pending` list reference. Confirm the rebind `pending = [...]` inside the loop does not alter this iterator. Confirm `question` in the loop body always comes from the original list. Determine whether any question injected by `generate_followup()` (line 109) or `_inject_override_questions()` (called in `check_sentinels()` line 580) during a run is ever visited by the for-loop iterator in the same invocation. Document whether the discrepancy between the displayed denominator and actual remaining work is visible to the operator.
+**Verdict threshold**:
+- NON_COMPLIANT: `enumerate` iterator is bound to original `pending` before the refresh; refreshed `pending` is used only for display; injected questions are not executed in the current run; the progress display denominator diverges after injection; the refresh is misleading dead code for the execution path — document the exact behavior and whether the non-execution of injected questions is intentional campaign design or an oversight
+- COMPLIANT: the refresh is used correctly and injected questions are processed within the same run, or the non-execution is explicitly documented as intentional
+
+
+<!-- Wave 16 follow-ups from D16.1 and D16.2 -->
+
+---
+
+## D16.1.F1 [DIAGNOSE] agent_db.py terminal-verdict frozensets missing HEAL_EXHAUSTED — exhausted heal loops re-trigger on next campaign run
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: PENDING
+**Motivated by**: D16.1 follow-up — HEAL_EXHAUSTED verdict must be in terminal frozensets to prevent re-queueing
+**Hypothesis**: `agent_db.py` contains frozensets of terminal verdicts that determine whether a question is re-queued (e.g., `_TERMINAL_VERDICTS` or similar). Because `HEAL_EXHAUSTED` is a new verdict not currently in any frozenset, a question with `HEAL_EXHAUSTED` status in results.tsv will be treated as non-terminal and re-added to the pending list on the next campaign run, re-triggering the heal loop indefinitely.
+**Test**: Read `bl/agent_db.py` — identify all frozensets of terminal or parked verdicts. Confirm whether `HEAL_EXHAUSTED` is present or absent. Read `bl/questions.py _PARKED_STATUSES` — confirm whether `HEAL_EXHAUSTED` is present. Read `bl/findings.py _PRESERVE_AS_IS` — confirm presence/absence.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: `HEAL_EXHAUSTED` is absent from at least one frozenset that would cause re-queueing; fix requires adding it to `_PARKED_STATUSES`, `_PRESERVE_AS_IS`, and the agent_db terminal frozenset
+- HEALTHY: `HEAL_EXHAUSTED` is already present in all relevant frozensets, or the verdict string is already handled by a wildcard/prefix match
+
+---
+
+## D16.2.F1 [DIAGNOSE] _inject_override_questions() has no mode filter — re-exam questions injected for code_audit findings have prose-only test commands that cannot be resolved
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: PENDING
+**Motivated by**: D16.2 follow-up — secondary injection path via _inject_override_questions also needs a mode filter
+**Hypothesis**: Even after guarding the peer-reviewer spawn in `run_campaign()`, the `_inject_override_questions()` function at lines 398-437 has no mode filter on the findings it scans. If a code_audit finding somehow acquires an OVERRIDE Peer Review section (e.g., from a prior unguarded run), `_inject_override_questions()` will inject a `.R` re-exam question with `**Mode**: agent` and a prose test command. This re-exam question will be picked up by the campaign and routed to the agent runner, which will fail because the test command is not executable. A secondary fix is needed in `_inject_override_questions()` to skip findings from code_audit questions.
+**Test**: Read `bl/campaign.py` `_inject_override_questions()` lines 385-437. Confirm no mode filter exists on `finding_file` before generating the `reexam_block`. Check whether the injected `reexam_block` hard-codes `**Mode**: agent` or inherits the original question's mode. Confirm that a `.R` re-exam question with `**Mode**: agent` and a prose test command would be routed to `run_agent()` and would fail silently.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: `_inject_override_questions()` has no mode filter; injected re-exam questions hard-code `mode: agent`; a code_audit-derived re-exam would fail in the agent runner; fix requires reading the original question's mode from questions.md and either skipping code_audit OVERRIDE findings or injecting with the correct mode
+- HEALTHY: `_inject_override_questions()` already reads the original question mode and handles code_audit correctly, or the function is unreachable for code_audit findings
