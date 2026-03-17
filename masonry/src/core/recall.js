@@ -1,0 +1,86 @@
+"use strict";
+// src/core/recall.js — Recall HTTP client
+// Uses Node 18+ native fetch. All functions are graceful — never throw.
+
+const { loadConfig } = require("./config");
+
+/**
+ * Return base URL and headers for Recall requests.
+ */
+function getRecallConfig() {
+  const cfg = loadConfig();
+  return {
+    baseUrl: cfg.recallHost,
+    headers: {
+      "Content-Type": "application/json",
+      ...(cfg.recallApiKey
+        ? { Authorization: `Bearer ${cfg.recallApiKey}` }
+        : {}),
+    },
+  };
+}
+
+/**
+ * Store a memory in Recall.
+ * @param {{ content: string, domain: string, tags: string[], importance: number }} opts
+ * @returns {Promise<object|null>}  response body or null on error
+ */
+async function storeMemory({ content, domain, tags = [], importance = 0.5 }) {
+  try {
+    const { baseUrl, headers } = getRecallConfig();
+    const res = await fetch(`${baseUrl}/store`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ content, domain, tags, importance }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (_err) {
+    return null;
+  }
+}
+
+/**
+ * Search memories in Recall.
+ * @param {{ query: string, domain?: string, tags?: string[], limit?: number }} opts
+ * @returns {Promise<object[]>}  array of results (empty on error)
+ */
+async function searchMemory({ query, domain, tags, limit = 5 }) {
+  try {
+    const { baseUrl, headers } = getRecallConfig();
+    const body = { query, limit };
+    if (domain) body.domain = domain;
+    if (tags && tags.length) body.tags = tags;
+
+    const res = await fetch(`${baseUrl}/search`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    // Recall returns { results: [...] } or just an array
+    return Array.isArray(data) ? data : data.results || [];
+  } catch (_err) {
+    return [];
+  }
+}
+
+/**
+ * Check if Recall is reachable.
+ * @returns {Promise<boolean>}
+ */
+async function isAvailable() {
+  try {
+    const { baseUrl } = getRecallConfig();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
+    const res = await fetch(`${baseUrl}/health`, { signal: controller.signal });
+    clearTimeout(timeout);
+    return res.ok;
+  } catch (_err) {
+    return false;
+  }
+}
+
+module.exports = { storeMemory, searchMemory, isAvailable };

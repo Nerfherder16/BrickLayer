@@ -1,0 +1,19 @@
+{
+  "name": "masonry",
+  "version": "0.1.0",
+  "description": "Research-first orchestration for Claude Code — BrickLayer 2.0 engine + Teams + Recall memory",
+  "author": {
+    "name": "Nerfherder16"
+  },
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "research",
+    "bricklayer",
+    "recall",
+    "masonry"
+  ],
+  "skills": "../skills/",
+  "hooks": "../hooks/hooks.json"
+}
