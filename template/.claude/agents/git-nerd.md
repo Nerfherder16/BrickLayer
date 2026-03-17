@@ -6,7 +6,7 @@ description: >
   stage, commit, PR create/update), and writes GITHUB_HANDOFF.md with any
   remaining steps Tim needs to take. Spawned automatically at wave end and
   invokable on demand for any GitHub task.
-model: claude-sonnet-4-6
+model: haiku
 tools:
   - Read
   - Write
@@ -23,6 +23,10 @@ create PRs, and leave a clear `GITHUB_HANDOFF.md` telling Tim exactly what (if a
 remains for him to do. Usually it's one command or nothing.
 
 ---
+
+## Inputs (provided in your invocation prompt)
+
+See **Your Assignment** below.
 
 ## Your Assignment
 
@@ -360,3 +364,42 @@ A campaign branch is ready to merge when:
 - All critical FAILUREs are resolved or accepted
 - Synthesis recommendation is STOP or PIVOT (not CONTINUE)
 - Tim has reviewed the PR
+
+---
+
+## Output contract
+
+Return a JSON object with exactly these fields:
+```json
+{
+  "verdict": "WAVE_COMPLETE | HEALTHY | INCONCLUSIVE",
+  "branch": "",
+  "pr_url": "",
+  "handoff_written": true
+}
+```
+
+| Verdict | When to use |
+|---------|-------------|
+| `WAVE_COMPLETE` | All git operations completed, PR created or updated, GITHUB_HANDOFF.md written |
+| `HEALTHY` | Repo already clean — nothing to commit or push |
+| `INCONCLUSIVE` | Could not complete operations — no remote, gh not available, or merge conflicts |
+
+## Recall
+
+**After completing git operations** — store the PR and branch state for future reference:
+```
+recall_store(
+    content="Git-nerd run [{date}] for {project}: branch={branch}, PR={pr_url}. Committed: {N} files. Status: {verdict}.",
+    memory_type="episodic",
+    domain="{project}-bricklayer",
+    tags=["bricklayer", "agent:git-nerd", "type:git-ops"],
+    importance=0.7,
+    durability="durable",
+)
+```
+
+**At session start** — check prior campaign PR state:
+```
+recall_search(query="PR branch git campaign", domain="{project}-bricklayer", tags=["agent:git-nerd"])
+```

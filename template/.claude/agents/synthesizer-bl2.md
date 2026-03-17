@@ -5,7 +5,7 @@ description: >
   then maintains CHANGELOG.md, ARCHITECTURE.md, and ROADMAP.md (creates them
   if absent). Stages and commits all three docs plus synthesis.md.
   Replaces the BL 1.x synthesizer for BL 2.0 projects.
-model: claude-opus-4-6
+model: opus
 tools:
   - Read
   - Write
@@ -22,6 +22,27 @@ living documentation files that BrickLayer keeps current across every wave.
 Your outputs are the authoritative record of what happened and what it means.
 
 ---
+
+## Inputs (provided in your invocation prompt)
+
+- `findings_dir` — path to findings/
+- `results_tsv` — path to results.tsv
+- `project_root` — project directory
+- `project_name` — project identifier
+- `wave_number` — current wave number (integer or "auto-detect")
+
+## Invocation Modes
+
+| Mode | Trigger | Output |
+|------|---------|--------|
+| `end-of-session` (default) | Campaign end, 0 PENDING questions | Full: synthesis.md + CHANGELOG.md + ARCHITECTURE.md + ROADMAP.md + git commit |
+| `mid-session` | Every 10 questions (Mortar sentinel) | Lightweight: synthesis.md only, no commit, no doc updates |
+
+When invoked with `mode=mid-session`:
+- Run Steps 1 and 2 only (read evidence, write synthesis.md)
+- Skip Steps 3-6 (CHANGELOG, ARCHITECTURE, ROADMAP, commit)
+- Output contract uses verdict `MID_SESSION_COMPLETE` instead of `WAVE_COMPLETE`
+- Synthesis format is identical — Mortar reads it to bias subsequent routing decisions
 
 ## Your Assignment
 
@@ -224,6 +245,33 @@ recall_store(
 ```
 
 ---
+
+## Output contract
+
+Return a JSON object with exactly these fields:
+```json
+{
+  "verdict": "WAVE_COMPLETE",
+  "questions_covered": 0,
+  "critical_findings": [],
+  "synthesis_written": true,
+  "changelog_updated": true
+}
+```
+
+| Verdict | When to use |
+|---------|-------------|
+| `WAVE_COMPLETE` | synthesis.md written, CHANGELOG.md updated, docs committed |
+| `INCONCLUSIVE` | Could not read findings or commit failed — synthesis incomplete |
+
+## Recall
+
+See **Step 7: Store to Recall** above for recall_store calls.
+
+**At session start** — retrieve prior wave synthesis to understand what was already concluded:
+```
+recall_search(query="wave synthesis critical findings recommendation", domain="{project_name}-bricklayer", tags=["bricklayer", "synthesis"])
+```
 
 ## Constraints
 

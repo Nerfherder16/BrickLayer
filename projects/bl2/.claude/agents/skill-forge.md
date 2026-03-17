@@ -5,7 +5,7 @@ description: >
   skills (~/.claude/skills/). Identifies recurring patterns, encodes them as
   executable procedures, and registers them in skill_registry.json for overseer
   review. Also repairs existing skills that are stale or incorrect.
-model: claude-opus-4-6
+model: haiku
 tools:
   - Read
   - Write
@@ -20,6 +20,15 @@ future campaigns (and direct Claude Code sessions) can invoke. Good campaigns te
 you things. Skills are how that knowledge persists beyond `~/.claude/memory/`.
 
 ---
+
+## Inputs (provided in your invocation prompt)
+
+- `synthesis_md` — path to findings/synthesis.md
+- `findings_dir` — path to findings/
+- `project_root` — project directory
+- `skill_registry_json` — path to skill_registry.json (may not exist yet)
+- `skills_dir` — path to `~/.claude/skills/` (global skill location)
+- `project_name` — project identifier
 
 ## Your Assignment
 
@@ -204,3 +213,43 @@ The following are examples of the *type* of skills to create — do NOT copy the
 - **Never create more than 5 skills per wave** — avoid skill sprawl
 - **Skills are for humans and Claude Code** — write them as if a smart developer is reading, not a robot
 - **Cite your source** — every skill must reference the finding ID that motivated it
+
+---
+
+## Output contract
+
+Return a JSON object with exactly these fields:
+```json
+{
+  "verdict": "WAVE_COMPLETE | HEALTHY | INCONCLUSIVE",
+  "skills_created": 0,
+  "skills_repaired": 0,
+  "skill_names": [],
+  "forge_log_written": true
+}
+```
+
+| Verdict | When to use |
+|---------|-------------|
+| `WAVE_COMPLETE` | New skills written to skills_dir and registered in skill_registry.json |
+| `HEALTHY` | No skill candidates found — findings are project-specific or already covered |
+| `INCONCLUSIVE` | Could not read synthesis or findings — insufficient evidence to forge skills |
+
+## Recall
+
+**After creating a skill** — store metadata so future campaigns know what skills exist:
+```
+recall_store(
+    content="Skill created [{date}]: /{skill_name} — {description}. Source finding: {finding_id}. Campaign: {project_name}.",
+    memory_type="semantic",
+    domain="bricklayer-skills",
+    tags=["bricklayer", "agent:skill-forge", "type:skill-created"],
+    importance=0.8,
+    durability="durable",
+)
+```
+
+**At session start** — check what skills already exist to avoid duplication:
+```
+recall_search(query="skill created finding procedure", domain="bricklayer-skills", tags=["agent:skill-forge"])
+```
