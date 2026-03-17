@@ -54,10 +54,15 @@ cd C:/Users/trg16/Dev/Bricklayer2.0/{project}/
 4. Edit `simulate.py` — replace stub revenue model with actual model
 5. Verify baseline: `python simulate.py` → should print `verdict: HEALTHY`
 6. Copy agents: `cp -r ../template/.claude/agents/ .claude/agents/`
-7. Generate questions (tell Claude):
+7. Generate questions (BL 2.0 workflow):
    ```
-   Act as the question-designer agent in .claude/agents/question-designer.md.
-   Read project-brief.md, all files in docs/, constants.py, and simulate.py.
+   # Step 7a — run planner (recommended for complex projects)
+   Act as the planner agent in .claude/agents/planner.md.
+   Inputs: project_brief=project-brief.md, docs_dir=docs/, constants_file=constants.py, simulate_file=simulate.py, prior_campaign=none
+
+   # Step 7b — generate question bank
+   Act as the question-designer-bl2 agent in .claude/agents/question-designer-bl2.md.
+   Read project-brief.md, all files in docs/, constants.py, simulate.py, and CAMPAIGN_PLAN.md (if it exists).
    Generate the initial question bank in questions.md.
    ```
 8. Init git and start the loop (see below)
@@ -149,7 +154,9 @@ python analyze.py
 
 | Agent | File | When to invoke |
 |-------|------|----------------|
-| `question-designer` | `.claude/agents/question-designer.md` | Once at init — generates questions.md |
+| `planner` | `.claude/agents/planner.md` | Once at init (before question-designer) — ranks domains, writes CAMPAIGN_PLAN.md |
+| `question-designer-bl2` | `.claude/agents/question-designer-bl2.md` | Once at init (after planner) — generates questions.md with BL 2.0 modes |
+| `question-designer` | `.claude/agents/question-designer.md` | BL 1.x only |
 | `quantitative-analyst` | `.claude/agents/quantitative-analyst.md` | D1/D5 simulation questions |
 | `regulatory-researcher` | `.claude/agents/regulatory-researcher.md` | D2 legal/compliance questions |
 | `competitive-analyst` | `.claude/agents/competitive-analyst.md` | D3 market/analogues questions |

@@ -1,0 +1,27 @@
+{
+  "name": "masonry-mcp",
+  "version": "0.1.0",
+  "description": "Research-first orchestration framework for Claude Code",
+  "main": "bin/masonry-mcp.js",
+  "bin": {
+    "masonry-setup": "./bin/masonry-setup.js",
+    "masonry-mcp": "./bin/masonry-mcp.js",
+    "masonry-init": "./bin/masonry-init-wizard.js"
+  },
+  "scripts": {
+    "test": "echo \"No tests yet\""
+  },
+  "keywords": [
+    "claude-code",
+    "research",
+    "bricklayer",
+    "masonry",
+    "mcp"
+  ],
+  "author": "Nerfherder16",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {}
+}
