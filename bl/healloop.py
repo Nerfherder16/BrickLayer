@@ -335,7 +335,7 @@ def run_heal_loop(
         f"Review the heal cycle notes above for root cause history.",
     )
     print(
-        f"[heal-loop] {original_qid} exhausted {max_cycles} cycle(s) — still unresolved",
+        f"[heal-loop] {original_qid} exhausted {last_cycle} cycle(s) — still unresolved",
         file=sys.stderr,
     )
     return current_result

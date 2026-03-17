@@ -21,6 +21,27 @@ except ImportError:
 RECALL_BASE = os.environ.get("RECALL_BASE_URL", "http://192.168.50.19:8200")
 RECALL_TIMEOUT = 5.0  # seconds — fail fast if Recall is unreachable
 
+# Verdicts significant enough to warrant Recall storage (F3.1: promoted from function-local)
+RECALL_STORE_VERDICTS: frozenset[str] = frozenset(
+    {
+        "FAILURE",
+        "WARNING",
+        "DIAGNOSIS_COMPLETE",
+        "FIXED",
+        "FIX_FAILED",
+        "PROMISING",
+        "BLOCKED",
+        "IMMINENT",
+        "PROBABLE",
+        "IMPROVEMENT",
+        "REGRESSION",
+        "NON_COMPLIANT",
+        "PARTIAL",
+        "ALERT",
+        "DEGRADED",
+    }
+)
+
 
 def _is_available() -> bool:
     """Quick health check. Returns False if Recall is unreachable."""
@@ -48,25 +69,8 @@ def store_finding(question: dict, result: dict, project: str = "") -> bool:
     op_mode = question.get("operational_mode", question.get("mode", "unknown"))
     title = question.get("title", "")
 
-    # Only store significant verdicts
-    _STORE_VERDICTS = {
-        "FAILURE",
-        "WARNING",
-        "DIAGNOSIS_COMPLETE",
-        "FIXED",
-        "FIX_FAILED",
-        "PROMISING",
-        "BLOCKED",
-        "IMMINENT",
-        "PROBABLE",
-        "IMPROVEMENT",
-        "REGRESSION",
-        "NON_COMPLIANT",
-        "PARTIAL",
-        "ALERT",
-        "DEGRADED",
-    }
-    if verdict not in _STORE_VERDICTS:
+    # Only store significant verdicts (F3.1: uses module-level RECALL_STORE_VERDICTS)
+    if verdict not in RECALL_STORE_VERDICTS:
         return False
 
     content = f"[{qid}] {title}: {verdict}. {summary}"

@@ -28,3 +28,7 @@ N/A	F2.4	FIXED	N/A	identity check (healed_result is not result) replaces verdict
 N/A	F2.5	FIXED	N/A	_synthetic_question() uses short_type="diag" — agent context ID now matches written finding ID	Fix: bl/healloop.py line 75
 N/A	F2.6	FIXED	N/A	last_cycle tracks actual exit cycle — EXHAUSTED note no longer falsely reports max_cycles on early break	Fix: bl/healloop.py
 N/A	M2.1	WARNING	N/A	No RECALL_STORE_VERDICTS constant in constants.py — _STORE_VERDICTS drift remains undetectable	Monitor: bl/recall_bridge.py vs constants.py
+N/A	F3.1	FIXED	N/A	RECALL_STORE_VERDICTS promoted to module-level frozenset in recall_bridge.py — drift now detectable	Fix: bl/recall_bridge.py
+N/A	D3.1	FAILURE	N/A	Print at healloop.py line 338 still used max_cycles after F2.6 fix — fixed inline	Fix: bl/healloop.py line 338
+N/A	D3.2	HEALTHY	N/A	parse_questions() reads status from results.tsv — reactivation + re-parse flow is correct, no race	Code audit: bl/campaign.py lines 546-548
+N/A	V3.1	COMPLIANT	N/A	FIX_FAILED-then-FIXED trace verified: F2.1+F2.3+F2.4 work correctly together	Validation: bl/healloop.py + campaign.py
