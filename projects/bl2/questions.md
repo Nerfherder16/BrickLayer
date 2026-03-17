@@ -2301,3 +2301,57 @@ Status is tracked in results.tsv — do not edit manually.
 **Method**: Read `bl/crucible.py` in full for all `_score_*` functions beyond `_score_diagnose_analyst` and `_score_compliance_auditor`. For each scorer, identify any line that checks for a verdict string in `content` without restricting to the first N lines. List: scorer name, line number, verdict string checked, whether a frontmatter-position guard is present. Report all bare full-text scans as NON_COMPLIANT; report frontmatter-guarded checks as COMPLIANT.
 **Success criterion**: COMPLIANT if all remaining scorers either use frontmatter-position guards or do not perform verdict-based filtering at all. NON_COMPLIANT with Fix Specification (one fix per affected scorer) if any bare full-text verdict scan is found in a scorer not yet covered by F22.1 or F24.2.
 
+---
+
+## Wave 25 — Fix A24.1 Scorers + Validate + Diagnose Remaining Field Gaps
+
+**Generated from findings**: F24.1 (FIXED), F24.2 (FIXED), V24.1 (COMPLIANT), A24.1 (NON_COMPLIANT)
+**Mode transitions applied**: A24.1 NON_COMPLIANT → F25.1 Fix (_score_design_reviewer bare regex → frontmatter-position guard); A24.1 NON_COMPLIANT → F25.2 Fix (_score_fix_implementer full-text prefix scan → frontmatter-position guard); F25.1 + F25.2 → V25.1 Validate (confirm both fixes took effect, no regression); V24.1 COMPLIANT (has_test=0.00, has_hypothesis=0.00 pre-existing BL 1.x/2.0 mismatches documented) → D25.1 Diagnose (identify exact field name mismatches and compute expected score impact if fixed)
+
+---
+
+### F25.1: Apply the A24.1 Fix 1 — replace bare regex in _score_design_reviewer with a frontmatter-position guard that checks for COMPLIANT, NON_COMPLIANT, or PARTIAL in the first 6 lines
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Motivated by**: A24.1 (NON_COMPLIANT) — `_score_design_reviewer()` at `bl/crucible.py` line 582 uses `re.search(r"\b(COMPLIANT|NON_COMPLIANT|VALIDATE|VALIDATE)\b", content)` — a bare full-text regex that matches any occurrence of those strings anywhere in the file, including question hypothesis text, success criteria, evidence blocks, or code snippets; A24.1 Fix Specification 1 provides the exact replacement
+**Hypothesis**: Replacing the bare regex with a first-6-lines frontmatter check will restrict the scorer to genuine design-reviewer findings whose frontmatter verdict is one of the three design-reviewer verdicts (COMPLIANT, NON_COMPLIANT, PARTIAL) and exclude findings of other modes that mention those strings in body text
+**Method**: fix-implementer agent. Edit `bl/crucible.py` `_score_design_reviewer()`: replace line 582 bare regex guard with the frontmatter-position guard from A24.1 Fix Specification 1 — `first_lines_dr = content.split("\n")[:6]; if not any(line.strip() in ("**Verdict**: COMPLIANT", "**Verdict**: NON_COMPLIANT", "**Verdict**: PARTIAL") for line in first_lines_dr): continue`. Re-run `run_all_benchmarks()` for the bl2 project and confirm design-reviewer score is stable or improved.
+**Success criterion**: FIXED if the bare regex on line 582 is replaced with the first-6-lines frontmatter check and benchmarks complete without error, with design-reviewer score not regressing below its pre-fix value. FIX_FAILED if the fix causes a Python error, excludes genuine COMPLIANT/NON_COMPLIANT DR findings from scoring, or the bare regex remains in place.
+
+---
+
+### F25.2: Apply the A24.1 Fix 2 — replace full-text "**Verdict**: FIXED" prefix scan in _score_fix_implementer with a frontmatter-position guard (first 6 lines only)
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Priority**: LOW
+**Motivated by**: A24.1 (NON_COMPLIANT) — `_score_fix_implementer()` at `bl/crucible.py` line 478 uses a two-condition guard: `"**Verdict**: FIXED" not in content and "\nVerdict: FIXED" not in content`; the `**Verdict**:` prefix is better than bare substring but is not positionally restricted — a Fix finding that quotes `"**Verdict**: FIXED"` in an evidence block would pass; the `\nVerdict: FIXED` fallback is weaker still (no bold prefix, admits any body line); A24.1 Fix Specification 2 provides the exact replacement
+**Hypothesis**: Replacing both conditions with a single first-6-lines check will restrict the scorer to findings whose frontmatter verdict is exactly `FIXED`, eliminating false positives from quoted verdicts in evidence sections; the `\nVerdict: FIXED` fallback is intentionally dropped as it admits body-text occurrences without the bold prefix; all genuine F-prefix campaign findings have `**Verdict**: FIXED` in frontmatter position and will remain counted
+**Method**: fix-implementer agent. Edit `bl/crucible.py` `_score_fix_implementer()`: replace line 478 two-condition guard with the frontmatter-position guard from A24.1 Fix Specification 2 — `first_lines_fi = content.split("\n")[:6]; if not any(line.strip() == "**Verdict**: FIXED" for line in first_lines_fi): continue`. Re-run `run_all_benchmarks()` for the bl2 project. Confirm fix-implementer score is stable or improved and that all genuine FIXED findings (F-prefix, frontmatter `**Verdict**: FIXED`) are still counted.
+**Success criterion**: FIXED if the full-text guards on line 478 are replaced with the first-6-lines check and benchmarks complete without error, with fix-implementer score not regressing and no genuine FIXED findings dropped from scoring. FIX_FAILED if the fix causes a Python error, the score regresses due to genuine FIXED findings being excluded, or if either original guard remains in place.
+
+---
+
+### V25.1: Verify F25.1 and F25.2 both took effect — confirm design-reviewer and fix-implementer benchmark scores are stable or improved with no regression after the frontmatter-position guard changes
+
+**Status**: COMPLIANT
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Motivated by**: A24.1 (NON_COMPLIANT) — A24.1 identified two scorers with partial or bare verdict guards; F25.1 and F25.2 apply the fixes; this question validates both fixes are in effect and that no genuine findings were accidentally excluded by the stricter position-restricted checks
+**Hypothesis**: After F25.1 and F25.2 are applied: (1) `_score_design_reviewer` will admit only findings whose frontmatter contains one of the three DR verdicts — for bl2 which has no DR-prefix findings the score will be 0.0 by correct arithmetic, not by a guard error; (2) `_score_fix_implementer` will admit only findings whose frontmatter contains `**Verdict**: FIXED` exactly — all current F-prefix findings in this campaign have this in frontmatter position, so the score should not decrease relative to the V24.1 baseline
+**Method**: Run `run_all_benchmarks()` for the bl2 project after F25.1 and F25.2 are applied. Record design-reviewer and fix-implementer score values. Confirm: (1) no Python errors or scorer crashes, (2) fix-implementer scored finding count matches the number of F-prefix findings in the campaign whose frontmatter contains `**Verdict**: FIXED`, (3) design-reviewer score is 0.0 only because no genuine DR-prefix findings exist in bl2, not because the guard is rejecting valid files.
+**Success criterion**: COMPLIANT if fix-implementer score is unchanged or improved relative to the V24.1 benchmark run and design-reviewer score is 0.0 only because no genuine DR-prefix findings exist in bl2. DIAGNOSIS_COMPLETE with Fix Specification if fix-implementer score regressed (genuine FIXED findings excluded by the stricter guard) or if the benchmarks raise an exception.
+
+---
+
+### D25.1: Why are has_test=0.00 and has_hypothesis=0.00 in the hypothesis-generator benchmark — do _score_hypothesis_generator check_block fields use BL 1.x field names that do not match the BL 2.0 question format?
+
+**Status**: DIAGNOSIS_COMPLETE
+**Operational Mode**: diagnose
+**Priority**: LOW
+**Motivated by**: V24.1 (COMPLIANT) — V24.1 confirmed the post-F24.1 benchmark shows `has_test=0.00` and `has_hypothesis=0.00` across all 88 scored Wave 2+ questions; V24.1 notes these are pre-existing BL 1.x vs BL 2.0 field name mismatches — `has_test` likely checks for bare `"Test:"` while BL 2.0 questions use `"**Method**:"`, and `has_hypothesis` likely checks for bare `"Hypothesis:"` while BL 2.0 questions use `"**Hypothesis**:"` (bold); combined weight of these two checks is 0.20 + 0.10 = 0.30, meaning the hypothesis-generator score is capped at approximately 0.37 even after F24.1 fixed has_derived_from
+**Hypothesis**: `check_block()` in `_score_hypothesis_generator` uses bare BL 1.x string checks: `has_test` checks for `"Test:"` (unbolded) and `has_hypothesis` checks for `"Hypothesis:"` (unbolded). BL 2.0 questions use bold markdown field headers: `"**Hypothesis**:"` and `"**Method**:"`. Neither BL 2.0 field name contains the bare string the scorer checks, so both rates are 0.00 for every BL 2.0 question. Updating each check to accept both formats would restore the 0.30 combined weight contribution and raise the overall score from approximately 0.37 to approximately 0.67.
+**Method**: diagnose-analyst agent. Read `bl/crucible.py` `_score_hypothesis_generator()` → `check_block()` (lines approximately 185–210). Record the exact string each `has_*` check tests against. Then grep a sample of Wave 15–24 question blocks in `questions.md` for actual field headers: `grep -n "Hypothesis\|Method\|Test\|Success criterion\|Motivated by" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/questions.md | head -40`. For each of `has_test` and `has_hypothesis`, confirm whether the scorer expected string is present in any BL 2.0 question block or systematically misses all of them. Record the exact string mismatch.
+**Success criterion**: DIAGNOSIS_COMPLETE with Fix Specification if both `has_test` and `has_hypothesis` check for bare BL 1.x strings not present in any BL 2.0 question block — fix is to update each check to accept both the BL 1.x bare string and the BL 2.0 bold-markdown format. HEALTHY if the checks already accept the bold format and the 0.00 rate reflects a genuine authoring quality gap in BL 2.0 questions.
