@@ -668,3 +668,95 @@ Status is tracked in results.tsv — do not edit manually.
 **Verdict threshold**:
 - FIXED: Both changes applied and verified
 - FIX_FAILED: Either change not applied or broken
+
+---
+
+## Wave 6 — Regression Fix + Format Correction + Runner Coverage Audit
+
+**Generated from findings**: D5.1 (DIAGNOSIS_COMPLETE, F5.1 fix) introduced regression — body **Mode**: code_audit dispatches to unregistered runner; V5.1 noted results.tsv format mismatch; A5.1 audit revealed runner registry gap for semantic mode aliases
+**Mode transitions applied**: F5.1 FIXED (runner dispatch) → reveals code_audit unregistered; V5.1 COMPLIANT → flags TSV format discrepancy; A5.1 COMPLIANT → prompts runner coverage audit
+
+---
+
+## D6.1 [CORRECTNESS] F5.1 regression: "code_audit" body **Mode** field dispatches to unregistered runner
+**Mode**: agent
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Hypothesis**: F5.1 fixed runner dispatch to use `fields.get("mode", mode_raw)`. For Wave 4-5 questions with `**Mode**: code_audit` in their body (e.g., D5.1, A5.1, F5.1, V5.1), this means `question["mode"] = "code_audit"`. However "code_audit" is NOT registered in `bl/runners/__init__.py` — registered runners are: agent, correctness, http, performance, quality, static, subprocess. `run_question()` would return INCONCLUSIVE for all Wave 4-5 questions run through the BL engine. This is a regression introduced by F5.1 — before the fix, the bracket tag fallback (e.g., "correctness" for D5.1 [CORRECTNESS]) was at least sometimes registered.
+**Test**: `grep -n "code_audit" bl/runners/__init__.py` — expect no match (code_audit not registered). `python -c "from bl.runners import registered_modes; print(registered_modes())"` — verify "code_audit" absent. `grep -n '"Mode": code_audit\|Mode.*code_audit' projects/bl2/questions.md | head -10` — count affected questions.
+**Verdict threshold**:
+- FAILURE: "code_audit" body Mode field dispatches to INCONCLUSIVE for Wave 4-5 questions
+- HEALTHY: "code_audit" is registered as a runner (or questions use **Mode**: agent)
+**Fix Specification** (for DIAGNOSIS_COMPLETE transition):
+- **Option A**: Register "code_audit" as alias for "agent" runner in bl/runners/__init__.py — `register("code_audit", run_agent)` — enables future questions to use **Mode**: code_audit semantically
+- **Option B**: Patch Wave 4-5 questions.md to replace `**Mode**: code_audit` with `**Mode**: agent` — keeps runners minimal but requires question edits
+- **Recommended**: Option A — aligns **Mode** body field with semantic intent; "code_audit" questions run via LLM agent (diagnose-analyst), so aliasing to run_agent is correct
+
+---
+
+## D6.2 [CORRECTNESS] results.tsv format mismatch — get_question_status() cannot read campaign TSV rows
+**Mode**: agent
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DONE
+**Hypothesis**: `get_question_status(qid)` reads results.tsv and checks `parts[0] == qid` (question_id in column 0). `update_results_tsv()` writes rows as `qid\tverdict\tfailure_type\tsummary\ttimestamp` — qid IS column 0, correct. However, this self-audit campaign's results.tsv was manually initialized with the BL 1.x format: `commit\tquestion_id\tverdict\t...` (6 columns, commit is column 0). All data rows have `N/A` as column 0. `get_question_status()` matches `parts[0] == "D1"` — never matches `"N/A"` — returns PENDING for all 44 questions. Campaign status tracking is completely non-functional for manually-maintained rows.
+**Test**: `python -c "from bl.questions import get_question_status; from bl.config import cfg; from pathlib import Path; cfg.project_root = Path('projects/bl2'); cfg.results_tsv = cfg.project_root / 'results.tsv'; print(get_question_status('D1'))"` — expect PENDING (demonstrating the bug). `head -2 projects/bl2/results.tsv` — confirm column 0 is "commit" not qid.
+**Verdict threshold**:
+- FAILURE: get_question_status("D1") returns PENDING despite D1 having a row in results.tsv
+- HEALTHY: get_question_status("D1") returns the correct verdict from the TSV
+
+---
+
+## A6.1 [COMPLIANCE] Runner registry coverage — all BL 2.0 **Mode** body field values must be registered
+**Mode**: agent
+**Agent**: compliance-auditor
+**Operational Mode**: audit
+**Status**: DONE
+**Hypothesis**: After F5.1, `question["mode"]` comes from the body `**Mode**: <value>` field. For BL 2.0 campaigns to execute without INCONCLUSIVE, every value used in `**Mode**:` body fields must map to a registered runner. Registered runners: agent, correctness, http, performance, quality, static, subprocess. BL 2.0 questions in this campaign use `**Mode**: agent` (Wave 1-3) and `**Mode**: code_audit` (Wave 4-5). The "code_audit" alias is missing. Additionally: diagnose, fix, monitor, validate, audit, frontier, predict, research, evolve — if any of these appear as **Mode** body field values, they would also be unregistered.
+**Test**: `grep -n "^\*\*Mode\*\*:" projects/bl2/questions.md | sort | uniq -c | sort -rn | head -10` — enumerate all body **Mode** values in use. Cross-reference against registered_modes().
+**Verdict threshold**:
+- COMPLIANT: All **Mode** body field values in use are either registered runners or question authors consistently use "agent" for LLM-based questions
+- NON_COMPLIANT: Any **Mode** body value resolves to INCONCLUSIVE via unregistered dispatch
+
+---
+
+## F6.1 [FIX] Register "code_audit" as agent runner alias in bl/runners/__init__.py
+**Mode**: agent
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: DONE
+**Motivated by**: D6.1 DIAGNOSIS_COMPLETE — "code_audit" body **Mode** field dispatches to unregistered runner; F5.1 regression for Wave 4-5 questions
+**Hypothesis**: Adding `register("code_audit", run_agent)` to `_register_builtins()` in bl/runners/__init__.py resolves the F5.1 regression. Code audit questions use diagnose-analyst (an LLM agent) to read source code — run_agent is the correct runner. This also allows future question authors to use `**Mode**: code_audit` semantically without needing to know the runner alias.
+**Method**: Edit `bl/runners/__init__.py` `_register_builtins()`: add `register("code_audit", run_agent)` after the existing register("agent", run_agent) line. Verify `registered_modes()` now includes "code_audit".
+**Verdict threshold**:
+- FIXED: "code_audit" registered; registered_modes() includes "code_audit"; D5.1/A5.1/F5.1/V5.1 questions would dispatch to run_agent
+- FIX_FAILED: Change not applied or introduces regression
+
+---
+
+## F6.2 [FIX] Rewrite results.tsv to use BL 2.0 engine format (qid first)
+**Mode**: agent
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: DONE
+**Motivated by**: D6.2 — results.tsv manually populated with BL 1.x format; get_question_status() cannot read any rows; all questions show PENDING
+**Hypothesis**: Rewriting the results.tsv header and data rows to use the engine format (`question_id\tverdict\tfailure_type\tsummary\ttimestamp`) causes get_question_status() to correctly parse all rows. Each existing row `N/A\tD1\tFAILURE\tN/A\t<finding>\t<scenario>` becomes `D1\tFAILURE\t\t<finding truncated to 120>\t<timestamp>`.
+**Method**: Parse the existing results.tsv, transform each non-header row from BL 1.x format to BL 2.0 format, rewrite the file. Preserve all existing data; add approximate timestamps where none exist.
+**Verdict threshold**:
+- FIXED: get_question_status("D1") returns "FAILURE"; all 44 questions have non-PENDING status; parse_questions() returns correct statuses
+- FIX_FAILED: Data loss or format still wrong after rewrite
+
+---
+
+## V6.1 [VALIDATE] Runner dispatch and status tracking correct after F6.1 + F6.2
+**Mode**: agent
+**Agent**: design-reviewer
+**Operational Mode**: validate
+**Status**: DONE
+**Motivated by**: F6.1 (code_audit runner alias) + F6.2 (TSV format fix) — combined effect needs end-to-end verification
+**Hypothesis**: After F6.1, questions with `**Mode**: code_audit` dispatch to run_agent. After F6.2, get_question_status() returns correct verdicts for all 44 questions. The campaign engine can correctly identify PENDING questions and skip already-answered ones. The combination of F4.3 (regex), F5.1 (runner dispatch), F6.1 (code_audit alias), and F6.2 (TSV format) produces a fully functional BL 2.0 campaign pipeline.
+**Method**: (1) Verify registered_modes() includes "code_audit". (2) Verify get_question_status("D1") returns "FAILURE". (3) Verify parse_questions() returns correct statuses for a sample of questions. (4) Trace full pipeline for a Wave 4 code_audit question end-to-end.
+**Verdict threshold**:
+- COMPLIANT: All 4 fixes interact correctly; no PENDING questions that should be DONE; code_audit questions dispatch to run_agent
+- NON_COMPLIANT: Any regression or remaining status/dispatch error
