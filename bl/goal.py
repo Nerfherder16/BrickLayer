@@ -125,7 +125,11 @@ def _read_sim_params(project_dir: Path) -> str:
 
 
 def _build_prompt(goal: dict, sim_context: str) -> str:
-    focus_str = ", ".join(goal["focus"]) if goal["focus"] else "all domains (D1–D6)"
+    focus_str = (
+        ", ".join(goal["focus"])
+        if goal["focus"]
+        else "all operational modes (DIAGNOSE, FIX, AUDIT, VALIDATE)"
+    )
     n = goal["max_questions"]
 
     return f"""You are a research campaign director. Your task is to generate {n} focused, falsifiable research questions targeting the stated goal below.
@@ -155,7 +159,8 @@ Generate exactly {n} questions in the format below. Each question must:
 REQUIRED FORMAT — output ONLY these blocks separated by ---. No preamble, no explanation, no markdown outside the blocks:
 
 ---
-## QG1.1 [D1] Short descriptive title
+## QG1.1 [DIAGNOSE] Short descriptive title
+**Operational Mode**: diagnose
 **Mode**: agent
 **Status**: PENDING
 **Hypothesis**: One sentence predicting what we will find.
@@ -167,7 +172,8 @@ REQUIRED FORMAT — output ONLY these blocks separated by ---. No preamble, no e
 **Goal**: Which aspect of the stated goal this question addresses.
 ---
 
-## QG1.2 [D4] Another question title
+## QG1.2 [AUDIT] Another question title
+**Operational Mode**: audit
 **Mode**: agent
 **Status**: PENDING
 **Hypothesis**: ...
@@ -217,10 +223,12 @@ def _call_ollama(prompt: str) -> str | None:
 
 def _get_next_wave_index(questions_text: str) -> int:
     """Find the next sequential wave index for QG questions."""
-    matches = re.findall(r"## QG(\d+)\.\d+", questions_text)
-    if not matches:
+    qg_matches = [int(m) for m in re.findall(r"## QG(\d+)\.\d+", questions_text)]
+    bl2_matches = [int(m) for m in re.findall(r"## [DFAV](\d+)\.\d+", questions_text)]
+    all_waves = qg_matches + bl2_matches
+    if not all_waves:
         return 1
-    return max(int(m) for m in matches) + 1
+    return max(all_waves) + 1
 
 
 def _parse_goal_questions(raw: str, wave_label: str = "Goal Campaign") -> list[str]:
