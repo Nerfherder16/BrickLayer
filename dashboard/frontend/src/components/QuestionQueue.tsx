@@ -208,8 +208,11 @@ export function QuestionQueue({ questions, onRefresh }: Props) {
                 </td>
                 <td className="px-4 py-2">
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[q.status] ?? "bg-[#374151] text-[#9ca3af]"}`}
+                    className={`inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[q.status] ?? "bg-[#374151] text-[#9ca3af]"}`}
                   >
+                    {q.status === "IN_PROGRESS" && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#38bdf8] animate-pulse" />
+                    )}
                     {q.status}
                   </span>
                 </td>

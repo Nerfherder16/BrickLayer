@@ -67,6 +67,13 @@ _ALL_VERDICTS: frozenset[str] = frozenset(
 # ---------------------------------------------------------------------------
 
 
+_MODEL_MAP: dict[str, str] = {
+    "opus": "claude-opus-4-6",
+    "sonnet": "claude-sonnet-4-6",
+    "haiku": "claude-haiku-4-5-20251001",
+}
+
+
 def _strip_frontmatter(text: str) -> str:
     """Strip YAML frontmatter (--- ... ---) from a markdown file."""
     if not text.startswith("---"):
@@ -76,6 +83,22 @@ def _strip_frontmatter(text: str) -> str:
         return text[end + 3 :].strip()
     except ValueError:
         return text
+
+
+def _read_frontmatter_model(text: str) -> str | None:
+    """Extract the `model:` field from YAML frontmatter, if present."""
+    if not text.startswith("---"):
+        return None
+    try:
+        end = text.index("---", 3)
+        fm = text[3:end]
+    except ValueError:
+        return None
+    for line in fm.splitlines():
+        if line.strip().startswith("model:"):
+            value = line.split(":", 1)[1].strip().strip('"').strip("'")
+            return _MODEL_MAP.get(value, value) or None
+    return None
 
 
 def _verdict_from_agent_output(agent_name: str, output: dict) -> str:
@@ -283,7 +306,9 @@ def run_agent(question: dict) -> dict:
             "details": f"Expected at: {agent_path}",
         }
 
-    agent_prompt = _strip_frontmatter(agent_path.read_text(encoding="utf-8"))
+    agent_raw = agent_path.read_text(encoding="utf-8")
+    agent_model = _read_frontmatter_model(agent_raw)
+    agent_prompt = _strip_frontmatter(agent_raw)
 
     # C-27: inject project doctrine if present
     doctrine_prefix = ""
@@ -374,6 +399,8 @@ Begin your agent loop now. Output your JSON result contract in a ```json ... ```
     claude_bin = shutil.which("claude") or "claude"
     child_env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
 
+    model_args = ["--model", agent_model] if agent_model else []
+
     try:
         proc = subprocess.run(
             [
@@ -384,6 +411,7 @@ Begin your agent loop now. Output your JSON result contract in a ```json ... ```
                 "json",
                 "--allowedTools",
                 "Read,Write,Edit,Bash,Glob,Grep",
+                *model_args,
             ],
             input=full_prompt,
             capture_output=True,

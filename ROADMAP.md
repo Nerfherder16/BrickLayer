@@ -1,4 +1,4 @@
-yes# BrickLayer Roadmap
+# BrickLayer Roadmap
 
 BrickLayer is a **universal autonomous research framework**. It runs structured question campaigns against any target — live APIs, codebases, documents, ML models, business processes, smart contracts — collects evidence, and identifies failure boundaries.
 
@@ -13,28 +13,39 @@ The human defines what matters. The agent asks the questions, runs the experimen
 | # | Area | Work Item | Status | Claimed By |
 |---|------|-----------|--------|------------|
 | C-01 | Architecture | Python module split — break simulate.py into `campaign.py`, `questions.py`, `findings.py`, `quality.py`, `scout.py` | **DONE** | conv:mar13-main |
-| C-02 | Architecture | Runner Registry — formalize `Runner(Protocol)` plugin interface | **FREE** | — |
-| C-03 | Campaign | Goal-directed campaigns via `goal.md` — agent generates question set from a target + goal | **FREE** | — |
+| C-02 | Architecture | Runner Registry — formalize `Runner(Protocol)` plugin interface | **DONE** | conv:mar17 |
+| C-03 | Campaign | Goal-directed campaigns via `goal.md` — agent generates question set from a target + goal | **DONE** | conv:mar17 |
 | C-04 | Campaign | Adaptive follow-up -- FAILURE/WARNING auto-generates drill-down sub-questions (Q2.4 -> Q2.4.1) | **DONE** | bl2 self-audit (F7.2, F12.3) |
 | C-05 | Campaign | Verdict history + regression detection -- flag regressions across runs | **DONE** | bl2 self-audit (F12.1, F12.2) |
 | C-06 | Campaign | Fix loop integration -- FAILURE -> spawn fix agent -> re-run -> confirm HEALTHY | **DONE** | bl2 self-audit (healloop.py, F2.1-F2.6, F-mid.1) |
-| C-07 | Runners | `http` runner formalization — extract from simulate.py into `runners/http.py` | **FREE** | — |
-| C-08 | Runners | `subprocess` runner formalization — extract into `runners/subprocess.py` | **FREE** | — |
-| C-09 | Runners | `static` runner formalization — extract into `runners/static.py` | **FREE** | — |
+| C-07 | Runners | `http` runner formalization — extract from simulate.py into `runners/http.py` | **DONE** | bl2 self-audit |
+| C-08 | Runners | `subprocess` runner formalization — extract into `runners/subprocess.py` | **DONE** | bl2 self-audit |
+| C-09 | Runners | `static` runner formalization — extract into `runners/static.py` | **DONE** | bl2 self-audit (alias: quality runner) |
 | C-10 | Runners | `browser` runner — Playwright-driven UI interaction testing | **FREE** | — |
 | C-11 | Runners | `benchmark` runner — ML model ablation, latency, accuracy sweeps | **FREE** | — |
 | C-12 | Runners | `document` runner — completeness/accuracy/consistency checks on docs vs code | **FREE** | — |
 | C-13 | Runners | `contract` runner — Solana/EVM invariant checking and edge case fuzzing | **FREE** | — |
 | C-14 | Meta-agents | Hypothesis-generator: generate Wave N+1 questions from findings patterns | **DONE** | bl2 self-audit (F9.1, F10.1, F10.2, F24.1) |
 | C-15 | Meta-agents | Crucible: benchmark existing agents, promote/retire by score | **DONE** | bl2 self-audit (F17.1, F15.2, F22.1-F25.2) |
-| C-16 | Dashboard | Question status live-update in dashboard UI | **FREE** | — |
+| C-16 | Dashboard | Question status live-update in dashboard UI | **DONE** | conv:mar17 |
 | C-17 | Integrations | GitHub Actions hook — run campaign on PR, post findings as review comments | **FREE** | — |
 | C-18 | Phase 3 | Hypothesis generation from git diffs — auto-question on commit | **FREE** | — |
 | C-19 | Phase 3 | Cross-project knowledge transfer — bug patterns propagate across projects | **FREE** | — |
 | C-20 | Campaign | Failure taxonomy — `classify_failure_type()` wired into every result; `failure_type` in findings + results.tsv | **DONE** | conv:mar13-afternoon |
 | C-21 | Campaign | Confidence signaling — agents emit `high\|medium\|low\|uncertain`; orchestrator uses to route | **DONE** | conv:mar13-afternoon |
-| C-22 | Campaign | Eval/scoring harness — lightweight scorer grades agent outputs; scores written to results.tsv | **FREE** | — |
-| C-23 | Campaign | Introspection decorator — per-step trace `{thought, tool_call, result, tokens, latency, confidence, error_type}` written to Recall | **FREE** | — |
+| C-22 | Campaign | Eval/scoring harness — lightweight scorer grades agent outputs; scores written to results.tsv | **DONE** | conv:mar17 |
+| C-23 | Campaign | Introspection decorator — per-step trace `{thought, tool_call, result, tokens, latency, confidence, error_type}` written to Recall | **DONE** | conv:mar17 |
+| C-24 | Engine | Skill retrieval gap — wire skill list from `~/.claude/skills/` into `session_ctx_block` in scout.py so agents see available skills | **DONE** | conv:mar17 |
+| C-25 | Engine | D25.1 fix — `check_block()` in `_score_hypothesis_generator` uses BL 1.x field names (`Test:`, `Hypothesis:`) instead of BL 2.0 (`**Method**:`, `**Hypothesis**:`) | **DONE** | conv:mar17 |
+| C-26 | Engine | A10.1 fix — `_build_findings_corpus()` sorts alphabetically, biasing corpus when over budget; should sort by severity before trimming | **DONE** | bl2 self-audit (F11.3 — severity sort already on line 64 of synthesizer.py) |
+| C-27 | Agents | Model routing per agent — `model:` frontmatter in all template agents; `_read_frontmatter_model()` in `runners/agent.py` wires `--model` into `claude -p` subprocess | **DONE** | conv:mar17-agents |
+| C-28 | Dashboard | Agent Fleet tab — `GET /api/agents` endpoint; `AgentFleet.tsx` with tier filter pills (opus/sonnet/haiku) and tier summary footer; tab bar added to App.tsx | **DONE** | conv:mar17-agents |
+| C-29 | Meta-agents | `frontier-analyst` agent — exploration epistemology (possibility mapping, NOT falsification); `FRONTIER_VIABLE / FRONTIER_PARTIAL / FRONTIER_BLOCKED` verdicts; meta-campaign finding #5 | **DONE** | conv:mar17-agents |
+| C-30 | Engine | Mortar Phase 2 hardening — WM1 startup validation (Mode field pre-flight), #7 finding validation (stub on failure), #8 global sentinel via `wc -l results.tsv`, #9 overseer escalation on FLEET_UNDERPERFORMING | **DONE** | conv:mar17-agents |
+| C-31 | Agents | Planner → QD-BL2 interface — `planner.md` writes BL 2.0 Mode Allocation table to CAMPAIGN_PLAN.md; `question-designer-bl2.md` reads it via pre-flight bash check; meta-campaign finding #12 | **DONE** | conv:mar17-agents |
+| C-32 | Engine | Hollow section bypass fix — `score_agent()` in agent-meta/simulate.py uses two-phase heading+body scan; `len(body_text) < 10` → -20 penalty; meta-campaign finding #10 | **DONE** | conv:mar17-agents |
+| C-33 | Docs | `template/docs/question-schema.md` — canonical BL 2.0 question schema reference; all fields, valid Mode values with routing table, common mistakes; meta-campaign finding #13 | **DONE** | conv:mar17-agents |
+| C-34 | Docs | QUICKSTART + CLAUDE.md updated with planner → qd-bl2 two-step question generation workflow; Agent Reference tables updated; meta-campaign finding #11 | **DONE** | conv:mar17-agents |
 
 ### Sessions active
 
@@ -78,6 +89,12 @@ Use a short label for `Claimed By` — date + session context is enough (`conv:m
 | forge-check | Detects agent fleet gaps, writes `FORGE_NEEDED.md` sentinel | `93d2306` |
 | agent-auditor | Audits agent fleet, writes `AUDIT_REPORT.md` | `93d2306` |
 | peer-reviewer | Re-runs tests and appends CONFIRMED/CONCERNS/OVERRIDE to findings | `93d2306` |
+| mortar | Campaign conductor agent — owns the loop, routes questions, fires sentinels, handles OVERRIDE re-queuing | `conv:mar17` |
+| planner | Pre-campaign strategic planner — D1–D6 domain risk ranking, writes CAMPAIGN_PLAN.md | `conv:mar17` |
+| code-reviewer | Pre-commit quality gate — diff review, lint, regression check, APPROVED/NEEDS_REVISION/BLOCKED | `conv:mar17` |
+| agent-meta campaign | `projects/agent-meta/` — meta-campaign that stress-tests the agent fleet itself; baseline: 28/28 HEALTHY, 96.1/100 avg | `conv:mar17` |
+| BL 1.x agent upgrades | Added `## Inputs`, `## Output contract`, `## Recall` sections + BL 2.0 verdicts to 12 legacy agents | `conv:mar17` |
+| simulate.py YAML fix | Block scalar description parser in agent-meta/simulate.py — handles `description: >` multi-line blocks | `conv:mar17` |
 | forge v2.0 | Sentinel-driven autonomous agent factory — reads `FORGE_NEEDED.md`, creates agents, deletes sentinel | `2fb34b3` |
 | Async checkpoint pattern | All meta-agents use background Popen spawn; only Forge is blocking | `fad9611` |
 | program.md async wiring | Live Discovery + wave-start sentinel check added to template, recall, adbp program.md | `6882c0e` |
@@ -85,6 +102,14 @@ Use a short label for `Claimed By` — date + session context is enough (`conv:m
 | Silent exception fixes | 3 bare `except Exception: pass` → logged stderr warnings | `d2895d4` |
 | Failure taxonomy | `classify_failure_type()` in simulate.py — `syntax\|logic\|hallucination\|tool_failure\|timeout\|unknown`; `failure_type` field in verdict envelope, finding .md, and results.tsv | `conv:mar13-afternoon` |
 | Confidence signaling | `classify_confidence()` + `CONFIDENCE_ROUTING` in simulate.py — `high\|medium\|low\|uncertain` → `accept\|validate\|escalate\|re-run`; wired into verdict envelope, finding .md, results.tsv | `conv:mar13-afternoon` |
+| Eval/scoring harness | `score_result()` wired into `update_results_tsv()` — `eval_score` column (0.000–1.000) on every result; dashboard `parse_results()` picks it up via dynamic header zip; backward-compat with old TSVs; 8 new tests | `conv:mar17` |
+| Agent model routing | `model:` frontmatter on all 27 template agents (opus/sonnet/haiku); `_read_frontmatter_model()` + `_MODEL_MAP` in `runners/agent.py`; `--model <full-id>` passed to every `claude -p` subprocess | `conv:mar17-agents` |
+| Dashboard Agent Fleet | `GET /api/agents` reads `.claude/agents/*.md` frontmatter; `AgentFleet.tsx` with color-coded tier cards, filter pills, summary footer; Findings\|Agents tab bar in App.tsx | `conv:mar17-agents` |
+| frontier-analyst agent | New agent for exploration-mode questions — possibility mapping, analogue identification, feasibility tiers; `FRONTIER_VIABLE/PARTIAL/BLOCKED` verdicts | `conv:mar17-agents` |
+| Mortar Phase 2 hardening | WM1 startup validation pre-flight; finding validation with INCONCLUSIVE stub; global sentinel via `wc -l results.tsv` (survives resume); overseer escalation on FLEET_UNDERPERFORMING | `conv:mar17-agents` |
+| Planner→QD-BL2 interface | Planner writes BL 2.0 Mode Allocation table; qd-bl2 reads CAMPAIGN_PLAN.md pre-flight; severed interface repaired | `conv:mar17-agents` |
+| Hollow section bypass fix | agent-meta/simulate.py `score_agent()` two-phase heading+body scan; body < 10 chars → -20 penalty (harsher than missing) | `conv:mar17-agents` |
+| question-schema.md | Canonical BL 2.0 question schema reference in `template/docs/`; all fields, Mode routing table, common mistakes | `conv:mar17-agents` |
 
 ---
 

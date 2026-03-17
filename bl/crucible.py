@@ -191,11 +191,20 @@ def _score_hypothesis_generator(project_dir: Path) -> AgentScore:
             "has_derived_from": 1.0
             if ("Derived from" in b or "Motivated by" in b)
             else 0.0,
-            "has_test": 1.0 if re.search(r"Test:|pytest|Simulation path", b) else 0.0,
+            # BL 2.0 uses **Method**: / **Simulation path**:; BL 1.x used Test:/pytest
+            "has_test": 1.0
+            if re.search(
+                r"\*\*Method\*\*:|\*\*Simulation path\*\*:|Test:|pytest|Simulation path",
+                b,
+            )
+            else 0.0,
             "has_verdict_threshold": 1.0
             if ("FAILURE:" in b and "HEALTHY:" in b)
             else 0.0,
-            "has_hypothesis": 1.0 if "Hypothesis:" in b else 0.0,
+            # BL 2.0 uses **Hypothesis**: ; BL 1.x used bare Hypothesis:
+            "has_hypothesis": 1.0
+            if re.search(r"\*\*Hypothesis\*\*:|Hypothesis:", b)
+            else 0.0,
         }
 
     weights = {

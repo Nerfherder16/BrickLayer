@@ -16,7 +16,21 @@ Verdict envelope shape (all runners must return this):
     }
 """
 
+from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
+
+
+@dataclass
+class RunnerInfo:
+    """Metadata about a registered runner."""
+
+    mode: str
+    description: str  # one-line description
+    target_types: list[str] = field(
+        default_factory=list
+    )  # e.g. ["api", "service", "url"]
+    syntax_summary: str = ""  # key question fields this runner reads
+    example_question: str = ""  # minimal example question block
 
 
 @runtime_checkable
@@ -43,14 +57,16 @@ class Runner(Protocol):
 # ---------------------------------------------------------------------------
 
 _REGISTRY: dict[str, Runner] = {}
+_INFO: dict[str, RunnerInfo] = {}
 
 
-def register(mode: str, runner: Runner) -> None:
+def register(mode: str, runner: Runner, info: RunnerInfo | None = None) -> None:
     """Register a runner for the given mode string.
 
     Args:
         mode:   The mode string as it appears in questions.md (e.g. "http", "browser").
         runner: Any callable satisfying the Runner protocol.
+        info:   Optional RunnerInfo metadata for this runner.
 
     Raises:
         TypeError: If runner does not satisfy the Runner protocol.
@@ -61,6 +77,8 @@ def register(mode: str, runner: Runner) -> None:
             "It must be callable with signature (question: dict) -> dict."
         )
     _REGISTRY[mode] = runner
+    if info is not None:
+        _INFO[mode] = info
 
 
 def get(mode: str) -> Runner | None:
@@ -71,3 +89,25 @@ def get(mode: str) -> Runner | None:
 def registered_modes() -> list[str]:
     """Return sorted list of all registered mode strings."""
     return sorted(_REGISTRY.keys())
+
+
+def describe(mode: str) -> RunnerInfo | None:
+    """Return RunnerInfo for mode, or None if not registered or no info provided."""
+    return _INFO.get(mode)
+
+
+def list_runners() -> list[RunnerInfo]:
+    """Return RunnerInfo for all registered runners that have metadata, sorted by mode."""
+    return sorted(_INFO.values(), key=lambda r: r.mode)
+
+
+def runner_menu() -> str:
+    """Return a human-readable menu of all runners with descriptions — used by goal/question agents."""
+    lines = []
+    for info in list_runners():
+        lines.append(f"- `{info.mode}`: {info.description}")
+        if info.syntax_summary:
+            lines.append(f"  Syntax: {info.syntax_summary}")
+    if not lines:
+        return "No runner metadata available."
+    return "\n".join(lines)
