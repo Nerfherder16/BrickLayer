@@ -103,7 +103,7 @@ def run_and_record(question: dict) -> dict:
         result["regression"] = regression
 
     # C-04: adaptive follow-up drill-down on FAILURE/WARNING
-    if result.get("verdict") in ("FAILURE", "WARNING"):
+    if result.get("verdict") in ("FAILURE", "WARNING", "NON_COMPLIANT"):
         from bl.followup import generate_followup
 
         followup_ids = generate_followup(question, result, cfg.questions_md)

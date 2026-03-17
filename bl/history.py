@@ -128,9 +128,19 @@ def get_all_latest() -> list[dict]:
 
 # A regression is a verdict transition in this set:
 _REGRESSIONS: set[tuple[str, str]] = {
+    # BL 1.x pairs
     ("HEALTHY", "FAILURE"),
     ("HEALTHY", "WARNING"),
     ("WARNING", "FAILURE"),
+    # BL 2.0 pairs
+    ("COMPLIANT", "NON_COMPLIANT"),
+    ("COMPLIANT", "FAILURE"),
+    ("FIXED", "FAILURE"),
+    ("FIXED", "NON_COMPLIANT"),
+    ("FIXED", "WARNING"),
+    ("HEALTHY", "NON_COMPLIANT"),
+    ("HEALTHY", "ALERT"),
+    ("DIAGNOSIS_COMPLETE", "FAILURE"),
 }
 
 

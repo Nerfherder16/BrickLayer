@@ -248,7 +248,7 @@ def generate_followup(
         return []
 
     verdict = result.get("verdict", "")
-    if verdict not in ("FAILURE", "WARNING"):
+    if verdict not in ("FAILURE", "WARNING", "NON_COMPLIANT"):
         return []
 
     qid = question["id"]

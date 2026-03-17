@@ -1178,3 +1178,101 @@ Status is tracked in results.tsv — do not edit manually.
 **Verdict threshold**:
 - COMPLIANT: All three fixes verified with test cases; BL 1.x behavior preserved for F11.1 and F11.2
 - NON_COMPLIANT: Any fix regressed BL 1.x behavior or failed to address the BL 2.0 issue
+
+---
+
+## Wave 12 — Regression Detection + Failure Classification + Follow-up Coverage
+
+**Generated from findings**: Waves 1-11 fixed verdict extraction, dispatch, parsing, scoring, and corpus truncation for BL 2.0. Wave 12 targets three remaining BL 1.x-only components: `_REGRESSIONS` in history.py (regression detection blind to BL 2.0 verdict pairs), `classify_failure_type_local()` in local_inference.py (skips NON_COMPLIANT/REGRESSION/ALERT), and C-04 adaptive follow-up in campaign.py (fires only on FAILURE/WARNING, skips NON_COMPLIANT).
+**Mode transitions applied**: D11.1/D11.2 FAILURE → F11.1/F11.2 FIXED → V11.1 COMPLIANT → hypothesis: what other BL 1.x-only components remain?
+
+---
+
+## D12.1 [DIAGNOSE] _REGRESSIONS set in history.py contains only BL 1.x verdict pairs — BL 2.0 regressions invisible
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Hypothesis**: `_REGRESSIONS` in `bl/history.py` (lines 130-134) contains exactly three pairs: `("HEALTHY", "FAILURE")`, `("HEALTHY", "WARNING")`, `("WARNING", "FAILURE")`. These are BL 1.x-only verdict transitions. BL 2.0 introduces: COMPLIANT, NON_COMPLIANT, FIXED, FIX_FAILED, DIAGNOSIS_COMPLETE, BLOCKED, REGRESSION, ALERT, DEGRADED, UNKNOWN, PROMISING, CALIBRATED. Verdict transitions like `("COMPLIANT", "NON_COMPLIANT")`, `("FIXED", "FAILURE")`, `("FIXED", "NON_COMPLIANT")`, `("HEALTHY", "NON_COMPLIANT")`, and `("DIAGNOSIS_COMPLETE", "FAILURE")` are valid BL 2.0 regressions that `detect_regression()` and `get_regressions()` currently return `None`/`[]` for — making the regression ledger completely blind to BL 2.0 campaign regressions.
+**Test**: `grep -n "_REGRESSIONS" bl/history.py` — verify set contains only 3 BL 1.x pairs. Trace `detect_regression("D1", "NON_COMPLIANT")` when previous verdict was "COMPLIANT" — confirm it returns None.
+**Verdict threshold**:
+- FAILURE: `_REGRESSIONS` contains only BL 1.x pairs; BL 2.0 regression transitions return None
+- HEALTHY: `_REGRESSIONS` already includes BL 2.0 pairs
+
+---
+
+## D12.2 [DIAGNOSE] classify_failure_type_local() returns None for NON_COMPLIANT/REGRESSION/ALERT — BL 2.0 failure classification skipped
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: FAILURE
+**Hypothesis**: `classify_failure_type_local()` in `bl/local_inference.py` line 55: `if verdict not in ("FAILURE", "INCONCLUSIVE"): return None`. BL 2.0 failure verdicts `NON_COMPLIANT`, `REGRESSION`, and `ALERT` are not in this tuple — the function returns `None` for them, so `failure_type` is never classified for compliance audit failures. Additionally, `_SYSTEM_PROMPT` (lines 15-22) only describes BL 1.x verdicts (HEALTHY/WARNING/FAILURE/INCONCLUSIVE), so even if the guard were fixed, the local model would have no context for BL 2.0 verdict semantics.
+**Test**: `grep -n "FAILURE.*INCONCLUSIVE\|not in.*FAILURE" bl/local_inference.py` — verify line 55 excludes BL 2.0 verdicts. Trace `classify_failure_type_local({"verdict": "NON_COMPLIANT", "summary": "..."}, "code_audit")` — confirm returns None.
+**Verdict threshold**:
+- FAILURE: Line 55 guard excludes NON_COMPLIANT/REGRESSION/ALERT; classification skipped for these verdicts
+- HEALTHY: Guard already includes BL 2.0 failure verdicts
+
+---
+
+## A12.1 [AUDIT] C-04 adaptive follow-up in campaign.py only fires for FAILURE/WARNING — NON_COMPLIANT excluded
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Operational Mode**: audit
+**Status**: NON_COMPLIANT
+**Hypothesis**: `campaign.py` line 106: `if result.get("verdict") in ("FAILURE", "WARNING"):` — the C-04 adaptive follow-up drill-down only generates sub-questions for FAILURE and WARNING verdicts. BL 2.0 audit questions return `NON_COMPLIANT` when violations are found. No follow-up is generated for NON_COMPLIANT results, making the drill-down mechanism non-functional for the entire compliance audit mode. DIAGNOSIS_COMPLETE (which triggers the heal loop) is also excluded — though the heal loop handles it separately.
+**Test**: `grep -n "verdict.*FAILURE.*WARNING\|generate_followup" bl/campaign.py` — check line 106 guard. Verify NON_COMPLIANT is absent from the tuple.
+**Verdict threshold**:
+- NON_COMPLIANT: Line 106 guard excludes NON_COMPLIANT; follow-up dead for compliance audit failures
+- COMPLIANT: NON_COMPLIANT is included in the follow-up trigger guard
+
+---
+
+## F12.1 [FIX] Add BL 2.0 regression pairs to _REGRESSIONS in history.py
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: FIXED
+**Motivated by**: D12.1
+**Fix**: Add BL 2.0 regression pairs to `_REGRESSIONS` in `bl/history.py`: `("COMPLIANT", "NON_COMPLIANT")`, `("COMPLIANT", "FAILURE")`, `("FIXED", "FAILURE")`, `("FIXED", "NON_COMPLIANT")`, `("HEALTHY", "NON_COMPLIANT")`, `("DIAGNOSIS_COMPLETE", "FAILURE")`. BL 1.x pairs remain unchanged.
+**Verdict threshold**:
+- FIXED: All 6 BL 2.0 pairs added; BL 1.x pairs preserved; detect_regression() now returns regression dict for COMPLIANT→NON_COMPLIANT
+- FIX_FAILED: Pairs not added or BL 1.x pairs removed
+
+---
+
+## F12.2 [FIX] Extend classify_failure_type_local() guard to include BL 2.0 failure verdicts and update _SYSTEM_PROMPT
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: FIXED
+**Motivated by**: D12.2
+**Fix**: In `bl/local_inference.py` line 55, change guard to: `if verdict not in ("FAILURE", "INCONCLUSIVE", "NON_COMPLIANT", "REGRESSION", "ALERT"): return None`. Also update `_SYSTEM_PROMPT` to describe BL 2.0 verdicts so the local model can classify them correctly.
+**Verdict threshold**:
+- FIXED: Guard includes 3 BL 2.0 failure verdicts; _SYSTEM_PROMPT updated with BL 2.0 context
+- FIX_FAILED: Guard unchanged or regresses BL 1.x behavior
+
+---
+
+## F12.3 [FIX] Add NON_COMPLIANT to C-04 follow-up trigger guard in campaign.py
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: FIXED
+**Motivated by**: A12.1
+**Fix**: In `bl/campaign.py` line 106, change `if result.get("verdict") in ("FAILURE", "WARNING"):` to `if result.get("verdict") in ("FAILURE", "WARNING", "NON_COMPLIANT"):`. This enables C-04 adaptive drill-down for compliance audit failures without affecting BL 1.x behavior.
+**Verdict threshold**:
+- FIXED: NON_COMPLIANT added to guard; follow-up generated for compliance audit failures
+- FIX_FAILED: Guard unchanged or regressed
+
+---
+
+## V12.1 [VALIDATE] Regression detection, failure classification, and follow-up trigger correct after F12.1-F12.3
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Operational Mode**: validate
+**Status**: DONE
+**Motivated by**: F12.1 + F12.2 + F12.3
+**Hypothesis**: After F12.1, detect_regression() returns a regression dict for COMPLIANT→NON_COMPLIANT and FIXED→FAILURE transitions. After F12.2, classify_failure_type_local() processes NON_COMPLIANT verdicts. After F12.3, C-04 follow-up fires for NON_COMPLIANT results. All BL 1.x behaviors preserved.
+**Verdict threshold**:
+- COMPLIANT: All three fixes verified; no BL 1.x regressions
+- NON_COMPLIANT: Any fix regressed or failed to address root cause
