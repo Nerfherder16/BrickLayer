@@ -1,0 +1,125 @@
+{
+  "agents": [
+    {
+      "agent_id": "a15dc676aaaa16ca4",
+      "agent_type": "competitive-analyst",
+      "started_at": "2026-03-15T15:54:48.386Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-15T16:00:35.289Z",
+      "duration_ms": 346903
+    },
+    {
+      "agent_id": "adf8bbd0c026312ce",
+      "agent_type": "competitive-analyst",
+      "started_at": "2026-03-15T16:04:11.831Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-15T16:10:23.757Z",
+      "duration_ms": 371926
+    },
+    {
+      "agent_id": "aa35ca2e8039c6730",
+      "agent_type": "competitive-analyst",
+      "started_at": "2026-03-15T16:04:19.799Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-15T16:11:27.394Z",
+      "duration_ms": 427595
+    },
+    {
+      "agent_id": "a54901f5a03120ceb",
+      "agent_type": "competitive-analyst",
+      "started_at": "2026-03-15T16:04:37.113Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-15T16:12:19.131Z",
+      "duration_ms": 462018
+    },
+    {
+      "agent_id": "ad634794860316f61",
+      "agent_type": "competitive-analyst",
+      "started_at": "2026-03-15T16:04:47.101Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-15T16:11:30.050Z",
+      "duration_ms": 402949
+    },
+    {
+      "agent_id": "a02b116275bc79155",
+      "agent_type": "competitive-analyst",
+      "started_at": "2026-03-15T16:05:23.638Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-15T16:16:33.635Z",
+      "duration_ms": 669997
+    },
+    {
+      "agent_id": "ae8b9b9a2d23c41a3",
+      "agent_type": "competitive-analyst",
+      "started_at": "2026-03-15T16:05:32.579Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-15T16:14:55.385Z",
+      "duration_ms": 562806
+    },
+    {
+      "agent_id": "a9ee5e8687ec3bf61",
+      "agent_type": "competitive-analyst",
+      "started_at": "2026-03-15T16:05:54.319Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-15T16:15:59.003Z",
+      "duration_ms": 604684
+    },
+    {
+      "agent_id": "adeb898a086a04641",
+      "agent_type": "competitive-analyst",
+      "started_at": "2026-03-15T16:06:03.087Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-15T16:13:39.892Z",
+      "duration_ms": 456805
+    },
+    {
+      "agent_id": "a9a74bf55338542dc",
+      "agent_type": "competitive-analyst",
+      "started_at": "2026-03-15T16:20:57.004Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-15T16:25:50.047Z",
+      "duration_ms": 293043
+    },
+    {
+      "agent_id": "a5c414aece111f914",
+      "agent_type": "competitive-analyst",
+      "started_at": "2026-03-15T16:21:08.891Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-15T16:28:27.133Z",
+      "duration_ms": 438242
+    },
+    {
+      "agent_id": "ac0680c3d9ce4f98c",
+      "agent_type": "competitive-analyst",
+      "started_at": "2026-03-15T16:21:23.257Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-15T16:28:22.624Z",
+      "duration_ms": 419367
+    },
+    {
+      "agent_id": "ac098e17a7b67a03f",
+      "agent_type": "competitive-analyst",
+      "started_at": "2026-03-15T16:21:36.069Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-15T16:27:22.893Z",
+      "duration_ms": 346824
+    }
+  ],
+  "total_spawned": 13,
+  "total_completed": 13,
+  "total_failed": 0,
+  "last_updated": "2026-03-15T19:26:13.097Z"
+}

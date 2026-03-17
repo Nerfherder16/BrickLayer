@@ -1,0 +1,286 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1773590005913,
+  "projectRoot": "C:\\Users\\trg16\\Dev\\autosearch\\recall-competitive",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 0,
+      "lastAccessed": 1773590005851,
+      "keyFiles": []
+    },
+    "findings": {
+      "path": "findings",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1773590005854,
+      "keyFiles": [
+        "synthesis.md"
+      ]
+    },
+    "reports": {
+      "path": "reports",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1773590005857,
+      "keyFiles": []
+    },
+    "__pycache__": {
+      "path": "__pycache__",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1773590005859,
+      "keyFiles": [
+        "constants.cpython-314.pyc"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "simulate.py",
+      "accessCount": 27,
+      "lastAccessed": 1773592116002,
+      "type": "file"
+    },
+    {
+      "path": "questions.md",
+      "accessCount": 21,
+      "lastAccessed": 1773591775978,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 7,
+      "lastAccessed": 1773590999043,
+      "type": "directory"
+    },
+    {
+      "path": "results.tsv",
+      "accessCount": 6,
+      "lastAccessed": 1773592157952,
+      "type": "file"
+    },
+    {
+      "path": "analyze.py",
+      "accessCount": 4,
+      "lastAccessed": 1773592531803,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q1.1-mem0-architecture-feature-parity.md",
+      "accessCount": 3,
+      "lastAccessed": 1773590808259,
+      "type": "file"
+    },
+    {
+      "path": "project-brief.md",
+      "accessCount": 3,
+      "lastAccessed": 1773591775315,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q1.3-letta-hierarchical-memory.md",
+      "accessCount": 2,
+      "lastAccessed": 1773591252988,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q1.4-dual-store-vector-graph-differentiation.md",
+      "accessCount": 2,
+      "lastAccessed": 1773591253550,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q4.1-ai-memory-landscape-2025.md",
+      "accessCount": 2,
+      "lastAccessed": 1773591270876,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q2.1-retrieval-quality-techniques.md",
+      "accessCount": 2,
+      "lastAccessed": 1773591283813,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q2.2-memory-lifecycle-competitors.md",
+      "accessCount": 2,
+      "lastAccessed": 1773591283887,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q3.1-sdk-landscape.md",
+      "accessCount": 2,
+      "lastAccessed": 1773591293256,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q4.2-underserved-use-cases.md",
+      "accessCount": 2,
+      "lastAccessed": 1773591293900,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q3.5-documentation-quality.md",
+      "accessCount": 2,
+      "lastAccessed": 1773591316755,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q3.3-self-hosting-complexity.md",
+      "accessCount": 2,
+      "lastAccessed": 1773591316938,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q2.3-semantic-deduplication.md",
+      "accessCount": 2,
+      "lastAccessed": 1773592046275,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q2.4-knowledge-graph-schemas.md",
+      "accessCount": 2,
+      "lastAccessed": 1773592046658,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q3.4-multi-user-isolation.md",
+      "accessCount": 2,
+      "lastAccessed": 1773592056014,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q3.2-multi-llm-support.md",
+      "accessCount": 2,
+      "lastAccessed": 1773592056113,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q4.4-competitor-roadmaps.md",
+      "accessCount": 2,
+      "lastAccessed": 1773592056722,
+      "type": "file"
+    },
+    {
+      "path": "findings\\synthesis.md",
+      "accessCount": 2,
+      "lastAccessed": 1773592300199,
+      "type": "file"
+    },
+    {
+      "path": "program.md",
+      "accessCount": 1,
+      "lastAccessed": 1773590033858,
+      "type": "file"
+    },
+    {
+      "path": "constants.py",
+      "accessCount": 1,
+      "lastAccessed": 1773590041200,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q1.1-mem0-architecture.md",
+      "accessCount": 1,
+      "lastAccessed": 1773590480577,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q1.2-zep-temporal-memory.md",
+      "accessCount": 1,
+      "lastAccessed": 1773590934969,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q1.2-zep-graphiti-temporal-memory.md",
+      "accessCount": 1,
+      "lastAccessed": 1773591203281,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q1.5-hybrid-retrieval-BM25.md",
+      "accessCount": 1,
+      "lastAccessed": 1773591260654,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q2.5-embedding-model-quality.md",
+      "accessCount": 1,
+      "lastAccessed": 1773591261767,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q4.3-user-complaint-patterns.md",
+      "accessCount": 1,
+      "lastAccessed": 1773591269739,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q5.1-retrieval-improvement-roadmap.md",
+      "accessCount": 1,
+      "lastAccessed": 1773591771481,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q5.2-minimum-viable-sdk.md",
+      "accessCount": 1,
+      "lastAccessed": 1773591829488,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q5.3-claude-code-excellence.md",
+      "accessCount": 1,
+      "lastAccessed": 1773591895760,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q5.4-lifecycle-pipeline-improvements.md",
+      "accessCount": 1,
+      "lastAccessed": 1773591954596,
+      "type": "file"
+    },
+    {
+      "path": "findings\\Q5.5-strategic-roadmap.md",
+      "accessCount": 1,
+      "lastAccessed": 1773592023618,
+      "type": "file"
+    },
+    {
+      "path": ".claude\\agents\\synthesizer.md",
+      "accessCount": 1,
+      "lastAccessed": 1773592165855,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

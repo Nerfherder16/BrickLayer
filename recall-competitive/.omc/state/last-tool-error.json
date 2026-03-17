@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"ssh nerfherder@192.168.50.62 \\\"curl -s 'http://localhost:11434/api/show' -d '{\\\\\\\"name\\\\\\\":\\\\\\\"qwen3-embedding:4b\\\\\\\"}' | python3 -c \\\\\\\"import json,sys; d=json.load(sys.stdin); print(d.ge...",
+  "error": "Exit code 1",
+  "timestamp": "2026-03-15T17:55:11.871Z",
+  "retry_count": 1
+}
