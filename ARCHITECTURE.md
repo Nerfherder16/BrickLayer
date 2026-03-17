@@ -1,8 +1,8 @@
 # BrickLayer 2.0 — Build Reference
 
-**Last updated**: 2026-03-16
-**Branch**: `recall/mar14` (active development)
-**Self-audit campaign**: `projects/bl2/` — Wave 4 complete, 7 open bugs fixed
+**Last updated**: 2026-03-17
+**Branch**: `bl2/mar16` (active development)
+**Self-audit campaign**: `projects/bl2/` -- Wave 25 complete, 49 bugs fixed, 2 open items remaining
 
 ---
 
@@ -75,12 +75,13 @@ Campaign Loop (campaign.py)
 | `skill_forge.py` | ✅ New | Skill registry. Tracks campaign-created skills in `skill_registry.json`. `write_skill()`, `list_project_skills()`, `global_skill_inventory()` |
 | `runners/agent.py` | ✅ Fixed | BL 2.0: `session_ctx_block` injected between `mode_ctx_block` and `doctrine_prefix`. Fixed: `_verdict_from_agent_output()` now accepts all 30 BL 2.0 verdicts via `_ALL_VERDICTS` frozenset (was only 4) |
 | `fixloop.py` | ✅ Unchanged | BL 1.x fix loop. Still active via `BRICKLAYER_FIX_LOOP=1`. Independent of BL 2.0 |
-| `history.py` | ✅ Unchanged | Verdict history ledger, regression detection |
-| `synthesizer.py` | ✅ Unchanged | Wave-end synthesis, STOP/PIVOT/CONTINUE recommendation |
-| `hypothesis.py` | ✅ Unchanged | Next-wave hypothesis generation |
-| `followup.py` | ✅ Unchanged | Adaptive drill-down on FAILURE/WARNING |
+| `history.py` | ✅ Fixed | Verdict history ledger, regression detection. Fixed: 8 BL 2.0 regression pairs added (F12.1) |
+| `synthesizer.py` | ✅ Fixed | Wave-end synthesis, STOP/PIVOT/CONTINUE recommendation. Fixed: output path to `findings/synthesis.md` (F14.2), _HIGH_SEVERITY extended (F14.2), corpus severity sort (F11.3) |
+| `hypothesis.py` | ✅ Fixed | Next-wave hypothesis generation. Fixed: BL 2.0 ID regex (F10.1), recommendation section parsing (F10.2), wave detection (F9.1) |
+| `followup.py` | ✅ Fixed | Adaptive drill-down on FAILURE/WARNING. Fixed: NON_COMPLIANT in C-04 guards (F12.3), bracket tag lookup (F13.2), Operational Mode injection (F13.1), leaf ID detection (F7.2) |
 | `quality.py` | ✅ Unchanged | Quality scoring |
-| `crucible.py` | ✅ Unchanged | Campaign health aggregate |
+| `crucible.py` | ✅ Fixed | Campaign health aggregate. 4 BL 2.0 scorers added (F17.1), _KNOWN_AGENTS extended (F15.2), all scorers use frontmatter-position guards (F22.1/F24.2/F25.1/F25.2) |
+| `goal.py` | ✅ Fixed | Goal-directed campaigns. Fixed: wave-index detection for BL 2.0 headers, focus default and prompt examples (F14.1) |
 
 ### Mode System (`{project}/modes/`)
 
@@ -212,20 +213,52 @@ Underperformer: score < 0.40 AND runs >= 3
 
 ## Self-Audit Campaign Status (`projects/bl2/`)
 
-**Scope**: 22 questions (D1–D10 diagnose + A1–A12 audit) targeting `bl/` source
+**Scope**: 157 questions across 25 waves targeting `bl/` source + dashboard
 **Recall source**: `C:/Users/trg16/Dev/autosearch`
+**Recommendation**: STOP -- engine ready for production campaigns
 
 | Wave | Questions | Fixed | Status |
 |------|-----------|-------|--------|
-| Wave 1 | D1–D10, A1–A12 | — | 7 FAILURE, 1 WARNING, 1 NON_COMPLIANT |
-| Wave 2 | F2.1–F2.6 fix wave | 6 fixes | All FIXED |
-| Wave 3 | M2.x monitor, A5.1 | 3 secondary | _STORE_VERDICTS extracted, print fix |
-| Wave 4 | D3.1, D3.2, D4.x | 6 fixes | parse_questions regex critical fix + 5 secondary |
+| Wave 1 | D1-D10, A1-A12 (22q) | -- | 7 FAILURE, 1 WARNING, 1 NON_COMPLIANT |
+| Wave 2 | F2.1-F2.6 fix wave | 6 fixes | All FIXED |
+| Wave 3 | M2.x, F3.1, V3.1 | 1 fix | _STORE_VERDICTS extracted, print fix |
+| Wave 4 | D3.x, D4.x, F4.x | 4 fixes | parse_questions regex critical fix |
+| Wave 5 | D5.1, A5.1, F5.1, V5.1 | 1 fix | Body Mode dispatch fix |
+| Wave 6 | D6.x, F6.x, A6.1, V6.1 | 2 fixes | code_audit runner + results.tsv format |
+| Wave 7 | D7.x, F7.x, A7.1, V7.1 | 2 fixes | Verdict extraction + leaf ID detection |
+| Wave 8 | D8.x, F8.x, A8.1, V8.1 | 2 fixes | Override injection glob + status preservation |
+| Wave 9 | D9.x, F9.x, A9.1, V9.1 | 2 fixes | Wave detection regex + agent_db tracking |
+| Wave 10 | D10.x, F10.x, A10.1, V10.1 | 2 fixes | Hypothesis generation BL 2.0 compat |
+| Wave 11 | D11.x, F11.x, V11.1 | 3 fixes | Crucible scorers + sync preservation + corpus sort |
+| Wave 12 | D12.x, F12.x, A12.1, V12.1 | 3 fixes | Regression detection + failure classification + follow-up |
+| Wave 13 | D13.x, F13.x, A13.1, V13.1 | 2 fixes | Follow-up sub-question quality |
+| Wave 14 | D14.x, F14.x, A14.1, V14.x | 2 fixes | goal.py + synthesizer.py compat |
+| Wave 15 | D15.x, F15.x, A15.1, V15.1 | 2 fixes | crucible.py + questions.py compat |
+| Wave 16 | D16.x, A16.1, V16.1 | -- | 3 diagnoses, 1 audit, 1 validation |
+| Wave 16-mid | F-mid.1-5, D-mid.4 | 5 fixes | Heal loop TSV, peer-reviewer guard, text parsing |
+| Wave 17 | F17.1, D17.x, A17.1, V17.1 | 1 fix | 4 BL 2.0 crucible scorers implemented |
+| Wave 18 | V18.x, A18.1, D18.x | -- | Scorer verification, hoist confirmed |
+| Wave 19 | F19.1, F19.2 | 2 fixes | dc_rate scoping + fix_spec exact match |
+| Wave 20 | V20.x, A20.x, D20.1 | -- | Scorer verification + dashboard audit |
+| Wave 21 | F21.1, F21.2, D21.1 | 2 fixes | Dashboard status colors + prefix guard |
+| Wave 22 | F22.1, V22.x | 1 fix | Frontmatter-position guard (diagnose) |
+| Wave 23 | V23.1, D23.x, A23.1 | -- | Scorer audit + historical gap confirmation |
+| Wave 24 | F24.1, F24.2, V24.1, A24.1 | 2 fixes | Hypothesis field fix + compliance guard |
+| Wave 25 | F25.1, F25.2, V25.1, D25.1 | 2 fixes | Design-reviewer + fix-implementer guards |
 
-**Open items** (from results.tsv):
-- `D4` FAILURE — `_reactivate_pending_external()` location discrepancy (spec says `questions.py`, implemented in `campaign.py`) — informational, both work
-- `D7` WARNING — `_STORE_VERDICTS` not in `constants.py` (no enforcement test exists)
-- `M2.1` WARNING — `RECALL_STORE_VERDICTS` not in `constants.py`
+**Agent scores** (Wave 25 benchmarks):
+
+| Agent | Score | Key Metrics |
+|-------|-------|-------------|
+| fix-implementer | 0.97 | fixed_rate=1.00, verify_section=0.92 |
+| compliance-auditor | 0.86 | definitive_rate=1.00, fix_spec_rate=0.64 |
+| diagnose-analyst | 0.73 | dc_rate=1.00, fix_spec_completeness=0.32 |
+| design-reviewer | 0.71 | compliant_rate=0.74, lineno_reference_rate=0.68 |
+| hypothesis-generator | 0.37 | has_derived_from=0.62, has_test=0.01 (D25.1 field mismatch) |
+
+**Open items** (2 remaining):
+- `D25.1` [DIAGNOSIS_COMPLETE] -- `check_block()` uses BL 1.x field names; hypothesis-generator score artificially low
+- `A10.1` [NON_COMPLIANT] -- `_build_findings_corpus()` pop(0) alphabetical sort bias under budget pressure
 
 ---
 

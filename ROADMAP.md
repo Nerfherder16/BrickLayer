@@ -15,9 +15,9 @@ The human defines what matters. The agent asks the questions, runs the experimen
 | C-01 | Architecture | Python module split — break simulate.py into `campaign.py`, `questions.py`, `findings.py`, `quality.py`, `scout.py` | **DONE** | conv:mar13-main |
 | C-02 | Architecture | Runner Registry — formalize `Runner(Protocol)` plugin interface | **FREE** | — |
 | C-03 | Campaign | Goal-directed campaigns via `goal.md` — agent generates question set from a target + goal | **FREE** | — |
-| C-04 | Campaign | Adaptive follow-up — FAILURE/WARNING auto-generates drill-down sub-questions (Q2.4 → Q2.4.1) | **FREE** | — |
-| C-05 | Campaign | Verdict history + regression detection — SQLite ledger, flag regressions across runs | **FREE** | — |
-| C-06 | Campaign | Fix loop integration — FAILURE → spawn fix agent → re-run → confirm HEALTHY | **FREE** | — |
+| C-04 | Campaign | Adaptive follow-up -- FAILURE/WARNING auto-generates drill-down sub-questions (Q2.4 -> Q2.4.1) | **DONE** | bl2 self-audit (F7.2, F12.3) |
+| C-05 | Campaign | Verdict history + regression detection -- flag regressions across runs | **DONE** | bl2 self-audit (F12.1, F12.2) |
+| C-06 | Campaign | Fix loop integration -- FAILURE -> spawn fix agent -> re-run -> confirm HEALTHY | **DONE** | bl2 self-audit (healloop.py, F2.1-F2.6, F-mid.1) |
 | C-07 | Runners | `http` runner formalization — extract from simulate.py into `runners/http.py` | **FREE** | — |
 | C-08 | Runners | `subprocess` runner formalization — extract into `runners/subprocess.py` | **FREE** | — |
 | C-09 | Runners | `static` runner formalization — extract into `runners/static.py` | **FREE** | — |
@@ -25,8 +25,8 @@ The human defines what matters. The agent asks the questions, runs the experimen
 | C-11 | Runners | `benchmark` runner — ML model ablation, latency, accuracy sweeps | **FREE** | — |
 | C-12 | Runners | `document` runner — completeness/accuracy/consistency checks on docs vs code | **FREE** | — |
 | C-13 | Runners | `contract` runner — Solana/EVM invariant checking and edge case fuzzing | **FREE** | — |
-| C-14 | Meta-agents | Hypothesis-generator: generate Wave N+1 questions from findings patterns | **FREE** | — |
-| C-15 | Meta-agents | Crucible: benchmark existing agents, promote/retire by score | **FREE** | — |
+| C-14 | Meta-agents | Hypothesis-generator: generate Wave N+1 questions from findings patterns | **DONE** | bl2 self-audit (F9.1, F10.1, F10.2, F24.1) |
+| C-15 | Meta-agents | Crucible: benchmark existing agents, promote/retire by score | **DONE** | bl2 self-audit (F17.1, F15.2, F22.1-F25.2) |
 | C-16 | Dashboard | Question status live-update in dashboard UI | **FREE** | — |
 | C-17 | Integrations | GitHub Actions hook — run campaign on PR, post findings as review comments | **FREE** | — |
 | C-18 | Phase 3 | Hypothesis generation from git diffs — auto-question on commit | **FREE** | — |
@@ -144,9 +144,9 @@ These are the highest-value items before BrickLayer is used on new projects.
 |---|------|-------|
 | 1.1 | **Runner Registry** | `Runner(Protocol)` — any runner that returns the verdict envelope plugs in. Board item C-02. |
 | 1.2 | **Goal-Directed Campaigns** | Replace static `questions.md` with `goal.md`. Agent generates questions from goal + target. Board item C-03. |
-| 1.3 | **Adaptive Follow-up** | FAILURE/WARNING auto-drills down. `Q2.4 → Q2.4.1, Q2.4.2`. Board item C-04. |
-| 1.4 | **Verdict History** | SQLite ledger. Flag regressions (`HEALTHY → FAILURE`). Board item C-05. |
-| 1.5 | **Fix Loop** | FAILURE → fix agent → re-run → HEALTHY. Board item C-06. |
+| 1.3 | **Adaptive Follow-up** | FAILURE/WARNING auto-drills down. `Q2.4 -> Q2.4.1, Q2.4.2`. Board item C-04. **DONE** (bl2 self-audit) |
+| 1.4 | **Verdict History** | Flag regressions (`HEALTHY -> FAILURE`). Board item C-05. **DONE** (bl2 self-audit) |
+| 1.5 | **Fix Loop** | FAILURE -> fix agent -> re-run -> HEALTHY. Board item C-06. **DONE** (healloop.py, bl2 self-audit) |
 | 1.6 | **Module Split** | Break simulate.py into focused modules. Board item C-01. |
 
 ---
@@ -174,7 +174,7 @@ Each item adds a new class of targets BrickLayer can run against.
 | 3.2 | Hypothesis generation from diffs — auto-question on each git commit |
 | 3.3 | Cross-project knowledge transfer — bug patterns propagate to new projects |
 | 3.4 | Natural language entry point — "I just added concurrent Neo4j writes" → 4 questions, 3 minutes |
-| 3.5 | BrickLayer audits BrickLayer — eats its own dog food |
+| 3.5 | BrickLayer audits BrickLayer -- eats its own dog food (25 waves, 49 fixes, STOP recommended) |
 
 ---
 
