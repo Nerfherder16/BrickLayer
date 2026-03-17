@@ -106,7 +106,7 @@ Rules:
 2. Generate questions that test what hasn't been tested yet
 3. Each question must be specific and independently runnable
 4. Use the EXACT format shown below — no deviation
-5. Question IDs must start at Q{next_wave}.1 and increment
+5. Question IDs must start at {next_wave}.1 and increment, prefixed with any letter (e.g., Q{next_wave}.1, D{next_wave}.1)
 6. Each block must start with a line containing exactly "---" on its own
 
 EXACT FORMAT (copy this structure precisely):
@@ -163,8 +163,8 @@ def _parse_question_blocks(raw: str, next_wave: int) -> list[str]:
         block = block.strip()
         if not block:
             continue
-        # Must contain a question header for our wave
-        if not re.search(rf"## Q{next_wave}\.\d+", block):
+        # Must contain a question header for our wave (any letter prefix, e.g. Q10.1, D10.1)  # F10.1
+        if not re.search(rf"## \w+{next_wave}\.\d+", block):
             continue
         # Must have Status: PENDING
         if "**Status**: PENDING" not in block:

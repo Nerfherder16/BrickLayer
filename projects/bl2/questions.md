@@ -1022,3 +1022,81 @@ Status is tracked in results.tsv — do not edit manually.
 **Verdict threshold**:
 - COMPLIANT: All targeted functions produce correct output; BL 1.x Q-pattern behavior preserved
 - NON_COMPLIANT: Regex change broke BL 1.x detection or wave number extraction
+
+---
+
+## D10.1 [CORRECTNESS] hypothesis.py _parse_question_blocks() rejects all BL 2.0 LLM output
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: PENDING
+**Hypothesis**: Even after F9.1 fixed _QUESTION_BLOCK_HEADER for reading, `_parse_question_blocks()` in hypothesis.py line 167 still uses `rf"## Q{next_wave}\.\d+"` to validate LLM output. Any BL 2.0-format block (e.g., `## D10.1`) is silently rejected, making hypothesis generation return zero questions for BL 2.0 campaigns. The LLM prompt template also hardcodes `Q{wave}.N` IDs, instructing the LLM to produce BL-1.x-format output.
+**Test**: Read bl/hypothesis.py lines 100-180. Confirm: (1) Line 167 uses rf"## Q{next_wave}" pattern. (2) Prompt template at line 115 uses `## Q{next_wave}.1`. (3) A block with `## D10.1 [CORRECTNESS] title` would be rejected by _parse_question_blocks() for wave 10.
+**Verdict threshold**:
+- FAILURE: _parse_question_blocks() line 167 uses Q-only regex and prompt template hardcodes Q-format IDs — hypothesis generation silently produces zero questions for any BL 2.0 campaign
+- COMPLIANT: Both functions correctly accept BL 2.0 format IDs
+
+---
+
+## D10.2 [CORRECTNESS] synthesizer.py parse_recommendation() false-triggers STOP on Dead Ends prose
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: PENDING
+**Hypothesis**: `parse_recommendation()` in synthesizer.py scans ALL lines of synthesis text looking for "STOP" before "CONTINUE". The synthesis prompt template (line 166-168) instructs Claude to write "stop probing here" in the Dead Ends section. Any synthesis output with dead ends will cause parse_recommendation() to return "STOP" before reaching the actual "## Recommended Next Action" section, prematurely terminating campaigns.
+**Test**: Read bl/synthesizer.py parse_recommendation() (lines 104-118) and the prompt template (lines 152-180). Construct a representative synthesis string with Dead Ends containing "stop probing here" and Recommended Next Action of CONTINUE. Verify parse_recommendation() returns "STOP" (incorrect).
+**Verdict threshold**:
+- FAILURE: parse_recommendation() returns "STOP" for a synthesis where "stop probing here" appears in Dead Ends but "CONTINUE" is the actual recommendation
+- COMPLIANT: parse_recommendation() correctly extracts recommendation from the designated section
+
+---
+
+## F10.1 [FIX] Fix hypothesis.py _parse_question_blocks() and prompt template for BL 2.0 IDs
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: PENDING
+**Source finding**: D10.1 (FAILURE)
+**Fix**: In bl/hypothesis.py: (1) Change line 167 filter from `rf"## Q{next_wave}\.\d+"` to `rf"## \w+{next_wave}\.\d+"` (or simpler: check for any `## ID [` header pattern matching the wave number). (2) Update the LLM prompt template (line 115) to show a BL 2.0-compatible example format with `## {mode_prefix}{wave}.N` — or make the format description mode-agnostic.
+**Verdict threshold**:
+- FIXED: _parse_question_blocks() accepts blocks with BL 2.0-format headers; prompt template does not hardcode Q-only format
+- FIX_FAILED: Regex or prompt still excludes BL 2.0 format
+
+---
+
+## F10.2 [FIX] Fix synthesizer.py parse_recommendation() to scan only recommendation section
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: PENDING
+**Source finding**: D10.2 (FAILURE)
+**Fix**: In bl/synthesizer.py parse_recommendation(): instead of scanning all lines, locate the "## Recommended Next Action" section header first, then scan only lines after that header for CONTINUE/STOP/PIVOT. Fallback to full-text scan only if section header is absent.
+**Verdict threshold**:
+- FIXED: parse_recommendation() correctly returns CONTINUE when "stop probing here" appears in Dead Ends but "CONTINUE" appears in Recommended Next Action section
+- FIX_FAILED: Still returns STOP for the test case above
+
+---
+
+## A10.1 [COMPLIANCE] synthesizer.py _build_findings_corpus() truncation drops audit/diagnose findings
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Operational Mode**: audit
+**Status**: PENDING
+**Hypothesis**: `_build_findings_corpus()` drops from the front of the sorted findings list when over the 12000-char budget (pop(0) drops alphabetically earliest). In BL 2.0, alphabetical order is A*.md, D*.md, F*.md, R*.md, V*.md. Audit and diagnose findings are systematically excluded before fix/validate findings, giving the LLM a biased corpus that skews toward recent positive verdicts (FIXED/COMPLIANT) rather than root-cause failures.
+**Test**: Read bl/synthesizer.py _build_findings_corpus() lines 18-56. Determine the truncation order: which finding types (by filename prefix) are dropped first under the 12000-char budget. Determine if this causes systematic omission of high-severity findings (FAILURE, NON_COMPLIANT) in favor of low-severity (FIXED, COMPLIANT).
+**Verdict threshold**:
+- NON_COMPLIANT: pop(0) drops A*.md and D*.md before F*.md and V*.md — audit/diagnose findings systematically omitted, synthesizer sees biased view
+- COMPLIANT: Truncation strategy is acceptable or findings are small enough that budget is not hit in practice
+
+---
+
+## V10.1 [VALIDATE] _parse_question_blocks() and parse_recommendation() correct after F10.1+F10.2
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Operational Mode**: validate
+**Status**: PENDING
+**Motivated by**: F10.1 + F10.2 + A10.1
+**Hypothesis**: After F10.1, hypothesis.py _parse_question_blocks() accepts BL 2.0 ID format blocks; LLM prompt no longer hardcodes Q-only IDs. After F10.2, parse_recommendation() correctly extracts CONTINUE from the Recommended Next Action section even when Dead Ends prose contains "stop".
+**Verdict threshold**:
+- COMPLIANT: Both fixes verified correct; no BL 1.x regression; corpus truncation behavior documented
+- NON_COMPLIANT: Either fix broke BL 1.x behavior or failed to resolve the BL 2.0 issue
