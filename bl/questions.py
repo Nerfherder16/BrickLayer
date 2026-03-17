@@ -108,6 +108,7 @@ _PARKED_STATUSES = frozenset(
         "NON_COMPLIANT",
         "CALIBRATED",
         "BLOCKED",
+        "HEAL_EXHAUSTED",  # F-mid.1: exhausted heal loop — human intervention required
     )
 )
 
@@ -190,6 +191,7 @@ def sync_status_from_results() -> int:
                     "UNKNOWN",
                     "SUBJECTIVE",
                     "DEGRADED_TRENDING",
+                    "HEAL_EXHAUSTED",  # F-mid.1: exhausted heal loop — preserve status
                 }
             )
             if verdict in _TERMINAL_VERDICTS:
@@ -209,6 +211,7 @@ def sync_status_from_results() -> int:
                         "WARNING",
                         "REGRESSION",
                         "ALERT",
+                        "HEAL_EXHAUSTED",  # F-mid.1: preserve exhausted-heal status
                     )
                     else "DONE"
                 )

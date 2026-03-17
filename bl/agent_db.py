@@ -55,6 +55,7 @@ _PARTIAL_VERDICTS = frozenset(
         "PROBABLE",
         "POSSIBLE",
         "UNLIKELY",
+        "HEAL_EXHAUSTED",  # F-mid.1: agent ran correctly, system exhausted — half credit
     }
 )
 

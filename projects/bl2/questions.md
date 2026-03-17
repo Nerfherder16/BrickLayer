@@ -1707,7 +1707,7 @@ Status is tracked in results.tsv — do not edit manually.
 
 ### F-mid.1: Implement the fix specified in D16.1 — write HEAL_EXHAUSTED to results.tsv on exhausted-loop exit in healloop.py, and add HEAL_EXHAUSTED to all downstream frozensets
 
-**Status**: PENDING
+**Status**: FIXED
 **Operational Mode**: fix
 **Mode**: code_audit
 **Agent**: fix-implementer
@@ -1721,7 +1721,7 @@ Status is tracked in results.tsv — do not edit manually.
 
 ### F-mid.2: Implement the fix specified in D16.2 — add mode guard to peer-reviewer spawn in campaign.py run_campaign() to skip code_audit questions
 
-**Status**: PENDING
+**Status**: FIXED
 **Operational Mode**: fix
 **Mode**: code_audit
 **Agent**: fix-implementer
@@ -1735,7 +1735,7 @@ Status is tracked in results.tsv — do not edit manually.
 
 ### F-mid.3: Implement the fix specified in D16.3 — add else-clause to _parse_text_output() in runners/agent.py for universal BL 2.0 plain-text verdict extraction
 
-**Status**: PENDING
+**Status**: FIXED
 **Operational Mode**: fix
 **Mode**: code_audit
 **Agent**: fix-implementer
@@ -1749,7 +1749,7 @@ Status is tracked in results.tsv — do not edit manually.
 
 ### D-mid.4: Does _summary_from_agent_output() have the same BL 2.0 gap as _parse_text_output() — no else-clause for non-BL-1.x agents, producing generic fallback summaries for all BL 2.0 agents on the text-fallback path?
 
-**Status**: PENDING
+**Status**: FIXED
 **Operational Mode**: diagnose
 **Mode**: code_audit
 **Agent**: diagnose-analyst
@@ -1763,7 +1763,7 @@ Status is tracked in results.tsv — do not edit manually.
 
 ### F-mid.5: Implement the fix specified in A16.1 — document the intentional non-execution of mid-run injected questions and remove or clearly annotate the misleading pending-list refresh in campaign.py
 
-**Status**: PENDING
+**Status**: FIXED
 **Operational Mode**: fix
 **Mode**: code_audit
 **Agent**: fix-implementer
@@ -1779,7 +1779,7 @@ Status is tracked in results.tsv — do not edit manually.
 **Mode**: code_audit
 **Agent**: compliance-auditor
 **Operational Mode**: audit
-**Status**: PENDING
+**Status**: COMPLIANT
 **Motivated by**: D16.2.F1 follow-up — unresolvable .R re-exam questions may already exist in questions.md
 **Hypothesis**: If the peer-reviewer was spawned for code_audit questions before D16.2 is fixed, some `.R` re-exam questions may already have been injected into questions.md. These questions have `**Mode**: agent` and `**Test**: Re-run the original test command from {qid}` where the test command is prose. They cannot be resolved. Audit questions.md for any `.R` questions where the referenced original question has `**Mode**: code_audit`, and classify them for removal or conversion.
 **Test**: Search questions.md for all `## \w+\.R ` sections. For each, look up the parent question ID (strip `.R`) in questions.md. Check if the parent has `**Mode**: code_audit`. If so, flag the `.R` question as unresolvable.

@@ -513,6 +513,7 @@ def _mark_question_done(qid: str, verdict: str) -> None:
             "WARNING",
             "REGRESSION",
             "ALERT",
+            "HEAL_EXHAUSTED",  # F-mid.1: exhausted heal loop — preserve for human visibility
         }
     )
     new_status = verdict if verdict in _PRESERVE_AS_IS else "DONE"
