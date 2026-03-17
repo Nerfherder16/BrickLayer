@@ -407,11 +407,19 @@ def _inject_override_questions() -> None:
         if reexam_marker in questions_text:
             continue
 
+        # D16.2.F1: skip code_audit findings — their test fields are prose, not runnable
+        original_question = get_question_by_id(parse_questions(), qid)
+        if original_question and original_question.get("mode") == "code_audit":
+            continue
+        original_mode = (
+            original_question.get("mode", "agent") if original_question else "agent"
+        )
+
         reexam_block = f"""
 ---
 
 ## {qid}.R [CORRECTNESS] Re-examine {qid}
-**Mode**: agent
+**Mode**: {original_mode}
 **Status**: PENDING
 **Hypothesis**: Peer review returned OVERRIDE — the prior fix for {qid} is incomplete or incorrect.
 **Test**: Re-run the original test command from {qid} and confirm the concern raised in the ## Peer Review section is resolved.
