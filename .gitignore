@@ -20,6 +20,15 @@ dashboard/frontend/dist/
 __pycache__/
 *.egg-info/
 
+# VS Code workspace
+*.code-workspace
+
+# SQLite runtime databases
+**/history.db
+
+# Personal / unrelated content
+projects/MarchMadness/
+
 # OS
 .DS_Store
 Thumbs.db

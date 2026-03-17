@@ -112,15 +112,28 @@ def run_lint_guard(staged_files: list[str]) -> tuple[list[str], list[str]]:
 
     # Rust — clippy (check-only, no auto-fix)
     if rs_files and tool_available("cargo"):
-        check = run(["cargo", "clippy", "--", "-D", "warnings"])
-        if check.returncode != 0:
-            errors.extend(
-                [
-                    f"  {ln}"
-                    for ln in (check.stdout + check.stderr).strip().splitlines()
-                    if ln.strip() and not ln.startswith("warning: unused")
-                ][:20]
-            )
+        # Find unique Cargo.toml roots for all staged .rs files
+        cargo_roots: set[str] = set()
+        for rs_file in rs_files:
+            d = Path(rs_file).resolve().parent
+            for _ in range(15):
+                if (d / "Cargo.toml").exists():
+                    cargo_roots.add(str(d))
+                    break
+                parent = d.parent
+                if parent == d:
+                    break
+                d = parent
+        for cargo_root in cargo_roots:
+            check = run(["cargo", "clippy", "--", "-D", "warnings"], cwd=cargo_root)
+            if check.returncode != 0:
+                errors.extend(
+                    [
+                        f"  {ln}"
+                        for ln in (check.stdout + check.stderr).strip().splitlines()
+                        if ln.strip() and not ln.startswith("warning: unused")
+                    ][:20]
+                )
 
     return errors, fixed
 
