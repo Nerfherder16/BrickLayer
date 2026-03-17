@@ -33,6 +33,11 @@ _KNOWN_AGENTS = [
     "question-designer",
     "synthesizer",
     "quantitative-analyst",
+    # BL 2.0 operational agents
+    "diagnose-analyst",
+    "fix-implementer",
+    "compliance-auditor",
+    "design-reviewer",
 ]
 
 # ---------------------------------------------------------------------------
@@ -242,22 +247,9 @@ def _score_question_designer(project_dir: Path) -> AgentScore:
             f"Only {len(blocks)} Wave 1 questions found (need >= 5)",
         )
 
-    # domains_covered: count unique D1–D6 domain codes across all text
-    domain_hits = set()
-    domain_keywords = {
-        "D1": ["D1", "performance", "load", "latency"],
-        "D2": ["D2", "legal", "compliance", "regulatory"],
-        "D3": ["D3", "market", "competitive", "analogue"],
-        "D4": ["D4", "correctness", "accuracy", "quality"],
-        "D5": ["D5", "benchmark", "ablation", "model"],
-        "D6": ["D6", "security", "auth", "vulnerability"],
-    }
-    for code, keywords in domain_keywords.items():
-        for kw in keywords:
-            if kw in wave1_text:
-                domain_hits.add(code)
-                break
-    domains_score = len(domain_hits) / 6.0
+    # domains_covered: find unique operational mode prefixes from wave1 block headers
+    unique_prefixes = set(re.findall(r"^## ([A-Z])\d+\.\d+", wave1_text, re.MULTILINE))
+    domains_score = min(1.0, len(unique_prefixes) / 5.0)  # 5 BL 2.0 prefixes: D/F/A/V/M
 
     # Per-question checks
     has_thresholds = sum(
@@ -281,7 +273,7 @@ def _score_question_designer(project_dir: Path) -> AgentScore:
     score = sum(pass_rates[k] * weights[k] for k in weights)
 
     details = (
-        f"Scored {len(blocks)} Wave 1 questions. Domains found: {sorted(domain_hits)}. "
+        f"Scored {len(blocks)} Wave 1 questions. Prefixes found: {sorted(unique_prefixes)}. "
         + ", ".join(f"{k}={v:.2f}" for k, v in pass_rates.items())
     )
     return AgentScore("question-designer", round(score, 4), pass_rates, details)
@@ -297,7 +289,7 @@ def _score_synthesizer(project_dir: Path) -> AgentScore:
 
     checks_raw = {
         "has_critical_path": (1.0 if "Critical Path" in text else 0.0, 0.25),
-        "has_finding_refs": (1.0 if re.search(r"Q\d+\.\d+", text) else 0.0, 0.30),
+        "has_finding_refs": (1.0 if re.search(r"\b[A-Z]\d+\.\d+", text) else 0.0, 0.30),
         "has_residual_risk": (
             1.0 if re.search(r"[Rr]esidual [Rr]isk|residual", text) else 0.0,
             0.20,
@@ -325,7 +317,9 @@ def _score_quantitative_analyst(project_dir: Path) -> AgentScore:
         )
 
     perf_files = []
-    for fpath in sorted(findings_dir.glob("Q*.md")):
+    for fpath in sorted(
+        f for f in findings_dir.glob("*.md") if f.name != "synthesis.md"
+    ):
         try:
             content = fpath.read_text(encoding="utf-8", errors="replace")
         except Exception:

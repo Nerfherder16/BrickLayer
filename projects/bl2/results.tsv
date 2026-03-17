@@ -100,3 +100,11 @@ V14.1	COMPLIANT		skill_forge.py and quality.py are pure utilities — no BL vers
 F14.1	FIXED		goal.py wave-index scans BL 2.0 headers; focus default and prompt examples use BL 2.0 operational modes	2026-03-16T00:00:00Z
 F14.2	FIXED		synthesizer.py writes to findings/synthesis.md; DIAGNOSIS_COMPLETE and FIX_FAILED added to _HIGH_SEVERITY	2026-03-16T00:00:00Z
 V14.2	COMPLIANT		All F14.1/F14.2 fixes verified; goal.py and synthesizer.py correct; no regressions	2026-03-16T00:00:00Z
+D15.1	DIAGNOSIS_COMPLETE		questions.py sync_status sentinel "\n## Q" never matches BL 2.0 D/F/A/V/M prefixes; block_end expands to len(text); latent corruption guarded today	2026-03-16T00:00:00Z
+D15.2	DIAGNOSIS_COMPLETE		crucible.py _score_question_designer() domains_covered D1-D6 hardwired; max achievable score 0.708 below promote threshold in all BL 2.0 campaigns	2026-03-16T00:00:00Z
+D15.3	DIAGNOSIS_COMPLETE		crucible.py _score_synthesizer() regex Q\d+\.\d+ and _score_quantitative_analyst() glob Q*.md both score 0 on BL 2.0 campaigns	2026-03-16T00:00:00Z
+A15.1	NON_COMPLIANT		crucible.py _KNOWN_AGENTS missing all 4 BL 2.0 agents; diagnose-analyst/fix-implementer/compliance-auditor/design-reviewer invisible to benchmarking	2026-03-16T00:00:00Z
+D15.4	HEALTHY		agent_db.py unclassified verdict handling: all 30 BL 2.0 verdicts covered by frozensets; no current failure, latent risk noted	2026-03-16T00:00:00Z
+F15.1	FIXED		questions.py sync_status sentinel changed from "\n## Q" to "\n## " — BL 2.0 block boundaries now found correctly	2026-03-16T00:00:00Z
+F15.2	FIXED		crucible.py: _KNOWN_AGENTS +4 BL 2.0 agents; domains_covered uses prefix detection; synthesizer regex and qa glob both fixed	2026-03-16T00:00:00Z
+V15.1	COMPLIANT		All F15.1/F15.2 fixes verified; questions.py and crucible.py correct; no regressions	2026-03-16T00:00:00Z

@@ -1476,3 +1476,120 @@ Status is tracked in results.tsv — do not edit manually.
 - COMPLIANT: all fixes verified; no regressions
 - NON_COMPLIANT: any check fails
 
+<!-- Wave 15 -->
+
+---
+
+## Wave 15
+
+**Generated from findings**: Wave 14 DIAGNOSIS_COMPLETE verdicts (D14.1, D14.2, D14.3, A14.1) resolved via F14.1, F14.2, V14.2; new audit of questions.py, crucible.py, agent_db.py
+**Mode transitions applied**: fresh audit of three unaudited modules → 3 DIAGNOSIS_COMPLETE → D15.1, D15.2, D15.3 Diagnose; 1 DIAGNOSIS_COMPLETE → D15.4 Diagnose; 1 DIAGNOSIS_COMPLETE → A15.1 Audit
+
+---
+
+## D15.1 [DIAGNOSE] questions.py sync_status_from_results() uses "\n## Q" sentinel — truncates BL 2.0 block boundaries at end-of-file
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Hypothesis**: `sync_status_from_results()` in `bl/questions.py` line 225 locates the end of a question block with `text.find("\n## Q", block_start + 1)`. The sentinel string `"\n## Q"` only matches BL 1.x question headers (e.g., `## Q5.2`). In a BL 2.0 questions.md containing only headers like `## D1.1`, `## F2.1`, `## A14.1`, the sentinel will never match, so `next_block` is always -1 and `block_end` is always `len(text)`. This means the `block` variable spans from the current question header to the very end of the file. When `str.replace()` is called on this oversized block, it replaces only the first occurrence of `**Status**: PENDING` — which is correct for the current question — but the replacement target and the replacement text are then written back as `text[:block_start] + new_block + text[block_end:]`, where `text[block_end:]` is empty. Each call to `sync_status_from_results()` for a non-last question correctly patches only one status line, but any subsequent question whose update runs while the prior iteration's oversized `block` is still in scope will operate on stale string indices. The actual bug: if two questions have `**Status**: PENDING` in the same "block" (which now spans to EOF), the second replace call on the already-modified `text` string will use indices derived from the pre-modification string — producing a corrupted or double-patched questions.md.
+**Test**: Read `bl/questions.py` lines 219-233. Confirm the sentinel on line 225 is the literal string `"\n## Q"`. Construct a two-question BL 2.0 questions.md with headers `## D15.1` and `## D15.2` both `PENDING`. Trace `sync_status_from_results()` with `done_ids = {"D15.1": "DONE", "D15.2": "DONE"}` — confirm that on the first iteration `block_end = len(text)` (spanning both blocks), and on the second iteration the string indices derived from the original `text` are now misaligned with the modified string, producing either a double-replace or a missing replace.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: sentinel is `"\n## Q"` (confirmed BL 1.x-only); `next_block` resolves to -1 for all BL 2.0 headers; the index-based replacement is applied to a stale string reference when multiple questions are updated in one pass; fix requires replacing the sentinel with a generic next-header pattern such as `re.search(r"\n## \w", text[block_start+1:])` or iterating over pre-computed block boundaries
+- HEALTHY: sentinel already covers BL 2.0 headers, or the string replacement is re-parsed after each update making indices non-stale
+
+---
+
+## D15.2 [DIAGNOSE] crucible.py _score_question_designer() domains_covered check is hardwired to BL 1.x D1-D6 domain codes — always scores 0 in BL 2.0 campaigns
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Hypothesis**: `_score_question_designer()` in `bl/crucible.py` lines 246-260 defines `domain_keywords` as a dict mapping `"D1"` through `"D6"` to lists of BL 1.x domain-specific keywords (`"performance"`, `"legal"`, `"regulatory"`, `"market"`, `"benchmark"`, `"security"`, etc.). It then scans `wave1_text` for any of these keywords and scores `domains_covered = len(domain_hits) / 6.0`. In a BL 2.0 campaign, there are no D1-D6 domain codes — the six BL 1.x domains do not exist. The question-designer in BL 2.0 uses operational modes (DIAGNOSE, FIX, AUDIT, VALIDATE, MONITOR, FRONTIER). None of the BL 1.x domain keywords are guaranteed to appear in BL 2.0 questions, so `domain_hits` will be empty or near-empty and `domains_covered` scores 0.0. Since `domains_covered` carries a 0.35 weight (line 270), the question-designer's overall Crucible score is structurally suppressed by at least 0.35 in every BL 2.0 campaign, regardless of actual output quality. This will flag the question-designer as underperforming and trigger unnecessary overseer intervention.
+**Test**: Read `bl/crucible.py` lines 246-287. Confirm `domain_keywords` keys are `"D1"` through `"D6"`. Confirm the `domains_covered` weight in `weights` dict is 0.35. Then read a real BL 2.0 Wave 1 question block from `questions.md` — confirm it contains none of the BL 1.x domain keywords associated with D1-D6 (e.g., "regulatory", "benchmark", "cohort"), making `domain_hits` empty and `domains_covered = 0.0`. Calculate the maximum achievable score for question-designer in a BL 2.0 campaign (should be 0.65 if all other checks pass — below the 0.80 promote threshold and approaching the 0.50 flag threshold).
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: `domain_keywords` keys are `"D1"` through `"D6"`; `domains_covered` weight is 0.35; BL 2.0 questions produce near-zero domain coverage; maximum achievable question-designer score in BL 2.0 is ≤ 0.65; fix requires replacing the BL 1.x domain coverage check with a BL 2.0 operational mode coverage check (DIAGNOSE, FIX, AUDIT, VALIDATE, MONITOR, FRONTIER)
+- HEALTHY: domain keywords already include BL 2.0 operational mode terms, or the domains_covered check has been replaced with a mode-coverage check
+
+---
+
+## D15.3 [DIAGNOSE] crucible.py _score_synthesizer() and _score_quantitative_analyst() use BL 1.x-only file globs and ID regexes — both score 0 in BL 2.0 campaigns
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Hypothesis**: Two rubric functions in `bl/crucible.py` contain BL 1.x-only patterns that produce structural zero scores in BL 2.0 campaigns. First, `_score_synthesizer()` at line 302 checks `has_finding_refs` with `re.search(r"Q\d+\.\d+", text)` — this only matches BL 1.x finding IDs (`Q5.2`, `Q12.1`). BL 2.0 synthesis files reference findings as `D14.1`, `F2.1`, `A10.1` — none matching `Q\d+\.\d+`. `has_finding_refs` carries weight 0.30, so every BL 2.0 synthesis loses 0.30 from its score structurally, independent of quality. Second, `_score_quantitative_analyst()` at line 328 globs `findings_dir.glob("Q*.md")` — only finding files whose names begin with `Q` are examined. In BL 2.0, all finding files are named by BL 2.0 IDs (`D1.md`, `A10.1.md`, `F14.1.md`, etc.). The glob returns an empty list, the function returns `AgentScore(..., 0.0, {}, "No performance/D1/D5 findings found")`, and quantitative-analyst's Crucible score is permanently 0.0 regardless of its actual performance.
+**Test**: Read `bl/crucible.py` line 302 — confirm `has_finding_refs` regex is `r"Q\d+\.\d+"`. Confirm weight is 0.30 in `checks_raw`. Read line 328 — confirm glob pattern is `"Q*.md"`. List actual finding files in a BL 2.0 project's findings/ directory — confirm all are named with BL 2.0 prefixes (D, F, A, V, M) and none match `Q*.md`. Confirm the function returns score=0.0 with the "No performance/D1/D5 findings found" message.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: `has_finding_refs` uses `Q\d+\.\d+` regex (BL 1.x only); `_score_quantitative_analyst()` globs `Q*.md` (returns empty in BL 2.0); both produce structural zero scores; fix requires: (1) expanding the synthesis finding-refs regex to `[A-Z]\d+\.\d+` or `[DFAVM]\d+`, (2) changing the quantitative-analyst glob to `"*.md"` with a filter for performance-relevant content
+- HEALTHY: both patterns already cover BL 2.0 IDs
+
+---
+
+## A15.1 [AUDIT] crucible.py _KNOWN_AGENTS excludes all BL 2.0 operational agents — diagnose-analyst, fix-implementer, compliance-auditor, design-reviewer are never benchmarked
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Operational Mode**: audit
+**Status**: NON_COMPLIANT
+**Hypothesis**: `_KNOWN_AGENTS` in `bl/crucible.py` lines 31-36 is a fixed list: `["hypothesis-generator", "question-designer", "synthesizer", "quantitative-analyst"]`. These are the four BL 1.x specialist agents. BL 2.0 introduced four new operational agents: `diagnose-analyst`, `fix-implementer`, `compliance-auditor`, and `design-reviewer`. None of these appear in `_KNOWN_AGENTS`. The consequences: (1) `get_all_statuses()` at line 401 only returns statuses for the four BL 1.x agents — the BL 2.0 fleet is invisible to Crucible's status tracking; (2) `print_report()` only prints rows for the four listed agents — the campaign operator never sees Crucible benchmarks for the agents doing the majority of BL 2.0 work; (3) `run_all_benchmarks()` only runs the four BL 1.x scorers — even if a BL 2.0 scorer were added to `_SCORERS`, it would be unreachable via `get_all_statuses()` because `_KNOWN_AGENTS` controls which agents appear in the status table. The BL 2.0 operational agent fleet is permanently invisible to the Crucible benchmarking system.
+**Test**: Read `bl/crucible.py` lines 31-36 — list the exact contents of `_KNOWN_AGENTS`. Confirm `diagnose-analyst`, `fix-implementer`, `compliance-auditor`, and `design-reviewer` are absent. Read `get_all_statuses()` at line 401 — confirm it iterates only `_KNOWN_AGENTS`. Read `print_report()` at line 416 — confirm it iterates only `_KNOWN_AGENTS`. Check whether any BL 2.0 agent scorer exists in `_SCORERS` — confirm it would be unreachable via the current status/reporting path even if added.
+**Verdict threshold**:
+- NON_COMPLIANT: `_KNOWN_AGENTS` contains only BL 1.x agents; `diagnose-analyst`, `fix-implementer`, `compliance-auditor`, `design-reviewer` are absent; status tracking and reporting are blind to the BL 2.0 agent fleet; fix requires adding BL 2.0 agents to `_KNOWN_AGENTS` and adding corresponding rubric scorers to `_SCORERS`
+- COMPLIANT: `_KNOWN_AGENTS` already includes BL 2.0 operational agents
+
+---
+
+## D15.4 [DIAGNOSE] agent_db.py unclassified verdict silently counts as failure — no warning emitted and no escape hatch for future BL 2.0 verdicts
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: HEALTHY
+**Hypothesis**: `_compute_score()` in `bl/agent_db.py` lines 113-121 calculates agent score by summing verdict counts from `_SUCCESS_VERDICTS` and `_PARTIAL_VERDICTS` frozensets. Any verdict string that is not a member of either frozenset contributes 0 to the numerator but 1 to the denominator (via `rec["runs"]`, which is incremented unconditionally in `record_run()` line 151). An unclassified verdict is therefore treated identically to a full failure (`_FAILURE_VERDICTS` member), but silently — no log line, no warning, and no way for an operator to distinguish "agent produced FAILURE" from "agent produced an unknown verdict string". As BL 2.0 gains new verdicts (e.g., `BLOCKED` is in `_PARTIAL_VERDICTS` but a future `STALLED` or `DEGRADED_PARTIAL` would not be), the silent zero-credit treatment will depress agent scores without any observable signal. The three frozensets together cover 29 verdict strings, but `constants.py` defines a larger set — any verdict present in `constants.py` but absent from all three frozensets in `agent_db.py` will be silently misclassified.
+**Test**: Read `bl/agent_db.py` lines 27-73 — list all verdicts in `_SUCCESS_VERDICTS`, `_PARTIAL_VERDICTS`, and `_FAILURE_VERDICTS`. Read `bl/constants.py` (or equivalent) — list all defined verdict strings. Compute the set difference: verdicts in constants.py not present in any of the three agent_db frozensets. Confirm that `_compute_score()` assigns 0 credit to any verdict in that difference set without logging a warning. Confirm `record_run()` line 151 increments `runs` before any verdict classification check.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: at least one verdict defined in constants.py is absent from all three agent_db frozensets; absent verdicts receive 0 credit silently; `record_run()` increments `runs` before classification; no warning is emitted for unclassified verdicts; fix requires either (1) an exhaustive check that logs a warning when an unclassified verdict is recorded, or (2) an "unknown → partial" fallback with a warning log
+- HEALTHY: the union of the three frozensets exactly covers all verdict strings defined in constants.py, or an explicit unknown-verdict handler already exists with a warning log
+
+<!-- Wave 15 Fixes -->
+
+## F15.1 [FIX] Fix questions.py sync_status sentinel for BL 2.0 block boundaries
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: FIXED
+**Motivated by**: D15.1
+**Fix**: In `bl/questions.py` line 225: change `text.find("\n## Q", block_start + 1)` to `text.find("\n## ", block_start + 1)`.
+**Verdict threshold**:
+- FIXED: sentinel changed to generic `"\n## "`; BL 2.0 block boundaries found correctly
+- FIX_FAILED: Q-prefix sentinel remains
+
+---
+
+## F15.2 [FIX] Fix crucible.py BL 1.x patterns — domains_covered, ID regexes, Q-glob, and _KNOWN_AGENTS
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: FIXED
+**Motivated by**: D15.2 + D15.3 + A15.1
+**Fix**: In `bl/crucible.py`:
+(1) Lines 245-260: Replace `domain_keywords` D1-D6 dict with prefix-detection via `re.findall(r'^## ([A-Z])\d+\.\d+', wave1_text, re.MULTILINE)`; score = `len(unique_prefixes) / 5.0`
+(2) Line 300: Change `r'Q\d+\.\d+'` to `r'\b[A-Z]\d+\.\d+'`
+(3) Line 328: Change `findings_dir.glob('Q*.md')` to `(f for f in findings_dir.glob('*.md') if f.name != 'synthesis.md')`
+(4) Lines 31-36: Add `"diagnose-analyst"`, `"fix-implementer"`, `"compliance-auditor"`, `"design-reviewer"` to `_KNOWN_AGENTS`
+**Verdict threshold**:
+- FIXED: all four changes applied; BL 2.0 agents visible to Crucible
+- FIX_FAILED: any change missing
+
+---
+
+## V15.1 [VALIDATE] questions.py and crucible.py fixes correct after F15.1-F15.2
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Operational Mode**: validate
+**Status**: COMPLIANT
+**Motivated by**: F15.1 + F15.2
+**Hypothesis**: After F15.1, sync_status uses generic `"\n## "` sentinel. After F15.2, crucible.py uses BL 2.0-aware patterns and includes all operational agents.
+**Verdict threshold**:
+- COMPLIANT: all fixes verified; no regressions
+- NON_COMPLIANT: any check fails
+
