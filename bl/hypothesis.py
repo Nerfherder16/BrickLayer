@@ -19,7 +19,8 @@ from bl.config import cfg
 _TIMEOUT = 120.0  # hypothesis generation needs more time than classification
 
 _QUESTION_BLOCK_HEADER = re.compile(
-    r"^## (Q\d+\.\d+[\w.]*)\s+\[(\w+)\]\s+(.+)$", re.MULTILINE
+    r"^## ([\w][\w.-]*)\s+\[(\w+)\]\s+(.+)$",
+    re.MULTILINE,  # F9.1: match BL 2.0 IDs (D8.1, F5.1) + BL 1.x (Q2.4)
 )
 
 

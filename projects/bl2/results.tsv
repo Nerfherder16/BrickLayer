@@ -61,3 +61,9 @@ F8.1	FIXED		glob("Q*.md") → glob("*.md") — all finding files (BL 1.x and BL 
 F8.2	FIXED		FAILURE/NON_COMPLIANT/WARNING/REGRESSION/ALERT added to _PRESERVE_AS_IS — preserved in questions.md status	2026-03-16T00:00:00Z
 A8.1	COMPLIANT		modes/ has all 10 BL 2.0 operational mode files; _load_mode_context() silent fallback is acceptable	2026-03-16T00:00:00Z
 V8.1	COMPLIANT		Override injection, status preservation, mode context loading all correct after F8.1+F8.2; no regressions	2026-03-16T00:00:00Z
+D9.1	FAILURE		_QUESTION_BLOCK_HEADER regex Q-only — wave detection returns 1 and ID extraction returns empty for BL 2.0 questions.md	2026-03-16T00:00:00Z
+D9.2	FAILURE		agent_db recording condition mode=="agent" excludes code_audit; agent_db.json not found — 0 BL 2.0 agents tracked	2026-03-16T00:00:00Z
+F9.1	FIXED		_QUESTION_BLOCK_HEADER regex changed to [\w][\w.-]* — matches D8.1, F5.1 etc; wave detection returns 9 correctly	2026-03-16T00:00:00Z
+F9.2	FIXED		agent_db condition expanded to mode in ("agent","code_audit") — all BL 2.0 agents now tracked	2026-03-16T00:00:00Z
+A9.1	COMPLIANT		"DONE" in _SUCCESS_VERDICTS is dead code — no runner returns verdict="DONE"; no correctness impact	2026-03-16T00:00:00Z
+V9.1	COMPLIANT		Hypothesis wave detection and agent tracking both correct after F9.1+F9.2; BL 1.x Q-pattern preserved	2026-03-16T00:00:00Z

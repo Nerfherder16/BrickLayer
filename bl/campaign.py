@@ -155,7 +155,9 @@ def run_and_record(question: dict) -> dict:
 
     # BL 2.0: record agent performance in agent_db
     agent_name = question.get("agent_name")
-    if question.get("mode") == "agent" and agent_name:
+    if (
+        question.get("mode") in ("agent", "code_audit") and agent_name
+    ):  # F9.2: track code_audit BL 2.0 agents too
         try:
             from bl import agent_db
 

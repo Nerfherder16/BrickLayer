@@ -936,3 +936,89 @@ Status is tracked in results.tsv — do not edit manually.
 **Verdict threshold**:
 - COMPLIANT: All campaign BL 2.0 integration points verified correct after fixes; no BL 1.x regressions
 - NON_COMPLIANT: F8.1 or F8.2 not applied, or introduced new bugs in the override/status path
+
+---
+
+## D9.1 [CORRECTNESS] hypothesis.py _QUESTION_BLOCK_HEADER regex only matches Q-prefixed BL 1.x IDs
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: FAILURE
+**Hypothesis**: In bl/hypothesis.py, `_QUESTION_BLOCK_HEADER = re.compile(r"^## (Q\d+\.\d+[\w.]*)\s+\[(\w+)\]\s+(.+)$", re.MULTILINE)`. This regex only matches IDs starting with "Q" followed by digits. BL 2.0 IDs (D8.1, F5.1, A7.1, V6.1, M2.1) never match. Consequences: (1) `_get_wave_number()` returns 1 for BL 2.0 questions.md (no matches → waves=[] → returns 1). (2) `_get_existing_ids()` returns empty set. (3) `generate_hypotheses()` would generate "Wave 2" Q2.1-format questions even if Wave 8 is current. (4) Generated questions would use BL 1.x ID format.
+**Test**: Read bl/hypothesis.py _QUESTION_BLOCK_HEADER. Trace: "## D8.1 [CORRECTNESS] title" against the regex — does it match? Confirm _get_wave_number() behavior for a questions.md with only BL 2.0 headers. Confirm generated IDs would be Q2.1, Q2.2... not D9.1, D9.2...
+**Verdict threshold**:
+- FAILURE: Regex confirmed Q-only; _get_wave_number() returns 1 for BL 2.0 questions.md; generated IDs use wrong format
+- HEALTHY: Regex handles BL 2.0 IDs; wave detection and ID extraction correct
+**Fix Specification** (for DIAGNOSIS_COMPLETE transition):
+- **File**: bl/hypothesis.py, _QUESTION_BLOCK_HEADER
+- **Change**: Replace `Q\d+\.\d+[\w.]*` with `[\w][\w.-]*` to match all BL 2.0 question IDs (same as block_pattern in questions.py)
+- **Verification**: "## D8.1 [CORRECTNESS] title" matches; _get_wave_number() correctly returns 8 for BL 2.0 questions.md
+
+---
+
+## D9.2 [CORRECTNESS] campaign.py agent_db recording skips code_audit mode — BL 2.0 agents not tracked
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: FAILURE
+**Hypothesis**: In bl/campaign.py run_and_record() lines 156-169: `if question.get("mode") == "agent" and agent_name`. After F5.1, BL 2.0 questions with `**Mode**: code_audit` in body have `question["mode"] = "code_audit"`. So all diagnose-analyst, fix-implementer, compliance-auditor, design-reviewer runs (mode=code_audit) are excluded from agent_db tracking. The agent performance scoring system has zero data on all BL 2.0 agent runs. The overseer underperformer detection cannot fire for any BL 2.0 agent.
+**Test**: Read bl/campaign.py run_and_record() lines 156-170. Confirm condition is `mode == "agent"`. Read questions.md and count questions with **Mode**: code_audit. Confirm those agents are never passed to agent_db.record_run(). Check if agent_db.json exists in projects/bl2/ and has any entries for BL 2.0 agents.
+**Verdict threshold**:
+- FAILURE: Condition is mode=="agent" only; code_audit runs not tracked; agent_db.json empty or missing BL 2.0 agents
+- HEALTHY: Condition covers code_audit mode or equivalent tracking exists
+**Fix Specification** (for DIAGNOSIS_COMPLETE transition):
+- **File**: bl/campaign.py, run_and_record(), agent_db recording block
+- **Change**: Change `if question.get("mode") == "agent"` to `if question.get("mode") in ("agent", "code_audit")`
+- **Verification**: diagnose-analyst run with mode=code_audit recorded in agent_db.json
+
+---
+
+## F9.1 [FIX] Fix hypothesis.py _QUESTION_BLOCK_HEADER to match BL 2.0 question IDs
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: DONE
+**Motivated by**: D9.1 DIAGNOSIS_COMPLETE
+**Method**: In bl/hypothesis.py: change `_QUESTION_BLOCK_HEADER = re.compile(r"^## (Q\d+\.\d+[\w.]*)\s+\[(\w+)\]\s+(.+)$", re.MULTILINE)` to use `[\w][\w.-]*` as the ID pattern (same as block_pattern in questions.py F4.3). Update `_get_wave_number()` to handle BL 2.0 IDs (extract wave from first numeric segment or use max dot-count).
+**Verdict threshold**:
+- FIXED: "## D8.1 [CORRECTNESS] title" matches; _get_wave_number() returns correct wave from BL 2.0 questions.md; _get_existing_ids() includes all BL 2.0 IDs
+- FIX_FAILED: Regex still Q-only or wave detection broken
+
+---
+
+## F9.2 [FIX] Fix campaign.py agent_db recording to include code_audit mode
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: DONE
+**Motivated by**: D9.2 DIAGNOSIS_COMPLETE
+**Method**: In bl/campaign.py run_and_record() agent_db block: change `if question.get("mode") == "agent" and agent_name` to `if question.get("mode") in ("agent", "code_audit") and agent_name`. Both modes use run_agent() internally, so tracking is appropriate for both.
+**Verdict threshold**:
+- FIXED: code_audit mode agent runs recorded in agent_db.json; overseer can detect underperformers across all BL 2.0 agents
+- FIX_FAILED: Condition not updated or agent_name not available for code_audit questions
+
+---
+
+## A9.1 [COMPLIANCE] agent_db.py verdict classification — "DONE" in _SUCCESS_VERDICTS is unreachable
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Operational Mode**: audit
+**Status**: DONE
+**Hypothesis**: In bl/agent_db.py, `_SUCCESS_VERDICTS` includes "DONE". But "DONE" is a questions.md **Status** value, not a verdict. No agent should ever return verdict="DONE" from run_agent(). The "DONE" entry is dead code. Audit: (1) Can any runner or agent return verdict="DONE"? (2) Is "DONE" in _VERDICT_CLARITY in findings.py? (3) Does having dead code in _SUCCESS_VERDICTS cause any correctness issue?
+**Test**: Read bl/agent_db.py _SUCCESS_VERDICTS. Read bl/findings.py _VERDICT_CLARITY. Check if "DONE" appears in any verdict set or can be returned by any runner. Determine if the dead entry causes incorrect scoring.
+**Verdict threshold**:
+- COMPLIANT: "DONE" is dead code — no runner returns it; no correctness impact; minor cleanup opportunity only
+- NON_COMPLIANT: A runner can return "DONE" as verdict causing incorrect 1.0 credit scoring
+
+---
+
+## V9.1 [VALIDATE] Hypothesis generation and agent tracking correct after F9.1+F9.2
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Operational Mode**: validate
+**Status**: DONE
+**Motivated by**: F9.1 + F9.2 + A9.1
+**Hypothesis**: After F9.1, _QUESTION_BLOCK_HEADER matches BL 2.0 IDs; _get_wave_number() returns correct wave; _get_existing_ids() returns all current question IDs. After F9.2, code_audit agent runs are tracked in agent_db; overseer can detect underperforming BL 2.0 agents.
+**Verdict threshold**:
+- COMPLIANT: All targeted functions produce correct output; BL 1.x Q-pattern behavior preserved
+- NON_COMPLIANT: Regex change broke BL 1.x detection or wave number extraction
