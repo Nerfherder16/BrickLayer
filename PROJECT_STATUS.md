@@ -1,6 +1,6 @@
 # Project Status — BrickLayer Research HQ
 
-**Last updated**: 2026-03-17
+**Last updated**: 2026-03-18
 **Maintained by**: git-nerd + Tim (update whenever something changes)
 
 > One place to see everything. Run `/project-status` to regenerate from live state.
@@ -13,10 +13,10 @@
 |--------|-----------|---------|--------|
 | `master` | ✅ | BL engine + all merged work | Current — work here by default |
 | `recall/design` | ✅ | Recall 2.0 design workspace + frontier campaign | Pushed 2026-03-17 — safe |
-| `recall/mar14` | ❌ local only | Recall 1.x campaign work (Wave 33+) | Has unstaged changes — needs push |
+| `recall/mar14` | ✅ | Recall 1.x campaign work (Wave 33+) | Pushed 2026-03-18 — safe |
 
 **Stale remote branches to delete:**
-- `origin/bl2/mar16` — merged into master via PR #1
+- `origin/bl2/mar16` — merged into master via PR #1 (already deleted)
 
 ---
 
@@ -40,10 +40,10 @@
 ### 🟡 Recall 1.x Campaign — `recall/`
 **What it is**: BrickLayer research campaign against the deployed Recall memory system.
 **Status**: PAUSED — Wave 33-36 done, 2 PENDING questions remain
-**Branch**: `recall/mar14` (local only — **needs push**)
+**Branch**: `recall/mar14` ✅ (pushed to GitHub)
 **Pending questions**: 2
 **Key open issues**: double-decay bug (24 consecutive FAILUREs as of Wave 33)
-**Next action**: Push `recall/mar14`, then either fix double-decay or close out this campaign
+**Next action**: Either fix double-decay or close out this campaign (branch is safe on GitHub)
 
 ---
 
@@ -152,8 +152,8 @@ benchmark-engineer, cascade-analyst, design-reviewer, evolve-optimizer, health-m
 
 ## Cleanup Needed
 
-- [ ] Delete remote branch `origin/bl2/mar16` (already merged)
-- [ ] Push `recall/mar14` to GitHub before switching away from it
+- [x] Delete remote branch `origin/bl2/mar16` (deleted 2026-03-17)
+- [x] Push `recall/mar14` to GitHub (pushed 2026-03-18)
 - [ ] Commit `recall-arch-frontier/simulate.py` (was excluded due to hook false-positive)
 - [ ] Decide fate of `adbp/` — active or archive?
 - [ ] Delete or archive `bricklayer-meta/`, `bricklayer-v2/`, `template-frontier/`
