@@ -67,3 +67,9 @@ F9.1	FIXED		_QUESTION_BLOCK_HEADER regex changed to [\w][\w.-]* — matches D8.1
 F9.2	FIXED		agent_db condition expanded to mode in ("agent","code_audit") — all BL 2.0 agents now tracked	2026-03-16T00:00:00Z
 A9.1	COMPLIANT		"DONE" in _SUCCESS_VERDICTS is dead code — no runner returns verdict="DONE"; no correctness impact	2026-03-16T00:00:00Z
 V9.1	COMPLIANT		Hypothesis wave detection and agent tracking both correct after F9.1+F9.2; BL 1.x Q-pattern preserved	2026-03-16T00:00:00Z
+D10.1	FAILURE		_parse_question_blocks() uses Q-only regex; prompt hardcodes Q-format IDs — hypothesis generation returns 0 blocks for BL 2.0	2026-03-16T00:00:00Z
+D10.2	FAILURE		parse_recommendation() scans all lines; Dead Ends template "stop probing here" triggers false STOP before recommendation section	2026-03-16T00:00:00Z
+F10.1	FIXED		_parse_question_blocks() regex changed to \w+{wave}.\d+; prompt rule 5 updated to allow any letter prefix	2026-03-16T00:00:00Z
+F10.2	FIXED		parse_recommendation() now locates Recommended Next Action section header and scans only subsequent lines	2026-03-16T00:00:00Z
+A10.1	NON_COMPLIANT		pop(0) on alphabetical sort drops A*/D* findings before V* findings; corpus biased under budget pressure	2026-03-16T00:00:00Z
+V10.1	COMPLIANT		Both fixes verified: BL 2.0 IDs accepted in _parse_question_blocks(); CONTINUE returned despite Dead Ends prose	2026-03-16T00:00:00Z
