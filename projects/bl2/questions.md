@@ -1985,3 +1985,80 @@ Status is tracked in results.tsv — do not edit manually.
 - Concrete edit: Changed from `if "DIAGNOSIS_COMPLETE" not in content and "Fix Specification" not in content: continue` to `if "**Verdict**: DIAGNOSIS_COMPLETE" not in content: continue`
 - Verification command: Check that only D-prefix DIAGNOSIS_COMPLETE findings enter spec_scores — F-prefix FIXED findings excluded
 
+---
+
+## Wave 20 — Post-Fix Validation and Dashboard Audit
+
+**Generated from findings**: F19.1, F19.2, D18.1, D18.2
+**Mode transitions applied**: F19.1 FIXED -> V20.1 Validate (_is_bl2_diag_row edge-case coverage); F19.2 FIXED -> V20.2 Validate (exact verdict line match — variant format gap); D18.1 HEALTHY (HEAL_EXHAUSTED write-back confirmed) -> A20.1 Audit (HEAL_EXHAUSTED display in dashboard QuestionQueue); D18.2 HEALTHY (D-prefix FIXED contamination latent) -> A20.2 Audit (fix_rows prefix guard — should it be hardened now); F19.1 FIXED -> D20.1 Diagnose (run_all_benchmarks() post-fix score verification)
+
+---
+
+### V20.1: Does _is_bl2_diag_row() in crucible.py correctly handle edge cases — empty lines, lines with fewer than 3 tab-separated columns, and rows where parts[2] contains a trailing newline or whitespace?
+
+**Status**: COMPLIANT
+**Operational Mode**: validate
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Priority**: HIGH
+**Motivated by**: F19.1 (FIXED) — _is_bl2_diag_row() was added as a nested helper to scope dc_rate to BL 2.0 D-prefix rows. The implementation checks `parts[0] == "N/A"` and `parts[1].startswith("D")` and matches `parts[2]` against a regex. However results.tsv rows produced by update_results_tsv() may have trailing newlines (splitlines() strips them, but other read paths may not), and lines with only whitespace or with a BOM at the start of the file would cause parts[0] to be non-"N/A" silently. An empty string from a trailing newline after splitlines() would produce parts=[""] with len < 3, falling to return False — but this must be confirmed. If parts[2] contains a space or tab suffix (e.g., "DIAGNOSIS_COMPLETE\n"), the regex r"^(DIAGNOSIS_COMPLETE|...)$" would correctly reject it, but the failure mode is silent: valid BL 2.0 rows are excluded from all_diag, producing an understated dc_rate with no error.
+**Hypothesis**: The splitlines() call at results_tsv.read_text().splitlines() strips newlines before the list comprehension, so parts[2] will not have trailing newline characters. Empty lines from splitlines() would produce a one-element list [""] with len(parts) < 3, so the `len(parts) >= 3` guard correctly returns False. The function is edge-case correct for the current read path. However, if a future call site passes lines without splitlines() (e.g., from a generator or line-by-line reader), the guard could fail silently on valid rows.
+**Method**: Read bl/crucible.py lines 383-403 in full. Confirm: (1) The read path that feeds lines into _is_bl2_diag_row() uses splitlines() (stripping newlines). (2) The `len(parts) >= 3` guard at line 385 handles short rows. (3) The regex `r"^(DIAGNOSIS_COMPLETE|HEALTHY|FAILURE|INCONCLUSIVE)$"` is anchored with ^ and $ — confirm this correctly rejects rows where parts[2] has trailing whitespace or content after the verdict token. (4) Check whether any other call site in crucible.py reads results.tsv lines without splitlines().
+**Success criterion**: COMPLIANT if splitlines() strips newlines before the helper runs and all three guards (len check, parts[0] equality, parts[1] prefix, parts[2] regex) are collectively sufficient to handle empty lines, short rows, and whitespace edge cases. NON_COMPLIANT with Fix Specification if any valid BL 2.0 D-prefix row can be silently excluded by an edge condition in the helper.
+
+---
+
+### V20.2: Does the exact `**Verdict**: DIAGNOSIS_COMPLETE` match in fix_spec_completeness miss any legitimate diagnosis findings that use variant verdict formats — such as bold-italic, different spacing, or verdict inside a code block?
+
+**Status**: COMPLIANT
+**Operational Mode**: validate
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Priority**: MEDIUM
+**Motivated by**: F19.2 (FIXED) — fix_spec_completeness guard was tightened to `"**Verdict**: DIAGNOSIS_COMPLETE" not in content` (exact bold-markdown pattern). This correctly excludes FIXED findings. However, the agent prompt template for diagnose-analyst may produce variant verdict formats in edge cases: e.g., `**Verdict:** DIAGNOSIS_COMPLETE` (space before colon vs. colon-space), `***Verdict***: DIAGNOSIS_COMPLETE` (bold-italic), or a verdict rendered inside a markdown code block (backtick-quoted). Any such variant would cause a genuine DIAGNOSIS_COMPLETE finding to be excluded from spec_scores, producing an understated fix_spec_completeness metric.
+**Hypothesis**: The diagnose-analyst agent prompt specifies the exact output format `**Verdict**: DIAGNOSIS_COMPLETE` (double-asterisk bold, colon, space, then verdict). All existing DIAGNOSIS_COMPLETE findings in projects/bl2/findings/ use this exact format consistently. There are no variant formats in the current campaign. The risk is low for the current campaign but becomes relevant when the agent prompt changes or new campaigns start.
+**Method**: Run: `grep -rn "DIAGNOSIS_COMPLETE" projects/bl2/findings/*.md | grep -v "synthesis"` — list all occurrences of "DIAGNOSIS_COMPLETE" across all finding files. For each occurrence, check whether it uses the exact `**Verdict**: DIAGNOSIS_COMPLETE` pattern or a variant (colon-space vs. space-colon, bold-italic, code-block, etc.). Confirm that every finding with a DIAGNOSIS_COMPLETE verdict in the file appears with exactly the expected pattern. Count how many findings have the exact pattern vs. how many findings in results.tsv have verdict DIAGNOSIS_COMPLETE.
+**Success criterion**: COMPLIANT if all DIAGNOSIS_COMPLETE findings use the exact `**Verdict**: DIAGNOSIS_COMPLETE` format with no variants. NON_COMPLIANT with Fix Specification if any legitimate DIAGNOSIS_COMPLETE finding uses a variant format that the exact match would miss — the fix would be to normalize the pattern (e.g., strip surrounding whitespace from the match string, or use a regex).
+
+---
+
+### A20.1: Does the dashboard QuestionQueue component display HEAL_EXHAUSTED questions with a distinct visual status — or does it render them with the default fallback styling, making exhausted questions visually indistinguishable from unknown statuses?
+
+**Status**: NON_COMPLIANT
+**Operational Mode**: audit
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Priority**: HIGH
+**Motivated by**: D18.1 (HEALTHY) — HEAL_EXHAUSTED write-back to questions.md is confirmed correct end-to-end. However, HEAL_EXHAUSTED questions requiring human intervention must be visually prominent in the dashboard so an operator can identify them without scanning raw questions.md. The QuestionQueue component in dashboard/frontend/src/components/QuestionQueue.tsx defines STATUS_COLORS with only four entries: PENDING, DONE, INCONCLUSIVE, IN_PROGRESS. HEAL_EXHAUSTED is not in the map, so questions.status === "HEAL_EXHAUSTED" renders with the default fallback `bg-[#374151] text-[#9ca3af]` (same as PENDING gray). Additionally, the status filter dropdown has options only for PENDING, DONE, INCONCLUSIVE, and IN_PROGRESS — there is no HEAL_EXHAUSTED option, so operators cannot filter to show only exhausted questions. Both omissions reduce the operational visibility of a status that represents a campaign stall requiring human action.
+**Hypothesis**: STATUS_COLORS in QuestionQueue.tsx line 9-14 is missing HEAL_EXHAUSTED. The filter dropdown at lines 152-156 is missing a HEAL_EXHAUSTED option. Both omissions are present in the current source. The dashboard would currently show HEAL_EXHAUSTED questions in plain gray with no filter accessibility.
+**Method**: Read dashboard/frontend/src/components/QuestionQueue.tsx lines 1-30 (STATUS_COLORS map) and lines 148-160 (filter dropdown options). Confirm: (1) HEAL_EXHAUSTED is absent from STATUS_COLORS. (2) No filter option for HEAL_EXHAUSTED exists in the dropdown. (3) Other BL 2.0 terminal statuses — NON_COMPLIANT, FIXED, FIX_FAILED, DIAGNOSIS_COMPLETE, COMPLIANT, PROMISING, BLOCKED — are also checked for coverage in STATUS_COLORS. Document any missing entries.
+**Success criterion**: NON_COMPLIANT with Fix Specification (covering STATUS_COLORS entry + filter dropdown option for HEAL_EXHAUSTED at minimum) if HEAL_EXHAUSTED is absent from both maps. COMPLIANT only if HEAL_EXHAUSTED renders with a visually distinct amber/red color and is selectable via the filter dropdown.
+
+---
+
+### A20.2: Does _score_fix_implementer in crucible.py require a structural question_id prefix guard now that D-prefix FIXED rows are a confirmed historical edge case, or is the latent fragility acceptable given BL 2.0 campaign design constraints?
+
+**Status**: NON_COMPLIANT
+**Operational Mode**: audit
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Priority**: LOW
+**Motivated by**: D18.2 (HEALTHY) — fix_rows is de facto scoped to fix questions in the current campaign because only F-prefix questions produce FIXED/FIX_FAILED verdicts. However D18.2 documented a confirmed edge case: D-mid.4 had verdict FIXED written to results.tsv (a diagnose question that self-fixed). This edge case is already in the historical results.tsv and is therefore already being counted in fix_rows. The fragility is not purely theoretical — it has already occurred once. The question is whether the project-brief or campaign design rules explicitly prohibit D-prefix questions from producing FIXED verdicts going forward, or whether a structural guard should be added to _score_fix_implementer to exclude non-F-prefix rows from fix_rows.
+**Hypothesis**: The project-brief specifies that FIXED is a fix-implementer verdict (F-prefix questions). A D-prefix question producing FIXED is a campaign design violation, not a supported pattern. Therefore _score_fix_implementer should add a question_id prefix guard (keep only rows where qid starts with "F" or campaign-specific fix-question prefixes) to prevent future D-prefix FIXED rows from silently contaminating the metric. The D-mid.4 edge case is a known historical artifact that should be excluded from fix_rows going forward.
+**Method**: Read bl/crucible.py lines 425-475 (_score_fix_implementer). Confirm the fix_rows filter is verdict-only with no prefix guard. Read project-brief.md — check whether FIXED is listed as an exclusive fix-implementer verdict. Count how many rows in results.tsv have verdict FIXED with a non-F-prefix question ID (D-mid.4 confirmed; check for others). Determine whether adding a prefix guard would change the current fixed_rate score (if D-mid.4 is the only non-F FIXED row, the impact is one row out of ~40).
+**Success criterion**: NON_COMPLIANT with Fix Specification (add F-prefix filter to fix_rows) if the project-brief designates FIXED as an exclusive fix-implementer verdict AND the D-mid.4 historical row is distorting the current fixed_rate. COMPLIANT if the project-brief permits diagnose questions to produce FIXED in dual-mode scenarios — document the exception explicitly in the finding so future campaigns do not treat it as a defect.
+
+---
+
+### D20.1: Does run_all_benchmarks() produce a materially higher diagnose-analyst dc_rate after the F19.1 _is_bl2_diag_row() fix — specifically, does dc_rate rise from ~0.51 to ~0.85 as predicted, confirming the filter is functioning correctly?
+
+**Status**: HEALTHY
+**Operational Mode**: diagnose
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Priority**: HIGH
+**Motivated by**: F19.1 (FIXED) — the fix was applied and verified by code inspection (correct logic confirmed), but run_all_benchmarks() was not executed post-fix to produce an actual score delta. The F19.1 finding states "Expected Outcome: dc_rate should rise from ~0.51 to ~0.85+". Without an actual benchmark run, the fix is code-verified but not score-verified. If dc_rate does not rise as expected, it would indicate that the _is_bl2_diag_row() helper is silently excluding valid BL 2.0 D-prefix rows — either because the column format check (parts[0]=="N/A") is wrong for some rows, or because D-prefix questions in this campaign produced HEALTHY/DIAGNOSIS_COMPLETE verdicts in old-format rows that the filter now excludes.
+**Hypothesis**: Running run_all_benchmarks() against projects/bl2/results.tsv after the F19.1 fix will show diagnose-analyst dc_rate rising from ~0.51 to ~0.85+. The BL 2.0 D-prefix questions in Wave 15-19 all used new-format TSV rows (col[0]="N/A"), so the filter includes them. The ~22 excluded BL 1.x rows are old-format (qid in col[0]), so they are correctly excluded. The predicted score increase is structurally sound.
+**Method**: Run: `python -c "from bl.crucible import run_all_benchmarks; import json; r = run_all_benchmarks('projects/bl2'); print(json.dumps(r, indent=2))"` from the Bricklayer2.0 root directory. Record the diagnose-analyst dc_rate value in the output. Compare against the pre-fix baseline of ~0.51. If dc_rate is between 0.80 and 0.95, the fix is functioning as expected. If dc_rate is below 0.70, run a diagnostic count: `grep -c "^N/A.*\tD.*\tDIAGNOSIS_COMPLETE\t" projects/bl2/results.tsv` vs `grep -c "^N/A.*\tD.*\t" projects/bl2/results.tsv` to verify all_diag row count.
+**Success criterion**: HEALTHY if dc_rate is >= 0.80 after the fix (consistent with ~85% BL 2.0 diagnose-analyst success rate). DIAGNOSIS_COMPLETE with root cause if dc_rate remains at or near the pre-fix ~0.51 baseline — this would indicate the filter is not working as intended and requires a follow-up Fix question.
+
