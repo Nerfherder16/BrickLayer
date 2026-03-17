@@ -86,3 +86,9 @@ F12.1	FIXED		8 BL 2.0 regression pairs added to _REGRESSIONS; detect_regression(
 F12.2	FIXED		classify_failure_type_local() now handles NON_COMPLIANT/REGRESSION; _SYSTEM_PROMPT updated with BL 2.0 definitions	2026-03-16T00:00:00Z
 F12.3	FIXED		NON_COMPLIANT added to C-04 follow-up guards in campaign.py and followup.py — audit drill-down now functional	2026-03-16T00:00:00Z
 V12.1	COMPLIANT		All three fixes verified; BL 2.0 regression detection, failure classification, and follow-up drill-down now functional	2026-03-16T00:00:00Z
+D13.1	DIAGNOSIS_COMPLETE		followup.py line 102 default 'quantitative-analyst' dead code — agent_name always set as '' by parse_questions(); or-fallback fix needed	2026-03-16T00:00:00Z
+D13.2	FAILURE		followup.py sub-question template omits **Operational Mode** — all follow-up sub-questions default to operational_mode='diagnose'	2026-03-16T00:00:00Z
+A13.1	NON_COMPLIANT		followup.py line 212 mode.upper() produces [CODE_AUDIT] for code_audit questions — invalid BL 2.0 bracket tag	2026-03-16T00:00:00Z
+F13.1	FIXED		_build_followup_prompt() uses 'or' fallback for agent_name; **Operational Mode** field added to sub-question template	2026-03-16T00:00:00Z
+F13.2	FIXED		_parse_followup_blocks() bracket tag injection uses _OP_MODE_TO_TAG from **Operational Mode** field — [CODE_AUDIT] eliminated	2026-03-16T00:00:00Z
+V13.1	COMPLIANT		All fixes verified: agent fallback, Operational Mode injection, bracket tag lookup all correct; no regressions	2026-03-16T00:00:00Z

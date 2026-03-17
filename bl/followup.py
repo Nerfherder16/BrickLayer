@@ -99,7 +99,8 @@ def _build_followup_prompt(question: dict, result: dict, max_questions: int) -> 
     details = result.get("details", "")[:500]
     failure_type = result.get("failure_type", "")
     mode = question.get("mode", "agent")
-    agent = question.get("agent_name", "quantitative-analyst")
+    agent = question.get("agent_name") or "quantitative-analyst"
+    op_mode = question.get("operational_mode", "diagnose")
     hypothesis = question.get("hypothesis", "")
     test = question.get("test", "")
 
@@ -126,6 +127,7 @@ EXACT FORMAT (use this precisely):
 ---
 ## {parent_id}.N [DOMAIN] Short drill-down title
 **Mode**: {mode}
+**Operational Mode**: {op_mode}
 **Agent**: {agent}
 **Status**: PENDING
 **Hypothesis**: Specific follow-on hypothesis targeting the observed failure.
@@ -204,12 +206,41 @@ def _parse_followup_blocks(raw: str, parent_id: str, start_index: int) -> list[s
         )
 
         # Ensure [MODE] tag is present in the header — LLMs sometimes omit it.
-        # Extract mode from **Mode**: field and inject it if missing.
+        # Extract operational_mode from **Operational Mode**: field (added by F13.1)
+        # and map to a valid BL 2.0 bracket tag.  Fall back to runner-mode mapping,
+        # then to DIAGNOSE as a safe default.
+        _OP_MODE_TO_TAG: dict[str, str] = {
+            "diagnose": "DIAGNOSE",
+            "fix": "FIX",
+            "audit": "AUDIT",
+            "validate": "VALIDATE",
+            "monitor": "MONITOR",
+            "frontier": "FRONTIER",
+            "predict": "PREDICT",
+            "research": "RESEARCH",
+            "evolve": "EVOLVE",
+            # runner-mode aliases
+            "code_audit": "AUDIT",
+            "agent": "DIAGNOSE",
+        }
         header_match = re.match(r"^## \S+(.*)$", seg, re.MULTILINE)
         if header_match and "[" not in header_match.group(1):
-            mode_match = re.search(r"\*\*Mode\*\*:\s*(\w+)", seg)
-            if mode_match:
-                mode_tag = f"[{mode_match.group(1).upper()}]"
+            # Prefer **Operational Mode**: field (canonical BL 2.0 field)
+            op_mode_match = re.search(
+                r"\*\*Operational Mode\*\*:\s*(\w+)", seg, re.IGNORECASE
+            )
+            if op_mode_match:
+                raw_op = op_mode_match.group(1).lower()
+                mode_tag = f"[{_OP_MODE_TO_TAG.get(raw_op, 'DIAGNOSE')}]"
+            else:
+                # Legacy fallback: **Mode**: runner_mode → mapped bracket tag
+                mode_match = re.search(r"\*\*Mode\*\*:\s*(\w+)", seg)
+                if mode_match:
+                    raw_mode = mode_match.group(1).lower()
+                    mode_tag = f"[{_OP_MODE_TO_TAG.get(raw_mode, 'DIAGNOSE')}]"
+                else:
+                    mode_tag = None
+            if mode_tag:
                 seg = re.sub(
                     r"^(## \S+) ",
                     rf"\1 {mode_tag} ",
