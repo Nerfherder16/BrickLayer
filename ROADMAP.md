@@ -1,257 +1,220 @@
-# BrickLayer 2.0 — Roadmap
+yes# BrickLayer Roadmap
 
-**Last updated**: 2026-03-16
+BrickLayer is a **universal autonomous research framework**. It runs structured question campaigns against any target — live APIs, codebases, documents, ML models, business processes, smart contracts — collects evidence, and identifies failure boundaries.
 
-Items are ordered by impact within each tier. ✅ = done, 🔧 = in progress / partially done, 📋 = designed/planned, 💡 = ideated/not designed.
-
----
-
-## Tier 1 — Near-Term (Known Bugs + Quick Wins)
-
-These are concrete, bounded changes. All should be done before starting major new campaigns.
-
-| # | Item | What | File(s) | Notes |
-|---|------|------|---------|-------|
-| 1.1 | ✅ `_verdict_from_agent_output` coverage | Accepts all 30 BL 2.0 verdicts | `runners/agent.py` | Fixed in bl2 Wave 2 (F2.1) |
-| 1.2 | ✅ `_NON_FAILURE_VERDICTS` completeness | DEGRADED, ALERT, UNKNOWN, BLOCKED added | `findings.py` | Fixed in bl2 Wave 2 (F2.2) |
-| 1.3 | ✅ `healloop.py` alias bug | `dict(fix_result)` copy not alias | `healloop.py` | Fixed (D2.3) |
-| 1.4 | ✅ `healloop.py` EXHAUSTED cycle count | `last_cycle` tracker vs hardcoded `max_cycles` | `healloop.py` | Fixed (D2.6) |
-| 1.5 | ✅ `healloop.py` heal ID short_type | `_synthetic_question()` uses `"diag"` | `healloop.py` | Fixed (D2.5) |
-| 1.6 | ✅ `campaign.py` heal result propagation | Identity check `healed_result is not result` | `campaign.py` | Fixed (D2.4) |
-| 1.7 | ✅ `config.py` agents_dir | Set `{project_dir}/.claude/agents/` in `init_project()` | `config.py` | Fixed this session |
-| 1.8 | ✅ `config.py` recall_src field | Support both `recall_src` and legacy `target_git` | `config.py` | Fixed this session |
-| 1.9 | 📋 `_STORE_VERDICTS` in constants.py | Move `_STORE_VERDICTS` from `recall_bridge.py` local scope to `constants.py` | `recall_bridge.py`, `constants.py` | D7/M2.1 WARNING — no enforcement test, low risk but tidy |
-| 1.10 | 📋 `_reactivate_pending_external` location | Move from `campaign.py` to `questions.py` to match spec | `questions.py`, `campaign.py` | D4 FAILURE — works where it is but violates project-brief.md |
+The human defines what matters. The agent asks the questions, runs the experiments, and reports what it found.
 
 ---
 
-## Tier 2 — Medium-Term (Features Designed, Not Yet Built)
+## Coordination Board
 
-These are planned features where the architecture is understood. Buildable in a focused session each.
+**Two conversations may be working on this simultaneously. Before touching anything, check CLAIMED status.**
 
-### ✅ 2.0 — Git/GitHub Specialist Agent (`git-nerd`)
+| # | Area | Work Item | Status | Claimed By |
+|---|------|-----------|--------|------------|
+| C-01 | Architecture | Python module split — break simulate.py into `campaign.py`, `questions.py`, `findings.py`, `quality.py`, `scout.py` | **DONE** | conv:mar13-main |
+| C-02 | Architecture | Runner Registry — formalize `Runner(Protocol)` plugin interface | **FREE** | — |
+| C-03 | Campaign | Goal-directed campaigns via `goal.md` — agent generates question set from a target + goal | **FREE** | — |
+| C-04 | Campaign | Adaptive follow-up — FAILURE/WARNING auto-generates drill-down sub-questions (Q2.4 → Q2.4.1) | **FREE** | — |
+| C-05 | Campaign | Verdict history + regression detection — SQLite ledger, flag regressions across runs | **FREE** | — |
+| C-06 | Campaign | Fix loop integration — FAILURE → spawn fix agent → re-run → confirm HEALTHY | **FREE** | — |
+| C-07 | Runners | `http` runner formalization — extract from simulate.py into `runners/http.py` | **FREE** | — |
+| C-08 | Runners | `subprocess` runner formalization — extract into `runners/subprocess.py` | **FREE** | — |
+| C-09 | Runners | `static` runner formalization — extract into `runners/static.py` | **FREE** | — |
+| C-10 | Runners | `browser` runner — Playwright-driven UI interaction testing | **FREE** | — |
+| C-11 | Runners | `benchmark` runner — ML model ablation, latency, accuracy sweeps | **FREE** | — |
+| C-12 | Runners | `document` runner — completeness/accuracy/consistency checks on docs vs code | **FREE** | — |
+| C-13 | Runners | `contract` runner — Solana/EVM invariant checking and edge case fuzzing | **FREE** | — |
+| C-14 | Meta-agents | Hypothesis-generator: generate Wave N+1 questions from findings patterns | **FREE** | — |
+| C-15 | Meta-agents | Crucible: benchmark existing agents, promote/retire by score | **FREE** | — |
+| C-16 | Dashboard | Question status live-update in dashboard UI | **FREE** | — |
+| C-17 | Integrations | GitHub Actions hook — run campaign on PR, post findings as review comments | **FREE** | — |
+| C-18 | Phase 3 | Hypothesis generation from git diffs — auto-question on commit | **FREE** | — |
+| C-19 | Phase 3 | Cross-project knowledge transfer — bug patterns propagate across projects | **FREE** | — |
+| C-20 | Campaign | Failure taxonomy — `classify_failure_type()` wired into every result; `failure_type` in findings + results.tsv | **DONE** | conv:mar13-afternoon |
+| C-21 | Campaign | Confidence signaling — agents emit `high\|medium\|low\|uncertain`; orchestrator uses to route | **DONE** | conv:mar13-afternoon |
+| C-22 | Campaign | Eval/scoring harness — lightweight scorer grades agent outputs; scores written to results.tsv | **FREE** | — |
+| C-23 | Campaign | Introspection decorator — per-step trace `{thought, tool_call, result, tokens, latency, confidence, error_type}` written to Recall | **FREE** | — |
 
-**What**: GitHub specialist agent that enforces proper Git workflows. Tim's described workflow was reckless commits and force-pushes — this agent teaches and enforces best practices.
+### Sessions active
 
-**Implemented**: `template/.claude/agents/git-nerd.md`
+| Session | Label | Focus |
+|---------|-------|-------|
+| mar13-afternoon | `conv:mar13-afternoon` | Infra: hooks, gateway, path fixes |
 
-**Covers**: branching strategy (trunk-based, BrickLayer `{project}/{mmdd}` convention), conventional commits format, PR workflow (draft → review → squash merge), protecting main, rebase vs merge vs squash decisions, release tagging (semver, annotated), pre-commit and pre-push checklists, repository hygiene (.gitignore, stale branch cleanup), emergency procedures (undo, recover deleted branch, nuke local changes).
+### How to claim work
 
-**BrickLayer-specific**: documents campaign branch convention, synthesizer-bl2 commit format, and when to merge a campaign PR to main.
-
----
-
-### 2.1 — Parallel Campaign Execution (Agent Swarm Mode)
-
-**What**: `run_campaign_parallel()` — runs independent questions concurrently instead of sequentially. Questions with no data dependencies (different parts of the codebase, different domains) run simultaneously via Python `asyncio` or `ThreadPoolExecutor`.
-
-**Design sketch**:
-```python
-# In campaign.py
-def run_campaign_parallel(max_workers: int = 4) -> None:
-    """Run PENDING questions in parallel where dependency graph allows."""
-    # 1. Build dependency graph from question `requires:` field
-    # 2. Topological sort → batches that can run simultaneously
-    # 3. ThreadPoolExecutor(max_workers) per batch
-    # 4. Sentinel checks between batches
+When starting an item, update its row:
+```
+| C-03 | Campaign | Goal-directed campaigns ... | **IN PROGRESS** | conv:mar13-afternoon |
 ```
 
-**Requires**: Add `requires: [Q1, Q2]` field to questions.md format so dependencies are explicit. Questions without `requires` are fully parallel.
+When done:
+```
+| C-03 | Campaign | Goal-directed campaigns ... | **DONE** | conv:mar13-afternoon |
+```
 
-**Impact**: 4–8x throughput on large question banks. Critical for campaigns > 50 questions.
-
-**Files**: `campaign.py`, `questions.py` (requires field parser), `program.md` update
-
----
-
-### 2.2 — Dashboard BL 2.0 View
-
-**What**: The existing React dashboard doesn't know about BL 2.0 concepts — it shows raw verdicts without mode context, doesn't display agent scores, doesn't show heal loop status.
-
-**New dashboard panels needed**:
-- **Mode distribution** — pie chart: how many questions per operational_mode
-- **Agent scorecard** — reads `agent_db.json`, shows score + verdict history per agent
-- **Heal loop trace** — for questions with heal cycle notes, show the state machine path
-- **Skill inventory** — reads `skill_registry.json`, lists campaign-created skills with links
-- **MCP recommendations** — displays `MCP_RECOMMENDATIONS.md` if present
-
-**Files**: `dashboard/frontend/src/`, `dashboard/backend/main.py` (new endpoints for agent_db, skill_registry)
+Use a short label for `Claimed By` — date + session context is enough (`conv:mar13-morning`, `conv:mar14`).
 
 ---
 
-### 2.3 — Skill Self-Healing Loop
+## Completed Work
 
-**What**: Skills created by skill-forge can go stale. The overseer already has a step to review registered skills, but there's no automatic trigger when a skill produces a bad result.
-
-**Design**: Add a `skill_db` entry for each skill usage (similar to `agent_db`). When a user invokes `/wrong` or `/learn` immediately after using a skill, record a "correction" signal. The overseer picks up correction signals and rewrites the skill.
-
-**Files**:
-- `bl/skill_forge.py` — add `record_usage()`, `record_correction()` to registry
-- `~/.claude/hooks/` — post-skill hook to capture correction signals
-- `template/.claude/agents/overseer.md` — already has skill review step, add correction-signal detection
-
----
-
-### 2.4 — MCP Auto-Installer
-
-**What**: `MCP_RECOMMENDATIONS.md` is advisory — a human has to read it and install manually. This could be a skill `/bl-mcp-install` that reads the recommendations and applies them to `~/.claude.json`.
-
-**Files**:
-- `~/.claude/skills/bl-mcp-install/SKILL.md` — new skill
-- Reads `{project}/MCP_RECOMMENDATIONS.md`
-- For each critical/high-impact recommendation, adds the MCP config to `~/.claude.json`
-- Requires user confirmation per MCP (interactive)
-
----
-
-### 2.5 — Campaign Dependency Graph
-
-**What**: Visual representation of question relationships — which questions caused followups, which fix waves addressed which failures, heal loop paths. Currently all implicit in `results.tsv`.
-
-**Design**: Export `findings_graph.json` from results.tsv (parent IDs parseable from question IDs: `D1`, `D1.1`, `D1.1.R`, `F2.1`, etc.). Render as D3 force graph in dashboard.
-
-**Files**: `bl/graph.py` (new — builds adjacency from results.tsv), `dashboard/frontend/` (new graph panel)
+| Item | Description | Commit |
+|------|-------------|--------|
+| simulate.py root move | Moved simulate.py to autosearch root; fixed AUTOSEARCH_ROOT path constant (.parent.parent → .parent) | `conv:mar13-afternoon` |
+| Path refs updated | prepare.md, retrospective.md, launcher prompt — all recall/simulate.py → simulate.py | `conv:mar13-afternoon` |
+| settings.json cleanup | Removed stale temp-dir PostToolUse hook; recall-session-summary timeout 30→10s | `conv:mar13-afternoon` |
+| bricklayer .claude.json | Replaced individual MCP server entries with single gateway endpoint | `conv:mar13-afternoon` |
+| Stop hook speed fix | recall-session-summary.js timeouts cut to 4s; hard 8s cap added | `conv:mar13-afternoon` |
+| bricklayer-retro.js | Async stop hook writes .retro-pending marker; launcher detects on startup | `conv:mar13-afternoon` |
+| Launcher DISABLE_OMC | BrickLayer terminals launch with DISABLE_OMC=1 --no-mcp --dangerously-skip-permissions | `conv:mar13-afternoon` |
+| FastMCP gateway | mcp_gateway.py proxying recall/github/context7/firecrawl/exa on port 8350 | `conv:mar13-afternoon` |
+| Gateway auto-start | Launcher starts gateway before opening Claude; green dot status indicator in header | `conv:mar13-afternoon` |
+| Wave 1–10 campaigns | Full BrickLayer campaign against Recall — 10 waves, 11+ findings | `aee05df` |
+| Dashboard | React+FastAPI dashboard — question bank, live status, block-format parser | `efd7cfd` |
+| Pre-commit hook | `scripts/pre-commit.py` — lint-guard + commit-reviewer + noqa escape | `71d2495` |
+| 6 framework agents | scout, probe-runner, triage, retrospective, test-writer, type-strictener | `d62a072` |
+| forge-check | Detects agent fleet gaps, writes `FORGE_NEEDED.md` sentinel | `93d2306` |
+| agent-auditor | Audits agent fleet, writes `AUDIT_REPORT.md` | `93d2306` |
+| peer-reviewer | Re-runs tests and appends CONFIRMED/CONCERNS/OVERRIDE to findings | `93d2306` |
+| forge v2.0 | Sentinel-driven autonomous agent factory — reads `FORGE_NEEDED.md`, creates agents, deletes sentinel | `2fb34b3` |
+| Async checkpoint pattern | All meta-agents use background Popen spawn; only Forge is blocking | `fad9611` |
+| program.md async wiring | Live Discovery + wave-start sentinel check added to template, recall, adbp program.md | `6882c0e` |
+| simulate.py checkpoints | `_check_sentinels()`, `_spawn_agent_background()`, `_run_forge_blocking()`, `_inject_override_questions()` wired into `--campaign` loop | `9059d28` |
+| Silent exception fixes | 3 bare `except Exception: pass` → logged stderr warnings | `d2895d4` |
+| Failure taxonomy | `classify_failure_type()` in simulate.py — `syntax\|logic\|hallucination\|tool_failure\|timeout\|unknown`; `failure_type` field in verdict envelope, finding .md, and results.tsv | `conv:mar13-afternoon` |
+| Confidence signaling | `classify_confidence()` + `CONFIDENCE_ROUTING` in simulate.py — `high\|medium\|low\|uncertain` → `accept\|validate\|escalate\|re-run`; wired into verdict envelope, finding .md, results.tsv | `conv:mar13-afternoon` |
 
 ---
 
-### 2.6 — RECALL_STORE_VERDICTS Constant
+## Architecture
 
-**What**: Small but important — `_STORE_VERDICTS` in `recall_bridge.py` is an internal set not enforced by `constants.py`. If someone adds a new significant verdict to BL 2.0, it won't auto-store to Recall until someone manually updates `recall_bridge.py`.
-
-**Fix**: Add `RECALL_STORE_VERDICTS` frozenset to `constants.py`, import in `recall_bridge.py`.
-
-**Files**: `constants.py` (autosearch root, not project), `recall_bridge.py`
-
----
-
-## Tier 3 — Long-Term (Future Vision)
-
-These require design work before implementation. Not tied to any specific campaign.
-
-### 3.1 — Cross-Campaign Knowledge Transfer
-
-**What**: Right now each campaign is isolated — `session-context.md` resets, `agent_db.json` is per-project. There's no mechanism to say "the bl2 campaign found that fix-implementer fails when the target file path is relative — carry that knowledge to the adbp campaign."
-
-**Design**: When a finding reaches FIXED and the fix involved an agent rewrite, the overseer stores an abstract "lesson" in Recall under `domain=bricklayer-meta`. The next campaign's question-designer reads those lessons and incorporates them as context.
-
-**Depends on**: Recall (operational), overseer lesson extraction
-
----
-
-### 3.2 — BL 3.0: Multi-Campaign Coordination
-
-**What**: Multiple campaigns running simultaneously, coordinated by a global overseer. Campaign A is researching the codebase, Campaign B is fixing what A finds, Campaign C is writing the test suite for B's fixes. Campaigns communicate via Recall and handoff files.
-
-**Design sketch**:
-- `bl/coordinator.py` — orchestrates multiple campaign processes
-- Campaigns signal each other via `handoffs/handoff-{project}-{date}.md` (already exists for cross-project handoffs)
-- Global Recall domain `bricklayer-coordination` for cross-campaign signals
-- Priority queue — Campaign B waits for A's DIAGNOSIS_COMPLETE findings
-
----
-
-### 3.3 — Dynamic Mode Ontology
-
-**What**: The 9 modes are hardcoded in `project-brief.md` and `modes/` files. A `mode-designer` agent could discover new modes needed by a specific domain and create the mode program file + register it. E.g., a campaign against a financial system might need a `compliance-sox` mode distinct from the generic `audit` mode.
-
-**Design**: `template/.claude/agents/mode-designer.md` — reads project-brief.md, analyzes what question types are being asked, proposes new mode program files, creates them in `modes/`.
-
----
-
-### 3.4 — Frontier Mode Full Support
-
-**What**: The `frontier` mode (PROMISING / BLOCKED / WEAK / INCONCLUSIVE) is designed for novel mechanism discovery — finding things that might be true but nobody has tested yet. Currently the `cascade-analyst.md` handles `predict` mode but there's no dedicated frontier investigator.
-
-**Gap**: No `frontier-investigator.md` agent yet. The mode program exists but campaigns using `frontier` mode will get a generic agent response.
-
-**Action**: Create `template/.claude/agents/frontier-investigator.md`
-
----
-
-### 3.5 — Campaign Replay
-
-**What**: Given a `results.tsv` from a past campaign, re-run only the questions that have changed dependencies (file hash changed, or a fix was applied). Like `make` for campaigns — don't re-run what hasn't changed.
-
-**Design**:
-- `bl/replay.py` — computes file hashes for `recall_src` targets referenced in findings
-- If hash unchanged since last run: skip question (result is still valid)
-- If hash changed: mark PENDING, re-run
-
----
-
-### 3.6 — Benchmark Mode Persistence
-
-**What**: `benchmark` mode produces CALIBRATED/UNCALIBRATED verdicts but there's no mechanism to store baselines across campaigns. If you benchmark an endpoint at 45ms p95 in one campaign and 62ms p95 in the next, the system doesn't automatically flag the regression.
-
-**Design**: `bl/benchmarks.py` — stores baselines in `benchmarks.json`. `evolve-optimizer.md` reads previous baselines before running. Campaign result = delta from baseline, not absolute.
-
-**Note**: `projects/bl2/benchmarks.json` already exists (empty) — the schema placeholder is there.
-
----
-
-## Won't Do (Explicitly Out of Scope)
-
-| Item | Why |
-|------|-----|
-| GUI question editor | Dashboard exists; questions.md format is intentionally text-first |
-| Real-time streaming campaign output | Adds complexity; stderr tail covers it |
-| Multi-tenant / SaaS BrickLayer | Self-hosted only — Tim's preference |
-| LLM model selection per question | All agents use Claude — consistency over flexibility |
-| Automatic git push of fixes | Too risky to auto-push; campaign commits but doesn't push |
-
----
-
-## Dependency Map
+### Current (v0.1)
 
 ```
-Tier 1 (bugs/fixes)
-  └─ all should be done ──→ enables Tier 2
+autosearch/
+  simulate.py           ← monolith: campaign runner + runners + quality scanner + scout
+  agents/               ← specialist agents (md files, invoked via claude -p)
+  template/             ← project template
+  projects/             ← Gen2 projects (code-driven via simulate.py --campaign)
+  adbp/ recall/         ← Gen1 projects (manual loop via program.md)
+  dashboard/            ← FastAPI + React monitoring UI
+  scripts/              ← pre-commit hook
+```
 
-Tier 2.1 (parallel execution)
-  └─ requires questions.md `requires:` field (small format change)
-  └─ independently buildable
+### Target (v0.2 — module split)
 
-Tier 2.2 (dashboard BL 2.0 view)
-  └─ requires agent_db.py ✅ and skill_forge.py ✅
-  └─ independently buildable
+```
+autosearch/
+  simulate.py           ← thin CLI entry point only
+  campaign.py           ← --campaign loop, sentinel checks, agent spawning
+  questions.py          ← parse/update questions.md
+  findings.py           ← write findings, update results.tsv
+  quality.py            ← source file scanning, pattern matching
+  scout.py              ← Scout context assembly
+  runners/
+    base.py             ← Runner(Protocol) interface
+    http.py             ← HTTP load + latency runner
+    subprocess.py       ← pytest/cargo/jest runner
+    static.py           ← agent-based static analysis runner
+    browser.py          ← Playwright UI runner (Phase 2)
+    benchmark.py        ← ML model runner (Phase 2)
+```
 
-Tier 2.3 (skill self-healing)
-  └─ requires skill_forge.py ✅
-  └─ requires hook mechanism (lightweight)
+### Verdict envelope (universal — all runners return this)
 
-Tier 2.4 (MCP auto-installer)
-  └─ requires mcp-advisor.md ✅
-  └─ independently buildable (skill only)
-
-Tier 2.5 (campaign graph)
-  └─ independently buildable
-  └─ nice to have for large campaigns
-
-Tier 3.1 (cross-campaign knowledge)
-  └─ requires Recall operational ✅
-  └─ requires overseer ✅
-  └─ requires Tier 2 maturity
-
-Tier 3.2 (BL 3.0 multi-campaign)
-  └─ requires 3.1 ──→ requires Tier 2 maturity
-
-Tier 3.3 (dynamic mode ontology)
-  └─ independently buildable (agent only)
-
-Tier 3.4 (frontier-investigator agent)
-  └─ independently buildable ← quick win, 1 agent file
+```json
+{
+  "question_id": "Q2.4",
+  "verdict": "FAILURE | WARNING | HEALTHY | INCONCLUSIVE",
+  "summary": "one-line evidence",
+  "data": {},
+  "details": "full evidence text"
+}
 ```
 
 ---
 
-## Quick Reference: What to Build Next
+## Phase 1 — Universal Foundation (Near-term)
 
-**If you have 30 minutes**: Tier 1.9 or 1.10 (move `_STORE_VERDICTS` to constants.py, or relocate `_reactivate_pending_external`)
+These are the highest-value items before BrickLayer is used on new projects.
 
-**If you have 2 hours**: Tier 3.4 — `frontier-investigator.md` agent (1 file, closes the only mode without a dedicated agent)
+| # | Item | Notes |
+|---|------|-------|
+| 1.1 | **Runner Registry** | `Runner(Protocol)` — any runner that returns the verdict envelope plugs in. Board item C-02. |
+| 1.2 | **Goal-Directed Campaigns** | Replace static `questions.md` with `goal.md`. Agent generates questions from goal + target. Board item C-03. |
+| 1.3 | **Adaptive Follow-up** | FAILURE/WARNING auto-drills down. `Q2.4 → Q2.4.1, Q2.4.2`. Board item C-04. |
+| 1.4 | **Verdict History** | SQLite ledger. Flag regressions (`HEALTHY → FAILURE`). Board item C-05. |
+| 1.5 | **Fix Loop** | FAILURE → fix agent → re-run → HEALTHY. Board item C-06. |
+| 1.6 | **Module Split** | Break simulate.py into focused modules. Board item C-01. |
 
-**If you have a half-day**: Tier 2.4 — `/bl-mcp-install` skill (reads recommendations, updates `~/.claude.json` with confirmation)
+---
 
-**If you have a full day**: Tier 2.1 — parallel campaign execution (highest throughput impact)
+## Phase 2 — Target Breadth (Medium-term)
 
-**If you want to run another campaign**: The engine is solid — Wave 4 closed all critical bugs. Run a new project and use BL 2.0 features (modes, heal loop, agent scores) in production.
+Each item adds a new class of targets BrickLayer can run against.
+
+| # | Item | Target |
+|---|------|--------|
+| 2.1 | ML Model Runner | Ollama models — accuracy, latency, ablation sweeps |
+| 2.2 | Document Runner | Docs vs code — completeness, accuracy, consistency |
+| 2.3 | Smart Contract Runner | Solana/Anchor — invariant checking, authority bypass |
+| 2.4 | Browser/UI Runner | Playwright — interaction testing, visual regression |
+| 2.5 | Multi-Agent Swarm | Parallel perf/correctness/security/quality campaigns |
+| 2.6 | Baseline Anchoring | Lock known-good snapshot. Every run diffs against it. Deploy gate. |
+
+---
+
+## Phase 3 — Autonomy (Longer-term)
+
+| # | Item |
+|---|------|
+| 3.1 | Self-improving question banks — upweight questions that find bugs, prune dead ones |
+| 3.2 | Hypothesis generation from diffs — auto-question on each git commit |
+| 3.3 | Cross-project knowledge transfer — bug patterns propagate to new projects |
+| 3.4 | Natural language entry point — "I just added concurrent Neo4j writes" → 4 questions, 3 minutes |
+| 3.5 | BrickLayer audits BrickLayer — eats its own dog food |
+
+---
+
+## Design Principles
+
+1. **Universal verdict envelope.** Every runner, every target, every question type produces the same `{verdict, summary, data, details}` shape.
+2. **Questions are the product.** The question bank has compounding value. A good question asked 100 times across 100 projects is worth more than 100 one-off tests.
+3. **Humans set goals, agents set questions.** The human knows what matters. The agent knows what to ask technically. Don't conflate them.
+4. **Verdicts must be falsifiable.** HEALTHY requires specific evidence. FAILURE requires a reproduction path.
+5. **Cheap at scale beats thorough occasionally.** 500 fast questions overnight finds more than 5 exhaustive questions quarterly.
+6. **Failure boundaries, not pass/fail.** The goal isn't "does it work?" — it's "where does it stop working?"
+
+---
+
+## Target Universe
+
+| Category | Examples |
+|----------|---------|
+| **APIs** | REST, GraphQL, WebSocket, gRPC |
+| **Codebases** | Python, Rust, Kotlin, TypeScript, Solidity |
+| **Test suites** | pytest, cargo test, jest, go test, anchor test |
+| **ML models** | Ollama, OpenAI, HuggingFace — accuracy, latency, regression |
+| **Documents** | API docs, READMEs, legal specs, architecture docs |
+| **Smart contracts** | Anchor programs, EVM contracts, invariant checking |
+| **Web UIs** | Playwright-driven interaction and visual regression |
+| **Simulations** | Business models, financial projections, game theory |
+| **Pipelines** | CI/CD, data pipelines, ETL |
+| **Infrastructure** | Docker, Kubernetes, Proxmox — health and config drift |
+
+---
+
+## Current Integrations
+
+- **Recall** (FastAPI + Qdrant + Neo4j) — first full campaign, v0.1 validation target
+- **Exa MCP** — semantic research for question generation and finding enrichment
+- **Firecrawl MCP** — documentation crawling for document runner
+
+## Planned Integrations
+
+- **GitHub Actions** — run campaign on every PR, post findings as review comments
+- **ADBP Solana programs** — contract runner against benefit-credits and redemption programs
+- **ADBP Kotlin services** — subprocess runner against Ktor test suites
+- **BrowserMCP** — browser runner for web portal testing

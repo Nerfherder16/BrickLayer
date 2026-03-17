@@ -1695,3 +1695,80 @@ Status is tracked in results.tsv — do not edit manually.
 **Verdict threshold**:
 - DIAGNOSIS_COMPLETE: `_inject_override_questions()` has no mode filter; injected re-exam questions hard-code `mode: agent`; a code_audit-derived re-exam would fail in the agent runner; fix requires reading the original question's mode from questions.md and either skipping code_audit OVERRIDE findings or injecting with the correct mode
 - HEALTHY: `_inject_override_questions()` already reads the original question mode and handles code_audit correctly, or the function is unreachable for code_audit findings
+
+---
+
+## Wave-mid
+
+**Generated from findings**: D16.1, D16.2, D16.3, A16.1
+**Mode transitions applied**: D16.1 DIAGNOSIS_COMPLETE → F-mid.1 Fix; D16.2 DIAGNOSIS_COMPLETE → F-mid.2 Fix; D16.3 DIAGNOSIS_COMPLETE → F-mid.3 Fix + D-mid.4 narrowing Diagnose; A16.1 NON_COMPLIANT → F-mid.5 Fix
+
+---
+
+### F-mid.1: Implement the fix specified in D16.1 — write HEAL_EXHAUSTED to results.tsv on exhausted-loop exit in healloop.py, and add HEAL_EXHAUSTED to all downstream frozensets
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: D16.1 DIAGNOSIS_COMPLETE — the exhausted-loop path in `run_heal_loop()` never calls `update_results_tsv(original_qid, ...)`, leaving the original question with a stale pre-heal verdict in results.tsv; synthesizer, crucible, and agent_db all misread this as a clean FAILURE; additionally D16.1.F1 (PENDING) already confirmed that `HEAL_EXHAUSTED` is absent from every downstream frozenset
+**Hypothesis**: Adding `update_results_tsv(original_qid, "HEAL_EXHAUSTED", f"Self-healing exhausted {last_cycle} cycle(s) — human intervention required.", None)` after `_append_heal_note` on the exhausted path, and adding `"HEAL_EXHAUSTED"` to `_PARKED_STATUSES` in questions.py, `_PRESERVE_AS_IS` in findings.py, and the appropriate terminal-verdict frozenset(s) in agent_db.py, will close the stale-verdict loop and prevent indefinite re-queueing
+**Method**: Three-file edit: (1) `bl/healloop.py` lines 332-343 — add `update_results_tsv(original_qid, "HEAL_EXHAUSTED", ...)` after `_append_heal_note`; (2) `bl/questions.py` `_PARKED_STATUSES` — add `"HEAL_EXHAUSTED"`; (3) `bl/findings.py` `_PRESERVE_AS_IS` — add `"HEAL_EXHAUSTED"`; (4) `bl/agent_db.py` terminal/parked frozenset — add `"HEAL_EXHAUSTED"` (location confirmed by D16.1.F1 diagnose)
+**Success criterion**: `grep -n "HEAL_EXHAUSTED" bl/healloop.py bl/questions.py bl/findings.py bl/agent_db.py` — each file shows at least one reference; `update_results_tsv` call appears on the exhausted path in healloop.py before `return current_result`
+
+---
+
+### F-mid.2: Implement the fix specified in D16.2 — add mode guard to peer-reviewer spawn in campaign.py run_campaign() to skip code_audit questions
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: D16.2 DIAGNOSIS_COMPLETE — `_spawn_agent_background("peer-reviewer", ...)` at campaign.py lines 593-601 fires unconditionally for all question modes including `code_audit`; peer-reviewer cannot execute prose test commands and emits CONCERNS/OVERRIDE, causing `_inject_override_questions()` to inject unresolvable `.R` re-exam questions that grow the question bank indefinitely
+**Hypothesis**: Wrapping the `_spawn_agent_background("peer-reviewer", ...)` call with `if question.get("mode") not in ("code_audit",):` will prevent spurious OVERRIDE verdicts and stop the `.R` question injection cascade for all current and future code_audit questions
+**Method**: Edit `bl/campaign.py` lines 593-601 — add `if question.get("mode") not in ("code_audit",):` guard before `_spawn_agent_background("peer-reviewer", ...)`. Verify the guard does not suppress peer-reviewer for `mode == "agent"` questions (BL 1.x behavioral/simulation questions), which do have executable test commands
+**Success criterion**: `grep -n "peer-reviewer\|code_audit" bl/campaign.py` — confirms the spawn is inside `if question.get("mode") not in ("code_audit",)`; no existing `.R` re-exam questions in questions.md that reference code_audit-sourced prose test commands
+
+---
+
+### F-mid.3: Implement the fix specified in D16.3 — add else-clause to _parse_text_output() in runners/agent.py for universal BL 2.0 plain-text verdict extraction
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: D16.3 DIAGNOSIS_COMPLETE — `_parse_text_output()` has no `else` clause; all BL 2.0 agents (diagnose-analyst, fix-implementer, compliance-auditor, design-reviewer) return `{}` on the text-fallback path, causing `_verdict_from_agent_output()` to always return INCONCLUSIVE regardless of what verdict text appears in the plain-text output; any transient JSON formatting failure silently discards a correct DIAGNOSIS_COMPLETE
+**Hypothesis**: Adding an `else` clause after the `elif agent_name == "perf-optimizer":` block that extracts `verdict` and `summary` via `re.search(r"^verdict:\s*(\w+)", text, re.IGNORECASE | re.MULTILINE)` and `re.search(r"^summary:\s*(.+)", text, re.IGNORECASE | re.MULTILINE)` will recover correct verdicts from plain-text BL 2.0 agent output on the fallback path
+**Method**: Edit `bl/runners/agent.py` lines 188-198 — insert the `else` clause as specified in D16.3 Fix Specification before `return out`
+**Success criterion**: `grep -n "else:" bl/runners/agent.py | grep -A5 "perf-optimizer"` — confirms an `else` clause follows the `perf-optimizer` branch and contains `re.search(r"^verdict:"` extraction logic
+
+---
+
+### D-mid.4: Does _summary_from_agent_output() have the same BL 2.0 gap as _parse_text_output() — no else-clause for non-BL-1.x agents, producing generic fallback summaries for all BL 2.0 agents on the text-fallback path?
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Priority**: MEDIUM
+**Motivated by**: D16.3 DIAGNOSIS_COMPLETE — the finding explicitly flags `_summary_from_agent_output()` as a likely companion gap: "Does `_summary_from_agent_output()` also have the same BL 2.0 gap — no `else` clause for non-BL-1.x agents — resulting in generic 'no structured output produced' summaries for all BL 2.0 agents on the text-fallback path?"
+**Hypothesis**: `_summary_from_agent_output()` in `bl/runners/agent.py` dispatches on `agent_name` with `if/elif` branches for the same four BL 1.x agents; for any other agent name the function falls through to a generic summary string ("no structured output produced" or similar); all BL 2.0 agent summaries on the text-fallback path are therefore generic, making the session-context.md and findings corpus less informative than they should be
+**Method**: Read `bl/runners/agent.py` — locate `_summary_from_agent_output()`. Verify: (1) does it dispatch on `agent_name` with `if/elif` branches? (2) is there an `else` clause that extracts `summary:` from plain text? (3) what string is returned for `"diagnose-analyst"` when output is `{}`?
+**Success criterion**: Either HEALTHY (else-clause already extracts summary from plain text) or DIAGNOSIS_COMPLETE with a Fix Specification for adding the same `re.search(r"^summary:")` extraction as F-mid.3 adds to `_parse_text_output()`
+
+---
+
+### F-mid.5: Implement the fix specified in A16.1 — document the intentional non-execution of mid-run injected questions and remove or clearly annotate the misleading pending-list refresh in campaign.py
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Priority**: LOW
+**Motivated by**: A16.1 NON_COMPLIANT — `run_campaign()` rebinds `pending` inside the `enumerate` loop (lines 582-584) but the rebind has no effect on the active iterator; injected questions are silently skipped in the current run; the progress display denominator diverges after injection; the refresh code creates a false impression of dynamic pickup that does not exist
+**Hypothesis**: The non-execution of mid-run injected questions is either (a) intentional design — next-run pickup is acceptable — or (b) a latent bug. Either way, a code comment at lines 582-584 explaining "this rebind affects only the progress display denominator, not the active iterator; injected questions execute on the next campaign invocation" eliminates the misleading appearance. If the intent was dynamic pickup, a structural fix (rebuilding the iterator, or switching to a while-loop with a deque) is needed instead.
+**Method**: (1) Determine intent by reading surrounding comments and git history for lines 582-584. (2) If intentional: add a comment `# NOTE: rebind affects len() display only — enumerate iterator is already bound to original pending list; injected questions run next invocation`. (3) If unintentional: replace `enumerate(pending, 1)` with a deque-based while loop that re-checks the question bank after each iteration.
+**Success criterion**: `grep -n "rebind\|next invocation\|display only" bl/campaign.py` — confirms an explanatory comment exists at the refresh site, OR the loop structure is changed to actually process injected questions within the same run
