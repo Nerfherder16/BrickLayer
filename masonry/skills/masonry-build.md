@@ -22,27 +22,56 @@ You are an **ORCHESTRATOR**. You manage state, spawn worker agents, validate out
   build.log      ← append-only build log (you write this)
 ```
 
+### Agent Spawning — Terminal Display
+
+Claude Code renders a live progress tree when you spawn agents in parallel:
+
+```
+• Running 2 oh-my-claudecode:executor agents… (ctrl+o to expand)
+  ├─ Build auth module · 4 tool uses · 12.1k tokens
+  │  └ Writing src/auth/login.py…
+  └─ Build test suite · 2 tool uses · 8.4k tokens
+     └ Searching for test patterns…
+```
+
+**To get this display:**
+- Spawn 2+ Agent calls in a **single message** (parallel)
+- Use a 3-5 word `description`: `"Build auth module"`, `"Write test suite"`
+- Use `subagent_type="oh-my-claudecode:executor"` for implementation tasks
+
+**Example — parallel spawn:**
+```
+[Agent call 1]: description="Build {task A}", subagent_type="oh-my-claudecode:executor"
+[Agent call 2]: description="Build {task B}", subagent_type="oh-my-claudecode:executor"
+```
+
+When tasks are independent (no shared files), always batch them. Dependent tasks run sequentially.
+
 ### Build Loop
 
-For each PENDING task in spec.md:
+For each batch of independent PENDING tasks:
 
-**1. Mark task IN_PROGRESS** in progress.json
+**1. Mark tasks IN_PROGRESS** in progress.json
 
-**2. Spawn a worker agent** via Task tool:
+**2. Spawn worker agents in parallel** (single message, multiple Agent calls):
+
+Each agent prompt:
 ```
-Task: "Implement task #{id}: {description}
+Implement task #{id}: {description}
 Context: {relevant spec sections}
 Files to create/modify: {files}
 Follow TDD: write tests first, then implementation.
-Report back: files changed, tests passing (Y/N), any blockers."
+Report back: files changed, tests passing (Y/N), any blockers.
 ```
+
+Use `description="Build {short task name}"` (3-5 words) for clean terminal output.
 
 **3. Validate worker output:**
 - Run tests: `python -m pytest -q` or `npm test -- --reporter=dot`
 - If tests fail: spawn a fix agent with the error output
 - Mark DONE only when tests pass
 
-**4. Commit after each task:**
+**4. Commit after each batch:**
 ```bash
 git add {changed files}
 git commit -m "feat: {task description} [masonry-build #{id}]"
