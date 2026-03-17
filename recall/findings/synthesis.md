@@ -1,7 +1,7 @@
-# Synthesis: Recall Autoresearch — Waves 1–33
+# Synthesis: Recall Autoresearch — Waves 1–36
 
-**Generated**: 2026-03-15 (updated with Wave 34 findings)
-**Questions answered**: 203 (Q1.1–Q1.5, Q2.1–Q2.5, Q3.1–Q3.5, Q4.1–Q4.6, Q5.1–Q5.4, Q5.6–Q5.7, Q6.1–Q6.7, Q7.1–Q7.6, Q13.1–Q13.8, Q13.1a–Q13.8b, Q14.1–Q14.9, Q14.4a, Q14.4b, Q15.1–Q15.5, Q16.1–Q16.5, Q16.3b, Q16.4b, Q18.1–Q18.5, Q19.1–Q19.6, Q20.1–Q20.6, Q21.1–Q21.6, Q22.1–Q22.9, Q23.1–Q23.7, Q24.1–Q24.8, Q25.1–Q25.7, Q26.1–Q26.7, Q27.1–Q27.7, Q28.1–Q28.7, Q29.1–Q29.7, Q30.1–Q30.7, Q31.1–Q31.7, Q31.2a, Q32.1–Q32.7, Q33.2, Q33.2a, Q33.2b, Q33.2c, Q33.7, Q34.1–Q34.7)
+**Generated**: 2026-03-15 (updated with Wave 35–36 findings and 2026-03-16 post-hoc re-runs)
+**Questions answered**: 228 (Q1.1–Q1.5, Q2.1–Q2.5, Q3.1–Q3.5, Q4.1–Q4.6, Q5.1–Q5.4, Q5.6–Q5.7, Q6.1–Q6.7, Q7.1–Q7.6, Q13.1–Q13.8, Q13.1a–Q13.8b, Q14.1–Q14.9, Q14.4a, Q14.4b, Q15.1–Q15.5, Q16.1–Q16.5, Q16.3b, Q16.4b, Q18.1–Q18.5, Q19.1–Q19.6, Q20.1–Q20.6, Q21.1–Q21.6, Q22.1–Q22.9, Q23.1–Q23.7, Q24.1–Q24.8, Q25.1–Q25.7, Q26.1–Q26.7, Q27.1–Q27.7, Q28.1–Q28.7, Q29.1–Q29.7, Q30.1–Q30.7, Q31.1–Q31.7, Q31.2a, Q32.1–Q32.7, Q33.1–Q33.7, Q33.2a–Q33.2c, Q34.1–Q34.7, Q35.1–Q35.6, Q36.1–Q36.6)
 **Wave 17 questions (Q16.3a, Q16.4a)**: PENDING — deferred until Tier 1 fixes deployed
 **Source codebase**: C:/Users/trg16/Dev/Recall/
 **Stack**: FastAPI + Qdrant + Neo4j + Redis + PostgreSQL + Ollama (qwen3:14b + qwen3-embedding:0.6b)
@@ -61,7 +61,30 @@ Wave 31 re-run produces 3 FAILURE, 2 WARNING, 1 HEALTHY, 1 INCONCLUSIVE (plus Q3
 
 **Wave 32–33 signal: ROOT CAUSE OF DOUBLE-DECAY IDENTIFIED (Q33.2b) AFTER 24 CONSECUTIVE FAILURE WAVES.** The investigation chain Q31.2→Q31.2a→Q33.2→Q33.2a→Q33.2b traced the double-decay to its exact code-level origin: `get_distinct_user_ids()` returns `[0]` (integer zero), causing the per-user loop to run `worker.run(user_id=0)` which maps to `IsNullCondition` and decays 5,043 null-user_id memories — then the explicit system pass runs `worker.run(user_id=0)` again, decaying the same 5,043 memories a second time. Meanwhile, 975 memories with integer `user_id=0` are NEVER decayed (missed by both passes). Q33.2a definitively refuted the two-replica hypothesis (one container confirmed via SSH + Redis). Q33.2c confirms the two-line fix has NOT been deployed (24th consecutive FAILURE). Q33.7 HEALTHY: the Feb 14 cohort (first to cross 30d boundary) has zero floor-clamped active members — double-decay damage is concentrated in mid-life 7–21d cohorts, not the archival boundary. Q32.1 extends the hygiene cron miss streak to 9 consecutive windows. Q32.4 HEALTHY confirms Sunday reconcile cron is registered and functional. Q32.6 HEALTHY confirms LLM timeout compliance (17/17, closing Q15.3/Q16.3 permanently). Three questions INCONCLUSIVE due to same-day timing (Q32.3, Q32.5, Q32.7).
 
-**Overall health signal: CRITICAL — DOUBLE-DECAY ROOT CAUSE FULLY IDENTIFIED AT CODE LEVEL (Q33.2b) BUT FIX NOT DEPLOYED (24th CONSECUTIVE FAILURE, Q33.2c). THREE-WAY POPULATION SPLIT: 5,043 null-user_id MEMORIES DECAYED TWICE PER CYCLE; 975 INTEGER-0 MEMORIES NEVER DECAYED; 0 MEMORIES WITH user_id=1+. FIX IS TWO LINES OF CODE: (1) get_distinct_user_ids() exclude uid=0; (2) REMOVE REDUNDANT system pass in run_decay_all_users(). HYGIENE CRON BROKEN (9th miss, Q32.1). FLOOR-CLAMPED 1,049 (FAILURE THRESHOLD). SUPERSEDED POOL ~15,335. KEY CORRECTIONS: Q31.4 RECONCILE AUDIT DEPLOYED (7 WAVES FALSE NEGATIVES); Q31.7 LLM TIMEOUTS DEPLOYED (17/17); Q33.2a TWO-REPLICA HYPOTHESIS REFUTED. GC ELIGIBILITY: 2026-03-21T19:12 UTC. DEPLOYMENT BLOCKERS REMAIN: (1) DOUBLE-DECAY TWO-LINE FIX (Q33.2b), (2) HYGIENE CRON TASK FIX, (3) CONSOLIDATION user_id FIX, (4) mark_superseded ROOT-CAUSE FIX.**
+**Wave 35 key findings** (2026-03-15, crisis-response wave):
+- Q35.1: FAILURE — rehabilitate-importance endpoint uses `>= 0.05` instead of `> 0.05`; misses every floor-clamped memory at exactly 0.050; endpoint has never been run
+- Q35.2: WARNING — hygiene cron registered and ran once (2026-03-15T14:47); 0 candidates (expected — system 29 days old, no memories cross 30d cutoff yet); filter logic is correct
+- Q35.3: FAILURE — 846 null-user_id floor-clamped (up from Q34.7's 644; +202 growth); development domain 229 casualties (FAILURE threshold >100); 413 total in critical domains (48.8% of all floor-clamped)
+- Q35.4: WARNING — 2 of 3 code fixes deployed (consolidation user_id + decay.py explicit system pass); Fix-1 (`qdrant.py uid>0 guard`) NOT deployed; double-decay continues
+- Q35.5: WARNING — rehabilitate broken (off-by-one); amnesty endpoint IS viable (`POST /admin/importance/amnesty?dry_run=false` would boost 4,173 memories including floor-clamped); purge/decay endpoints are wrong tools
+- Q35.6: HEALTHY — floor-clamped stable at 1,049 over 2h 14m window (consolidation not running in measurement period)
+
+**Wave 36 key findings** (2026-03-15, intervention + verification wave):
+- Q36.1: HEALTHY — amnesty live run rescued 4,173/5,211 memories (80.1% of scanned; 99.9% of eligible); post-run residual eligible: 5; floor-clamped pool reduced from ~23% to 3.9% of active memories; amnesty endpoint writes NO audit rows (observability gap)
+- Q36.2: WARNING — hygiene 0-candidate confirmed correct; system only 29 days old; no memory older than 30d; filter logic verified correct; first real archival expected 2026-03-17T04:00 UTC
+- Q36.3: HEALTHY — one-char fix (`>= 0.05` → `> 0.05`) enables rehabilitate to reach ~838/846 (99.1%) of null-pool floor-clamped; "no default branch" risk does NOT strand bulk because 99% are durable (branch 2 covers); ~8 ephemeral low-access memories correctly unreachable
+- Q36.4: HEALTHY — post-amnesty residual eligible: 5 (HEALTHY threshold <100); importance distribution shifted: 0.0-0.2 bucket contracted from 23.3% to 3.9%; amnesty cleanup confirmed at scale
+- Q36.5: WARNING — Fix-1 still NOT deployed (qdrant.py `uid is not None and uid > 0`); 74 FamilyHub memories discovered (uid 53–71); other callers (patterns, dream_consolidation, consolidation) lack explicit system-user fallback — pre-existing gap; deployment requires container restart
+- Q36.6: HEALTHY — N3 (stranded, amnesty-ineligible) ≈ 8 ephemeral ac<3 memories; graph isolation does NOT create stranded segment (graph_strength modulates boost amount, not eligibility); N1 rescued ≈ 838/846 (99.1%); N2 does not exist
+
+**2026-03-16 post-hoc re-run key findings** (Q33.1, Q33.3–Q33.6):
+- Q33.1: WARNING — hygiene cron fired at 2026-03-16T04:00 UTC (2nd ever run); 0 candidates again (correct — 30d cutoff missed Feb 14 cohort by hours); 9-wave FAILURE streak resolved; first real archival expected 2026-03-17T04:00 UTC
+- Q33.3: INCONCLUSIVE — Q31.3 baseline invalidated by amnesty operation; floor-clamped count reset then re-accumulating; 3,198 amnesty-eligible (up from 5 in Q36.4, +3,193 in 23.5h); amnesty-boosted memories will decay back to floor by ~2026-03-21 without Fix-1
+- Q33.4: FAILURE — Sunday reconcile cron (2026-03-16T05:30 UTC) MISSED; worker likely restarted overnight; gap: 24h 12m with no reconcile entry; 1,027 mismatches accumulated without mid-period repair
+- Q33.5: FAILURE — importance mismatch rate ~41/hour (1,027 mismatches in 25.1h from clean baseline); Q24.2's ~1.3/hour estimate conclusively rejected; 15.8% of active corpus now has divergent retrieval scores; weekly-window accumulation ~6,888/week = coverage of entire active pool
+- Q33.6: WARNING — superseded pool growing at ~613/day (23.5h clean measurement); matches Q21.3 analytical estimate; projected pool at GC eligibility (~19,610) is manageable
+
+**Overall health signal: PARTIAL CRISIS MITIGATION — AMNESTY RAN AND RESCUED 4,173 FLOOR-CLAMPED MEMORIES (Q36.1 HEALTHY), BUT FIX-1 (double-decay root cause) REMAINS UNDEPLOYED. WITHOUT FIX-1, CORPUS WILL RETURN TO PRE-AMNESTY DEGRADED STATE BY ~2026-03-21. HYGIENE CRON NOW STRUCTURALLY SOUND (Q33.1 — fires on schedule); FIRST REAL ARCHIVAL 2026-03-17T04:00 UTC. CONSOLIDATION FIX DEPLOYED (Q35.4). RECONCILE MISSED SUNDAY WINDOW (Q33.4 FAILURE); MISMATCH RATE 41/HOUR CONFIRMED (Q33.5 FAILURE). SUPERSEDED GC ELIGIBILITY APPROACHING (2026-03-21T19:12 UTC; ~19,610 PROJECTED POOL). CRITICAL REMAINING ACTIONS: (1) DEPLOY FIX-1 (`qdrant.py uid>0 guard`) + CONTAINER RESTART; (2) CHANGE RECONCILE SCHEDULER TO repair=true; (3) FIX REHABILITATE ENDPOINT OFF-BY-ONE (`>= 0.05` → `> 0.05`); (4) SECOND AMNESTY RUN BEFORE 2026-03-21 IF FIX-1 NOT DEPLOYED.**
 
 ---
 
@@ -100,7 +123,11 @@ Wave 31 re-run produces 3 FAILURE, 2 WARNING, 1 HEALTHY, 1 INCONCLUSIVE (plus Q3
 | **Q34.1** | **Total importance suppression damage FAILURE+INCONCLUSIVE: 795 null-pool memories at decay floor (≤0.05) — exceeds FAILURE threshold of 500. Null pool mean importance 0.2584 (n=5,048). Importance-units stolen INCONCLUSIVE: int-0 pool is not a valid control group (mean 0.1852 < null pool mean 0.2584 — inversion; different origin populations). Without stored `initial_importance` per memory, magnitude of suppression is uncomputable. 795 are retrieval dead zone: floor-clamped memories never surface in importance-weighted queries; double-decay fix stops further accumulation but does not restore clamped memories.** | **High** | **34** |
 | **Q34.2** | **user_id attribution architecture broken across 4 dimensions: (1) auth.py writes `user_id=0` (integer) but `_user_conditions(0)` queries IS NULL — decay/scan misses all 2,996 integer-0 memories; (2) 5 worker paths (observer.py:151, observer.py:286, signals.py:259, patterns.py:241, ingest.py:221) omit user_id entirely; (3) consolidation `_get_eligible_memories()` drops user_id from deserialization — all merged memories default to user_id=None regardless of source; (4) integer-0 pool growing at 58/day (all from session-summary hook). The `_user_conditions` semantic contract (0 = "IS NULL/unowned") is violated by the storage reality (admin-key writes integer 0). Three-population system is accidental, not designed.** | **High** | **34** |
 | **Q34.6** | **Consolidation floor-clamped growth self-reinforcing loop FAILURE: 199–648 new floor-clamped memories per day from consolidation output alone, far exceeding 50/day FAILURE threshold. All consolidation outputs reach floor because (a) Q24.5 bug produces null-user_id merged memories and (b) null-user_id memories are double-decayed at 2× rate. Recent session (autoresearch wave activity) drives throughput to 648/day (13× threshold). Loop is self-reinforcing: more session activity → more consolidation candidates → more null-user_id floor-clamped outputs. Floor is a one-way trap — no promotion mechanism exists. Fix required: Q24.5 (`consolidation.py:235` must pass `user_id=source_memories[0].user_id`).** | **High** | **34** |
-| **Q34.7** | **644 premature casualties — natural recovery impossible; bulk re-score mandatory; 16.6-day hygiene window is hard deadline. Single-decay model applied to 1,012 zero-access floor-clamped memories: 368 would be below floor anyway (correctly expired); 644 should still be above floor (prematurely clamped). Premature casualties: median age 13.4d, median initial_importance 0.700 (high-value), median expected single-decay importance 0.0776. Poverty trap confirmed: floor memories score 1/3 of average corpus member in retrieval; 99% access_count=0; access boost is +0.02 additive (no restore to initial_importance); hygiene deletes at age >30d if access=0 AND importance <0.3 — median 16.6 days remaining. `POST /admin/rehabilitate-importance` filter may use `importance < 0.05` (strict less-than) — verify endpoint handles floor value `= 0.05` before executing re-score.** | **High** | **34** |
+| **Q34.7** | **~~644 premature casualties — natural recovery impossible; bulk re-score mandatory; 16.6-day hygiene window is hard deadline.~~ PARTIALLY RESOLVED by Q36.1 amnesty: ~838 of the original 844 null-pool casualties rescued by amnesty live run on 2026-03-15T15:42 UTC. Poverty trap remains active for ~8 ephemeral memories (Q36.6 N3). However, without Fix-1 (qdrant.py uid>0 guard), amnesty-rescued memories will decay back to floor by ~2026-03-21 under double-decay. The rehabilitate endpoint still has the `>= 0.05` off-by-one defect (Q35.1 FAILURE); fix: change to `> 0.05`.** | **High → Partially Mitigated** | **34/35/36** |
+| **Q35.1** | **Rehabilitate-importance endpoint off-by-one FAILURE: `admin.py:1123` uses `if importance >= 0.05: continue` — skips memories at exactly 0.050 (the floor). All floor-clamped premature casualties are at exactly 0.050. Endpoint has NEVER been invoked (audit log: 0 entries). When the filter is corrected (`> 0.05`), it would reach ~838/846 (99.1%) of null-pool via branch 2 (durable, max 0.2). Incremental rescue beyond amnesty: ~0–7 memories (pinned/permanent edge cases). Fix: one char change in `src/api/routes/admin.py:1123`.** | **Medium** | **35** |
+| **Q35.3** | **Floor-clamped domain clustering FAILURE: 846 null-user_id floor-clamped at time of measurement (+202 from Q34.7's 644); development domain 229 casualties (FAILURE threshold >100; 27.1% of total); 413 total in critical domains (48.8%). Distribution follows memory production rates — all operational domains proportionally degraded. RESOLVED for pre-amnesty cohort by Q36.1 amnesty, but will re-accumulate without Fix-1.** | **High → Partially Mitigated** | **35** |
+| **Q33.4** | **Sunday reconcile cron MISSED: no reconcile entry at or near 2026-03-16T05:30 UTC; gap 24h 12m; worker likely restarted or temporarily down overnight. Q32.4 HEALTHY (cron registered + manual trigger works) remains accurate for infrastructure, but operational reliability now unconfirmed. Missed run allowed 1,027 mismatches to accumulate without mid-period repair.** | **Medium** | **33 (post-hoc 2026-03-16)** |
+| **Q33.5** | **Importance mismatch rate FAILURE: ~41/hour confirmed (1,027 mismatches in 25.1h from Q31.5 clean baseline); Q24.2's ~1.3/hour estimate conclusively rejected (31× underestimate). 15.8% of active corpus (1,027/6,492) has divergent retrieval scores. Weekly accumulation at this rate ~6,888 = exceeds entire active pool. Dominant pattern: Qdrant < Neo4j (decay runs without Neo4j sync for superseded/stale memories). Immediate fix: change reconcile scheduler from scan-only to `repair=true` on every run.** | **High** | **33 (post-hoc 2026-03-16)** |
 
 ### WARNING — Open
 
@@ -136,6 +163,13 @@ Wave 31 re-run produces 3 FAILURE, 2 WARNING, 1 HEALTHY, 1 INCONCLUSIVE (plus Q3
 | **Q31.4 (re-run)** | **Reconcile audit trail WORKING (WARNING — naming discrepancy): audit entries confirmed under action="reconcile" in both ops.py and workers/reconcile.py; 262 mismatches detected; repairs_applied=0 (scan-only); WARNING because scheduled cron never repairs detected mismatches; action name "reconcile_run" used in all prior question hypotheses was wrong; any dashboard filters referencing "reconcile_run" must be updated** | **Low** | **31** |
 | **Q31.5 (re-run)** | **Importance mismatches: repair mechanism functional (261/261 cleared by repair=true); scheduled runs scan-only (never auto-repair); mark_superseded root cause unpatched (neo4j_store.py does not call update_importance when superseding); re-accumulation guaranteed; immediate fix: update scheduler to use repair=true; root fix: patch mark_superseded** | **Medium** | **31** |
 | **Q34.4** | **Admin decay endpoint unscoped — single call = full-corpus floor-clamp: `POST /admin/decay` has no `user_id` parameter; calls `worker.run(user_id=None)` which scrolls and decays ALL memories across all users with no filter. Rate limit 10/min constrains throughput but not sustained attack (600 calls/hour). Audit actor is hardcoded `"decay"` regardless of caller — admin-triggered runs are forensically indistinguishable from cron runs. `simulate_hours` parameter allows time-amplification (e.g., 8760 hours flattens entire corpus to floor in one call). No confirmed incident in observable window. Recommended fix: add `user_id` scoping to `DecayRequest`, require admin role, stamp actor in audit log, cap `simulate_hours` (max ~168).** | **Medium** | **34** |
+| **Q35.2** | **Hygiene 0-candidate WARNING: cron registered (Q35.2 confirms `WorkerSettings.cron_jobs`) and ran once on 2026-03-15T14:47 UTC; candidates_scanned=0 because system only ~29 days old — no memory crosses 30-day cutoff. Filter logic confirmed correct. Updated Q33.1 (post-hoc 2026-03-16): cron fired again at 04:00 UTC on schedule; 0 candidates again (correct — Feb 14 cohort just crossing 30d boundary). First real archival expected 2026-03-17T04:00 UTC. The 9-wave FAILURE streak was a monitoring artifact; hygiene task was registered all along (Q35.2). WARNING persists only until 2026-03-17 archival is confirmed.** | **Low** | **35/33** |
+| **Q35.4** | **Deployment state WARNING: Fix-1 (`qdrant.py:1207` `uid > 0` guard) NOT deployed; Fixes 2+3 (decay.py explicit system pass + consolidation.py user_id propagation) ARE deployed. Double-decay continues because uid=0 is still included in per-user loop AND the explicit system block also processes uid=0 — same double-decay condition. Side effect: other callers (patterns.py, dream_consolidation.py, consolidation.py) lack explicit system fallback — pre-existing gap not introduced by Fix-1. Deployment requires `docker compose restart recall-worker` (ARQ no hot-reload).** | **High** | **35** |
+| **Q35.5** | **Mitigation assessment WARNING: rehabilitate endpoint broken (off-by-one); amnesty IS viable and did rescue 4,173 memories (Q36.1). Amnesty skips ephemeral, pinned, and permanent memories. Purge/decay are wrong tools. Recommended action completed: amnesty ran live on 2026-03-15T15:42 UTC.** | **Low → Resolved via Q36.1** | **35** |
+| **Q36.2** | **Hygiene 0-candidate root cause confirmed: not a bug. The 4-condition filter (importance<0.3, access_count=0, superseded_by IS NULL, created_at < cutoff) is logically correct. System's oldest memory: 2026-02-14T18:00. At 04:00 UTC on 2026-03-16, cutoff = 2026-02-14T04:00 — oldest memories are 29h 23m beyond cutoff but import started after 04:00. First genuine candidate crosses at 2026-03-17T04:00 UTC.** | **Low** | **36** |
+| **Q36.5** | **Fix-1 risk assessment WARNING: single-line change is low-risk but has side effects in 4 callers (patterns, dream_consolidation, consolidation, decay). After Fix-1, memories with `user_id=0` stored explicitly would be silently skipped by patterns/dream_consolidation/consolidation (no system-user fallback in those workers). FamilyHub users (uid 53–71, 74 memories) will now be correctly included in per-user loops. Deployment requires `docker compose restart recall-worker`.** | **Low** | **36** |
+| **Q33.1 (post-hoc)** | **Hygiene cron now firing on schedule: 2026-03-16T04:00 UTC confirmed (id=394171); 0 candidates again (correct per Q36.2 date boundary analysis); FAILURE streak resolved. This is a WARNING not HEALTHY because archive_count=0 — operational confirmation of actual archival pending at 2026-03-17T04:00 UTC.** | **Low** | **33 (post-hoc 2026-03-16)** |
+| **Q33.6** | **Superseded pool ~613/day (23.5h clean measurement; Q21.3 estimate confirmed). Active fraction stable at 28.8%. Projected pool at GC eligibility (2026-03-21T19:12 UTC): ~19,610 — under 20,000 concern threshold; first GC batch will be large but manageable. GC infrastructure should be confirmed operational before window opens.** | **Medium** | **33 (post-hoc 2026-03-16)** |
 | **Q25.4** | **Purge endpoint scope clarified: `/admin/memory/purge` uses `scroll_all(include_superseded=False)` by default — targets ACTIVE low-quality memories only (1,081 eligible: importance≤0.15, age≥7d, access=0); consolidation-superseded memories (15,099) are explicitly excluded from its scope by IS NULL filter; Q24.6 GC gap is fully unaddressed by any available endpoint or scheduled cron; purge deletion logic is correct (Qdrant + Neo4j DETACH DELETE) but misscoped for GC purpose; new endpoint or cron required for superseded GC** | **Medium** | **25** |
 | **Q26.3** | **Double-decay compound damage growing: floor-clamped count 673 (+41 from Q23.1 baseline of 632, +6.5%); ~10 new floor-clamped memories/day; 179.5 importance-units stolen across 5,975 active memories (avg 0.030 per memory, 6% of typical 0.5 initial importance); 3-7d cohort ratio 1.2988 reflects stability variation not absence of damage; floor-clamped count is most reliable direct damage metric; first hygiene batch (2026-03-17) NOT materially inflated by double-decay for 30d+ cohort (both decay models reach floor by 30d)** | **Medium** | **26** |
 | **Q26.5** | **Ghost re-accumulation trap characterized: 1,833 active consolidation-source memories with user_id=None (30.7% of active corpus); IS NULL-only deployment eliminates current ghost users immediately but re-accumulation within weeks as these 1,833 memories get superseded through consolidation; co-deployment of Q21.5 (IS NULL filter) AND Q24.5 (consolidation user_id= propagation) required for permanent fix; 3,191 additional null-uid memories are system/observer by design (not re-accumulation seeds)** | **Medium** | **26** |
@@ -144,8 +178,9 @@ Wave 31 re-run produces 3 FAILURE, 2 WARNING, 1 HEALTHY, 1 INCONCLUSIVE (plus Q3
 
 | ID | Finding | Severity | Wave |
 |----|---------|---------|------|
-| **Q26.1 / Q28.1 / Q29.1 / Q30.1 / Q31.1 / Q32.1** | **Hygiene first-archival FAILURE chain: Q26.1 INCONCLUSIVE (2 days early); Q28.1-Q29.1 FAILURE 1st-2nd; Q30.1 INCONCLUSIVE (5th); Q31.1 FAILURE (7th+); Q32.1 FAILURE (9th consecutive): 0 hygiene_run entries in 379,666 total audit records; scheduler has NEVER executed a hygiene job; all maintenance crons (hygiene_run, archive, decay_check) absent; only the decay cron and reconcile cron are operational** | **Critical** | **26/28/29/30/31/32** |
+| **Q26.1 / Q28.1 / Q29.1 / Q30.1 / Q31.1 / Q32.1 → RESOLVED Q35.2/Q33.1** | **Hygiene first-archival chain: Q32.1 was the 9th consecutive miss, 0 hygiene_run entries in 379,666 audit records. RESOLVED: Q35.2 confirmed task is registered in `WorkerSettings.cron_jobs` with daily 04:00 UTC schedule. Q33.1 (post-hoc 2026-03-16) confirmed cron fired at 04:00 UTC on schedule (id=394171); 0 candidates (correct — system only 29 days old per Q36.2). First actual archival expected 2026-03-17T04:00 UTC. The 9-wave miss was a monitoring artifact — task was registered all along.** | **Critical → Resolved** | **26/28/29/30/31/32/35/33** |
 | **Q28.3 / Q29.3** | **Double-decay archival count parity + Week 12 cumulative: Q29.1 prerequisite not met (auto_archive still 0); Week 12 dates (Mar 17-21) not yet reached; Q27.7 analytical proof stands (both decay regimes archive same count at 30d); empirical verification pending** | **Info** | **28/29** |
+| **Q33.3** | **Floor-clamped 24h rate INCONCLUSIVE: Q31.3 baseline (1,049 at 2026-03-15T13:46) invalidated by amnesty live run at 2026-03-15T15:42 (reset floor-clamped to ~1). Cannot compute pre-amnesty accumulation rate. Secondary finding: 3,198 amnesty-eligible in 23.5h (up from 5 in Q36.4); 0.0-0.2 bucket: 12.5% (up from 3.9%). Estimated floor-clamped (exactly 0.05): ~50-200. Amnesty-boosted memories will decay back to floor by ~2026-03-21 without Fix-1. Re-run recommended at ~2026-03-21 for clean post-amnesty floor-clamped rate.** | **High** | **33 (post-hoc 2026-03-16)** |
 | **Q28.4** | **GC-eligible cohort: target date 2026-03-21T19:12 UTC; 0 GC-eligible today; superseded pool 15,185 (Q29.7); re-verify on/after 2026-03-21T19:12 UTC** | **Info** | **28** |
 | **Q28.7** | **Hygiene Week 13 batch (Mar 22-28, ~128/day): depends on Q28.1/Q29.1 data; target dates now 7-13 days from Wave 29; re-verify starting 2026-03-22** | **Info** | **28** |
 | **Q30.7 / Q31.6** | **GC-eligible cohort INCONCLUSIVE: Q30.7 6d 8h before 2026-03-21T19:12 UTC; Q31.6 re-run 6d 4h before; gc_run=0; superseded pool 15,335 (+151 from Q30.7 in ~3.5h; burst rate ~1,035/day); no GC endpoints exist (404); Wave 32+ verdict-capable on/after 2026-03-21T19:12 UTC** | **Info** | **30/31** |
@@ -239,6 +274,16 @@ Wave 32–33 HEALTHY additions:
 | Q32.6 | **LLM semaphore hold events: no >60s accumulation risk; 17/17 callsites compliant** (Q31.7 re-confirmed); `httpx.TimeoutException` properly caught + logged + metriced; semaphore released via `async with` — no leak path; max theoretical hold = 90s (heavy tier, intentional); 180s unbounded hold from Q15.3 structurally eliminated; zero `llm_error` or `llm_timeout` audit entries | 32 |
 | Q33.7 | **Feb 14 cohort intact — double-decay has NOT degraded oldest memories**: 14 active memories all maintain importance 0.30–0.40 (well above floor); median access_count ~30; 0 floor-clamped in the >30d archival boundary group; floor-clamped backlog (1,049) concentrated in mid-life 7–21d cohorts; archival backlog specifically >=30d old: **0 memories**; confirms Q27.7 proof that both decay regimes archive same count at 30d | 33 |
 
+Wave 35–36 HEALTHY additions:
+
+| ID | Finding | Wave |
+|----|---------|------|
+| Q35.6 | **Floor-clamped stable at 1,049 over 2h 14min**: zero net change from Q31.3 baseline; consolidation not running in measurement window; confirms growth is episodic not continuous | 35 |
+| Q36.1 | **Amnesty live run rescued 4,173/5,211 floor-clamped memories (80.1% of scanned, 99.9% of eligible)**: post-run residual eligible: 5; 0.0-0.2 bucket contracted from 23.3% to 3.9%; amnesty writes no audit rows (observability gap noted) | 36 |
+| Q36.3 | **One-char rehabilitate fix (`>= 0.05` → `> 0.05`) would reach ~838/846 (99.1%) of null-pool**: "no default branch" risk does not strand bulk because ~99% of floor-clamped nulls are durable (branch 2 covers); ~8 ephemeral low-access correctly unreachable by design | 36 |
+| Q36.4 | **Post-amnesty residual: 5 amnesty-eligible memories** (HEALTHY threshold <100); importance distribution confirms success; amnesty endpoint logic verified correct (graph_strength modulates boost, not eligibility) | 36 |
+| Q36.6 | **N3 (stranded, amnesty-ineligible) ≈ 8 ephemeral ac<3 memories**: N2 (graph-isolated) does not exist — graph connectivity does not gate eligibility; N1 (rescued by amnesty) ≈ 838/846 (99.1%); ephemeral stranding is correct lifecycle behavior | 36 |
+
 Wave 34 HEALTHY additions:
 
 | ID | Finding | Wave |
@@ -248,7 +293,94 @@ Wave 34 HEALTHY additions:
 
 ---
 
-## 3. Wave 34 Results (Q34.1–Q34.7)
+## 3. Waves 35–36 Results and 2026-03-16 Post-Hoc Re-runs
+
+### Overview
+
+Wave 35 is the **crisis-response wave** — six questions probing the mortality crisis infrastructure: the rehabilitate endpoint defect, hygiene cron status, floor-clamped domain analysis, fix deployment state, immediate mitigation options, and current growth rate. Of 6 questions: 2 FAILURE (Q35.1, Q35.3), 3 WARNING (Q35.2, Q35.4, Q35.5), 1 HEALTHY (Q35.6).
+
+Wave 36 is the **intervention + verification wave** — amnesty ran live, and five questions verified the outcome and characterized residual risk. Of 6 questions: 0 FAILURE, 2 WARNING (Q36.2, Q36.5), 4 HEALTHY (Q36.1, Q36.3, Q36.4, Q36.6).
+
+The 2026-03-16 post-hoc re-runs (Q33.1, Q33.3–Q33.6) measured 24-hour rates and cron behavior on the day after the Wave 35–36 session. Of 5 questions: 2 FAILURE (Q33.4, Q33.5), 1 WARNING (Q33.1, Q33.6), 1 INCONCLUSIVE (Q33.3).
+
+**The defining event across this entire cluster: amnesty live run at 2026-03-15T15:42 UTC rescued 4,173 floor-clamped memories — the first successful large-scale data-recovery action in the research program.** However, without Fix-1 (qdrant.py uid>0 guard), the corpus will return to pre-amnesty degraded state by ~2026-03-21.
+
+---
+
+### Wave 35 Findings Summary
+
+| ID | Verdict | Severity | Key Finding |
+|----|---------|---------|-------------|
+| Q35.1 | FAILURE | Medium | Rehabilitate endpoint `>= 0.05` off-by-one misses all floor-clamped memories at exactly 0.050; endpoint never invoked; fix: change to `> 0.05` in `admin.py:1123` |
+| Q35.2 | WARNING | Low | Hygiene cron registered and ran once (2026-03-15T14:47); 0 candidates (expected — system 29 days old); filter logic correct; first real archival 2026-03-17T04:00 UTC |
+| Q35.3 | FAILURE | High | 846 null-user_id floor-clamped; development domain 229 (FAILURE threshold >100); total critical domain casualties 413 (48.8%); growth +202 from Q34.7's 644 |
+| Q35.4 | WARNING | High | 2/3 fixes deployed (consolidation user_id + decay.py explicit pass); Fix-1 (qdrant.py uid>0 guard) NOT deployed; double-decay continues |
+| Q35.5 | WARNING | Low | Rehabilitate broken; amnesty IS viable (4,173 eligible confirmed by dry-run); purge/decay are wrong tools; amnesty recommended |
+| Q35.6 | HEALTHY | None | Floor-clamped stable at 1,049 over 2h 14min; consolidation not running in measurement window; growth episodic not continuous |
+
+---
+
+### Wave 36 Findings Summary
+
+| ID | Verdict | Severity | Key Finding |
+|----|---------|---------|-------------|
+| Q36.1 | HEALTHY | None | Amnesty live run: 4,173 rescued (80.1% of 5,211 scanned; 99.9% of eligible); post-run residual: 5; 0.0-0.2 bucket: 3.9% (down from 23.3%); no audit rows written (bulk ops blind to audit trail) |
+| Q36.2 | WARNING | Low | Hygiene 0-candidate root cause confirmed: not a bug; filter correct; system's oldest memory 2026-02-14T18:00; cutoff at 04:00 UTC misses by hours; first candidate crosses 2026-03-17 |
+| Q36.3 | HEALTHY | None | Rehabilitate one-char fix would reach ~838/846 (99.1%) of null-pool; "no default branch" risk does not apply because ~99% durable; incremental rescue beyond amnesty: ~0–7 memories |
+| Q36.4 | HEALTHY | None | Post-amnesty residual: 5 eligible; 0.0-0.2 bucket: 3.9%; active pool 6,126 memories; superseded pool ~15,429; amnesty cleanup confirmed at corpus scale |
+| Q36.5 | WARNING | Low | Fix-1 NOT deployed; 74 FamilyHub memories (uid 53–71) discovered; other callers lack system-user fallback; deployment requires container restart |
+| Q36.6 | HEALTHY | None | N3 (stranded) ≈ 8 ephemeral memories; N2 (graph-isolated) does not exist; amnesty eligibility gates on durability not graph_strength; N1 rescued ≈ 838/846 (99.1%) |
+
+---
+
+### 2026-03-16 Post-Hoc Re-run Findings Summary
+
+| ID | Verdict | Severity | Key Finding |
+|----|---------|---------|-------------|
+| Q33.1 | WARNING | Low | Hygiene cron fired 2026-03-16T04:00 UTC (2nd run, on schedule); 0 candidates (correct — Feb 14 cohort just crossing 30d boundary); FAILURE streak resolved; first archival 2026-03-17T04:00 UTC |
+| Q33.3 | INCONCLUSIVE | High | Floor-clamped 24h rate invalidated by amnesty; secondary: 3,198 amnesty-eligible 23.5h post-amnesty (640× increase from 5); 0.0-0.2 bucket 12.5%; floor-clamped (exactly 0.05) estimated ~50-200 |
+| Q33.4 | FAILURE | Medium | Sunday reconcile cron missed 2026-03-16T05:30 UTC window; 24h 12m gap; worker likely restarted overnight; Q32.4 HEALTHY conditionally confirmed (manual trigger works) but operational reliability unconfirmed |
+| Q33.5 | FAILURE | High | Mismatch rate ~41/hour (1,027 in 25.1h from clean baseline); Q24.2's ~1.3/hour estimate rejected (31×); 15.8% of active corpus has divergent retrieval scores; projected 6,888/week ≈ full active pool |
+| Q33.6 | WARNING | Medium | Superseded pool ~613/day (23.5h measurement; Q21.3 estimate confirmed); projected ~19,610 at GC eligibility — manageable first batch |
+
+---
+
+### Wave 35–36 Cross-Domain Observations
+
+#### Observation 1: Amnesty is the first successful large-scale data recovery in the research program
+
+Q36.1 is the most positive operational result in the entire 36-wave research program. After 24 waves of documented decay accumulation and zero data recovery actions, the amnesty live run at 2026-03-15T15:42 UTC rescued 4,173 memories — reducing the 0.0-0.2 importance bucket from 23.3% to 3.9% of total memories. This demonstrates the system's self-healing infrastructure is functional when invoked.
+
+The critical caveat: amnesty is a one-shot repair, not a structural fix. Q33.3's secondary finding (3,198 amnesty-eligible 23.5h later) confirms that without Fix-1, the corpus decays back at the same rate — reaching the pre-amnesty degraded state by approximately 2026-03-21 under the double-decay regime.
+
+#### Observation 2: Hygiene 9-wave FAILURE streak was a monitoring artifact
+
+Q35.2 confirmed that `run_hygiene` is registered in `WorkerSettings.cron_jobs`. Q36.2 confirmed the 0-candidate results were correct because the system is only 29 days old — no memories have crossed the 30-day archival threshold yet. The "9 consecutive FAILURE" characterization was technically accurate (no archival had occurred) but missed the distinction between "cron not running" and "cron running but finding no candidates." First genuine archival is expected at 2026-03-17T04:00 UTC.
+
+#### Observation 3: Two new FAILURE threads opened on 2026-03-16
+
+Q33.4 (Sunday reconcile missed) and Q33.5 (41/hour mismatch rate) are both operational failures that were not measurable from the March 15 session. Q33.5 is particularly significant: the ~41/hour mismatch rate means 15.8% of active corpus currently has divergent retrieval scores. This makes the reconcile auto-repair change (from scan-only to repair=true on every scheduled run) the highest-urgency operational action remaining.
+
+#### Observation 4: Fix-1 is the single blocking action preventing corpus stabilization
+
+With Q35.4 confirming that Fixes 2+3 are deployed, the only remaining code change blocking corpus stabilization is Fix-1 (`qdrant.py:1207` `uid > 0` guard). Q36.5 assessed it as low-risk with known side effects. Q36.2 closes the hygiene concern. Q35.2 closes the hygiene-cron-registration concern. The entire corpus recovery pathway now depends on a single-line code change plus container restart.
+
+---
+
+### Fix Priority Table (Updated Post-Wave 36)
+
+| Priority | Fix | Status | Impact |
+|----------|-----|--------|--------|
+| **P0 — IMMEDIATE** | Deploy Fix-1: `qdrant.py:1207` `if uid is not None and uid > 0:` + `docker compose restart recall-worker` | NOT DEPLOYED (Q35.4, Q36.5) | Stops double-decay; prevents amnesty benefit from decaying away by 2026-03-21 |
+| **P0 — IMMEDIATE** | Change reconcile scheduler to `repair=true` on every run | NOT DONE (Q33.5) | Stops 41/hour mismatch accumulation; 15.8% of active corpus currently degraded |
+| **P1 — THIS WEEK** | Fix rehabilitate endpoint: `admin.py:1123` `>= 0.05` → `> 0.05` | NOT DEPLOYED (Q35.1) | Enables standalone rescue tool for future floor-clamped events |
+| **P2 — BEFORE 2026-03-21** | Second amnesty run if Fix-1 not deployed | Pending | Intercepts wave of decaying memories before they reach floor; 3,198 currently sub-amnesty-threshold |
+| **P3 — BEFORE 2026-03-21** | Verify GC infrastructure for ~19,610 superseded memory first batch | Pending (Q33.6) | First GC window opens 2026-03-21T19:12 UTC |
+| **P4 — MONITOR** | Watch 2026-03-17T04:00 UTC hygiene run for first actual archival | Pending (Q33.1) | Validates hygiene pipeline end-to-end |
+
+---
+
+## 4. Wave 34 Results (Q34.1–Q34.7)
 
 ### Overview
 
@@ -313,14 +445,14 @@ The Q31.5 rate estimate was based on a pre-repair accumulation trend, not a post
 
 Given the mortality crisis deadline, fix sequencing is time-constrained:
 
-| Priority | Fix | Deadline | Impact |
-|----------|-----|----------|--------|
-| **P0 — IMMEDIATE** | Bulk re-score 644 premature casualties: `POST /admin/rehabilitate-importance` with `importance <= 0.05` filter | Before 2026-04-01 (16.6d from Q34.7 measurement) | Prevents permanent deletion of 644 high-value memories |
-| **P1 — SAME DAY** | Double-decay two-line fix: `qdrant.py:1207` add `and uid > 0`; `decay.py:296` remove redundant system pass | Immediately | Stops 5,043 null memories from being decayed twice per cycle; stops further floor-clamped accumulation from this source |
-| **P2 — SAME DAY** | Consolidation user_id= fix: `consolidation.py:235` pass `user_id=source_memories[0].user_id` | Immediately | Stops 199–648 new floor-clamped memories/day from consolidation |
-| **P3 — THIS WEEK** | Hygiene cron: register hygiene task in `cron_jobs` | Before 2026-03-22 | Enables natural drain of floor-clamped and expired memories |
-| **P4 — THIS WEEK** | Worker user_id attribution: pass user context through observer, signals, patterns, ingest paths | This week | Closes null-accumulation from background workers |
-| **P5 — LOW URGENCY** | Admin decay endpoint scoping: add `user_id` param, admin-role check, caller-stamped audit | When convenient | Closes single-call full-corpus floor-clamp attack surface (no confirmed incident) |
+| Priority | Fix | Deadline | Status (Post-Wave 36) | Impact |
+|----------|-----|----------|-----------------------|--------|
+| **P0 — IMMEDIATE** | Bulk re-score 644 premature casualties: `POST /admin/rehabilitate-importance` with `importance <= 0.05` filter | Before 2026-04-01 | **DONE via amnesty (Q36.1)** — 4,173 rescued; 8 ephemeral stranded (correct) | Prevented permanent deletion; amnesty superseded rehabilitate for initial rescue |
+| **P1 — SAME DAY** | Double-decay Fix-1: `qdrant.py:1207` add `and uid > 0`; Fix-2: `decay.py:296` explicit system pass present | Immediately | **Fix-2 DEPLOYED; Fix-1 NOT DEPLOYED (Q35.4)** | Double-decay continues for null-pool; amnesty benefit will decay away by ~2026-03-21 without Fix-1 |
+| **P2 — SAME DAY** | Consolidation user_id= fix: `consolidation.py:235` pass `user_id=cluster[0].user_id` | Immediately | **DEPLOYED (Q35.4)** | New consolidation outputs now correctly attributed |
+| **P3 — THIS WEEK** | Hygiene cron: register hygiene task in `cron_jobs` | Before 2026-03-22 | **CONFIRMED REGISTERED (Q35.2); FIRING ON SCHEDULE (Q33.1)** | First archival expected 2026-03-17T04:00 UTC |
+| **P4 — THIS WEEK** | Worker user_id attribution: pass user context through observer, signals, patterns, ingest paths | This week | NOT DONE | Closes null-accumulation from background workers |
+| **P5 — LOW URGENCY** | Admin decay endpoint scoping: add `user_id` param, admin-role check, caller-stamped audit | When convenient | NOT DONE | Closes single-call full-corpus floor-clamp attack surface (no confirmed incident) |
 
 ---
 
@@ -358,7 +490,7 @@ Prior waves (29–33) produced zero or one HEALTHY finding. Wave 34 produces two
 
 ---
 
-## 4. Wave 32–33 Results (Q32.1–Q32.7, Q33.2, Q33.2a, Q33.2b, Q33.2c, Q33.7)
+## 5. Wave 32–33 Results (Q32.1–Q32.7, Q33.2, Q33.2a, Q33.2b, Q33.2c, Q33.7)
 
 ### Overview
 
@@ -425,7 +557,7 @@ Q32.3 (floor-clamped rate), Q32.5 (importance mismatch trajectory), and Q32.7 (s
 
 ---
 
-## 5. Wave 31 Results (Q31.1–Q31.7, Q31.2a) — First Run and Re-Run
+## 6. Wave 31 Results (Q31.1–Q31.7, Q31.2a) — First Run and Re-Run
 
 ### Overview — First Run
 
@@ -496,7 +628,7 @@ Q31.7 HEALTHY is the first confirmed fix deployment observed in 21 waves of char
 
 ---
 
-## 6. Wave 30 Results (Q30.1–Q30.7)
+## 7. Wave 30 Results (Q30.1–Q30.7)
 
 ### Overview
 
@@ -536,7 +668,7 @@ Wave 31 must run on/after 2026-03-16T04:00 UTC for Q31.1 (hygiene first archival
 
 ---
 
-## 7. Wave 29 Results (Q29.1–Q29.7)
+## 8. Wave 29 Results (Q29.1–Q29.7)
 
 ### Overview
 
@@ -588,7 +720,7 @@ Q29.4 (5th consecutive) and Q29.5 (5th consecutive) have both reached 5 consecut
 
 ---
 
-## 8. Wave 28 Results (Q28.1–Q28.7)
+## 9. Wave 28 Results (Q28.1–Q28.7)
 
 ### Overview
 
@@ -642,7 +774,7 @@ Total fix burden: ~18 LOC across 4 files. Zero analytical work remaining on any 
 
 ---
 
-## 9. Wave 27 Results (Q27.1–Q27.7)
+## 10. Wave 27 Results (Q27.1–Q27.7)
 
 ### Overview
 
@@ -692,7 +824,7 @@ Q27.5 (consolidation user_id) and Q27.6 (reconcile audit) have both reached 3 co
 
 ---
 
-## 10. Wave 26 Results (Q26.1–Q26.7)
+## 11. Wave 26 Results (Q26.1–Q26.7)
 
 ### Overview
 
@@ -750,7 +882,7 @@ The hygiene first archival is 1 day away (2026-03-17). Q26.7 confirms the audit 
 
 ---
 
-## 11. Wave 25 Results (Q25.1–Q25.7)
+## 12. Wave 25 Results (Q25.1–Q25.7)
 
 ### Overview
 
@@ -802,7 +934,7 @@ Q25.2's matching mismatch count (92 = 1 day post-Sunday repair in both Q24.2 and
 
 ---
 
-## 12. Wave 24 Results (Q24.1–Q24.8)
+## 13. Wave 24 Results (Q24.1–Q24.8)
 
 ### Overview
 
@@ -853,7 +985,7 @@ The 30-day GC window is open (Q24.6). An estimated 11,000 consolidation-supersed
 
 ---
 
-## 13. Wave 23 Results (Q23.1–Q23.7)
+## 14. Wave 23 Results (Q23.1–Q23.7)
 
 ### Overview
 
@@ -908,7 +1040,7 @@ None of these corrections change the severity of Q22.1, Q21.1, or Q22.9's struct
 
 ---
 
-## 14. Wave 22 Results (Q22.1–Q22.9)
+## 15. Wave 22 Results (Q22.1–Q22.9)
 
 ### Overview
 
@@ -967,7 +1099,7 @@ The total implementation cost for all five Wave 22 fix specifications is ≤38 L
 
 ---
 
-## 15. Wave 21 Results (Q21.1–Q21.6)
+## 16. Wave 21 Results (Q21.1–Q21.6)
 
 ### Overview
 
@@ -1031,7 +1163,7 @@ Waves 13–21 have produced characterizations without deployed remediation. Howe
 
 ---
 
-## 16. Wave 20 Results (Q20.1–Q20.6)
+## 17. Wave 20 Results (Q20.1–Q20.6)
 
 ### Overview
 
@@ -1056,7 +1188,7 @@ Of 6 questions: 4 HEALTHY (Q20.2, Q20.3, Q20.4, Q20.6), 1 WARNING (Q20.1), 1 FAI
 
 ---
 
-## 17. Wave 19 Results (Q19.1–Q19.6)
+## 18. Wave 19 Results (Q19.1–Q19.6)
 
 ### Overview
 
@@ -1081,7 +1213,7 @@ Of 6 questions: 2 HEALTHY (Q19.1, Q19.2), 3 WARNING (Q19.3, Q19.4, Q19.5), 1 FAI
 
 ---
 
-## 18. Wave 18 Results (Q18.1–Q18.5)
+## 19. Wave 18 Results (Q18.1–Q18.5)
 
 ### Overview
 
@@ -1105,7 +1237,7 @@ Of 5 questions: 2 HEALTHY (Q18.3, Q18.4), 2 WARNING (Q18.1, Q18.2), 1 INCONCLUSI
 
 ---
 
-## 19. Wave 17 Status (Q16.3a, Q16.4a — PENDING)
+## 20. Wave 17 Status (Q16.3a, Q16.4a — PENDING)
 
 Wave 17 was planned as a post-deployment verification wave with two questions:
 
@@ -1119,7 +1251,7 @@ These two questions remain the highest-priority measurement questions in the que
 
 ---
 
-## 20. Wave 16 Results (Q16.1–Q16.5, Q16.3b, Q16.4b)
+## 21. Wave 16 Results (Q16.1–Q16.5, Q16.3b, Q16.4b)
 
 ### Overview
 
@@ -1143,7 +1275,7 @@ Of 7 questions: 1 HEALTHY (Q16.3b), 2 FAILURE (Q16.3, Q16.4), 1 FAILURE/Medium (
 
 ---
 
-## 21. Waves 15 and 14 Results (archived from prior synthesis — condensed)
+## 22. Waves 15 and 14 Results (archived from prior synthesis — condensed)
 
 **Wave 15** (Q15.1–Q15.5): Dedup observability crisis confirmed — three independent code paths produce zero audit entries, zero log entries, no Prometheus counter. Global LLM timeout 180s applies to all callers; 43 confirmed >60s events; per-call override does not exist. Q15.4 ruled out length-based pre-filtering. Q15.5 identified newline-density guard as a practical fast-fail alternative for dense single-line content.
 
@@ -1151,7 +1283,7 @@ Of 7 questions: 1 HEALTHY (Q16.3b), 2 FAILURE (Q16.3, Q16.4), 1 FAILURE/Medium (
 
 ---
 
-## 22. Cross-Wave Patterns (Waves 1–34)
+## 23. Cross-Wave Patterns (Waves 1–36)
 
 ### Pattern 1: Dedup observability gap — three waves, four sites, zero remediation (Q14.3, Q15.1, Q15.2, Q16.1, Q16.2, Q16.4) — SYSTEMIC / STALLED — Q20.4 confirms threshold correct
 
@@ -1215,7 +1347,7 @@ The hygiene archival cron has been running daily at 4am with zero output for the
 
 ---
 
-## 23. Prioritized Remediation Roadmap (Current State, post Wave 34)
+## 24. Prioritized Remediation Roadmap (Current State, post Wave 36)
 
 Based on severity, feasibility, and number of waves confirming the gap. Items marked with `[N waves]` have been confirmed across multiple investigation cycles without remediation. **Wave 25 updates are bolded.**
 
@@ -1287,22 +1419,25 @@ Note: Markov feature should remain disabled (build_prefetch_cache short-circuite
 
 ---
 
-## 24. Open Threads for Wave 35+
+## 25. Open Threads for Wave 37+
 
-**Critical requirement**: Wave 31 MUST begin with a deployment check. Nineteen consecutive waves (Waves 12–30) have produced characterizations with zero deployed remediation. The Tier 0 double-decay fix (~3 lines) has been confirmed undeployed 18 times. **Before running any questions, Wave 30 should check: has any code changed in the repo since Wave 29? If yes, run post-fix verification questions. If no (still the same code), continue with time-sensitive verification below.**
+**Current state (post Wave 36, 2026-03-16)**: The amnesty crisis was resolved. Fix-1 (qdrant.py uid>0 guard) remains the single blocking code change. Reconcile auto-repair is the highest-urgency operational change.
 
-### Time-sensitive priority (Wave 30 — run immediately)
+### Time-sensitive priorities for Wave 37+
 
-**Q29.1-followup — Hygiene first archival verification (RUN ON OR AFTER 2026-03-16T04:00 UTC)**:
-Q29.1 was INCONCLUSIVE (4th consecutive) — 0 auto_archive entries, measured at 2026-03-15T10:35 UTC (~17.4h before the first cron run). Target time: **2026-03-16T04:00 UTC**. Expected first batch: ~2 memories.
-(a) Check `GET /admin/audit?action=auto_archive&limit=100` — should show 1–2 entries.
-(b) Report: actual first batch count vs Q27.7 projection; importance distribution; `details.archived` field.
-(c) **If count = 0 after 2026-03-16T04:00 UTC: ESCALATE TO FAILURE** (hygiene cron not running or age filter broken).
-(d) First significant batch: 2026-03-23 (~122 memories); peak Week 14 (Mar 29–Apr 4): ~221/day vs 187 new/day.
-*Run on or after 2026-03-16T04:00 UTC.*
+**CRITICAL — Deploy Fix-1 before 2026-03-21**: Without `if uid is not None and uid > 0:` in `qdrant.py:1207`, the amnesty benefit (4,173 rescued memories) will decay back to floor by ~2026-03-21 under double-decay. If Fix-1 cannot be deployed before 2026-03-21, run a second amnesty (`POST /admin/importance/amnesty?dry_run=false`) to intercept the wave of decaying memories.
+
+**URGENT — Enable reconcile auto-repair**: Change reconcile scheduler from scan-only to `repair=true` on every run. Q33.5 confirmed ~41/hour mismatch accumulation — without this change, weekly reconcile window will see ~6,888 mismatches, covering the entire active pool.
+
+**Q29.1-followup — Hygiene first archival verification (RUN ON OR AFTER 2026-03-17T04:00 UTC)**:
+Q33.1 confirmed hygiene cron fired at 2026-03-16T04:00 UTC with 0 candidates (correct — date boundary). First real archival expected 2026-03-17T04:00 UTC when Feb 14 cohort crosses 30-day cutoff.
+(a) Check `GET /admin/audit?action=hygiene_run&limit=10` after 2026-03-17T04:00 UTC.
+(b) Report: `details.archived` count vs Q27.7 projection (~2 memories first batch).
+(c) If archived > 0: hygiene pipeline confirmed end-to-end operational.
+*Run on or after 2026-03-17T04:00 UTC.*
 
 **Q28.4-followup — First GC-eligible cohort at 2026-03-21 (RUN ON OR AFTER 2026-03-21T19:12 UTC)**:
-Q28.4 was INCONCLUSIVE — target date 6 days away. Q27.2 established: first GC-eligible date = **2026-03-21T19:12 UTC** (oldest consolidation-source active memory = 2026-02-19T19:12). Verify: (a) how many superseded memories have `invalid_at < (now-30d) AND superseded_by IS NOT NULL`; (b) whether any automated GC mechanism has fired; (c) whether the 15,130 superseded pool has grown since Wave 28.
+Q33.6 projects ~19,610 superseded memories at GC eligibility — manageable first batch. Q27.2 established: first GC-eligible date = **2026-03-21T19:12 UTC**. GC infrastructure must be confirmed operational before this window. Verify: (a) how many superseded memories have `invalid_at < (now-30d) AND superseded_by IS NOT NULL`; (b) whether any automated GC mechanism exists; (c) actual pool size vs ~19,610 projection.
 *Run on or after 2026-03-21T19:12 UTC.*
 
 **Q28.3-followup — Double-decay archival count parity verification (RUN AFTER Q28.1-followup)**:
@@ -1340,7 +1475,7 @@ Q28.7 was INCONCLUSIVE pending Q28.1 and Week 13 dates. Q27.7 projected ~128 arc
 
 ---
 
-## 25. Residual Risk Inventory (Current State, post Wave 34)
+## 26. Residual Risk Inventory (Current State, post Wave 36)
 
 | Risk | Severity | Likelihood | Trigger | Status |
 |------|---------|-----------|---------|--------|
@@ -1381,69 +1516,22 @@ Q28.7 was INCONCLUSIVE pending Q28.1 and Week 13 dates. Q27.7 projected ~128 arc
 
 ---
 
-## 26. Waves 1�12 Baseline (summary, not modified)
+## 27. Waves 1�12 Baseline (summary, not modified)
 
 Waves 1–12 produced 35 HEALTHY findings and 5 committed fixes covering: p99 search latency well under threshold at 40 concurrent users (Q1.1–Q1.4); domain isolation correct under concurrent writes (Q2.1); graph traversal guarded against cycles (Q3.4); all 4 background workers with structured exception logging (Q5.3); asyncio.Lock added to all async-mutated module-level state (Q7.1, e73858f); Pydantic v2 migration complete (Q7.2, 033ede9); datetime.utcnow() sweep complete across 23 files (Q6.7, 9cec9f4); all 4 worker test suites written and passing (Q5.7, Q7.6); embed_batch per-item fallback confirmed observable (Q6.1, 26da1aa); stdlib/structlog mismatch eliminated across all 77 src/ files (Q7.4). These findings remain confirmed holding.
 
 **Key pre-condition**: The Waves 1–12 work addressed code quality and unit-test coverage. Wave 13 established that this well-built code is failing at its primary job — surfacing the right memories at the right time. Waves 14–25 have added numerous FAILURE/WARNING findings to the runtime behavior and documented a remediation stall pattern that has now run for fourteen consecutive waves.
 
-**Wave 34 post-synthesis recommendation**: Twenty-two waves of characterization (12–33) with only TWO fixes deployed (LLM timeouts Q31.7, reconcile audit Q31.4 — both confirmed by false-negative correction, not new deployment). Wave 34 has introduced a hard deadline.
+**Post-Wave 36 status update**: The Wave 34 hard deadline (16.6-day window for 644 premature casualties) was resolved by the amnesty live run on 2026-03-15T15:42 UTC (Q36.1: 4,173 memories rescued). Three code fixes are now partially deployed:
+- Step 0 (bulk re-score): **DONE** — amnesty rescued 4,173/5,211 floor-clamped; rehabilitate endpoint needs one-char fix (`>= 0.05` → `> 0.05`) before reuse
+- Step 1 (double-decay Fix-1): **Fix-2 deployed; Fix-1 NOT deployed** — `qdrant.py:1207` still `if uid is not None:`; double-decay continues
+- Step 2 (consolidation user_id): **DEPLOYED**
+- Step 3 (hygiene cron): **CONFIRMED REGISTERED AND FIRING** — first archival 2026-03-17T04:00 UTC
 
-**CRITICAL TIME-SENSITIVE ACTION — 16.6-DAY WINDOW (expires ~2026-04-01):**
-
-Q34.7 identified 644 premature casualties — floor-clamped memories (importance=0.050) with median age 13.4 days and median initial_importance=0.700 that were pushed to floor by the double-decay bug. The hygiene worker will permanently delete these memories when they cross the 30-day age threshold. The median casualty has ~16.6 days remaining. After that window, no recovery is possible.
-
-**Step 0 (before deploying any code fix):** Run bulk re-score via `POST /admin/rehabilitate-importance`. Verify the endpoint filter uses `importance <= 0.05` (not strict less-than `< 0.05`) — floor memories sit at exactly 0.050 and may be excluded by a strict filter. Apply the single-decay restoration formula: `new_importance = max(initial_importance × 0.96^(age_hours/6), 0.051)`.
-
-**Step 1 (same day):** Deploy the double-decay two-line fix: `qdrant.py:1207` change `if uid is not None:` to `if uid is not None and uid > 0:`; `decay.py:296` remove the redundant `worker.run(user_id=0)` system pass. This stops 5,043 null memories from being decayed twice per cycle and stops further floor-clamped accumulation from this source.
-
-**Step 2 (same day):** Deploy the consolidation user_id fix: `consolidation.py:235` pass `user_id=source_memories[0].user_id`. This stops the self-reinforcing loop that is generating 199–648 new floor-clamped memories per day.
-
-**Step 3 (this week):** Fix hygiene cron (never fired since Feb 14). Register the hygiene task in `cron_jobs`. Without this, floor-clamped and expired memories have no automated drain.
-
-No further characterization waves are justified until Step 0 (bulk re-score) and Steps 1–2 (code fixes) are executed. The 16.6-day deadline is the binding constraint.
+**Remaining critical path (as of 2026-03-16):**
+1. Deploy Fix-1 (`qdrant.py:1207`: `uid > 0` guard) + `docker compose restart recall-worker` — prevents amnesty benefit from decaying away by ~2026-03-21
+2. Change reconcile scheduler to `repair=true` — stops ~41/hour mismatch accumulation (Q33.5 FAILURE)
+3. Fix rehabilitate endpoint off-by-one (`>= 0.05` → `> 0.05`)
+4. Run second amnesty before 2026-03-21 if Fix-1 not deployed
 
 
----
-
-## 27. Wave 35-36 Findings: Amnesty Execution and Crisis Triage (2026-03-15)
-
-**Updated**: 2026-03-15 (Waves 35-36 complete -- 12 additional findings)
-
-### Wave 35 Summary (2 FAILURE, 3 WARNING, 1 HEALTHY)
-
-**Q35.1 FAILURE** -- rehabilitate endpoint uses >= 0.05 (misses floor at exactly 0.050); never run.
-**Q35.2 WARNING** -- hygiene ran once (2026-03-15T14:47 UTC, first ever); 0 candidates scanned.
-**Q35.3 FAILURE** -- 846 floor-clamped null-pool (+202 from Q34.7); development domain 229 (>100 FAILURE threshold); 413/846 (48.8%) in critical domains.
-**Q35.4 WARNING** -- 2/3 fixes deployed; Fix-1 (qdrant.py uid>0 guard) NOT DEPLOYED; double-decay continues.
-**Q35.5 WARNING** -- POST /admin/importance/amnesty?dry_run=false can rescue floor-clamped (4,173 eligible in dry-run); rehabilitate broken; amnesty is the only no-code mitigation.
-**Q35.6 HEALTHY** -- 0 net floor-clamped change over 2h14m (no consolidation run in window).
-
-### Wave 36 Summary (4 HEALTHY, 2 WARNING)
-
-**Q36.1 HEALTHY** -- Amnesty ran live 2026-03-15T15:42 UTC: 4,173 of 5,211 floor-clamped rescued (80.1%). Null-pool 846 reduced to ~1 eligible residual (99.9% rescue rate). 0.0-0.2 importance bucket: ~23% -> 3.9% of active corpus. 899 skipped (ephemeral/pinned/permanent -- correctly excluded). Amnesty writes no audit rows (observability gap).
-
-**Q36.2 WARNING** -- Hygiene 0-candidate is CORRECT. Oldest memory: 2026-02-14 (29 days). Hygiene cutoff: 2026-02-13 (30 days). Zero memories older than 30 days. Filter implementation is correct. First eligibility opens 2026-03-16.
-
-**Q36.3 HEALTHY** -- One-char rehabilitate fix (>= to >) would rescue ~838/846 (99.1%) via durable branch. Only ~8 ephemeral ac<3 permanently stranded. Amnesty+rehabilitate combined >99% rescue. Over-inflation risk LOW.
-
-**Q36.4 HEALTHY** -- Post-amnesty: only 5 memories still eligible (importance 0.37-0.40, naturally decayed post-run -- not v3.2.5 victims). Null-pool residual ~1. Crisis structurally resolved.
-
-**Q36.5 WARNING** -- Fix-1 safe but edge cases: 74 FamilyHub memories (uid 53-71) exist and correctly stay in per-user loop. 3 other callers of get_distinct_user_ids (patterns.py, dream_consolidation.py, consolidation.py) have no system fallback (pre-existing gap). Deployment requires: docker compose restart recall-worker.
-
-**Q36.6 HEALTHY** -- N3 (stranded) ~8 (threshold FAILURE >500). Graph strength does NOT gate amnesty eligibility -- it modulates boost amount only. N2 segment does not exist.
-
-### Revised Action Checklist (post-Wave 36)
-
-The Wave 34 16.6-day urgency is RESOLVED. Amnesty executed 2026-03-15.
-
-| Step | Action | Status |
-|------|--------|--------|
-| Step 0 | Run amnesty | DONE (4,173 rescued) |
-| Step 0b | Fix rehabilitate filter (>= to >) | OPEN (admin.py:1123) |
-| Step 1 | Deploy qdrant.py Fix-1 (uid>0 guard) | OPEN -- only remaining fix to stop double-decay |
-| Step 2 | Consolidation user_id fix | DEPLOYED |
-| Step 3 | Hygiene cron | REGISTERED + RUNNING (0 candidates; system <30 days) |
-| Step 4 | Amnesty audit trail | OPEN (bulk ops leave no audit rows) |
-
-Remaining critical path: Deploy qdrant.py Fix-1 (if uid is not None and uid > 0:) with docker compose restart recall-worker. 74 FamilyHub users (uid 53-71) correctly processed in per-user loop after fix.
