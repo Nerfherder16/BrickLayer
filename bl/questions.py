@@ -62,7 +62,9 @@ def parse_questions() -> list[dict]:
         questions.append(
             {
                 "id": qid,
-                "mode": mode_raw,
+                "mode": fields.get(
+                    "mode", mode_raw
+                ),  # F5.1: body **Mode** field takes priority over bracket tag
                 "title": title,
                 "status": status,
                 "question_type": question_type,

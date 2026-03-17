@@ -39,3 +39,7 @@ N/A	F4.1	FIXED	N/A	project-brief.md corrected: _reactivate_pending_external() mo
 N/A	F4.2	FIXED	N/A	Redundant fix_q["id"] overwrite removed from healloop.py:280 — ID already set correctly by _synthetic_question() (F2.5)	Fix: bl/healloop.py line 280
 N/A	F4.3	FIXED	N/A	parse_questions() regex changed from Q[\\w.-]+ to [\\w][\\w.-]* — all 40 BL 2.0 questions now parsed; _mark_question_done() next-block search also fixed	Fix: bl/questions.py + bl/findings.py
 N/A	F4.4	FIXED	N/A	write_finding() Mode header uses operational_mode; _synthetic_question() resets question_type to behavioral — C-30 confidence cap no longer applies to heal findings	Fix: bl/findings.py + bl/healloop.py
+N/A	D5.1	DIAGNOSIS_COMPLETE	N/A	parse_questions() line 65 "mode": mode_raw uses bracket tag; body **Mode**: agent discarded — all non-correctness BL 2.0 questions dispatch to wrong runner	Code audit: bl/questions.py line 65
+N/A	A5.1	COMPLIANT	N/A	All BL 2.0 bracket tags correctly classified: FIX/AUDIT/MONITOR/DIAGNOSE/VALIDATE default to behavioral — no C-30 cap misapplied	Code audit: bl/questions.py _BEHAVIORAL_TAGS/_CODE_AUDIT_TAGS
+N/A	F5.1	FIXED	N/A	parse_questions() uses fields.get("mode", mode_raw) — body **Mode** field now controls runner dispatch; bracket tag is BL 1.x fallback	Fix: bl/questions.py line 65
+N/A	V5.1	COMPLIANT	N/A	All 7 BL 2.0 pipeline stages verified correct after Waves 1-5 fixes: parse→dispatch→run_agent→verdict→write_finding→upsert→mark_done	Validation: full lifecycle trace
