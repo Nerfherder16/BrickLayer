@@ -20,7 +20,7 @@ def parse_questions() -> list[dict]:
     text = cfg.questions_md.read_text(encoding="utf-8")
 
     block_pattern = re.compile(
-        r"^## (Q[\w.-]+) \[(\w+)\] (.+?)$",
+        r"^## ([\w][\w.-]*) \[(\w+)\] (.+?)$",  # F4.3: accept BL 2.0 IDs (D1, F2.1, A4...) not just Q-prefix
         re.MULTILINE,
     )
     field_pattern = re.compile(

@@ -417,7 +417,7 @@ def write_finding(question: dict, result: dict) -> Path:
 **Question**: {question["hypothesis"]}
 **Verdict**: {verdict}
 **Severity**: {severity}{failure_type_line}
-**Mode**: {question["mode"]}
+**Mode**: {question.get("operational_mode", question["mode"])}
 **Type**: {type_label}
 **Target**: {question["target"]}
 
@@ -516,7 +516,9 @@ def _mark_question_done(qid: str, verdict: str) -> None:
         block_start = text.find(f"## {qid}\n")
     if block_start == -1:
         return
-    next_block = text.find("\n## Q", block_start + 1)
+    next_block = text.find(
+        "\n## ", block_start + 1
+    )  # F4.3: match any ## header (not just Q-prefix)
     block_end = next_block if next_block != -1 else len(text)
     block = text[block_start:block_end]
     if "**Status**: PENDING" not in block:

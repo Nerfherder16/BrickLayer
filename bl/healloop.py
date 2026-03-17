@@ -72,6 +72,9 @@ def _synthetic_question(
     The agent reads that finding, does its work, and returns a result dict.
     """
     q = dict(original_question)
+    q["question_type"] = (
+        "behavioral"  # F4.4: reset — synthetic heal questions are live agent runs, not code_audit
+    )
     short_type = (
         "diag" if "diagnose" in agent_name else "fix"
     )  # F2.5: use intended short form
@@ -276,8 +279,7 @@ def run_heal_loop(
             fix_result = _run_heal_agent("fix-implementer", fix_q)
             fix_verdict = fix_result.get("verdict")
 
-            # Write fix finding
-            fix_q["id"] = f"{original_qid}_heal{cycle}_fix"
+            # Write fix finding (ID already set by _synthetic_question — see F2.5, F4.2)
             write_finding(fix_q, fix_result)
             update_results_tsv(
                 fix_q["id"], fix_result["verdict"], fix_result.get("summary", ""), None

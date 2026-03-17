@@ -56,11 +56,12 @@ Contracts:
 - All functions: graceful-fail when httpx is missing OR Recall is unreachable (5s timeout)
 - Domain format: `{project}-bricklayer`
 
-### `bl/campaign.py` — three additions
+### `bl/campaign.py` — four additions
 
 1. **`_load_mode_context(operational_mode)`** — reads `modes/{mode}.md`, returns empty string if not found
 2. **Session context accumulator** — reads last 2000 chars of `session-context.md` before each question; appends one-line insight after each question
 3. **Heal loop wiring** — calls `run_heal_loop()` when BRICKLAYER_HEAL_LOOP=1 and verdict is FAILURE or DIAGNOSIS_COMPLETE
+4. **`_reactivate_pending_external()`** — removes PENDING_EXTERNAL rows from results.tsv when `resume_after` has passed (F4.1: corrected location — was erroneously listed under questions.py)
 
 ### `bl/runners/agent.py` — one addition
 
@@ -74,7 +75,6 @@ Contracts:
 1. **`operational_mode` field** — parsed from `**Operational Mode**:` in questions.md, defaults to `"diagnose"`
 2. **`resume_after` field** — parsed from `**Resume After**:` (ISO-8601)
 3. **`_PARKED_STATUSES` frozenset** — 12 terminal verdicts that suppress re-running
-4. **`_reactivate_pending_external()`** — removes PENDING_EXTERNAL rows from results.tsv when `resume_after` has passed
 
 ### `bl/findings.py` — three additions
 

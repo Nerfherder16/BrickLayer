@@ -32,3 +32,10 @@ N/A	F3.1	FIXED	N/A	RECALL_STORE_VERDICTS promoted to module-level frozenset in r
 N/A	D3.1	FAILURE	N/A	Print at healloop.py line 338 still used max_cycles after F2.6 fix — fixed inline	Fix: bl/healloop.py line 338
 N/A	D3.2	HEALTHY	N/A	parse_questions() reads status from results.tsv — reactivation + re-parse flow is correct, no race	Code audit: bl/campaign.py lines 546-548
 N/A	V3.1	COMPLIANT	N/A	FIX_FAILED-then-FIXED trace verified: F2.1+F2.3+F2.4 work correctly together	Validation: bl/healloop.py + campaign.py
+N/A	D4.1	DIAGNOSIS_COMPLETE	N/A	parse_questions() Q-prefix regex (Q[\w.-]+) matches 0 of 38 BL 2.0 questions — campaign engine blind to entire BL 2.0 question bank	Code audit: bl/questions.py block_pattern
+N/A	D4.2	FAILURE	N/A	write_finding() writes **Mode**: {question["mode"]} (runner tag "agent"/"correctness") not operational_mode — synthetic and primary BL 2.0 findings mislabeled	Code audit: bl/findings.py content f-string
+N/A	D4.3	FAILURE	N/A	_synthetic_question() inherits question_type from original; C-30 caps confidence at "medium" for synthetic diagnose/fix findings derived from code_audit questions	Code audit: bl/healloop.py _synthetic_question()
+N/A	F4.1	FIXED	N/A	project-brief.md corrected: _reactivate_pending_external() moved from questions.py section to campaign.py section	Fix: projects/bl2/project-brief.md
+N/A	F4.2	FIXED	N/A	Redundant fix_q["id"] overwrite removed from healloop.py:280 — ID already set correctly by _synthetic_question() (F2.5)	Fix: bl/healloop.py line 280
+N/A	F4.3	FIXED	N/A	parse_questions() regex changed from Q[\\w.-]+ to [\\w][\\w.-]* — all 40 BL 2.0 questions now parsed; _mark_question_done() next-block search also fixed	Fix: bl/questions.py + bl/findings.py
+N/A	F4.4	FIXED	N/A	write_finding() Mode header uses operational_mode; _synthetic_question() resets question_type to behavioral — C-30 confidence cap no longer applies to heal findings	Fix: bl/findings.py + bl/healloop.py
