@@ -1865,3 +1865,83 @@ Status is tracked in results.tsv — do not edit manually.
 **Verdict threshold**:
 - NON_COMPLIANT: parse_questions() is called inside the per-finding loop (once per finding, not hoisted); at 50 findings this performs 50 full parses of questions.md; fix requires hoisting `all_questions = parse_questions()` above the loop and passing it into get_question_by_id() on each iteration
 - COMPLIANT: parse_questions() is already hoisted above the per-finding loop (called once per _inject_override_questions() invocation), or the per-call cost is negligible and the staleness risk is confirmed absent
+
+
+<!-- Wave 18 -->
+
+---
+
+## Wave 18
+
+**Generated from findings**: F17.1, A17.1, V17.1
+**Mode transitions applied**: F17.1 FIXED -> V18.1 Validate (dc_rate scope correctness); F17.1 FIXED -> V18.2 Validate (fix_spec_completeness false-positive scan); A17.1 NON_COMPLIANT+in-session fix -> A18.1 Audit (hoist correctness confirmation); V17.1 COMPLIANT (HEAL_EXHAUSTED in frozensets) -> D18.1 Diagnose (HEAL_EXHAUSTED write-back to questions.md); F17.1 FIXED -> D18.2 Diagnose (FIX_FAILED scope — no agent-name filter)
+
+---
+
+### V18.1: Does _score_diagnose_analyst in crucible.py correctly scope dc_rate to diagnose-analyst rows, or does it count verdicts from all agents in results.tsv?
+
+**Status**: NON_COMPLIANT
+**Operational Mode**: validate
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Priority**: HIGH
+**Motivated by**: F17.1 (FIXED) — dc_rate numerator counts rows where verdict is DIAGNOSIS_COMPLETE or HEALTHY; denominator counts rows where verdict is any of DIAGNOSIS_COMPLETE|HEALTHY|FAILURE|INCONCLUSIVE. results.tsv has no agent-name column (columns: question_id, verdict, failure_type, summary, timestamp), so both lists are unfiltered across all agents. HEALTHY verdicts from fix-implementer, compliance-auditor, and design-reviewer questions all enter the denominator and numerator, making dc_rate a campaign-wide health metric rather than a diagnose-analyst performance metric.
+**Hypothesis**: _score_diagnose_analyst lines 385-393 in bl/crucible.py compute dc_rate without filtering results.tsv rows by question_id prefix or agent name. In the BL 2.0 campaign, diagnose-analyst ran on D-prefix questions; fix-implementer on F-prefix; compliance-auditor on A-prefix; design-reviewer on V-prefix. Any HEALTHY verdict on an F/A/V-prefix row contributes to both diag_rows and all_diag, skewing the score. The metric needs either a question_id prefix filter (keep only D-prefix rows) or an explicit acknowledgement in details that it measures campaign-wide health.
+**Method**: Read bl/crucible.py lines 381-393. Confirm: (1) diag_rows and all_diag are built from all lines with no prefix filter. (2) Open projects/bl2/results.tsv — count rows with verdict HEALTHY split by question_id prefix (D vs F/A/V). (3) Recalculate dc_rate with and without prefix filtering to determine the magnitude of distortion.
+**Success criterion**: DIAGNOSIS_COMPLETE with a Fix Specification adding a question_id prefix filter (e.g., keep only rows where question_id starts with D) if non-D-prefix rows materially distort dc_rate; COMPLIANT only if the details string is updated to explicitly state 'campaign-wide metric, not agent-specific' — the current label 'DIAGNOSIS_COMPLETE rate' is misleading if it counts other agents' verdicts.
+
+---
+
+### V18.2: Does _score_diagnose_analyst fix_spec_completeness include FIXED findings from fix-implementer that also contain 'Fix Specification' and all four spec_fields?
+
+**Status**: NON_COMPLIANT
+**Operational Mode**: validate
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Priority**: MEDIUM
+**Motivated by**: F17.1 (FIXED) — the fix_spec_completeness scan at bl/crucible.py lines 402-414 includes any finding that contains 'DIAGNOSIS_COMPLETE' or 'Fix Specification' in its text. FIXED findings produced by fix-implementer (e.g., F17.1.md) contain a Fix Applied section with all four spec_fields ('Target file', 'Target location', 'Concrete edit', 'Verification command'), and the string 'Fix Specification' appears in A17.1.md (the source finding that motivated the fix). These findings will be scored as complete fix specs and included in spec_scores, crediting diagnose-analyst for fix-implementer work.
+**Hypothesis**: F-prefix findings in projects/bl2/findings/ contain 'Fix Specification' (they describe the fix that was applied) and all four spec_fields. The inclusion guard 'DIAGNOSIS_COMPLETE' not in content AND 'Fix Specification' not in content is a substring match — it includes a finding if either string appears anywhere, including in headings like '## Fix Specification' inside a FIXED finding. Removing F-prefix findings from spec_scores would lower spec_completeness from its current value.
+**Method**: Read bl/crucible.py lines 402-414. Then check: (1) Does F17.1.md contain the string 'Fix Specification'? Does it contain all four spec_fields? (2) Does A17.1.md (NON_COMPLIANT with a fix specification block) contain all four spec_fields? (3) Count how many non-D-prefix findings in projects/bl2/findings/ pass the inclusion guard and contribute to spec_scores. (4) Recalculate spec_completeness excluding those findings.
+**Success criterion**: DIAGNOSIS_COMPLETE with a Fix Specification if non-D-prefix findings materially inflate spec_completeness; the correct guard is a match on '**Verdict**: DIAGNOSIS_COMPLETE' (exact status-line) rather than 'DIAGNOSIS_COMPLETE' anywhere in content. COMPLIANT if the guard already excludes F-prefix findings in practice.
+
+---
+
+### A18.1: Is the A17.1 parse_questions() hoist correctly applied — all_questions assigned before the loop and consumed by get_question_by_id() inside it, with no residual inner call?
+
+**Status**: COMPLIANT
+**Operational Mode**: audit
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Priority**: HIGH
+**Motivated by**: A17.1 (NON_COMPLIANT, fix applied in-session) — grep confirmed all_questions = (parse_questions()) at lines 396-398 above the loop and get_question_by_id(all_questions, qid) at line 414 inside it. However the parenthesized multi-line assignment form is unusual, and the fix was applied in-session without a standalone verification run. A residual parse_questions() call inside the loop body or an incorrect variable name would preserve the O(N) behavior.
+**Hypothesis**: The hoist is syntactically correct (all_questions = (parse_questions()) is valid Python) but the audit must confirm: (1) parse_questions() is called exactly once in _inject_override_questions() — the hoisted call — and zero times inside the for-finding_file loop body. (2) The variable passed to get_question_by_id at line 414 is all_questions, not a new parse_questions() call. (3) No other call site within _inject_override_questions() re-invokes parse_questions() after the loop starts.
+**Method**: Run: grep -n 'parse_questions' bl/campaign.py — list all call sites with line numbers. Identify which are inside _inject_override_questions() and which are in other functions. Confirm the only call inside _inject_override_questions() is at the pre-loop hoist site (lines 396-398). Then read lines 400-445 to confirm get_question_by_id uses all_questions.
+**Success criterion**: COMPLIANT if parse_questions() appears exactly once in _inject_override_questions() (the pre-loop hoist) and all_questions is passed to get_question_by_id() inside the loop. NON_COMPLIANT if a second parse_questions() call remains inside the loop body, or if all_questions is assigned but not used.
+
+---
+
+### D18.1: Does update_question_status() write 'HEAL_EXHAUSTED' to questions.md, or does HEAL_EXHAUSTED fail the _TERMINAL_VERDICTS guard and leave the question at PENDING?
+
+**Status**: HEALTHY
+**Operational Mode**: diagnose
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Priority**: HIGH
+**Motivated by**: V17.1 (COMPLIANT) — confirmed HEAL_EXHAUSTED is in _PARKED_STATUSES, _TERMINAL_VERDICTS inline tuple, _PRESERVE_AS_IS, and agent_db._PARTIAL_VERDICTS. However V17.1 verified frozenset membership only. The write-back path in update_question_status() populates done_ids[qid] only when verdict is in _TERMINAL_VERDICTS. questions.py has two distinct frozensets: _PARKED_STATUSES (lines 100-113) and the _TERMINAL_VERDICTS check at line 197. These are separate sets; membership in one does not guarantee membership in the other.
+**Hypothesis**: F-mid.1 added HEAL_EXHAUSTED to the inner ternary tuple at line 214 (the preserve-raw-verdict list). If HEAL_EXHAUSTED is also present in the outer _TERMINAL_VERDICTS frozenset (lines 100-113), the full path produces done_ids[qid] = 'HEAL_EXHAUSTED' and update_question_status() writes '**Status**: HEAL_EXHAUSTED' to questions.md. If HEAL_EXHAUSTED is only in the inner ternary but absent from _TERMINAL_VERDICTS, the outer guard at line 197 blocks entry entirely — done_ids is never populated and the question stays PENDING indefinitely after heal exhaustion, causing the campaign loop to re-attempt it.
+**Method**: Read bl/questions.py lines 95-240 in full. Confirm: (1) _TERMINAL_VERDICTS frozenset definition at lines 100-113 includes HEAL_EXHAUSTED. (2) Trace the path for verdict='HEAL_EXHAUSTED': outer guard at line 197 passes -> done_ids[qid] entered -> inner ternary at lines 209-216 assigns raw verdict -> update_question_status() writes '**Status**: HEAL_EXHAUSTED'. (3) If the path is broken, identify the exact guard that excludes HEAL_EXHAUSTED.
+**Success criterion**: HEALTHY if HEAL_EXHAUSTED is in _TERMINAL_VERDICTS and the full write-back path produces '**Status**: HEAL_EXHAUSTED' in questions.md. DIAGNOSIS_COMPLETE if HEAL_EXHAUSTED is absent from _TERMINAL_VERDICTS — the question stays PENDING after heal exhaustion, making it invisible as exhausted and causing the campaign to re-attempt it.
+
+---
+
+### D18.2: Does _score_fix_implementer in crucible.py scope fix_rows to F-prefix questions only, or do verdicts from other agents inflate or deflate the FIXED/FIX_FAILED ratio?
+
+**Status**: HEALTHY
+**Operational Mode**: diagnose
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Priority**: MEDIUM
+**Motivated by**: F17.1 (FIXED) — _score_fix_implementer computes fix_rows as all results.tsv rows matching verdict FIXED or FIX_FAILED, with no question_id prefix filter. This is the same root issue as V18.1 (no agent-name column in results.tsv) but applied to the fix-implementer scorer. If any non-F-prefix question produces a FIXED or FIX_FAILED verdict (e.g., via text-fallback extracting a stray string from a code block), that row enters fix_rows and skews the fixed_rate and fix_failed_rate metrics.
+**Hypothesis**: In the current BL 2.0 campaign results.tsv, all FIXED and FIX_FAILED verdicts appear on F-prefix question IDs, so the scorer is functionally correct for this campaign. However the scorer has no structural guard — it is fragile to any campaign where FIXED appears on a non-fix question. The question is whether the distortion is active (affects the current 0.9573 score) or latent (zero distortion today, fragile tomorrow).
+**Method**: Read bl/crucible.py lines 425-475. Confirm fix_rows filter is verdict-only. Open projects/bl2/results.tsv — list all rows where verdict is FIXED or FIX_FAILED and identify their question_id prefixes. Determine if any non-F-prefix row is present in fix_rows. If distortion is active, recalculate fixed_rate excluding non-F-prefix rows.
+**Success criterion**: DIAGNOSIS_COMPLETE with a Fix Specification adding a question_id prefix filter if non-F-prefix rows exist in fix_rows; HEALTHY if all FIXED/FIX_FAILED rows are F-prefix and the current score is accurate — document the latent fragility in the finding regardless so a future campaign does not inherit a silent metric error.
