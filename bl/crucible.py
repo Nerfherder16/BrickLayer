@@ -440,11 +440,22 @@ def _score_fix_implementer(project_dir: Path) -> AgentScore:
     if not findings_dir.exists():
         return AgentScore("fix-implementer", 0.0, {}, "findings/ not found")
 
+    # A20.2: scope fix_rows to F-prefix questions — excludes D-prefix self-fix edge cases (e.g. D-mid.4)
+    def _is_fix_row(ln: str) -> bool:
+        parts = ln.split("\t")
+        # New format: N/A | qid | verdict | ...
+        if len(parts) >= 3 and parts[0] == "N/A":
+            return parts[1].startswith("F") and bool(
+                re.search(r"^(FIXED|FIX_FAILED)$", parts[2])
+            )
+        # Old format (BL 1.x): qid | verdict | ... — preserve existing behavior
+        return bool(re.search(r"\t(FIXED|FIX_FAILED)\t", ln))
+
     fixed_rate = 0.0
     fix_failed_rate = 0.0
     if results_tsv.exists():
         lines = results_tsv.read_text(encoding="utf-8", errors="replace").splitlines()
-        fix_rows = [ln for ln in lines if re.search(r"\t(FIXED|FIX_FAILED)\t", ln)]
+        fix_rows = [ln for ln in lines if _is_fix_row(ln)]
         if fix_rows:
             fixed_rate = sum(1 for ln in fix_rows if "\tFIXED\t" in ln) / len(fix_rows)
             fix_failed_rate = 1.0 - fixed_rate
