@@ -36,13 +36,26 @@ def _build_findings_corpus(findings_dir: Path, results_tsv: Path) -> str:
             if content:
                 finding_sections.append(f"### {finding_file.stem}\n\n{content}\n")
 
-    # Build corpus: TSV always included, truncate oldest findings if over limit
+    # Build corpus: TSV always included, truncate low-severity findings first if over limit
     tsv_chars = len(tsv_section)
     budget = _MAX_CORPUS_CHARS - tsv_chars
 
-    # Truncate oldest findings first (drop from front of list)
+    # F11.3: severity-aware truncation — drop COMPLIANT/FIXED findings before FAILURE/NON_COMPLIANT
+    # Sort: high-severity (FAILURE, NON_COMPLIANT) first, low-severity (COMPLIANT, FIXED) last
+    _HIGH_SEVERITY = frozenset(
+        {"FAILURE", "NON_COMPLIANT", "WARNING", "REGRESSION", "ALERT"}
+    )
+
+    def _finding_priority(section: str) -> int:
+        """Lower number = higher priority = kept longer under budget pressure."""
+        for verdict in _HIGH_SEVERITY:
+            if f"**Verdict**: {verdict}" in section or f": {verdict}" in section:
+                return 0  # high severity — keep
+        return 1  # low severity (COMPLIANT, FIXED, etc.) — drop first
+
+    finding_sections.sort(key=_finding_priority)  # high-severity first
     while finding_sections and budget < sum(len(s) for s in finding_sections):
-        finding_sections.pop(0)
+        finding_sections.pop()  # drop from tail (low-severity last)
 
     corpus_parts = []
     if tsv_section:

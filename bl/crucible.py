@@ -159,18 +159,21 @@ def _score_hypothesis_generator(project_dir: Path) -> AgentScore:
 
     text = qpath.read_text(encoding="utf-8", errors="replace")
 
-    # Find Wave 2+ sections
-    wave_match = re.search(r"## Wave [2-9]\d*", text)
-    if not wave_match:
+    # F11.1: detect wave number from question IDs (supports BL 2.0 IDs like D7.1, F8.1)
+    # BL 1.x: Q2.1 → wave 2; BL 2.0: D7.1 → wave 7 (digit after letter prefix)
+    wave_nums = [int(m) for m in re.findall(r"^## \w+(\d+)\.\d+", text, re.MULTILINE)]
+    max_wave = max(wave_nums) if wave_nums else 0
+    if max_wave < 2:
         return AgentScore(
-            "hypothesis-generator", 0.0, {}, "No Wave 2+ sections found in questions.md"
+            "hypothesis-generator",
+            0.0,
+            {},
+            "No Wave 2+ questions found in questions.md",
         )
 
-    wave2_text = text[wave_match.start() :]
-
-    # Split on question headers ## Q<n>.<m> where n >= 2
-    blocks = re.split(r"(?=^## Q[2-9]\d*\.\d+)", wave2_text, flags=re.MULTILINE)
-    blocks = [b.strip() for b in blocks if re.match(r"## Q[2-9]\d*\.\d+", b.strip())]
+    # F11.1: split on any letter-prefixed question header for wave 2+ (BL 1.x and BL 2.0)
+    blocks = re.split(r"(?=^## \w+[2-9]\d*\.\d+)", text, flags=re.MULTILINE)
+    blocks = [b.strip() for b in blocks if re.match(r"## \w+[2-9]\d*\.\d+", b.strip())]
 
     if not blocks:
         return AgentScore(
@@ -221,13 +224,15 @@ def _score_question_designer(project_dir: Path) -> AgentScore:
 
     text = qpath.read_text(encoding="utf-8", errors="replace")
 
-    # Take only Wave 1 content (before any Wave 2 section)
-    wave2_match = re.search(r"^## Wave [2-9]", text, re.MULTILINE)
+    # F11.1: find Wave 1 content by splitting on first Wave 2+ question ID
+    # BL 1.x: Q1.x are wave 1, Q2.x+ are wave 2+
+    # BL 2.0: D1.x/A1.x etc. are wave 1, D2.x+ are wave 2+
+    wave2_match = re.search(r"^## \w+[2-9]\d*\.\d+", text, re.MULTILINE)
     wave1_text = text[: wave2_match.start()] if wave2_match else text
 
-    # Split on question headers
-    blocks = re.split(r"(?=^## Q\d+\.\d+)", wave1_text, flags=re.MULTILINE)
-    blocks = [b.strip() for b in blocks if re.match(r"## Q\d+\.\d+", b.strip())]
+    # F11.1: split on any letter-prefixed question header (BL 1.x and BL 2.0)
+    blocks = re.split(r"(?=^## \w+\d+\.\d+)", wave1_text, flags=re.MULTILINE)
+    blocks = [b.strip() for b in blocks if re.match(r"## \w+\d+\.\d+", b.strip())]
 
     if len(blocks) < 5:
         return AgentScore(
