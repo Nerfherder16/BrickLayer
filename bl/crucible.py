@@ -475,7 +475,9 @@ def _score_fix_implementer(project_dir: Path) -> AgentScore:
             content = fpath.read_text(encoding="utf-8", errors="replace")
         except Exception:
             continue
-        if "**Verdict**: FIXED" not in content and "\nVerdict: FIXED" not in content:
+        # A24.1/F25.2: frontmatter-position guard — only score findings where FIXED verdict is in first 6 lines
+        first_lines_fi2 = content.split("\n")[:6]
+        if not any(line.strip() == "**Verdict**: FIXED" for line in first_lines_fi2):
             continue
         has_verify = bool(re.search(r"## (Verification|Fix Applied|Evidence)", content))
         verify_scores.append(1.0 if has_verify else 0.0)
@@ -579,7 +581,17 @@ def _score_design_reviewer(project_dir: Path) -> AgentScore:
             content = fpath.read_text(encoding="utf-8", errors="replace")
         except Exception:
             continue
-        if not re.search(r"\b(COMPLIANT|NON_COMPLIANT|VALIDATE|VALIDATE)\b", content):
+        # A24.1/F25.1: frontmatter-position guard — only score findings where verdict is in first 6 lines
+        first_lines_dr2 = content.split("\n")[:6]
+        if not any(
+            line.strip()
+            in (
+                "**Verdict**: COMPLIANT",
+                "**Verdict**: NON_COMPLIANT",
+                "**Verdict**: PARTIAL",
+            )
+            for line in first_lines_dr2
+        ):
             continue
         has_lineno = bool(
             re.search(r"line[s]?\s+\d+|:\d+[-–]\d+|lines?\s+\d+[-–]\d+", content)
