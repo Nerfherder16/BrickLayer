@@ -108,3 +108,8 @@ D15.4	HEALTHY		agent_db.py unclassified verdict handling: all 30 BL 2.0 verdicts
 F15.1	FIXED		questions.py sync_status sentinel changed from "\n## Q" to "\n## " — BL 2.0 block boundaries now found correctly	2026-03-16T00:00:00Z
 F15.2	FIXED		crucible.py: _KNOWN_AGENTS +4 BL 2.0 agents; domains_covered uses prefix detection; synthesizer regex and qa glob both fixed	2026-03-16T00:00:00Z
 V15.1	COMPLIANT		All F15.1/F15.2 fixes verified; questions.py and crucible.py correct; no regressions	2026-03-16T00:00:00Z
+N/A	D16.1	DIAGNOSIS_COMPLETE	N/A	healloop.py exhausted path never calls update_results_tsv for original_qid — stale FAILURE verdict persists in results.tsv	D16.1-healloop-exhausted-no-tsv-write
+N/A	D16.2	DIAGNOSIS_COMPLETE	N/A	peer-reviewer spawned unconditionally for code_audit questions — produces OVERRIDE for non-executable tests, injects spurious re-exam questions	D16.2-peer-reviewer-no-mode-guard
+N/A	D16.3	DIAGNOSIS_COMPLETE	N/A	_parse_text_output() has no else clause for BL 2.0 agents — plain-text output returns {} causing INCONCLUSIVE regardless of verdict text	D16.3-parse-text-no-bl2-fallback
+N/A	V16.1	COMPLIANT	N/A	_SCORERS is plain dict, AgentScore fields sufficient, _score_synthesizer pattern reusable, run_all_benchmarks needs no structural changes	V16.1-bl2-scorer-design-validated
+N/A	A16.1	NON_COMPLIANT	N/A	enumerate iterator bound to original pending list — refreshed rebind is dead code for execution; injected questions skipped until next run	A16.1-pending-refresh-dead-code
