@@ -1,1 +1,23 @@
 commit	question_id	verdict	primary_metric	key_finding	scenario_name
+N/A	D1	FAILURE	N/A	_verdict_from_agent_output() only accepts 4 verdicts; all BL 2.0 verdicts fall to INCONCLUSIVE — heal loop structurally broken	Code audit: bl/runners/agent.py lines 78-82
+N/A	D2	FAILURE	N/A	DEGRADED, ALERT, UNKNOWN, BLOCKED missing from _NON_FAILURE_VERDICTS — Monitor/Frontier verdicts misclassified as failures	Code audit: bl/findings.py frozenset vs constants.py
+N/A	D3	FAILURE	N/A	diagnose-analyst sees ID _heal{n}_diagnose but finding written as _heal{n}_diag — agent context ID mismatch	Code audit: bl/healloop.py lines 75, 218
+N/A	D4	FAILURE	N/A	_reactivate_pending_external() is in campaign.py, spec says questions.py — location mismatch	Code audit: bl/campaign.py vs project-brief.md
+N/A	D5	FAILURE	N/A	EXHAUSTED note always uses max_cycles; on early break falsely reports max_cycles exhausted	Code audit: bl/healloop.py line 323
+N/A	D6	FAILURE	N/A	current_result=fix_result is alias; verdict mutated to FAILURE; run_heal_loop returns wrong verdict	Code audit: bl/healloop.py lines 309-313
+N/A	D7	WARNING	N/A	_STORE_VERDICTS defined as local set inside store_finding() — not importable for testing	Code audit: bl/recall_bridge.py lines 52-68
+N/A	D8	HEALTHY	N/A	Prompt order matches spec exactly	Code audit: bl/runners/agent.py line 290
+N/A	D9	FAILURE	N/A	heal loop result discarded when verdict unchanged; enriched context lost	Code audit: bl/campaign.py lines 136-138
+N/A	D10	HEALTHY	N/A	Double-gate is redundant but correct; no scenario allows completed question re-run	Code audit: bl/questions.py get_next_pending()
+N/A	A1	COMPLIANT	N/A	_PARKED_STATUSES contains all 10 required verdicts — fully compliant	Code audit: bl/questions.py _PARKED_STATUSES
+N/A	A2	NON_COMPLIANT	N/A	DEGRADED, ALERT, UNKNOWN, BLOCKED missing from _NON_FAILURE_VERDICTS (4 of 18 required absent)	Code audit: bl/findings.py vs constants.py
+N/A	A3	COMPLIANT	N/A	Bounded for loop, explicit break paths — termination guaranteed	Code audit: bl/healloop.py
+N/A	A4	COMPLIANT	N/A	All 3 httpx calls wrapped in try/except — graceful-fail confirmed	Code audit: bl/recall_bridge.py
+N/A	A5	COMPLIANT	N/A	session-context.md opened with "a" mode only — confirmed	Code audit: bl/campaign.py line 142
+N/A	A6	COMPLIANT	N/A	operational_mode defaults to "diagnose" — BL 1.x backwards compat confirmed	Code audit: bl/questions.py line 76
+N/A	A7	COMPLIANT	N/A	_agent_exists() called before both agent spawns — confirmed	Code audit: bl/healloop.py lines 169, 242
+N/A	A8	COMPLIANT	N/A	mode_context injected before run_question() — confirmed	Code audit: bl/campaign.py run_and_record()
+N/A	A9	COMPLIANT	N/A	Prompt order mode_ctx->session_ctx->doctrine->agent confirmed	Code audit: bl/runners/agent.py line 290
+N/A	A10	COMPLIANT	N/A	Intermediate IDs follow {qid}_heal{n}_diag and {qid}_heal{n}_fix — no collision	Code audit: bl/healloop.py lines 218, 275
+N/A	A11	COMPLIANT	N/A	Both intermediates call update_results_tsv() — confirmed	Code audit: bl/healloop.py lines 220-225, 275-279
+N/A	A12	COMPLIANT	N/A	FIX_LOOP and HEAL_LOOP are independent if blocks — confirmed	Code audit: bl/campaign.py lines 113-138
