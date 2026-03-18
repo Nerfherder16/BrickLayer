@@ -4032,6 +4032,17 @@ IDEAS = {
         0.92,
         1.00,
     ),  # Applied one-line fix to observe-edit.js; hook p95 drops ~220ms → ~145ms; 75ms saved per Write/Edit; 2.5x LAN safety margin
+    # F37.3 — Fix: port inventory blob rechunked into 7 service-group memories
+    "port-inventory-rechunked-7-memories-neo4j-87pct-confirmed": (
+        0.35,
+        0.95,
+        1.00,
+    ),  # 7 focused service memories stored; Neo4j query 46%→87.1% (fixed); docker 60%→61.9% (marginal); Q262 model confirmed empirically
+    "one-service-per-memory-for-homelab-ports-next-improvement": (
+        0.40,
+        0.90,
+        0.90,
+    ),  # Further splitting docker infra chunk (11 services, 62%) into 1-service/memory would hit 82% per Q262 model; Portainer/Nginx/Authentik priority
 }
 
 # =============================================================================
