@@ -2071,7 +2071,7 @@ Wave 15 closes the implementation and operational gaps that open after Wave 14's
 
 ### [FIX] F37.1: Reduce observe-edit.js setTimeout from 100ms to 25ms
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: Fix
 **Priority**: HIGH
 **Motivated by**: Q270 — Idea 2: `reduce-settimeout-100ms-to-25ms-save-75ms-per-hook`

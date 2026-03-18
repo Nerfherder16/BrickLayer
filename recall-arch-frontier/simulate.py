@@ -60,7 +60,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 #               0.0 = requires new hardware or years of research
 # =============================================================================
 
-SCENARIO_NAME = "Wave 36 — Q270-Q274: observe-edit Implementation Validation + Empirical MRR Confirmation"
+SCENARIO_NAME = "Wave 37 — F37.1-R37.7: Strategy D Implementation Sequencing"
 
 IDEAS = {
     # Q001 — Database buffer management → hot cache eviction
@@ -4026,6 +4026,12 @@ IDEAS = {
         0.82,
         1.00,
     ),  # Empirical data suggests C+ alone = 92% (vs 88% model); blob dilution so severe that any chunking recovers nearly all failures
+    # F37.1 — Fix: setTimeout 100ms → 25ms applied
+    "settimeout-reduced-100ms-to-25ms-75ms-savings-applied": (
+        0.30,
+        0.92,
+        1.00,
+    ),  # Applied one-line fix to observe-edit.js; hook p95 drops ~220ms → ~145ms; 75ms saved per Write/Edit; 2.5x LAN safety margin
 }
 
 # =============================================================================
