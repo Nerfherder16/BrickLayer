@@ -145,6 +145,16 @@ After appending to the finding file, output a JSON block:
   "summary": "one-line summary of peer review outcome",
   "test_rerun": true,
   "fix_verified": true,
-  "escalation_needed": false
+  "escalation_needed": false,
+  "quality_score": 0.0
 }
 ```
+
+## quality_score Rubric
+- **0.9–1.0**: Finding has reproduction steps, exact error output, line numbers, confirmed fix
+- **0.7–0.8**: Finding has evidence but missing one of: steps, output, or line numbers
+- **0.5–0.6**: Finding is partially evidenced — summary exists but details are thin
+- **0.3–0.4**: Finding is speculative — no test rerun possible, assertion-only
+- **0.0–0.2**: Finding cannot be evaluated at all (missing file, 404, timeout)
+
+Always emit `quality_score` in every response. Never omit it.

@@ -51,6 +51,8 @@ _NON_FAILURE_VERDICTS = frozenset(
     }
 )
 
+_CONFIDENCE_FLOAT = {"high": 0.9, "medium": 0.6, "low": 0.3, "uncertain": 0.1}
+
 
 def classify_failure_type(result: dict, mode: str) -> str | None:
     """
@@ -412,6 +414,10 @@ def write_finding(question: dict, result: dict) -> Path:
     failure_type_line = f"\n**Failure Type**: {failure_type}" if failure_type else ""
     type_label = "CODE-AUDIT" if question_type == "code_audit" else "BEHAVIORAL"
 
+    conf_str = result.get("confidence", "uncertain")
+    confidence_float = _CONFIDENCE_FLOAT.get(conf_str, 0.1)
+    needs_human = confidence_float < 0.35
+
     content = f"""# Finding: {qid} — {question["title"]}
 
 **Question**: {question["hypothesis"]}
@@ -420,6 +426,8 @@ def write_finding(question: dict, result: dict) -> Path:
 **Mode**: {question.get("operational_mode", question["mode"])}
 **Type**: {type_label}
 **Target**: {question["target"]}
+**Confidence**: {confidence_float}
+**Needs Human**: {needs_human}
 
 ## Summary
 

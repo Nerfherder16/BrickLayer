@@ -57,6 +57,16 @@ Check `results.tsv` for questions re-run on the same agent that flipped from HEA
 - 1–2 → WARNING
 - 3+ → UNDERPERFORMING
 
+## Trend Detection (agent_db.json runs[] data)
+For each agent that has a `runs` array in agent_db.json:
+1. Import: `from bl.agent_db import get_trend`
+2. Call: `trend = get_trend(project_root, agent_name, window=5)`
+3. In AUDIT_REPORT.md, add to the agent's entry:
+   - If `trending == "down"`: prefix with `⚠️ TRENDING DOWN — recent accuracy {score_recent:.0%} vs prior {score_prior:.0%}`
+   - If `trending == "up"`: prefix with `↑ IMPROVING — recent {score_recent:.0%} vs prior {score_prior:.0%}`
+   - If `trending == "stable"` or `"insufficient_data"`: no prefix
+Agents without `runs` data: skip trend detection (backward compatible).
+
 ## Output: AUDIT_REPORT.md
 
 Write `{agents_dir}/AUDIT_REPORT.md`:
