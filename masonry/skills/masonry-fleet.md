@@ -194,6 +194,22 @@ Report: "Agent `{name}` moved to `.claude/agents/.retired/{name}.md`. Run `/maso
 
 ---
 
+### Pack-Aware Agent Resolution
+
+When looking up agents, resolution order is:
+1. `.claude/agents/` (project-local — highest priority)
+2. Each active pack's `agents/` directory (in order listed in `activePacks` in `~/.masonry/config.json`)
+3. `masonry/packs/masonry-core/agents/` (always available, lowest priority)
+
+Active packs are configured in `~/.masonry/config.json`:
+```json
+{
+  "activePacks": ["masonry-core", "masonry-frontier"]
+}
+```
+
+---
+
 ## Notes
 
 - All fleet operations are local — no network calls
