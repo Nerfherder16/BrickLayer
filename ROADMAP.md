@@ -124,31 +124,31 @@ Everything here is complete as of 2026-03-17.
 
 ---
 
-## Phase 2 — Masonry Ecosystem Expansion 🔄
+## Phase 2 — Masonry Ecosystem Expansion ✅
 
-Spec written at `.autopilot/spec.md` (commit `92dc7b0`). 9 tasks, build not yet started.
+All 9 tasks complete (shipped across two sessions, Mar 16 2026).
 
 ### Rich HUD + Execution Engines
-| # | Item | Status | Notes |
-|---|------|--------|-------|
-| 2.01 | Rich statusline — git branch/dirty, build task, UI mode, active agent count | 🔄 | Task 1 of spec |
-| 2.02 | File ownership in `/build` — `owned_by` + `lock_files[]` in progress.json schema | 🔄 | Task 2 of spec |
-| 2.03 | `/ultrawork` skill — all independent tasks spawned simultaneously, refill-pool execution | 🔄 | Task 4 of spec |
-| 2.04 | `/pipeline` skill — chain agents/skills in a DAG with data passing (`.pipeline/*.yml`) | 🔄 | Task 5 of spec |
-| 2.05 | `/masonry-team` skill — partition build across N coordinated Claude instances | 🔄 | Task 6 of spec |
+| # | Item | Status |
+|---|------|--------|
+| ~~2.01~~ | ~~Rich statusline — git branch/dirty, build task, UI mode, active agent count~~ | ✅ |
+| ~~2.02~~ | ~~File ownership in `/build` — `owned_by` + `lock_files[]` in progress.json schema~~ | ✅ |
+| ~~2.03~~ | ~~`/ultrawork` skill — all independent tasks spawned simultaneously, refill-pool execution~~ | ✅ |
+| ~~2.04~~ | ~~`/pipeline` skill — chain agents/skills in a DAG with data passing (`.pipeline/*.yml`)~~ | ✅ |
+| ~~2.05~~ | ~~`/masonry-team` skill — partition build across N coordinated Claude instances~~ | ✅ |
 
 ### Fleet CLI + Plugin Architecture
-| # | Item | Status | Notes |
-|---|------|--------|-------|
-| 2.06 | `masonry-fleet-cli.js` — `status`, `add`, `retire`, `regen` commands | 🔄 | Task 3 of spec |
-| 2.07 | Plugin pack architecture — `packs/masonry-core/`, `packs/masonry-frontier/` with `pack.json` | 🔄 | Task 7 of spec |
-| 2.08 | `activePacks` in `~/.masonry/config.json` — pack resolution order | 🔄 | Task 7 of spec |
+| # | Item | Status |
+|---|------|--------|
+| ~~2.06~~ | ~~`masonry-fleet-cli.js` — `status`, `add`, `retire`, `regen` commands~~ | ✅ |
+| ~~2.07~~ | ~~Plugin pack architecture — `packs/masonry-core/`, `packs/masonry-frontier/` with `pack.json`~~ | ✅ |
+| ~~2.08~~ | ~~`activePacks` in `~/.masonry/config.json` — pack resolution order~~ | ✅ |
 
 ### Skill Catalog Update
-| # | Item | Status | Notes |
-|---|------|--------|-------|
-| 2.09 | `~/.claude/CLAUDE.md` updated with ultrawork/pipeline/masonry-team in skills table | 🔄 | Task 8 of spec |
-| 2.10 | Test suite: `test_masonry_hud.js`, `test_masonry_fleet_cli.js` | 🔄 | Task 9 of spec |
+| # | Item | Status |
+|---|------|--------|
+| ~~2.09~~ | ~~`~/.claude/CLAUDE.md` updated with ultrawork/pipeline/masonry-team in skills table~~ | ✅ |
+| ~~2.10~~ | ~~Test suite: `test_masonry_hud.js`, `test_masonry_fleet_cli.js` (13 tests passing)~~ | ✅ |
 
 ---
 
