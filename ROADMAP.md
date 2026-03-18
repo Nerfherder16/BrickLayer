@@ -168,19 +168,19 @@ Each item adds a new class of targets BrickLayer can run against.
 
 ---
 
-## Phase 4 — Recall 2.0 Integration 📋
+## Phase 4 — Masonry Recall Integration 📋
 
-The recall-arch-frontier campaign (Waves 1–34) reached a STOP verdict: build Recall 2.0.
-The Recall 2.0 Rust codebase scaffold is at `projects/recall2/`.
+Masonry uses Recall 1.x (the deployed FastAPI + Qdrant + Neo4j system at `100.70.195.84:8200`).
+Recall 2.0 is a separate project tracked elsewhere — Masonry will migrate to it when it ships,
+but Phase 4 items here are improvements to the **existing Recall 1.x integration**.
 
 | # | Item | Notes |
 |---|------|-------|
-| 4.01 | Recall 2.0 — Rust-native memory engine with improved extraction and storage | Foundation for all Phase 4 items |
-| 4.02 | Masonry observe-edit hook — improved fact extraction from file edits | Wave 34 research: extraction strategy Q261–Q266 |
-| 4.03 | Rich session summaries — structured knowledge extraction at session end | Replaces plain text summary via Ollama |
-| 4.04 | `masonry-statusline.js` Recall integration — surface active memory context in HUD | Phase 4 HUD item |
-| 4.05 | Cross-project memory transfer — bug patterns and findings propagate to new projects | BL research item C-19 |
-| 4.06 | Recall-backed question generation — `planner` queries memory for prior campaign findings | Currently manual |
+| 4.01 | Masonry observe-edit hook — improved fact extraction from file edits | Better signal from PostToolUse edits |
+| 4.02 | Rich session summaries — structured knowledge extraction at session end | Replaces plain text summary |
+| 4.03 | `masonry-statusline.js` Recall integration — surface active memory context in HUD | Show recent recall hits in statusline |
+| 4.04 | Cross-project memory transfer — bug patterns and findings propagate to new projects | BL research item C-19 |
+| 4.05 | Recall-backed question generation — `planner` queries memory for prior campaign findings | Currently manual |
 
 ---
 

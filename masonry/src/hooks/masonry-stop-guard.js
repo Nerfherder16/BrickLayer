@@ -100,21 +100,21 @@ async function main() {
     if (sessionModified.length > 0) {
       output += `\n── Modified (${sessionModified.length}) ──\n`;
       for (const { xy, file } of sessionModified) {
-        output += `  [${xy.padEnd(2)}]  ${file}\n`;
+        output += `  (${xy.padEnd(2)})  ${file}\n`;
       }
     }
 
     if (sessionUntracked.length > 0) {
       output += `\n── Untracked (${sessionUntracked.length}) ──\n`;
       for (const { file, days } of sessionUntracked) {
-        output += `  [??]   ${file}${ageLabel(days)}\n`;
+        output += `  (??)   ${file}${ageLabel(days)}\n`;
       }
     }
 
     if (staleFiles.length > 0) {
       output += `\n── Pre-existing (${staleFiles.length}, not from today) ──\n`;
       for (const { xy, file, days } of staleFiles) {
-        output += `  [${xy.padEnd(2)}]  ${file}${ageLabel(days)}\n`;
+        output += `  (${xy.padEnd(2)})  ${file}${ageLabel(days)}\n`;
       }
     }
 
