@@ -1887,7 +1887,7 @@ Wave 15 closes the implementation and operational gaps that open after Wave 14's
 **Deliverable**: Existence verdict — does this combined pattern appear in any production system? If yes: where, and can Recall 2.0 adapt it? If no: confirmation that Strategy D is novel implementation territory.
 
 ### [PHYSICS] Q269: What is the cold-start window for BM25 to become load-bearing in Recall 2.0 retrieval?
-**Status**: PENDING
+**Status**: DONE
 **Priority**: High
 **Rationale**: Q266 relies on BM25 compensation closing 60% of the semantic gap for code queries (identifier matching). But BM25 requires a corpus of indexed documents. At 0 memories, BM25 contributes nothing. The cold-start question: at what corpus size does BM25 retrieval contribution become reliably positive, and does Strategy D's retrieval quality degrade significantly during the cold-start window (first N sessions)?
 **Research question**: (1) At what corpus size does Tantivy BM25 IDF stabilize enough to provide consistent positive lift over dense-only retrieval? With Tim's typical session write rate (estimated 20-50 memories/session from observe-edit), how many sessions until the cold-start window closes? (2) During the cold-start window (BM25 not yet load-bearing), does Strategy D degrade to worse retrieval quality than Strategy A (pure LLM extraction) would have provided? (3) Is there a corpus size below which Strategy C+ (without BM25 compensation) fails to meet the 88% MRR estimate from Q266? (4) Should the observe-edit hook behave differently during cold-start (e.g., increase LLM extraction budget, lower async LLM threshold from 200 to 100 tokens)?
