@@ -204,7 +204,12 @@ export function QuestionQueue({ questions, onRefresh }: Props) {
                 </td>
                 <td className="px-2 py-2 text-xs text-[#6b7280]">{q.domain}</td>
                 <td className="px-2 py-2 text-[#e5e7eb] leading-snug">
-                  {q.title}
+                  <span>{q.title}</span>
+                  {q.sharpened && (
+                    <span className="ml-2 inline-flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full bg-[#0c2a3a] text-[#38bdf8] border border-[#38bdf8]/20 font-medium">
+                      ◇ sharpened
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-2">
                   <span

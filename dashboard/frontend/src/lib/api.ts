@@ -48,6 +48,7 @@ export interface Question {
   status: "PENDING" | "DONE" | "INCONCLUSIVE" | "IN_PROGRESS";
   domain: string;
   hypothesis: string | null;
+  sharpened?: boolean;
 }
 
 export interface Finding {
@@ -57,6 +58,9 @@ export interface Finding {
   severity: string;
   has_correction: boolean;
   modified: string;
+  confidence?: number | null;
+  needs_human?: boolean;
+  sharpened?: boolean;
 }
 
 export interface FindingDetail {
