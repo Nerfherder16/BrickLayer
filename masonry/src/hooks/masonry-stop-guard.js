@@ -24,20 +24,27 @@ function readStdin() {
   });
 }
 
+function normalizeCwd(p) {
+  // Convert POSIX /c/Users/... paths to Windows C:\Users\... so fs.statSync works
+  if (process.platform === "win32" && /^\/[a-zA-Z]\//.test(p)) {
+    return p[1].toUpperCase() + ":" + p.slice(2).replace(/\//g, "\\");
+  }
+  return p;
+}
+
 function fileAgeDays(filePath) {
   try {
     const stat = fs.statSync(filePath);
     return Math.floor((Date.now() - stat.mtimeMs) / (1000 * 60 * 60 * 24));
   } catch {
-    return null;
+    return null; // treat as today below
   }
 }
 
 function ageLabel(days) {
-  if (days === null) return "";
-  if (days === 0) return " [today]";
-  if (days === 1) return " [yesterday]";
-  return ` [${days}d old]`;
+  if (days === null || days === 0) return "";
+  if (days === 1) return " (yesterday)";
+  return ` (${days}d old)`;
 }
 
 async function main() {
@@ -53,7 +60,7 @@ async function main() {
 
   if (parsed.stop_hook_active) process.exit(0);
 
-  const cwd = parsed.cwd || process.cwd();
+  const cwd = normalizeCwd(parsed.cwd || process.cwd());
 
   try {
     const status = execSync("git status --porcelain", {
@@ -74,7 +81,7 @@ async function main() {
       const days = fileAgeDays(path.join(cwd, file.replace(/\/$/, "")));
       const entry = { xy: xy || "??", file, days };
 
-      if (days === 0) {
+      if (days === 0 || days === null) {
         (xy === "??" ? sessionUntracked : sessionModified).push(entry);
       } else {
         staleFiles.push(entry);
