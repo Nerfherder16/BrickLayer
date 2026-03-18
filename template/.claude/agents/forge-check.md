@@ -48,6 +48,12 @@ Every BL 2.0 fleet must include at minimum:
 
 Flag any of these missing as `CRITICAL_MISSING`.
 
+## Tools Manifest Check
+- Look for `template/.claude/agents/tools-manifest.md` (relative to project root or BL root)
+- If **absent**: add to FORGE_NEEDED.md: `"tools-manifest.md missing — agents cannot discover available MCP tools"`
+- If **present**: verify it contains at least 5 tool entries (lines starting with `- \``)
+  - If fewer than 5: add a warning entry to FORGE_NEEDED.md
+
 ## Output: FORGE_NEEDED.md
 
 If any gap is found, write `{agents_dir}/FORGE_NEEDED.md` with this format:

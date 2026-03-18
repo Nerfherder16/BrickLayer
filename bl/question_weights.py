@@ -55,6 +55,7 @@ class QuestionWeight:
     last_verdict: str = ""
     weight: float = 1.0  # 0.0 = prune, 1.0 = normal, 2.0 = high-priority
     last_updated: str = ""  # ISO-8601
+    last_quality_score: float | None = None  # most recent peer-reviewer quality_score
 
 
 # ---------------------------------------------------------------------------
@@ -79,6 +80,7 @@ def load_weights(project_dir: str) -> dict[str, QuestionWeight]:
     for qid, entry in raw.items():
         if not isinstance(entry, dict):
             continue
+        raw_qs = entry.get("last_quality_score")
         weights[qid] = QuestionWeight(
             question_id=entry.get("question_id", qid),
             runs=int(entry.get("runs", 0)),
@@ -89,6 +91,7 @@ def load_weights(project_dir: str) -> dict[str, QuestionWeight]:
             last_verdict=entry.get("last_verdict", ""),
             weight=float(entry.get("weight", 1.0)),
             last_updated=entry.get("last_updated", ""),
+            last_quality_score=float(raw_qs) if raw_qs is not None else None,
         )
     return weights
 
@@ -146,12 +149,21 @@ def compute_weight(qw: QuestionWeight) -> float:
 # ---------------------------------------------------------------------------
 
 
-def record_result(project_dir: str, question_id: str, verdict: str) -> QuestionWeight:
+def record_result(
+    project_dir: str | Path,
+    question_id: str,
+    verdict: str,
+    quality_score: float | None = None,
+) -> QuestionWeight:
     """
     Update weight for a question based on its latest verdict.
     Recomputes weight using the scoring formula. Saves and returns the updated QuestionWeight.
+
+    quality_score: optional peer-reviewer score in [0.0, 1.0].
+        When verdict is INCONCLUSIVE and quality_score < 0.4, weight gets a +0.3 nudge
+        (low-quality inconclusive = worth retrying with sharper scope).
     """
-    weights = load_weights(project_dir)
+    weights = load_weights(str(project_dir))
     qw = weights.get(question_id, QuestionWeight(question_id=question_id))
 
     qw.runs += 1
@@ -167,11 +179,23 @@ def record_result(project_dir: str, question_id: str, verdict: str) -> QuestionW
         # INCONCLUSIVE or any other verdict
         qw.inconclusives += 1
 
+    if quality_score is not None:
+        qw.last_quality_score = quality_score
+
     qw.weight = compute_weight(qw)
+
+    # Low-quality INCONCLUSIVE: worth retrying with sharper scope
+    if (
+        verdict.upper() == _VERDICT_INCONCLUSIVE
+        and quality_score is not None
+        and quality_score < 0.4
+    ):
+        qw.weight = min(qw.weight + 0.3, 3.0)
+
     qw.last_updated = datetime.now(timezone.utc).isoformat()
 
     weights[question_id] = qw
-    save_weights(project_dir, weights)
+    save_weights(str(project_dir), weights)
     return qw
 
 
