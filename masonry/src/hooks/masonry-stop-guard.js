@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 /**
- * Stop hook (Masonry): Block if there are uncommitted git changes.
- * Shows diff summary + file ages so Claude knows what's recent vs pre-existing.
+ * Stop hook (Masonry): Block if there are uncommitted git changes from THIS session.
+ *
+ * In a monorepo, git shows changes from ALL sub-projects. This hook filters
+ * by file mtime so pre-existing changes from other projects don't cause noise.
+ *
+ * - Session files (modified today): shown in full, blocks stop
+ * - Pre-existing files (modified yesterday or older): shown as a quiet count
+ * - Untracked files: shown with age label, only today's block stop
+ *
  * Exit code 2 blocks the stop.
  */
 
@@ -60,51 +67,81 @@ async function main() {
 
     if (!status) process.exit(0);
 
-    const lines = status.split("\n");
-    const modified = [];
-    const untracked = [];
+    const lines = status.split("\n").filter(Boolean);
+
+    // Separate and age-annotate every file
+    const sessionModified = [];   // tracked, modified today
+    const staleModified = [];     // tracked, modified yesterday or older
+    const sessionUntracked = [];  // untracked, created today
+    const staleUntracked = [];    // untracked, older
 
     for (const line of lines) {
-      const xy = line.slice(0, 2);
+      const xy = line.slice(0, 2).trim();
       const file = line.slice(3).trim();
-      if (xy.trim() === "??") {
-        untracked.push(file);
+      const absPath = path.join(cwd, file.replace(/\/$/, "")); // strip trailing / for dirs
+      const days = fileAgeDays(absPath);
+      const entry = { xy, file, days };
+
+      if (xy === "??") {
+        (days === 0 ? sessionUntracked : staleUntracked).push(entry);
       } else {
-        modified.push({ xy: xy.trim(), file });
+        (days === 0 ? sessionModified : staleModified).push(entry);
       }
     }
 
-    let output = `\nUncommitted changes (${lines.length} files):\n`;
+    const sessionCount = sessionModified.length + sessionUntracked.length;
+    const staleCount = staleModified.length + staleUntracked.length;
 
-    // Modified tracked files — show diff stat
-    if (modified.length > 0) {
-      output += `\n── Modified (${modified.length}) ──\n`;
-      try {
-        const diffStat = execSync("git diff --stat HEAD", {
-          encoding: "utf8",
-          timeout: 10000,
-          cwd,
-        }).trim();
-        if (diffStat) {
-          output += diffStat + "\n";
-        } else {
-          for (const { xy, file } of modified) {
-            output += `  ${xy} ${file}\n`;
+    // Nothing from this session — allow stop (stale changes are user's problem)
+    if (sessionCount === 0) {
+      if (staleCount > 0) {
+        process.stderr.write(
+          `\n[Masonry] ${staleCount} pre-existing uncommitted file(s) from earlier sessions — not from today, skipping block.\n`
+        );
+      }
+      process.exit(0);
+    }
+
+    // Build output — session files only in detail
+    let output = `\nUncommitted changes (${sessionCount} from this session`;
+    if (staleCount > 0) output += `, ${staleCount} pre-existing`;
+    output += `):\n`;
+
+    if (sessionModified.length > 0) {
+      output += `\n── Modified (${sessionModified.length}) ──\n`;
+      // Per-file diff stat for session files only
+      for (const { file } of sessionModified) {
+        try {
+          const stat = execSync(`git diff --stat HEAD -- "${file}"`, {
+            encoding: "utf8",
+            timeout: 5000,
+            cwd,
+          }).trim();
+          if (stat) {
+            // Extract just the summary line (last line of diff --stat)
+            const statLines = stat.split("\n");
+            const summary = statLines[statLines.length - 1];
+            output += ` ${file} — ${summary.trim()}\n`;
+          } else {
+            output += `  M ${file} [staged]\n`;
           }
-        }
-      } catch {
-        for (const { xy, file } of modified) {
-          output += `  ${xy} ${file}\n`;
+        } catch {
+          output += `  M ${file}\n`;
         }
       }
     }
 
-    // Untracked files — show with age
-    if (untracked.length > 0) {
-      output += `\n── Untracked (${untracked.length}) ──\n`;
-      for (const file of untracked) {
-        const days = fileAgeDays(path.join(cwd, file));
+    if (sessionUntracked.length > 0) {
+      output += `\n── Untracked (${sessionUntracked.length}) ──\n`;
+      for (const { file, days } of sessionUntracked) {
         output += `  ?? ${file}${ageLabel(days)}\n`;
+      }
+    }
+
+    if (staleCount > 0) {
+      output += `\n── Pre-existing (${staleCount}, not from today — review separately) ──\n`;
+      for (const { xy, file, days } of [...staleModified, ...staleUntracked]) {
+        output += `  ${xy || "??"} ${file}${ageLabel(days)}\n`;
       }
     }
 
@@ -113,7 +150,7 @@ async function main() {
     process.stderr.write(output);
     process.exit(2);
   } catch {
-    // Not a git repo — allow stop
+    // Not a git repo or git failed — allow stop
   }
 
   process.exit(0);
