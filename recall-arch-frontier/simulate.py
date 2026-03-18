@@ -60,7 +60,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 #               0.0 = requires new hardware or years of research
 # =============================================================================
 
-SCENARIO_NAME = "Wave 35 — Q267-Q269: observe-edit Implementation Physics (latency benchmark, production absence, BM25 cold-start)"
+SCENARIO_NAME = "Wave 36 — Q270-Q273: observe-edit Implementation Validation (hook chain, mixed corpus, growth, queue)"
 
 IDEAS = {
     # Q001 — Database buffer management → hot cache eviction
@@ -3956,6 +3956,60 @@ IDEAS = {
         0.82,
         1.00,
     ),  # RRF 1/(k+rank) downweights BM25 naturally when few docs match; dense path dominates during cold-start; architecture handles it without special-casing
+    # Q270 — full hook chain latency: C+ is negligible, spawn+sleep dominate
+    "hook-latency-dominated-by-spawn-and-sleep-chunking-negligible": (
+        0.35,
+        0.92,
+        1.00,
+    ),  # Full hook p95 ~220ms (117ms spawn + 100ms sleep); C+ adds 0.611ms (+0.3%); Strategy D overhead is negligible
+    "reduce-settimeout-100ms-to-25ms-save-75ms-per-hook": (
+        0.55,
+        0.82,
+        0.95,
+    ),  # One-line change: setTimeout(100) -> setTimeout(25); LAN TCP <10ms; saves 75ms/Write/Edit invocation; 34% reduction
+    "persistent-hook-process-eliminates-spawn-overhead": (
+        0.70,
+        0.65,
+        0.60,
+    ),  # Long-lived daemon eliminates 117ms spawn; p95 drops from ~220ms to ~27ms; requires masonry-session-start.js daemon management
+    # Q271 — mixed-granularity corpus: no degradation, blobs already lost
+    "mixed-granularity-corpus-no-degradation-blobs-already-lost": (
+        0.60,
+        0.88,
+        1.00,
+    ),  # Old blobs cosine=0.366 already below 0.65 threshold; new chunks score 0.820; mixed corpus improves not degrades retrieval
+    "retroactive-rechunk-22k-old-memories-highest-value-migration": (
+        0.55,
+        0.88,
+        0.75,
+    ),  # Re-embed old blobs with Q266 boundary rules; rescues 22K currently-unretrievable memories; one-time ~6hr migration
+    # Q272 — 90-day HNSW vector count: 42K normal, SLA safe
+    "22k-corpus-assumption-outdated-42k-normal-90-day-hnsw-safe": (
+        0.40,
+        0.85,
+        1.00,
+    ),  # Strategy D produces 5x writes; normal 90-day corpus = 42K vectors; HNSW p95 at 42K = 78ms; SLA holds to 1M+ vectors
+    "retroactive-rechunk-migration-adds-110k-vectors-negligible-hnsw-impact": (
+        0.35,
+        0.85,
+        0.90,
+    ),  # Re-chunk 22K blobs -> 110K vectors; post-migration 152K total; HNSW p95 ~130ms; SLA safe
+    # Q273 — async LLM queue saturation: non-issue
+    "async-llm-queue-saturation-non-issue-2min-drain-50-cap": (
+        0.35,
+        0.88,
+        1.00,
+    ),  # 50-call budget drains in 1.9min at qwen3:14b rate; only extreme sessions (200+ Bash) hit cap; practical non-issue
+    "mrr-floor-88-pct-even-at-zero-llm-extraction-queue-failure-safe": (
+        0.50,
+        0.90,
+        1.00,
+    ),  # Total LLM queue failure degrades to C+ (88% MRR = exactly at Q266 threshold); architecture is inherently failure-safe
+    "retroactive-description-fill-on-ollama-recovery": (
+        0.55,
+        0.65,
+        0.80,
+    ),  # Background job fills description=null memories when Ollama recovers; converts C+ fallbacks to Strategy D quality post-hoc
 }
 
 # =============================================================================
