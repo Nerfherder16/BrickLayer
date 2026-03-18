@@ -725,18 +725,14 @@ function toolRunQuestion(args) {
 import os
 os.chdir(args.get("project_path", "."))
 from bl.questions import load_questions
-from bl.runners import get_runner
+from bl.runners import run_question, _register_builtins
+_register_builtins()
 qs = load_questions("questions.md")
 q = next((q for q in qs if q.get("id") == args["question_id"]), None)
 if q is None:
     print(json.dumps({"error": f"Question {args['question_id']!r} not found"}))  # noqa: mcp-stdout
     sys.exit(0)
-mode = q.get("mode", "correctness")
-runner = get_runner(mode)
-if runner is None:
-    print(json.dumps({"error": f"No runner for mode {mode!r}"}))  # noqa: mcp-stdout
-    sys.exit(0)
-result = runner(q)
+result = run_question(q)
 print(json.dumps({"question_id": args["question_id"], "result": result}))  # noqa: mcp-stdout
 `, args);
 }
