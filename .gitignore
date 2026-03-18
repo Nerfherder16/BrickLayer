@@ -7,7 +7,15 @@ adbp/
 */reports/*
 !*/reports/.gitkeep
 
-# OMC / Claude internal state
+# Autopilot / UI build runtime state
+.autopilot/
+.ui/
+
+# Masonry hook runtime state
+**/.masonry/
+masonry-state.json
+
+# OMC / Claude internal state (legacy)
 **/.omc/
 **/.claude/audit.log
 
