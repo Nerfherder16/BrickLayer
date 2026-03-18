@@ -21,10 +21,12 @@ from bl.runners.base import runner_menu as runner_menu
 def _register_builtins() -> None:
     """Register the built-in runners. Called once at module import."""
     from bl.runners.agent import run_agent
+    from bl.runners.browser import run_browser
     from bl.runners.correctness import run_correctness
     from bl.runners.http import run_http
     from bl.runners.performance import run_performance
     from bl.runners.quality import run_quality
+    from bl.runners.simulate import run_simulate
     from bl.runners.subprocess_runner import run_subprocess
 
     def _performance_sync(question: dict) -> dict:
@@ -60,6 +62,17 @@ def _register_builtins() -> None:
             target_types=["api", "service", "url"],
             syntax_summary="GET/POST {url}, expect_status:, expect_body:, latency_threshold_ms:",
             example_question="**Mode**: http\n**Test**: GET http://localhost:8200/health\n  expect_status: 200\n  latency_threshold_ms: 500",
+        ),
+    )
+    register(
+        "browser",
+        run_browser,
+        RunnerInfo(
+            mode="browser",
+            description="Browser runner — headless Playwright UI testing, checks page content, elements, and load time",
+            target_types=["web_ui", "dashboard", "url"],
+            syntax_summary="url:, expect_title:, expect_text:, expect_element:, latency_threshold_ms:, screenshot:",
+            example_question="**Mode**: browser\n**Test**: url: http://localhost:3100\n  expect_title: BrickLayer\n  expect_text: Dashboard\n  screenshot: true",
         ),
     )
     register(
@@ -114,6 +127,17 @@ def _register_builtins() -> None:
             target_types=["api", "service", "function"],
             syntax_summary="Target: (endpoint or function), latency_threshold_ms:, concurrency:",
             example_question="**Mode**: performance\n**Target**: http://localhost:8200/api/search\n  latency_threshold_ms: 200\n  concurrency: 10",
+        ),
+    )
+    register(
+        "simulate",
+        run_simulate,
+        RunnerInfo(
+            mode="simulate",
+            description="Simulation runner — sweeps a parameter across a range to find the failure boundary threshold",
+            target_types=["simulation", "model", "business_logic"],
+            syntax_summary="script:, stress_param:, stress_range:, stress_steps:, baseline_check:",
+            example_question="**Mode**: simulate\n**Test**: script: simulate.py\n  stress_param: churn_rate\n  stress_range: [0.05, 0.50]\n  stress_steps: 10",
         ),
     )
 
