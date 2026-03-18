@@ -60,7 +60,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 #               0.0 = requires new hardware or years of research
 # =============================================================================
 
-SCENARIO_NAME = "Wave 34 — Q261-Q266: observe-edit Extraction Strategy (hybrid hook routing, structural chunking, BM25 anchor block)"
+SCENARIO_NAME = "Wave 35 — Q267-Q269: observe-edit Implementation Physics (latency benchmark, production absence, BM25 cold-start)"
 
 IDEAS = {
     # Q001 — Database buffer management → hot cache eviction
@@ -3918,6 +3918,44 @@ IDEAS = {
         0.85,
         0.90,
     ),  # Universal anchor block applied regardless of extraction path; BM25 field weight 3×; produced by C+ regex; supplements LLM description or raw chunk; ensures infrastructure queries hit with high precision; directly implementable
+    # Q267 — p95 latency benchmark for C+ chunking pipeline
+    "node-js-c-plus-pipeline-p95-0-6ms-2ms-budget-confirmed": (
+        0.30,
+        0.95,
+        1.00,
+    ),  # Measured: Node.js V8 p95=0.611ms on 526-line Python file (N=1000 iterations); 3.3× budget headroom; Python p95=7.763ms irrelevant (hook is JS)
+    "character-count-token-approximation-50-percent-pipeline-speedup": (
+        0.40,
+        0.70,
+        0.95,
+    ),  # Replace text.split().length with Math.ceil(text.length/4); halves token-counting cost (~50% pipeline); extends file-size budget to 4000+ lines at <2ms
+    "2000-line-cap-async-fallback-for-large-files": (
+        0.45,
+        0.75,
+        0.90,
+    ),  # For files >2000 lines, process only edit region (±200 lines); prevents p95>2ms on large files; rare case in practice
+    # Q268 — production observe-edit hooks: absence confirmed
+    "strategy-d-combined-chunking-bash-schema-absent-from-production-novel-confirmed": (
+        0.75,
+        0.82,
+        0.88,
+    ),  # Structural chunking has production analogues (Continue.dev, Cursor); Bash schema routing absent; combined pattern is novel; no prior art risk
+    "tree-sitter-upgrade-path-after-regex-phase-1": (
+        0.45,
+        0.90,
+        0.80,
+    ),  # Continue.dev and Cursor use tree-sitter in production; validated upgrade path from Phase 1 regex; no chunk contract change required
+    # Q269 — BM25 cold-start window: 1-2 sessions
+    "bm25-cold-start-window-1-2-sessions-no-fallback-needed": (
+        0.35,
+        0.88,
+        1.00,
+    ),  # BM25 80% IDF at N=30 memories (1 session); 90% at N=50 (1.7 sessions); no cold-start fallback mode needed; RRF naturally handles sparse BM25
+    "rrf-natural-cold-start-handling-bm25-downweights-automatically": (
+        0.50,
+        0.82,
+        1.00,
+    ),  # RRF 1/(k+rank) downweights BM25 naturally when few docs match; dense path dominates during cold-start; architecture handles it without special-casing
 }
 
 # =============================================================================
