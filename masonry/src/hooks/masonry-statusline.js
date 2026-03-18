@@ -120,6 +120,23 @@ function uiSegment(cwd) {
   }
 }
 
+function recallSegment(sessionId) {
+  if (!sessionId) return "";
+  try {
+    const counterFile = path.join(
+      os.tmpdir(),
+      `masonry-recall-hits-${sessionId}.txt`,
+    );
+    if (!fs.existsSync(counterFile)) return "";
+    const val = parseInt(fs.readFileSync(counterFile, "utf8").trim(), 10);
+    if (!val || val <= 0) return "";
+    // dim cyan: combine dim + 24-bit cyan
+    return `\x1b[2m\x1b[38;2;34;211;238m↑${val} mem\x1b[0m`;
+  } catch (_) {
+    return "";
+  }
+}
+
 function agentsSegment(state) {
   if (state.active_agents && Array.isArray(state.active_agents) && state.active_agents.length > 0) {
     return c("purple", `${state.active_agents.length} agents`);
@@ -143,6 +160,7 @@ try {
 const ctxPct = Math.round(input.context_window?.used_percentage || 0);
 const cfg = loadConfig();
 const cwd = input.cwd || process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const sessionId = input.session_id || process.env.CLAUDE_SESSION_ID || "";
 const brand = `🧱  ${c("purple", "masonry")}`;
 
 let state = null;
@@ -169,6 +187,7 @@ if (!state) {
       dim(project),
       sep,
       gitSegment(cwd),
+      recallSegment(sessionId),
       buildSegment(cwd),
       uiSegment(cwd),
       sep,
@@ -210,6 +229,7 @@ process.stdout.write(
     agentsSegment(state),
     sep,
     gitSegment(cwd),
+    recallSegment(sessionId),
     buildSegment(cwd),
     uiSegment(cwd),
     sep,
