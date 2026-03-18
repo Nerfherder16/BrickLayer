@@ -19,11 +19,11 @@ async function main() {
       if (raw.length > MAX_STDIN) break;
     }
   } catch (_err) {
-    process.exit(0);
+    return;
   }
 
   let input = {};
-  try { input = JSON.parse(raw); } catch (_err) { process.exit(0); }
+  try { input = JSON.parse(raw); } catch (_err) { return; }
 
   const sessionId = input.session_id || 'unknown';
   const cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd();
@@ -68,7 +68,7 @@ async function main() {
         }
       } catch (_err) { /* non-fatal */ }
     }
-    process.exit(0);
+    return;
   }
 
   // --- First call: hydrate from Recall ---
@@ -78,7 +78,7 @@ async function main() {
   } catch (_err) { /* non-fatal */ }
 
   if (!(await isAvailable())) {
-    process.exit(0);
+    return;
   }
 
   // Check for recent handoff (< 24h)
@@ -119,7 +119,7 @@ async function main() {
         }
 
         process.stdout.write(lines.join('\n') + '\n');
-        process.exit(0);
+        return;
       }
     }
   }
@@ -148,7 +148,6 @@ async function main() {
     importance: 0.3,
   });
 
-  process.exit(0);
 }
 
-main().catch(() => process.exit(0));
+main().catch(() => {});
