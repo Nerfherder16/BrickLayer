@@ -10,7 +10,7 @@ evaluates failure conditions, and loops forever until interrupted.
 
 ```
 Dev/autosearch/
-├── FRAMEWORK.md              ← This file
+├── docs/guides/FRAMEWORK.md  ← This file
 ├── template/                 ← Generic starting point for any new project
 │   ├── project-brief.md      ← OPTIONAL — human-written ground truth (highest authority)
 │   ├── docs/                 ← Human-curated supporting documents (specs, memos, ADRs)
