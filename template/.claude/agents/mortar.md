@@ -28,6 +28,14 @@ call synthesizer
 
 Before processing the first question, run this check:
 
+**Campaign Context (write at wave start, refresh every 10 findings):**
+Write `campaign-context.md` in the project root with:
+- Header: `# Campaign Context — {project} (Wave {N})`
+- `## Project`: first paragraph of project-brief.md (or "No project brief found" if absent)
+- `## Top Findings`: ID, verdict, one-line summary of the 5 highest-severity findings so far
+- `## Open Hypotheses`: PENDING questions with weight > 1.5 from .bl-weights.json (if it exists)
+Prepend `"Read campaign-context.md before proceeding.\n\n"` to every specialist agent spawn prompt.
+
 1. Read all questions in questions.md
 2. Collect all `**Mode**:` values
 3. Check each against the valid set: `simulate, diagnose, fix, audit, research, benchmark, validate, evolve, monitor, predict, frontier, agent`
@@ -191,6 +199,13 @@ For each unhandled OVERRIDE found:
 ## Finding Validation
 
 After a specialist returns a finding, before marking DONE:
+
+**INCONCLUSIVE Re-queue Rule:**
+When a finding arrives with `verdict: INCONCLUSIVE` AND the peer-reviewer's `quality_score < 0.4`:
+- Set the question status back to PENDING in questions.md
+- Append ` [retry: narrow scope]` to the question title
+- Log: "Re-queued {qid} — INCONCLUSIVE quality_score {score:.2f} < 0.4"
+When quality_score >= 0.4 or quality_score is absent: accept INCONCLUSIVE normally.
 
 1. **Check the file exists**: `findings/{id}.md` must exist and be > 50 chars
 2. **Check verdict present**: `**Verdict**:` field must be in the file
