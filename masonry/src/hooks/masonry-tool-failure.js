@@ -3,7 +3,7 @@
  * PostToolUseFailure hook (Masonry): Error tracking + retry guidance.
  *
  * On tool failure:
- * - Writes error state to <cwd>/.masonry/state/last-error.json
+ * - Writes error state to ~/.masonry/state/last-error.json (global, not per-project)
  * - Injects "analyze, fix, and continue" guidance
  * - Tracks retry count; after 3 failures on same error, escalates to spawn-agent guidance
  *
@@ -51,10 +51,10 @@ async function main() {
     process.exit(0);
   }
 
-  const cwd = input.cwd || process.cwd();
   const toolName = input.tool_name || "unknown";
   const errorText = input.tool_response || input.error || "";
-  const stateDir = path.join(cwd, ".masonry", "state");
+  // Use ~/.masonry/state/ — not per-project to avoid scattering dirs everywhere
+  const stateDir = path.join(os.homedir(), ".masonry", "state");
 
   ensureDir(stateDir);
   const stateFile = path.join(stateDir, "last-error.json");
