@@ -184,15 +184,15 @@ All 5 items shipped Mar 18 2026.
 
 ---
 
-## Phase 5 — Autonomy 💡
+## Phase 5 — Autonomy 🔄
 
-| # | Item |
-|---|------|
-| 5.01 | Self-improving question banks — upweight questions that find bugs, prune dead ones |
-| 5.02 | Hypothesis generation from git diffs — auto-question on every commit |
-| 5.03 | Natural language entry point — "I just added concurrent Neo4j writes" → 4 questions, 3 minutes |
-| 5.04 | Kiln (BrickLayerHub) — Electron desktop app wrapping the full Masonry + BL experience |
-| 5.05 | MCP server for Masonry — expose campaign and fleet operations via MCP to any MCP client |
+| # | Item | Status |
+|---|------|--------|
+| ~~5.01~~ | ~~Self-improving question banks — `bl/question_weights.py`, verdict history, weight-sorted dispatch~~ | ✅ |
+| ~~5.02~~ | ~~Hypothesis generation from git diffs — `bl/git_hypothesis.py` + `bl/cli/git_hypothesis_cmd.py`~~ | ✅ |
+| ~~5.03~~ | ~~Natural language entry point — `bl/nl_entry.py`, 16 techs, 10 intents, `/masonry-nl` skill~~ | ✅ |
+| 5.04 | Kiln (BrickLayerHub) — Electron desktop app wrapping the full Masonry + BL experience | 📋 |
+| 5.05 | MCP server for Masonry — expose campaign and fleet operations via MCP to any MCP client | 📋 |
 
 ---
 
