@@ -21,8 +21,10 @@ from bl.runners.base import runner_menu as runner_menu
 def _register_builtins() -> None:
     """Register the built-in runners. Called once at module import."""
     from bl.runners.agent import run_agent
+    from bl.runners.benchmark import run_benchmark
     from bl.runners.browser import run_browser
     from bl.runners.correctness import run_correctness
+    from bl.runners.document import run_document
     from bl.runners.http import run_http
     from bl.runners.performance import run_performance
     from bl.runners.quality import run_quality
@@ -138,6 +140,36 @@ def _register_builtins() -> None:
             target_types=["simulation", "model", "business_logic"],
             syntax_summary="script:, stress_param:, stress_range:, stress_steps:, baseline_check:",
             example_question="**Mode**: simulate\n**Test**: script: simulate.py\n  stress_param: churn_rate\n  stress_range: [0.05, 0.50]\n  stress_steps: 10",
+        ),
+    )
+    register(
+        "benchmark",
+        run_benchmark,
+        RunnerInfo(
+            mode="benchmark",
+            description="Benchmark runner — latency, accuracy, and throughput sweeps against ML inference endpoints (Ollama, OpenAI-compat, HTTP)",
+            target_types=["ml_endpoint", "api", "service"],
+            syntax_summary="endpoint:, provider:, model:, latency_test: | accuracy_test: | throughput_test:",
+            example_question=(
+                "**Mode**: benchmark\n**Test**: endpoint: http://localhost:11434/api/generate\n"
+                "  provider: ollama\n  model: qwen3:14b\n  latency_test:\n"
+                "    prompt: Say hello in one word.\n    runs: 5\n    threshold_ms: 10000"
+            ),
+        ),
+    )
+    register(
+        "document",
+        run_document,
+        RunnerInfo(
+            mode="document",
+            description="Document runner — checks doc completeness and accuracy: endpoint/function coverage, example syntax, dead links, keyword presence, freshness",
+            target_types=["document", "codebase", "api"],
+            syntax_summary="code_path:, doc_path:, checks: [endpoint_coverage|function_coverage|example_syntax|dead_links|keyword_presence|freshness], min_coverage:",
+            example_question=(
+                "**Mode**: document\n**Spec**:\n  code_path: src/\n  doc_path: README.md\n"
+                "  min_coverage: 0.8\n  checks:\n    - type: endpoint_coverage\n"
+                "    - type: keyword_presence\n      keywords: [installation, usage]"
+            ),
         ),
     )
 
