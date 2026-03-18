@@ -24,6 +24,8 @@ def _register_builtins() -> None:
     from bl.runners.benchmark import run_benchmark
     from bl.runners.browser import run_browser
     from bl.runners.correctness import run_correctness
+    from bl.runners.contract import run_contract
+    from bl.runners.baseline_check import run_baseline_check
     from bl.runners.document import run_document
     from bl.runners.http import run_http
     from bl.runners.performance import run_performance
@@ -158,6 +160,21 @@ def _register_builtins() -> None:
         ),
     )
     register(
+        "contract",
+        run_contract,
+        RunnerInfo(
+            mode="contract",
+            description="Contract runner — static analysis of Solana/Anchor smart contracts: signer checks, invariant coverage, overflow patterns, reentrancy, seed canonicalization",
+            target_types=["smart_contract", "codebase"],
+            syntax_summary="path:, framework: anchor|raw_solana|generic, checks: [invariant_coverage|signer_checks|owner_checks|overflow_patterns|reentrancy_patterns|seed_canonicalization|pattern_search]",
+            example_question=(
+                "**Mode**: contract\n**Spec**:\n  path: programs/my-program/src/\n"
+                "  framework: anchor\n  checks:\n    - type: signer_checks\n"
+                "    - type: overflow_patterns\n  max_overflow_sites: 5"
+            ),
+        ),
+    )
+    register(
         "document",
         run_document,
         RunnerInfo(
@@ -169,6 +186,21 @@ def _register_builtins() -> None:
                 "**Mode**: document\n**Spec**:\n  code_path: src/\n  doc_path: README.md\n"
                 "  min_coverage: 0.8\n  checks:\n    - type: endpoint_coverage\n"
                 "    - type: keyword_presence\n      keywords: [installation, usage]"
+            ),
+        ),
+    )
+    register(
+        "baseline_check",
+        run_baseline_check,
+        RunnerInfo(
+            mode="baseline_check",
+            description="Baseline regression runner — compares a question's latest result against its saved known-good snapshot; FAILURE on verdict regression or metric threshold breach",
+            target_types=["any"],
+            syntax_summary="question_id:, current_result_file: (optional), fail_on_verdict_change:, fail_on_metric_regression: {metric: threshold_pct}",
+            example_question=(
+                "**Mode**: baseline_check\n**Spec**:\n  question_id: D1.1\n"
+                "  fail_on_verdict_change: true\n  fail_on_metric_regression:\n"
+                "    p95_ms: 50\n    pass_rate: 10"
             ),
         ),
     )
