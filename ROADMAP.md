@@ -169,19 +169,18 @@ Each item adds a new class of targets BrickLayer can run against.
 
 ---
 
-## Phase 4 — Masonry Recall Integration 📋
+## Phase 4 — Masonry Recall Integration ✅
 
 Masonry uses Recall 1.x (the deployed FastAPI + Qdrant + Neo4j system at `100.70.195.84:8200`).
-Recall 2.0 is a separate project tracked elsewhere — Masonry will migrate to it when it ships,
-but Phase 4 items here are improvements to the **existing Recall 1.x integration**.
+All 5 items shipped Mar 18 2026.
 
-| # | Item | Notes |
-|---|------|-------|
-| 4.01 | Masonry observe-edit hook — improved fact extraction from file edits | Better signal from PostToolUse edits |
-| 4.02 | Rich session summaries — structured knowledge extraction at session end | Replaces plain text summary |
-| 4.03 | `masonry-statusline.js` Recall integration — surface active memory context in HUD | Show recent recall hits in statusline |
-| 4.04 | Cross-project memory transfer — bug patterns and findings propagate to new projects | BL research item C-19 |
-| 4.05 | Recall-backed question generation — `planner` queries memory for prior campaign findings | Currently manual |
+| # | Item | Status |
+|---|------|--------|
+| ~~4.01~~ | ~~Masonry observe-edit hook — improved fact extraction from file edits~~ | ✅ |
+| ~~4.02~~ | ~~Rich session summaries — structured knowledge extraction at session end~~ | ✅ |
+| ~~4.03~~ | ~~`masonry-statusline.js` Recall integration — `↑N mem` segment in HUD~~ | ✅ |
+| ~~4.04~~ | ~~Cross-project memory transfer — `bl/recall_bridge.py` with search/store/analogous queries~~ | ✅ |
+| ~~4.05~~ | ~~Recall-backed question generation — `planner` queries Recall before domain ranking~~ | ✅ |
 
 ---
 
