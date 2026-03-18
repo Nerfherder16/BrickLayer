@@ -2098,7 +2098,7 @@ Wave 15 closes the implementation and operational gaps that open after Wave 14's
 
 ### [FIX] F37.3: Re-chunk the port inventory blob (08b34d1a) into one-service-per-chunk entries
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: Fix
 **Priority**: HIGH
 **Motivated by**: Q274 — Idea 2: `port-inventory-blob-single-highest-roi-rewrite`
