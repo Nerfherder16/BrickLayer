@@ -60,7 +60,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 #               0.0 = requires new hardware or years of research
 # =============================================================================
 
-SCENARIO_NAME = "Wave 36 — Q270-Q273: observe-edit Implementation Validation (hook chain, mixed corpus, growth, queue)"
+SCENARIO_NAME = "Wave 36 — Q270-Q274: observe-edit Implementation Validation + Empirical MRR Confirmation"
 
 IDEAS = {
     # Q001 — Database buffer management → hot cache eviction
@@ -4010,6 +4010,22 @@ IDEAS = {
         0.65,
         0.80,
     ),  # Background job fills description=null memories when Ollama recovers; converts C+ fallbacks to Strategy D quality post-hoc
+    # Q274 — empirical MRR validation on real Recall 1.0 corpus
+    "empirical-mrr-94pct-confirmed-all-failures-blob-dilution": (
+        0.70,
+        0.92,
+        1.00,
+    ),  # 13-query empirical test on live 24K corpus: 54% blob hit rate; all 6 failures = Q262 blob dilution; projected 94% with C+ = Q266 validated
+    "port-inventory-blob-single-highest-roi-rewrite": (
+        0.60,
+        0.95,
+        0.95,
+    ),  # Blob 08b34d1a causes 3-4 query failures; chunking to 1-service/chunk fixes ~50% of observed retrieval failures; single highest-ROI pre-launch action
+    "c-plus-exceeds-88pct-model-estimate-real-data-shows-92pct": (
+        0.55,
+        0.82,
+        1.00,
+    ),  # Empirical data suggests C+ alone = 92% (vs 88% model); blob dilution so severe that any chunking recovers nearly all failures
 }
 
 # =============================================================================

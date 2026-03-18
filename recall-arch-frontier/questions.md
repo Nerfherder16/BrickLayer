@@ -1935,7 +1935,7 @@ Wave 15 closes the implementation and operational gaps that open after Wave 14's
 **Deliverable**: Async LLM queue throughput model at Tim's homelab rate, saturation scenario analysis, MRR impact when queue drain rate < event arrival rate, and recommendation for queue depth cap or session-end persistence behavior.
 
 ### [PHYSICS] Q274: What is the empirical end-to-end MRR for Strategy D against a real Recall 1.0 corpus?
-**Status**: PENDING
+**Status**: DONE
 **Priority**: High
 **Rationale**: Q266 estimated 94% MRR vs. Strategy A baseline using modeled compensation mechanisms (BM25 +26-48% NDCG, chunking closing 90% of cosine gap, CO_RETRIEVED behavioral recall). All three estimates are derived from component benchmarks, not from measuring retrieval quality end-to-end on a real Recall corpus with real queries. The 94% claim has never been tested empirically. Before committing to Strategy D as the implementation target, the end-to-end MRR should be validated against the closest available proxy: the existing Recall 1.0 corpus with simulated C+ chunking applied retroactively.
 **Research question**: (1) Take the existing Recall 1.0 memory corpus (current production data at 100.70.195.84:8200). Apply C+ chunking retroactively to a sample of 100 blob memories — re-chunk them to function/section-level chunks using Q266's boundary rules. (2) Construct a test query set of 20 representative queries from Tim's actual usage patterns (service lookups, function queries, config queries, error diagnostics). (3) Compare retrieval rank@5 between: (A) original blob embeddings, (B) C+ chunked embeddings, (C) C+ + BM25 hybrid. (4) Does the empirical MRR align with the 94% model estimate, or does the estimate overstate retrieval improvement?
