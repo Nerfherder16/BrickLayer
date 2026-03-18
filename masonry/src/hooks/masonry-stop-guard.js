@@ -71,13 +71,45 @@ async function main() {
 
     if (!status) process.exit(0);
 
+    // Collect all dirty file paths, then filter out gitignored ones.
+    // Rationale: tracked files in .gitignore (e.g. .autopilot/) are intentionally
+    // not meant to be committed — don't nag about them.
+    const allLines = status.split("\n").filter(Boolean);
+    const allFiles = allLines.map((l) => l.slice(3).trim());
+
+    let ignoredSet = new Set();
+    try {
+      // git check-ignore exits 0 if any path is ignored, 1 if none are.
+      // We pass all paths via --stdin and collect the ones that are ignored.
+      const checkInput = allFiles.join("\n");
+      const ignored = execSync("git check-ignore --stdin", {
+        input: checkInput,
+        encoding: "utf8",
+        timeout: 5000,
+        cwd,
+      }).trim();
+      if (ignored) {
+        for (const p of ignored.split("\n").filter(Boolean)) {
+          ignoredSet.add(p.trim());
+        }
+      }
+    } catch {
+      // Non-zero exit means no files are ignored — ignoredSet stays empty.
+      // Any other error: proceed without filtering (safe default).
+    }
+
     const sessionModified = [];
     const sessionUntracked = [];
     const staleFiles = [];
 
-    for (const line of status.split("\n").filter(Boolean)) {
+    for (const line of allLines) {
       const xy = line.slice(0, 2).trim();
       const file = line.slice(3).trim();
+
+      // Skip gitignored paths — they can't be committed normally and are
+      // explicitly excluded from version control by the project's .gitignore.
+      if (ignoredSet.has(file)) continue;
+
       const days = fileAgeDays(path.join(cwd, file.replace(/\/$/, "")));
       const entry = { xy: xy || "??", file, days };
 
