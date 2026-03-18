@@ -27,7 +27,43 @@ Read all of:
 - `simulate.py` — structure and logic of the simulation
 - Prior synthesis if provided
 
-### Step 2 — Domain risk ranking
+### Step 2 — Query Recall for Prior Findings
+
+Before ranking domains, query Recall for relevant prior campaign findings:
+
+```python
+# Run this in a Bash tool call:
+python - <<'EOF'
+from bl.recall_bridge import search_prior_findings, get_project_history
+import json, sys
+
+project = sys.argv[1] if len(sys.argv) > 1 else "unknown"
+
+# Search for prior failures in this domain
+findings = search_prior_findings(f"{project} failure boundary", limit=5)
+history = get_project_history(project, limit=3)
+
+if findings or history:
+    print("=== Prior Recall Findings ===")
+    for f in findings:
+        print(f"- {f.get('content', '')[:200]}")
+    if history:
+        print("\n=== Project History ===")
+        for h in history:
+            print(f"- {h.get('content', '')[:200]}")
+else:
+    print("(No prior findings in Recall — proceeding with cold start)")
+EOF
+```
+
+Use the output to:
+- Identify domains already well-explored (deprioritize them in CAMPAIGN_PLAN.md)
+- Surface known failure patterns as hypothesis seeds for the question designer
+- Note any unresolved issues from prior campaigns as high-priority targets
+
+If Recall is unreachable (no output or error), proceed without it — this step is always optional.
+
+### Step 3 — Domain risk ranking
 
 Score each BrickLayer domain (D1–D6) on two axes:
 
@@ -52,7 +88,7 @@ Priority = Likelihood × Impact (max 9)
 | D5 | Technical / architecture | System integrity and scaling |
 | D6 | Tail risk / black swans | Low-probability catastrophic scenarios |
 
-### Step 3 — Known landmines
+### Step 4 — Known landmines
 
 Query Recall for prior campaign findings on this project or related projects:
 ```
@@ -62,7 +98,7 @@ recall_search(query="bricklayer override inconclusive warning", domain="{project
 
 List any recurring failure patterns so question-designer avoids re-asking settled questions and hypothesis-generator knows what's already been investigated.
 
-### Step 4 — Write CAMPAIGN_PLAN.md
+### Step 5 — Write CAMPAIGN_PLAN.md
 
 Write `{project_dir}/CAMPAIGN_PLAN.md`:
 
@@ -71,6 +107,9 @@ Write `{project_dir}/CAMPAIGN_PLAN.md`:
 
 ## System Summary
 {2-3 sentence description of what the system does and its key constraints}
+
+## Prior Recall Context
+[What was found in Recall, or "None — cold start" if Recall was unavailable]
 
 ## Domain Risk Ranking
 
@@ -119,7 +158,7 @@ Total Wave 1 target: 8–14 questions
 {Key thresholds from constants.py that questions should stress-test}
 ```
 
-### Step 5 — Write a targeting brief for question-designer
+### Step 6 — Write a targeting brief for question-designer
 
 Append this section to CAMPAIGN_PLAN.md:
 
