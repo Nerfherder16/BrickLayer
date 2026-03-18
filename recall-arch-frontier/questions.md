@@ -1895,6 +1895,54 @@ Wave 15 closes the implementation and operational gaps that open after Wave 14's
 **Deliverable**: Cold-start window estimate in sessions, BM25 IDF convergence model, and recommendation for whether Strategy D needs a cold-start fallback mode.
 **Status**: DONE
 
+---
+
+## Wave 36 — Strategy D Implementation Validation
+*Added 2026-03-17. Strategy D is locked (Q266). Wave 34-35 validated components in isolation: chunking latency (Q267), novelty (Q268), BM25 cold-start (Q269). Wave 36 tests integration: what breaks when components wire together into the real stack, and does end-to-end retrieval quality match the modeled 94% MRR.*
+
+### [PHYSICS] Q270: Does the C+ chunking pipeline latency hold inside Claude Code's actual hook execution chain?
+**Status**: PENDING
+**Priority**: Critical
+**Rationale**: Q267 measured p95 = 0.611ms in an isolated Node.js benchmark. But the real observe-edit.js hook runs inside Claude Code's PostToolUse hook execution chain — which may include hook startup overhead, Node.js process spawn cost (if hooks are not long-lived), IPC to the Recall MCP server, and concurrent hooks running in parallel. The 0.611ms measurement is for the chunking algorithm alone, not the full hook invocation path.
+**Research question**: (1) How does Claude Code execute PostToolUse hooks — as long-lived Node.js processes (low spawn overhead) or as per-invocation spawns (high spawn overhead)? (2) What is the measured p95 for the full hook invocation round-trip on Tim's casaclaude machine: hook trigger → chunking → Recall API store call → ACK? (3) Does the Recall API store call (embedding via Ollama at 192.168.50.62 + Qdrant write) add latency to the synchronous hook path, or is it async after ACK? (4) Is there a concurrent hook conflict risk — if multiple Write/Edit tools fire simultaneously (e.g., during a /build agent writing N files), do the hook processes queue or overlap?
+**Derived from**: Q267 (isolated benchmark), Q266 (2ms sync budget), project-brief.md (Ollama at 192.168.50.62 is on the network, not localhost)
+**Deliverable**: Full hook invocation latency model (p95) for the actual observe-edit.js execution path in Claude Code, identification of whether store latency is on the synchronous path, and verdict on whether the 2ms sync budget holds end-to-end or only for the chunking step.
+
+### [ADVERSARIAL] Q271: Mixed-granularity corpus: does introducing chunked writes break retrieval for existing blob memories?
+**Status**: PENDING
+**Priority**: Critical
+**Rationale**: Recall 1.0 stores memories as text blobs — entire files or multi-paragraph summaries. Strategy D introduces function-level chunks (50-400 tokens). The transition creates a mixed-granularity corpus: N_old blob memories at 500-2000 tokens, N_new chunked memories at 50-400 tokens. In the HNSW index, blob and chunk embeddings coexist. The adversarial question: does query-time retrieval quality degrade when the corpus is mixed-granularity? A query for "get_user_by_id implementation" will retrieve both old blob memories (containing the function among thousands of tokens) and new chunked memories (function isolated at 100 tokens). The blob memory will have lower cosine similarity but may contain additional context the chunk lacks.
+**Research question**: (1) When a 1500-token blob embedding and a 100-token function-level chunk embedding are both indexed, what is the cosine similarity differential for a targeted query? Does the chunk consistently rank above the blob, or does the blob occasionally rank higher due to accumulated co-occurring context? (2) At what mixture ratio (fraction of corpus that is chunks vs. blobs) does retrieval quality begin to noticeably degrade relative to a pure-chunk or pure-blob corpus? (3) Should existing Recall 1.0 memories be retroactively re-chunked before deploying Strategy D, or is the mixed-granularity corpus tolerable? (4) Does BM25 (Tantivy) behave differently on mixed-granularity documents — does TF-IDF weighting favor short chunks or long blobs for identifier queries?
+**Derived from**: Q266 (Strategy D specification), Q262 (context dilution physics — blobs below 0.65 threshold), Q264 (AST chunking +4.3 Recall@5)
+**Pre-step**: Model two HNSW index scenarios: (A) pure chunked corpus (100-token function chunks), (B) mixed corpus (70% 1500-token blobs + 30% 100-token chunks). Simulate cosine similarity for targeted function-name queries. Compute expected rank position for the correct memory in each scenario.
+**Deliverable**: Mixed-granularity corpus retrieval impact model, rank degradation estimate, and migration recommendation: retroactive re-chunk before deploy or tolerate mixed corpus.
+
+### [PHYSICS] Q272: At 90-day Tim workload, what is the actual HNSW vector count after Strategy D chunking multiplies write volume?
+**Status**: PENDING
+**Priority**: High
+**Rationale**: All prior analysis (Q245, Q269) uses the 22K corpus estimate from Recall 1.0. Strategy D changes the write physics: every Write/Edit event now stores N_chunks memories instead of 1 blob. A 200-line Python file chunked at function level produces 8-12 chunks instead of 1 blob. The observed-edit write rate multiplies by 5-10x. At 90 days of real usage, the HNSW vector count could reach 100K-500K, not 22K. This changes HNSW query latency (Q245 found 22K is safe, but 500K may push p95 above 500ms), BM25 IDF stability assumptions (Q269 modeled at ≤5000 memories), and CO_RETRIEVED graph edge count (Q263 model may not hold at 100K+ nodes).
+**Research question**: (1) What is Tim's actual daily write rate for Write/Edit events in a typical Claude Code session (estimate from Recall 1.0 session logs or project-brief assumptions)? (2) What is the average chunk count per Write/Edit event under Strategy D's boundary rules — given Tim's typical file types (.py, .ts, .md, .yml) and file sizes? (3) Projected 90-day HNSW vector count: low estimate (light usage) and high estimate (heavy build sessions)? (4) At the projected vector count, does HNSW p95 query latency remain within the 500ms SLA? Does the CO_RETRIEVED graph (Q263 model: 10-15% spurious edges at W_min=3) scale to the projected edge count without memory exhaustion?
+**Derived from**: Q266 (chunking specification), Q263 (CO_RETRIEVED graph at function-level granularity), Q245 (22K corpus baseline), Q267 (Node.js timing)
+**Pre-step**: Estimate from project-brief and Recall 1.0 architecture: approximate daily Write/Edit event count per session. Apply Q266 chunk boundary rules to estimate N_chunks per event for each file type. Project forward 90 days.
+**Deliverable**: 90-day HNSW vector count projection (low/high), assessment of whether the 22K corpus assumption is still valid after Strategy D deployment, and HNSW SLA risk flag if the projection exceeds safe operating range.
+
+### [ADVERSARIAL] Q273: Async LLM queue saturation — what happens when the Bash extraction queue backs up?
+**Status**: PENDING
+**Priority**: High
+**Rationale**: Strategy D routes unstructured Bash output > 200 tokens to an async LLM extraction queue (non-blocking, max 50 calls/session budget). Q266 specifies the queue exists but does not specify: queue depth, back-pressure behavior, what happens when qwen3:14b (Ollama at 192.168.50.62) is slow or unavailable, or how queue saturation interacts with the 50-call session budget. The adversarial question: during a heavy /build session (100+ Bash commands with verbose output), the queue fills faster than it drains. Memories are stored raw (without LLM description). The 94% MRR estimate assumed up to 50 async LLM calls fire successfully — if the queue saturates at 20 calls processed and 80 queued, the effective async LLM extraction rate is 20%, not the assumed 25%.
+**Research question**: (1) What is the Ollama qwen3:14b throughput for 50-token extraction prompts — how many calls per minute at Tim's homelab (RTX 3090, 192.168.50.62)? (2) In a heavy /build session generating 80 qualifying Bash events, how long does the full async extraction queue take to drain? (3) If the queue is not fully drained when the session ends, what happens to queued items — lost, persisted raw, or processed in a subsequent session? (4) What is the MRR impact when only 20 of the assumed 50 async LLM calls fire per session (queue saturation scenario)? Does the 6% MRR gap from Q266 widen past the 10% threshold?
+**Derived from**: Q266 (async LLM queue specification, 50-call budget), Q265 (25% of events need LLM), Q267 (latency confirmed for C+ path)
+**Deliverable**: Async LLM queue throughput model at Tim's homelab rate, saturation scenario analysis, MRR impact when queue drain rate < event arrival rate, and recommendation for queue depth cap or session-end persistence behavior.
+
+### [PHYSICS] Q274: What is the empirical end-to-end MRR for Strategy D against a real Recall 1.0 corpus?
+**Status**: PENDING
+**Priority**: High
+**Rationale**: Q266 estimated 94% MRR vs. Strategy A baseline using modeled compensation mechanisms (BM25 +26-48% NDCG, chunking closing 90% of cosine gap, CO_RETRIEVED behavioral recall). All three estimates are derived from component benchmarks, not from measuring retrieval quality end-to-end on a real Recall corpus with real queries. The 94% claim has never been tested empirically. Before committing to Strategy D as the implementation target, the end-to-end MRR should be validated against the closest available proxy: the existing Recall 1.0 corpus with simulated C+ chunking applied retroactively.
+**Research question**: (1) Take the existing Recall 1.0 memory corpus (current production data at 100.70.195.84:8200). Apply C+ chunking retroactively to a sample of 100 blob memories — re-chunk them to function/section-level chunks using Q266's boundary rules. (2) Construct a test query set of 20 representative queries from Tim's actual usage patterns (service lookups, function queries, config queries, error diagnostics). (3) Compare retrieval rank@5 between: (A) original blob embeddings, (B) C+ chunked embeddings, (C) C+ + BM25 hybrid. (4) Does the empirical MRR align with the 94% model estimate, or does the estimate overstate retrieval improvement?
+**Derived from**: Q266 (94% MRR estimate), Q261 (BM25 semantic gap), Q262 (context dilution), Q264 (AST chunking benchmarks)
+**Pre-step**: Inspect the existing Recall 1.0 memory corpus via MCP tools (recall_search, recall_timeline) to understand the distribution of memory types, lengths, and content. Identify 20 representative test queries from actual usage patterns.
+**Deliverable**: Empirical MRR comparison for blob vs. C+ chunk vs. hybrid retrieval on a real Recall corpus sample, deviation from Q266's 94% model estimate, and confidence interval on the Strategy D retrieval quality claim.
+
 ### [ADVERSARIAL] Q245: Can the CO_RETRIEVED graph reach sufficient density for spreading activation without explicit edge-building?
 **Status**: DONE
 **Priority**: High
