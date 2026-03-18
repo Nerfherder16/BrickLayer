@@ -11,6 +11,7 @@
 "use strict";
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -74,8 +75,8 @@ async function main() {
     lines.push(`[Masonry] Campaign active — ${campaign.project || path.basename(cwd)}: wave ${campaign.wave || 0}, Q${campaign.q_current || 0}/${campaign.q_total || 0}, mode: ${campaign.mode}.`);
   }
 
-  // --- Subagent tracking state ---
-  const agentState = tryJSON(path.join(cwd, ".masonry", "state", "agents.json"));
+  // --- Subagent tracking state (global ~/.masonry/state/) ---
+  const agentState = tryJSON(path.join(os.homedir(), ".masonry", "state", "agents.json"));
   if (agentState && agentState.active && agentState.active.length > 0) {
     lines.push(`[Masonry] ${agentState.active.length} agent(s) were active at last session: ${agentState.active.map(a => a.name || a.type).join(", ")}.`);
   }

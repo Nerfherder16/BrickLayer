@@ -2,7 +2,7 @@
 /**
  * SubagentStart hook (Masonry): Track active agent spawns.
  *
- * Writes agent activity to <cwd>/.masonry/state/agents.json
+ * Writes agent activity to ~/.masonry/state/agents.json (global, not per-project)
  * so the statusline can show live agent count.
  *
  * Also updates masonry-state.json active_agent field when in campaign mode.
@@ -13,6 +13,7 @@
 "use strict";
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 
 const MAX_TRACKED = 20;
 const STALE_MS = 3600_000; // 1 hour — agents older than this are presumed done
@@ -45,7 +46,8 @@ async function main() {
   try { input = JSON.parse(raw); } catch {}
 
   const cwd = input.cwd || process.cwd();
-  const stateDir = path.join(cwd, ".masonry", "state");
+  // Use ~/.masonry/state/ — global, not per-project
+  const stateDir = path.join(os.homedir(), ".masonry", "state");
   ensureDir(stateDir);
 
   const now = Date.now();
