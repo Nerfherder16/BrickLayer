@@ -2066,6 +2066,105 @@ Wave 15 closes the implementation and operational gaps that open after Wave 14's
 
 ---
 
+## Wave 37 — Strategy D Implementation Sequencing
+*Added 2026-03-17. Wave 36 closed the validation loop: Q274 CONFIRMED 94% MRR empirically, Q273 confirmed graceful degradation floor at 88% (C+), Q271 confirmed mixed-granularity corpus is safe to deploy into, Q272 updated corpus projection to 42K normal-90-day, Q270 decomposed the full hook chain (~220ms dominated by spawn+sleep, not chunking). Strategy D is validated. Wave 37 pivots to implementation: what to build, in what order, and how.*
+
+### [FIX] F37.1: Reduce observe-edit.js setTimeout from 100ms to 25ms
+
+**Status**: PENDING
+**Operational Mode**: Fix
+**Priority**: HIGH
+**Motivated by**: Q270 — Idea 2: `reduce-settimeout-100ms-to-25ms-save-75ms-per-hook`
+**Hypothesis**: Replacing the hardcoded `setTimeout(100ms)` floor in observe-edit.js with `setTimeout(25ms)` saves 75ms per Write/Edit hook invocation (34% reduction in total hook time: ~220ms → ~145ms). LAN TCP + HTTP dispatch to 192.168.50.19 takes <10ms; 25ms provides a 2.5x safety margin without any risk of the fetch never dispatching.
+**Method**: fix-implementer
+**Verification**: (1) Edit `C:/Users/trg16/Dev/Recall/hooks/observe-edit.js` line ~144: change `setTimeout(() => process.exit(0), 100)` to `setTimeout(() => process.exit(0), 25)`. (2) Run 20 Write/Edit operations in Claude Code and confirm memories appear in the Recall API (100.70.195.84:8200). (3) Confirm no "fetch never sent" errors in hook stderr.
+**Source finding**: Q270 — full hook chain analysis confirmed the 100ms sleep is the second-largest latency component (after 117ms spawn); LAN TCP < 10ms makes 100ms excessively conservative.
+
+---
+
+### [RESEARCH] R37.2: What is the persistent hook daemon architecture for eliminating the 117ms Node.js spawn overhead?
+
+**Status**: PENDING
+**Operational Mode**: Research
+**Priority**: HIGH
+**Motivated by**: Q270 — Idea 3: `persistent-hook-process-eliminates-spawn-overhead`
+**Hypothesis**: A long-lived Node.js daemon (spawned by masonry-session-start.js at session open, listening on a Unix socket or named pipe) would eliminate the 117ms per-invocation Node.js cold-start cost. The observe-edit.js hook becomes a thin IPC client that pipes stdin to the daemon and exits immediately. Total hook latency would drop from ~145ms (post-F37.1) to ~27ms. Feasibility is estimated at 0.60 in Q270 — key unknowns are: IPC protocol overhead, pipe reliability on Windows 11, and daemon lifecycle management.
+**Research question**: (1) What is the correct IPC mechanism for a Claude Code PostToolUse hook to communicate with a pre-spawned Node.js daemon on Windows 11 — named pipe, TCP localhost, or stdin/stdout? (2) What is the measured round-trip overhead (hook script → IPC dispatch → daemon processing → ACK) vs. the current per-process spawn? (3) What is the daemon lifecycle: how does masonry-session-start.js spawn it, how does it detect daemon death and restart, and what happens to in-flight messages if the daemon crashes mid-session? (4) Does Windows 11 introduce any meaningful pipe latency vs. Unix domain sockets?
+**Method**: quantitative-analyst (benchmark + architecture design)
+**Deliverable**: Architecture spec for the persistent hook daemon: IPC protocol choice, daemon spawn/recovery contract, message format, and measured round-trip latency vs. current spawn cost. Verdict: is the 117ms elimination achievable at F_now ≥ 0.80?
+**Source finding**: Q270 — daemon idea identified as Phase 2 direction; F_now=0.60 means key unknowns must be resolved before building.
+
+---
+
+### [FIX] F37.3: Re-chunk the port inventory blob (08b34d1a) into one-service-per-chunk entries
+
+**Status**: PENDING
+**Operational Mode**: Fix
+**Priority**: HIGH
+**Motivated by**: Q274 — Idea 2: `port-inventory-blob-single-highest-roi-rewrite`
+**Hypothesis**: Blob 08b34d1a (homelab port inventory — all services and ports in one memory) is the single largest source of retrieval failure in the live Recall corpus. It causes 3-4 infrastructure query misses (cosine 0.46-0.60, below 0.65 threshold). Re-storing it as N individual service entries (one chunk per service: "CasaOS: 192.168.50.19:80", "Ollama: 192.168.50.62:11434", etc.) will fix ~50% of observed retrieval failures immediately. This is a one-time data migration requiring no code changes.
+**Method**: fix-implementer
+**Verification**: (1) Query Recall API for blob 08b34d1a content; identify all service:port entries. (2) For each service entry, call POST /store with a single-service memory (domain=homelab, tags=[homelab, infrastructure, ports]). (3) Delete the original blob 08b34d1a. (4) Repeat Q274's docker/Neo4j test queries (queries #2 and #4) and confirm both now score ≥ 0.65 cosine.
+**Source finding**: Q274 — empirical test showed 08b34d1a causes 3-4 failures; chunking to 1-service/chunk projects to ~82% cosine, clearing the 0.65 threshold.
+
+---
+
+### [RESEARCH] R37.4: What is the exact implementation sequence for wiring Strategy D into the live observe-edit.js hook?
+
+**Status**: PENDING
+**Operational Mode**: Research
+**Priority**: HIGH
+**Motivated by**: Q274 CONFIRMED, Q270 PROMISING, Q271 PROMISING, Q273 PROMISING — Strategy D is fully validated; implementation sequencing is the open question.
+**Hypothesis**: Strategy D has four distinct components that must be wired into observe-edit.js: (1) C+ structural chunking for Write/Edit events, (2) regex entity extraction per chunk, (3) async Bash extraction queue with 50-call session budget, (4) structured schema detection for Bash output. These components have dependencies (chunking must precede entity extraction; Bash schema detection must precede queue routing). The correct build order minimizes integration risk.
+**Research question**: (1) What is the dependency graph for the four Strategy D components — which must be built and tested before others? (2) Which component provides the highest retrieval improvement per implementation hour (quick wins first)? (3) What is the minimum viable first commit that moves the live observe-edit.js from Recall 1.0 blob storage to a partial Strategy D path — enough to start improving retrieval quality today? (4) For the async Bash queue: what is the correct Node.js implementation pattern — an in-process queue with setImmediate, a separate worker_thread, or a fire-and-forget fetch to a Recall API queue endpoint? (5) How does the session budget counter (50-call cap) persist across the hook invocations in a single session — does it live in the Recall API session state, Redis, or a local file?
+**Method**: quantitative-analyst (implementation sequencing + architecture)
+**Deliverable**: Ordered build sequence for Strategy D components with dependency graph, minimum viable first commit specification, and async Bash queue implementation pattern recommendation. This deliverable is the implementation roadmap for the observe-edit.js redesign.
+**Source finding**: Q266 locked the strategy; Q270/Q271/Q273/Q274 validated all components. The sequencing decision is the last open question before Phase 1 build starts.
+
+---
+
+### [RESEARCH] R37.5: What is the implementation plan for retroactively re-chunking the 22K old Recall 1.0 blob memories?
+
+**Status**: PENDING
+**Operational Mode**: Research
+**Priority**: MEDIUM
+**Motivated by**: Q271 — Idea 2: `retroactive-rechunk-22k-old-memories-highest-value-migration` + Q272 — Idea 2: `retroactive-rechunk-migration-adds-22k-vectors-negligible-hnsw-impact`
+**Hypothesis**: The 22K old Recall 1.0 blob memories are currently unretrievable for targeted queries (cosine 0.35-0.40, below 0.65 threshold). Retroactive re-chunking converts them from lost memories to retrievable ones — the highest-ROI single migration action. Q272 confirmed the HNSW SLA holds at the post-migration corpus size (~152K vectors, p95 ~130ms). The open questions are: how long does the migration take (re-embed 22K × 5 = 110K new chunks at Ollama throughput), what is the safest execution strategy (avoid rate-limiting Ollama during active sessions), and how to handle blobs that don't split well under Q266 boundary rules (e.g., JSON, YAML, prose summaries).
+**Research question**: (1) At qwen3-embedding:0.6b throughput on Ollama (192.168.50.62, RTX 3090), what is the estimated wall-clock time to re-embed 110K new chunks (22K blobs × 5 avg chunks each)? (2) What is the safest execution strategy — batch job overnight, rate-limited background process, or triggered by Ollama idle detection? (3) For blob types that don't fit Q266 boundary rules (session summaries, JSON configs, YAML), what is the fallback chunking strategy? (4) What is the rollback plan if migration corrupts the HNSW index — does Qdrant support atomic collection swap?
+**Method**: quantitative-analyst (throughput model + migration architecture)
+**Deliverable**: Migration plan for retroactive re-chunk: time estimate, execution strategy, per-blob-type chunking fallback, and rollback plan. Target: migration can run safely without disrupting active Recall sessions.
+**Source finding**: Q271 — old blobs confirmed below 0.65 threshold, retroactive re-chunk identified as highest-ROI migration task.
+
+---
+
+### [RESEARCH] R37.6: At 42K projected corpus, what is the CO_RETRIEVED graph seeding strategy to bootstrap useful spreading activation before organic edge accumulation?
+
+**Status**: PENDING
+**Operational Mode**: Research
+**Priority**: MEDIUM
+**Motivated by**: Q272 — corpus projection updated to 42K normal-90-day (not 22K); Q245 DONE (CO_RETRIEVED cold-start at ~1220 memories, density threshold established)
+**Hypothesis**: Q245 established that CO_RETRIEVED needs ~1220 memories to reach useful spreading activation density. Q272 updated the projected corpus to 42K at 90 days. At Strategy D's 5x write multiplier, 42K vectors are reached within ~18 days of normal usage. But CO_RETRIEVED edges only accumulate when memories are retrieved together — they do not exist at write time. A deployment starting from a fresh Recall 2.0 instance (or migrated from Recall 1.0 blobs) will have zero CO_RETRIEVED edges even when the corpus is large. The seeding question: can CO_RETRIEVED edges be bootstrapped synthetically (e.g., from the retroactive re-chunk migration data — if blob B was chunked from the same file, its chunks get initial CO_RETRIEVED edges) rather than waiting for organic retrieval co-occurrence?
+**Research question**: (1) What is the minimum CO_RETRIEVED edge density (edges per node) required for spreading activation to produce signal above noise at 42K corpus? (2) Can the retroactive re-chunk migration generate synthetic seed edges: if chunk C1 and chunk C2 came from the same original blob B, assign them an initial CO_RETRIEVED weight of 1? (3) What is the activation signal quality from synthetic seed edges vs. organic retrieval-derived edges — does synthetic seeding reduce the cold-start window without introducing noise? (4) Should synthetic edges use a lower initial weight (e.g., 0.5) than organic edges (1.0) to preserve the organic signal dominance?
+**Method**: quantitative-analyst (graph density model + synthetic seeding analysis)
+**Deliverable**: CO_RETRIEVED seeding strategy for Strategy D deployment: synthetic edge generation rule from migration data, initial weight calibration, and estimated cold-start window reduction.
+**Source finding**: Q272 updated corpus projection; Q245 established cold-start threshold; Q263 established CO_RETRIEVED noise model (W_min=3 spurious edge suppression scales proportionally).
+
+---
+
+### [RESEARCH] R37.7: Which Bash output schemas should be defined first for Strategy D's structured extraction tier?
+
+**Status**: PENDING
+**Operational Mode**: Research
+**Priority**: MEDIUM
+**Motivated by**: Q266 (Strategy D specification — structured Bash schemas as Tier 1 of 3 for Bash extraction) + Q274 CONFIRMED (MRR validated, implementation starting)
+**Hypothesis**: Strategy D routes Bash output through three tiers: (1) structured schema match → direct extraction without LLM, (2) unstructured output > 200 tokens → async LLM queue, (3) unstructured output ≤ 200 tokens → C+ path. Tier 1 (schema match) provides the best extraction quality at zero LLM cost. The schema library must be seeded with the most common high-signal Bash output patterns in Tim's actual workflow. Q274's empirical test identified infrastructure domain as the primary failure source — port binding, Neo4j connection, git hooks. These are exactly the Bash command categories that produce structured output.
+**Research question**: (1) From Tim's actual Recall corpus and workflow (casaclaude, homelab, Claude Code sessions), what are the top-10 Bash command categories by frequency? (2) For each category, what is the output structure — fixed schema (docker ps, kubectl get, git log --oneline) vs. variable schema (cargo build errors, test output)? (3) Which Bash output schemas are parseable with a single regex or JSON path extraction vs. requiring LLM semantic understanding? (4) For the top-5 structured schemas, what is the exact regex or parser pattern that extracts the critical fact (service name + port, error location + message, test pass/fail count)?
+**Method**: competitive-analyst (workflow analysis) + quantitative-analyst (schema design)
+**Deliverable**: Ranked list of top-10 Bash output categories, structured/unstructured classification for each, and regex/parser patterns for the top-5 structured schemas. These schemas are the first implementation deliverable for Strategy D Tier 1 Bash extraction.
+**Source finding**: Q266 specified the three-tier Bash extraction architecture; Q274 confirmed infrastructure domain as highest-failure category (port binding, graph connection queries).
+
+---
+
 ## Implementation Language Discovery
 *Added 2026-03-16. Language choice is not pre-decided — the research loop determines the answer through adversarial analysis and physics measurement. The only constraint: the distribution model is a single binary (proven by Reminisce). Everything else is open.*
 
