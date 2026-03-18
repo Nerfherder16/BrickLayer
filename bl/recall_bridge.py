@@ -1,144 +1,194 @@
 """
-bl/recall_bridge.py — Optional Recall memory integration.
+BrickLayer <-> Recall bridge.
+Queries the Recall 1.x API for memories relevant to a campaign,
+surfacing prior findings from analogous projects.
 
-Stores BrickLayer findings to the Recall system after each question.
-Retrieves relevant prior findings before each question.
-
-Gracefully skips all operations if Recall is unreachable.
-Recall API: http://192.168.50.19:8200
+Uses stdlib only (urllib) — no httpx/requests dependency.
+All network calls are fire-and-forget: timeouts are hard-capped at
+RECALL_TIMEOUT seconds and every exception is swallowed so a Recall
+outage never blocks a running campaign.
 """
 
+import json
 import os
+import urllib.request
+import urllib.error
+from typing import Any
 
-# Recall is optional — graceful fail if httpx not installed
-try:
-    import httpx
+RECALL_HOST = os.environ.get("RECALL_HOST", "http://100.70.195.84:8200")
+RECALL_API_KEY = os.environ.get("RECALL_API_KEY", "recall-admin-key-change-me")
+RECALL_TIMEOUT = 3  # seconds — never block a campaign
 
-    _HTTPX_AVAILABLE = True
-except ImportError:
-    _HTTPX_AVAILABLE = False
-
-RECALL_BASE = os.environ.get("RECALL_BASE_URL", "http://192.168.50.19:8200")
-RECALL_TIMEOUT = 5.0  # seconds — fail fast if Recall is unreachable
-
-# Verdicts significant enough to warrant Recall storage (F3.1: promoted from function-local)
-RECALL_STORE_VERDICTS: frozenset[str] = frozenset(
-    {
-        "FAILURE",
-        "WARNING",
-        "DIAGNOSIS_COMPLETE",
-        "FIXED",
-        "FIX_FAILED",
-        "PROMISING",
-        "BLOCKED",
-        "IMMINENT",
-        "PROBABLE",
-        "IMPROVEMENT",
-        "REGRESSION",
-        "NON_COMPLIANT",
-        "PARTIAL",
-        "ALERT",
-        "DEGRADED",
-    }
-)
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
 
 
-def _is_available() -> bool:
-    """Quick health check. Returns False if Recall is unreachable."""
-    if not _HTTPX_AVAILABLE:
-        return False
+def _headers() -> dict[str, str]:
+    h = {"Content-Type": "application/json", "Accept": "application/json"}
+    if RECALL_API_KEY:
+        h["X-API-Key"] = RECALL_API_KEY
+    return h
+
+
+def _post(endpoint: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+    """POST JSON to Recall. Returns parsed JSON body or None on any error."""
+    url = f"{RECALL_HOST}{endpoint}"
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers=_headers(), method="POST")
     try:
-        r = httpx.get(f"{RECALL_BASE}/health", timeout=2.0)
-        return r.status_code == 200
+        with urllib.request.urlopen(req, timeout=RECALL_TIMEOUT) as resp:
+            return json.loads(resp.read().decode("utf-8"))
     except Exception:
-        return False
+        return None
 
 
-def store_finding(question: dict, result: dict, project: str = "") -> bool:
-    """
-    Store a finding to Recall after a question completes.
+def _extract_memories(raw: Any) -> list[dict]:
+    """Normalise whatever shape Recall returns into a flat list of memory dicts."""
+    if not raw:
+        return []
+    # Recall may return {"memories": [...]} or a bare list
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, dict):
+        for key in ("memories", "results", "data", "items"):
+            if isinstance(raw.get(key), list):
+                return raw[key]
+    return []
 
-    Returns True if stored, False if skipped/failed.
-    """
-    if not _HTTPX_AVAILABLE:
-        return False
 
-    qid = question.get("id", "unknown")
-    verdict = result.get("verdict", "UNKNOWN")
-    summary = result.get("summary", "")
-    op_mode = question.get("operational_mode", question.get("mode", "unknown"))
-    title = question.get("title", "")
-
-    # Only store significant verdicts (F3.1: uses module-level RECALL_STORE_VERDICTS)
-    if verdict not in RECALL_STORE_VERDICTS:
-        return False
-
-    content = f"[{qid}] {title}: {verdict}. {summary}"
-    domain = f"{project}-bricklayer" if project else "bricklayer"
-
-    payload = {
-        "content": content,
-        "domain": domain,
-        "tags": [f"bl:mode:{op_mode}", f"bl:verdict:{verdict}", "bricklayer"],
-        "importance": 0.8,
-        "memory_type": "semantic",
+def _clean(mem: dict) -> dict:
+    """Return only the fields callers care about."""
+    return {
+        "content": mem.get("content", ""),
+        "importance": mem.get("importance", 0.0),
+        "tags": mem.get("tags", []),
+        "created_at": mem.get("created_at", ""),
     }
 
-    try:
-        r = httpx.post(
-            f"{RECALL_BASE}/memories",
-            json=payload,
-            timeout=RECALL_TIMEOUT,
-        )
-        return r.status_code in (200, 201)
-    except Exception:
-        return False
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 
-def search_before_question(question: dict, project: str = "") -> str:
+def search_prior_findings(
+    query: str,
+    domain: str = "autoresearch",
+    limit: int = 5,
+) -> list[dict]:
     """
-    Search Recall for findings relevant to this question.
-
-    Returns a formatted string of relevant memories, or "" if none / unavailable.
+    Query Recall for memories matching `query` in the given domain.
+    Returns list of {content, importance, tags, created_at} dicts.
+    Returns [] on any error (timeout, unreachable, etc.)
     """
-    if not _HTTPX_AVAILABLE:
-        return ""
-
-    query = f"{question.get('title', '')} {question.get('hypothesis', '')}".strip()
     if not query:
-        return ""
+        return []
+    raw = _post(
+        "/memory/search",
+        {"query": query, "domain": domain, "limit": limit},
+    )
+    return [_clean(m) for m in _extract_memories(raw)]
 
-    domain = f"{project}-bricklayer" if project else "bricklayer"
-    op_mode = question.get("operational_mode", "")
 
-    params = {
-        "q": query,
-        "domain": domain,
-        "limit": 5,
-    }
-    if op_mode:
-        params["tags"] = f"bl:mode:{op_mode}"
+def get_project_history(
+    project_name: str,
+    limit: int = 10,
+) -> list[dict]:
+    """
+    Retrieve session summaries and key findings for a specific project.
+    Searches Recall with query=project_name, filtered to the autoresearch domain.
+    """
+    if not project_name:
+        return []
+    raw = _post(
+        "/memory/search",
+        {"query": project_name, "domain": "autoresearch", "limit": limit},
+    )
+    return [_clean(m) for m in _extract_memories(raw)]
 
-    try:
-        r = httpx.get(
-            f"{RECALL_BASE}/memories/search",
-            params=params,
-            timeout=RECALL_TIMEOUT,
+
+def store_finding(
+    question_id: str,
+    verdict: str,
+    summary: str,
+    project: str,
+    tags: list[str] | None = None,
+) -> bool:
+    """
+    Store a BL finding to Recall for cross-project recall.
+    Returns True if stored successfully, False otherwise.
+    """
+    if not summary:
+        return False
+
+    content = f"[{project}/{question_id}] {verdict}: {summary}"
+    all_tags = [
+        "bricklayer",
+        f"project:{project}",
+        f"verdict:{verdict}",
+        f"qid:{question_id}",
+    ]
+    if tags:
+        all_tags.extend(tags)
+
+    result = _post(
+        "/memory",
+        {
+            "content": content,
+            "domain": "autoresearch",
+            "importance": 0.7,
+            "tags": all_tags,
+        },
+    )
+    # Any non-None response is a success
+    return result is not None
+
+
+def get_analogous_failures(
+    system_type: str,
+    limit: int = 5,
+) -> list[dict]:
+    """
+    Find failure patterns from other projects that match this system type.
+    system_type: e.g. "fastapi", "solana", "react", "docker"
+    Searches across all domains for FAILURE verdicts mentioning system_type.
+    """
+    if not system_type:
+        return []
+    # Search broadly — omit domain filter to scan all projects
+    raw = _post(
+        "/memory/search",
+        {
+            "query": f"FAILURE {system_type}",
+            "limit": limit,
+        },
+    )
+    memories = _extract_memories(raw)
+    # Filter to entries that actually mention a failure verdict
+    failures = [
+        m
+        for m in memories
+        if "FAILURE" in m.get("content", "").upper()
+        or any(
+            "failure" in str(t).lower() or "verdict:failure" in str(t).lower()
+            for t in m.get("tags", [])
         )
-        if r.status_code != 200:
-            return ""
+    ]
+    return [_clean(m) for m in failures]
 
-        memories = r.json()
-        if not memories:
-            return ""
 
-        lines = ["## Relevant Prior Findings (from Recall)\n"]
-        for m in memories[:5]:
-            content = m.get("content", "")
-            score = m.get("score", 0.0)
-            if content:
-                lines.append(f"- [{score:.2f}] {content}")
+# ---------------------------------------------------------------------------
+# Quick smoke-test
+# ---------------------------------------------------------------------------
 
-        return "\n".join(lines) + "\n"
-    except Exception:
-        return ""
+if __name__ == "__main__":
+    print(f"Recall host: {RECALL_HOST}")
+    print("Searching for: 'benchmark runner failure'")
+    results = search_prior_findings("benchmark runner failure")
+    if results:
+        for i, r in enumerate(results, 1):
+            print(f"\n[{i}] importance={r['importance']:.2f}  tags={r['tags']}")
+            print(f"    {r['content'][:120]}")
+    else:
+        print("No results (Recall unreachable or no matching memories).")
