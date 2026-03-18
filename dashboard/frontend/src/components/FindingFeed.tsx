@@ -76,8 +76,18 @@ function FindingCard({ finding, onCorrect }: CardProps) {
                 Corrected
               </span>
             )}
+            {finding.needs_human && (
+              <span className="text-xs px-2 py-0.5 rounded bg-[#451a03] text-[#f59e0b] font-medium border border-[#f59e0b]/20">
+                ⚠ Human
+              </span>
+            )}
             <span className="text-xs text-[#4b5563]">{finding.id}</span>
           </div>
+          {finding.confidence != null && (
+            <div className="mt-1">
+              <ConfidenceBar confidence={finding.confidence} />
+            </div>
+          )}
           <p className="text-sm text-[#e5e7eb] mt-1 leading-snug">
             {finding.title}
           </p>
@@ -154,11 +164,46 @@ function FindingCard({ finding, onCorrect }: CardProps) {
   );
 }
 
+type ConfidenceBand = "ALL" | "HIGH" | "MEDIUM" | "LOW";
+
+function getConfidenceBand(confidence: number | null | undefined): "HIGH" | "MEDIUM" | "LOW" | null {
+  if (confidence == null) return null;
+  if (confidence >= 0.7) return "HIGH";
+  if (confidence >= 0.35) return "MEDIUM";
+  return "LOW";
+}
+
+function ConfidenceBar({ confidence }: { confidence: number | null | undefined }) {
+  if (confidence == null) return null;
+  const band = getConfidenceBand(confidence);
+  const fillColor =
+    band === "HIGH" ? "#34d399" : band === "MEDIUM" ? "#f59e0b" : "#ef4444";
+  const pct = Math.max(0, Math.min(1, confidence)) * 100;
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="relative w-[60px] h-[4px] rounded-full bg-white/10 overflow-hidden">
+        <div
+          className="absolute left-0 top-0 h-full rounded-full"
+          style={{ width: `${pct}%`, backgroundColor: fillColor }}
+        />
+      </div>
+      <span className="text-xs font-mono" style={{ color: fillColor }}>
+        {confidence.toFixed(2)}
+      </span>
+    </div>
+  );
+}
+
 export function FindingFeed({ findings, onRefresh }: Props) {
   const [filterVerdict, setFilterVerdict] = useState("ALL");
+  const [filterConfidence, setFilterConfidence] = useState<ConfidenceBand>("ALL");
 
   const filtered = findings.filter((f) => {
     if (filterVerdict !== "ALL" && f.verdict !== filterVerdict) return false;
+    if (filterConfidence !== "ALL") {
+      const band = getConfidenceBand(f.confidence);
+      if (band !== filterConfidence) return false;
+    }
     return true;
   });
 
@@ -169,17 +214,29 @@ export function FindingFeed({ findings, onRefresh }: Props) {
         <h2 className="text-sm font-semibold text-[#e5e7eb] uppercase tracking-wide">
           Findings ({filtered.length}/{findings.length})
         </h2>
-        <select
-          value={filterVerdict}
-          onChange={(e) => setFilterVerdict(e.target.value)}
-          className="bg-[#1e1b2e] border border-white/10 rounded px-2 py-1 text-xs text-[#9ca3af] focus:outline-none"
-        >
-          <option value="ALL">All Verdicts</option>
-          <option value="FAILURE">FAILURE</option>
-          <option value="WARNING">WARNING</option>
-          <option value="HEALTHY">HEALTHY</option>
-          <option value="INCONCLUSIVE">INCONCLUSIVE</option>
-        </select>
+        <div className="flex gap-2">
+          <select
+            value={filterConfidence}
+            onChange={(e) => setFilterConfidence(e.target.value as ConfidenceBand)}
+            className="bg-[#1e1b2e] border border-white/10 rounded px-2 py-1 text-xs text-[#9ca3af] focus:outline-none"
+          >
+            <option value="ALL">All Confidence</option>
+            <option value="HIGH">High (≥0.7)</option>
+            <option value="MEDIUM">Medium (0.35–0.69)</option>
+            <option value="LOW">Low (&lt;0.35)</option>
+          </select>
+          <select
+            value={filterVerdict}
+            onChange={(e) => setFilterVerdict(e.target.value)}
+            className="bg-[#1e1b2e] border border-white/10 rounded px-2 py-1 text-xs text-[#9ca3af] focus:outline-none"
+          >
+            <option value="ALL">All Verdicts</option>
+            <option value="FAILURE">FAILURE</option>
+            <option value="WARNING">WARNING</option>
+            <option value="HEALTHY">HEALTHY</option>
+            <option value="INCONCLUSIVE">INCONCLUSIVE</option>
+          </select>
+        </div>
       </div>
 
       {/* Cards */}

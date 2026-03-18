@@ -63,6 +63,7 @@ def parse_questions(project_path: Path) -> list[dict]:
                     "domain": f"D{header_match.group(1).split('.')[0][1:]}",
                     "hypothesis": None,
                     "mode": None,
+                    "sharpened": False,
                 }
                 questions.append(current_q)
                 continue
@@ -83,6 +84,13 @@ def parse_questions(project_path: Path) -> list[dict]:
                 hyp_match = re.match(r"^\*\*Hypothesis\*\*:\s*(.*)", line)
                 if hyp_match:
                     current_q["hypothesis"] = hyp_match.group(1).strip()
+                    continue
+
+                sharpened_match = re.match(
+                    r"^\*\*Sharpened\*\*:\s*true", line, re.IGNORECASE
+                )
+                if sharpened_match:
+                    current_q["sharpened"] = True
                     continue
     else:
         # Legacy table format: | ID | Status | Question |
@@ -181,6 +189,20 @@ def parse_findings_index(project_path: Path) -> list[dict]:
 
         has_correction = "## Human Correction" in content
 
+        # Phase 6 fields
+        conf_match = re.search(r"\*\*Confidence\*\*:\s*([\d.]+)", content)
+        confidence = float(conf_match.group(1)) if conf_match else None
+
+        nh_match = re.search(
+            r"\*\*Needs Human\*\*:\s*(True|False)", content, re.IGNORECASE
+        )
+        needs_human = nh_match.group(1).lower() == "true" if nh_match else False
+
+        sharpened_match = re.search(
+            r"\*\*Sharpened\*\*:\s*true", content, re.IGNORECASE
+        )
+        sharpened = sharpened_match is not None
+
         findings.append(
             {
                 "id": f.stem,
@@ -189,6 +211,9 @@ def parse_findings_index(project_path: Path) -> list[dict]:
                 "severity": severity,
                 "has_correction": has_correction,
                 "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
+                "confidence": confidence,
+                "needs_human": needs_human,
+                "sharpened": sharpened,
             }
         )
 
