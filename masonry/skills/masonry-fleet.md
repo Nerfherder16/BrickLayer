@@ -155,13 +155,11 @@ Append to your finding when relevant:
 
 **Step 2 — Update registry:**
 
-Run:
-```javascript
-const { generateRegistry } = require('./src/core/registry');
-generateRegistry(process.cwd());
+```bash
+node {masonry_bin}/masonry-fleet-cli.js regen {project_dir}
 ```
 
-Or invoke the MCP tool `masonry_status` to trigger a registry refresh.
+Where `masonry_bin` is `C:/Users/trg16/Dev/Bricklayer2.0/masonry/bin`.
 
 **Step 3 — Confirm:**
 
@@ -186,7 +184,9 @@ fs.renameSync(src, dest);
 
 **Step 2 — Update registry:**
 
-Run `generateRegistry()` to rebuild `registry.json` without the retired agent.
+```bash
+node {masonry_bin}/masonry-fleet-cli.js regen {project_dir}
+```
 
 **Step 3 — Confirm:**
 
