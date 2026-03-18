@@ -60,7 +60,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 #               0.0 = requires new hardware or years of research
 # =============================================================================
 
-SCENARIO_NAME = "Wave 1 — Q001+Q002: DB Buffer Management + Hippocampal Consolidation"
+SCENARIO_NAME = "Wave 34 — Q261-Q266: observe-edit Extraction Strategy (hybrid hook routing, structural chunking, BM25 anchor block)"
 
 IDEAS = {
     # Q001 — Database buffer management → hot cache eviction
@@ -3839,6 +3839,85 @@ IDEAS = {
         0.95,
         0.99,
     ),  # At 100 users, per-user HNSW (464 MB) vs shared HNSW (448 MB) = 1.03x difference — negligible; both scale O(N_total) linearly; per-user HNSW is correct default (Q191) with near-zero RAM penalty; HNSW is smallest per-user component (4.6 MB = 3.2% of 145 MB); switch to shared HNSW driven by operational concerns not RAM
+    # ==========================================================================
+    # Wave 34 — Q261-Q266: observe-edit Hook Extraction Strategy
+    # ==========================================================================
+    # Q261 — Embedding semantic gap for code content; BM25 hybrid bridge
+    "hybrid-bm25-dense-rrf-recall-tantivy-qdrant": (
+        0.2,
+        0.9,
+        0.9,
+    ),  # RRF fusion over Tantivy+Qdrant (both already in stack); 50 lines; +40-60% MRR for code queries; widely known but novel for personal memory systems
+    "content-type-aware-retrieval-weight-adaptive-alpha": (
+        0.5,
+        0.6,
+        0.8,
+    ),  # Detect code-identifier vs NL-intent query via regex; adjust BM25/dense blend ratio dynamically; alpha=0.7/0.3 for code, 0.1/0.9 for NL; 3-5 day build
+    # Q262 — Context dilution cost: blob vs. chunk vs. LLM-extracted
+    "dilution-aware-ingestion-classifier": (
+        0.70,
+        0.80,
+        0.90,
+    ),  # Classify content at write time: atomic/structured/narrative → route to blob/chunk/paragraph strategy; heuristic (line count + entropy + k:v patterns); <5ms; eliminates one-size-fits-all blob storage
+    "granularity-probe-at-write-time": (
+        0.65,
+        0.65,
+        0.75,
+    ),  # Compute blob + sample-chunk embeddings at write time; if cos(blob, chunk)<0.85, document is heterogeneous → must chunk; self-calibrating without LLM; fires once per write
+    "llm-extraction-as-promotion-tier": (
+        0.85,
+        0.70,
+        0.65,
+    ),  # After chunk retrieved N=3 times, async LLM job produces 1-2 sentence summary stored as higher-priority node; frequently-retrieved chunks self-optimize; mirrors crystallized memory — zero production implementations
+    # Q263 — CO_RETRIEVED graph quality: chunks vs. atomic facts
+    "co-retrieved-noise-model-wmin3-function-level-safe": (
+        0.72,
+        0.70,
+        0.82,
+    ),  # Noise model: spurious fraction scales O(C²) with chunk coarseness; C≤3 (function-level) → ~30% noise → tolerable; C≥5 → noise-dominated; threshold=C=5 validated analytically; W_min=3 brings effective noise to 10-15%
+    "spreading-activation-wmin3-edge-weight-threshold-sweet-spot": (
+        0.68,
+        0.72,
+        0.80,
+    ),  # W_min=3 is optimal: suppresses ~65% spurious edges, retains ~75% true edges; path-2 noise amplification formula derived (30% → 51%); implement as traversal guard in spreading activation; directly implementable
+    # Q264 — Production code RAG systems: extraction strategies and benchmarks
+    "ast-structural-chunking-observe-edit-function-class-boundaries-100-400-tokens": (
+        0.80,
+        0.85,
+        0.90,
+    ),  # AST/function-level structural chunking for observe-edit; cAST +4.3 Recall@5 on RepoEval; supermemoryai/code-chunk production deployment; 100-400 tokens; include scope chain per chunk; no LLM extraction needed
+    "bm25-hybrid-validated-code-identifiers-ips-ports-error-codes": (
+        0.85,
+        0.80,
+        0.95,
+    ),  # BM25+dense hybrid specifically validated for code identifiers, version strings, IP:port, error codes; +26-48% retrieval improvement; Tantivy+HNSW already in Recall 2.0 — confirms existing design is correct for code content
+    # Q265 — Minimum information structure for reliable retrieval without embedding similarity
+    "tiered-extraction-routing-identifier-density-threshold": (
+        0.80,
+        0.85,
+        0.90,
+    ),  # Route observe-edit to LLM extraction only when identifier density <0.1 patterns/line or tool=Bash; skip LLM for code/config (density≥0.3); reduces avg hook latency from ~800ms to ~240ms; 65-75% LLM call reduction
+    "explicit-anchor-block-bm25-boosted-field": (
+        0.75,
+        0.80,
+        0.85,
+    ),  # Every stored memory gets structured anchor block {port:8200, host:100.70.195.84, service:qdrant, fn:get_qdrant_client, path:...}; BM25 weights anchor field 3× vs NL description; C+ regex only, no LLM; universal improvement
+    "bash-output-schema-registry-top-15-cli-commands": (
+        0.70,
+        0.75,
+        0.80,
+    ),  # Registry of ~15 common CLI output schemas (docker ps, git log, npm audit, pytest); schema parser → structured anchor block without LLM; fallback to generic regex or LLM for unrecognized; covers majority of Bash events in dev workflow
+    # Q266 — Convergence: optimal observe-edit extraction strategy (LOCKED DECISION)
+    "hybrid-routing-write-edit-c-plus-bash-llm-schema-registry": (
+        0.80,
+        0.90,
+        0.95,
+    ),  # DECISION LOCKED: Write/Edit → C+ structural chunking (always); Bash → schema registry first, then LLM for unrecognized; net MRR ~0.711 vs A=0.69 vs C+=0.666; per-hook-type routing not implemented in any known memory system
+    "explicit-anchor-block-plus-bm25-3x-weight-field": (
+        0.75,
+        0.85,
+        0.90,
+    ),  # Universal anchor block applied regardless of extraction path; BM25 field weight 3×; produced by C+ regex; supplements LLM description or raw chunk; ensures infrastructure queries hit with high precision; directly implementable
 }
 
 # =============================================================================
