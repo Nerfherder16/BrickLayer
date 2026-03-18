@@ -231,6 +231,6 @@ Then one paragraph of specific reasoning for the recommendation."""
         print(output)
         return None
 
-    synthesis_path = project_dir / "findings" / "synthesis.md"
+    synthesis_path = project_dir / "synthesis.md"
     synthesis_path.write_text(output, encoding="utf-8")
     return synthesis_path
