@@ -670,22 +670,31 @@ function toolGitHypothesis(args) {
 }
 
 function callPython(code, inputObj) {
-  const payload = JSON.stringify(inputObj);
-  const script = `
-import sys, json
-sys.path.insert(0, ${JSON.stringify(REPO_ROOT)})
-args = json.loads(sys.argv[1])
-${code}
-`;
+  const tmpDir = os.tmpdir();
+  const scriptFile = path.join(tmpDir, `masonry-mcp-${process.pid}-${Date.now()}.py`);
+  const inputFile = path.join(tmpDir, `masonry-mcp-${process.pid}-${Date.now()}.json`);
+
+  const script = [
+    "import sys, json",
+    `sys.path.insert(0, ${JSON.stringify(REPO_ROOT)})`,
+    `args = json.loads(open(${JSON.stringify(inputFile)}).read())`,
+    code,
+  ].join("\n");
+
   try {
-    const result = execSync(`python -c ${JSON.stringify(script)} ${JSON.stringify(payload)}`, {
+    fs.writeFileSync(scriptFile, script, "utf8");
+    fs.writeFileSync(inputFile, JSON.stringify(inputObj), "utf8");
+    const result = execSync(`python "${scriptFile}"`, {
       timeout: 15000,
       encoding: "utf8",
       env: process.env,
     });
     return JSON.parse(result.trim());
   } catch (err) {
-    return { error: err.message || "Python subprocess failed" };
+    return { error: err.stderr || err.message || "Python subprocess failed" };
+  } finally {
+    try { fs.unlinkSync(scriptFile); } catch (_) {}
+    try { fs.unlinkSync(inputFile); } catch (_) {}
   }
 }
 
