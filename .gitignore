@@ -14,6 +14,7 @@ adbp/
 # Masonry hook runtime state
 **/.masonry/
 masonry-state.json
+.retro-pending
 
 # OMC / Claude internal state (legacy)
 **/.omc/
