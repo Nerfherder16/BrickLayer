@@ -205,6 +205,25 @@ def _register_builtins() -> None:
         ),
     )
 
+    from bl.runners.swarm import run_swarm
+
+    register(
+        "swarm",
+        run_swarm,
+        RunnerInfo(
+            mode="swarm",
+            description="Swarm meta-runner — runs multiple sub-runners in parallel and aggregates verdicts (worst/majority/any_failure)",
+            target_types=["any"],
+            syntax_summary="workers: [{id, mode, spec}], max_concurrency:, timeout_seconds:, aggregation: worst|majority|any_failure, weights:",
+            example_question=(
+                "**Mode**: swarm\n**Spec**:\n  workers:\n"
+                "    - id: perf\n      mode: benchmark\n      spec: { ... }\n"
+                "    - id: docs\n      mode: document\n      spec: { ... }\n"
+                "  aggregation: worst\n  timeout_seconds: 120"
+            ),
+        ),
+    )
+
 
 _register_builtins()
 
