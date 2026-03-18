@@ -706,14 +706,14 @@ function toolNlGenerate(args) {
     return callPython(`
 from bl.nl_entry import quick_campaign
 result = quick_campaign(args["description"], project_dir=args.get("project_path", "."))
-print(json.dumps(result))
+print(json.dumps(result))  # mcp-stdout: execSync reads this line as the tool result
 `, args);
   }
 
   return callPython(`
 from bl.nl_entry import generate_from_description, format_preview
 qs = generate_from_description(args["description"])
-print(json.dumps({"questions": qs, "preview": format_preview(qs), "count": len(qs)}))
+print(json.dumps({"questions": qs, "preview": format_preview(qs), "count": len(qs)}))  # mcp-stdout
 `, args);
 }
 
@@ -729,15 +729,15 @@ from bl.runners import get_runner
 qs = load_questions("questions.md")
 q = next((q for q in qs if q.get("id") == args["question_id"]), None)
 if q is None:
-    print(json.dumps({"error": f"Question {args['question_id']!r} not found"}))
+    print(json.dumps({"error": f"Question {args['question_id']!r} not found"}))  # mcp-stdout
     sys.exit(0)
 mode = q.get("mode", "correctness")
 runner = get_runner(mode)
 if runner is None:
-    print(json.dumps({"error": f"No runner for mode {mode!r}"}))
+    print(json.dumps({"error": f"No runner for mode {mode!r}"}))  # mcp-stdout
     sys.exit(0)
 result = runner(q)
-print(json.dumps({"question_id": args["question_id"], "result": result}))
+print(json.dumps({"question_id": args["question_id"], "result": result}))  # mcp-stdout
 `, args);
 }
 
