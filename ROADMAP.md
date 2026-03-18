@@ -152,7 +152,7 @@ Spec written at `.autopilot/spec.md` (commit `92dc7b0`). 9 tasks, build not yet 
 
 ---
 
-## Phase 3 — Target Breadth (Runner Expansion) 📋
+## Phase 3 — Target Breadth (Runner Expansion) ✅
 
 Each item adds a new class of targets BrickLayer can run against.
 
@@ -162,10 +162,10 @@ Each item adds a new class of targets BrickLayer can run against.
 | ~~3.NEW~~ | ~~`simulate` runner — parameter sweep + boundary finding on simulate.py~~ | ~~BL campaigns~~ | ✅ |
 | ~~3.02~~ | ~~`benchmark` runner — ML model ablation, latency, accuracy sweeps~~ | ~~Ollama / OpenAI models~~ | ✅ |
 | ~~3.03~~ | ~~`document` runner — completeness/accuracy/consistency checks on docs vs code~~ | ~~API docs, READMEs~~ | ✅ |
-| 3.04 | `contract` runner — Solana/Anchor invariant checking and edge case fuzzing | Smart contracts | 📋 |
-| 3.05 | Baseline anchoring — lock known-good snapshot, every run diffs against it. Deploy gate | All runners | 📋 |
-| 3.06 | Multi-agent swarm — parallel perf/correctness/security/quality campaigns | All runners | 📋 |
-| 3.07 | GitHub Actions hook — run campaign on PR, post findings as review comments | CI/CD | 📋 |
+| ~~3.04~~ | ~~`contract` runner — Solana/Anchor invariant checking and edge case fuzzing~~ | ~~Smart contracts~~ | ✅ |
+| ~~3.05~~ | ~~Baseline anchoring — lock known-good snapshot, every run diffs against it. Deploy gate~~ | ~~All runners~~ | ✅ |
+| ~~3.06~~ | ~~Multi-agent swarm — parallel perf/correctness/security/quality campaigns~~ | ~~All runners~~ | ✅ |
+| ~~3.07~~ | ~~GitHub Actions hook — run campaign on PR, post findings as review comments~~ | ~~CI/CD~~ | ✅ |
 
 ---
 
