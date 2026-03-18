@@ -52,7 +52,7 @@ Campaign Loop (campaign.py)
         ├── [end] overseer (background)                      # BL 2.0
         ├── [end] skill-forge (background)                   # BL 2.0
         ├── [end] mcp-advisor (background)                   # BL 2.0
-        ├── [end] git-nerd (background) → GITHUB_HANDOFF.md # BL 2.0
+        ├── [end] git-nerd (background) → ../archive/GITHUB_HANDOFF.md # BL 2.0
         ├── [end] synthesize() + parse_recommendation()
         └── [end] generate_hypotheses() if bank exhausted
 ```
