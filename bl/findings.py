@@ -3,6 +3,8 @@ bl/findings.py — Finding writer, failure classifier, and results.tsv updater.
 """
 
 import json
+import os
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -50,6 +52,8 @@ _NON_FAILURE_VERDICTS = frozenset(
         "BLOCKED",
     }
 )
+
+_CONFIDENCE_FLOAT = {"high": 0.9, "medium": 0.6, "low": 0.3, "uncertain": 0.1}
 
 
 def classify_failure_type(result: dict, mode: str) -> str | None:
@@ -412,6 +416,10 @@ def write_finding(question: dict, result: dict) -> Path:
     failure_type_line = f"\n**Failure Type**: {failure_type}" if failure_type else ""
     type_label = "CODE-AUDIT" if question_type == "code_audit" else "BEHAVIORAL"
 
+    conf_str = result.get("confidence", "uncertain")
+    confidence_float = _CONFIDENCE_FLOAT.get(conf_str, 0.1)
+    needs_human = confidence_float < 0.35
+
     content = f"""# Finding: {qid} — {question["title"]}
 
 **Question**: {question["hypothesis"]}
@@ -420,6 +428,8 @@ def write_finding(question: dict, result: dict) -> Path:
 **Mode**: {question.get("operational_mode", question["mode"])}
 **Type**: {type_label}
 **Target**: {question["target"]}
+**Confidence**: {confidence_float}
+**Needs Human**: {needs_human}
 
 ## Summary
 
@@ -492,7 +502,18 @@ def update_results_tsv(
     if not updated:
         new_lines.append(new_row)
 
-    cfg.results_tsv.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    _content = "\n".join(new_lines) + "\n"
+    fd, tmp_path = tempfile.mkstemp(dir=cfg.results_tsv.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(_content)
+        os.replace(tmp_path, cfg.results_tsv)
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
     _mark_question_done(qid, verdict)
 
 
@@ -537,6 +558,15 @@ def _mark_question_done(qid: str, verdict: str) -> None:
     if "**Status**: PENDING" not in block:
         return
     new_block = block.replace("**Status**: PENDING", f"**Status**: {new_status}", 1)
-    cfg.questions_md.write_text(
-        text[:block_start] + new_block + text[block_end:], encoding="utf-8"
-    )
+    _qmd_content = text[:block_start] + new_block + text[block_end:]
+    fd, tmp_path = tempfile.mkstemp(dir=cfg.questions_md.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(_qmd_content)
+        os.replace(tmp_path, cfg.questions_md)
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise

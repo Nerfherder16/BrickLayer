@@ -72,6 +72,23 @@ Identify the wave number: read existing CHANGELOG.md to find the last wave entry
 
 ---
 
+## Pre-synthesis: Run question sharpener (non-fatal if unavailable)
+
+```python
+python -c "
+from bl.question_sharpener import sharpen_pending_questions
+from pathlib import Path
+try:
+    ids = sharpen_pending_questions(Path('.'))
+    print(f'Sharpened {len(ids)} questions: {ids}')
+except Exception as e:
+    print(f'Sharpener skipped: {e}')
+"
+```
+Log the output. Continue regardless of outcome.
+
+---
+
 ## Step 2: Write synthesis.md
 
 Write `{findings_dir}/synthesis.md` following this format:

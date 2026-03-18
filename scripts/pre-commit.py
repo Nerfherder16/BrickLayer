@@ -31,7 +31,9 @@ def run(cmd: list[str], cwd: str | None = None) -> subprocess.CompletedProcess:
 
 
 def get_staged_files() -> list[str]:
-    result = run(["git", "diff", "--staged", "--name-only"])
+    # --diff-filter=ACMR: Added, Copied, Modified, Renamed — excludes Deleted files.
+    # Deleted files no longer exist on disk and cannot be linted.
+    result = run(["git", "diff", "--staged", "--name-only", "--diff-filter=ACMR"])
     return [f.strip() for f in (result.stdout or "").splitlines() if f.strip()]
 
 

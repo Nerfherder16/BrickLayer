@@ -1,0 +1,82 @@
+---
+name: tools-manifest
+description: Canonical catalog of all MCP tools available to BrickLayer agents. Reference when writing new agents or checking tool coverage.
+type: reference
+---
+
+# BrickLayer Tools Manifest
+
+This file is the authoritative reference for tools available to all campaign agents.
+When writing a new agent, declare the tools it uses in frontmatter: `tools: [recall, filesystem]`
+forge-check validates this manifest exists and has at least 5 tool entries.
+
+---
+
+## recall
+Memory system at `100.70.195.84:8200`. Cross-session fact storage and retrieval.
+- `recall_search(query, domain, limit)` — semantic similarity search across stored memories
+- `recall_store(content, domain, tags, importance)` — persist a fact for future sessions
+- `recall_timeline(domain, limit)` — chronological retrieval of memories in a domain
+- `recall_get(id)` — fetch full content of a specific memory by ID
+
+## simulate
+Python subprocess for quantitative boundary testing.
+- `python simulate.py` — run current scenario parameters, returns verdict JSON
+- Edit SCENARIO PARAMETERS section only; never touch `constants.py`
+- Use `baseline.py` for snapshot anchoring
+
+## filesystem
+Standard Claude Code file tools. Always available to all agents.
+- `Read`, `Write`, `Edit` — file I/O with line-level precision
+- `Glob` — file pattern search (e.g. `findings/*.md`)
+- `Grep` — content search with regex
+- `Bash` — shell commands: git, python, curl, jq
+
+## github
+GitHub MCP server for repository operations.
+- `mcp__github__create_pull_request` — open PR from current branch with title + body
+- `mcp__github__create_issue` — file a bug or finding as a GitHub issue
+- `mcp__github__push_files` — push file changes to a remote branch
+- `mcp__github__get_pull_request` — read an existing PR's details
+- `mcp__github__list_commits` — list recent commits on a branch
+
+## masonry
+Masonry MCP server (`masonry-mcp.js`). Campaign state queries and operations.
+- `masonry_status` — current campaign state and wave progress
+- `masonry_findings` — recent findings with verdicts, summaries
+- `masonry_questions` — question bank query (filter by status/domain)
+- `masonry_weights` — priority weight report from `.bl-weights.json`
+- `masonry_fleet` — agent registry with performance scores from `agent_db.json`
+- `masonry_git_hypothesis` — generate research questions from recent git diffs
+- `masonry_nl_generate` — convert NL description to BL research questions
+- `masonry_run_question` — run a single question by ID, return verdict envelope
+- `masonry_recall` — proxy to Recall API for campaign-scoped memory
+
+## exa
+Exa MCP for web research and external documentation retrieval.
+- `mcp__exa__web_search_exa` — semantic web search with natural language queries
+- `mcp__exa__get_code_context_exa` — fetch code examples for a specific library or API
+- `mcp__exa__crawling_exa` — fetch full page content from a URL
+
+## context7
+Library documentation retrieval via context7 MCP.
+- `mcp__context7__resolve-library-id` — find the context7 ID for a package name
+- `mcp__context7__query-docs` — fetch current API docs for a resolved library ID
+
+---
+
+## Declaring Tool Usage in Agent Frontmatter
+
+Add a `tools:` array to your agent's YAML frontmatter to declare which tool categories it uses:
+
+```yaml
+---
+name: my-agent
+description: Does X
+model: sonnet
+tools: [recall, filesystem, masonry]
+---
+```
+
+This declaration is informational — it helps forge-check audit tool coverage and helps
+overseer understand each agent's capabilities without reading the full instruction file.
