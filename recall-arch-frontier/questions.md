@@ -1871,7 +1871,7 @@ Wave 15 closes the implementation and operational gaps that open after Wave 14's
 *Added 2026-03-17. Follow-up questions generated from Q266 BREAKTHROUGH. Wave 34 locked Strategy D (C+ Write/Edit + tiered Bash). Wave 35 validates the implementation assumptions: latency budget for structural chunking, whether analogous systems already do this, and BM25 cold-start corpus size.*
 
 ### [PHYSICS] Q267: What is the measured p95 latency for structural chunking of a 500-line Python file at observe-edit time?
-**Status**: PENDING
+**Status**: DONE
 **Priority**: Critical
 **Rationale**: Q266 locked C+ structural chunking at ~2ms write latency. This is an estimate. The actual latency for regex-based boundary detection on a 500-line file must be verified before committing to it as the synchronous path in observe-edit. If p95 exceeds 5ms, the hook will noticeably delay Claude Code write operations.
 **Research question**: (1) What is the p95 wall-clock time to split a 500-line Python file into function/class boundary chunks using the Q266 regex patterns (`def`/`async def`/`class` at column 0)? (2) Does the 400-token max chunk splitting step (tokenization) add meaningful overhead? (3) What is the latency floor for the 8-entity regex patterns applied to each chunk? (4) Does any of the pipeline exceed 5ms p95 on single-threaded Python execution (matching the Node.js hook runtime)? (5) Is Node.js regex faster or slower than Python for this workload?
@@ -1879,7 +1879,7 @@ Wave 15 closes the implementation and operational gaps that open after Wave 14's
 **Deliverable**: Measured p95 latency for the full C+ chunking pipeline on a representative 500-line Python file. Verdict: does the 2ms sync budget hold, or does it need revision?
 
 ### [ABSENCE] Q268: Does any production observe-edit hook in LLM coding assistants (Continue.dev, GitHub Copilot, Cursor) implement file-type-specific structural chunking with schema-based Bash output parsing?
-**Status**: PENDING
+**Status**: DONE
 **Priority**: High
 **Rationale**: Q266 found no published benchmark evidence for LLM summarization before embedding for code retrieval. But the specific pattern — file-type-aware structural chunking in a PostToolUse hook combined with schema-based Bash output parsing — may already exist in production. If it does, the implementation can adapt a known design. If it does not, this confirms the pattern is novel and reduces prior art risk for the Recall 2.0 implementation.
 **Research question**: (1) Does Continue.dev's context management system implement file-type-specific chunking for its file context storage? Does it have a Bash output parser? (2) Does Cursor's background indexer or context memory implement structural chunking at function/class boundaries for observed edits? (3) Does GitHub Copilot's context window management or any published Copilot extension implement schema-based CLI output parsing? (4) Are there open-source memory systems (mem0, Zep, MemGPT) that implement the combined pattern of structural chunking + schema-based tool output parsing?
@@ -1893,6 +1893,7 @@ Wave 15 closes the implementation and operational gaps that open after Wave 14's
 **Research question**: (1) At what corpus size does Tantivy BM25 IDF stabilize enough to provide consistent positive lift over dense-only retrieval? With Tim's typical session write rate (estimated 20-50 memories/session from observe-edit), how many sessions until the cold-start window closes? (2) During the cold-start window (BM25 not yet load-bearing), does Strategy D degrade to worse retrieval quality than Strategy A (pure LLM extraction) would have provided? (3) Is there a corpus size below which Strategy C+ (without BM25 compensation) fails to meet the 88% MRR estimate from Q266? (4) Should the observe-edit hook behave differently during cold-start (e.g., increase LLM extraction budget, lower async LLM threshold from 200 to 100 tokens)?
 **Pre-step**: Model BM25 IDF convergence: simulate a growing corpus of code memories using Tantivy's IDF formula (`log((N - n + 0.5) / (n + 0.5))`). At what N does IDF stabilize for representative code tokens? Plot BM25 contribution as a function of corpus size.
 **Deliverable**: Cold-start window estimate in sessions, BM25 IDF convergence model, and recommendation for whether Strategy D needs a cold-start fallback mode.
+**Status**: DONE
 
 ### [ADVERSARIAL] Q245: Can the CO_RETRIEVED graph reach sufficient density for spreading activation without explicit edge-building?
 **Status**: DONE
