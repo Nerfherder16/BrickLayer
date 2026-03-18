@@ -17,7 +17,6 @@ the system, and why.
 ```
 autosearch/
   template/           — Copy this to start a new project
-  dashboard/          — Web UI for monitoring (FastAPI + React)
   QUICKSTART.md       — Full reference (read this if unsure)
   FRAMEWORK.md        — System architecture details
   adbp/               — ADBP project (active)
@@ -29,10 +28,10 @@ Each project folder contains:
 simulate.py           — The simulation (agent edits SCENARIO PARAMETERS only)
 constants.py          — Immutable rules (never edit)
 program.md            — Loop instructions (never edit)
-questions.md          — Question bank (agent + human via dashboard)
+questions.md          — Question bank (agent + human via Kiln)
 results.tsv           — Tab-separated run log
 findings/             — Per-question findings (*.md)
-findings/synthesis.md — End-of-session synthesis
+synthesis.md          — End-of-session synthesis (written to project root)
 docs/                 — Supporting documents (human authority)
 project-brief.md      — Ground truth (highest authority, human only)
 .claude/agents/       — Specialist agents
@@ -69,28 +68,10 @@ cd C:/Users/trg16/Dev/Bricklayer2.0/{project}/
 
 ---
 
-## Starting the Dashboard
+## Monitoring Campaigns
 
-In a separate terminal (use Git Bash or WSL — not PowerShell):
-```bash
-bash C:/Users/trg16/Dev/Bricklayer2.0/dashboard/start.sh C:/Users/trg16/Dev/Bricklayer2.0/{project}
-```
-
-Or manually in two PowerShell terminals:
-
-**Backend:**
-```powershell
-cd C:\Users\trg16\Dev\Bricklayer2.0\dashboard\backend
-$env:AUTOSEARCH_PROJECT="C:/Users/trg16/Dev/Bricklayer2.0/{project}"; uvicorn main:app --host 0.0.0.0 --port 8100 --reload
-```
-
-**Frontend:**
-```powershell
-cd C:\Users\trg16\Dev\Bricklayer2.0\dashboard\frontend
-npm run dev
-```
-
-Open: http://localhost:3100
+Use **Kiln** (BrickLayerHub) to monitor campaigns, view findings, and manage the question queue.
+The web dashboard has been retired — all UI goes through Kiln.
 
 ---
 
