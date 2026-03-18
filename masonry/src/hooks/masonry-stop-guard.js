@@ -93,32 +93,19 @@ async function main() {
       process.exit(0);
     }
 
-    // Build compact output — no git diff, just file list
+    // Compact single-block output — session files only, no section headers
     const sessionCount = sessionModified.length + sessionUntracked.length;
-    let output = `\nUncommitted changes (${sessionCount} files):\n`;
+    const staleNote = staleFiles.length > 0 ? ` (+${staleFiles.length} pre-existing ignored)` : "";
+    let output = `\nStop blocked — ${sessionCount} uncommitted session file${sessionCount !== 1 ? "s" : ""}${staleNote}:\n`;
 
-    if (sessionModified.length > 0) {
-      output += `\n── Modified (${sessionModified.length}) ──\n`;
-      for (const { xy, file } of sessionModified) {
-        output += `  (${xy.padEnd(2)})  ${file}\n`;
-      }
+    for (const { file } of sessionModified) {
+      output += `  M  ${file}\n`;
+    }
+    for (const { file } of sessionUntracked) {
+      output += `  ?  ${file}\n`;
     }
 
-    if (sessionUntracked.length > 0) {
-      output += `\n── Untracked (${sessionUntracked.length}) ──\n`;
-      for (const { file, days } of sessionUntracked) {
-        output += `  (??)   ${file}${ageLabel(days)}\n`;
-      }
-    }
-
-    if (staleFiles.length > 0) {
-      output += `\n── Pre-existing (${staleFiles.length}, not from today) ──\n`;
-      for (const { xy, file, days } of staleFiles) {
-        output += `  (${xy.padEnd(2)})  ${file}${ageLabel(days)}\n`;
-      }
-    }
-
-    output += `\nReview ages above — only commit files from this session.\n`;
+    output += `Commit before stopping.\n`;
 
     process.stderr.write(output);
     process.exit(2);
