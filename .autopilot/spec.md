@@ -1,498 +1,624 @@
-# Spec: Masonry Ecosystem Expansion
+# Spec: Phase 6 — Campaign Quality Intelligence
 
 ## Goal
 
-Bring Masonry to feature parity with OMC's richer capabilities while staying true to its
-research-first identity. Seven deliverables: a richer HUD, file ownership in `/build`,
-an `/ultrawork` parallel execution engine, a `/pipeline` skill, a `/masonry-team` skill,
-a formalized plugin/pack architecture, and a fully operational `/masonry-fleet`.
-
-All changes are to skill `.md` files, Node.js hooks/scripts, and config files.
-No Python, no TypeScript, no frontend involved.
-
----
+Make BrickLayer's research loop self-aware about output quality, not just volume. Six coordinated
+improvements: numeric confidence on every finding, LLM-as-judge quality scoring via peer-reviewer,
+a feedback sharpener that narrows PENDING questions based on INCONCLUSIVE findings, shared campaign
+context injected into every agent spawn, time-series performance tracking per agent, and a canonical
+tool manifest for the fleet. End result: verdicts are trustworthy, campaigns self-correct, and
+underperforming agents are caught before they waste waves.
 
 ## Architecture
 
 ```
-masonry/
-  skills/
-    masonry-build.md       ← add owned_by to progress.json schema
-    masonry-fleet.md       ← reference new fleet CLI
-    masonry-ultrawork.md   ← NEW parallel execution skill
-    masonry-pipeline.md    ← NEW pipeline chaining skill
-    masonry-team.md        ← NEW native teams wrapper
-  src/hooks/
-    masonry-statusline.js  ← enrich HUD (git, build task, UI mode)
-  bin/
-    masonry-fleet-cli.js   ← NEW fleet add/retire/status CLI
-  packs/
-    masonry-core/
-      pack.json            ← NEW pack manifest
-      agents/              ← symlink or copy of template agents
-    masonry-frontier/
-      pack.json            ← NEW pack manifest
-  .claude-plugin/
-    plugin.json            ← add packs reference
-
-~/.claude/CLAUDE.md        ← update skill catalog table (new skills)
+  findings.py          — adds confidence_float + needs_human to every .md finding
+       ↓
+  agent_db.py          — records runs[] time-series per agent
+       ↓
+  question_weights.py  — quality_score factor in INCONCLUSIVE weight bump
+       ↓
+  question_sharpener.py — narrows PENDING questions from INCONCLUSIVE signals
+       ↓
+  agent .md patches     — peer-reviewer emits quality_score; mortar re-queues low-quality INCONCLUSIVEs;
+                          synthesizer calls sharpener; auditor detects trends; forge checks manifest
+       ↓
+  dashboard backend     — exposes confidence + sharpened fields via API
+       ↓
+  dashboard frontend    — confidence badge/filter, sharpened question badge
+  Kiln                  — verdict sparkline in AgentBriefModal
 ```
-
-### Data Flow
-
-- **HUD**: `masonry-statusline.js` reads `masonry-state.json`, `.autopilot/progress.json`,
-  `.ui/mode`, and runs `git rev-parse`/`git status --short` synchronously (< 50ms).
-- **Ownership**: `progress.json` tasks grow two fields — `owned_by` and `lock_files[]`.
-  Orchestrator writes these before spawning, clears after DONE/BLOCKED.
-- **Fleet CLI**: `bin/masonry-fleet-cli.js` is callable with
-  `node {masonry_root}/bin/masonry-fleet-cli.js <cmd> [args]` from any project dir.
-- **Packs**: `~/.masonry/config.json` gains an `"activePacks": []` array. The fleet CLI
-  and skills read from this to know which agent packs are available.
-
----
 
 ## Tasks
 
-### Task 1 — Rich HUD (`masonry-statusline.js`) · Parallel: YES
+### Task 1 — bl/findings.py: numeric confidence + needs_human in frontmatter
+**Parallel: yes (independent of T2–T4)**
 
-Enrich the statusline output with four new segments:
+The existing `classify_confidence()` returns `"high"|"medium"|"low"|"uncertain"`. The numeric value
+is never written to the finding file. This task maps it to float and writes it.
 
-1. **Git segment**: current branch name + dirty indicator (`*` if uncommitted changes).
-   Run `git rev-parse --abbrev-ref HEAD` and `git status --porcelain` synchronously
-   with a 2s timeout; if git fails (not a repo) skip the segment silently.
-2. **Build segment**: if `.autopilot/progress.json` exists, find the first IN_PROGRESS task
-   and show `bld:#{id}` in amber. If no in-flight task, show nothing.
-3. **UI mode segment**: if `.ui/mode` exists and is non-empty, show `ui:{mode}` in cyan.
-4. **Active agents segment**: if `masonry-state.json` has `active_agents: []` array, show
-   count `N agents` in purple; otherwise use existing `active_agent` string.
+Add this **above the `## Summary` section** in the finding markdown template inside `write_finding()`:
 
-**Output format (campaign active):**
 ```
-🧱  masonry  │  bl2  research · wave 3  │  Q12/49  mortar  │  main*  │  bld:#4  │  ui:compose  │  ████░░░░░░ 38%  ✓12 ⚠2  │  ● recall
+**Confidence**: {confidence_float}
+**Needs Human**: {needs_human}
 ```
 
-**Rules:**
-- Git ops must use `execSync` with `{ stdio: 'pipe', timeout: 2000 }` — never throw
-- Never add > 20ms to statusline render time on a clean repo
-- Keep all segments on one line; truncate git branch at 20 chars if needed
+Mapping (add as module-level constant `_CONFIDENCE_FLOAT`):
+```python
+_CONFIDENCE_FLOAT = {"high": 0.9, "medium": 0.6, "low": 0.3, "uncertain": 0.1}
+```
 
-**Test:** Run `node masonry/src/hooks/masonry-statusline.js` with a mock JSON on stdin
-containing `context_window`, `cwd`. Verify output contains branch name and no crash.
-Output format is a single line ending in `\n`.
+Logic to add inside `write_finding()` (after C-30 constraint block, before building `content`):
+```python
+conf_str = result.get("confidence", "uncertain")
+confidence_float = _CONFIDENCE_FLOAT.get(conf_str, 0.1)
+needs_human = confidence_float < 0.35
+```
 
-**File:** `masonry/src/hooks/masonry-statusline.js`
+**File**: `bl/findings.py`
+
+**Test** (`tests/test_findings_confidence.py`):
+- `write_finding()` with `confidence="high"` → file contains `**Confidence**: 0.9` and `**Needs Human**: False`
+- `write_finding()` with `confidence="uncertain"` → file contains `**Confidence**: 0.1` and `**Needs Human**: True`
+- `write_finding()` with `confidence="low"` → `**Needs Human**: True` (0.3 < 0.35)
+- `write_finding()` with `confidence="medium"` → `**Needs Human**: False` (0.6 >= 0.35)
+- C-30 path: `code_audit` question with `confidence="high"` → confidence capped to `"medium"` → `**Confidence**: 0.6`
 
 ---
 
-### Task 2 — File ownership in `/build` · Parallel: YES
+### Task 2 — bl/agent_db.py: runs[] time-series
+**Parallel: yes (independent of T1, T3, T4)**
 
-Extend the `progress.json` task schema with two new optional fields:
+Extend `record_run()` signature and storage to track per-run history:
 
+```python
+def record_run(
+    project_root: Path | str,
+    agent_name: str,
+    verdict: str,
+    duration_ms: int = 0,
+    quality_score: float | None = None,
+) -> float:
+```
+
+Append to `runs[]` list in the agent's JSON entry:
 ```json
-{
-  "id": 1,
-  "description": "Build auth module",
-  "status": "PENDING|IN_PROGRESS|DONE|BLOCKED",
-  "owned_by": "task-1",
-  "lock_files": ["src/auth/login.py", "src/auth/models.py"]
-}
+{"timestamp": "ISO-8601", "verdict": "FAILURE", "duration_ms": 123, "quality_score": 0.7}
 ```
 
-**Orchestrator rules (update `masonry-build.md`):**
-1. Before spawning a worker agent, set `owned_by: "task-{id}"` on that task in `progress.json`.
-2. In the worker prompt, add: `"Owned files for this task: {lock_files}. Do NOT modify files
-   owned by other IN_PROGRESS tasks: {list of other tasks' lock_files}."`
-3. After marking a task DONE or BLOCKED, clear `owned_by` to `null`.
-4. If two PENDING tasks share a file in `lock_files`, they are implicitly sequential — do
-   not spawn them in the same parallel batch.
+Backward compat: agents already in agent_db.json without `runs` key -> default to `[]`.
+Cap `runs[]` at 100 entries (drop oldest when over limit).
 
-**Note:** `lock_files` is populated by the planning spec's task descriptions. If omitted,
-ownership is inferred from files mentioned in the task description (best-effort).
+Add new function:
+```python
+def get_trend(
+    project_root: Path | str,
+    agent_name: str,
+    window: int = 5,
+) -> dict:
+    """
+    Returns:
+      {
+        "score_recent": float,   # accuracy over last `window` runs
+        "score_prior": float,    # accuracy over prior `window` runs (or None if < 2*window total)
+        "trending": "up" | "down" | "stable" | "insufficient_data",
+        "recent_runs": int,
+      }
+    Accuracy = fraction of SUCCESS verdicts in the window.
+    "up" if recent > prior + 0.1, "down" if recent < prior - 0.1, else "stable".
+    """
+```
 
-**Test:** Verify the updated `masonry-build.md` skill doc contains the ownership fields
-in the progress.json schema block and the worker prompt template.
+**File**: `bl/agent_db.py`
 
-**File:** `masonry/skills/masonry-build.md`
+**Test** (`tests/test_agent_db_timeseries.py`):
+- `record_run()` with `duration_ms=150, quality_score=0.8` -> run appears in `runs[]`
+- `record_run()` on existing agent without `runs` key -> backward compat, no KeyError
+- `record_run()` 101 times -> `runs[]` length == 100 (oldest dropped)
+- `get_trend()` with 6 runs (3 SUCCESS + 3 FAILURE, interleaved) -> returns dict with all keys
+- `get_trend()` with < 5 runs -> `trending == "insufficient_data"`
+- `get_trend()` 10 runs: last 5 all SUCCESS, prior 5 all FAILURE -> `trending == "up"`
 
 ---
 
-### Task 3 — Fleet CLI (`masonry-fleet-cli.js`) · Parallel: YES
+### Task 3 — bl/question_weights.py: quality_score in weight formula
+**Parallel: yes (independent of T1, T2, T4)**
 
-Create `masonry/bin/masonry-fleet-cli.js` — a Node.js CLI that the fleet skill can call
-to perform add/retire/status without relying on inline JS execution.
-
-**Usage:**
-```bash
-node {masonry_root}/bin/masonry-fleet-cli.js status [project_dir]
-node {masonry_root}/bin/masonry-fleet-cli.js add <name> [project_dir]
-node {masonry_root}/bin/masonry-fleet-cli.js retire <name> [project_dir]
-node {masonry_root}/bin/masonry-fleet-cli.js regen [project_dir]
+Extend `record_result()`:
+```python
+def record_result(
+    project_dir: Path | str,
+    question_id: str,
+    verdict: str,
+    quality_score: float | None = None,
+) -> QuestionWeight:
 ```
 
-`project_dir` defaults to `process.cwd()`.
+Add to weight computation: if `verdict == "INCONCLUSIVE"` and
+`quality_score is not None` and `quality_score < 0.4` -> add `+0.3` to weight after base computation
+(signals: this INCONCLUSIVE had low quality -> worth retrying with sharper scope, not just pruning).
 
-**`status` output:**
-```
-MASONRY FLEET · {project} · {N} agents
-────────────────────────────────────────────────────────────────────
-Agent                  Model    Tier      Score  Runs  Last Activity
-benchmark-engineer     sonnet   standard  0.82   12    2h ago
-mortar                 sonnet   standard  —      —     active ←
-...
-Summary: N active, N elite tier, N below 0.40 threshold
-agent_db.json: found | not found
+Add field to `QuestionWeight` dataclass:
+```python
+last_quality_score: float | None = None   # most recent peer-reviewer quality_score
 ```
 
-**`add <name>`:**
-1. Check `.claude/agents/{name}.md` doesn't exist (warn if it does)
-2. Write scaffold file from the template defined in `masonry-fleet.md`
-3. Run `generateRegistry(projectDir)` from `src/core/registry.js`
-4. Print confirmation
+Persist `last_quality_score` to `.bl-weights.json`.
 
-**`retire <name>`:**
-1. Move `.claude/agents/{name}.md` → `.claude/agents/.retired/{name}.md`
-2. Create `.retired/` if needed
-3. Run `generateRegistry(projectDir)`
-4. Print confirmation
+**File**: `bl/question_weights.py`
 
-**`regen`:** Just runs `generateRegistry(projectDir)` and prints agent count.
-
-**Dependencies:** Requires only `src/core/registry.js` — no external npm packages.
-
-**Update `masonry-fleet.md`:** Change the `add` and `retire` step 2 from inline JS to:
-```bash
-node {masonry_bin}/masonry-fleet-cli.js regen {project_dir}
-```
-
-**Test:**
-```bash
-# Create a temp project dir with .claude/agents/ containing 2 agents
-# Run: node masonry/bin/masonry-fleet-cli.js status {tmp_dir}
-# Verify: outputs table with 2 rows, no crash
-# Run: node masonry/bin/masonry-fleet-cli.js add test-agent {tmp_dir}
-# Verify: .claude/agents/test-agent.md exists, registry.json updated
-# Run: node masonry/bin/masonry-fleet-cli.js retire test-agent {tmp_dir}
-# Verify: .claude/agents/.retired/test-agent.md exists, not in registry.json
-```
-
-**Files:** `masonry/bin/masonry-fleet-cli.js`, `masonry/skills/masonry-fleet.md` (update)
+**Test** (`tests/test_question_weights_quality.py`):
+- `record_result(id, "INCONCLUSIVE", quality_score=0.2)` -> weight gets +0.3 bump vs plain INCONCLUSIVE
+- `record_result(id, "INCONCLUSIVE", quality_score=0.8)` -> NO extra bump (quality_score >= 0.4)
+- `record_result(id, "HEALTHY", quality_score=0.2)` -> no bump (only INCONCLUSIVE triggers it)
+- `last_quality_score` persisted and loaded from `.bl-weights.json`
+- Backward compat: load existing `.bl-weights.json` without `last_quality_score` -> no error
 
 ---
 
-### Task 4 — `/ultrawork` skill · Parallel: YES (after task 2 schema is written)
+### Task 4 — bl/question_sharpener.py: new feedback loop module
+**Parallel: yes (independent of T1, T2, T3)**
 
-Create `masonry/skills/masonry-ultrawork.md`.
+New module. The sharpener reads INCONCLUSIVE findings and narrows broad PENDING questions.
 
-**Difference from `/build`:** Ultrawork does not batch by dependency. Every PENDING task
-that has no file ownership conflict with a currently IN_PROGRESS task is spawned immediately,
-up to `max_concurrency` (default 6). This is appropriate for specs where tasks are largely
-independent (e.g., building many separate modules, running multiple research questions).
+```python
+def sharpen_pending_questions(
+    project_dir: Path | str,
+    max_sharpen: int = 5,
+    dry_run: bool = False,
+) -> list[str]:
+    """
+    1. Load all INCONCLUSIVE findings from findings/*.md (check **Verdict**: line)
+    2. For each INCONCLUSIVE finding, extract its mode/domain (**Mode**: line)
+    3. Load PENDING questions from questions.md
+    4. For each INCONCLUSIVE finding, find PENDING questions with same mode
+       that do NOT already have **Sharpened**: true
+    5. For each matched question (up to max_sharpen total):
+       - Append [narrowed: {3-word keyword from finding summary}] to question title
+       - Add **Sharpened**: true on new line after **Status**: in questions.md
+    6. Write updated questions.md atomically (write temp file, then rename)
+    7. Return list of sharpened question IDs
+    """
+```
 
-**Skill structure:**
+Helper functions:
+```python
+def _extract_finding_mode(content: str) -> str | None:
+    """Parse **Mode**: line from finding .md, return mode string e.g. 'diagnose'"""
+
+def _finding_keyword(content: str) -> str:
+    """Return first 3 words from ## Summary section, joined by '-'"""
+```
+
+**File**: `bl/question_sharpener.py`
+
+**Test** (`tests/test_question_sharpener.py`):
+- Fixture: tmp questions.md with 3 PENDING questions (modes: diagnose, benchmark, audit)
+  + tmp findings/ with 1 INCONCLUSIVE finding (mode: diagnose)
+- `sharpen_pending_questions(tmp_dir)` -> returns list containing the diagnose question ID
+- The diagnose question in questions.md has `**Sharpened**: true`
+- `dry_run=True` -> returns list but does NOT modify questions.md
+- Already-sharpened question -> not re-sharpened (idempotent)
+- No INCONCLUSIVE findings -> returns empty list
+
+---
+
+### Task 5 — Agent .md patches
+**Parallel: yes (independent of T1–T4)**
+
+Targeted, minimal additions to 5 agent instruction files. Do NOT rewrite agents.
+
+**5a. template/.claude/agents/peer-reviewer.md**
+
+Find the output JSON contract section. Add `quality_score` field to the JSON schema:
+```
+"quality_score": 0.0,  // 0.0-1.0: how well-evidenced is the primary finding?
+```
+Add scoring rubric immediately after the JSON block:
+```markdown
+## quality_score Rubric
+- 0.9-1.0: Finding has reproduction steps, exact error output, line numbers, confirmed fix
+- 0.7-0.8: Finding has evidence but missing one of: steps, output, or line numbers
+- 0.5-0.6: Finding is partially evidenced — summary exists but details are thin
+- 0.3-0.4: Finding is speculative — no test rerun possible, assertion-only
+- 0.0-0.2: Finding cannot be evaluated at all (missing file, 404, timeout)
+```
+
+**5b. template/.claude/agents/mortar.md**
+
+Find the wave-start or startup section. Add campaign-context.md write procedure:
+```markdown
+**Campaign Context (write at wave start, refresh every 10 findings):**
+Write `campaign-context.md` in project root:
+- "# Campaign Context — {project} (Wave {N})"
+- ## Project: first paragraph of project-brief.md
+- ## Top Findings: ID, verdict, one-line summary of 5 highest-severity findings
+- ## Open Hypotheses: PENDING questions with weight > 1.5 from .bl-weights.json
+Prepend "Read campaign-context.md before proceeding." to every specialist agent spawn prompt.
+```
+
+Add INCONCLUSIVE re-queue trigger to finding-receipt logic:
+```markdown
+**INCONCLUSIVE Re-queue Rule:**
+When receiving a finding with verdict INCONCLUSIVE AND peer-reviewer quality_score < 0.4:
+- Set question status back to PENDING in questions.md
+- Append [retry: narrow scope] to question title
+- Log: "Re-queued {qid} — INCONCLUSIVE quality_score {score:.2f} < 0.4"
+Otherwise: accept INCONCLUSIVE normally.
+```
+
+**5c. template/.claude/agents/synthesizer-bl2.md**
+
+Find the synthesis procedure steps. Insert before the synthesis.md write step:
+```markdown
+**Before writing synthesis.md, run question sharpener (non-fatal if unavailable):**
+```python
+python -c "
+from bl.question_sharpener import sharpen_pending_questions
+from pathlib import Path
+try:
+    ids = sharpen_pending_questions(Path('.'))
+    print(f'Sharpened {len(ids)} questions: {ids}')
+except Exception as e:
+    print(f'Sharpener skipped: {e}')
+"
+```
+```
+
+**5d. template/.claude/agents/agent-auditor.md**
+
+Find the scoring methodology section. Add after definitive rate calculation:
+```markdown
+## Trend Detection
+For each agent that has `runs[]` data in agent_db.json:
+  Import and call: `from bl.agent_db import get_trend`
+  `trend = get_trend(project_root, agent_name, window=5)`
+  If `trending == "down"`: flag in AUDIT_REPORT.md with prefix "TRENDING DOWN"
+  If `trending == "up"`: note in report with prefix "IMPROVING"
+  Skip agents without runs[] (backward compat).
+```
+
+**5e. template/.claude/agents/forge-check.md**
+
+Find the fleet completeness checks section. Add:
+```markdown
+## Tools Manifest Check
+- Look for `template/.claude/agents/tools-manifest.md`
+- If absent: add entry to FORGE_NEEDED.md: "tools-manifest.md missing — agents cannot discover available tools"
+- If present: verify it contains at least 5 tool entries (lines starting with `- \``)
+```
+
+---
+
+### Task 6 — tools-manifest.md: canonical tool catalog
+**Parallel: yes (no dependencies)**
+
+Create `template/.claude/agents/tools-manifest.md`:
 
 ```markdown
 ---
-name: masonry-ultrawork
-description: High-throughput parallel build — spawns all independent tasks simultaneously with
-  file ownership partitioning. Use when tasks are largely independent. Requires .autopilot/spec.md.
----
-```
-
-**Ultrawork Loop:**
-1. Read `spec.md` and `progress.json` (create if missing)
-2. Build ownership conflict map from `lock_files` across all IN_PROGRESS tasks
-3. Find ALL PENDING tasks with no conflicts → spawn up to `max_concurrency` simultaneously
-4. As each task completes (DONE/BLOCKED), immediately check for newly unblocked tasks
-   and spawn them (refill the pool)
-5. Validate and commit after each completed batch of 3 tasks (or when pool drains)
-6. 3-strike rule same as `/build`
-7. On completion: set status → COMPLETE, clear mode, run `/verify`
-
-**`max_concurrency` setting:**
-- Default 6
-- Can be overridden by adding `max_concurrency: N` to the spec's Agent Hints section
-- Hard cap: 10 (above this Claude's parallel agent rendering becomes unwieldy)
-
-**Worker agent prompt:** identical to `/build` plus ownership constraints from task 2.
-
-**Test:** Verify skill file exists, contains the refill-pool logic description, and references
-the ownership conflict map. Verify the `max_concurrency` cap of 10 is documented.
-
-**File:** `masonry/skills/masonry-ultrawork.md`
-
+name: tools-manifest
+description: Canonical catalog of all MCP tools available to BrickLayer agents. Reference when writing new agents.
+type: reference
 ---
 
-### Task 5 — `/pipeline` skill · Parallel: YES
+# BrickLayer Tools Manifest
 
-Create `masonry/skills/masonry-pipeline.md`.
+## recall
+Memory system at 100.70.195.84:8200. Cross-session fact storage and retrieval.
+- `recall_search(query, domain, limit)` — semantic similarity search
+- `recall_store(content, domain, tags, importance)` — persist a fact
+- `recall_timeline(domain, limit)` — chronological retrieval
 
-**Purpose:** Chain agents/skills in a DAG with data passing. Each step's output becomes
-the next step's input. Supports sequential and branching topologies.
+## simulate
+Python subprocess for quantitative testing.
+- `python simulate.py` — run scenario parameters, returns verdict JSON
+- Edit SCENARIO PARAMETERS section only; never touch constants.py
 
-**Pipeline definition file** (`.pipeline/{name}.yml`):
-```yaml
-name: research-and-build
-description: Research a topic, synthesize findings, then build the implementation
+## filesystem
+Standard Claude Code file tools. Always available.
+- `Read`, `Write`, `Edit` — file I/O
+- `Glob`, `Grep` — file and content search
+- `Bash` — shell commands (git, python, curl)
 
-steps:
-  - id: research
-    agent: research-analyst
-    input:
-      topic: "{{pipeline.input.topic}}"
-    output_key: research_findings
+## github
+GitHub MCP server for repo operations.
+- `mcp__github__create_pull_request` — open PR from current branch
+- `mcp__github__create_issue` — file a bug or finding as an issue
+- `mcp__github__push_files` — push file changes to remote
 
-  - id: synthesize
-    agent: synthesizer-bl2
-    depends_on: [research]
-    input:
-      findings: "{{steps.research.output}}"
-    output_key: synthesis
+## masonry
+Masonry MCP server (masonry-mcp.js). Campaign state and operations.
+- `masonry_status` — current campaign state and progress
+- `masonry_findings` — recent findings with verdicts
+- `masonry_questions` — question bank query
+- `masonry_weights` — priority weight report from .bl-weights.json
+- `masonry_fleet` — agent registry with performance scores
+- `masonry_git_hypothesis` — generate questions from recent git diffs
+- `masonry_nl_generate` — NL description to research questions
+- `masonry_run_question` — run a single question by ID
 
-  - id: plan
-    skill: plan
-    depends_on: [synthesize]
-    input:
-      goal: "{{steps.synthesize.output}}"
-
-  - id: build
-    skill: build
-    depends_on: [plan]
+## exa
+Exa MCP for web research and documentation retrieval.
+- `mcp__exa__web_search_exa` — semantic web search
+- `mcp__exa__get_code_context_exa` — fetch code examples for a library
+- `mcp__exa__crawling_exa` — fetch full page content from a URL
 ```
 
-**Variable syntax:** `{{pipeline.input.KEY}}` for initial inputs, `{{steps.ID.output}}` for
-step outputs. Substitution happens at step invocation time.
-
-**Execution model:**
-1. Read pipeline YAML from `.pipeline/{name}.yml` or path argument
-2. Topological sort steps by `depends_on`
-3. For each batch of steps with no unresolved dependencies, spawn agents in parallel
-4. Capture each agent's final output (last markdown block or explicit `OUTPUT:` line)
-5. Store outputs in `.pipeline/{name}-state.json`
-6. On completion: print summary of outputs from each step
-
-**Usage:**
-```
-/pipeline run {name}           — run a pipeline by name
-/pipeline run {path/to/file}   — run a specific file
-/pipeline status {name}        — show step statuses
-/pipeline list                 — list .pipeline/*.yml files
-```
-
-**Test:** Verify skill file exists, contains the YAML schema definition, the variable syntax
-spec, and the topological sort description. Verify all four sub-commands are documented.
-
-**File:** `masonry/skills/masonry-pipeline.md`
+**File**: `template/.claude/agents/tools-manifest.md`
 
 ---
 
-### Task 6 — `/masonry-team` skill · Parallel: YES
+### Task 7 — Dashboard backend: expose confidence + sharpened via API
+**Parallel: run after Tasks 1–4 complete**
 
-Create `masonry/skills/masonry-team.md`.
+**File**: `masonry/dashboard/backend/main.py`
 
-**Purpose:** Partition a build spec across N coordinated Claude Code instances using the
-native teams feature (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`).
+In the finding-parsing section (around line 148), add after existing field extraction:
+```python
+import re
 
-**How it works:**
-1. Read `.autopilot/spec.md`
-2. Partition tasks into N roughly-equal groups (by estimated complexity: number of files
-   in `lock_files` or word count of description)
-3. For each partition, write `.autopilot/team-{n}-tasks.json` with the task subset
-4. Launch N subagent instances, each running `/build` on their assigned partition
-5. Coordinator polls `.autopilot/progress.json` for completion, merges results
-6. Runs validation and commit after all partitions complete
+# Confidence float
+conf_match = re.search(r'\*\*Confidence\*\*:\s*([\d.]+)', content)
+confidence = float(conf_match.group(1)) if conf_match else None
 
-**Team config** (optional, `.autopilot/team-config.json`):
-```json
-{
-  "workers": 3,
-  "partition_strategy": "tasks",
-  "sync_interval_seconds": 30
+# Needs human flag
+nh_match = re.search(r'\*\*Needs Human\*\*:\s*(True|False)', content, re.IGNORECASE)
+needs_human = nh_match.group(1).lower() == "true" if nh_match else False
+```
+
+Include in the finding dict returned to client: `"confidence": confidence, "needs_human": needs_human`
+
+In the question-parsing section, add sharpened detection:
+```python
+sharpened = bool(re.search(r'\*\*Sharpened\*\*:\s*true', block, re.IGNORECASE))
+```
+
+Include in question dict: `"sharpened": sharpened`
+
+Add confidence filter query params to the findings endpoint:
+```python
+@app.get("/api/findings")
+async def get_findings(
+    confidence_min: float = 0.0,
+    confidence_max: float = 1.0,
+    needs_human: bool | None = None,
+):
+    findings = _get_findings_cached()
+    if confidence_min > 0.0 or confidence_max < 1.0:
+        findings = [f for f in findings
+                    if f.get("confidence") is None or
+                    confidence_min <= f["confidence"] <= confidence_max]
+    if needs_human is not None:
+        findings = [f for f in findings if f.get("needs_human") == needs_human]
+    return findings
+```
+
+**File**: `masonry/dashboard/frontend/src/lib/api.ts`
+
+Extend the Finding and Question interfaces:
+```typescript
+export interface Finding {
+  id: string;
+  title: string;
+  verdict: string;
+  severity: string;
+  has_correction: boolean;
+  modified: string;
+  confidence: number | null;   // NEW — 0.0-1.0 or null for pre-Phase-6 findings
+  needs_human: boolean;        // NEW
+}
+
+export interface Question {
+  id: string;
+  title: string;
+  status: string;
+  domain: string;
+  hypothesis: string | null;
+  sharpened: boolean;          // NEW
 }
 ```
 
-**`workers` default:** 3 (balances parallelism vs. context overhead per instance)
+---
 
-**Conflict prevention:** Same ownership model as ultrawork — no two workers own the same file.
-If two tasks in different partitions share a `lock_files` entry, merge them into the same partition.
+### Task 8 — Dashboard UI: confidence badge + sharpened badge
+**Parallel: after Task 7**
 
-**Usage:**
+**File**: `masonry/dashboard/frontend/src/components/FindingFeed.tsx`
+
+1. Add confidence filter state at component top:
+```typescript
+const [confFilter, setConfFilter] = useState<string>("all");
 ```
-/masonry-team             — auto-detect worker count from spec size
-/masonry-team 4           — explicitly 4 workers
-/masonry-team status      — show per-worker progress
+
+2. Add filter dropdown next to the existing verdict filter:
+```tsx
+<select value={confFilter} onChange={e => setConfFilter(e.target.value)}
+  style={{background:'#1e1b2e', border:'1px solid rgba(255,255,255,0.1)',
+          color:'#9ca3af', borderRadius:6, padding:'4px 8px', fontSize:13}}>
+  <option value="all">All Confidence</option>
+  <option value="high">High (≥0.7)</option>
+  <option value="med">Medium (0.4–0.7)</option>
+  <option value="low">Low (&lt;0.4)</option>
+  <option value="human">Needs Human</option>
+</select>
 ```
 
-**Test:** Verify skill file exists, contains the partition algorithm description, the ownership
-conflict merge rule, and the team-config.json schema.
+3. Apply filter in displayedFindings derivation:
+```typescript
+const displayedFindings = findings
+  .filter(f => verdictFilter === "all" || f.verdict === verdictFilter)
+  .filter(f => {
+    if (confFilter === "all") return true;
+    if (confFilter === "human") return f.needs_human;
+    if (confFilter === "high") return f.confidence !== null && f.confidence >= 0.7;
+    if (confFilter === "med") return f.confidence !== null && f.confidence >= 0.4 && f.confidence < 0.7;
+    if (confFilter === "low") return f.confidence !== null && f.confidence < 0.4;
+    return true;
+  });
+```
 
-**File:** `masonry/skills/masonry-team.md`
+4. Add confidence badge inside each FindingCard, next to verdict badge:
+```tsx
+{finding.confidence !== null && (
+  <span style={{
+    background: finding.confidence >= 0.7 ? 'rgba(52,211,153,0.15)' :
+                finding.confidence >= 0.4 ? 'rgba(56,189,248,0.15)' :
+                                            'rgba(245,158,11,0.15)',
+    color: finding.confidence >= 0.7 ? '#34d399' :
+           finding.confidence >= 0.4 ? '#38bdf8' : '#f59e0b',
+    padding: '1px 6px', borderRadius: 4, fontSize: 11, fontWeight: 600
+  }}>
+    {finding.confidence >= 0.7 ? '◆ high' :
+     finding.confidence >= 0.4 ? '◆ med' : '◆ low'}
+  </span>
+)}
+{finding.needs_human && (
+  <span title="Needs human review"
+    style={{color:'#f59e0b', fontSize:13, marginLeft:4}}>⚑</span>
+)}
+```
+
+**File**: `masonry/dashboard/frontend/src/components/QuestionQueue.tsx`
+
+Add sharpened badge next to question ID in the table row:
+```tsx
+{question.sharpened && (
+  <span style={{
+    background: 'rgba(139,92,246,0.15)', color: '#8b5cf6',
+    padding: '1px 5px', borderRadius: 3, fontSize: 10, fontWeight: 600,
+    marginLeft: 4
+  }}>✦ sharpened</span>
+)}
+```
 
 ---
 
-### Task 7 — Plugin pack architecture · Parallel: YES
+### Task 9 — Kiln: verdict run history dots in AgentBriefModal
+**Parallel: after Task 2 completes**
 
-Formalize `masonry/packs/` as the plugin extension point.
+**File 1**: `C:\Users\trg16\Dev\BrickLayerHub\src\main\agentReader.ts`
 
-**Pack manifest** (`masonry/packs/{pack-name}/pack.json`):
-```json
-{
-  "name": "masonry-frontier",
-  "version": "0.1.0",
-  "description": "Frontier research agents — blue-sky exploration, competitive analysis",
-  "agents": "./agents/",
-  "skills": "./skills/",
-  "hooks": "./hooks.json"
+Add `runs` to the `Agent` interface:
+```typescript
+export interface Agent {
+  name: string;
+  file: string;
+  slug: string;
+  score: number;
+  mode: string;
+  description: string;
+  model: string;
+  lastVerdicts: string[];
+  status: "active" | "underperforming" | "idle";
+  project?: string;
+  runs: Array<{ timestamp: string; verdict: string; quality_score: number | null }>;  // NEW
 }
 ```
 
-**Pack activation** (`~/.masonry/config.json`):
-```json
-{
-  "recallApiKey": "...",
-  "activePacks": ["masonry-core", "masonry-frontier"]
+In `readAgentDb()`, update the return type to include runs:
+```typescript
+function readAgentDb(
+  blRoot: string,
+): Record<string, { score?: number; verdicts?: string[]; runs?: Array<{timestamp: string; verdict: string; quality_score: number | null}> }> {
+```
+
+In `readAgents()`, after extracting `dbEntry`:
+```typescript
+const runs = (dbEntry.runs || []).slice(-20); // last 20 only
+```
+
+Include in `agents.push({..., runs, ...})`.
+
+**File 2**: `C:\Users\trg16\Dev\BrickLayerHub\src\renderer\src\components\common\AgentBriefModal.tsx`
+
+Add run history dots section above the lastVerdicts section. Use these verdict-to-color mappings
+(aligned with existing Kiln color palette):
+```typescript
+const SUCCESS_VERDICTS = new Set(["HEALTHY","FIXED","COMPLIANT","CALIBRATED","IMPROVEMENT","OK","PROMISING","DIAGNOSIS_COMPLETE","NOT_APPLICABLE","DONE"]);
+const PARTIAL_VERDICTS = new Set(["WARNING","PARTIAL","WEAK","DEGRADED","FIX_FAILED","SUBJECTIVE","IMMINENT","PROBABLE","POSSIBLE","UNLIKELY"]);
+
+function runDotColor(verdict: string): string {
+  if (SUCCESS_VERDICTS.has(verdict)) return "#39D353";
+  if (PARTIAL_VERDICTS.has(verdict)) return "#FACC15";
+  return "#F85149";
 }
 ```
 
-**Pack resolution:** When a Masonry skill needs agents (e.g., `/masonry-fleet status`),
-it looks in:
-1. `.claude/agents/` (project-local — highest priority)
-2. Each active pack's `agents/` directory (in order listed in `activePacks`)
-3. `masonry/packs/masonry-core/agents/` (always last, lowest priority)
-
-**Deliverables:**
-1. Write `masonry/packs/masonry-core/pack.json`
-2. Write `masonry/packs/masonry-frontier/pack.json`
-3. Update `masonry/.claude-plugin/plugin.json` — add `"packs": "../packs/"` field
-4. Update `masonry/skills/masonry-fleet.md` — document pack-aware agent resolution order
-5. Update `~/.masonry/config.json` schema in README / `masonry-init.md`
-
-**Test:** Verify both pack.json files parse as valid JSON, contain required fields (`name`,
-`version`, `description`), and `plugin.json` references the packs directory.
-
-**Files:** `masonry/packs/masonry-core/pack.json`, `masonry/packs/masonry-frontier/pack.json`,
-`masonry/.claude-plugin/plugin.json`, `masonry/skills/masonry-fleet.md` (update notes),
-`masonry/skills/masonry-init.md` (update config schema docs)
-
----
-
-### Task 8 — Update `~/.claude/CLAUDE.md` skill catalog · Parallel: NO (after tasks 4-6)
-
-Add the three new skills to the Masonry Skills table in `~/.claude/CLAUDE.md`:
-
-```markdown
-| `/ultrawork` | High-throughput parallel build — all independent tasks simultaneously |
-| `/pipeline`  | Chain agents/skills in a DAG with data passing |
-| `/masonry-team` | Partition build across N coordinated Claude instances |
+Insert JSX before the lastVerdicts display:
+```tsx
+{agent.runs && agent.runs.length > 0 && (
+  <div style={{ marginBottom: 12 }}>
+    <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 6,
+                  textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      Run History ({agent.runs.length})
+    </div>
+    <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+      {agent.runs.map((run, i) => (
+        <div
+          key={i}
+          title={`${run.verdict}${run.quality_score != null ? ` · q=${run.quality_score.toFixed(2)}` : ''} — ${new Date(run.timestamp).toLocaleDateString()}`}
+          style={{
+            width: 8, height: 8, borderRadius: 2,
+            background: runDotColor(run.verdict),
+            opacity: 0.85,
+          }}
+        />
+      ))}
+    </div>
+  </div>
+)}
 ```
-
-Also update the Masonry Hooks section if any new hooks were added (none expected for this batch).
-
-**File:** `C:/Users/trg16/.claude/CLAUDE.md`
-
----
-
-### Task 9 — Tests · Parallel: NO (after tasks 1, 3)
-
-Write `tests/test_masonry_hud.js` and `tests/test_masonry_fleet_cli.js`.
-
-**`test_masonry_hud.js`** (Node.js, no test framework — just `assert` + process.exit):
-- Pipe mock JSON to `masonry-statusline.js`, capture stdout
-- Verify: output is single line, contains `masonry`, does not throw
-- Verify: with `masonry-state.json` mock containing wave/Q data, output contains `wave` and `Q`
-- Verify: with dirty git repo simulation, output contains branch-like string
-
-**`test_masonry_fleet_cli.js`**:
-- Create temp dir with 2 agent .md files with valid frontmatter
-- Run `status` — verify table contains both agent names
-- Run `add test-bot` — verify file created, registry updated
-- Run `retire test-bot` — verify file moved to `.retired/`, removed from registry
-- Run `regen` — verify registry count matches actual file count
-- Cleanup temp dir
-
-**Test runner:**
-```bash
-node tests/test_masonry_hud.js && node tests/test_masonry_fleet_cli.js
-```
-
-Both must exit 0 with descriptive pass output.
-
-**Files:** `tests/test_masonry_hud.js`, `tests/test_masonry_fleet_cli.js`
 
 ---
 
 ## Tech Stack
 
-- **Language**: Node.js (all existing hooks are Node.js)
-- **No external dependencies**: Only `fs`, `path`, `os`, `child_process`, `assert` (stdlib)
-- **Skill files**: CommonMark markdown with YAML frontmatter
-- **Config format**: JSON
-- **Test format**: Plain Node.js scripts using `assert` module
-
----
+- **Python 3.11+**, `pathlib.Path`, `json`, `re`, `datetime`
+- **pytest** for all bl/ tests — run with `python -m pytest tests/ -q`
+- **TypeScript / React** (Kiln — Electron + Vite + React 18)
+- **React + inline styles** (Dashboard frontend — no Tailwind in masonry/dashboard)
+- **FastAPI** (Dashboard backend)
 
 ## Agent Hints
 
-- **Masonry root**: `C:/Users/trg16/Dev/Bricklayer2.0/masonry/`
-- **Skills directory**: `masonry/skills/`
-- **Hooks directory**: `masonry/src/hooks/`
-- **Bin directory**: `masonry/bin/`
-- **Packs directory**: `masonry/packs/`
-- **Registry module**: `masonry/src/core/registry.js` — exports `generateRegistry(projectDir)` and `readRegistry(projectDir)`
-- **Existing statusline**: `masonry/src/hooks/masonry-statusline.js` — already reads `masonry-state.json`, parses `context_window` from stdin JSON
-- **agent_db.json schema** (for fleet CLI):
-  ```json
-  {
-    "agents": {
-      "mortar": { "score": 0.82, "runs": 12, "last_run": "ISO-8601", "verdicts": { "HEALTHY": 8, "WARNING": 3, "FAILURE": 1 } }
-    }
-  }
-  ```
-- **Test command**: `node tests/test_masonry_hud.js && node tests/test_masonry_fleet_cli.js`
-- **Global CLAUDE.md**: `C:/Users/trg16/.claude/CLAUDE.md`
-- **Windows path note**: Use `path.join()` everywhere, never hardcoded slashes in fleet CLI
+**Critical file paths:**
+- `C:/Users/trg16/Dev/Bricklayer2.0/bl/findings.py` — `write_finding()` at line 342, `_CONFIDENCE_FLOAT` goes at module level
+- `C:/Users/trg16/Dev/Bricklayer2.0/bl/agent_db.py` — `record_run()`, add `get_trend()` as new function
+- `C:/Users/trg16/Dev/Bricklayer2.0/bl/question_weights.py` — `QuestionWeight` dataclass + `record_result()`
+- `C:/Users/trg16/Dev/Bricklayer2.0/masonry/dashboard/backend/main.py` — finding parser ~line 148, question parser ~line 38
+- `C:/Users/trg16/Dev/Bricklayer2.0/masonry/dashboard/frontend/src/components/FindingFeed.tsx`
+- `C:/Users/trg16/Dev/Bricklayer2.0/masonry/dashboard/frontend/src/components/QuestionQueue.tsx`
+- `C:/Users/trg16/Dev/Bricklayer2.0/masonry/dashboard/frontend/src/lib/api.ts`
+- `C:/Users/trg16/Dev/BrickLayerHub/src/main/agentReader.ts`
+- `C:/Users/trg16/Dev/BrickLayerHub/src/renderer/src/components/common/AgentBriefModal.tsx`
+- `C:/Users/trg16/Dev/Bricklayer2.0/template/.claude/agents/` — peer-reviewer.md, mortar.md, synthesizer-bl2.md, agent-auditor.md, forge-check.md
 
----
+**Test command:** `cd C:/Users/trg16/Dev/Bricklayer2.0 && python -m pytest tests/ -q`
+**Type check (Kiln):** `cd C:/Users/trg16/Dev/BrickLayerHub && npx tsc --noEmit`
+**Existing test suite:** `tests/conftest.py`, `tests/test_core.py`, `tests/test_goal.py`, etc.
 
 ## Constraints
 
-- No external npm packages — all stdlib only
-- Skill files are prompts for Claude to follow, not code — they should be readable prose
-- HUD must stay under 120 chars wide total; truncate aggressively if needed
-- `/ultrawork` and `/masonry-team` are skills (markdown), not hooks — they don't need JS implementations
-- Fleet CLI must work from any `cwd` — never assume it's run from masonry root
-- Do NOT touch `masonry-state.json` format (Mortar writes this during campaigns)
-- Do NOT modify any existing hook behavior — only extend `masonry-statusline.js`
-
----
-
-## Parallelization Map
-
-**Batch 1 (fully independent, run all simultaneously):**
-- Task 1: Rich HUD
-- Task 2: Ownership in /build
-- Task 3: Fleet CLI
-- Task 4: /ultrawork skill
-- Task 5: /pipeline skill
-- Task 6: /masonry-team skill
-- Task 7: Plugin pack architecture
-
-**Batch 2 (after batch 1 completes):**
-- Task 8: Update CLAUDE.md skill catalog
-
-**Batch 3 (after batch 2):**
-- Task 9: Tests
-
----
+- Do NOT modify `constants.py` or `simulate.py`
+- Do NOT rewrite entire agent .md files — surgical additions only
+- `write_finding()` backward compat: callers without `confidence` in result dict get `"uncertain"` (0.1)
+- `record_run()` new params `duration_ms` and `quality_score` are optional — no breaking change
+- `record_result()` new param `quality_score` is optional — no breaking change
+- Dashboard backend: ADD new fields to existing response shapes only — never remove existing fields
+- Kiln: ADD `runs` to Agent interface — keep all existing fields
 
 ## Definition of Done
 
-- [ ] `masonry-statusline.js` shows git branch, build task, and UI mode in output
-- [ ] `progress.json` schema in `masonry-build.md` includes `owned_by` and `lock_files`
-- [ ] `masonry/bin/masonry-fleet-cli.js` passes all fleet CLI tests
-- [ ] `masonry/skills/masonry-ultrawork.md` exists with complete loop description
-- [ ] `masonry/skills/masonry-pipeline.md` exists with YAML schema and sub-commands
-- [ ] `masonry/skills/masonry-team.md` exists with partition algorithm and team-config schema
-- [ ] Both pack.json files valid, plugin.json references packs directory
-- [ ] `~/.claude/CLAUDE.md` lists ultrawork, pipeline, masonry-team in skill table
-- [ ] Both test files pass: `node tests/test_masonry_hud.js && node tests/test_masonry_fleet_cli.js`
-- [ ] No regressions in existing hooks (lint check, stop guard, approver all still function)
+- All 4 new Python test files pass (T1, T2, T3, T4 tests)
+- Full test suite passes: `python -m pytest tests/ -q` exits 0
+- Kiln TypeScript compiles: `npx tsc --noEmit` exits 0
+- A finding written by `write_finding()` contains `**Confidence**:` and `**Needs Human**:` lines
+- `agent_db.json` grows `runs[]` array on each `record_run()` call
+- `question_sharpener.py` can be imported and called without error
+- Dashboard backend `/api/findings` response includes `confidence` and `needs_human` fields
+- Dashboard FindingFeed shows confidence badges and confidence filter dropdown
+- Kiln AgentBriefModal shows run history dots when `runs[]` is non-empty
+- All 5 agent .md files have their targeted additions
+- `tools-manifest.md` exists in `template/.claude/agents/`
