@@ -203,13 +203,34 @@ if (!state) {
   process.exit(0);
 }
 
+// Parse questions.md to get accurate q_total and wave number
+function parseQuestionsFile(cwd) {
+  try {
+    const qf = path.join(cwd, "questions.md");
+    if (!fs.existsSync(qf)) return { q_total: 0, wave: 0 };
+    const lines = fs.readFileSync(qf, "utf8").split("\n");
+    let q_total = 0;
+    let wave = 0;
+    for (const line of lines) {
+      if (/^##\s+Wave\s+\d/i.test(line)) wave++;
+      if (/^###\s+Q\d+/.test(line)) q_total++;
+    }
+    return { q_total, wave };
+  } catch (_) {
+    return { q_total: 0, wave: 0 };
+  }
+}
+
 const {
   mode = "?",
-  wave = 0,
-  q_current = 0,
-  q_total = 0,
+  last_qid = "",
   verdicts = {},
 } = state;
+
+// Derive q_current from last_qid (e.g. "Q11" → 11)
+const q_current = last_qid ? (parseInt(last_qid.replace(/\D/g, ""), 10) || 0) : 0;
+// Get totals from questions.md — more accurate than state fields
+const { q_total, wave } = parseQuestionsFile(cwd);
 const v = [
   verdicts.HEALTHY > 0 ? c("green", `✓${verdicts.HEALTHY}`) : "",
   verdicts.WARNING > 0 ? c("amber", `⚠${verdicts.WARNING}`) : "",
