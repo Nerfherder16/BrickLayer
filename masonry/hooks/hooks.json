@@ -85,8 +85,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-stop.js\"",
-            "timeout": 15
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-stop-guard.js\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-build-guard.js\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-ui-compose-guard.js\"",
+            "timeout": 10
           }
         ]
       }
