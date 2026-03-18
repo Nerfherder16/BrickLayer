@@ -1817,6 +1817,54 @@ Wave 15 closes the implementation and operational gaps that open after Wave 14's
 **Research question**: How do Kafka Streams and Apache Flink implement tumbling window state stores? What happens when a window close event is missed (network partition, crash)? What is their exactly-once guarantee mechanism for window finalization? Does Flink's event-time watermark mechanism map to Recall's session-boundary compaction, and does it suggest a more robust trigger mechanism than the Stop hook?
 **Deliverable**: Window finalization mechanisms from stream processing, exactly-once guarantee analog for Recall's session-close compaction, and whether watermark-style late-event handling improves robustness over hook-dependent compaction.
 
+---
+
+## Wave 34 — observe-edit Hook Extraction Strategy
+*Added 2026-03-17. Recall 2.0 hook redesign decision point. observe-edit fires on PostToolUse:Write/Edit/Bash. Three extraction strategies under evaluation: (A) LLM extraction — hook calls Claude to extract semantic facts before storing, ~100ms overhead; (C+) smart chunking + regex entity extraction — no LLM call, logical boundary chunking, lightweight tag generation, ~2ms overhead; (D) hybrid — LLM extraction only for specific high-signal hook types. Research question: which strategy produces the best retrieval quality at 90 days given BGE-small-en-v1.5 embeddings, BM25+dense hybrid retrieval, and ToolOutput provenance weighting at 0.5?*
+
+### [PHYSICS] Q261: What is the embedding semantic gap for code content and can BM25 hybrid retrieval bridge it?
+**Status**: PENDING
+**Priority**: Critical
+**Rationale**: Option C+ stores raw or lightly-chunked code content and relies on BGE-small-en-v1.5 + BM25 hybrid retrieval. BGE-small is trained on natural language. Code has different semantic structure — function names, variable names, config values. The question is whether BM25 keyword matching bridges the gap between code syntax and natural-language query terms often enough to make LLM extraction unnecessary.
+**Research question**: (1) What is the cosine similarity distribution between code content (Rust struct definitions, config files, bash commands) and natural-language queries about that content, when embedded with BGE-small-en-v1.5? Is there a systematic downshift vs. natural-language-to-natural-language similarity? (2) For which code content types does BM25 compensate (identifier matching: function names, variable names, file paths)? For which does it fail (semantic intent not expressed in keywords)? (3) What is the MRR improvement from BM25 hybrid specifically for code-query pairs vs. natural-language-query pairs? Does the +18.5% from Q231 hold for code, or is the lift higher/lower? (4) At what threshold of code content in the observe-edit corpus does the semantic gap become retrieval-quality-significant?
+**Deliverable**: Embedding semantic gap analysis for code content with BGE-small-en-v1.5, BM25 bridge effectiveness by content type, and a threshold estimate for when the gap causes measurable retrieval degradation.
+
+### [PHYSICS] Q262: What is the context dilution cost of blob storage vs. chunked storage vs. LLM-extracted facts?
+**Status**: PENDING
+**Priority**: Critical
+**Rationale**: A 150-line file stored as one blob gets one embedding vector representing the centroid of all 150 lines. If 5 lines contain the critical fact, those 5 lines contribute 3.3% to the embedding. Chunking at function/paragraph boundaries raises the critical-fact contribution. LLM extraction isolates it to 100%. The question is whether centroid dilution is large enough to cause retrievals to miss at cosine thresholds Recall 2.0 will use.
+**Research question**: (1) Model the cosine similarity between a query "what scoring formula does Recall 2.0 use?" and: (a) a 150-line file containing the formula in 3 lines, (b) a 20-line paragraph chunk containing the formula, (c) an LLM-extracted fact "the scoring formula is cosine*0.6 + co_retrieved*0.2 + importance*0.2 times provenance". What is the rank of each in a top-10 retrieval? (2) At what chunk size does dilution stop mattering — i.e., at what granularity does the centroid embedding become indistinguishable from the extracted fact embedding? (3) Is there a content category where chunking is sufficient (config files with key:value structure) vs. insufficient (code with logic distributed across many lines)?
+**Deliverable**: Context dilution model across blob/chunk/extracted storage strategies, rank degradation estimates, and minimum chunk granularity recommendation for C+ to be viable.
+
+### [ADVERSARIAL] Q263: Does CO_RETRIEVED graph quality degrade meaningfully when memories are chunks vs. atomic facts?
+**Status**: PENDING
+**Priority**: High
+**Rationale**: The CO_RETRIEVED behavioral graph learns which memories are retrieved together. If observe-edit produces coarse chunks covering multiple concepts, co-retrieval events are coarser — two unrelated concepts in the same chunk always co-retrieve together, adding noise. LLM extraction produces atomic facts — each memory is one concept and co-retrieval patterns are semantically meaningful. The question is whether graph noise is significant over 90 days.
+**Research question**: (1) Model CO_RETRIEVED graph after 90 days with two scenarios: (a) observe-edit stores paragraph chunks averaging 5 distinct concepts each, (b) observe-edit stores LLM-extracted atomic facts (1 concept each). In scenario (a), what fraction of CO_RETRIEVED edges connect concepts that are NOT actually related? (2) Does spreading activation (Q235) amplify or dampen this noise? (3) At what chunk coarseness (concepts per chunk) does the CO_RETRIEVED graph become noise-dominated? (4) Does provenance weighting at 0.5 for ToolOutput attenuate the noise contribution?
+**Deliverable**: CO_RETRIEVED graph noise model for chunk vs. atomic-fact storage, noise amplification analysis through spreading activation, and chunk coarseness threshold where graph quality degrades significantly.
+
+### [ADJACENT] Q264: What extraction strategies do production code RAG systems use, and what do their retrieval benchmarks show?
+**Status**: PENDING
+**Priority**: High
+**Rationale**: RAG systems for code have been extensively benchmarked. GitHub Copilot, Cursor, Continue.dev, Codeium all retrieve code context before generation. Their extraction and chunking strategies for code content are a direct analog to Recall 2.0 observe-edit problem. The benchmarks are the adjacent evidence base for this decision.
+**Research question**: (1) What chunking strategies do production code RAG systems use — AST-based (function/class boundaries), fixed-token windows, or semantic chunking? What retrieval benchmarks do they report? (2) Do any systems use LLM extraction (summarize code to natural language before embedding) vs. embedding code directly? What is the retrieval quality difference in benchmarks? (3) Does any system combine BM25 for code identifiers + dense for semantic content, and what is the measured MRR improvement? (4) What is the consensus minimum viable chunk size for code content to avoid both context dilution (too large) and missing context (too small)?
+**Deliverable**: Survey of production code RAG chunking strategies, retrieval benchmark comparisons for chunking vs. LLM extraction, and consensus minimum viable chunk size for code content.
+
+### [TABOO] Q265: Design the observe-edit hook assuming embedding similarity is unavailable — what information must the hook send for retrieval to work?
+**Status**: PENDING
+**Priority**: High
+**Rationale**: Taboo constraint removes the embedding-based retrieval assumption entirely. Forces the physical question: what is the minimum information structure that makes a stored memory reliably retrievable — and does that structure require LLM extraction, or can it be produced with lightweight processing?
+**Forbidden terms**: embedding, cosine, similarity, vector, dense, semantic.
+**Research question**: (1) Without similarity-based matching, what signals enable retrieval? (keywords, entity names, tags, timestamps, provenance, session markers, explicit links) (2) Which signals require LLM extraction (semantic reformulation, entity disambiguation) vs. which can be produced with lightweight pattern matching (file paths, function names, version strings, IP:PORT patterns)? (3) Is there a retrieval-signal class that LLM extraction produces that lightweight extraction cannot — even in principle? (4) Given Recall 2.0 actual retrieval path (BM25 + dense + CO_RETRIEVED), which retrieval signals are load-bearing vs. redundant?
+**Deliverable**: Minimum information structure for reliable retrieval from observe-edit, signals that require LLM extraction vs. lightweight processing, and verdict on whether LLM extraction provides non-redundant retrieval signals given the full retrieval stack.
+
+### [CONVERGENCE] Q266: Given Q261-Q265, what is the optimal observe-edit extraction strategy and what are the exact implementation parameters?
+**Status**: PENDING
+**Priority**: Critical
+**Rationale**: Convergence question synthesizing Q261-Q265. The design decision must be locked before building Phase 1. Options: (A) LLM extraction ~100ms/write, maximum precision; (C+) smart chunking + regex ~2ms/write, acceptable if gaps bridged; (D) hybrid — LLM for Bash output, C+ for Write/Edit.
+**Research question**: Synthesize Q261-Q265. (1) What is the net retrieval quality difference between A and C+ over 90 days, accounting for embedding semantic gap, context dilution, CO_RETRIEVED noise, and provenance weighting at 0.5? (2) Does BM25 + CO_RETRIEVED behavioral graph close the gap between A and C+ to within 10% MRR? (3) If hybrid: for which hook types does LLM extraction provide non-redundant retrieval signal — for which types does C+ fail to retrieve facts that A would retrieve? (4) What are the exact C+ parameters: chunk boundary heuristics, regex patterns for entity extraction, minimum/maximum chunk size?
+**Deliverable**: Locked extraction strategy recommendation with exact implementation parameters. If C+: chunk size, entity patterns, tag generation approach. If hybrid: hook-type to strategy mapping with conditions. This deliverable locks the observe-edit hook contract for Recall 2.0 Phase 1 build.
+
 ### [ADVERSARIAL] Q245: Can the CO_RETRIEVED graph reach sufficient density for spreading activation without explicit edge-building?
 **Status**: DONE
 **Priority**: High
