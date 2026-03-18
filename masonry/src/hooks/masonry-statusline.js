@@ -2,7 +2,7 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
-const { spawn } = require("child_process");
+const { spawn, execSync } = require("child_process");
 
 const C = {
   purple: "\x1b[38;2;139;92;246m",
@@ -72,6 +72,62 @@ function recallDot(cfg) {
   return dim("○");
 }
 
+function gitSegment(cwd) {
+  try {
+    const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+      cwd,
+      stdio: "pipe",
+      timeout: 2000,
+    })
+      .toString()
+      .trim();
+    const dirty = execSync("git status --porcelain", {
+      cwd,
+      stdio: "pipe",
+      timeout: 2000,
+    })
+      .toString()
+      .trim();
+    const name = branch.length > 20 ? branch.slice(0, 20) : branch;
+    return dim(name) + (dirty ? c("amber", "*") : "");
+  } catch (_) {
+    return "";
+  }
+}
+
+function buildSegment(cwd) {
+  try {
+    const p = path.join(cwd, ".autopilot", "progress.json");
+    if (!fs.existsSync(p)) return "";
+    const data = JSON.parse(fs.readFileSync(p, "utf8"));
+    const task = (data.tasks || []).find((t) => t.status === "IN_PROGRESS");
+    if (!task) return "";
+    return c("amber", `bld:#${task.id}`);
+  } catch (_) {
+    return "";
+  }
+}
+
+function uiSegment(cwd) {
+  try {
+    const p = path.join(cwd, ".ui", "mode");
+    if (!fs.existsSync(p)) return "";
+    const mode = fs.readFileSync(p, "utf8").trim();
+    if (!mode) return "";
+    return c("cyan", `ui:${mode}`);
+  } catch (_) {
+    return "";
+  }
+}
+
+function agentsSegment(state) {
+  if (state.active_agents && Array.isArray(state.active_agents) && state.active_agents.length > 0) {
+    return c("purple", `${state.active_agents.length} agents`);
+  }
+  if (state.active_agent) return dim(state.active_agent);
+  return "";
+}
+
 // Read stdin synchronously — cross-platform (fd 0 works on Windows + Unix)
 let stdinData = "";
 try {
@@ -112,12 +168,18 @@ if (!state) {
       sep,
       dim(project),
       sep,
+      gitSegment(cwd),
+      buildSegment(cwd),
+      uiSegment(cwd),
+      sep,
       dim("no campaign · /masonry-run to start"),
       sep,
       `${bar} ${ctxStr}`,
       sep,
       `${recall} ${dim("recall")}`,
-    ].join("  ") + "\n",
+    ]
+      .filter(Boolean)
+      .join("  ") + "\n",
   );
   process.exit(0);
 }
@@ -127,7 +189,6 @@ const {
   wave = 0,
   q_current = 0,
   q_total = 0,
-  active_agent = "",
   verdicts = {},
 } = state;
 const v = [
@@ -146,7 +207,11 @@ process.stdout.write(
     c("cyan", `${mode} · wave ${wave}`),
     sep,
     `Q${q_current}/${q_total}`,
-    active_agent ? dim(active_agent) : "",
+    agentsSegment(state),
+    sep,
+    gitSegment(cwd),
+    buildSegment(cwd),
+    uiSegment(cwd),
     sep,
     `${bar} ${ctxStr}`,
     v,

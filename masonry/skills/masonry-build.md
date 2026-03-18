@@ -60,6 +60,7 @@ Each agent prompt:
 Implement task #{id}: {description}
 Context: {relevant spec sections}
 Files to create/modify: {files}
+Owned files for this task: {lock_files}. Do NOT modify files owned by other IN_PROGRESS tasks: {other_lock_files}.
 Follow TDD: write tests first, then implementation.
 Report back: files changed, tests passing (Y/N), any blockers.
 ```
@@ -87,12 +88,29 @@ git commit -m "feat: {task description} [masonry-build #{id}]"
   "status": "BUILDING",
   "branch": "masonry/{project}-YYYYMMDD",
   "tasks": [
-    { "id": 1, "description": "...", "status": "PENDING|IN_PROGRESS|DONE|BLOCKED" }
+    {
+      "id": 1,
+      "description": "...",
+      "status": "PENDING|IN_PROGRESS|DONE|BLOCKED",
+      "owned_by": "task-1",
+      "lock_files": ["src/auth/login.py", "src/auth/models.py"]
+    }
   ],
   "tests": { "total": 0, "passing": 0, "failing": 0 },
   "updated_at": "ISO-8601"
 }
 ```
+
+### File Ownership
+
+Before spawning parallel workers, track which files each task owns to prevent conflicts:
+
+1. **Before spawning** a worker agent, set `owned_by: "task-{id}"` on that task in `progress.json`.
+2. **In the worker prompt**, include: `"Owned files for this task: {lock_files}. Do NOT modify files owned by other IN_PROGRESS tasks: {list of other tasks' lock_files}."`
+3. **After marking** a task DONE or BLOCKED, clear `owned_by` to `null`.
+4. **Conflict check**: If two PENDING tasks share a file in `lock_files`, treat them as implicitly sequential — do not spawn in the same parallel batch.
+
+Note: `lock_files` is populated from the planning spec's task descriptions. If omitted, ownership is inferred from files mentioned in the task description (best-effort).
 
 ### On Completion
 
