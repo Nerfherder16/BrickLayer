@@ -85,9 +85,7 @@ test("shows wave and mode when masonry-state.json present", () => {
   try {
     const state = {
       mode: "research",
-      wave: 7,
-      q_current: 12,
-      q_total: 49,
+      last_qid: "Q12",
       active_agent: "mortar",
       verdicts: { HEALTHY: 5, WARNING: 1, FAILURE: 0 },
     };
@@ -95,6 +93,17 @@ test("shows wave and mode when masonry-state.json present", () => {
       path.join(tmpDir, "masonry-state.json"),
       JSON.stringify(state),
     );
+    // Write questions.md with 7 Wave headers and 49 questions so statusline can derive counts
+    const wavesAndQs = Array.from(
+      { length: 7 },
+      (_, w) =>
+        `## Wave ${w + 1}\n` +
+        Array.from(
+          { length: 7 },
+          (_, q) => `### Q${w * 7 + q + 1} — test question`,
+        ).join("\n"),
+    ).join("\n");
+    fs.writeFileSync(path.join(tmpDir, "questions.md"), wavesAndQs);
     const out = runStatusline({
       context_window: { used_percentage: 20 },
       cwd: tmpDir,
