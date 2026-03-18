@@ -196,6 +196,83 @@ All 5 items shipped Mar 18 2026.
 
 ---
 
+## Phase 6 — Campaign Quality Intelligence 📋
+
+Inspired by the NVIDIA Multi-Agent Intelligent Warehouse (MAIW) architecture (Mar 2026).
+Goal: make BrickLayer's research loop self-aware about output quality, not just output volume.
+
+**Rated benefit: 7/10.** Phases 1–5 built the engine and expanded reach. Phase 6 makes verdicts
+trustworthy at scale — the difference between "we ran 200 questions" and "we ran 200 questions
+and we know which ones we can trust." Most impactful when campaigns exceed a single wave.
+
+### 6.01 — Verdict Confidence Tiers 📋
+
+Replace binary verdicts with a confidence-weighted tier system.
+
+| # | Item | Status |
+|---|------|--------|
+| 6.01a | Add `confidence: 0.0–1.0` field to finding frontmatter | 📋 |
+| 6.01b | Add `needs_human: bool` flag — auto-set when confidence < 0.35 | 📋 |
+| 6.01c | Kiln: render confidence as fill bar on finding cards | 📋 |
+| 6.01d | Dashboard: filter INCONCLUSIVE by confidence band | 📋 |
+
+### 6.02 — LLM-as-Judge (peer reviewer scoring) 📋
+
+`peer-reviewer` currently appends CONFIRMED/CONCERNS/OVERRIDE but assigns no numeric quality
+signal. Mortar treats all INCONCLUSIVEs identically regardless of review outcome.
+
+| # | Item | Status |
+|---|------|--------|
+| 6.02a | Extend `peer-reviewer` to emit `quality_score: 0.0–1.0` in finding frontmatter | 📋 |
+| 6.02b | Mortar: re-queue INCONCLUSIVE findings where quality_score < 0.4 with narrowed scope | 📋 |
+| 6.02c | `question_weights.py`: incorporate quality_score into weight update formula | 📋 |
+
+### 6.03 — Question Sharpening (feedback loop) 📋
+
+hypothesis-generator currently only appends new questions. Low-confidence findings should
+retroactively narrow *remaining PENDING questions* in the same domain.
+
+| # | Item | Status |
+|---|------|--------|
+| 6.03a | `bl/question_sharpener.py` — reads PENDING questions + recent INCONCLUSIVE findings, rewrites scope | 📋 |
+| 6.03b | Wave synthesizer calls sharpener before writing synthesis.md | 📋 |
+| 6.03c | Dashboard: show "sharpened" badge on questions that were narrowed | 📋 |
+
+### 6.04 — Shared Campaign Context Injection 📋
+
+Each agent spawned by Mortar currently starts cold, re-reading findings/ and questions.md.
+A `campaign-context.md` written at wave start would give all agents consistent shared state.
+
+| # | Item | Status |
+|---|------|--------|
+| 6.04a | Mortar writes `campaign-context.md` at wave start: project summary + top 5 findings + open hypotheses | 📋 |
+| 6.04b | All agent spawn prompts prepend campaign-context.md content | 📋 |
+| 6.04c | campaign-context.md auto-refreshed after every 10 findings | 📋 |
+
+### 6.05 — Agent Performance Time-Series 📋
+
+`agent_db.json` stores static scores. No trend data — Kiln can't show if an agent is improving
+or drifting. Needed for overseer to make meaningful rewrite decisions.
+
+| # | Item | Status |
+|---|------|--------|
+| 6.05a | Extend `agent_db.json` schema: `runs: [{timestamp, verdict, duration_ms, quality_score}]` | 📋 |
+| 6.05b | Kiln: verdict accuracy sparkline per agent (last 20 runs) | 📋 |
+| 6.05c | `agent-auditor`: flag agents with declining accuracy trend (last 5 vs prior 5) | 📋 |
+
+### 6.06 — MCP Tool Manifest 📋
+
+Each agent declares its own tool access independently. Tool descriptions drift. New tools added
+to MCP aren't surfaced to existing agents.
+
+| # | Item | Status |
+|---|------|--------|
+| 6.06a | `template/.claude/agents/tools-manifest.md` — canonical tool list with descriptions | 📋 |
+| 6.06b | Agent frontmatter: `tools: [recall, simulate, filesystem]` declaration | 📋 |
+| 6.06c | `forge-check` validates agents aren't missing tool declarations | 📋 |
+
+---
+
 ## Active Campaigns
 
 | Project | Location | Status | Wave |
