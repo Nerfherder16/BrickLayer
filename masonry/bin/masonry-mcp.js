@@ -3,12 +3,17 @@
 /**
  * bin/masonry-mcp.js — Masonry MCP server
  *
- * Exposes 5 tools over MCP stdio transport (JSON-RPC 2.0):
- *   - masonry_status      — current campaign state
- *   - masonry_findings    — recent findings with verdicts
- *   - masonry_questions   — question bank query
- *   - masonry_run         — launch a campaign subprocess
- *   - masonry_recall      — proxy to Recall memory API
+ * Exposes 10 tools over MCP stdio transport (JSON-RPC 2.0):
+ *   - masonry_status          — current campaign state
+ *   - masonry_findings        — recent findings with verdicts
+ *   - masonry_questions       — question bank query
+ *   - masonry_run             — launch a campaign subprocess
+ *   - masonry_recall          — proxy to Recall memory API
+ *   - masonry_weights         — question priority weight report
+ *   - masonry_fleet           — agent registry with scores
+ *   - masonry_git_hypothesis  — generate questions from git diffs
+ *   - masonry_nl_generate     — NL description → research questions
+ *   - masonry_run_question    — run a single question by ID
  */
 
 const fs = require("fs");
@@ -16,8 +21,11 @@ const path = require("path");
 const os = require("os");
 const http = require("http");
 const https = require("https");
-const { spawn } = require("child_process");
+const { spawn, execSync } = require("child_process");
 const readline = require("readline");
+
+// Repo root — for Python subprocess calls into bl.*
+const REPO_ROOT = path.resolve(__dirname, "..", "..");
 
 const pkg = require("../package.json");
 
@@ -133,6 +141,68 @@ const TOOLS = [
         limit: { type: "number", default: 10 },
       },
       required: ["query", "project"],
+    },
+  },
+  {
+    name: "masonry_weights",
+    description: "Show question priority weight report — which questions are high-signal, prunable, or flagged for retry based on verdict history",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: { type: "string", description: "Absolute path to project directory" },
+      },
+      required: ["project_path"],
+    },
+  },
+  {
+    name: "masonry_fleet",
+    description: "List fleet agents with performance scores from registry.json and agent_db.json",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: { type: "string" },
+        limit: { type: "number", default: 30 },
+      },
+      required: ["project_path"],
+    },
+  },
+  {
+    name: "masonry_git_hypothesis",
+    description: "Analyze recent git commits and generate targeted BL research questions for changed code paths",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: { type: "string" },
+        commits: { type: "number", default: 5, description: "How many recent commits to analyze" },
+        max_questions: { type: "number", default: 10 },
+        dry_run: { type: "boolean", default: true, description: "If false, appends questions to questions.md" },
+      },
+      required: ["project_path"],
+    },
+  },
+  {
+    name: "masonry_nl_generate",
+    description: "Generate BrickLayer research questions from a plain English description of what changed",
+    inputSchema: {
+      type: "object",
+      properties: {
+        description: { type: "string", description: "e.g. 'I just added concurrent Neo4j writes to the session store'" },
+        project_path: { type: "string", description: "If set with append=true, appends questions to questions.md" },
+        append: { type: "boolean", default: false },
+      },
+      required: ["description"],
+    },
+  },
+  {
+    name: "masonry_run_question",
+    description: "Run a single BL question by ID and return the verdict envelope {verdict, summary, data}",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: { type: "string" },
+        question_id: { type: "string", description: "e.g. 'Q1', 'D3', 'R1.1'" },
+      },
+      required: ["project_path", "question_id"],
     },
   },
 ];
@@ -445,6 +515,223 @@ async function toolRecall(args) {
   }
 }
 
+function toolWeights(args) {
+  const { project_path } = args;
+  const weightsFile = path.join(project_path, ".bl-weights.json");
+
+  if (!fs.existsSync(weightsFile)) {
+    return { report: "No weights file found — run a campaign first to build verdict history.", weights: [] };
+  }
+
+  let weights = {};
+  try {
+    weights = JSON.parse(fs.readFileSync(weightsFile, "utf8"));
+  } catch (_err) {
+    return { error: "Failed to parse .bl-weights.json" };
+  }
+
+  const entries = Object.entries(weights).map(([id, w]) => ({
+    id,
+    weight: w.weight || 1.0,
+    runs: w.runs || 0,
+    failures: w.failures || 0,
+    warnings: w.warnings || 0,
+    last_verdict: w.last_verdict || null,
+  }));
+
+  entries.sort((a, b) => b.weight - a.weight);
+
+  const high = entries.filter((e) => e.weight >= 1.5);
+  const normal = entries.filter((e) => e.weight >= 0.3 && e.weight < 1.5);
+  const prune = entries.filter((e) => e.weight < 0.3);
+
+  return {
+    total: entries.length,
+    high_signal: high.length,
+    normal: normal.length,
+    prunable: prune.length,
+    top_priority: high.slice(0, 10),
+    prunable_ids: prune.map((e) => e.id),
+    weights: entries,
+  };
+}
+
+function toolFleet(args) {
+  const { project_path, limit = 30 } = args;
+  const registryFile = path.join(project_path, "registry.json");
+  const agentDbFile = path.join(project_path, "agent_db.json");
+
+  let agents = [];
+  let scores = {};
+
+  try {
+    if (fs.existsSync(registryFile)) {
+      const raw = JSON.parse(fs.readFileSync(registryFile, "utf8"));
+      agents = Array.isArray(raw) ? raw : (raw.agents || []);
+    }
+  } catch (_err) { /* ignore */ }
+
+  try {
+    if (fs.existsSync(agentDbFile)) {
+      const db = JSON.parse(fs.readFileSync(agentDbFile, "utf8"));
+      for (const [name, data] of Object.entries(db)) {
+        scores[name] = data.score || data.avg_score || 0;
+      }
+    }
+  } catch (_err) { /* ignore */ }
+
+  for (const agent of agents) {
+    const name = agent.name || "";
+    if (scores[name] !== undefined) {
+      agent.score = scores[name];
+    }
+  }
+
+  agents.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+  return {
+    agents: agents.slice(0, limit),
+    count: Math.min(agents.length, limit),
+    total: agents.length,
+    has_scores: Object.keys(scores).length > 0,
+  };
+}
+
+// Mirrors the 7 patterns from bl/git_hypothesis.py
+const GIT_DIFF_PATTERNS = [
+  { name: "concurrency", pattern: /concurrent|asyncio|threading|lock|mutex|race/i, domain: "D4", mode: "diagnose", template: "Does {file} handle concurrent access safely under {pattern} conditions?" },
+  { name: "fee_calculation", pattern: /fee|price|cost|rate|amount|decimal|round/i, domain: "D1", mode: "validate", template: "Are fee/price calculations in {file} numerically accurate? Check for floating-point or rounding errors." },
+  { name: "migration", pattern: /migration|alembic|schema|alter table|add column/i, domain: "D2", mode: "diagnose", template: "Does the migration in {file} handle rollback correctly? What happens if it fails mid-run?" },
+  { name: "auth", pattern: /auth|jwt|token|session|permission|role|acl/i, domain: "D6", mode: "audit", template: "Does {file} enforce authorization checks correctly? Are there privilege escalation risks?" },
+  { name: "cache", pattern: /cache|redis|memcache|ttl|invalidat/i, domain: "D4", mode: "diagnose", template: "What happens in {file} when the cache is cold, stale, or unavailable?" },
+  { name: "retry", pattern: /retry|backoff|circuit.?breaker|timeout|deadline/i, domain: "D5", mode: "benchmark", template: "Does the retry/timeout logic in {file} prevent cascading failures under load?" },
+  { name: "deps", pattern: /requirements|package\.json|pyproject|go\.mod|Cargo\.toml/i, domain: "D3", mode: "research", template: "Do the dependency changes in {file} introduce breaking changes or security vulnerabilities?" },
+];
+
+function toolGitHypothesis(args) {
+  const { project_path, commits = 5, max_questions = 10, dry_run = true } = args;
+
+  let diff = "";
+  try {
+    diff = execSync(`git diff HEAD~${commits} HEAD --name-only`, {
+      cwd: project_path,
+      encoding: "utf8",
+      timeout: 5000,
+    });
+  } catch (_err) {
+    return { error: "git diff failed — is this a git repository?", questions: [] };
+  }
+
+  const files = diff.trim().split("\n").filter(Boolean);
+  if (!files.length) {
+    return { questions: [], count: 0, message: "No changed files in the last " + commits + " commits." };
+  }
+
+  const questions = [];
+  const seen = new Set();
+
+  for (const file of files) {
+    for (const pat of GIT_DIFF_PATTERNS) {
+      if (pat.pattern.test(file)) {
+        const key = `${pat.name}:${file}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const text = pat.template
+          .replace("{file}", file)
+          .replace("{pattern}", pat.name);
+        const id = `GIT-${pat.name.slice(0, 4).toUpperCase()}-${questions.length + 1}`;
+        questions.push({ id, text, domain: pat.domain, mode: pat.mode, source: "git-hypothesis", file });
+        if (questions.length >= max_questions) break;
+      }
+    }
+    if (questions.length >= max_questions) break;
+  }
+
+  if (!dry_run && questions.length > 0) {
+    const questionsFile = path.join(project_path, "questions.md");
+    if (fs.existsSync(questionsFile)) {
+      const timestamp = new Date().toISOString().split("T")[0];
+      let append = `\n## Wave GIT — ${timestamp} (git-hypothesis)\n\n`;
+      for (const q of questions) {
+        append += `### ${q.id} — ${q.text}\n\n**Status:** PENDING\n**Mode:** ${q.mode}\n**Domain:** ${q.domain}\n**Source:** git-hypothesis (${q.file})\n\n`;
+      }
+      fs.appendFileSync(questionsFile, append, "utf8");
+      return { questions, count: questions.length, appended: true, files_analyzed: files };
+    }
+  }
+
+  return {
+    questions,
+    count: questions.length,
+    dry_run,
+    files_analyzed: files,
+    patterns_matched: [...new Set(questions.map((q) => q.id.split("-")[1]))],
+  };
+}
+
+function callPython(code, inputObj) {
+  const payload = JSON.stringify(inputObj);
+  const script = `
+import sys, json
+sys.path.insert(0, ${JSON.stringify(REPO_ROOT)})
+args = json.loads(sys.argv[1])
+${code}
+`;
+  try {
+    const result = execSync(`python -c ${JSON.stringify(script)} ${JSON.stringify(payload)}`, {
+      timeout: 15000,
+      encoding: "utf8",
+      env: process.env,
+    });
+    return JSON.parse(result.trim());
+  } catch (err) {
+    return { error: err.message || "Python subprocess failed" };
+  }
+}
+
+function toolNlGenerate(args) {
+  const { description, project_path, append = false } = args;
+  if (!description) return { error: "description is required" };
+
+  if (append && project_path) {
+    return callPython(`
+from bl.nl_entry import quick_campaign
+result = quick_campaign(args["description"], project_dir=args.get("project_path", "."))
+print(json.dumps(result))
+`, args);
+  }
+
+  return callPython(`
+from bl.nl_entry import generate_from_description, format_preview
+qs = generate_from_description(args["description"])
+print(json.dumps({"questions": qs, "preview": format_preview(qs), "count": len(qs)}))
+`, args);
+}
+
+function toolRunQuestion(args) {
+  const { project_path, question_id } = args;
+  if (!question_id) return { error: "question_id is required" };
+
+  return callPython(`
+import os
+os.chdir(args.get("project_path", "."))
+from bl.questions import load_questions
+from bl.runners import get_runner
+qs = load_questions("questions.md")
+q = next((q for q in qs if q.get("id") == args["question_id"]), None)
+if q is None:
+    print(json.dumps({"error": f"Question {args['question_id']!r} not found"}))
+    sys.exit(0)
+mode = q.get("mode", "correctness")
+runner = get_runner(mode)
+if runner is None:
+    print(json.dumps({"error": f"No runner for mode {mode!r}"}))
+    sys.exit(0)
+result = runner(q)
+print(json.dumps({"question_id": args["question_id"], "result": result}))
+`, args);
+}
+
 // ---------------------------------------------------------------------------
 // MCP protocol dispatch
 // ---------------------------------------------------------------------------
@@ -461,6 +748,16 @@ async function dispatchTool(name, args) {
       return toolRun(args);
     case "masonry_recall":
       return await toolRecall(args);
+    case "masonry_weights":
+      return toolWeights(args);
+    case "masonry_fleet":
+      return toolFleet(args);
+    case "masonry_git_hypothesis":
+      return toolGitHypothesis(args);
+    case "masonry_nl_generate":
+      return toolNlGenerate(args);
+    case "masonry_run_question":
+      return toolRunQuestion(args);
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
