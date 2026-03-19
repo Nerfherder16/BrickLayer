@@ -19,7 +19,7 @@ while PENDING questions exist:
     update questions.md status
     check wave sentinels
     if bank < 3 PENDING:
-        call hypothesis-generator
+        call hypothesis-generator-bl2  (not hypothesis-generator — BL 2.0 projects use hypothesis-generator-bl2)
 end
 call synthesizer
 ```
@@ -27,6 +27,14 @@ call synthesizer
 ## Campaign Startup Validation
 
 Before processing the first question, run this check:
+
+**Campaign Context (write at wave start, refresh every 10 findings):**
+Write `campaign-context.md` in the project root with:
+- Header: `# Campaign Context — {project} (Wave {N})`
+- `## Project`: first paragraph of project-brief.md (or "No project brief found" if absent)
+- `## Top Findings`: ID, verdict, one-line summary of the 5 highest-severity findings so far
+- `## Open Hypotheses`: PENDING questions with weight > 1.5 from .bl-weights.json (if it exists)
+Prepend `"Read campaign-context.md before proceeding.\n\n"` to every specialist agent spawn prompt.
 
 1. Read all questions in questions.md
 2. Collect all `**Mode**:` values
@@ -37,6 +45,43 @@ Before processing the first question, run this check:
 5. If > 20% of questions are BLOCKED at startup:
    - Log: `[MORTAR] WARNING: {N} questions BLOCKED at startup — check question-designer output and re-run`
    - Do not abort; continue with valid questions
+
+## Wave 0 — Pre-Flight Gate Check
+
+**Run this once at campaign start, before Wave 1 questions begin.**
+
+Purpose: Discover which simulation gates *ever* fire under default parameters.
+Questions about conditions that never fire can be pruned or deprioritized.
+
+### Procedure
+
+1. Run `python simulate.py` (no modifications) and capture the output.
+   Or call `masonry_run_simulation(project_path=project_dir)` if the MCP tool is available.
+2. Examine records and failure_reason:
+   - Note which metrics crossed WARNING threshold vs FAILURE threshold
+   - Note which metrics never moved from baseline (always 0 or always max)
+3. Write `pre-flight.md` to the project directory:
+
+```markdown
+# Pre-Flight Gate Check
+
+**Run date**: {ISO date}
+**Verdict**: {HEALTHY | WARNING | FAILURE}
+**Default primary metric**: {value}
+
+## Gates That Fire
+- {metric}: crossed {threshold} at month {N}
+
+## Gates That Never Fire (null conditions)
+- {metric}: always {value} — questions about this metric should be deprioritized
+
+## Recommendation
+{1-2 sentences about what to focus on in Wave 1}
+```
+
+4. Log: `[MORTAR] PRE-FLIGHT: verdict={verdict}, null_gates=[{list}]`
+5. If `failure_reason` is not None at default params → flag as CRITICAL in pre-flight.md.
+   The model may already be broken at baseline. Pause and notify.
 
 ## Dynamic Agent Catalog
 
@@ -73,7 +118,7 @@ Read the `**Mode**:` field (lowercase). Route accordingly:
 | `diagnose` | diagnose-analyst |
 | `fix` | fix-implementer |
 | `audit` | compliance-auditor |
-| `research` | regulatory-researcher or competitive-analyst (read **Agent**: field to disambiguate) |
+| `research` | regulatory-researcher, competitive-analyst, or research-analyst (read **Agent**: field to disambiguate) |
 | `benchmark` | benchmark-engineer |
 | `validate` | design-reviewer |
 | `evolve` | evolve-optimizer |
@@ -101,6 +146,23 @@ Prefer the agent with:
 Log: `[MORTAR] Routing {id} → {agent} (confidence-weighted: {ratio} vs {ratio})`
 
 If Recall is unavailable, fall back to the routing table order.
+
+### Tool Context Injection (mandatory)
+
+Before spawning any specialist agent, prepend the following to the agent prompt:
+
+Check for `tools-manifest.md` in this order:
+1. `{project_dir}/tools-manifest.md`
+2. `{project_dir}/../template/tools-manifest.md` (repo-level template)
+
+If found, add to the agent prompt:
+```
+## Available Tools
+{content of tools-manifest.md}
+```
+
+This ensures every agent knows what MCP tools, CLI tools, and simulation tools are
+available without having to guess or re-discover them mid-task.
 
 ## Invoking a Specialist
 
@@ -141,9 +203,29 @@ Fire when `global_count` crosses a multiple of the interval:
 | Every 10 (global) | Spawn agent-auditor in background: `agents_dir=.claude/agents/, findings_dir=findings/, results_tsv=results.tsv` — then check its output (see Overseer Escalation below) |
 | Every 10 (global) | Invoke synthesizer-bl2 in **lightweight mode**: `mode=mid-session, findings_dir=findings/, project_name={project}` — does not commit, just refreshes synthesis.md. Mortar reads the updated synthesis before routing the next question. |
 | After every finding | Spawn peer-reviewer in background: `primary_finding=findings/{id}.md, target_git=., agents_dir=.claude/agents/` |
-| At campaign close | Force-fire both forge-check and agent-auditor before calling synthesizer |
+| At campaign close | Force-fire forge-check, agent-auditor, AND skill-forge before/after calling synthesizer; then spawn git-nerd (task=wave-end) to commit findings and create/update PR |
 
 Do not wait for background agents. Continue to next question immediately.
+
+### forge-check Sentinel (every 5 questions)
+
+When `global_count % 5 == 0`:
+
+```
+Act as the forge-check agent in .claude/agents/forge-check.md.
+Inputs:
+- agents_dir={project_dir}/.claude/agents/
+- findings_dir={project_dir}/findings/
+- questions_md={project_dir}/questions.md
+
+Mode: background — do not wait for completion.
+```
+
+Log: `[MORTAR] Sentinel: forge-check spawned (5-question interval)`
+
+After forge-check writes `FORGE_NEEDED.md` (at `{project_dir}/.claude/agents/FORGE_NEEDED.md`),
+the overseer will consume it on its next scheduled run (every 10 questions or at wave end).
+Mortar does NOT act on `FORGE_NEEDED.md` directly — it is input to the overseer.
 
 ## Overseer Escalation
 
@@ -155,9 +237,29 @@ grep "verdict.*FLEET_UNDERPERFORMING\|FLEET_UNDERPERFORMING" .claude/agents/AUDI
 
 If FLEET_UNDERPERFORMING is found:
 1. Log: `[MORTAR] ESCALATION: fleet underperforming — invoking overseer`
-2. Invoke overseer: `Act as the overseer agent in .claude/agents/overseer.md. Read AUDIT_REPORT.md and take corrective action.`
+2. Invoke overseer:
+
+   ```
+   Act as the overseer agent in .claude/agents/overseer.md.
+   Inputs:
+   - agent_db_json={project_dir}/agent_db.json
+   - agents_dir={project_dir}/.claude/agents/
+   - findings_dir={project_dir}/findings/
+   - project_brief={project_dir}/project-brief.md
+
+   Read AUDIT_REPORT.md and take corrective action.
+   ```
+
 3. Wait for overseer (it rewrites agent .md files — must complete before next question)
 4. Log: `[MORTAR] Overseer intervention complete`
+5. If overseer created new agents from FORGE_NEEDED.md, re-scan `.claude/agents/` to refresh
+   the dynamic agent catalog before routing the next question:
+
+   ```bash
+   for f in .claude/agents/*.md; do grep -m2 "^name:\|^description:" "$f"; done
+   ```
+
+   Update `agent_catalog` accordingly.
 
 If FLEET_WARNING or FLEET_HEALTHY: log and continue without escalation.
 
@@ -192,6 +294,13 @@ For each unhandled OVERRIDE found:
 
 After a specialist returns a finding, before marking DONE:
 
+**INCONCLUSIVE Re-queue Rule:**
+When a finding arrives with `verdict: INCONCLUSIVE` AND the peer-reviewer's `quality_score < 0.4`:
+- Set the question status back to PENDING in questions.md
+- Append ` [retry: narrow scope]` to the question title
+- Log: "Re-queued {qid} — INCONCLUSIVE quality_score {score:.2f} < 0.4"
+When quality_score >= 0.4 or quality_score is absent: accept INCONCLUSIVE normally.
+
 1. **Check the file exists**: `findings/{id}.md` must exist and be > 50 chars
 2. **Check verdict present**: `**Verdict**:` field must be in the file
 3. **Check verdict is known**: verdict must be a recognized BL 2.0 verdict string
@@ -207,6 +316,54 @@ If any check fails:
   ```
 - Log: `[MORTAR] VALIDATION FAILED {id}: {reason}`
 - Still mark the question DONE (avoids infinite re-queue)
+
+## Agent Performance Tracking (agent_db.json)
+
+Mortar tracks per-agent verdict history in `agent_db.json` at the project root. This data
+powers agent-auditor scoring and overseer escalation decisions.
+
+### At campaign start — initialize agent_db.json
+
+Run once before the first question is routed:
+
+```bash
+node -e "
+const fs = require('fs');
+if (!fs.existsSync('agent_db.json')) {
+  fs.writeFileSync('agent_db.json', '{}');
+  console.log('[MORTAR] Initialized agent_db.json');
+}"
+```
+
+If this fails, log the error and continue — never block the campaign on initialization.
+
+### After each finding — record agent run
+
+After finding validation passes (or stub is written) and the question is marked DONE,
+record the agent performance. Replace `{bl_root}`, `{agent_name}`, and `{verdict}` with
+the actual values for the current run:
+
+```bash
+python -c "
+import sys; sys.path.insert(0, '{bl_root}')
+from bl.agent_db import record_run
+score = record_run('{project_dir}', '{agent_name}', '{verdict}')
+print(f'[MORTAR] agent_db: {agent_name} verdict={verdict} score={score:.2f}')
+" || echo "[MORTAR] agent_db: write failed (non-blocking) — continuing"
+```
+
+Where:
+- `{bl_root}` is the BrickLayer 2.0 repo root (the directory containing `bl/` — the parent
+  of the project template folder, e.g. `C:/Users/trg16/Dev/Bricklayer2.0`)
+- `{project_dir}` is the campaign project directory (where `agent_db.json` lives)
+- `{agent_name}` is the specialist agent that produced the finding (e.g. `quantitative-analyst`)
+- `{verdict}` is the validated verdict string from the finding (e.g. `HEALTHY`, `INCONCLUSIVE`)
+
+**Log format**: `[MORTAR] agent_db: {agent_name} verdict={verdict} score={score:.2f}`
+
+**Non-blocking**: If the Python call fails (e.g. `bl/` not on path, JSON write error), the
+`|| echo` fallback logs the failure and the loop continues immediately. Never block the
+research loop on a performance tracking failure.
 
 ## Self-Nomination — RECOMMEND Signals
 
@@ -312,15 +469,79 @@ If any file edit fails:
 ## When the Bank Is Empty
 
 When fewer than 3 PENDING questions remain:
-1. Call hypothesis-generator with context: synthesis.md + 5 most recent findings
+1. Call hypothesis-generator-bl2 with context: synthesis.md + 5 most recent findings
 2. Wait for new questions to be added to questions.md
 3. Continue loop with new PENDING questions
 
-When 0 PENDING questions remain after hypothesis-generator has run:
-1. Call synthesizer
+When 0 PENDING questions remain after hypothesis-generator-bl2 has run:
+1. Call synthesizer-bl2 (not synthesizer — BL 2.0 projects use synthesizer-bl2)
 2. Write synthesis to findings/synthesis.md
-3. Output campaign completion summary
-4. Stop
+3. Invoke retrospective (foreground — runs immediately after synthesis):
+
+   ```
+   Act as the retrospective agent in .claude/agents/retrospective.md.
+   Inputs: project root = {project_dir}
+   Read questions.md, results.tsv, findings/synthesis.md, all findings/*.md,
+   constants.py, simulate.py, project-brief.md.
+   Write retrospective.md and retro-actions.md (if CRITICAL/HIGH issues found).
+   ```
+
+   Log: `[MORTAR] Retrospective spawned — post-campaign quality analysis`
+   Wait for retrospective to complete (foreground — retro-actions.md may block next campaign).
+   If retrospective writes CRITICAL to stderr, surface it to the user before continuing.
+
+4. Invoke skill-forge in background:
+
+   ```
+   Act as the skill-forge agent in .claude/agents/skill-forge.md.
+   Inputs:
+   - synthesis_md={project_dir}/findings/synthesis.md
+   - findings_dir={project_dir}/findings/
+   - project_root={project_dir}
+   - skill_registry_json={project_dir}/skill_registry.json
+   - skills_dir=~/.claude/skills/
+   - project_name={project_name}
+   ```
+
+   Log: `[MORTAR] Skill-forge spawned — distilling findings into skills`
+   Do not wait for skill-forge to complete. Continue immediately to step 4.
+
+4. Invoke agent-auditor (final wave audit — foreground):
+
+   ```
+   Act as the agent-auditor agent in .claude/agents/agent-auditor.md.
+   Inputs:
+   - agents_dir={project_dir}/.claude/agents/
+   - findings_dir={project_dir}/findings/
+   - results_tsv={project_dir}/results.tsv
+   ```
+
+   Log: `[MORTAR] Final agent audit spawned — scoring fleet performance`
+   Wait for agent-auditor to complete (foreground — overseer escalation depends on its output).
+
+5. After agent-auditor completes, check for FLEET_UNDERPERFORMING (see Overseer Escalation section).
+6. Invoke mcp-advisor (background — identifies missing MCP capabilities from INCONCLUSIVE patterns):
+
+   ```
+   Act as the mcp-advisor agent in .claude/agents/mcp-advisor.md.
+   Inputs: project root = {project_dir}
+   Read all findings/*.md and results.tsv.
+   Write MCP_RECOMMENDATIONS.md if gaps found.
+   ```
+
+   Log: `[MORTAR] mcp-advisor spawned — scanning for missing MCP capabilities`
+   Do not wait for mcp-advisor. Continue immediately to step 7.
+
+7. Spawn git-nerd (wave-end commit + PR):
+   ```
+   Act as the git-nerd agent in .claude/agents/git-nerd.md.
+   project_root={project_dir}
+   task=wave-end
+   ```
+   Log: `[MORTAR] git-nerd spawned — committing findings and updating campaign PR`
+   Wait for git-nerd to complete (foreground — ensures findings are committed before loop exits).
+8. Output campaign completion summary
+9. Stop
 
 ## Recall — inter-agent memory
 
