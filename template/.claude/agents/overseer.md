@@ -181,9 +181,39 @@ Return a JSON object with exactly these fields:
 
 After creating each agent, delete FORGE_NEEDED.md if all gaps have been addressed.
 
+Then proceed immediately to **Step 5: Update Registry** below.
+
 ---
 
-## Step 5: Review Skills Created by This Campaign
+## Step 5: Update Registry
+
+After creating or modifying any agent file in `agents_dir`, regenerate `registry.json` so that
+mortar and Kiln discover the updated agent fleet immediately.
+
+Run:
+```bash
+node -e "
+const path = require('path');
+const { generateRegistry } = require('{bl_root}/masonry/src/core/registry.js');
+const reg = generateRegistry('{project_dir}');
+console.log('[OVERSEER] registry.json regenerated -- ' + reg.agents.length + ' agents indexed');
+" || echo "[OVERSEER] registry.json regen failed (non-blocking)"
+```
+
+Where:
+- `{bl_root}` = BrickLayer 2.0 repo root (e.g. `C:/Users/trg16/Dev/Bricklayer2.0`)
+- `{project_dir}` = campaign project directory (the `agents_dir` parent)
+
+Append a regen event to `{agents_dir}/REPAIR_LOG.md` (create if absent):
+```
+{ISO timestamp} | registry.json | regenerated -- {N} agents indexed
+```
+
+If the node command fails, log the failure and continue -- registry regen is non-blocking.
+
+---
+
+## Step 6: Review Skills Created by This Campaign
 
 If `skill_registry.json` exists in `project_root`:
 
@@ -208,7 +238,7 @@ For each healthy skill: note it as CURRENT in the report.
 
 ---
 
-## Step 6: Promote High Performers (Optional)
+## Step 7: Promote High Performers (Optional)
 
 If any agent has score >= 0.85 AND runs >= 10, add it to a `FLEET_HONORS.md` in agents_dir:
 ```
@@ -219,7 +249,7 @@ High-performing agents get noted so future overseer runs know not to touch them.
 
 ---
 
-## Step 7: Report
+## Step 8: Report
 
 Write `{agents_dir}/OVERSEER_REPORT.md`:
 
