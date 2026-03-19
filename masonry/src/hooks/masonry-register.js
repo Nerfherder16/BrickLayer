@@ -1,7 +1,8 @@
 'use strict';
 // src/hooks/masonry-register.js — UserPromptSubmit hook
-// On first call: hydrate session from Recall (handoff or recent findings)
-// On subsequent calls: flush pending guard warnings
+// Every call: detect BrickLayer context, inject Mortar routing directive
+// First call only: hydrate session from Recall (handoff or recent findings)
+// Subsequent calls: flush pending guard warnings (after directive)
 
 const fs = require('fs');
 const path = require('path');
@@ -10,6 +11,72 @@ const os = require('os');
 const { isAvailable, searchMemory, storeMemory } = require('../core/recall');
 
 const MAX_STDIN = 2 * 1024 * 1024; // 2MB cap
+
+// ---------------------------------------------------------------------------
+// BrickLayer context detection
+// ---------------------------------------------------------------------------
+
+function readJsonFile(filePath) {
+  try {
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+  } catch (_err) { /* non-fatal */ }
+  return null;
+}
+
+function detectBrickLayerContext(cwd) {
+  const masonryMeta    = readJsonFile(path.join(cwd, 'masonry.json'));
+  const campaignState  = readJsonFile(path.join(cwd, 'masonry-state.json'));
+  const autopilotMode  = (() => {
+    try {
+      const f = path.join(cwd, '.autopilot', 'mode');
+      return fs.existsSync(f) ? fs.readFileSync(f, 'utf8').trim() : null;
+    } catch (_e) { return null; }
+  })();
+  const autopilotProgress = readJsonFile(path.join(cwd, '.autopilot', 'progress.json'));
+  const hasMortar = fs.existsSync(path.join(cwd, '.claude', 'agents', 'mortar.md'));
+
+  return { masonryMeta, campaignState, autopilotMode, autopilotProgress, hasMortar };
+}
+
+// ---------------------------------------------------------------------------
+// Build the Mortar routing directive
+// ---------------------------------------------------------------------------
+
+function buildRoutingDirective(ctx, project) {
+  const lines = [
+    '[MASONRY] Route this prompt through Mortar (.claude/agents/mortar.md).',
+    'Mortar is the executive layer — it decides how to handle every request.',
+  ];
+
+  // Active research campaign
+  if (ctx.campaignState) {
+    const wave    = ctx.campaignState.wave || ctx.campaignState.current_wave || '?';
+    const pending = ctx.campaignState.pending_questions
+      ?? ctx.campaignState.questions_pending
+      ?? '?';
+    lines.push(`Active campaign: ${project}, wave ${wave}, ${pending} questions pending.`);
+  }
+
+  // Active autopilot build/fix
+  if (ctx.autopilotMode && ctx.autopilotMode !== '') {
+    let buildLine = `Active build: ${project}`;
+    if (ctx.autopilotProgress) {
+      const tasks = ctx.autopilotProgress.tasks || [];
+      const done  = tasks.filter(t => t.status === 'DONE').length;
+      buildLine += `, ${done}/${tasks.length} tasks complete`;
+    }
+    buildLine += '.';
+    lines.push(buildLine);
+  }
+
+  return lines.join('\n');
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
 
 async function main() {
   let raw = '';
@@ -28,16 +95,18 @@ async function main() {
   const sessionId = input.session_id || 'unknown';
   const cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 
-  // Read masonry.json from cwd for project name + mode
-  let masonryMeta = {};
-  try {
-    const masonryFile = path.join(cwd, 'masonry.json');
-    if (fs.existsSync(masonryFile)) {
-      masonryMeta = JSON.parse(fs.readFileSync(masonryFile, 'utf8'));
-    }
-  } catch (_err) { /* optional file */ }
+  // Detect BrickLayer context
+  const ctx = detectBrickLayerContext(cwd);
 
-  const project = masonryMeta.name || path.basename(cwd);
+  // Resolve project name (masonry.json > autopilot progress > cwd basename)
+  const project = (ctx.masonryMeta && ctx.masonryMeta.name)
+    || (ctx.autopilotProgress && ctx.autopilotProgress.project)
+    || path.basename(cwd);
+
+  // --- Always: emit Mortar routing directive ---
+  const directive = buildRoutingDirective(ctx, project);
+  process.stdout.write(directive + '\n');
+
   const tempFile = path.join(os.tmpdir(), `masonry-${sessionId}.json`);
 
   // Check if this is the first call in this session
@@ -90,7 +159,6 @@ async function main() {
 
   if (handoffs.length > 0) {
     const handoff = handoffs[0];
-    // Check age — Recall results usually have a timestamp field
     const storedAt = handoff.created_at || handoff.timestamp || handoff.stored_at;
     const ageMs = storedAt ? Date.now() - new Date(storedAt).getTime() : Infinity;
     const isRecent = ageMs < 24 * 60 * 60 * 1000;
@@ -98,7 +166,6 @@ async function main() {
     if (isRecent) {
       let payload = null;
       try {
-        // content may be a JSON string or already an object
         payload = typeof handoff.content === 'string'
           ? JSON.parse(handoff.content)
           : handoff.content;
@@ -110,7 +177,6 @@ async function main() {
           payload.resume_prompt,
         ];
 
-        // Surface recent findings from handoff payload
         if (payload.recent_findings && payload.recent_findings.length > 0) {
           lines.push('\nRecent findings:');
           for (const f of payload.recent_findings) {
@@ -147,7 +213,6 @@ async function main() {
     tags: ['masonry', `project:${project}`, 'masonry:session-start', `session:${sessionId}`],
     importance: 0.3,
   });
-
 }
 
 main().catch(() => {});
