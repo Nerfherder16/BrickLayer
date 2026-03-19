@@ -186,22 +186,37 @@ def _run_retrospective(project_dir: Path) -> None:
         f"Project: {project_name}. "
         f"Project directory: {project_dir}. "
         f"Campaign stats: {total_count} questions total, {done_count} DONE. "
-        "Read findings/*.md, results.tsv, synthesis.md, and pre-flight.md (if present). "
-        "Score execution quality across Tool Friction, Sweep Efficiency, Finding Quality, "
-        "and Question Coverage. Write retrospective.md to the project root."
+        "Complete all three parts: (1) process scoring, (2) content integrity analysis "
+        "(verdict distribution, threshold reachability, finding consistency, simulation "
+        "output integrity, question-finding alignment, confidence calibration), "
+        "(3) LLM self-report. "
+        "Write retrospective.md to the project root. "
+        "If any CRITICAL issues are found, also write retro-actions.md and print "
+        "[RETROSPECTIVE] CRITICAL: {title} to stderr."
     )
 
     claude_bin = shutil.which("claude") or "claude"
     try:
-        subprocess.run(
+        result = subprocess.run(
             [claude_bin, "-p", prompt, "--output-format", "text"],
             capture_output=True,
             text=True,
             encoding="utf-8",
-            timeout=180,
+            timeout=300,  # extended: content integrity analysis reads more files
             cwd=str(project_dir),
         )
+        # Surface CRITICAL escalations immediately — these indicate potential model bugs
+        if result.stderr:
+            for line in result.stderr.splitlines():
+                if "[RETROSPECTIVE] CRITICAL" in line:
+                    print(line, file=sys.stderr)
         print("[synthesizer] Retrospective complete.", file=sys.stderr)
+        retro_actions = project_dir / "retro-actions.md"
+        if retro_actions.exists():
+            print(
+                "[synthesizer] retro-actions.md written — run /retro-apply to generate a fix spec.",
+                file=sys.stderr,
+            )
     except Exception as e:
         print(f"[synthesizer] Retrospective skipped: {e}", file=sys.stderr)
 
