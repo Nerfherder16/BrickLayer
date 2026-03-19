@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `1fd7a58` autopilot: phase9 — mortar.md wiring updates (2026-03-19)
 - `177b634` chore: update CHANGELOG [skip-hook] (2026-03-19)
 - `a23f45f` feat(hooks): auto-resume interrupted build on session start (2026-03-19)
 - `45e0385` chore: CHANGELOG.md post-hook entries (2026-03-18)
