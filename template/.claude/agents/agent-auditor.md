@@ -57,6 +57,25 @@ Check `results.tsv` for questions re-run on the same agent that flipped from HEA
 - 1–2 → WARNING
 - 3+ → UNDERPERFORMING
 
+### Python Path Setup for agent_db access
+
+The `bl/` module lives in the BrickLayer 2.0 repo root, not in the campaign project directory.
+Before importing, ensure the path is set correctly. Replace `{bricklayer_root}`, `{project_dir}`,
+and `{agent_name}` with actual values:
+
+```bash
+python -c "
+import sys; sys.path.insert(0, '{bricklayer_root}')
+from bl.agent_db import get_trend
+import json
+trend = get_trend('{project_dir}', '{agent_name}', window=5)
+print(json.dumps(trend))
+"
+```
+
+If `agent_db.json` doesn't exist or has no data for an agent, `get_trend()` returns
+`{"trending": "insufficient_data"}` — handle gracefully (skip trend section for that agent).
+
 ## Trend Detection (agent_db.json runs[] data)
 For each agent that has a `runs` array in agent_db.json:
 1. Import: `from bl.agent_db import get_trend`
