@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `13c921f` chore: remove BL 1.x question-designer and unused bl/campaign.py (2026-03-19)
 - `dcfebff` fix(wiring): sync mortar.md to all project copies + Phase 10 FastMCP roadmap (2026-03-19)
 - `8b07cf3` feat(kiln-os): init project folder — AI OS ideation + roadmap (2026-03-19)
 - `1fd7a58` autopilot: phase9 — mortar.md wiring updates (2026-03-19)
