@@ -277,6 +277,54 @@ If any check fails:
 - Log: `[MORTAR] VALIDATION FAILED {id}: {reason}`
 - Still mark the question DONE (avoids infinite re-queue)
 
+## Agent Performance Tracking (agent_db.json)
+
+Mortar tracks per-agent verdict history in `agent_db.json` at the project root. This data
+powers agent-auditor scoring and overseer escalation decisions.
+
+### At campaign start — initialize agent_db.json
+
+Run once before the first question is routed:
+
+```bash
+node -e "
+const fs = require('fs');
+if (!fs.existsSync('agent_db.json')) {
+  fs.writeFileSync('agent_db.json', '{}');
+  console.log('[MORTAR] Initialized agent_db.json');
+}"
+```
+
+If this fails, log the error and continue — never block the campaign on initialization.
+
+### After each finding — record agent run
+
+After finding validation passes (or stub is written) and the question is marked DONE,
+record the agent performance. Replace `{bl_root}`, `{agent_name}`, and `{verdict}` with
+the actual values for the current run:
+
+```bash
+python -c "
+import sys; sys.path.insert(0, '{bl_root}')
+from bl.agent_db import record_run
+score = record_run('{project_dir}', '{agent_name}', '{verdict}')
+print(f'[MORTAR] agent_db: {agent_name} verdict={verdict} score={score:.2f}')
+" || echo "[MORTAR] agent_db: write failed (non-blocking) — continuing"
+```
+
+Where:
+- `{bl_root}` is the BrickLayer 2.0 repo root (the directory containing `bl/` — the parent
+  of the project template folder, e.g. `C:/Users/trg16/Dev/Bricklayer2.0`)
+- `{project_dir}` is the campaign project directory (where `agent_db.json` lives)
+- `{agent_name}` is the specialist agent that produced the finding (e.g. `quantitative-analyst`)
+- `{verdict}` is the validated verdict string from the finding (e.g. `HEALTHY`, `INCONCLUSIVE`)
+
+**Log format**: `[MORTAR] agent_db: {agent_name} verdict={verdict} score={score:.2f}`
+
+**Non-blocking**: If the Python call fails (e.g. `bl/` not on path, JSON write error), the
+`|| echo` fallback logs the failure and the loop continues immediately. Never block the
+research loop on a performance tracking failure.
+
 ## Self-Nomination — RECOMMEND Signals
 
 After receiving a finding from any specialist, scan for a `[RECOMMEND: {agent}]` line:
