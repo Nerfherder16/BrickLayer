@@ -297,6 +297,38 @@ Items claimed or in active flight. Check before starting new work.
 | C-39 | Runners | `document` runner — doc accuracy vs code | **FREE** | — |
 | C-40 | Runners | `contract` runner — Solana/EVM invariant checking | **FREE** | — |
 | C-41 | CI/CD | GitHub Actions hook — campaign on PR | **FREE** | — |
+| C-42 | MCP tooling | FastMCP 3.1 Python MCP server for new BL tools | **FREE** | — |
+
+---
+
+## Phase 10 — FastMCP 3.1 Python MCP Tools 💡
+
+**Goal**: Use FastMCP 3.1 (Python) to build new Masonry MCP tools in Python rather than extending
+`masonry-mcp.js`. The existing Node.js server stays unchanged — new tools are additive.
+
+**Motivation**: masonry-mcp.js is working but is a maintenance burden in a Python-first project.
+FastMCP 3.1 adds composable server mounting (`namespace=`) and `FastMCPOpenAPI` — wrap any REST
+API as MCP tools with zero boilerplate. In-process transport enables proper unit testing.
+
+**Candidate new tools** (Python-native, no equivalent in masonry-mcp.js):
+- `masonry_karen` — invoke karen agent tasks (init-docs, update-changelog, audit-folder) from MCP
+- `masonry_retrospective` — trigger retrospective analysis and return structured findings
+- `masonry_registry` — query/rebuild registry.json, list agents with scores from agent_db.json
+- `masonry_retro_apply` — read retro-actions.md and generate a spec for /build
+
+**Architecture**: FastMCP 3.1 server at `masonry/src/mcp_python/server.py`, registered separately
+in `~/.claude.json`. Does NOT replace masonry-mcp.js — both run in parallel.
+
+**Prerequisite**: `pip install fastmcp>=3.1.0`
+
+| # | Item | Status |
+|---|------|--------|
+| 10.01 | `masonry/src/mcp_python/server.py` — FastMCP 3.1 server skeleton | 💡 |
+| 10.02 | `masonry_karen` tool — wraps karen agent task modes | 💡 |
+| 10.03 | `masonry_retrospective` tool — post-campaign quality report | 💡 |
+| 10.04 | `masonry_registry` tool — agent catalog queries | 💡 |
+| 10.05 | Register in `~/.claude.json` alongside masonry-mcp.js | 💡 |
+| 10.06 | In-process tests via FastMCP test transport | 💡 |
 
 ---
 
