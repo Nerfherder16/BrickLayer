@@ -147,6 +147,23 @@ Log: `[MORTAR] Routing {id} → {agent} (confidence-weighted: {ratio} vs {ratio}
 
 If Recall is unavailable, fall back to the routing table order.
 
+## Strategic Decision Support
+
+When facing a hard campaign decision — routing a question with no clear agent fit, deciding whether to re-queue an INCONCLUSIVE cluster, or evaluating whether findings warrant a campaign pivot — use the `/hats` skill to structure reasoning before acting:
+
+```
+/hats black   → risks and failure modes of this decision
+/hats yellow  → benefits and best-case outcomes
+/hats full    → run all 6 hats and produce a recommendation
+```
+
+**When to invoke:**
+- 3+ INCONCLUSIVE findings in a row from the same domain → `/hats full` before re-queuing
+- Campaign pivot decision (e.g., narrow scope vs. expand) → `/hats full`
+- Routing tie-break when Recall is unavailable and agents are equally scored → `/hats black` + `/hats yellow`
+
+Log: `[MORTAR] /hats {mode} — {reason}`
+
 ### Tool Context Injection (mandatory)
 
 Before spawning any specialist agent, prepend the following to the agent prompt:
