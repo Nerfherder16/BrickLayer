@@ -8,8 +8,13 @@
  * or extracting paths from tool_input.command.
  */
 
-const { existsSync, readFileSync } = require("fs");
+const { existsSync, readFileSync, statSync } = require("fs");
 const { join, dirname } = require("path");
+
+// A build is considered active if progress.json was written within this window.
+// The orchestrator updates progress.json on every task start/done — so any active
+// build will have touched it recently. Stale mode files from crashed sessions won't.
+const BUILD_FRESHNESS_MS = 30 * 60 * 1000; // 30 minutes
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -21,6 +26,15 @@ function readStdin() {
   });
 }
 
+function isFresh(filePath) {
+  try {
+    const { mtimeMs } = statSync(filePath);
+    return Date.now() - mtimeMs < BUILD_FRESHNESS_MS;
+  } catch {
+    return false;
+  }
+}
+
 function findAutopilotMode(startDir) {
   if (!startDir) return null;
   let dir = startDir;
@@ -28,7 +42,16 @@ function findAutopilotMode(startDir) {
     const modeFile = join(dir, ".autopilot", "mode");
     if (existsSync(modeFile)) {
       try {
-        return readFileSync(modeFile, "utf8").trim() || null;
+        const mode = readFileSync(modeFile, "utf8").trim() || null;
+        if (!mode) return null;
+        // Guard: only trust an active build/fix mode if progress.json is fresh.
+        // This prevents a stale mode file from a crashed session from silently
+        // auto-approving an interactive session that has nothing to do with a build.
+        if (mode === "build" || mode === "fix") {
+          const progressFile = join(dir, ".autopilot", "progress.json");
+          if (!isFresh(progressFile)) return null;
+        }
+        return mode;
       } catch {
         return null;
       }
@@ -47,7 +70,14 @@ function findUiMode(startDir) {
     const modeFile = join(dir, ".ui", "mode");
     if (existsSync(modeFile)) {
       try {
-        return readFileSync(modeFile, "utf8").trim() || null;
+        const mode = readFileSync(modeFile, "utf8").trim() || null;
+        if (!mode) return null;
+        // Same freshness guard for UI compose/fix modes.
+        if (mode === "compose" || mode === "fix") {
+          const progressFile = join(dir, ".ui", "progress.json");
+          if (!isFresh(progressFile)) return null;
+        }
+        return mode;
       } catch {
         return null;
       }
