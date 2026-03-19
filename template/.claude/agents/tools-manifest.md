@@ -51,6 +51,33 @@ Masonry MCP server (`masonry-mcp.js`). Campaign state queries and operations.
 - `masonry_nl_generate` — convert NL description to BL research questions
 - `masonry_run_question` — run a single question by ID, return verdict envelope
 - `masonry_recall` — proxy to Recall API for campaign-scoped memory
+- `masonry_run_simulation` — run a simulation with custom params, return structured results
+- `masonry_sweep` — parameter sweep across multiple values
+
+### masonry_run_simulation
+Run a single simulation for a project. Returns verdict, records, failure_reason.
+- project_path (required): absolute path to project dir containing simulate.py
+- Optional: months, initial_units, monthly_growth_rate, churn_rate, price_per_unit, ops_cost_base
+
+Example:
+```
+masonry_run_simulation(project_path="/path/to/project", churn_rate=0.08)
+→ {"verdict": "WARNING", "records": [...], "failure_reason": null}
+```
+
+### masonry_sweep
+Sweep a parameter across multiple values. Returns list of {param_value, scenario, verdict, final_primary, records}.
+- project_path (required): absolute path to project dir
+- param_name (required): parameter to sweep e.g. "churn_rate"
+- values (required): array of values e.g. [0.02, 0.05, 0.08, 0.12]
+- scenarios (optional): array of scenario labels
+- base_params (optional): {param: value} object applied as baseline
+
+Example:
+```
+masonry_sweep(project_path="/path/to/project", param_name="churn_rate", values=[0.02,0.05,0.10])
+→ {"results": [{param_value: 0.02, verdict: "HEALTHY", ...}, ...], "count": 3}
+```
 
 ## exa
 Exa MCP for web research and external documentation retrieval.
