@@ -55,8 +55,9 @@ Questions about conditions that never fire can be pruned or deprioritized.
 
 ### Procedure
 
-1. Run `run_simulation()` with default parameters (no modifications to `simulate.py`).
-2. Examine the returned records and `failure_reason`:
+1. Run `python simulate.py` (no modifications) and capture the output.
+   Or call `masonry_run_simulation(project_path=project_dir)` if the MCP tool is available.
+2. Examine records and failure_reason:
    - Note which metrics crossed WARNING threshold vs FAILURE threshold
    - Note which metrics never moved from baseline (always 0 or always max)
 3. Write `pre-flight.md` to the project directory:
@@ -146,14 +147,22 @@ Log: `[MORTAR] Routing {id} → {agent} (confidence-weighted: {ratio} vs {ratio}
 
 If Recall is unavailable, fall back to the routing table order.
 
-### Tools Manifest Injection
+### Tool Context Injection (mandatory)
 
-Before spawning any specialist agent, check for `tools-manifest.md` in:
-1. `{project_root}/tools-manifest.md`
-2. `{template_dir}/tools-manifest.md`
+Before spawning any specialist agent, prepend the following to the agent prompt:
 
-If found, prepend its contents to the agent prompt under a `## Available Tools` header.
-This ensures every agent knows what MCP tools and CLI tools are available.
+Check for `tools-manifest.md` in this order:
+1. `{project_dir}/tools-manifest.md`
+2. `{project_dir}/../template/tools-manifest.md` (repo-level template)
+
+If found, add to the agent prompt:
+```
+## Available Tools
+{content of tools-manifest.md}
+```
+
+This ensures every agent knows what MCP tools, CLI tools, and simulation tools are
+available without having to guess or re-discover them mid-task.
 
 ## Invoking a Specialist
 
