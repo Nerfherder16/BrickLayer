@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `4061a09` feat(roadmap): add Phase 11 ADBP Monte Carlo simulation engine (2026-03-19)
 - `c5d20fd` feat(mortar): wire /hats skill for strategic campaign decisions (2026-03-19)
 - `13c921f` chore: remove BL 1.x question-designer and unused bl/campaign.py (2026-03-19)
 - `dcfebff` fix(wiring): sync mortar.md to all project copies + Phase 10 FastMCP roadmap (2026-03-19)
