@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `4749f10` autopilot: phase9 task 6 — activate global hooks path + pytest.ini (2026-03-18)
 
 ## [BL 2.0 — Wave 25] — 2026-03-17
 
