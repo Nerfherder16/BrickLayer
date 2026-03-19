@@ -9,9 +9,29 @@
  * Use /verify or manual tsc for type checking.
  */
 
-const { execSync } = require("child_process");
+const { execSync, spawn } = require("child_process");
 const { existsSync, readFileSync } = require("fs");
 const path = require("path");
+
+/**
+ * Run a formatter in background (detached, fire-and-forget).
+ * Returns immediately — does NOT block the hook.
+ * This prevents VS Code file-watcher events from firing mid-stream
+ * and resetting the Claude Code webview scroll position.
+ */
+function runBackground(cmd, args, cwd) {
+  try {
+    const proc = spawn(cmd, args, {
+      detached: true,
+      stdio: "ignore",
+      cwd,
+      shell: process.platform === "win32",
+    });
+    proc.unref();
+  } catch {
+    // ignore spawn errors — formatting is best-effort
+  }
+}
 
 // Dirs/patterns to skip entirely
 const SKIP_PATTERNS = [
@@ -146,18 +166,24 @@ async function main() {
   if (filePath.endsWith(".py")) {
     const ruff = findRuff();
     if (!ruff) process.exit(0);
-    run(`"${ruff}" check --fix "${winPath}"`, cwdOpts);
-    run(`"${ruff}" format "${winPath}"`, cwdOpts);
+    // Run ruff fix+format in background — avoids file-watcher scroll reset in VS Code.
+    // Errors surface on the NEXT write (ruff check --no-fix is synchronous below).
+    runBackground(ruff, ["check", "--fix", winPath], projectRoot);
+    runBackground(ruff, ["format", winPath], projectRoot);
+    // Synchronous check only — no file writes, just reports. Quiet to avoid
+    // injecting feedback into the Claude panel (which also resets webview scroll).
     const check = run(`"${ruff}" check "${winPath}"`, cwdOpts);
     if (!check.ok) {
-      process.stderr.write(`Lint errors in ${filePath}:\n${check.output}\n`);
+      // Write a compact single-line message — large stderr blocks cause bigger scroll jumps
+      process.stderr.write(`ruff: ${path.basename(filePath)}: ${check.output.split("\n")[0]}\n`);
       process.exit(2);
     }
   } else if (/\.(ts|tsx|js|jsx)$/.test(filePath)) {
-    // Prettier only
-    run(`npx prettier --write "${filePath}"`, cwdOpts);
+    // Prettier: run in background — npx startup (~1-3s on Windows) was blocking
+    // the tool response long enough for VS Code to reset webview scroll position.
+    runBackground("npx", ["prettier", "--write", filePath], projectRoot);
 
-    // ESLint only if config exists nearby
+    // ESLint: check only if config exists nearby, also background
     let hasEslintConfig = false;
     let dir = path.dirname(filePath);
     for (let i = 0; i < 5; i++) {
@@ -176,14 +202,7 @@ async function main() {
     }
 
     if (hasEslintConfig) {
-      const eslint = run(`npx eslint --fix "${winPath}"`, cwdOpts);
-      if (!eslint.ok && !eslint.output.includes("eslint.config")) {
-        const recheck = run(`npx eslint "${winPath}"`, cwdOpts);
-        if (!recheck.ok && !recheck.output.includes("eslint.config")) {
-          process.stderr.write(`Lint errors in ${filePath}:\n${recheck.output}\n`);
-          process.exit(2);
-        }
-      }
+      runBackground("npx", ["eslint", "--fix", winPath], projectRoot);
     }
 
     // tsc --noEmit intentionally removed.
