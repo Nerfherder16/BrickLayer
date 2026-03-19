@@ -176,6 +176,30 @@ If Tier 1 and Tier 3 conflict, Tier 1 wins. Write a `CONFLICTS.md` if contradict
 
 ---
 
+## Global Git Post-Commit Hook
+
+A global post-commit hook lives at `~/.git-hooks/post-commit`. It is activated globally via:
+
+```bash
+git config --global core.hooksPath ~/.git-hooks
+```
+
+The hook auto-detects BL projects (via `simulate.py`, `questions.md`, or `.claude/agents/` sentinel)
+and appends commit entries to the appropriate `CHANGELOG.md`. For non-BL repos it exits silently.
+
+**CHANGELOG target logic:**
+- Root is a BL project -> `{repo_root}/CHANGELOG.md`
+- Changed files touch exactly one BL subdirectory -> `{project}/CHANGELOG.md`
+- Changed files touch multiple BL subdirectories -> `{repo_root}/CHANGELOG.md`
+- Non-BL repo -> no CHANGELOG written (exit 0)
+
+**One-time setup** (already active on this machine):
+```bash
+git config --global core.hooksPath ~/.git-hooks
+```
+
+---
+
 ## Common Issues
 
 **`./start.sh` not recognized in PowerShell**: Use `bash start.sh ...` or run manually (see above).
