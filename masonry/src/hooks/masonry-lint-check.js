@@ -166,17 +166,16 @@ async function main() {
   if (filePath.endsWith(".py")) {
     const ruff = findRuff();
     if (!ruff) process.exit(0);
-    // Run ruff fix+format in background — avoids file-watcher scroll reset in VS Code.
-    // Errors surface on the NEXT write (ruff check --no-fix is synchronous below).
-    runBackground(ruff, ["check", "--fix", winPath], projectRoot);
+    // Format only in background — no --fix (auto-fix removes imports before they're wired up,
+    // causing F401 false positives during active development).
     runBackground(ruff, ["format", winPath], projectRoot);
-    // Synchronous check only — no file writes, just reports. Quiet to avoid
-    // injecting feedback into the Claude panel (which also resets webview scroll).
+    // Synchronous check — warn only, never block. Mid-development files routinely have
+    // F821 (undefined name), F401 (unused import) that resolve in the next edit.
     const check = run(`"${ruff}" check "${winPath}"`, cwdOpts);
     if (!check.ok) {
-      // Write a compact single-line message — large stderr blocks cause bigger scroll jumps
+      // Warn to stderr but exit 0 — never block an edit for lint issues
       process.stderr.write(`ruff: ${path.basename(filePath)}: ${check.output.split("\n")[0]}\n`);
-      process.exit(2);
+      process.exit(0);
     }
   } else if (/\.(ts|tsx|js|jsx)$/.test(filePath)) {
     // Prettier: run in background — npx startup (~1-3s on Windows) was blocking
