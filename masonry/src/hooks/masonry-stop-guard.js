@@ -2,17 +2,21 @@
 /**
  * Stop hook (Masonry): Block if there are uncommitted git changes from THIS session.
  *
- * Monorepo-aware: uses file mtime to separate session changes (today) from
- * pre-existing changes in other projects. Never runs git diff — just lists
- * files with age labels so Claude knows what needs committing.
+ * Primary boundary: session snapshot written by masonry-session-start.js.
+ * At SessionStart, all pre-existing dirty files are recorded. On Stop, only
+ * files NOT in that snapshot are flagged — i.e. files modified THIS session.
  *
- * Exits silently (0) if nothing was modified today.
+ * Fallback: if no snapshot exists (session-start didn't run or no session ID),
+ * falls back to mtime-based detection (today's files only).
+ *
+ * Exits silently (0) if nothing new was modified this session.
  * Exit code 2 blocks the stop when session files are uncommitted.
  */
 
 const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -61,6 +65,20 @@ async function main() {
   if (parsed.stop_hook_active) process.exit(0);
 
   const cwd = normalizeCwd(parsed.cwd || process.cwd());
+  const sessionId = parsed.session_id || parsed.sessionId || null;
+
+  // Load session snapshot (written by masonry-session-start.js at session open).
+  // preExistingSet = files that were already dirty when this session started.
+  let preExistingSet = null;
+  if (sessionId) {
+    try {
+      const snapPath = path.join(os.tmpdir(), `masonry-snap-${sessionId}.json`);
+      const snap = JSON.parse(fs.readFileSync(snapPath, "utf8"));
+      preExistingSet = new Set(snap.preExisting || []);
+    } catch {
+      // Snapshot missing or unreadable — fall back to mtime detection
+    }
+  }
 
   try {
     const status = execSync("git status --porcelain", {
@@ -72,15 +90,11 @@ async function main() {
     if (!status) process.exit(0);
 
     // Collect all dirty file paths, then filter out gitignored ones.
-    // Rationale: tracked files in .gitignore (e.g. .autopilot/) are intentionally
-    // not meant to be committed — don't nag about them.
     const allLines = status.split("\n").filter(Boolean);
     const allFiles = allLines.map((l) => l.slice(3).trim());
 
     let ignoredSet = new Set();
     try {
-      // git check-ignore exits 0 if any path is ignored, 1 if none are.
-      // We pass all paths via --stdin and collect the ones that are ignored.
       const checkInput = allFiles.join("\n");
       const ignored = execSync("git check-ignore --stdin", {
         input: checkInput,
@@ -95,7 +109,6 @@ async function main() {
       }
     } catch {
       // Non-zero exit means no files are ignored — ignoredSet stays empty.
-      // Any other error: proceed without filtering (safe default).
     }
 
     const sessionModified = [];
@@ -106,17 +119,22 @@ async function main() {
       const xy = line.slice(0, 2).trim();
       const file = line.slice(3).trim();
 
-      // Skip gitignored paths — they can't be committed normally and are
-      // explicitly excluded from version control by the project's .gitignore.
+      // Skip gitignored paths
       if (ignoredSet.has(file)) continue;
 
-      const days = fileAgeDays(path.join(cwd, file.replace(/\/$/, "")));
-      const entry = { xy: xy || "??", file, days };
-
-      if (days === 0 || days === null) {
-        (xy === "??" ? sessionUntracked : sessionModified).push(entry);
+      if (preExistingSet !== null) {
+        // Snapshot mode: only flag files not present at session start
+        if (preExistingSet.has(file)) continue;
+        (xy === "??" ? sessionUntracked : sessionModified).push({ xy: xy || "??", file, days: 0 });
       } else {
-        staleFiles.push(entry);
+        // Fallback: mtime-based detection (today's files only)
+        const days = fileAgeDays(path.join(cwd, file.replace(/\/$/, "")));
+        const entry = { xy: xy || "??", file, days };
+        if (days === 0 || days === null) {
+          (xy === "??" ? sessionUntracked : sessionModified).push(entry);
+        } else {
+          staleFiles.push(entry);
+        }
       }
     }
 

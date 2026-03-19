@@ -5,6 +5,9 @@
  * Reads active mode state files and injects context so Claude knows
  * what was in progress when the session opens.
  *
+ * Also snapshots the current dirty file list so the stop-guard can
+ * distinguish files modified THIS session from pre-existing dirty files.
+ *
  * Replaces OMC's session-start.mjs + project-memory-session
  */
 
@@ -12,6 +15,7 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { execSync } = require("child_process");
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -83,6 +87,27 @@ async function main() {
 
   if (lines.length > 0) {
     process.stderr.write("\n" + lines.join("\n") + "\n\n");
+  }
+
+  // --- Session snapshot for stop-guard dirty-file diffing ---
+  // Capture which files are already dirty at session open so the stop-guard
+  // can ignore them and only flag files modified THIS session.
+  const sessionId = input.session_id || input.sessionId || null;
+  if (sessionId) {
+    try {
+      const status = execSync("git status --porcelain", {
+        encoding: "utf8",
+        timeout: 5000,
+        cwd,
+      }).trim();
+      const preExisting = status
+        ? status.split("\n").filter(Boolean).map((l) => l.slice(3).trim())
+        : [];
+      const snapPath = path.join(os.tmpdir(), `masonry-snap-${sessionId}.json`);
+      fs.writeFileSync(snapPath, JSON.stringify({ sessionId, cwd, preExisting }), "utf8");
+    } catch {
+      // Non-git dir or git unavailable — skip snapshot silently
+    }
   }
 
   process.exit(0);
