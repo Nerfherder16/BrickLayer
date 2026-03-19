@@ -203,9 +203,29 @@ Fire when `global_count` crosses a multiple of the interval:
 | Every 10 (global) | Spawn agent-auditor in background: `agents_dir=.claude/agents/, findings_dir=findings/, results_tsv=results.tsv` — then check its output (see Overseer Escalation below) |
 | Every 10 (global) | Invoke synthesizer-bl2 in **lightweight mode**: `mode=mid-session, findings_dir=findings/, project_name={project}` — does not commit, just refreshes synthesis.md. Mortar reads the updated synthesis before routing the next question. |
 | After every finding | Spawn peer-reviewer in background: `primary_finding=findings/{id}.md, target_git=., agents_dir=.claude/agents/` |
-| At campaign close | Force-fire both forge-check and agent-auditor before calling synthesizer |
+| At campaign close | Force-fire forge-check, agent-auditor, AND skill-forge before/after calling synthesizer |
 
 Do not wait for background agents. Continue to next question immediately.
+
+### forge-check Sentinel (every 5 questions)
+
+When `global_count % 5 == 0`:
+
+```
+Act as the forge-check agent in .claude/agents/forge-check.md.
+Inputs:
+- agents_dir={project_dir}/.claude/agents/
+- findings_dir={project_dir}/findings/
+- questions_md={project_dir}/questions.md
+
+Mode: background — do not wait for completion.
+```
+
+Log: `[MORTAR] Sentinel: forge-check spawned (5-question interval)`
+
+After forge-check writes `FORGE_NEEDED.md` (at `{project_dir}/.claude/agents/FORGE_NEEDED.md`),
+the overseer will consume it on its next scheduled run (every 10 questions or at wave end).
+Mortar does NOT act on `FORGE_NEEDED.md` directly — it is input to the overseer.
 
 ## Overseer Escalation
 
@@ -217,9 +237,29 @@ grep "verdict.*FLEET_UNDERPERFORMING\|FLEET_UNDERPERFORMING" .claude/agents/AUDI
 
 If FLEET_UNDERPERFORMING is found:
 1. Log: `[MORTAR] ESCALATION: fleet underperforming — invoking overseer`
-2. Invoke overseer: `Act as the overseer agent in .claude/agents/overseer.md. Read AUDIT_REPORT.md and take corrective action.`
+2. Invoke overseer:
+
+   ```
+   Act as the overseer agent in .claude/agents/overseer.md.
+   Inputs:
+   - agent_db_json={project_dir}/agent_db.json
+   - agents_dir={project_dir}/.claude/agents/
+   - findings_dir={project_dir}/findings/
+   - project_brief={project_dir}/project-brief.md
+
+   Read AUDIT_REPORT.md and take corrective action.
+   ```
+
 3. Wait for overseer (it rewrites agent .md files — must complete before next question)
 4. Log: `[MORTAR] Overseer intervention complete`
+5. If overseer created new agents from FORGE_NEEDED.md, re-scan `.claude/agents/` to refresh
+   the dynamic agent catalog before routing the next question:
+
+   ```bash
+   for f in .claude/agents/*.md; do grep -m2 "^name:\|^description:" "$f"; done
+   ```
+
+   Update `agent_catalog` accordingly.
 
 If FLEET_WARNING or FLEET_HEALTHY: log and continue without escalation.
 
@@ -436,8 +476,38 @@ When fewer than 3 PENDING questions remain:
 When 0 PENDING questions remain after hypothesis-generator has run:
 1. Call synthesizer
 2. Write synthesis to findings/synthesis.md
-3. Output campaign completion summary
-4. Stop
+3. Invoke skill-forge in background:
+
+   ```
+   Act as the skill-forge agent in .claude/agents/skill-forge.md.
+   Inputs:
+   - synthesis_md={project_dir}/findings/synthesis.md
+   - findings_dir={project_dir}/findings/
+   - project_root={project_dir}
+   - skill_registry_json={project_dir}/skill_registry.json
+   - skills_dir=~/.claude/skills/
+   - project_name={project_name}
+   ```
+
+   Log: `[MORTAR] Skill-forge spawned — distilling findings into skills`
+   Do not wait for skill-forge to complete. Continue immediately to step 4.
+
+4. Invoke agent-auditor (final wave audit — foreground):
+
+   ```
+   Act as the agent-auditor agent in .claude/agents/agent-auditor.md.
+   Inputs:
+   - agents_dir={project_dir}/.claude/agents/
+   - findings_dir={project_dir}/findings/
+   - results_tsv={project_dir}/results.tsv
+   ```
+
+   Log: `[MORTAR] Final agent audit spawned — scoring fleet performance`
+   Wait for agent-auditor to complete (foreground — overseer escalation depends on its output).
+
+5. After agent-auditor completes, check for FLEET_UNDERPERFORMING (see Overseer Escalation section).
+6. Output campaign completion summary
+7. Stop
 
 ## Recall — inter-agent memory
 
