@@ -75,6 +75,8 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `a23f45f` feat(hooks): auto-resume interrupted build on session start (2026-03-19)
+- `45e0385` chore: CHANGELOG.md post-hook entries (2026-03-18)
 - `d68c6a2` feat(phase9): Task 7 — Kiln typecheck clean + build success (2026-03-18)
 - `a240251` autopilot: Phase 9 complete — update CHANGELOG.md (2026-03-18)
 - `fb588ec` feat(phase9): Task 6 — activate global git hooks path (2026-03-18)
