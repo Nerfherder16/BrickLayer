@@ -46,6 +46,42 @@ Prepend `"Read campaign-context.md before proceeding.\n\n"` to every specialist 
    - Log: `[MORTAR] WARNING: {N} questions BLOCKED at startup — check question-designer output and re-run`
    - Do not abort; continue with valid questions
 
+## Wave 0 — Pre-Flight Gate Check
+
+**Run this once at campaign start, before Wave 1 questions begin.**
+
+Purpose: Discover which simulation gates *ever* fire under default parameters.
+Questions about conditions that never fire can be pruned or deprioritized.
+
+### Procedure
+
+1. Run `run_simulation()` with default parameters (no modifications to `simulate.py`).
+2. Examine the returned records and `failure_reason`:
+   - Note which metrics crossed WARNING threshold vs FAILURE threshold
+   - Note which metrics never moved from baseline (always 0 or always max)
+3. Write `pre-flight.md` to the project directory:
+
+```markdown
+# Pre-Flight Gate Check
+
+**Run date**: {ISO date}
+**Verdict**: {HEALTHY | WARNING | FAILURE}
+**Default primary metric**: {value}
+
+## Gates That Fire
+- {metric}: crossed {threshold} at month {N}
+
+## Gates That Never Fire (null conditions)
+- {metric}: always {value} — questions about this metric should be deprioritized
+
+## Recommendation
+{1-2 sentences about what to focus on in Wave 1}
+```
+
+4. Log: `[MORTAR] PRE-FLIGHT: verdict={verdict}, null_gates=[{list}]`
+5. If `failure_reason` is not None at default params → flag as CRITICAL in pre-flight.md.
+   The model may already be broken at baseline. Pause and notify.
+
 ## Dynamic Agent Catalog
 
 At startup, scan `.claude/agents/` and build a routing catalog from frontmatter:
@@ -109,6 +145,15 @@ Prefer the agent with:
 Log: `[MORTAR] Routing {id} → {agent} (confidence-weighted: {ratio} vs {ratio})`
 
 If Recall is unavailable, fall back to the routing table order.
+
+### Tools Manifest Injection
+
+Before spawning any specialist agent, check for `tools-manifest.md` in:
+1. `{project_root}/tools-manifest.md`
+2. `{template_dir}/tools-manifest.md`
+
+If found, prepend its contents to the agent prompt under a `## Available Tools` header.
+This ensures every agent knows what MCP tools and CLI tools are available.
 
 ## Invoking a Specialist
 

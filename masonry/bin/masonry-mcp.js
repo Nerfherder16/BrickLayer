@@ -3,7 +3,7 @@
 /**
  * bin/masonry-mcp.js — Masonry MCP server
  *
- * Exposes 10 tools over MCP stdio transport (JSON-RPC 2.0):
+ * Exposes 12 tools over MCP stdio transport (JSON-RPC 2.0):
  *   - masonry_status          — current campaign state
  *   - masonry_findings        — recent findings with verdicts
  *   - masonry_questions       — question bank query
@@ -14,6 +14,8 @@
  *   - masonry_git_hypothesis  — generate questions from git diffs
  *   - masonry_nl_generate     — NL description → research questions
  *   - masonry_run_question    — run a single question by ID
+ *   - masonry_run_simulation  — run a simulation with custom params, return structured results
+ *   - masonry_sweep           — parameter sweep across multiple values
  */
 
 const fs = require("fs");
@@ -203,6 +205,52 @@ const TOOLS = [
         question_id: { type: "string", description: "e.g. 'Q1', 'D3', 'R1.1'" },
       },
       required: ["project_path", "question_id"],
+    },
+  },
+  {
+    name: "masonry_run_simulation",
+    description: "Run a single simulation with given parameters and return structured results. Schema enforces valid param names — prevents AttributeError silent failures.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: {
+          type: "string",
+          description: "Absolute path to the project directory (contains simulate.py)",
+        },
+        months: { type: "integer", description: "Simulation duration in months" },
+        initial_units: { type: "number" },
+        monthly_growth_rate: { type: "number" },
+        churn_rate: { type: "number" },
+        price_per_unit: { type: "number" },
+        ops_cost_base: { type: "number" },
+      },
+      required: ["project_path"],
+    },
+  },
+  {
+    name: "masonry_sweep",
+    description: "Run a parameter sweep across multiple values and optionally multiple scenarios. Returns structured list. Eliminates hand-written nested loops.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: { type: "string", description: "Absolute path to project directory" },
+        param_name: { type: "string", description: "Parameter to sweep e.g. 'churn_rate'" },
+        values: {
+          type: "array",
+          items: { type: "number" },
+          description: "Values to test e.g. [0.02, 0.05, 0.08, 0.12]",
+        },
+        scenarios: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional scenario labels",
+        },
+        base_params: {
+          type: "object",
+          description: "Base parameters applied to all runs",
+        },
+      },
+      required: ["project_path", "param_name", "values"],
     },
   },
 ];
@@ -687,7 +735,7 @@ function callPython(code, inputObj) {
     const result = execSync(`python "${scriptFile}"`, {
       timeout: 15000,
       encoding: "utf8",
-      env: process.env,
+      env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
     });
     return JSON.parse(result.trim());
   } catch (err) {
@@ -696,6 +744,55 @@ function callPython(code, inputObj) {
     try { fs.unlinkSync(scriptFile); } catch (_) {}
     try { fs.unlinkSync(inputFile); } catch (_) {}
   }
+}
+
+function toolRunSimulation(args) {
+  const code = `
+from pathlib import Path
+import importlib.util, sys, io, json
+
+project_path = Path(args["project_path"])
+simulate_path = project_path / "simulate.py"
+
+real_stdout = sys.stdout
+fake_buf = io.BytesIO()
+sys.stdout = io.TextIOWrapper(fake_buf, encoding="utf-8")
+try:
+    spec = importlib.util.spec_from_file_location("simulate_mcp", simulate_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+finally:
+    sys.stdout = real_stdout
+
+kwargs = {k: v for k, v in args.items() if k != "project_path"}
+for k, v in kwargs.items():
+    if hasattr(mod, k):
+        setattr(mod, k, v)
+records, failure_reason = mod.run_simulation()
+result = mod.evaluate(records, failure_reason)
+result["records"] = records
+print(json.dumps(result))  # noqa: mcp-stdout
+`;
+  return callPython(code, args);
+}
+
+function toolSweep(args) {
+  const code = `
+from pathlib import Path
+import sys, json
+sys.path.insert(0, ${JSON.stringify(REPO_ROOT)})
+from bl.sweep import sweep
+
+results = sweep(
+    project_dir=Path(args["project_path"]),
+    param_name=args["param_name"],
+    values=args["values"],
+    scenarios=args.get("scenarios"),
+    base_params=args.get("base_params"),
+)
+print(json.dumps({"results": results, "count": len(results)}))  # noqa: mcp-stdout
+`;
+  return callPython(code, args);
 }
 
 function toolNlGenerate(args) {
@@ -763,6 +860,10 @@ async function dispatchTool(name, args) {
       return toolNlGenerate(args);
     case "masonry_run_question":
       return toolRunQuestion(args);
+    case "masonry_run_simulation":
+      return toolRunSimulation(args);
+    case "masonry_sweep":
+      return toolSweep(args);
     default:
       throw new Error(`Unknown tool: ${name}`);
   }

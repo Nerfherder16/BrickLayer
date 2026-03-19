@@ -151,6 +151,61 @@ def parse_recommendation(synthesis_text: str) -> str:
     return "CONTINUE"
 
 
+def _run_retrospective(project_dir: Path) -> None:
+    """
+    Invoke the retrospective agent via claude CLI after synthesis completes.
+    Non-blocking — logs on failure and returns. Never raises.
+
+    Looks for retrospective.md in:
+      {project_dir}/.claude/agents/retrospective.md
+    """
+    agent_file = project_dir / ".claude" / "agents" / "retrospective.md"
+    if not agent_file.exists():
+        return
+
+    # Count questions for richer context prompt
+    questions_md = project_dir / "questions.md"
+    done_count = 0
+    total_count = 0
+    if questions_md.exists():
+        text = questions_md.read_text(encoding="utf-8")
+        total_count = text.count("**Status**:")
+        done_count = text.count("**Status**: DONE")
+
+    project_name = project_dir.name
+    brief = project_dir / "project-brief.md"
+    if brief.exists():
+        first_line = (
+            brief.read_text(encoding="utf-8").splitlines()[0].strip("# ").strip()
+        )
+        if first_line:
+            project_name = first_line
+
+    prompt = (
+        f"Act as the retrospective agent defined in {agent_file}. "
+        f"Project: {project_name}. "
+        f"Project directory: {project_dir}. "
+        f"Campaign stats: {total_count} questions total, {done_count} DONE. "
+        "Read findings/*.md, results.tsv, synthesis.md, and pre-flight.md (if present). "
+        "Score execution quality across Tool Friction, Sweep Efficiency, Finding Quality, "
+        "and Question Coverage. Write retrospective.md to the project root."
+    )
+
+    claude_bin = shutil.which("claude") or "claude"
+    try:
+        subprocess.run(
+            [claude_bin, "-p", prompt, "--output-format", "text"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=180,
+            cwd=str(project_dir),
+        )
+        print("[synthesizer] Retrospective complete.", file=sys.stderr)
+    except Exception as e:
+        print(f"[synthesizer] Retrospective skipped: {e}", file=sys.stderr)
+
+
 def synthesize(
     project_dir: Path,
     wave: int | None = None,
@@ -233,4 +288,8 @@ Then one paragraph of specific reasoning for the recommendation."""
 
     synthesis_path = project_dir / "synthesis.md"
     synthesis_path.write_text(output, encoding="utf-8")
+
+    # Trigger post-synthesis retrospective scoring
+    _run_retrospective(project_dir)
+
     return synthesis_path
