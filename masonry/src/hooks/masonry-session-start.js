@@ -51,11 +51,29 @@ async function main() {
       const pending = (progress.tasks || []).filter(t => t.status !== "DONE" && t.status !== "BLOCKED");
       const done = (progress.tasks || []).filter(t => t.status === "DONE").length;
       const total = (progress.tasks || []).length;
+
+      if (pending.length > 0 && (autopilotMode === "build" || autopilotMode === "fix")) {
+        // Interrupted build detected — auto-resume by injecting /build into the conversation.
+        // Write hookSpecificOutput to stdout so Claude receives it as a prompt directive.
+        const resumeMsg = [
+          `[Masonry] Interrupted ${autopilotMode} detected: project "${progress.project || "?"}", ${done}/${total} tasks done.`,
+          `  Next: #${pending[0].id} — ${pending[0].description}`,
+          `  Auto-resuming — run /build to continue.`,
+        ].join("\n");
+        process.stdout.write(JSON.stringify({
+          hookSpecificOutput: {
+            hookEventName: "SessionStart",
+            content: resumeMsg + "\n\nResume the interrupted build now. Invoke the /build skill to continue from where it left off.",
+          },
+        }));
+        process.exit(0);
+      }
+
       lines.push(`[Masonry] Autopilot ${autopilotMode.toUpperCase()} mode active — project: ${progress.project || "?"}, ${done}/${total} tasks done, ${pending.length} remaining.`);
       if (pending.length > 0) {
         lines.push(`  Next task: #${pending[0].id} — ${pending[0].description}`);
+        lines.push(`  Run /build to resume.`);
       }
-      lines.push(`  Run /build to resume.`);
     } else {
       lines.push(`[Masonry] Autopilot ${autopilotMode.toUpperCase()} mode active. Check .autopilot/ for state.`);
     }
