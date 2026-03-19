@@ -19,7 +19,7 @@ while PENDING questions exist:
     update questions.md status
     check wave sentinels
     if bank < 3 PENDING:
-        call hypothesis-generator
+        call hypothesis-generator-bl2  (not hypothesis-generator — BL 2.0 projects use hypothesis-generator-bl2)
 end
 call synthesizer
 ```
@@ -118,7 +118,7 @@ Read the `**Mode**:` field (lowercase). Route accordingly:
 | `diagnose` | diagnose-analyst |
 | `fix` | fix-implementer |
 | `audit` | compliance-auditor |
-| `research` | regulatory-researcher or competitive-analyst (read **Agent**: field to disambiguate) |
+| `research` | regulatory-researcher, competitive-analyst, or research-analyst (read **Agent**: field to disambiguate) |
 | `benchmark` | benchmark-engineer |
 | `validate` | design-reviewer |
 | `evolve` | evolve-optimizer |
@@ -469,14 +469,28 @@ If any file edit fails:
 ## When the Bank Is Empty
 
 When fewer than 3 PENDING questions remain:
-1. Call hypothesis-generator with context: synthesis.md + 5 most recent findings
+1. Call hypothesis-generator-bl2 with context: synthesis.md + 5 most recent findings
 2. Wait for new questions to be added to questions.md
 3. Continue loop with new PENDING questions
 
-When 0 PENDING questions remain after hypothesis-generator has run:
-1. Call synthesizer
+When 0 PENDING questions remain after hypothesis-generator-bl2 has run:
+1. Call synthesizer-bl2 (not synthesizer — BL 2.0 projects use synthesizer-bl2)
 2. Write synthesis to findings/synthesis.md
-3. Invoke skill-forge in background:
+3. Invoke retrospective (foreground — runs immediately after synthesis):
+
+   ```
+   Act as the retrospective agent in .claude/agents/retrospective.md.
+   Inputs: project root = {project_dir}
+   Read questions.md, results.tsv, findings/synthesis.md, all findings/*.md,
+   constants.py, simulate.py, project-brief.md.
+   Write retrospective.md and retro-actions.md (if CRITICAL/HIGH issues found).
+   ```
+
+   Log: `[MORTAR] Retrospective spawned — post-campaign quality analysis`
+   Wait for retrospective to complete (foreground — retro-actions.md may block next campaign).
+   If retrospective writes CRITICAL to stderr, surface it to the user before continuing.
+
+4. Invoke skill-forge in background:
 
    ```
    Act as the skill-forge agent in .claude/agents/skill-forge.md.
@@ -506,7 +520,19 @@ When 0 PENDING questions remain after hypothesis-generator has run:
    Wait for agent-auditor to complete (foreground — overseer escalation depends on its output).
 
 5. After agent-auditor completes, check for FLEET_UNDERPERFORMING (see Overseer Escalation section).
-6. Spawn git-nerd (wave-end commit + PR):
+6. Invoke mcp-advisor (background — identifies missing MCP capabilities from INCONCLUSIVE patterns):
+
+   ```
+   Act as the mcp-advisor agent in .claude/agents/mcp-advisor.md.
+   Inputs: project root = {project_dir}
+   Read all findings/*.md and results.tsv.
+   Write MCP_RECOMMENDATIONS.md if gaps found.
+   ```
+
+   Log: `[MORTAR] mcp-advisor spawned — scanning for missing MCP capabilities`
+   Do not wait for mcp-advisor. Continue immediately to step 7.
+
+7. Spawn git-nerd (wave-end commit + PR):
    ```
    Act as the git-nerd agent in .claude/agents/git-nerd.md.
    project_root={project_dir}
@@ -514,8 +540,8 @@ When 0 PENDING questions remain after hypothesis-generator has run:
    ```
    Log: `[MORTAR] git-nerd spawned — committing findings and updating campaign PR`
    Wait for git-nerd to complete (foreground — ensures findings are committed before loop exits).
-7. Output campaign completion summary
-8. Stop
+8. Output campaign completion summary
+9. Stop
 
 ## Recall — inter-agent memory
 
