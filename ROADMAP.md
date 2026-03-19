@@ -332,6 +332,29 @@ in `~/.claude.json`. Does NOT replace masonry-mcp.js — both run in parallel.
 
 ---
 
+## Phase 11 — ADBP Monte Carlo Simulation Engine (Rust)
+
+**Goal:** Replace ADBP's deterministic point-estimate simulation with a Rust-powered MC engine that surfaces probability distributions, multi-party scoring, and Pareto-optimal operating conditions.
+
+| ID | Task | Status |
+|----|------|--------|
+| 11.01 | Classify `adbp_constants.py` into Tier 1 (contract), Tier 2 (policy), Tier 3 (behavioral estimates) | 💡 |
+| 11.02 | Create `policy_params.py` and `behavioral_params.py` alongside `adbp_constants.py` | 💡 |
+| 11.03 | Scaffold Rust crate (`adbp/mc/`) with maturin + PyO3 | 💡 |
+| 11.04 | Port ADBP economic model to Rust (`model.rs`) | 💡 |
+| 11.05 | Implement distribution samplers (`distributions.rs`) — lognormal, beta, normal | 💡 |
+| 11.06 | MC runner (`runner.rs`) — 10K samples, parallel via rayon | 💡 |
+| 11.07 | Multi-objective scoring (`scoring.rs`) — employee/vendor/treasury as continuous 0→1 | 💡 |
+| 11.08 | Pareto frontier analysis (`pareto.rs`) | 💡 |
+| 11.09 | PyO3 bindings (`lib.rs`) — `import adbp_mc; adbp_mc.run(params, n_samples=10_000)` | 💡 |
+| 11.10 | `simulate_mc.py` wrapper — BL-compatible output (p10/p50/p90 per metric) | 💡 |
+| 11.11 | BL MCP integration — `masonry_run_simulation` gains `monte_carlo_samples` param | 💡 |
+
+**Architecture:** PyO3 + maturin. Python API unchanged for BL agents. Rust handles all MC computation.
+**Prerequisite:** Read `ADBP_Final_Model_Legal_2.pdf` to confirm Tier 1 contract rule classification.
+
+---
+
 ## Design Principles
 
 1. **Universal verdict envelope.** Every runner, every target, every question type produces the same `{verdict, summary, data, details}` shape.
