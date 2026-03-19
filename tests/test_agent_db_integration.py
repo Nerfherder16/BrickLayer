@@ -1,14 +1,6 @@
-"""Integration test for agent_db write-after-finding flow.
-
-Tests the record_run() -> get_score() -> get_trend() -> get_underperformers()
-round-trip — the exact sequence mortar executes after each finding.
-
-bl/ is not on sys.path by default when running from project directories;
-tests import via the project root (where pytest is invoked from).
-"""
+"""Integration test for agent_db write-after-finding flow."""
 
 import json
-
 from bl.agent_db import record_run, get_score, get_trend, get_underperformers
 
 
@@ -20,14 +12,12 @@ class TestAgentDbRoundTrip:
         assert score == 1.0
 
     def test_score_updates_after_multiple_runs(self, tmp_path):
-        """Score reflects verdict distribution after multiple runs.
-
-        2 FIXED (success, 1.0 each) + 1 INCONCLUSIVE (failure, 0.0) = 2/3 ≈ 0.6667
-        """
+        """Score reflects verdict distribution after multiple runs."""
         record_run(tmp_path, "fix-implementer", "FIXED")
         record_run(tmp_path, "fix-implementer", "FIXED")
         record_run(tmp_path, "fix-implementer", "INCONCLUSIVE")
         score = get_score(tmp_path, "fix-implementer")
+        # 2 success + 0 partial + 1 failure = 2/3 ≈ 0.6667
         assert 0.66 < score < 0.67
 
     def test_trend_insufficient_data(self, tmp_path):
@@ -39,7 +29,7 @@ class TestAgentDbRoundTrip:
     def test_trend_detects_decline(self, tmp_path):
         """Trend detects declining performance across windows."""
         agent = "competitive-analyst"
-        # 5 good runs then 5 bad runs — score_recent should be well below score_prior
+        # 5 good runs then 5 bad runs
         for _ in range(5):
             record_run(tmp_path, agent, "HEALTHY")
         for _ in range(5):
