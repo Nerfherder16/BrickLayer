@@ -203,7 +203,7 @@ Fire when `global_count` crosses a multiple of the interval:
 | Every 10 (global) | Spawn agent-auditor in background: `agents_dir=.claude/agents/, findings_dir=findings/, results_tsv=results.tsv` — then check its output (see Overseer Escalation below) |
 | Every 10 (global) | Invoke synthesizer-bl2 in **lightweight mode**: `mode=mid-session, findings_dir=findings/, project_name={project}` — does not commit, just refreshes synthesis.md. Mortar reads the updated synthesis before routing the next question. |
 | After every finding | Spawn peer-reviewer in background: `primary_finding=findings/{id}.md, target_git=., agents_dir=.claude/agents/` |
-| At campaign close | Force-fire forge-check, agent-auditor, AND skill-forge before/after calling synthesizer |
+| At campaign close | Force-fire forge-check, agent-auditor, AND skill-forge before/after calling synthesizer; then spawn git-nerd (task=wave-end) to commit findings and create/update PR |
 
 Do not wait for background agents. Continue to next question immediately.
 
@@ -506,8 +506,16 @@ When 0 PENDING questions remain after hypothesis-generator has run:
    Wait for agent-auditor to complete (foreground — overseer escalation depends on its output).
 
 5. After agent-auditor completes, check for FLEET_UNDERPERFORMING (see Overseer Escalation section).
-6. Output campaign completion summary
-7. Stop
+6. Spawn git-nerd (wave-end commit + PR):
+   ```
+   Act as the git-nerd agent in .claude/agents/git-nerd.md.
+   project_root={project_dir}
+   task=wave-end
+   ```
+   Log: `[MORTAR] git-nerd spawned — committing findings and updating campaign PR`
+   Wait for git-nerd to complete (foreground — ensures findings are committed before loop exits).
+7. Output campaign completion summary
+8. Stop
 
 ## Recall — inter-agent memory
 

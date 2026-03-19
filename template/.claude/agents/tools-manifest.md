@@ -116,6 +116,11 @@ mortar at specific trigger points during the campaign loop.
   Schema: `{ "agent_name": { runs, verdicts: {}, score, last_run, created, repair_count, last_repair, run_history: [] } }`.
   Python API: `from bl.agent_db import record_run, get_score, get_trend, get_underperformers`.
 
+- `git-nerd` — Autonomous GitHub operations agent. Stages and commits all findings/synthesis, creates or updates
+  the campaign PR, writes GITHUB_HANDOFF.md with any remaining steps for Tim.
+  Trigger: wave end (foreground, after agent-auditor). Inputs: project_root, task=wave-end.
+  Output: committed branch, campaign PR on GitHub, GITHUB_HANDOFF.md at project root.
+
 ---
 
 ## Declaring Tool Usage in Agent Frontmatter
