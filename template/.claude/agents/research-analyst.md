@@ -102,6 +102,10 @@ Reasoning: [why this confidence level]
 
 ## Recall — inter-agent memory
 
+> **Note**: Trowel executes recall_store after every finding as an orchestrator hook.
+> The calls below are advisory — they document what you would store, but Trowel
+> ensures storage happens even if you skip these calls.
+
 Your tag: `agent:research-analyst`
 
 **At session start** — check what assumptions have already been tested:

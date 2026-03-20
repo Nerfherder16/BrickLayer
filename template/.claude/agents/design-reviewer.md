@@ -111,6 +111,10 @@ Reasoning: {key findings that drove the overall recommendation}
 
 ## Recall — inter-agent memory
 
+> **Note**: Trowel executes recall_store after every finding as an orchestrator hook.
+> The calls below are advisory — they document what you would store, but Trowel
+> ensures storage happens even if you skip these calls.
+
 Your tag: `agent:design-reviewer`
 
 **At session start** — check what invariants from prior reviews have been established:

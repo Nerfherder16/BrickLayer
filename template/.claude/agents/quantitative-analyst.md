@@ -71,6 +71,10 @@ On CONCERNS verdict where parameter is near threshold, append:
 
 ## Recall — inter-agent memory
 
+> **Note**: Trowel executes recall_store after every finding as an orchestrator hook.
+> The calls below are advisory — they document what you would store, but Trowel
+> ensures storage happens even if you skip these calls.
+
 Your tag: `agent:quantitative-analyst`
 
 **At session start** — check if prior runs established baselines or found boundaries:
