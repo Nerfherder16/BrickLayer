@@ -36,13 +36,23 @@ Write `campaign-context.md` in the project root with:
 - `## Open Hypotheses`: PENDING questions with weight > 1.5 from .bl-weights.json (if it exists)
 Prepend `"Read campaign-context.md before proceeding.\n\n"` to every specialist agent spawn prompt.
 
-1. Read all questions in questions.md
-2. Collect all `**Mode**:` values
-3. Check each against the valid set: `simulate, diagnose, fix, audit, research, benchmark, validate, evolve, monitor, predict, frontier, agent`
-4. For any unrecognized mode:
+1. **Placeholder check**: Scan questions.md for any of these strings: `[parameter X]`, `[volume / adoption / usage]`, `[critical dependency]`, `{PROJECT NAME}`. If found:
+   - Log: `[TROWEL] ABORT: questions.md contains template placeholder text — question bank was never generated`
+   - Invoke question-designer-bl2 immediately:
+     ```
+     Act as the question-designer-bl2 agent in .claude/agents/question-designer-bl2.md.
+     Project root: {project_dir}
+     Read project-brief.md, all files in docs/, constants.py, and simulate.py.
+     Generate the initial question bank in questions.md.
+     ```
+   - Wait for completion, re-read questions.md, then continue startup.
+2. Read all questions in questions.md
+3. Collect all `**Mode**:` values
+4. Check each against the valid set: `simulate, diagnose, fix, audit, research, benchmark, validate, evolve, monitor, predict, frontier, agent`
+5. For any unrecognized mode:
    - Log: `[TROWEL] STARTUP: invalid mode '{mode}' on {id} — marking BLOCKED`
    - Set question `**Status**: BLOCKED`
-5. If > 20% of questions are BLOCKED at startup:
+6. If > 20% of questions are BLOCKED at startup:
    - Log: `[TROWEL] WARNING: {N} questions BLOCKED at startup — check question-designer output and re-run`
    - Do not abort; continue with valid questions
 
