@@ -75,6 +75,8 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `143f0a5` fix(adbp2): replace stale admin_fees_paid ref with operator_revenue in plot_charts (2026-03-20)
+- `86e97c8` chore(adbp2): extend simulation to 120 months + updated results (2026-03-20)
 - `36dda5e` chore: update results snapshot (2026-03-20)
 - `71169a2` chore: update results snapshot (2026-03-20)
 - `3e6ffdd` fix: zero-burn guard when minting is paused (emergency protocol) (2026-03-20)
