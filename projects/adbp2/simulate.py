@@ -167,7 +167,7 @@ def run_simulation() -> tuple[list[dict], str | None]:
         reimbursements_paid = 0.0
         burn_rate = 0.0
 
-        if crr >= BURN_ELIGIBLE_CRR and circulating_tokens > 0:
+        if crr >= BURN_ELIGIBLE_CRR and circulating_tokens > 0 and not minting_paused:
             annual_burn_rate = dynamic_burn_rate(crr)
             burn_rate = 1.0 - (1.0 - annual_burn_rate) ** (1.0 / 12.0)
             tokens_burned = circulating_tokens * burn_rate
