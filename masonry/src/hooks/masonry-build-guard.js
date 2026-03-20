@@ -42,9 +42,16 @@ async function main() {
 
   if (parsed.stop_hook_active) process.exit(0);
 
-  const cwd = parsed.cwd || process.cwd();
-  const autopilotDir = findAutopilotDir(cwd);
+  const sessionCwd = parsed.cwd || process.env.PWD || process.cwd();
+  const autopilotDir = findAutopilotDir(sessionCwd);
   if (!autopilotDir) process.exit(0);
+
+  // Only block if the .autopilot/ dir belongs to this session's working directory.
+  // Walking up can find a .autopilot/ owned by a parent project — that build belongs
+  // to a different session and should not block this one.
+  const resolvedAutopilot = path.resolve(autopilotDir);
+  const resolvedCwd = path.resolve(sessionCwd);
+  if (resolvedAutopilot !== path.join(resolvedCwd, ".autopilot")) process.exit(0);
 
   const modeFile = path.join(autopilotDir, "mode");
   if (!existsSync(modeFile)) process.exit(0);
