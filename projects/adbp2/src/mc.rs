@@ -48,7 +48,7 @@ pub fn sample_params(base: &SimParams, config: &MCDistributionConfig, rng: &mut 
     if let (Some(alpha), Some(beta_param)) = (config.fee_compliance_alpha, config.fee_compliance_beta) {
         if alpha > 0.0 && beta_param > 0.0 {
             let dist = Beta::new(alpha, beta_param).unwrap();
-            let compliance = dist.sample(rng).max(0.0).min(1.0);
+            let compliance = dist.sample(rng).clamp(0.0, 1.0);
             // Apply compliance as a scale factor on the fee
             p.employee_fee_monthly *= compliance;
         }

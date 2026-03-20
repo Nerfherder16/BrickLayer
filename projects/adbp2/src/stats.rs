@@ -1,4 +1,4 @@
-use crate::sim::{EvalResult, MonthRecord, SimResult};
+use crate::sim::{EvalResult, SimResult};
 
 /// Full Monte Carlo output structure.
 /// Serialized to Python dict via to fields — mirrors the spec schema.
@@ -111,7 +111,7 @@ pub fn summarize_mc(
             // Runs that terminated early are treated as CRR=0 (insolvent)
             // Pad to n samples with 0.0 if some runs were shorter
             let short_count = n - crr_at_month.len();
-            crr_at_month.extend(std::iter::repeat(0.0_f64).take(short_count));
+            crr_at_month.extend(std::iter::repeat_n(0.0_f64, short_count));
             p10_traj.push(percentile(&crr_at_month, 10.0));
             p50_traj.push(percentile(&crr_at_month, 50.0));
             p90_traj.push(percentile(&crr_at_month, 90.0));
@@ -120,7 +120,7 @@ pub fn summarize_mc(
 
     // ── P(burn activates within N months) ─────────────────────────────────
     let burn_within = |limit_months: usize| -> f64 {
-        let count = results.iter().filter(|(sr, er)| {
+        let count = results.iter().filter(|(_sr, er)| {
             match er.first_burn_month {
                 Some(m) => m <= limit_months,
                 None => false,
