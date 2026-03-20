@@ -52,20 +52,29 @@ def _make_baseline_params():
 def _run_python_sim_via_subprocess():
     """Run simulate.py in a subprocess and return its records as a list of dicts.
 
-    simulate.py's __main__ block writes to results.tsv and reports/simulation_data.json.
-    We use the JSON output for comparison.
+    simulate.py's __main__ block writes reports/simulation_data.json.
+    We use that JSON output for comparison instead of capturing stdout
+    (simulate.py replaces sys.stdout which can corrupt pytest handle state).
     """
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     env = os.environ.copy()
-    env["MPLBACKEND"] = "Agg"  # Non-interactive backend — prevents plt.show() from blocking
-    result = subprocess.run(
-        [sys.executable, "simulate.py"],
-        cwd=project_root,
-        capture_output=True,
-        text=True,
-        timeout=60,
-        env=env,
-    )
+    env["MPLBACKEND"] = "Agg"  # Non-interactive backend — prevents plt.show() blocking
+
+    # Use file handles (not PIPE) to avoid handle duplication issues on Windows
+    # when simulate.py has replaced sys.stdout in the parent process.
+    import tempfile
+    with tempfile.TemporaryFile(mode='w+', suffix='.txt') as out_f, \
+         tempfile.TemporaryFile(mode='w+', suffix='.txt') as err_f:
+        proc = subprocess.run(
+            [sys.executable, "simulate.py"],
+            cwd=project_root,
+            stdin=subprocess.DEVNULL,
+            stdout=out_f,
+            stderr=err_f,
+            timeout=60,
+            env=env,
+        )
+
     # Read the JSON output that simulate.py writes
     json_path = os.path.join(project_root, "reports", "simulation_data.json")
     if not os.path.exists(json_path):
