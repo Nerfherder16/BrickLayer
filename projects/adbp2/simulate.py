@@ -541,31 +541,39 @@ if __name__ == "__main__":
 
 
 def _make_params_dict() -> dict:
-    """Pack current module-level SCENARIO PARAMETERS + constants into a dict."""
+    """Pack current module-level SCENARIO PARAMETERS + constants into a dict.
+
+    Imports constants directly to be self-contained when called from any context
+    (including exec'd namespaces in tests).
+    """
+    import constants as _c
+
     return {
         "employee_fee_monthly": EMPLOYEE_FEE_MONTHLY,
         "vendor_capacity_per_employee": VENDOR_CAPACITY_PER_EMPLOYEE,
         "simulation_months": SIMULATION_MONTHS,
-        "token_face_value": TOKEN_FACE_VALUE,
-        "mint_price": MINT_PRICE,
-        "escrow_start_per_token": ESCROW_START_PER_TOKEN,
-        "burn_eligible_crr": BURN_ELIGIBLE_CRR,
-        "burn_rate_floor": BURN_RATE_FLOOR,
-        "burn_rate_ceiling": BURN_RATE_CEILING,
-        "fee_to_operator_pct": FEE_TO_OPERATOR_PCT,
-        "crr_operational_target": CRR_OPERATIONAL_TARGET,
-        "crr_mint_pause": CRR_MINT_PAUSE,
-        "crr_critical": CRR_CRITICAL,
-        "crr_overcapitalized": CRR_OVERCAPITALIZED,
-        "capacity_ratio": CAPACITY_RATIO,
-        "monthly_mint_cap_per_employee": float(MONTHLY_MINT_CAP_PER_EMPLOYEE),
-        "expected_monthly_mint_per_employee": float(EXPECTED_MONTHLY_MINT_PER_EMPLOYEE),
-        "annual_interest_rate": ANNUAL_INTEREST_RATE,
-        "monthly_interest_rate": MONTHLY_INTEREST_RATE,
-        "growth_curve": list(GROWTH_CURVE),
-        "growth_target_employees": GROWTH_TARGET_EMPLOYEES,
-        "failure_threshold": FAILURE_THRESHOLD,
-        "warning_threshold": WARNING_THRESHOLD,
+        "token_face_value": _c.TOKEN_FACE_VALUE,
+        "mint_price": _c.MINT_PRICE,
+        "escrow_start_per_token": _c.ESCROW_START_PER_TOKEN,
+        "burn_eligible_crr": _c.BURN_ELIGIBLE_CRR,
+        "burn_rate_floor": _c.BURN_RATE_FLOOR,
+        "burn_rate_ceiling": _c.BURN_RATE_CEILING,
+        "fee_to_operator_pct": _c.FEE_TO_OPERATOR_PCT,
+        "crr_operational_target": _c.CRR_OPERATIONAL_TARGET,
+        "crr_mint_pause": _c.CRR_MINT_PAUSE,
+        "crr_critical": _c.CRR_CRITICAL,
+        "crr_overcapitalized": _c.CRR_OVERCAPITALIZED,
+        "capacity_ratio": _c.CAPACITY_RATIO,
+        "monthly_mint_cap_per_employee": float(_c.MONTHLY_MINT_CAP_PER_EMPLOYEE),
+        "expected_monthly_mint_per_employee": float(
+            _c.EXPECTED_MONTHLY_MINT_PER_EMPLOYEE
+        ),
+        "annual_interest_rate": _c.ANNUAL_INTEREST_RATE,
+        "monthly_interest_rate": _c.ANNUAL_INTEREST_RATE / 12.0,
+        "growth_curve": list(_c.GROWTH_CURVE),
+        "growth_target_employees": _c.GROWTH_TARGET_EMPLOYEES,
+        "failure_threshold": _c.FAILURE_THRESHOLD,
+        "warning_threshold": _c.WARNING_THRESHOLD,
     }
 
 
