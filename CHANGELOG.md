@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `36dda5e` chore: update results snapshot (2026-03-20)
 - `71169a2` chore: update results snapshot (2026-03-20)
 - `3e6ffdd` fix: zero-burn guard when minting is paused (emergency protocol) (2026-03-20)
 - `25b2bd9` chore: update results snapshot (2026-03-20)
