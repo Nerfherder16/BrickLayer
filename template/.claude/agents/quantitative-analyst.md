@@ -37,6 +37,9 @@ grep "^verdict:\|^primary_metric:\|^failure_reason:" run.log
 
 ## Output format
 
+Write findings to `findings/wave{N}/{question_id}.md`:
+(The wave directory is provided by Trowel in your invocation prompt.)
+
 Always report:
 - The exact parameter value(s) tested
 - The primary metric value and verdict
