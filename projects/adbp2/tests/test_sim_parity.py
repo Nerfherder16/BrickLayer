@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 def _make_baseline_params():
     """Build params dict from constants.py + baseline scenario values."""
     import constants as c
+
     return {
         "employee_fee_monthly": 45.0,
         "vendor_capacity_per_employee": 3000.0,
@@ -32,15 +33,16 @@ def _make_baseline_params():
         "burn_eligible_crr": c.BURN_ELIGIBLE_CRR,
         "burn_rate_floor": c.BURN_RATE_FLOOR,
         "burn_rate_ceiling": c.BURN_RATE_CEILING,
-        "admin_fee_floor": c.ADMIN_FEE_FLOOR,
-        "admin_fee_cap": c.ADMIN_FEE_CAP,
+        "fee_to_operator_pct": c.FEE_TO_OPERATOR_PCT,
         "crr_operational_target": c.CRR_OPERATIONAL_TARGET,
         "crr_mint_pause": c.CRR_MINT_PAUSE,
         "crr_critical": c.CRR_CRITICAL,
         "crr_overcapitalized": c.CRR_OVERCAPITALIZED,
         "capacity_ratio": c.CAPACITY_RATIO,
         "monthly_mint_cap_per_employee": float(c.MONTHLY_MINT_CAP_PER_EMPLOYEE),
-        "expected_monthly_mint_per_employee": float(c.EXPECTED_MONTHLY_MINT_PER_EMPLOYEE),
+        "expected_monthly_mint_per_employee": float(
+            c.EXPECTED_MONTHLY_MINT_PER_EMPLOYEE
+        ),
         "annual_interest_rate": c.ANNUAL_INTEREST_RATE,
         "growth_curve": list(c.GROWTH_CURVE),
         "growth_target_employees": c.GROWTH_TARGET_EMPLOYEES,
@@ -63,8 +65,11 @@ def _run_python_sim_via_subprocess():
     # Use file handles (not PIPE) to avoid handle duplication issues on Windows
     # when simulate.py has replaced sys.stdout in the parent process.
     import tempfile
-    with tempfile.TemporaryFile(mode='w+', suffix='.txt') as out_f, \
-         tempfile.TemporaryFile(mode='w+', suffix='.txt') as err_f:
+
+    with (
+        tempfile.TemporaryFile(mode="w+", suffix=".txt") as out_f,
+        tempfile.TemporaryFile(mode="w+", suffix=".txt") as err_f,
+    ):
         proc = subprocess.run(
             [sys.executable, "simulate.py"],
             cwd=project_root,
@@ -86,9 +91,11 @@ def _run_python_sim_via_subprocess():
 
 # ── Task 3: Smoke test ─────────────────────────────────────────────────────────
 
+
 def test_rust_sim_runs_baseline():
     """Rust run_simulation() must return records for all 60 months."""
     import adbp2_mc
+
     params = _make_baseline_params()
     result = adbp2_mc.run_simulation(params)
     assert "records" in result
@@ -100,6 +107,7 @@ def test_rust_sim_runs_baseline():
 def test_rust_sim_final_crr_positive():
     """Final CRR must be positive for the baseline scenario."""
     import adbp2_mc
+
     params = _make_baseline_params()
     result = adbp2_mc.run_simulation(params)
     records = result["records"]
@@ -109,13 +117,22 @@ def test_rust_sim_final_crr_positive():
 def test_rust_sim_evaluate():
     """evaluate() must return a dict with all required keys."""
     import adbp2_mc
+
     params = _make_baseline_params()
     result = adbp2_mc.run_simulation(params)
     eval_result = adbp2_mc.evaluate(result, params)
     required_keys = [
-        "primary_metric", "verdict", "failure_reason", "final_crr",
-        "final_escrow_net", "final_employees", "first_burn_month",
-        "peak_crr", "peak_crr_month", "burn_active_months", "months_simulated",
+        "primary_metric",
+        "verdict",
+        "failure_reason",
+        "final_crr",
+        "final_escrow_net",
+        "final_employees",
+        "first_burn_month",
+        "peak_crr",
+        "peak_crr_month",
+        "burn_active_months",
+        "months_simulated",
     ]
     for k in required_keys:
         assert k in eval_result, f"Missing key: {k}"
@@ -125,9 +142,18 @@ def test_rust_sim_evaluate():
 # ── Task 6: Full parity test (Rust vs Python) ──────────────────────────────────
 
 NUMERIC_FIELDS = [
-    "new_tokens_minted", "circulating_tokens", "escrow_pool", "escrow_net",
-    "per_token_escrow", "crr", "burn_rate_pct", "tokens_burned",
-    "reimbursements_paid", "admin_fees_paid", "fee_revenue", "interest_escrow",
+    "new_tokens_minted",
+    "circulating_tokens",
+    "escrow_pool",
+    "escrow_net",
+    "per_token_escrow",
+    "crr",
+    "burn_rate_pct",
+    "tokens_burned",
+    "reimbursements_paid",
+    "operator_revenue",
+    "fee_revenue",
+    "interest_escrow",
     "capacity_utilization_pct",
 ]
 TOLERANCE = 1e-4
