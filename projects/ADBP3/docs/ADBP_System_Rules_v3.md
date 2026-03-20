@@ -41,17 +41,16 @@ The American Dream Benefits Program is a third-party consumer discount platform 
 - At $1.00/credit, this equals $0.10 per credit minted
 - This fee does **not** flow to the treasury — it is tracked and distributed separately
 - Distribution is **pro-rata by recirculation share**: the more credits a vendor or employer recirculates within the network, the larger their share of the admin revenue pool
-- This replaces the prior flat $0.50/credit fee structure
 
 > **Why pro-rata?** It directly incentivizes recirculation — participants who actively move credits through the network earn proportionally more. A vendor recirculating 10% of total credits earns 10% of the admin pool.
 
 ### Recirculation Rules
 
 - Vendors decide the maximum credits they accept in a 12-month period (their recirculation %)
-- Employers and vendors recirculate credits for any of their expenses **except** payroll, health insurance, childcare, and taxes — creating an accounting wash ($X foregone income offset by $X saved)
+- Employers and vendors recirculate credits for any of their expenses **except** payroll and taxes — creating an accounting wash ($X foregone income offset by $X saved)
 - The **recirculation-to-mint ratio is 2:1** — a vendor/employer that can recirculate 100,000 credits allows their employees to mint 50,000 total
 - Credits are automatically recirculated at month-end on behalf of vendors and employers
-- Velocity is pegged at **12× per year** (background constraint — no direct treasury cash flow)
+- Velocity is pegged at **12× per year** 
 
 ### Burn Mechanic (Discretionary)
 
@@ -96,59 +95,38 @@ Secondary metric: `burn_coverage = treasury_wallet / (total_credits × $2.00)`
 
 ## Recirculation Flywheel
 
-1. Employee buys credits → smart contract mints tokens → $1/credit to treasury
+1. Employee buys credits → smart contract mints tokens → $1/credit to treasury → $0.10/ credit to escrow
 2. Employee spends at vendors → 50% discount applied (2× amplification)
 3. Vendor receives tokens → recirculates to suppliers, utilities, etc.
 4. Loop continues at 12× annual velocity
 5. No credits exit for cash, ever
-6. Admin revenue pool distributed monthly pro-rata by recirculation share
+6. Admin revenue pool distributed monthly pro-rata by recirculation share from escrow wallet
 
----
+## Essential Businesses (Vendors)
 
-## What Was Removed vs. Prior Version
-
-| Prior Rule | Status | Replacement |
-|---|---|---|
-| $0.50 treasury fee per credit | **Removed** | Full $1.00 goes to treasury |
-| $0.50 flat admin fee to vendor | **Removed** | 10% pool, pro-rata distribution |
-| $0.50 flat admin fee to employer | **Removed** | Included in 10% pool above |
-| 1.774% per-transaction burn | **Removed** | No automatic burn — discretionary only |
-
----
-
-## Employee Purchase Capacity (2025 Estimates)
-
-| Business Type | Annual Revenue | Recirc % | Dollar Volume Capacity |
-|---|---|---|---|
-| Multifamily Housing | $600B | 23% | $138.0B |
-| Food Store (Grocery) | $1,600B | 86% | $1,376.0B |
-| Electric & Gas Utility | $550B | 64% | $352.0B |
-| Water Utility | $72.5B | 57% | $41.3B |
-| Internet Service Provider | $437B | 45% | $196.7B |
-| Gas Station | $700B | 94% | $658.0B |
-| Car Service Center | $199B | 65% | $129.4B |
-| **TOTAL** | **$4.16T** | — | **$2.90T** |
-
-Hard ceiling: $2.9T amplified annual employee purchase capacity.
+ 1. Health Insurance Providers
+ 2. Gas Stations
+ 3. Grocery Stores
+ 4. Rental Housing
+ 5. Internet Service Provider
+ 6. Electric and Gas Utilities
+ 7. Water Utilities
+ 8. Childcare Facilities
+ 9. Car Service (Repairs)
 
 ---
 
 ## Compliance & Regulatory Posture
 
-- **Non-custodial utility token on Solana** (closed-loop discount access)
-- **No private currency risk** (Stamp Payments Act § 486) — decentralized, non-redeemable for cash, platform-specific. 2026 guidance on tokenized assets and GENIUS Act (2025) reinforce exemption.
-- **No ERISA risk** — third-party platform, not employer-sponsored. Vendor/employer admin revenue is compensation for recirculation participation, not a welfare benefit.
-- **No money transmission / CVC risk** — MSB partner handles fiat entry. Closed-loop, non-cash-convertible credits are explicitly distinguished from convertible virtual currency per FinCEN guidance.
-- **No private scrip risk** — decentralized design, no public circulation, no fiat substitution.
-- **Barter tax compliance** — automated 1099-B reporting at $2 FMV per credit.
-- **Regional launch** — 1–3 states to start.
-
----
+•	Non-custodial utility token on Solana (closed-loop discount access).
+•	No private currency risk under Stamp Payments Act (§ 486) - decentralized, no centralized issuer. Credits are utility tokens in a closed-loop system, non-redeemable for cash, decentralized on Solana, and not intended as general currency. 2026 guidance on tokenized assets distinguishes utility tokens from scrip if they are platform-specific and non-convertible. The GENIUS Act (2025) for stable coins explicitly exempts non-currency digital assets, reinforcing this.
+•	No ERISA risk - third-party platform, not employer-sponsored. No welfare benefit triggers like health insurance or childcare. Vendors and employers earn a fair market value fixed admin fee for offering a discount and recirculating credits.
+•	No money transmission / CVC risk - MSB partner handles fiat entry. Per FinCEN's longstanding guidance, convertible virtual currency (CVC) is virtual currency that either has an equivalent value in real currency or acts as a substitute for it. Closed-loop systems where credits cannot exit for cash are explicitly distinguished from CVC.
+•	No private scrip risk - the Stamp Payments Act targets private currencies that compete with fiat, not closed-loop discounts. Decentralized, blockchain-based utility tokens without cash equivalence or broad circulation are generally exempt. Credits recirculate indefinitely but only for essentials among participants - no public circulation or fiat substitution outside the loop. The decentralized design (no central issuer) further reduces risk.
+•	Barter tax compliance - automated 1099-B reporting at $2 FMV per credit.
+•	Regional launch - NJ to start with regional expansion as the business grows.
 
 ## Bottom Line
 
-One job. One family. One future. A win-win system that turns a $60,000 salary into $84,000 of essential purchasing power — while financially incentivizing participating vendors and employers through pro-rata recirculation rewards — powered by Solana blockchain, modern UX, and built-in compliance.
-
----
-
-*This document supersedes the v1/v2 model rules. Key changes: full treasury funding ($1.00/credit vs. $0.50), pro-rata admin revenue (vs. flat $0.50 fee), removal of 1.774% transaction burn, addition of discretionary threshold-triggered burn mechanic at $2.00/credit.*
+One job. One family. One future. A win-win system that can turn a $60,000 salary into a potential $120,000 of essential purchasing power while financially incentivizing the vendor or employer - powered by Solana blockchain, modern UX, and built-in compliance.
+Ready to launch regionally and scale responsibly.
