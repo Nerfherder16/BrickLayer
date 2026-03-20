@@ -206,8 +206,7 @@ def test_parity_baseline():
 def test_parity_stress_low_fee():
     """Parity test with a stress scenario: low fee ($10/mo) that may trigger mint pause."""
     import adbp2_mc
-    import constants as c
-    import subprocess
+    import tempfile
 
     stress_params = _make_baseline_params()
     stress_params["employee_fee_monthly"] = 10.0  # Very low fee
@@ -215,39 +214,58 @@ def test_parity_stress_low_fee():
     # Run Rust
     rust_result = adbp2_mc.run_simulation(stress_params)
 
-    # Run Python stress scenario via subprocess with patched param
+    # Run Python stress scenario via subprocess with named tempfile output.
+    # Must use named tempfile (not capture_output) because simulate.py replaces
+    # sys.stdout, which corrupts subprocess handle inheritance on Windows.
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     stress_script = """
 import sys, json, os
-sys.path.insert(0, r'{root}')
-import constants as c
+sys.path.insert(0, {root!r})
 
-# Patch simulate module before running
-import importlib.util
-spec = importlib.util.spec_from_file_location('simulate_stress', r'{root}/simulate.py')
-import types
-# Read simulate source and patch EMPLOYEE_FEE_MONTHLY
-with open(r'{root}/simulate.py', 'r') as f:
+# Read simulate source and exec in a namespace with patched fee.
+with open(os.path.join({root!r}, 'simulate.py'), 'r') as f:
     src = f.read()
-# Run it in a namespace with patched fee
-ns = {{'__name__': '__stress__', '__file__': r'{root}/simulate.py'}}
+ns = {{'__name__': '__stress__', '__file__': os.path.join({root!r}, 'simulate.py')}}
 exec(compile(src, 'simulate.py', 'exec'), ns)
-# Override fee
 ns['EMPLOYEE_FEE_MONTHLY'] = 10.0
 records, failure_reason = ns['run_simulation']()
-print(json.dumps({{'records': records, 'failure_reason': failure_reason}}))
-""".format(root=project_root.replace("\\", "\\\\"))
+with open({out_path!r}, 'w', encoding='utf-8') as _f:
+    _f.write(json.dumps({{'records': records, 'failure_reason': failure_reason}}))
+"""
 
-    result = subprocess.run(
-        [sys.executable, "-c", stress_script],
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    if result.returncode != 0:
-        pytest.skip(f"Stress scenario subprocess failed: {result.stderr[:500]}")
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", delete=False, encoding="utf-8"
+    ) as ntf:
+        out_path = ntf.name
 
-    py_data = json.loads(result.stdout.strip())
+    try:
+        script = stress_script.format(
+            root=project_root.replace("\\", "\\\\"),
+            out_path=out_path.replace("\\", "\\\\"),
+        )
+        env = os.environ.copy()
+        env["MPLBACKEND"] = "Agg"
+
+        with tempfile.TemporaryFile(mode="w+", suffix=".txt") as err_f:
+            proc = subprocess.run(
+                [sys.executable, "-c", script],
+                cwd=project_root,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=err_f,
+                timeout=60,
+                env=env,
+            )
+            if proc.returncode != 0:
+                err_f.seek(0)
+                err_text = err_f.read()
+                pytest.skip(f"Stress scenario subprocess failed: {err_text[:500]}")
+
+        with open(out_path, "r", encoding="utf-8") as f:
+            py_data = json.load(f)
+    finally:
+        if os.path.exists(out_path):
+            os.unlink(out_path)
+
     py_records = py_data["records"]
-
     _assert_records_match(rust_result["records"], py_records, "stress_low_fee")
