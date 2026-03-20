@@ -58,7 +58,7 @@ EMPLOYEE_FEE_MONTHLY = 45.00  # USD per employee per month — 65% to escrow, 35
 VENDOR_CAPACITY_PER_EMPLOYEE = 3_000  # tokens of vendor capacity per employee in system
 
 # ── Simulation length ─────────────────────────────────────────────────────────
-SIMULATION_MONTHS = 60
+SIMULATION_MONTHS = 120
 
 # =============================================================================
 # SIMULATION ENGINE — Do not modify below this line.
