@@ -14,7 +14,7 @@ pub struct MonthRecord {
     pub burn_rate_pct: f64,
     pub tokens_burned: f64,
     pub reimbursements_paid: f64,
-    pub admin_fees_paid: f64,
+    pub operator_revenue: f64,
     pub fee_revenue: f64,
     pub interest_escrow: f64,
     pub total_capacity: f64,
@@ -136,16 +136,10 @@ pub fn run_simulation(params: &SimParams) -> SimResult {
         escrow_pool += new_tokens * params.mint_price;
         circulating_tokens += new_tokens;
 
-        // ── Step 2: Fee collection → admin fees deducted first ────────────
+        // ── Step 2: Fee collection — operator takes fee_to_operator_pct, rest to escrow ─
         let fee_revenue = employee_count as f64 * params.employee_fee_monthly;
-        let admin_fee_per_token = if circulating_tokens > 0.0 {
-            let affordable = fee_revenue / circulating_tokens;
-            affordable.max(params.admin_fee_floor).min(params.admin_fee_cap)
-        } else {
-            params.admin_fee_floor
-        };
-        let admin_fees_paid = (admin_fee_per_token * circulating_tokens).min(fee_revenue);
-        escrow_pool += fee_revenue - admin_fees_paid; // remainder flows to escrow
+        let operator_revenue = fee_revenue * params.fee_to_operator_pct;
+        escrow_pool += fee_revenue * (1.0 - params.fee_to_operator_pct); // FEE_TO_ESCROW_PCT share
 
         // ── Step 3: Interest accrual ───────────────────────────────────────
         let interest_escrow = escrow_pool * params.monthly_interest_rate;

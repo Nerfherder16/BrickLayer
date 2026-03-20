@@ -20,8 +20,9 @@ pub struct SimParams {
     pub burn_rate_floor: f64,
     pub burn_rate_ceiling: f64,
 
-    pub admin_fee_floor: f64,
-    pub admin_fee_cap: f64,
+    /// Fraction of monthly employee fee that goes to operator (not escrow).
+    /// Mirrors Python's FEE_TO_OPERATOR_PCT constant.
+    pub fee_to_operator_pct: f64,
 
     pub crr_operational_target: f64,
     pub crr_mint_pause: f64,
@@ -133,8 +134,7 @@ impl SimParams {
             burn_rate_floor: extract_f64(dict, "burn_rate_floor")?,
             burn_rate_ceiling: extract_f64(dict, "burn_rate_ceiling")?,
 
-            admin_fee_floor: extract_f64(dict, "admin_fee_floor")?,
-            admin_fee_cap: extract_f64(dict, "admin_fee_cap")?,
+            fee_to_operator_pct: extract_f64(dict, "fee_to_operator_pct")?,
 
             crr_operational_target: extract_f64(dict, "crr_operational_target")?,
             crr_mint_pause: extract_f64(dict, "crr_mint_pause")?,
@@ -171,8 +171,7 @@ impl SimParams {
         d.set_item("burn_eligible_crr", self.burn_eligible_crr)?;
         d.set_item("burn_rate_floor", self.burn_rate_floor)?;
         d.set_item("burn_rate_ceiling", self.burn_rate_ceiling)?;
-        d.set_item("admin_fee_floor", self.admin_fee_floor)?;
-        d.set_item("admin_fee_cap", self.admin_fee_cap)?;
+        d.set_item("fee_to_operator_pct", self.fee_to_operator_pct)?;
         d.set_item("crr_operational_target", self.crr_operational_target)?;
         d.set_item("crr_mint_pause", self.crr_mint_pause)?;
         d.set_item("crr_critical", self.crr_critical)?;
