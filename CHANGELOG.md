@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `94313fa` chore(adbp2): add Rust build artifacts and .autopilot to .gitignore (2026-03-20)
 - `567d79e` docs(roadmap): add Phase 15 — Session Intelligence (hot path tracking + dead ref audit) (2026-03-19)
 - `d589ce7` fix(hooks): scope tool-failure error state per-project; drop dead OMC refs (2026-03-19)
 - `5db1466` research: similar repos structural comparison — BL 2.0 is Pattern C, confirmed correct foundation (2026-03-19)
