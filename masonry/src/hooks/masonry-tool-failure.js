@@ -3,11 +3,9 @@
  * PostToolUseFailure hook (Masonry): Error tracking + retry guidance.
  *
  * On tool failure:
- * - Writes error state to ~/.masonry/state/last-error.json (global, not per-project)
+ * - Writes error state to ~/.masonry/state/{project-slug}/last-error.json (per-project)
  * - Injects "analyze, fix, and continue" guidance
  * - Tracks retry count; after 3 failures on same error, escalates to spawn-agent guidance
- *
- * Replaces OMC's post-tool-use-failure.mjs
  */
 
 "use strict";
@@ -53,8 +51,9 @@ async function main() {
 
   const toolName = input.tool_name || "unknown";
   const errorText = input.tool_response || input.error || "";
-  // Use ~/.masonry/state/ — not per-project to avoid scattering dirs everywhere
-  const stateDir = path.join(os.homedir(), ".masonry", "state");
+  // Scope to project CWD so concurrent multi-project sessions don't cross-contaminate
+  const projectSlug = process.cwd().replace(/[^a-zA-Z0-9]/g, "-").replace(/-+/g, "-").slice(-40);
+  const stateDir = path.join(os.homedir(), ".masonry", "state", projectSlug);
 
   ensureDir(stateDir);
   const stateFile = path.join(stateDir, "last-error.json");
@@ -89,8 +88,8 @@ async function main() {
     process.stderr.write(
       `\n[Masonry] Tool "${toolName}" failed ${retries} times with similar error.\n` +
       `Error: ${errSnippet}\n\n` +
-      `3-strike rule triggered. STOP retrying. Spawn a research agent (oh-my-claudecode:debugger or ` +
-      `oh-my-claudecode:build-fixer) to investigate the root cause before attempting again.\n`
+      `3-strike rule triggered. STOP retrying. Spawn the diagnose-analyst agent ` +
+      `to investigate the root cause before attempting again.\n`
     );
   } else {
     // Standard guidance: analyze, fix, continue
