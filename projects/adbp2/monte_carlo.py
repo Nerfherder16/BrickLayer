@@ -228,14 +228,14 @@ def _print_summary(result: dict, seed: int | None = None) -> None:
     print(
         f"Samples: {result['n_samples']}  Seed: {seed if seed is not None else 'random'}"
     )
-    print(f"\nFinal CRR Distribution:")
+    print("\nFinal CRR Distribution:")
     print(f"  P10={fcd['p10']:.4f}  P50={fcd['p50']:.4f}  P90={fcd['p90']:.4f}")
     print(f"  Mean={fcd['mean']:.4f}  Std={fcd['std']:.4f}")
     print(f"\nP(ruin):           {result['p_ruin']:.4f}")
     print(f"P(burn ≤12mo):    {burn['within_12mo']:.4f}")
     print(f"P(burn ≤24mo):    {burn['within_24mo']:.4f}")
     print(f"P(burn ≤60mo):    {burn['within_60mo']:.4f}")
-    print(f"\nFirst burn month (of samples with burn):")
+    print("\nFirst burn month (of samples with burn):")
     print(f"  P10={fbm['p10']:.1f}  P50={fbm['p50']:.1f}  P90={fbm['p90']:.1f}")
     print(f"  Never activated: {fbm['never_pct']:.1%}")
 
@@ -267,4 +267,4 @@ if __name__ == "__main__":
     result = run(n_samples=args.samples, seed=args.seed)
     _print_summary(result, seed=args.seed)
     write_outputs(result, seed=args.seed)
-    print(f"\nOutputs written to reports/mc_results.json and results.tsv")
+    print("\nOutputs written to reports/mc_results.json and results.tsv")

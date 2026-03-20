@@ -77,7 +77,7 @@ fn dynamic_burn_rate(crr: f64, params: &SimParams) -> f64 {
         return params.burn_rate_ceiling;
     }
     let normalized = (crr - params.burn_eligible_crr) / (params.crr_overcapitalized - params.burn_eligible_crr);
-    let normalized = normalized.max(0.0).min(1.0);
+    let normalized = normalized.clamp(0.0, 1.0);
     params.burn_rate_floor + (params.burn_rate_ceiling - params.burn_rate_floor) * normalized
 }
 
