@@ -3,6 +3,8 @@ bl/findings.py — Finding writer, failure classifier, and results.tsv updater.
 """
 
 import json
+import os
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -50,6 +52,8 @@ _NON_FAILURE_VERDICTS = frozenset(
         "BLOCKED",
     }
 )
+
+_CONFIDENCE_FLOAT = {"high": 0.9, "medium": 0.6, "low": 0.3, "uncertain": 0.1}
 
 
 def classify_failure_type(result: dict, mode: str) -> str | None:
@@ -412,6 +416,10 @@ def write_finding(question: dict, result: dict) -> Path:
     failure_type_line = f"\n**Failure Type**: {failure_type}" if failure_type else ""
     type_label = "CODE-AUDIT" if question_type == "code_audit" else "BEHAVIORAL"
 
+    conf_str = result.get("confidence", "uncertain")
+    confidence_float = _CONFIDENCE_FLOAT.get(conf_str, 0.1)
+    needs_human = confidence_float < 0.35
+
     content = f"""# Finding: {qid} — {question["title"]}
 
 **Question**: {question["hypothesis"]}
@@ -420,6 +428,8 @@ def write_finding(question: dict, result: dict) -> Path:
 **Mode**: {question.get("operational_mode", question["mode"])}
 **Type**: {type_label}
 **Target**: {question["target"]}
+**Confidence**: {confidence_float}
+**Needs Human**: {needs_human}
 
 ## Summary
 
@@ -458,20 +468,26 @@ def write_finding(question: dict, result: dict) -> Path:
 
 
 def update_results_tsv(
-    qid: str, verdict: str, summary: str, failure_type: str | None = None
+    qid: str,
+    verdict: str,
+    summary: str,
+    failure_type: str | None = None,
+    eval_score: float | None = None,
 ) -> None:
     """Upsert a result row in results.tsv."""
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     if not cfg.results_tsv.exists():
         cfg.results_tsv.write_text(
-            "question_id\tverdict\tfailure_type\tsummary\ttimestamp\n", encoding="utf-8"
+            "question_id\tverdict\tfailure_type\teval_score\tsummary\ttimestamp\n",
+            encoding="utf-8",
         )
 
     lines = cfg.results_tsv.read_text(encoding="utf-8", errors="replace").splitlines()
     ft = failure_type or ""
+    score_str = f"{eval_score:.3f}" if eval_score is not None else ""
     safe_summary = summary.replace("\t", " ")[:120]
-    new_row = f"{qid}\t{verdict}\t{ft}\t{safe_summary}\t{timestamp}"
+    new_row = f"{qid}\t{verdict}\t{ft}\t{score_str}\t{safe_summary}\t{timestamp}"
 
     updated = False
     new_lines = []
@@ -486,7 +502,18 @@ def update_results_tsv(
     if not updated:
         new_lines.append(new_row)
 
-    cfg.results_tsv.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    _content = "\n".join(new_lines) + "\n"
+    fd, tmp_path = tempfile.mkstemp(dir=cfg.results_tsv.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(_content)
+        os.replace(tmp_path, cfg.results_tsv)
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
     _mark_question_done(qid, verdict)
 
 
@@ -513,6 +540,7 @@ def _mark_question_done(qid: str, verdict: str) -> None:
             "WARNING",
             "REGRESSION",
             "ALERT",
+            "HEAL_EXHAUSTED",  # F-mid.1: exhausted heal loop — preserve for human visibility
         }
     )
     new_status = verdict if verdict in _PRESERVE_AS_IS else "DONE"
@@ -530,6 +558,15 @@ def _mark_question_done(qid: str, verdict: str) -> None:
     if "**Status**: PENDING" not in block:
         return
     new_block = block.replace("**Status**: PENDING", f"**Status**: {new_status}", 1)
-    cfg.questions_md.write_text(
-        text[:block_start] + new_block + text[block_end:], encoding="utf-8"
-    )
+    _qmd_content = text[:block_start] + new_block + text[block_end:]
+    fd, tmp_path = tempfile.mkstemp(dir=cfg.questions_md.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(_qmd_content)
+        os.replace(tmp_path, cfg.questions_md)
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise

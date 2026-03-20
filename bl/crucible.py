@@ -188,12 +188,23 @@ def _score_hypothesis_generator(project_dir: Path) -> AgentScore:
     def check_block(b: str) -> dict[str, float]:
         return {
             "has_status": 1.0 if re.search(r"PENDING|DONE|Status", b) else 0.0,
-            "has_derived_from": 1.0 if "Derived from" in b else 0.0,
-            "has_test": 1.0 if re.search(r"Test:|pytest|Simulation path", b) else 0.0,
+            "has_derived_from": 1.0
+            if ("Derived from" in b or "Motivated by" in b)
+            else 0.0,
+            # BL 2.0 uses **Method**: / **Simulation path**:; BL 1.x used Test:/pytest
+            "has_test": 1.0
+            if re.search(
+                r"\*\*Method\*\*:|\*\*Simulation path\*\*:|Test:|pytest|Simulation path",
+                b,
+            )
+            else 0.0,
             "has_verdict_threshold": 1.0
             if ("FAILURE:" in b and "HEALTHY:" in b)
             else 0.0,
-            "has_hypothesis": 1.0 if "Hypothesis:" in b else 0.0,
+            # BL 2.0 uses **Hypothesis**: ; BL 1.x used bare Hypothesis:
+            "has_hypothesis": 1.0
+            if re.search(r"\*\*Hypothesis\*\*:|Hypothesis:", b)
+            else 0.0,
         }
 
     weights = {
@@ -366,6 +377,249 @@ def _score_quantitative_analyst(project_dir: Path) -> AgentScore:
 
 
 # ---------------------------------------------------------------------------
+# BL 2.0 operational agent scorers (F17.1)
+# All follow the _score_synthesizer static-file pattern.
+# ---------------------------------------------------------------------------
+
+
+def _score_diagnose_analyst(project_dir: Path) -> AgentScore:
+    """Score diagnose-analyst: DIAGNOSIS_COMPLETE rate + fix-spec completeness."""
+    findings_dir = project_dir / "findings"
+    results_tsv = project_dir / "results.tsv"
+    if not findings_dir.exists():
+        return AgentScore("diagnose-analyst", 0.0, {}, "findings/ not found")
+
+    # DIAGNOSIS_COMPLETE rate from results.tsv
+    # V18.1: scope to BL 2.0 D-prefix rows only (new format: col[0]="N/A", col[1] starts with "D")
+    def _is_bl2_diag_row(ln: str) -> bool:
+        parts = ln.split("\t")
+        if len(parts) >= 3 and parts[0] == "N/A":
+            return parts[1].startswith("D") and bool(
+                re.search(
+                    r"^(DIAGNOSIS_COMPLETE|HEALTHY|FAILURE|INCONCLUSIVE)$", parts[2]
+                )
+            )
+        return False
+
+    dc_rate = 0.0
+    if results_tsv.exists():
+        lines = results_tsv.read_text(encoding="utf-8", errors="replace").splitlines()
+        diag_rows = [
+            ln
+            for ln in lines
+            if _is_bl2_diag_row(ln)
+            and ("\tDIAGNOSIS_COMPLETE\t" in ln or "\tHEALTHY\t" in ln)
+        ]
+        all_diag = [ln for ln in lines if _is_bl2_diag_row(ln)]
+        dc_rate = len(diag_rows) / len(all_diag) if all_diag else 0.0
+
+    # Fix-spec completeness: findings containing all 4 required fields
+    spec_fields = [
+        "Target file",
+        "Target location",
+        "Concrete edit",
+        "Verification command",
+    ]
+    spec_scores = []
+    for fpath in sorted(
+        f for f in findings_dir.glob("*.md") if f.name != "synthesis.md"
+    ):
+        try:
+            content = fpath.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+        # D21.1: frontmatter-position check — only match if verdict line is in first 6 lines
+        # Excludes findings that quote "**Verdict**: DIAGNOSIS_COMPLETE" in body text/code blocks
+        first_lines = content.split("\n")[:6]
+        if not any(
+            line.strip() == "**Verdict**: DIAGNOSIS_COMPLETE" for line in first_lines
+        ):
+            continue
+        hit = sum(1 for field in spec_fields if field in content) / len(spec_fields)
+        spec_scores.append(hit)
+    spec_completeness = sum(spec_scores) / len(spec_scores) if spec_scores else 0.0
+
+    checks_raw = {
+        "dc_rate": (dc_rate, 0.60),
+        "fix_spec_completeness": (spec_completeness, 0.40),
+    }
+    score, pass_rates = _weighted(checks_raw)
+    details = f"DIAGNOSIS_COMPLETE rate={dc_rate:.2f}, fix_spec_completeness={spec_completeness:.2f}"
+    return AgentScore("diagnose-analyst", round(score, 4), pass_rates, details)
+
+
+def _score_fix_implementer(project_dir: Path) -> AgentScore:
+    """Score fix-implementer: FIXED rate + verification section presence in FIXED findings."""
+    findings_dir = project_dir / "findings"
+    results_tsv = project_dir / "results.tsv"
+    if not findings_dir.exists():
+        return AgentScore("fix-implementer", 0.0, {}, "findings/ not found")
+
+    # A20.2: scope fix_rows to F-prefix questions — excludes D-prefix self-fix edge cases (e.g. D-mid.4)
+    def _is_fix_row(ln: str) -> bool:
+        parts = ln.split("\t")
+        # New format: N/A | qid | verdict | ...
+        if len(parts) >= 3 and parts[0] == "N/A":
+            return parts[1].startswith("F") and bool(
+                re.search(r"^(FIXED|FIX_FAILED)$", parts[2])
+            )
+        # Old format (BL 1.x): qid | verdict | ... — preserve existing behavior
+        return bool(re.search(r"\t(FIXED|FIX_FAILED)\t", ln))
+
+    fixed_rate = 0.0
+    fix_failed_rate = 0.0
+    if results_tsv.exists():
+        lines = results_tsv.read_text(encoding="utf-8", errors="replace").splitlines()
+        fix_rows = [ln for ln in lines if _is_fix_row(ln)]
+        if fix_rows:
+            fixed_rate = sum(1 for ln in fix_rows if "\tFIXED\t" in ln) / len(fix_rows)
+            fix_failed_rate = 1.0 - fixed_rate
+
+    # Verification section presence in FIXED findings
+    verify_scores = []
+    for fpath in sorted(
+        f for f in findings_dir.glob("*.md") if f.name != "synthesis.md"
+    ):
+        try:
+            content = fpath.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+        # A24.1/F25.2: frontmatter-position guard — only score findings where FIXED verdict is in first 6 lines
+        first_lines_fi2 = content.split("\n")[:6]
+        if not any(line.strip() == "**Verdict**: FIXED" for line in first_lines_fi2):
+            continue
+        has_verify = bool(re.search(r"## (Verification|Fix Applied|Evidence)", content))
+        verify_scores.append(1.0 if has_verify else 0.0)
+    verify_rate = sum(verify_scores) / len(verify_scores) if verify_scores else 0.0
+
+    # Penalise high FIX_FAILED rate
+    reliability = max(0.0, 1.0 - fix_failed_rate * 2)
+
+    checks_raw = {
+        "fixed_rate": (fixed_rate, 0.45),
+        "verify_section_rate": (verify_rate, 0.35),
+        "reliability": (reliability, 0.20),
+    }
+    score, pass_rates = _weighted(checks_raw)
+    details = f"fixed_rate={fixed_rate:.2f}, verify_section={verify_rate:.2f}, reliability={reliability:.2f}"
+    return AgentScore("fix-implementer", round(score, 4), pass_rates, details)
+
+
+def _score_compliance_auditor(project_dir: Path) -> AgentScore:
+    """Score compliance-auditor: definitive verdict rate + fix-spec in NON_COMPLIANT findings."""
+    findings_dir = project_dir / "findings"
+    results_tsv = project_dir / "results.tsv"
+    if not findings_dir.exists():
+        return AgentScore("compliance-auditor", 0.0, {}, "findings/ not found")
+
+    definitive_rate = 0.0
+    if results_tsv.exists():
+        lines = results_tsv.read_text(encoding="utf-8", errors="replace").splitlines()
+        audit_rows = [
+            ln
+            for ln in lines
+            if re.search(r"\t(COMPLIANT|NON_COMPLIANT|PARTIAL|INCONCLUSIVE)\t", ln)
+        ]
+        if audit_rows:
+            definitive = sum(
+                1
+                for ln in audit_rows
+                if re.search(r"\t(COMPLIANT|NON_COMPLIANT|PARTIAL)\t", ln)
+            )
+            definitive_rate = definitive / len(audit_rows)
+
+    # NON_COMPLIANT findings that include a Fix Specification section
+    fix_spec_scores = []
+    for fpath in sorted(
+        f for f in findings_dir.glob("*.md") if f.name != "synthesis.md"
+    ):
+        try:
+            content = fpath.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+        # A23.1: frontmatter-position guard — only match if NON_COMPLIANT verdict is in first 6 lines
+        # Excludes findings that mention "NON_COMPLIANT" in body text (hypotheses, evidence, code blocks)
+        first_lines_ca = content.split("\n")[:6]
+        if not any(
+            line.strip() == "**Verdict**: NON_COMPLIANT" for line in first_lines_ca
+        ):
+            continue
+        has_spec = "Fix Specification" in content or "Concrete edit" in content
+        fix_spec_scores.append(1.0 if has_spec else 0.0)
+    fix_spec_rate = (
+        sum(fix_spec_scores) / len(fix_spec_scores) if fix_spec_scores else 0.0
+    )
+
+    checks_raw = {
+        "definitive_verdict_rate": (definitive_rate, 0.60),
+        "non_compliant_has_fix_spec": (fix_spec_rate, 0.40),
+    }
+    score, pass_rates = _weighted(checks_raw)
+    details = (
+        f"definitive_rate={definitive_rate:.2f}, fix_spec_rate={fix_spec_rate:.2f}"
+    )
+    return AgentScore("compliance-auditor", round(score, 4), pass_rates, details)
+
+
+def _score_design_reviewer(project_dir: Path) -> AgentScore:
+    """Score design-reviewer: COMPLIANT rate + line-number reference presence in findings."""
+    findings_dir = project_dir / "findings"
+    results_tsv = project_dir / "results.tsv"
+    if not findings_dir.exists():
+        return AgentScore("design-reviewer", 0.0, {}, "findings/ not found")
+
+    compliant_rate = 0.0
+    if results_tsv.exists():
+        lines = results_tsv.read_text(encoding="utf-8", errors="replace").splitlines()
+        review_rows = [
+            ln
+            for ln in lines
+            if re.search(r"\t(COMPLIANT|NON_COMPLIANT|PARTIAL)\t", ln)
+        ]
+        if review_rows:
+            compliant_rate = sum(
+                1 for ln in review_rows if "\tCOMPLIANT\t" in ln
+            ) / len(review_rows)
+
+    # Line-number references in validate/design findings (indicates concrete code tracing)
+    lineno_scores = []
+    for fpath in sorted(
+        f for f in findings_dir.glob("*.md") if f.name != "synthesis.md"
+    ):
+        try:
+            content = fpath.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+        # A24.1/F25.1: frontmatter-position guard — only score findings where verdict is in first 6 lines
+        first_lines_dr2 = content.split("\n")[:6]
+        if not any(
+            line.strip()
+            in (
+                "**Verdict**: COMPLIANT",
+                "**Verdict**: NON_COMPLIANT",
+                "**Verdict**: PARTIAL",
+            )
+            for line in first_lines_dr2
+        ):
+            continue
+        has_lineno = bool(
+            re.search(r"line[s]?\s+\d+|:\d+[-–]\d+|lines?\s+\d+[-–]\d+", content)
+        )
+        lineno_scores.append(1.0 if has_lineno else 0.0)
+    lineno_rate = sum(lineno_scores) / len(lineno_scores) if lineno_scores else 0.0
+
+    checks_raw = {
+        "compliant_rate": (compliant_rate, 0.55),
+        "lineno_reference_rate": (lineno_rate, 0.45),
+    }
+    score, pass_rates = _weighted(checks_raw)
+    details = (
+        f"compliant_rate={compliant_rate:.2f}, lineno_reference_rate={lineno_rate:.2f}"
+    )
+    return AgentScore("design-reviewer", round(score, 4), pass_rates, details)
+
+
+# ---------------------------------------------------------------------------
 # Main API
 # ---------------------------------------------------------------------------
 
@@ -374,6 +628,11 @@ _SCORERS = {
     "question-designer": _score_question_designer,
     "synthesizer": _score_synthesizer,
     "quantitative-analyst": _score_quantitative_analyst,
+    # BL 2.0 operational agents (F17.1)
+    "diagnose-analyst": _score_diagnose_analyst,
+    "fix-implementer": _score_fix_implementer,
+    "compliance-auditor": _score_compliance_auditor,
+    "design-reviewer": _score_design_reviewer,
 }
 
 

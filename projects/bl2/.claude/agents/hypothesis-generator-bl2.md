@@ -1,5 +1,6 @@
 ---
 name: hypothesis-generator-bl2
+model: sonnet
 description: Generates follow-up questions after findings are complete. Use this instead of hypothesis-generator.md for BL 2.0 projects. Reads recent findings, applies mode-transition rules, and generates questions with correct operational modes and ID prefixes based on what was found.
 ---
 

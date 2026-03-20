@@ -1,0 +1,114 @@
+name: BrickLayer Campaign
+
+# Runs a BrickLayer 2.0 campaign against the PR's code and posts findings
+# as a PR review comment.
+#
+# Manual dispatch lets you target any project subdirectory within the repo.
+
+on:
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      project_path:
+        description: 'BL project path relative to repo root (default: repo root)'
+        required: false
+        default: '.'
+      max_questions:
+        description: 'Maximum PENDING questions to run'
+        required: false
+        default: '10'
+
+jobs:
+  bl-campaign:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install BrickLayer dependencies
+        run: |
+          pip install httpx
+          # Optional: install Playwright if browser runner questions are present
+          # pip install playwright && playwright install chromium
+
+      - name: Run BrickLayer campaign
+        id: bl-run
+        # Exit 0 even if no questions.md found — we don't want to fail repos
+        # that aren't BrickLayer projects.
+        run: |
+          python -m bl.ci.run_campaign \
+            --project "${PROJECT_PATH:-.}" \
+            --output bl-results.json \
+            --max-questions "${MAX_QUESTIONS:-10}"
+        env:
+          PROJECT_PATH: ${{ github.event.inputs.project_path }}
+          MAX_QUESTIONS: ${{ github.event.inputs.max_questions }}
+
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bl-campaign-results
+          path: bl-results.json
+          if-no-files-found: ignore
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Gracefully skip if no results file was written
+            if (!fs.existsSync('bl-results.json')) {
+              console.log('No bl-results.json found — skipping PR comment.');
+              return;
+            }
+
+            const results = JSON.parse(fs.readFileSync('bl-results.json', 'utf8'));
+            const body = results.pr_comment;
+
+            if (!body) {
+              console.log('No pr_comment in results — skipping.');
+              return;
+            }
+
+            // Find and update an existing BrickLayer comment if one exists,
+            // rather than creating a new comment on every push to the PR.
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existingComment = comments.find(c =>
+              c.user.login === 'github-actions[bot]' &&
+              c.body.includes('BrickLayer Campaign Results')
+            );
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: body,
+              });
+              console.log('Updated existing BrickLayer PR comment.');
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+              console.log('Created new BrickLayer PR comment.');
+            }

@@ -17,7 +17,6 @@ the system, and why.
 ```
 autosearch/
   template/           — Copy this to start a new project
-  dashboard/          — Web UI for monitoring (FastAPI + React)
   QUICKSTART.md       — Full reference (read this if unsure)
   FRAMEWORK.md        — System architecture details
   adbp/               — ADBP project (active)
@@ -29,10 +28,10 @@ Each project folder contains:
 simulate.py           — The simulation (agent edits SCENARIO PARAMETERS only)
 constants.py          — Immutable rules (never edit)
 program.md            — Loop instructions (never edit)
-questions.md          — Question bank (agent + human via dashboard)
+questions.md          — Question bank (agent + human via Kiln)
 results.tsv           — Tab-separated run log
 findings/             — Per-question findings (*.md)
-findings/synthesis.md — End-of-session synthesis
+synthesis.md          — End-of-session synthesis (written to project root)
 docs/                 — Supporting documents (human authority)
 project-brief.md      — Ground truth (highest authority, human only)
 .claude/agents/       — Specialist agents
@@ -54,38 +53,25 @@ cd C:/Users/trg16/Dev/Bricklayer2.0/{project}/
 4. Edit `simulate.py` — replace stub revenue model with actual model
 5. Verify baseline: `python simulate.py` → should print `verdict: HEALTHY`
 6. Copy agents: `cp -r ../template/.claude/agents/ .claude/agents/`
-7. Generate questions (tell Claude):
+7. Generate questions (BL 2.0 workflow):
    ```
-   Act as the question-designer agent in .claude/agents/question-designer.md.
-   Read project-brief.md, all files in docs/, constants.py, and simulate.py.
+   # Step 7a — run planner (recommended for complex projects)
+   Act as the planner agent in .claude/agents/planner.md.
+   Inputs: project_brief=project-brief.md, docs_dir=docs/, constants_file=constants.py, simulate_file=simulate.py, prior_campaign=none
+
+   # Step 7b — generate question bank
+   Act as the question-designer-bl2 agent in .claude/agents/question-designer-bl2.md.
+   Read project-brief.md, all files in docs/, constants.py, simulate.py, and CAMPAIGN_PLAN.md (if it exists).
    Generate the initial question bank in questions.md.
    ```
 8. Init git and start the loop (see below)
 
 ---
 
-## Starting the Dashboard
+## Monitoring Campaigns
 
-In a separate terminal (use Git Bash or WSL — not PowerShell):
-```bash
-bash C:/Users/trg16/Dev/Bricklayer2.0/dashboard/start.sh C:/Users/trg16/Dev/Bricklayer2.0/{project}
-```
-
-Or manually in two PowerShell terminals:
-
-**Backend:**
-```powershell
-cd C:\Users\trg16\Dev\Bricklayer2.0\dashboard\backend
-$env:AUTOSEARCH_PROJECT="C:/Users/trg16/Dev/Bricklayer2.0/{project}"; uvicorn main:app --host 0.0.0.0 --port 8100 --reload
-```
-
-**Frontend:**
-```powershell
-cd C:\Users\trg16\Dev\Bricklayer2.0\dashboard\frontend
-npm run dev
-```
-
-Open: http://localhost:3100
+Use **Kiln** (BrickLayerHub) to monitor campaigns, view findings, and manage the question queue.
+The web dashboard has been retired — all UI goes through Kiln.
 
 ---
 
@@ -149,7 +135,9 @@ python analyze.py
 
 | Agent | File | When to invoke |
 |-------|------|----------------|
-| `question-designer` | `.claude/agents/question-designer.md` | Once at init — generates questions.md |
+| `planner` | `.claude/agents/planner.md` | Once at init (before question-designer) — ranks domains, writes CAMPAIGN_PLAN.md |
+| `question-designer-bl2` | `.claude/agents/question-designer-bl2.md` | Once at init (after planner) — generates questions.md with BL 2.0 modes |
+| `question-designer` | `.claude/agents/question-designer.md` | BL 1.x only |
 | `quantitative-analyst` | `.claude/agents/quantitative-analyst.md` | D1/D5 simulation questions |
 | `regulatory-researcher` | `.claude/agents/regulatory-researcher.md` | D2 legal/compliance questions |
 | `competitive-analyst` | `.claude/agents/competitive-analyst.md` | D3 market/analogues questions |
@@ -185,6 +173,30 @@ If `simulate.py` edit fails, do NOT pause. Immediately:
 | Tier 3 | `findings/`, `questions.md` | Agent output — lower authority than Tier 1/2 |
 
 If Tier 1 and Tier 3 conflict, Tier 1 wins. Write a `CONFLICTS.md` if contradictions are found between sources.
+
+---
+
+## Global Git Post-Commit Hook
+
+A global post-commit hook lives at `~/.git-hooks/post-commit`. It is activated globally via:
+
+```bash
+git config --global core.hooksPath ~/.git-hooks
+```
+
+The hook auto-detects BL projects (via `simulate.py`, `questions.md`, or `.claude/agents/` sentinel)
+and appends commit entries to the appropriate `CHANGELOG.md`. For non-BL repos it exits silently.
+
+**CHANGELOG target logic:**
+- Root is a BL project -> `{repo_root}/CHANGELOG.md`
+- Changed files touch exactly one BL subdirectory -> `{project}/CHANGELOG.md`
+- Changed files touch multiple BL subdirectories -> `{repo_root}/CHANGELOG.md`
+- Non-BL repo -> no CHANGELOG written (exit 0)
+
+**One-time setup** (already active on this machine):
+```bash
+git config --global core.hooksPath ~/.git-hooks
+```
 
 ---
 

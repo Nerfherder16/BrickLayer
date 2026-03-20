@@ -7,7 +7,16 @@ adbp/
 */reports/*
 !*/reports/.gitkeep
 
-# OMC / Claude internal state
+# Autopilot / UI build runtime state
+.autopilot/
+.ui/
+
+# Masonry hook runtime state
+**/.masonry/
+masonry-state.json
+.retro-pending
+
+# OMC / Claude internal state (legacy)
 **/.omc/
 **/.claude/audit.log
 
@@ -20,6 +29,16 @@ dashboard/frontend/dist/
 __pycache__/
 *.egg-info/
 
+# VS Code workspace
+*.code-workspace
+
+# SQLite runtime databases
+**/history.db
+
+# Personal / unrelated content
+projects/MarchMadness/
+
 # OS
 .DS_Store
 Thumbs.db
+.claude/settings.local.json

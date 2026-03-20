@@ -1,0 +1,335 @@
+"""
+bl/runners/swarm.py — Swarm meta-runner (mode: "swarm") — C-3.06.
+
+Spawns multiple sub-runners against the same target in parallel, combining
+their verdicts into a comprehensive multi-perspective result.
+
+Spec field syntax:
+    mode: swarm
+    spec:
+      workers:
+        - id: "perf"
+          mode: "benchmark"
+          spec: { ... }
+        - id: "docs"
+          mode: "document"
+          spec: { ... }
+      max_concurrency: 3       # max parallel workers (default: all)
+      timeout_seconds: 120     # overall swarm timeout (default: 120)
+      aggregation: "worst"     # "worst" | "majority" | "any_failure" (default: "worst")
+      weights:                 # optional, only relevant for "majority"
+        perf: 2
+        docs: 1
+"""
+
+import time
+import traceback
+from concurrent.futures import (
+    ThreadPoolExecutor,
+    TimeoutError as FuturesTimeoutError,
+    as_completed,
+)
+
+# ---------------------------------------------------------------------------
+# Verdict ordering (worst-first)
+# ---------------------------------------------------------------------------
+
+_VERDICT_ORDER = ["FAILURE", "WARNING", "INCONCLUSIVE", "HEALTHY"]
+
+
+def _verdict_rank(verdict: str) -> int:
+    """Lower rank = worse verdict. FAILURE=0, HEALTHY=3."""
+    try:
+        return _VERDICT_ORDER.index(verdict)
+    except ValueError:
+        return 2  # treat unknown as INCONCLUSIVE
+
+
+# ---------------------------------------------------------------------------
+# Aggregation strategies
+# ---------------------------------------------------------------------------
+
+
+def _aggregate_worst(results: list[dict]) -> str:
+    """Return the worst (lowest rank) verdict across all workers."""
+    if not results:
+        return "INCONCLUSIVE"
+    return min(results, key=lambda r: _verdict_rank(r["verdict"]))["verdict"]
+
+
+def _aggregate_majority(results: list[dict], weights: dict[str, int]) -> str:
+    """Return the verdict with the highest total weight."""
+    if not results:
+        return "INCONCLUSIVE"
+
+    tally: dict[str, float] = {}
+    for r in results:
+        w = weights.get(r["id"], 1)
+        v = r["verdict"]
+        tally[v] = tally.get(v, 0) + w
+
+    return max(tally, key=lambda v: tally[v])
+
+
+def _aggregate_any_failure(results: list[dict]) -> str:
+    """FAILURE if any worker is FAILURE; otherwise worst of the rest."""
+    for r in results:
+        if r["verdict"] == "FAILURE":
+            return "FAILURE"
+    return _aggregate_worst(results)
+
+
+# ---------------------------------------------------------------------------
+# Worker execution
+# ---------------------------------------------------------------------------
+
+
+def _run_worker(worker_def: dict, timeout_seconds: int) -> dict:
+    """
+    Execute a single worker sub-runner.
+
+    Returns a worker result dict:
+        { id, mode, verdict, summary, data, details, duration_ms }
+    """
+    worker_id = worker_def.get("id", "unknown")
+    worker_mode = worker_def.get("mode", "")
+    worker_spec = worker_def.get("spec", {})
+
+    start = time.monotonic()
+
+    try:
+        # Late import to avoid circular imports at module load time.
+        from bl.runners.base import get as get_runner  # noqa: PLC0415
+
+        runner = get_runner(worker_mode)
+        if runner is None:
+            return {
+                "id": worker_id,
+                "mode": worker_mode,
+                "verdict": "INCONCLUSIVE",
+                "summary": f"No runner registered for mode '{worker_mode}'",
+                "data": {"error": "unknown_mode"},
+                "details": f"Mode '{worker_mode}' is not registered in the runner registry.",
+                "duration_ms": 0,
+            }
+
+        # Build a minimal question dict the sub-runner can understand.
+        # Sub-runners typically read question["spec"] or question["test"] etc.
+        question = {
+            "id": worker_id,
+            "mode": worker_mode,
+            "spec": worker_spec,
+            # Flatten spec keys to top-level so runners that read question["test"],
+            # question["target"] etc. also find them.
+            **{k: v for k, v in worker_spec.items() if k not in ("id", "mode")},
+        }
+
+        result = runner(question)
+
+    except Exception as exc:
+        duration_ms = round((time.monotonic() - start) * 1000, 1)
+        tb = traceback.format_exc()
+        return {
+            "id": worker_id,
+            "mode": worker_mode,
+            "verdict": "INCONCLUSIVE",
+            "summary": f"Worker '{worker_id}' raised an exception: {exc}",
+            "data": {"error": str(exc), "traceback": tb},
+            "details": f"Unhandled exception in worker '{worker_id}' (mode={worker_mode}):\n{tb}",
+            "duration_ms": duration_ms,
+        }
+
+    duration_ms = round((time.monotonic() - start) * 1000, 1)
+
+    return {
+        "id": worker_id,
+        "mode": worker_mode,
+        "verdict": result.get("verdict", "INCONCLUSIVE"),
+        "summary": result.get("summary", ""),
+        "data": result.get("data", {}),
+        "details": result.get("details", ""),
+        "duration_ms": duration_ms,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Main runner
+# ---------------------------------------------------------------------------
+
+
+def run_swarm(question: dict) -> dict:
+    """
+    Meta-runner: run multiple sub-runners in parallel and aggregate verdicts.
+
+    Reads from question["spec"] (preferred) or question itself.
+    """
+    spec = question.get("spec", question)
+
+    workers = spec.get("workers", [])
+    if not workers:
+        return {
+            "verdict": "INCONCLUSIVE",
+            "summary": "swarm runner: no workers defined in spec",
+            "data": {"error": "no_workers"},
+            "details": "spec.workers must be a non-empty list of {id, mode, spec} dicts.",
+        }
+
+    max_concurrency = spec.get("max_concurrency", len(workers))
+    timeout_seconds = int(spec.get("timeout_seconds", 120))
+    aggregation = spec.get("aggregation", "worst").lower()
+    weights: dict[str, int] = spec.get("weights", {})
+
+    swarm_start = time.monotonic()
+
+    # Submit all workers to the thread pool.
+    completed_results: list[dict] = []
+    timed_out_ids: list[str] = []
+    failed_ids: list[str] = []
+
+    with ThreadPoolExecutor(max_workers=max(1, max_concurrency)) as pool:
+        future_to_worker = {
+            pool.submit(_run_worker, w, timeout_seconds): w for w in workers
+        }
+
+        for future in as_completed(future_to_worker, timeout=timeout_seconds):
+            worker_def = future_to_worker[future]
+            worker_id = worker_def.get("id", "unknown")
+            try:
+                result = future.result(timeout=0)  # result already available
+                completed_results.append(result)
+                if result["verdict"] in ("FAILURE", "INCONCLUSIVE"):
+                    failed_ids.append(worker_id)
+            except FuturesTimeoutError:
+                # Individual future timed out (shouldn't happen since as_completed
+                # already enforced global timeout, but be safe).
+                timed_out_ids.append(worker_id)
+                completed_results.append(
+                    {
+                        "id": worker_id,
+                        "mode": worker_def.get("mode", ""),
+                        "verdict": "INCONCLUSIVE",
+                        "summary": f"Worker '{worker_id}' timed out",
+                        "data": {"error": "timeout"},
+                        "details": f"Worker did not complete within timeout ({timeout_seconds}s).",
+                        "duration_ms": timeout_seconds * 1000,
+                    }
+                )
+            except Exception as exc:
+                # as_completed itself raised — treat as worker error.
+                timed_out_ids.append(worker_id)
+                completed_results.append(
+                    {
+                        "id": worker_id,
+                        "mode": worker_def.get("mode", ""),
+                        "verdict": "INCONCLUSIVE",
+                        "summary": f"Worker '{worker_id}' raised an unexpected error: {exc}",
+                        "data": {"error": str(exc)},
+                        "details": f"Unexpected error collecting result for '{worker_id}': {exc}",
+                        "duration_ms": 0,
+                    }
+                )
+
+    # Handle workers that never completed because the global timeout expired.
+    completed_ids = {r["id"] for r in completed_results}
+    for worker_def in workers:
+        wid = worker_def.get("id", "unknown")
+        if wid not in completed_ids:
+            timed_out_ids.append(wid)
+            completed_results.append(
+                {
+                    "id": wid,
+                    "mode": worker_def.get("mode", ""),
+                    "verdict": "INCONCLUSIVE",
+                    "summary": f"Worker '{wid}' did not finish within {timeout_seconds}s",
+                    "data": {"error": "global_timeout"},
+                    "details": f"Global swarm timeout ({timeout_seconds}s) expired before worker finished.",
+                    "duration_ms": timeout_seconds * 1000,
+                }
+            )
+
+    # Aggregate verdict.
+    if aggregation == "majority":
+        overall_verdict = _aggregate_majority(completed_results, weights)
+    elif aggregation == "any_failure":
+        overall_verdict = _aggregate_any_failure(completed_results)
+    else:
+        # Default: "worst"
+        overall_verdict = _aggregate_worst(completed_results)
+
+    # Build by_worker dict for the envelope.
+    by_worker: dict[str, dict] = {}
+    for r in completed_results:
+        by_worker[r["id"]] = {
+            "verdict": r["verdict"],
+            "summary": r["summary"],
+            "duration_ms": r["duration_ms"],
+        }
+
+    # Collect combined issues from all workers.
+    combined_issues: list[str] = []
+    for r in completed_results:
+        worker_data = r.get("data", {})
+        for key in ("issues", "errors"):
+            items = worker_data.get(key)
+            if isinstance(items, list):
+                for item in items:
+                    entry = (
+                        f"[{r['id']}] {item}"
+                        if isinstance(item, str)
+                        else f"[{r['id']}] {item!r}"
+                    )
+                    combined_issues.append(entry)
+
+    workers_total = len(workers)
+    workers_complete = len(completed_results) - len(timed_out_ids)
+    workers_failed = sum(
+        1 for r in completed_results if r["verdict"] in ("FAILURE", "INCONCLUSIVE")
+    )
+
+    # Build summary line.
+    per_worker_summary = ", ".join(
+        f"{r['id']}={r['verdict']}" for r in completed_results
+    )
+    summary = (
+        f"{workers_complete}/{workers_total} workers complete: {per_worker_summary}"
+    )
+
+    # Build details block.
+    detail_lines = [
+        f"Swarm: {workers_total} workers, aggregation={aggregation}, "
+        f"timeout={timeout_seconds}s, concurrency={max_concurrency}",
+        "",
+    ]
+    for r in completed_results:
+        detail_lines.append(
+            f"  [{r['id']}] mode={r['mode']} verdict={r['verdict']} "
+            f"duration={r['duration_ms']}ms"
+        )
+        if r["summary"]:
+            detail_lines.append(f"    summary: {r['summary']}")
+        if r.get("details"):
+            for dline in r["details"].splitlines():
+                detail_lines.append(f"    | {dline}")
+        detail_lines.append("")
+
+    if timed_out_ids:
+        detail_lines.append(f"Timed-out workers: {', '.join(timed_out_ids)}")
+
+    total_duration_ms = round((time.monotonic() - swarm_start) * 1000, 1)
+    detail_lines.append(f"Total swarm duration: {total_duration_ms}ms")
+
+    return {
+        "verdict": overall_verdict,
+        "summary": summary,
+        "data": {
+            "workers_total": workers_total,
+            "workers_complete": workers_complete,
+            "workers_failed": workers_failed,
+            "by_worker": by_worker,
+            "combined_issues": combined_issues,
+            "aggregation": aggregation,
+            "timed_out": timed_out_ids,
+            "total_duration_ms": total_duration_ms,
+        },
+        "details": "\n".join(detail_lines),
+    }

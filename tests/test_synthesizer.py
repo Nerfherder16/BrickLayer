@@ -224,6 +224,28 @@ The campaign is making progress and several questions remain unanswered.
 
 
 # ---------------------------------------------------------------------------
+# TestRunRetrospective
+# ---------------------------------------------------------------------------
+
+
+class TestRunRetrospective:
+    def test_skipped_when_no_agent_file(self, tmp_path, monkeypatch):
+        """_run_retrospective() returns cleanly when retrospective.md doesn't exist."""
+        import subprocess as sp
+
+        calls = []
+        monkeypatch.setattr(sp, "run", lambda *a, **kw: calls.append((a, kw)))
+
+        from bl.synthesizer import _run_retrospective
+
+        _run_retrospective(tmp_path)  # no .claude/agents/retrospective.md exists
+
+        assert calls == [], (
+            "subprocess.run should not be called when agent file missing"
+        )
+
+
+# ---------------------------------------------------------------------------
 # TestReadDoctrine
 # ---------------------------------------------------------------------------
 

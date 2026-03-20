@@ -3588,3 +3588,154 @@ Time anchor: Wave 34 runs after Wave 33 time-gated questions resolve (2026-03-16
 - HEALTHY: N3 < 200 (amnesty alone rescues >75% of 846; minimal residual)
 **Priority**: Tier 1 -- determines whether amnesty is sufficient or rehabilitate fix also urgently needed
 **Derived from**: Q35.5 WARNING (amnesty partial; graph eligibility unclear for null pool); Q36.1 PENDING (amnesty execution); Q35.3 FAILURE (846 floor-clamped)
+
+
+---
+
+## Wave 37 Questions
+
+---
+
+## Q37.1 [DOMAIN-4] Fix-1 deployment verification -- has uid>0 guard been deployed since 2026-03-15?
+**Status**: DONE (HEALTHY)
+**Wave**: 37
+**Mode**: code analysis
+**Target**: C:/Users/trg16/Dev/Recall/src/storage/qdrant.py lines 1200-1215 (get_distinct_user_ids); C:/Users/trg16/Dev/Recall/src/workers/decay.py lines 278-301 (run_decay_all_users); live decay audit log
+**Hypothesis**: Q35.4 (2026-03-15) confirmed Fix-1 was NOT deployed -- qdrant.py:1207 still reads `if uid is not None:` without `and uid > 0`. Q36.5 performed a risk assessment and found it safe to deploy (FamilyHub uid>0 users unaffected, container restart required). As of 2026-03-16 the fix remains undeployed. Without it, double-decay continues and the ~838 amnesty-rescued memories will decay back to floor by ~2026-03-21.
+**What to measure**:
+1. Read qdrant.py lines 1205-1212: does get_distinct_user_ids now contain `and uid > 0`?
+2. Check live audit: query /admin/audit?action=decay_run&limit=5 -- has details.processed halved from ~5,994/cycle to ~74 (FamilyHub users only)? This is the definitive behavioral test.
+3. If still NOT deployed: compute exact days remaining before amnesty-rescued memories return to floor (Q33.3: ~5 days from 2026-03-15 = 2026-03-21). Is re-amnesty now required before Fix-1?
+4. If deployed: confirm container was restarted (docker compose restart recall-worker); verify by checking newest decay_run audit entry processed count.
+**Verdict threshold**:
+- FAILURE: `if uid is not None:` still present (no `and uid > 0`); processed count still ~5,994/cycle; double-decay ongoing; corpus re-accumulating toward pre-amnesty state
+- WARNING: Fix deployed in code but container NOT restarted (source shows fix but decay audit still shows double-run)
+- HEALTHY: `if uid is not None and uid > 0:` confirmed; processed count reflects only FamilyHub 74 users; double-decay halted
+**Priority**: Tier 0
+**Derived from**: Q35.4 WARNING (Fix-1 not deployed); Q36.5 WARNING (safe to deploy, requires restart); Q33.3 INCONCLUSIVE (amnesty-rescued memories return to floor by 2026-03-21 without Fix-1)
+
+---
+
+## Q37.2 [DOMAIN-1] Post-amnesty re-accumulation trajectory -- floor-clamped count at ~48h post-amnesty
+**Status**: DONE (HEALTHY)
+**Wave**: 37
+**Mode**: quantitative analysis
+**Target**: Qdrant filter superseded_by IS NULL AND importance <= 0.051; POST /admin/importance/amnesty?dry_run=true; GET /admin/health/distributions
+**Hypothesis**: Q33.3 (2026-03-16T15:22 UTC) estimated floor-clamped at exactly 0.05 was <200, with the 838 amnesty-rescued memories not yet having decayed back to floor (need ~5 days from 2026-03-15T15:42 UTC = floor-return by 2026-03-21). However newly written null-user_id memories (consolidation outputs, worker signals) continue accumulating at floor under double-decay. The 0.0-0.2 bucket grew from 3.9% post-amnesty to 12.5% at Q33.3 (23.5h later). At ~48h post-amnesty the bucket should be even larger.
+**What to measure**:
+1. Direct Qdrant count: superseded_by IS NULL AND importance <= 0.051 -- exact floor-clamped count.
+2. POST /admin/importance/amnesty?dry_run=true -- how many eligible (boosted) vs skipped? Compare to Q33.3 (3,198 eligible).
+3. GET /admin/health/distributions -- 0.0-0.2 bucket percentage vs Q33.3 (12.5%).
+4. Active pool size (processed + skipped from amnesty dry_run) -- compute daily growth rate from Q33.3 baseline (6,492).
+5. Compute: at current floor-clamped accumulation rate, when will count exceed Q31.3 crisis level (1,049)? Update the re-amnesty deadline.
+**Verdict threshold**:
+- FAILURE: Floor-clamped > 400 (accumulation faster than predicted; Fix-1 urgency escalates; second amnesty may be needed before 2026-03-21)
+- WARNING: Floor-clamped 100-400 (expected trajectory; Fix-1 still urgently needed; second amnesty not yet required)
+- HEALTHY: Floor-clamped < 100 (accumulation slower than predicted; more runway before re-amnesty required)
+**Priority**: Tier 1
+**Derived from**: Q33.3 INCONCLUSIVE (estimated <200 floor-clamped at 2026-03-16T15:22; second amnesty needed before 2026-03-21 without Fix-1); Q36.1 HEALTHY (amnesty rescued 4,173); Q37.1 (Fix-1 status)
+
+---
+
+## Q37.3 [DOMAIN-4] Hygiene first real archival -- did 2026-03-17T04:00 UTC produce non-zero candidates?
+**Status**: INCONCLUSIVE
+**Wave**: 37
+**Mode**: performance
+**Target**: GET /admin/audit?action=hygiene_run&limit=5; Qdrant direct count for hygiene-eligible memories (superseded_by IS NULL AND access_count<=0 AND importance<0.3 AND created_at < cutoff)
+**Hypothesis**: Q33.1 confirmed hygiene fired at 2026-03-16T04:00 UTC with 0 candidates -- correct, because the cutoff (2026-02-14T04:00 UTC) was barely past the oldest memories. The next run at 2026-03-17T04:00 UTC will use cutoff 2026-02-15T04:00 UTC, clearing all Feb 14 memories by age. However Q33.7 found the Feb 14 cohort has importance 0.30-0.40 (hygiene requires importance < 0.3 strictly), so Feb 14 cohort may still not qualify. The actual eligible candidates are floor-clamped null-user_id memories >30 days old with importance < 0.3 AND access_count == 0.
+**What to measure**:
+1. Query audit: GET /admin/audit?action=hygiene_run&limit=5 -- has a run occurred after 2026-03-17T04:00 UTC? archived and candidates_scanned values.
+2. If run occurred with candidates_scanned == 0: direct Qdrant count with full hygiene filter to verify truly no candidates or filter defect.
+3. If candidates_scanned > 0: domain breakdown of archived memories and count.
+4. How many null-user_id floor-clamped memories have created_at < 2026-02-15T04:00 UTC? This is the theoretical eligible subset.
+5. Confirm hygiene uses importance < 0.3 (strict) per Q36.2 source analysis -- not <= 0.3.
+**Verdict threshold**:
+- FAILURE: Hygiene ran at 04:00 UTC but candidates_scanned == 0 despite Qdrant confirming eligible candidates exist (filter defect confirmed)
+- WARNING: Hygiene ran but 0 candidates because no memories meeting ALL criteria exist (age OK, but importance >= 0.3 or access_count > 0); filter correct but no eligible pool yet
+- HEALTHY: candidates_scanned > 0 AND archived > 0 (first real archival batch processed successfully)
+**Priority**: Tier 1
+**Derived from**: Q33.1 WARNING (04:00 UTC fired, 0 candidates -- correct for date boundary; first real run expected 2026-03-17T04:00); Q36.2 WARNING (oldest memory 2026-02-14, importance threshold analysis)
+
+---
+
+## Q37.4 [DOMAIN-4] Reconcile cron reliability and repair mode -- has the Sunday miss been addressed?
+**Status**: DONE (HEALTHY)
+**Wave**: 37
+**Mode**: correctness
+**Target**: C:/Users/trg16/Dev/Recall/src/workers/reconcile.py (repair parameter in scheduled call); C:/Users/trg16/Dev/Recall/src/workers/main.py (cron registration); GET /admin/audit?action=reconcile&limit=20
+**Hypothesis**: Q33.4 FAILURE: Sunday 2026-03-16T05:30 UTC reconcile was missed (worker down or weekday mapping error). Q33.5 FAILURE: 1,027 mismatches at 41/hour. Q31.5 WARNING: scheduled reconcile uses repair=false (scan-only). Two separate fixes are needed: (1) change cron to repair=true so when it fires it actually fixes mismatches; (2) investigate WHY the Sunday cron missed -- in ARQ, weekday=6 may map to Saturday (ISO Monday=0) not Sunday, meaning the cron has never correctly targeted Sunday.
+**What to measure**:
+1. Read main.py cron registration for reconcile: what is weekday= value? Read reconcile.py scheduled call: what is repair= value?
+2. ARQ weekday mapping: in the arq library, does weekday=0 mean Monday (ISO standard) or Sunday (US convention)? If weekday=6 = Saturday, the cron has been targeting the wrong day since deployment.
+3. Audit log: any reconcile entries after 2026-03-15T15:10 UTC? If none, the cron has not fired in >24h.
+4. Current mismatch count: POST /admin/reconcile (repair=false) -- compare to Q33.5 (1,027 at 2026-03-16T15:22 UTC). Compute rate from that baseline.
+5. Has a manual repair been run since Q33.5? Check audit for repairs_applied > 0 entries.
+**Verdict threshold**:
+- FAILURE: Cron still repair=false AND mismatches still accumulating AND no manual repair since Q33.5; current mismatches > 2,000; or weekday mapping confirmed wrong (cron targeting Saturday not Sunday)
+- WARNING: Cron still repair=false but manual repair cleared mismatches; or repair=true deployed but weekday mapping issue persists
+- HEALTHY: Cron now repair=true AND fires reliably AND current mismatches < 50
+**Priority**: Tier 1
+**Derived from**: Q33.4 FAILURE (Sunday reconcile missed); Q33.5 FAILURE (1,027 mismatches at 41/hr); Q31.5 WARNING (repair=false cron not cleaning mismatches)
+
+---
+
+## Q37.5 [DOMAIN-3] GC infrastructure readiness -- can the system handle ~19,610 superseded entries at 2026-03-21T19:12 UTC?
+**Status**: DONE (HEALTHY)
+**Wave**: 37
+**Mode**: code analysis + correctness
+**Target**: C:/Users/trg16/Dev/Recall/src/api/routes/admin.py; C:/Users/trg16/Dev/Recall/src/workers/ (any gc worker); GET /openapi.json filtered for gc endpoints; GET /admin/audit?action=gc_run&limit=5
+**Hypothesis**: Q31.6 found GC endpoints returned 404 (no infrastructure). Q33.6 projects ~19,610 superseded memories at GC eligibility 2026-03-21T19:12 UTC (5 days away at Q33.6 measurement). If GC infrastructure still does not exist, the superseded pool grows unconstrained. If it was added since Wave 31, it needs safety assessment: 19K entries processed in one pass risks timeout. Batching, dry_run, and audit logging are necessary for safe operation at this scale.
+**What to measure**:
+1. GET /openapi.json -- filter for any endpoint containing gc, garbage-collect, purge-superseded, gc_run. Does a GC endpoint now exist?
+2. If exists: read source code -- batch size, pagination, timeout handling, dry_run parameter, audit logging.
+3. GET /admin/audit?action=gc_run&limit=5 -- any GC runs ever recorded?
+4. Is GC registered in WorkerSettings.cron_jobs? If so, what schedule and eligibility condition?
+5. Current superseded count: qdrant_total (from reconcile) minus active pool (from amnesty dry_run processed+skipped) -- compare to Q33.6 projection of 16,030 + 613/day growth.
+**Verdict threshold**:
+- FAILURE: GC endpoint still 404 (no infrastructure); or exists but no pagination/batching; or no cron and no documented manual-trigger plan before 2026-03-21
+- WARNING: GC infrastructure exists but has never run; or has batching but no dry_run mode; or cron scheduled but eligibility window unclear
+- HEALTHY: GC infrastructure exists with batching, dry_run, audit logging, and either cron-scheduled or confirmed manual-trigger plan before 2026-03-21T19:12 UTC
+**Priority**: Tier 1
+**Derived from**: Q33.6 WARNING (superseded 16,030 at 613/day; GC eligibility 2026-03-21T19:12 UTC); Q31.6 INCONCLUSIVE (GC endpoints 404 at Wave 31)
+
+---
+
+## Q37.6 [DOMAIN-1] FamilyHub user memory health -- are the 74 uid>0 memories being correctly decayed?
+**Status**: PENDING
+**Wave**: 37
+**Mode**: quantitative analysis + correctness
+**Target**: Qdrant filter user_id > 0 (74 memories); decay audit history; C:/Users/trg16/Dev/Recall/src/workers/patterns.py, dream_consolidation.py, consolidation.py (get_distinct_user_ids callers)
+**Hypothesis**: Q36.5 found 74 FamilyHub memories with user_id 53-71. With Fix-1 not deployed, get_distinct_user_ids() returns only uid=0 (maps to IsNullCondition -- decays NULL memories only). The explicit system block also uses worker.run(user_id=0) which processes NULL memories only. Therefore FamilyHub memories (uid=53-71) are decayed by neither the per-user loop nor the system block -- they may have received zero decay since import, inflating their retrieval importance relative to correctly-decayed memories.
+**What to measure**:
+1. Fetch all 74 FamilyHub memories (user_id > 0): importance distribution -- min, max, mean, histogram.
+2. What are the created_at dates? How many decay cycles should have applied since import?
+3. Using expected single-decay formula (0.96^cycles_since_import per 6h slot), compute expected importance range. Compare to actual.
+4. Are any FamilyHub memories at importance >= 0.8 (near-initial, suggesting zero decay applied)?
+5. For the 3 other callers (patterns.py, dream_consolidation.py, consolidation.py): do their per-user loops also skip uid=53-71 under unfixed get_distinct_user_ids?
+**Verdict threshold**:
+- FAILURE: FamilyHub memories show no decay (importance at initial values despite age > 7 days); or any FamilyHub memory at floor (0.05) indicating incorrect decay path
+- WARNING: FamilyHub memories show anomalous importance (too high -- undecayed -- or too low -- wrong decay path); Fix-1 deployment needed to normalize
+- HEALTHY: FamilyHub memories have importance consistent with their age and expected single-decay trajectory
+**Priority**: Tier 2
+**Derived from**: Q36.5 WARNING (74 FamilyHub uid>0 memories discovered; get_distinct_user_ids excludes them pre-Fix-1)
+
+---
+
+## Q37.7 [DOMAIN-5] Reconcile backlog repair -- run repair=true to clear accumulated mismatch backlog
+**Status**: DONE (HEALTHY)
+**Wave**: 37
+**Mode**: correctness
+**Target**: POST /admin/reconcile (repair=true); GET /admin/audit?action=reconcile&limit=10; immediate re-scan POST /admin/reconcile (repair=false)
+**Hypothesis**: Q33.5 measured 1,027 mismatches at 2026-03-16T15:22 UTC at ~41/hour. As of 2026-03-16 ~24h later, projected backlog: ~1,991 mismatches. Q31.5 demonstrated repair=true clears all mismatches in a single call (261 cleared instantly). This question executes the manual repair and validates: (a) repair=true scales to ~2,000 mismatches, (b) post-repair count drops near zero, (c) immediate re-scan reveals the per-minute re-accumulation rate to distinguish continuous vs burst creation.
+**What to measure**:
+1. Pre-repair: POST /admin/reconcile (repair=false) -- exact current mismatch count and elapsed time from Q33.5 baseline.
+2. Execute repair: POST /admin/reconcile (repair=true) -- repairs_applied count and response time.
+3. Post-repair: POST /admin/reconcile (repair=false) immediately -- confirm near-zero.
+4. 5-minute re-scan: POST /admin/reconcile (repair=false) -- how many new mismatches appeared? Compute per-minute rate (41/hr = 0.68/min baseline).
+5. Audit log: does reconcile correctly log repairs_applied at this scale? GET /admin/audit?action=reconcile&limit=3.
+**Verdict threshold**:
+- FAILURE: repair=true fails (HTTP error), times out, or repairs_applied < 50% of pre-repair count (infrastructure breaks at ~2K scale)
+- WARNING: repair=true succeeds but post-repair count > 100; or repairs_applied != pre-repair mismatch count (partial repair)
+- HEALTHY: repairs_applied equals pre-repair count; post-repair < 10; 5-minute re-scan shows < 5 new mismatches
+**Priority**: Tier 1
+**Derived from**: Q33.5 FAILURE (1,027 mismatches at 41/hr; scan-only cron not cleaning); Q33.4 FAILURE (Sunday cron missed; no automated repair); Q31.5 WARNING (repair=true works but not automated)
