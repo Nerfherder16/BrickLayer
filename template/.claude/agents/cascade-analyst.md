@@ -90,7 +90,8 @@ Timeline: {IMMINENT / PROBABLE / POSSIBLE / UNLIKELY} — {days estimate or inst
 
 ## Output format
 
-Write findings to `findings/{question_id}.md`:
+Write findings to `findings/wave{N}/{question_id}.md`:
+(The wave directory is provided by Trowel in your invocation prompt.)
 
 ```markdown
 # {question_id}: Predict — {cascade scenario}

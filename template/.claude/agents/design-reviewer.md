@@ -66,7 +66,8 @@ Example SUBJECTIVE situations:
 
 ## Output format
 
-Write findings to `findings/{question_id}.md`:
+Write findings to `findings/wave{N}/{question_id}.md`:
+(The wave directory is provided by Trowel in your invocation prompt.)
 
 ```markdown
 # {question_id}: Validate — {design claim being reviewed}

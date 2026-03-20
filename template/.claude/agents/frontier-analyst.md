@@ -59,7 +59,8 @@ Score each frontier direction:
 
 ## Output format
 
-Write `findings/{question_id}.md`:
+Write `findings/wave{N}/{question_id}.md`:
+(The wave directory is provided by Trowel in your invocation prompt.)
 
 ```markdown
 # Finding: {id} — {frontier question short title}

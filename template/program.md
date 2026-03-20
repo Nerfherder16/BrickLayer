@@ -64,7 +64,8 @@ use your knowledge base and flag any post-2024 information as needing external v
 6. Run: `python simulate.py > run.log 2>&1`
 7. Read results: `grep "^verdict:\|^treasury_runway_months:\|^failure_reason:" run.log`
 8. Evaluate:
-   - `FAILURE` or `WARNING` → **keep the commit**, write a finding to `findings/<question_id>.md`
+   - `FAILURE` or `WARNING` → **keep the commit**, write a finding to `findings/wave{N}/<question_id>.md`
+     (The wave number N is provided by Trowel in your invocation prompt.)
    - `HEALTHY` → `git reset --hard HEAD~1`, try a different parameter value or move on
 9. Log to `results.tsv`
 10. Mark the question as DONE (or INCONCLUSIVE) in `questions.md`
@@ -74,7 +75,7 @@ use your knowledge base and flag any post-2024 information as needing external v
 
 1. Pick the next PENDING question
 2. Answer from your knowledge base, flagging anything uncertain or potentially outdated
-3. Write the finding directly to `findings/<question_id>.md`
+3. Write the finding directly to `findings/wave{N}/<question_id>.md`
 4. Log to `results.tsv` as a research run (no commit/reset cycle needed)
 5. Mark DONE or INCONCLUSIVE
 6. **Check the finding for follow-ups** (see Live Discovery below)
@@ -142,7 +143,7 @@ as a **background agent** — do NOT wait for it:
 ```
 Spawn background agent — peer-reviewer:
   "Act as peer-reviewer per .claude/agents/peer-reviewer.md.
-   primary_finding=findings/<question_id>.md, target_git=., agents_dir=.claude/agents/.
+   primary_finding=findings/wave{N}/<question_id>.md, target_git=., agents_dir=.claude/agents/.
    Re-run the original test independently, review the fix code, append ## Peer Review
    section with verdict CONFIRMED | CONCERNS | OVERRIDE."
 ```
@@ -199,7 +200,7 @@ Use `N/A` for primary_metric on research questions (no sim run).
 
 ## Finding Format
 
-Write each finding to `findings/<question_id>.md`:
+Write each finding to `findings/wave{N}/<question_id>.md`:
 
 ```markdown
 # Finding: <question_id> — <short title>
