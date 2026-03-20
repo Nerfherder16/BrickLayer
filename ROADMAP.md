@@ -397,6 +397,17 @@ in `~/.claude.json`. Does NOT replace masonry-mcp.js — both run in parallel.
 
 ---
 
+## Phase 15 — Session Intelligence 📋
+
+**Goal:** Close structural gaps identified in the OMC comparison (R-omc-structural-comparison.md). OMC's session-quality layer has two capabilities BL 2.0 lacks: hot-path awareness (which files are touched most, cross-session) and dead-reference hygiene. These are low-cost, high-signal additions that improve agent context quality.
+
+| ID | Task | Status |
+|----|------|--------|
+| 15.01 | Hot path tracker — `masonry-session-start.js` accumulates a file access frequency map across sessions to `~/.masonry/state/{slug}/hotpaths.json`; top-5 most-edited files injected into session context at startup; helps agents avoid re-discovering the same structural facts | 📋 |
+| 15.02 | Dead reference audit — scan all agent `.md` files, hooks, and CLAUDE.md for references to removed tools/agents/env vars (e.g. `oh-my-claudecode`, `DISABLE_OMC`); auto-flag on `masonry-session-start.js`; emit `[Masonry] STALE_REF:` warning | 📋 |
+
+---
+
 ## Design Principles
 
 1. **Universal verdict envelope.** Every runner, every target, every question type produces the same `{verdict, summary, data, details}` shape.
