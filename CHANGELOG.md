@@ -75,6 +75,8 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `d589ce7` fix(hooks): scope tool-failure error state per-project; drop dead OMC refs (2026-03-19)
+- `5db1466` research: similar repos structural comparison — BL 2.0 is Pattern C, confirmed correct foundation (2026-03-19)
 - `4a6c2f0` roadmap: add Phase 14 — Campaign Working Memory (pointer agent + scratch.md) (2026-03-19)
 - `6a0b83d` research: shared scratchpad patterns for multi-agent pipelines (2026-03-19)
 - `9dc86c5` fix(trowel): placeholder check at startup — auto-invoke question-designer if questions.md is template (2026-03-19)
