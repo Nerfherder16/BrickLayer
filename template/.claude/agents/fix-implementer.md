@@ -78,7 +78,8 @@ When the fix fails, the finding must include this section to give Diagnose mode 
 
 ## Output format
 
-Write finding to `findings/{original_finding_id}_fix.md`:
+Write finding to `findings/wave{N}/{original_finding_id}_fix.md`:
+(The wave directory is provided by Trowel in your invocation prompt.)
 
 ```markdown
 # {question_id}: Fix — {original finding title}

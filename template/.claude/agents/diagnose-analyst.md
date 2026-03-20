@@ -62,7 +62,8 @@ All four fields must be present. A vague Fix Specification is worse than no spec
 
 ## Output format
 
-Write findings to `findings/{question_id}.md` using this structure:
+Write findings to `findings/wave{N}/{question_id}.md` using this structure:
+(The wave directory is provided by Trowel in your invocation prompt.)
 
 ```markdown
 # {question_id}: {question text}

@@ -87,7 +87,8 @@ Append to `monitor-log.tsv`:
 {ISO-8601}\t{metric_name}\t{measured_value}\t{verdict}\t{delta_from_baseline:+.1f}%
 ```
 
-## Finding format (ALERT only — write to findings/{question_id}.md)
+## Finding format (ALERT only — write to findings/wave{N}/{question_id}.md)
+(The wave directory is provided by Trowel in your invocation prompt.)
 
 ```markdown
 # {question_id}: Monitor ALERT — {metric_name}
