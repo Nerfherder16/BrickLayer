@@ -1,0 +1,7 @@
+{
+  "display_name": "ADBP v3 — Reserve-Backed Credit System",
+  "recall_src": "",
+  "stack": ["python", "simulation", "monte-carlo"],
+  "target_live_url": "",
+  "mode": "research+diagnose"
+}
