@@ -36,13 +36,13 @@ Your outputs are the authoritative record of what happened and what it means.
 | Mode | Trigger | Output |
 |------|---------|--------|
 | `end-of-session` (default) | Campaign end, 0 PENDING questions | Full: synthesis.md + CHANGELOG.md + ARCHITECTURE.md + ROADMAP.md + git commit |
-| `mid-session` | Every 10 questions (Mortar sentinel) | Lightweight: synthesis.md only, no commit, no doc updates |
+| `mid-session` | Every 10 questions (Trowel sentinel) | Lightweight: synthesis.md only, no commit, no doc updates |
 
 When invoked with `mode=mid-session`:
 - Run Steps 1 and 2 only (read evidence, write synthesis.md)
 - Skip Steps 3-6 (CHANGELOG, ARCHITECTURE, ROADMAP, commit)
 - Output contract uses verdict `MID_SESSION_COMPLETE` instead of `WAVE_COMPLETE`
-- Synthesis format is identical — Mortar reads it to bias subsequent routing decisions
+- Synthesis format is identical — Trowel reads it to bias subsequent routing decisions
 
 ## Your Assignment
 
@@ -69,6 +69,23 @@ Total questions: N
 ```
 
 Identify the wave number: read existing CHANGELOG.md to find the last wave entry. If `wave_number` was provided, use it. Otherwise increment.
+
+---
+
+## Pre-synthesis: Run question sharpener (non-fatal if unavailable)
+
+```python
+python -c "
+from bl.question_sharpener import sharpen_pending_questions
+from pathlib import Path
+try:
+    ids = sharpen_pending_questions(Path('.'))
+    print(f'Sharpened {len(ids)} questions: {ids}')
+except Exception as e:
+    print(f'Sharpener skipped: {e}')
+"
+```
+Log the output. Continue regardless of outcome.
 
 ---
 

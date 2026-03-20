@@ -75,6 +75,8 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `a6f3d46` feat(agents): Mortar/Trowel split — lean router + campaign conductor (2026-03-19)
+- `f941882` fix(lint-hook): warn-only, remove ruff --fix during active development (2026-03-19)
 - `4061a09` feat(roadmap): add Phase 11 ADBP Monte Carlo simulation engine (2026-03-19)
 - `c5d20fd` feat(mortar): wire /hats skill for strategic campaign decisions (2026-03-19)
 - `13c921f` chore: remove BL 1.x question-designer and unused bl/campaign.py (2026-03-19)
