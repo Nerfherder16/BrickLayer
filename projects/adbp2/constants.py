@@ -10,15 +10,17 @@ TOKEN_FACE_VALUE = 2.00  # USD purchasing power of 1 token at vendors (fixed for
 MINT_PRICE = 1.00  # USD cost for employee to mint 1 token
 ESCROW_START_PER_TOKEN = 1.00  # USD deposited to escrow at mint time
 
+# ── Fee Split ─────────────────────────────────────────────────────────────────
+# Employee fees are split between escrow (backs tokens) and operator (platform revenue).
+FEE_TO_ESCROW_PCT = 0.65  # 65% of monthly employee fee → escrow pool
+FEE_TO_OPERATOR_PCT = 0.35  # 35% of monthly employee fee → operator (admin + revenue)
+
 # ── Burn Mechanics ────────────────────────────────────────────────────────────
 # Burns activate only when pool-average escrow per token reaches $2.00
 # (equivalent to CRR >= 1.0)
 BURN_ELIGIBLE_CRR = 1.00  # Burns activate at this CRR threshold (escrow = $2/token)
 BURN_RATE_FLOOR = 0.02  # 2% minimum burn rate (traditional tokenomics floor)
 BURN_RATE_CEILING = 0.15  # 15% maximum burn rate (traditional tokenomics ceiling)
-ADMIN_FEE_FLOOR = 0.01  # Min $0.01 admin fee per token per B2B cycle
-ADMIN_FEE_CAP = 0.05  # Max $0.05 admin fee per token per B2B cycle
-BURN_ADMIN_FEE_CAP = ADMIN_FEE_CAP  # Alias for burn surplus admin fee (same cap)
 
 # ── CRR Thresholds ────────────────────────────────────────────────────────────
 # System starts at CRR ~0.50 (mint $1 per $2 obligation).
@@ -34,9 +36,7 @@ MONTHLY_MINT_CAP_PER_EMPLOYEE = 5_000  # Hard per-employee monthly mint ceiling
 EXPECTED_MONTHLY_MINT_PER_EMPLOYEE = 2_000  # Expected actual monthly usage
 
 # ── Interest ──────────────────────────────────────────────────────────────────
-ANNUAL_INTEREST_RATE = (
-    0.04  # 4% annual yield on escrow + treasury (T-bill/money market)
-)
+ANNUAL_INTEREST_RATE = 0.04  # 4% annual yield on escrow (T-bill/money market)
 MONTHLY_INTEREST_RATE = ANNUAL_INTEREST_RATE / 12
 
 # ── Growth Curve (cumulative employees by month) ──────────────────────────────

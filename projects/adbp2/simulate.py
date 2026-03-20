@@ -21,8 +21,6 @@ import json
 import os
 import sys
 from constants import (
-    ADMIN_FEE_CAP,
-    ADMIN_FEE_FLOOR,
     BURN_ELIGIBLE_CRR,
     BURN_RATE_CEILING,
     BURN_RATE_FLOOR,
@@ -33,6 +31,8 @@ from constants import (
     CRR_OVERCAPITALIZED,
     EXPECTED_MONTHLY_MINT_PER_EMPLOYEE,
     FAILURE_THRESHOLD,
+    FEE_TO_ESCROW_PCT,
+    FEE_TO_OPERATOR_PCT,
     GROWTH_CURVE,
     GROWTH_TARGET_EMPLOYEES,
     MINT_PRICE,
@@ -48,12 +48,10 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 # SCENARIO PARAMETERS — Agent modifies this section only.
 # =============================================================================
 
-SCENARIO_NAME = (
-    "Baseline — $45/mo fee, 100% to escrow, admin fee $0.08/token/B2B, burns at CRR≥1.0"
-)
+SCENARIO_NAME = "Baseline — $45/mo fee, 65% to escrow / 35% operator, burns at CRR≥1.0"
 
 # ── Employee monthly platform fee ─────────────────────────────────────────────
-EMPLOYEE_FEE_MONTHLY = 45.00  # USD per employee per month — 100% flows to escrow
+EMPLOYEE_FEE_MONTHLY = 45.00  # USD per employee per month — 65% to escrow, 35% operator
 
 # ── Vendor capacity ───────────────────────────────────────────────────────────
 # Total system capacity = employees × this multiplier (approximates vendor acceptance)
@@ -145,17 +143,12 @@ def run_simulation() -> tuple[list[dict], str | None]:
         escrow_pool += new_tokens * MINT_PRICE
         circulating_tokens += new_tokens
 
-        # ── Step 2: Employee fee collection → admin fees deducted first ─────
+        # ── Step 2: Employee fee collection — 65% escrow / 35% operator ────
         fee_revenue = float(employee_count) * EMPLOYEE_FEE_MONTHLY
-        # Dynamic admin fee: clamp(fee_revenue / tokens, $0.01, $0.05)
-        # Funded entirely from fee income — escrow is never touched for admin fees.
-        if circulating_tokens > 0:
-            affordable = fee_revenue / circulating_tokens
-            admin_fee_per_token = max(ADMIN_FEE_FLOOR, min(ADMIN_FEE_CAP, affordable))
-        else:
-            admin_fee_per_token = ADMIN_FEE_FLOOR
-        admin_fees_paid = min(admin_fee_per_token * circulating_tokens, fee_revenue)
-        escrow_pool += fee_revenue - admin_fees_paid  # remainder flows to escrow
+        operator_revenue = (
+            fee_revenue * FEE_TO_OPERATOR_PCT
+        )  # platform revenue, leaves system
+        escrow_pool += fee_revenue * FEE_TO_ESCROW_PCT
 
         # ── Step 3: Interest accrual ──────────────────────────────────────────
         interest_escrow = escrow_pool * MONTHLY_INTEREST_RATE
@@ -212,7 +205,7 @@ def run_simulation() -> tuple[list[dict], str | None]:
                 "burn_rate_pct": round(burn_rate * 100, 2),
                 "tokens_burned": round(tokens_burned),
                 "reimbursements_paid": round(reimbursements_paid, 2),
-                "admin_fees_paid": round(admin_fees_paid, 2),
+                "operator_revenue": round(operator_revenue, 2),
                 "fee_revenue": round(fee_revenue, 2),
                 "interest_escrow": round(interest_escrow, 2),
                 "total_capacity": round(total_capacity),
@@ -284,7 +277,7 @@ def write_json(records: list[dict]) -> None:
 def print_table(records: list[dict]) -> None:
     hdr = (
         f"{'Mo':>3} {'Employees':>10} {'Tokens':>13} {'Escrow':>15} "
-        f"{'$/Tok':>7} {'CRR':>6} {'Burn%':>6} {'Treasury':>15} {'Verdict'}"
+        f"{'$/Tok':>7} {'CRR':>6} {'Burn%':>6} {'EscrowNet':>15} {'Verdict'}"
     )
     print("\n" + "=" * 90)
     print("ADBP v2 — Monthly Simulation Results")
@@ -504,10 +497,10 @@ def plot_charts(records: list[dict]) -> None:
 if __name__ == "__main__":
     print("\nADBP v2 Simulation")
     print(f"Scenario: {SCENARIO_NAME}")
-    print(f"  Fee: ${EMPLOYEE_FEE_MONTHLY}/mo → 100% escrow")
     print(
-        f"  Admin fee: ${ADMIN_FEE_FLOOR:.2f}–${ADMIN_FEE_CAP:.2f}/token/B2B (revenue-scaled) | Burn: vendor=$2.00/token at CRR≥1.0"
+        f"  Fee: ${EMPLOYEE_FEE_MONTHLY}/mo → {FEE_TO_ESCROW_PCT * 100:.0f}% escrow / {FEE_TO_OPERATOR_PCT * 100:.0f}% operator"
     )
+    print(f"  Burn: vendor=$2.00/token reimbursed from escrow at CRR≥1.0")
     print(f"  Months: {SIMULATION_MONTHS}")
     print("-" * 60)
 
@@ -532,3 +525,74 @@ if __name__ == "__main__":
     print("  reports/simulation_data.json")
 
     plot_charts(records)
+
+
+# =============================================================================
+# RUST ENGINE DELEGATION — Do not modify. Added by the MC build pipeline.
+# =============================================================================
+# When the adbp2_mc Rust extension is available, replace run_simulation() and
+# evaluate() with thin wrappers that delegate to Rust. Falls back to the pure-
+# Python implementations above if the extension is not built.
+#
+# This block runs at module-import time, so any caller of run_simulation() or
+# evaluate() — including the __main__ block above — automatically uses Rust
+# when it is available.
+# =============================================================================
+
+
+def _make_params_dict() -> dict:
+    """Pack current module-level SCENARIO PARAMETERS + constants into a dict."""
+    return {
+        "employee_fee_monthly": EMPLOYEE_FEE_MONTHLY,
+        "vendor_capacity_per_employee": VENDOR_CAPACITY_PER_EMPLOYEE,
+        "simulation_months": SIMULATION_MONTHS,
+        "token_face_value": TOKEN_FACE_VALUE,
+        "mint_price": MINT_PRICE,
+        "escrow_start_per_token": ESCROW_START_PER_TOKEN,
+        "burn_eligible_crr": BURN_ELIGIBLE_CRR,
+        "burn_rate_floor": BURN_RATE_FLOOR,
+        "burn_rate_ceiling": BURN_RATE_CEILING,
+        "admin_fee_floor": ADMIN_FEE_FLOOR,
+        "admin_fee_cap": ADMIN_FEE_CAP,
+        "crr_operational_target": CRR_OPERATIONAL_TARGET,
+        "crr_mint_pause": CRR_MINT_PAUSE,
+        "crr_critical": CRR_CRITICAL,
+        "crr_overcapitalized": CRR_OVERCAPITALIZED,
+        "capacity_ratio": CAPACITY_RATIO,
+        "monthly_mint_cap_per_employee": float(MONTHLY_MINT_CAP_PER_EMPLOYEE),
+        "expected_monthly_mint_per_employee": float(EXPECTED_MONTHLY_MINT_PER_EMPLOYEE),
+        "annual_interest_rate": ANNUAL_INTEREST_RATE,
+        "monthly_interest_rate": MONTHLY_INTEREST_RATE,
+        "growth_curve": list(GROWTH_CURVE),
+        "growth_target_employees": GROWTH_TARGET_EMPLOYEES,
+        "failure_threshold": FAILURE_THRESHOLD,
+        "warning_threshold": WARNING_THRESHOLD,
+    }
+
+
+try:
+    import adbp2_mc as _adbp2_mc  # type: ignore[import]
+
+    _rust_run_simulation = _adbp2_mc.run_simulation
+    _rust_evaluate = _adbp2_mc.evaluate
+
+    # Keep a reference to the original Python implementations
+    _py_run_simulation = run_simulation
+    _py_evaluate = evaluate
+
+    def run_simulation():  # type: ignore[misc]  # noqa: F811
+        """Rust-backed run_simulation(). Falls back to Python if Rust unavailable."""
+        params = _make_params_dict()
+        result = _rust_run_simulation(params)
+        records = result["records"]
+        failure_reason = result.get("failure_reason")
+        return records, failure_reason
+
+    def evaluate(records, failure_reason):  # type: ignore[misc]  # noqa: F811
+        """Rust-backed evaluate(). Falls back to Python if Rust unavailable."""
+        params = _make_params_dict()
+        sim_result = {"records": records, "failure_reason": failure_reason}
+        return _rust_evaluate(sim_result, params)
+
+except ImportError:
+    pass  # Pure-Python implementations above remain in effect

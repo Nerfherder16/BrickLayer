@@ -19,7 +19,7 @@ from $1 invested. The system sustains this through escrow management, fee income
 4. **Burns only activate when CRR >= 1.0** (pool-average escrow per token has reached $2.00).
 5. **Reimbursement = $2.00 × burn_rate per token burned** — vendor is always made economically whole.
 6. **Circulating tokens must always be <= 50% of total vendor acceptance capacity.**
-7. **Escrow and Treasury are separate wallets. Treasury NEVER covers reimbursements.**
+7. **All funds flow through escrow only. No treasury account.** 65% of employee fees → escrow. 35% → operator (platform revenue). Operator funds never cover reimbursements.
 8. **If CRR < 0.40, minting pauses automatically.**
 9. **Auto-cycle is system-enforced** — all tokens complete exactly 1 B2B transaction per month.
 10. **Only employees can mint. Mint is capped at 5,000 tokens/employee/month.**
@@ -38,8 +38,8 @@ from $1 invested. The system sustains this through escrow management, fee income
 - **Misunderstanding**: Burns happen from day one.
   **Correct**: Burns only activate when CRR >= 1.0 (pool escrow averages $2/token). This may take months to years depending on fee level.
 
-- **Misunderstanding**: The treasury backstops reimbursements.
-  **Correct**: If escrow can't cover reimbursements, minting pauses. Treasury is never touched for reimbursements.
+- **Misunderstanding**: There is a treasury account that backstops reimbursements.
+  **Correct**: There is no treasury. All funds flow through escrow. 65% of fee income → escrow. 35% → operator revenue (leaves the system). If escrow can't cover reimbursements, minting pauses.
 
 ## What This System Is NOT
 
@@ -68,14 +68,14 @@ from $1 invested. The system sustains this through escrow management, fee income
 ## Escrow Funding Path ($1 → $2 per Token)
 
 Each token's escrow backing grows via the POOL (not individual tracking):
-1. **Mint**: $1.00 locked per token
-2. **Interest**: Escrow pool earns 4%/yr — adds ~$0.0033/token/month
-3. **Employee fees (escrow share)**: Fee × FEE_TO_ESCROW_PCT / 2000 per token/month
-4. **Treasury recycling** (minimize — preferred not to use): Optional T% recycled back
+1. **Mint**: $1.00 locked per token (100% to escrow)
+2. **Employee fees**: 65% of $45/month fee → escrow. 35% → operator (leaves system).
+3. **Interest**: Escrow pool earns 4%/yr on balance
 
-Since per-token escrow growth rate from fees = (fee × fee_to_escrow_pct) / 2000, this is
-CONSTANT regardless of system scale. A $45/month fee at 60% to escrow adds ~$0.0135/token/month.
-Combined with interest, burns activate around month 55–60 at that fee level.
+At $45/month fee, 65% split, 5M employees:
+- $225M/month fee income → $146M to escrow, $79M to operator
+- Burns activate at month 79 (year 6.6) under the standard growth curve
+- CRR stabilizes in the 1.00–1.15 range once burns are active
 
 ## Research Scope
 
