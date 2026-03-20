@@ -25,6 +25,7 @@ def _make_baseline_params():
     Baseline: EMPLOYEE_FEE_MONTHLY=45.0, VENDOR_CAPACITY_PER_EMPLOYEE=3000, SIMULATION_MONTHS=60
     """
     import constants as c
+
     return {
         # Scenario parameters (from simulate.py SCENARIO PARAMETERS section)
         "employee_fee_monthly": 45.0,
@@ -45,7 +46,9 @@ def _make_baseline_params():
         "crr_overcapitalized": c.CRR_OVERCAPITALIZED,
         "capacity_ratio": c.CAPACITY_RATIO,
         "monthly_mint_cap_per_employee": float(c.MONTHLY_MINT_CAP_PER_EMPLOYEE),
-        "expected_monthly_mint_per_employee": float(c.EXPECTED_MONTHLY_MINT_PER_EMPLOYEE),
+        "expected_monthly_mint_per_employee": float(
+            c.EXPECTED_MONTHLY_MINT_PER_EMPLOYEE
+        ),
         "annual_interest_rate": c.ANNUAL_INTEREST_RATE,
         "growth_curve": list(c.GROWTH_CURVE),
         "growth_target_employees": c.GROWTH_TARGET_EMPLOYEES,
@@ -56,6 +59,7 @@ def _make_baseline_params():
 
 # ── Task 1: Module smoke test ──────────────────────────────────────────────────
 
+
 def test_module_loads():
     """The Rust extension must be importable."""
     import adbp2_mc  # noqa: F401
@@ -64,14 +68,17 @@ def test_module_loads():
 def test_hello():
     """hello() must return the exact sentinel string."""
     import adbp2_mc
+
     assert adbp2_mc.hello() == "adbp2_mc loaded"
 
 
 # ── Task 2: SimParams construction ────────────────────────────────────────────
 
+
 def test_sim_params_constructs_from_dict():
     """SimParams must accept a complete params dict and expose all fields."""
     import adbp2_mc
+
     params = _make_baseline_params()
     sp = adbp2_mc.SimParams(params)
     assert sp is not None
@@ -81,6 +88,7 @@ def test_sim_params_field_values():
     """SimParams fields must match the input dict values."""
     import adbp2_mc
     import constants as c
+
     params = _make_baseline_params()
     sp = adbp2_mc.SimParams(params)
     rt = sp.to_py_dict()
@@ -96,6 +104,7 @@ def test_sim_params_field_values():
 def test_sim_params_missing_field_raises():
     """SimParams must raise an error when a required key is missing."""
     import adbp2_mc
+
     params = _make_baseline_params()
     del params["employee_fee_monthly"]
     with pytest.raises((ValueError, KeyError, Exception)):
@@ -104,9 +113,11 @@ def test_sim_params_missing_field_raises():
 
 # ── Task 4: MCDistributionConfig ──────────────────────────────────────────────
 
+
 def test_mc_config_constructs_empty():
     """MCDistributionConfig must accept an empty dict (all fields default to None)."""
     import adbp2_mc
+
     config = adbp2_mc.MCDistributionConfig({})
     assert config is not None
 
@@ -114,32 +125,105 @@ def test_mc_config_constructs_empty():
 def test_mc_config_constructs_full():
     """MCDistributionConfig must accept all optional fields."""
     import adbp2_mc
-    config = adbp2_mc.MCDistributionConfig({
+
+    config = adbp2_mc.MCDistributionConfig(
+        {
+            "mint_per_employee_mean": 2000.0,
+            "mint_per_employee_std": 200.0,
+            "growth_multiplier_std": 0.1,
+            "interest_rate_mean": 0.04,
+            "interest_rate_std": 0.005,
+            "fee_compliance_alpha": 20.0,
+            "fee_compliance_beta": 2.0,
+            "vendor_capacity_mean": 3000.0,
+            "vendor_capacity_std": 300.0,
+        }
+    )
+    assert config is not None
+
+
+# ── Task 4: sample_params_test ────────────────────────────────────────────────
+
+
+def test_sample_params_mint_within_range():
+    """Sampled mint_per_employee must be within reasonable range of the mean."""
+    import adbp2_mc
+
+    params = _make_baseline_params()
+    mc_config = {
+        "mint_per_employee_mean": 2000.0,
+        "mint_per_employee_std": 200.0,
+    }
+    sampled = adbp2_mc.sample_params_test(params, mc_config, seed=42)
+    # With std=200 and mean=2000, sampled should be in reasonable range (say 1000-3000)
+    assert 1000.0 <= sampled["expected_monthly_mint_per_employee"] <= 3000.0
+
+
+def test_sample_params_compliance_in_range():
+    """fee_compliance (applied to employee_fee_monthly) must result in fee in [0, base_fee]."""
+    import adbp2_mc
+
+    params = _make_baseline_params()
+    mc_config = {
+        "fee_compliance_alpha": 20.0,
+        "fee_compliance_beta": 2.0,
+    }
+    sampled = adbp2_mc.sample_params_test(params, mc_config, seed=42)
+    # Fee must be <= original (compliance reduces it) and >= 0
+    assert (
+        0.0 <= sampled["employee_fee_monthly"] <= params["employee_fee_monthly"] + 0.001
+    )
+
+
+def test_sample_params_growth_curve_scaled():
+    """growth_multiplier must scale all growth_curve values."""
+    import adbp2_mc
+
+    params = _make_baseline_params()
+    mc_config = {
+        "growth_multiplier_std": 0.5,  # High std to ensure meaningful scaling
+    }
+    sampled = adbp2_mc.sample_params_test(params, mc_config, seed=99)
+    # All growth curve values must be >= 1 (floored)
+    for v in sampled["growth_curve"]:
+        assert v >= 1
+
+
+def test_sample_params_deterministic():
+    """Same seed must produce identical results."""
+    import adbp2_mc
+
+    params = _make_baseline_params()
+    mc_config = {
         "mint_per_employee_mean": 2000.0,
         "mint_per_employee_std": 200.0,
         "growth_multiplier_std": 0.1,
-        "interest_rate_mean": 0.04,
-        "interest_rate_std": 0.005,
-        "fee_compliance_alpha": 20.0,
-        "fee_compliance_beta": 2.0,
-        "vendor_capacity_mean": 3000.0,
-        "vendor_capacity_std": 300.0,
-    })
-    assert config is not None
+    }
+    s1 = adbp2_mc.sample_params_test(params, mc_config, seed=42)
+    s2 = adbp2_mc.sample_params_test(params, mc_config, seed=42)
+    assert (
+        s1["expected_monthly_mint_per_employee"]
+        == s2["expected_monthly_mint_per_employee"]
+    )
+    assert s1["growth_curve"] == s2["growth_curve"]
 
 
 # ── Task 8: Module-level function exports ──────────────────────────────────────
 
+
 def test_module_has_run_simulation():
     import adbp2_mc
+
     assert hasattr(adbp2_mc, "run_simulation")
 
 
 def test_module_has_run_monte_carlo():
     import adbp2_mc
+
     assert hasattr(adbp2_mc, "run_monte_carlo")
 
 
 def test_module_has_evaluate():
     import adbp2_mc
+
     assert hasattr(adbp2_mc, "evaluate")
