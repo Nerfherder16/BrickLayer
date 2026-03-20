@@ -25,7 +25,7 @@ fn records_to_pylist<'py>(py: Python<'py>, records: &[sim::MonthRecord]) -> PyRe
         rec.set_item("burn_rate_pct", r.burn_rate_pct)?;
         rec.set_item("tokens_burned", r.tokens_burned)?;
         rec.set_item("reimbursements_paid", r.reimbursements_paid)?;
-        rec.set_item("admin_fees_paid", r.admin_fees_paid)?;
+        rec.set_item("operator_revenue", r.operator_revenue)?;
         rec.set_item("fee_revenue", r.fee_revenue)?;
         rec.set_item("interest_escrow", r.interest_escrow)?;
         rec.set_item("total_capacity", r.total_capacity)?;
@@ -111,7 +111,7 @@ fn pydict_to_sim_result<'py>(result_dict: &Bound<'py, PyDict>) -> PyResult<(sim:
             burn_rate_pct: get_f64!("burn_rate_pct"),
             tokens_burned: get_f64!("tokens_burned"),
             reimbursements_paid: get_f64!("reimbursements_paid"),
-            admin_fees_paid: get_f64!("admin_fees_paid"),
+            operator_revenue: get_f64!("operator_revenue"),
             fee_revenue: get_f64!("fee_revenue"),
             interest_escrow: get_f64!("interest_escrow"),
             total_capacity: get_f64!("total_capacity"),

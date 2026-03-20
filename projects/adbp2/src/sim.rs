@@ -192,7 +192,7 @@ pub fn run_simulation(params: &SimParams) -> SimResult {
 
         // Python rounds: new_tokens_minted/circulating_tokens/tokens_burned to int,
         // escrow_pool/escrow_net to 2dp, per_token_escrow to 4dp, crr to 4dp,
-        // burn_rate_pct to 2dp, reimbursements_paid/admin_fees_paid/fee_revenue/
+        // burn_rate_pct to 2dp, reimbursements_paid/operator_revenue/fee_revenue/
         // interest_escrow to 2dp, total_capacity to 0dp, capacity_utilization_pct to 2dp.
         records.push(MonthRecord {
             month,
@@ -206,7 +206,7 @@ pub fn run_simulation(params: &SimParams) -> SimResult {
             burn_rate_pct: round2(burn_rate * 100.0),
             tokens_burned: tokens_burned.round(),
             reimbursements_paid: round2(reimbursements_paid),
-            admin_fees_paid: round2(admin_fees_paid),
+            operator_revenue: round2(operator_revenue),
             fee_revenue: round2(fee_revenue),
             interest_escrow: round2(interest_escrow),
             total_capacity: total_capacity.round(),
