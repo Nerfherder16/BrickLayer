@@ -139,6 +139,10 @@ Write cascade map to `failure-cascade-map.md`:
 
 ## Recall — inter-agent memory
 
+> **Note**: Trowel executes recall_store after every finding as an orchestrator hook.
+> The calls below are advisory — they document what you would store, but Trowel
+> ensures storage happens even if you skip these calls.
+
 Your tag: `agent:cascade-analyst`
 
 **At session start** — check prior cascade predictions to see if any became reality:

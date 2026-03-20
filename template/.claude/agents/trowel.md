@@ -304,6 +304,18 @@ For each unhandled OVERRIDE found:
    - Log: `[TROWEL] ESCALATION: {id} hit MAX_OVERRIDES (3) — requires human review`
 5. Append `<!-- OVERRIDE-HANDLED: {date} -->` to the finding file to prevent double re-queue
 
+## JSON Output Validation
+
+Before finding validation, parse and validate any JSON block in the finding:
+
+1. Call `validate_finding_json(finding_text)` from `bl/json_validate.py`
+2. Result handling:
+   - `(dict, None)` — valid JSON, proceed to Finding Validation
+   - `(None, None)` — no JSON block (prose format), log `[TROWEL] No JSON block in {id} — prose format`, proceed
+   - `(None, error)` — malformed JSON:
+     a. If NOT a retry (check `is_retry(question_status)`): append `[FORMAT-RETRY: {date}]` to status, re-invoke the agent with the error context, log `[TROWEL] Re-invoking {agent} — format error retry`
+     b. If already a retry: write stub finding with `verdict: INCONCLUSIVE-FORMAT-ERROR`, mark DONE, log `[TROWEL] FORMAT-ERROR: {id} failed twice — marking INCONCLUSIVE`
+
 ## Finding Validation
 
 After a specialist returns a finding, before marking DONE:
@@ -330,6 +342,30 @@ If any check fails:
   ```
 - Log: `[TROWEL] VALIDATION FAILED {id}: {reason}`
 - Still mark the question DONE (avoids infinite re-queue)
+
+## Recall Post-Finding Hook
+
+After every finding is validated, Trowel stores it to Recall regardless of agent behavior:
+
+1. Call `extract_recall_payload(finding_text, agent_name, question_id, project)` from `bl/recall_hook.py`
+2. If payload is not None: call `recall_store` with the returned payload
+3. If Recall is unavailable or returns an error: log `[TROWEL] Recall store skipped: {error}` and continue — non-blocking
+4. Log on success: `[TROWEL] Recall stored: {question_id} verdict={verdict}`
+
+This is defense-in-depth: agents keep their recall_store calls as documentation, but Trowel ensures storage happens even if an agent skips its call.
+
+## Post-Finding Sequence
+
+Execute in this exact order after an agent returns a finding:
+
+1. **JSON Output Validation** — validate_finding_json; retry or INCONCLUSIVE-FORMAT-ERROR on failure
+2. **Finding Validation** — existing checks (verdict present, format correct)
+3. **Recall Post-Finding Hook** — extract_recall_payload + recall_store (non-blocking)
+4. **Scratch pad signal parsing** — parse_signals from finding, append to scratch.md, trim RESOLVED rows
+5. **Mark question DONE** — update questions.md status
+6. **Update results.tsv** — append result row
+7. **Trim scratch.md** — trim_scratch to enforce 15-entry cap
+8. **Update masonry-state.json** — campaign state update
 
 ## Agent Performance Tracking (agent_db.json)
 

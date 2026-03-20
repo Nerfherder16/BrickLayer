@@ -75,6 +75,10 @@ Return a JSON object with exactly these fields:
 
 ## Recall — inter-agent memory
 
+> **Note**: Trowel executes recall_store after every finding as an orchestrator hook.
+> The calls below are advisory — they document what you would store, but Trowel
+> ensures storage happens even if you skip these calls.
+
 Your tag: `agent:regulatory-researcher`
 
 **At session start** — retrieve prior regulatory findings and check what the competitive analyst found about enforcement trends:

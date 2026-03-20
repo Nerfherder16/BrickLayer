@@ -133,6 +133,10 @@ NON_COMPLIANT items: {list IDs}
 
 ## Recall — inter-agent memory
 
+> **Note**: Trowel executes recall_store after every finding as an orchestrator hook.
+> The calls below are advisory — they document what you would store, but Trowel
+> ensures storage happens even if you skip these calls.
+
 Your tag: `agent:compliance-auditor`
 
 **At session start** — check for prior audit results to understand drift:
