@@ -355,6 +355,31 @@ in `~/.claude.json`. Does NOT replace masonry-mcp.js — both run in parallel.
 
 ---
 
+## Phase 12 — Mortar/Trowel Split ✅
+
+**Goal:** Split the 599-line monolithic Mortar agent into a lean session router (Mortar) and a dedicated campaign conductor (Trowel). Fixes Mortar never activating — it was too heavy to apply to every prompt.
+
+| ID | Task | Status |
+|----|------|--------|
+| 12.01 | Rewrite Mortar as ~120-line lean session router — detects campaign vs. dev context, hands campaigns to Trowel immediately | ✅ |
+| 12.02 | Create Trowel agent (~350 lines) — owns full BL 2.0 research loop, wave sentinels, agent tracking, wave-end sequence | ✅ |
+| 12.03 | Sync both agents to `template/.claude/agents/`, `.claude/agents/`, `projects/bl2/.claude/agents/` | ✅ |
+| 12.04 | Wire `/hats` (Six Thinking Hats) into Trowel Strategic Decision Support section | ✅ |
+
+---
+
+## Phase 13 — BL Structural Gaps 📋
+
+**Goal:** Close three structural gaps identified from campaign feedback: missing model design log, no model versioning to correlate findings with sim state, and no sweep validation gate.
+
+| ID | Task | Status |
+|----|------|--------|
+| 13.01 | `model_assumptions.md` pattern — Trowel writes/maintains a design decisions log per project; agents append when they change model logic; helps future agents understand why the model is structured the way it is | 📋 |
+| 13.02 | Model versioning — compute a hash of `simulate.py` + `constants.py` state at question time; embed in each finding as `**Model hash**:`; enables correlation between findings and the model version that produced them | 📋 |
+| 13.03 | Sweep validation gate — before running any sweep, verify the parameter exists in `simulate.py`'s SCENARIO PARAMETERS block; block with clear error if not found; prevents "finding" on a parameter that never wired up | 📋 |
+
+---
+
 ## Design Principles
 
 1. **Universal verdict envelope.** Every runner, every target, every question type produces the same `{verdict, summary, data, details}` shape.
