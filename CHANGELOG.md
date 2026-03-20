@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `6a0b83d` research: shared scratchpad patterns for multi-agent pipelines (2026-03-19)
 - `9dc86c5` fix(trowel): placeholder check at startup — auto-invoke question-designer if questions.md is template (2026-03-19)
 - `e415dbc` feat(bl2): Mortar/Trowel ecosystem sync + permissions fix (2026-03-19)
 - `a6f3d46` feat(agents): Mortar/Trowel split — lean router + campaign conductor (2026-03-19)
