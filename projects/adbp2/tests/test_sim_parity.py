@@ -70,7 +70,7 @@ def _run_python_sim_via_subprocess():
         tempfile.TemporaryFile(mode="w+", suffix=".txt") as out_f,
         tempfile.TemporaryFile(mode="w+", suffix=".txt") as err_f,
     ):
-        proc = subprocess.run(
+        subprocess.run(
             [sys.executable, "simulate.py"],
             cwd=project_root,
             stdin=subprocess.DEVNULL,
@@ -78,6 +78,7 @@ def _run_python_sim_via_subprocess():
             stderr=err_f,
             timeout=60,
             env=env,
+            check=False,
         )
 
     # Read the JSON output that simulate.py writes

@@ -333,7 +333,6 @@ def run_monte_carlo(
     dict
         Same output schema as adbp2_mc.run_monte_carlo().
     """
-    import importlib
     import sys as _sys
 
     # Lazy import to avoid sys.stdout mutation at module level in pytest
