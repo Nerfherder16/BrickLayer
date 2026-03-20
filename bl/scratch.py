@@ -85,19 +85,20 @@ def load_scratch(path: Path) -> list[dict]:
             past_separator = True
             continue
         if in_table and past_separator and stripped.startswith("|"):
-            # Split into at most 7 parts so a pipe inside the signal field
-            # does not split into extra columns.  Format: | idx | signal | type | source | date |
-            # maxsplit=6 gives: ['', idx, signal, type, source, 'date |']
-            # We strip and strip trailing | from last captured cell.
-            parts = [p.strip() for p in stripped.split("|", maxsplit=6)]
-            # parts: ['', idx, signal, type, source, date, '']
-            if len(parts) >= 6:
-                rows.append({
-                    "signal": parts[2],
-                    "type": parts[3],
-                    "source": parts[4],
-                    "date": parts[5],
-                })
+            # Parse from the right so a pipe inside the signal field is not
+            # treated as a column separator.
+            # rsplit(|, 4) gives: [left_part, type, source, date, '']
+            right_parts = [p.strip() for p in stripped.rsplit("|", maxsplit=4)]
+            if len(right_parts) >= 4:
+                # left_part looks like: | idx | signal text (may include |)
+                left_parts = [p.strip() for p in right_parts[0].split("|", maxsplit=2)]
+                if len(left_parts) >= 3:
+                    rows.append({
+                        "signal": left_parts[2],
+                        "type": right_parts[1],
+                        "source": right_parts[2],
+                        "date": right_parts[3],
+                    })
 
     return rows
 
