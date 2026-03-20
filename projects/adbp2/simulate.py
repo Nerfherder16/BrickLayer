@@ -471,12 +471,12 @@ def plot_charts(records: list[dict]) -> None:
     )
     ax.plot(
         months,
-        [r["admin_fees_paid"] for r in records],
+        [r["operator_revenue"] for r in records],
         color="#f472b6",
         lw=2,
-        label="Admin fees out",
+        label="Operator revenue (35%)",
     )
-    ax.set_title("Monthly Escrow Inflow vs Admin Fees (USD)")
+    ax.set_title("Monthly Escrow Inflow vs Operator Revenue (USD)")
     ax.set_ylabel("USD")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(fmt_m))
     ax.legend(fontsize=7, facecolor="#1e1b2e", labelcolor="#e5e7eb")
