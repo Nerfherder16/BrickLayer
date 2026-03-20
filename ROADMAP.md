@@ -380,6 +380,23 @@ in `~/.claude.json`. Does NOT replace masonry-mcp.js — both run in parallel.
 
 ---
 
+## Phase 14 — Campaign Working Memory 📋
+
+**Goal:** Close the context pressure and inter-agent communication gaps identified in research finding R-shared-scratchpad. BL 2.0's blackboard architecture is correct in shape but needs mid-wave compression, a typed signal board, and Recall enforcement to scale past ~30 questions per campaign without quality degradation.
+
+**New agent**: `pointer` — lightweight mid-wave summarizer. Named after the masonry pointing tool that finishes mortar joints. Fires every 8 questions, produces a compact checkpoint file that subsequent agents read instead of the full findings corpus.
+
+| ID | Task | Status |
+|----|------|--------|
+| 14.01 | `scratch.md` — typed signal board at project root; 4 signal types (WATCH, BLOCK, DATA, RESOLVED); rolling 15-entry cap; Trowel trims RESOLVED rows after each question completes | 📋 |
+| 14.02 | `pointer` agent (~80 lines) — mid-wave summarizer; reads findings since last checkpoint; produces `findings/checkpoints/wave{N}-q{K}.md` with verdicts table, failure boundaries, cross-domain conflicts, and priorities for remaining questions | 📋 |
+| 14.03 | Trowel sentinel: fire Pointer every 8 questions; subsequent agents receive latest checkpoint + last 3 full findings + domain findings — not the full corpus | 📋 |
+| 14.04 | File structure reorganization — wave-partitioned findings (`findings/wave{N}/`), `findings/checkpoints/`, `findings/synthesis/`; `brief/`, `sim/`, `campaign/` subdirs; enforced agent read order in Trowel spawn prompts | 📋 |
+| 14.05 | Recall as orchestrator hook — move `recall_store` out of agent prompts into Trowel post-finding sequence; store executes from parsed JSON block regardless of agent behavior | 📋 |
+| 14.06 | JSON output validation — Trowel parses JSON block before marking DONE; malformed → `INCONCLUSIVE-FORMAT-ERROR` + single re-invoke; prevents silent findings corpus corruption | 📋 |
+
+---
+
 ## Design Principles
 
 1. **Universal verdict envelope.** Every runner, every target, every question type produces the same `{verdict, summary, data, details}` shape.
