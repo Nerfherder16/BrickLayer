@@ -75,6 +75,13 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `a1b6ac6` fix: quantitative-analyst wave-partitioned findings path (2026-03-20)
+- `2dfa504` autopilot: tasks #5 #6 — Recall orchestrator hook + JSON validation gate (2026-03-20)
+- `d18fd29` autopilot: task #6 — JSON output validation gate (2026-03-20)
+- `8211ed6` autopilot: task #4 — wave-partitioned findings paths across agent files (2026-03-20)
+- `8969d77` autopilot: task #3 — Trowel pointer sentinel + selective context injection (2026-03-20)
+- `2e0d8e7` autopilot: tasks #1 #2 — scratch.md signal board + pointer agent (2026-03-20)
+- `f8bfdd1` chore(phase14): stage scratch.py, pointer agent, and test stubs (2026-03-20)
 - `94313fa` chore(adbp2): add Rust build artifacts and .autopilot to .gitignore (2026-03-20)
 - `567d79e` docs(roadmap): add Phase 15 — Session Intelligence (hot path tracking + dead ref audit) (2026-03-19)
 - `d589ce7` fix(hooks): scope tool-failure error state per-project; drop dead OMC refs (2026-03-19)
