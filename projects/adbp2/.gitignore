@@ -1,0 +1,11 @@
+run.log
+__pycache__/
+*.pyc
+.env
+reports/
+.autopilot/
+target/
+*.so
+*.pyd
+*.dll
+adbp2_mc.egg-info/

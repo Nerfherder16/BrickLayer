@@ -322,7 +322,7 @@ claude --dangerously-skip-permissions \
    If any file edit fails, follow the self-recovery steps in program.md immediately. NEVER STOP."
 ```
 
-See `QUICKSTART.md` for the full reference including Wave 2 generation, session resumption, corrections, and report generation.
+See [`docs/guides/QUICKSTART.md`](docs/guides/QUICKSTART.md) for the full reference including Wave 2 generation, session resumption, corrections, and report generation.
 
 ---
 
@@ -340,6 +340,16 @@ See `QUICKSTART.md` for the full reference including Wave 2 generation, session 
 ## Acknowledgments
 
 BrickLayer is influenced by Andrej Karpathy's insight that the most productive use of a language model isn't answering questions — it's running in a tight feedback loop where each output becomes the next input. The idea that you can give an LLM a simulator, a question bank, and a write-back mechanism, then walk away while it maps the failure surface of a complex system, is a direct expression of that principle.
+
+---
+
+## Documentation
+
+Full documentation is in [`docs/`](docs/):
+- [Architecture](docs/architecture/ARCHITECTURE.md)
+- [Quickstart](docs/guides/QUICKSTART.md)
+- [Masonry Spec](docs/masonry/MASONRY-SPEC.md)
+- [Framework](docs/guides/FRAMEWORK.md)
 
 ---
 

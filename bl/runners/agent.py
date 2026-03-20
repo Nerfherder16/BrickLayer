@@ -67,6 +67,13 @@ _ALL_VERDICTS: frozenset[str] = frozenset(
 # ---------------------------------------------------------------------------
 
 
+_MODEL_MAP: dict[str, str] = {
+    "opus": "claude-opus-4-6",
+    "sonnet": "claude-sonnet-4-6",
+    "haiku": "claude-haiku-4-5-20251001",
+}
+
+
 def _strip_frontmatter(text: str) -> str:
     """Strip YAML frontmatter (--- ... ---) from a markdown file."""
     if not text.startswith("---"):
@@ -76,6 +83,22 @@ def _strip_frontmatter(text: str) -> str:
         return text[end + 3 :].strip()
     except ValueError:
         return text
+
+
+def _read_frontmatter_model(text: str) -> str | None:
+    """Extract the `model:` field from YAML frontmatter, if present."""
+    if not text.startswith("---"):
+        return None
+    try:
+        end = text.index("---", 3)
+        fm = text[3:end]
+    except ValueError:
+        return None
+    for line in fm.splitlines():
+        if line.strip().startswith("model:"):
+            value = line.split(":", 1)[1].strip().strip('"').strip("'")
+            return _MODEL_MAP.get(value, value) or None
+    return None
 
 
 def _verdict_from_agent_output(agent_name: str, output: dict) -> str:
@@ -195,6 +218,17 @@ def _parse_text_output(agent_name: str, text: str) -> dict:
                     (out["p99_before"] - out["p99_after"]) / out["p99_before"] * 100, 1
                 )
 
+    else:
+        # F-mid.3: universal BL 2.0 fallback — extract verdict and summary from plain text.
+        # Covers diagnose-analyst, fix-implementer, compliance-auditor, design-reviewer,
+        # and any future agent not in the BL 1.x name list above.
+        m = re.search(r"^verdict:\s*(\w+)", text, re.IGNORECASE | re.MULTILINE)
+        if m:
+            out["verdict"] = m.group(1).upper()
+        m = re.search(r"^summary:\s*(.+)", text, re.IGNORECASE | re.MULTILINE)
+        if m:
+            out["summary"] = m.group(1).strip()
+
     return out
 
 
@@ -202,6 +236,11 @@ def _summary_from_agent_output(agent_name: str, output: dict) -> str:
     """Build a concise summary from agent output contract."""
     if not output:
         return f"{agent_name}: no structured output produced"
+
+    # D-mid.4: BL 2.0 agents and text-fallback path — return summary key directly if present,
+    # avoiding a messy JSON dump from the fallthrough at the bottom of this function.
+    if output.get("summary"):
+        return str(output["summary"])
 
     if agent_name == "security-hardener":
         return (
@@ -267,7 +306,9 @@ def run_agent(question: dict) -> dict:
             "details": f"Expected at: {agent_path}",
         }
 
-    agent_prompt = _strip_frontmatter(agent_path.read_text(encoding="utf-8"))
+    agent_raw = agent_path.read_text(encoding="utf-8")
+    agent_model = _read_frontmatter_model(agent_raw)
+    agent_prompt = _strip_frontmatter(agent_raw)
 
     # C-27: inject project doctrine if present
     doctrine_prefix = ""
@@ -358,6 +399,8 @@ Begin your agent loop now. Output your JSON result contract in a ```json ... ```
     claude_bin = shutil.which("claude") or "claude"
     child_env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
 
+    model_args = ["--model", agent_model] if agent_model else []
+
     try:
         proc = subprocess.run(
             [
@@ -368,6 +411,7 @@ Begin your agent loop now. Output your JSON result contract in a ```json ... ```
                 "json",
                 "--allowedTools",
                 "Read,Write,Edit,Bash,Glob,Grep",
+                *model_args,
             ],
             input=full_prompt,
             capture_output=True,

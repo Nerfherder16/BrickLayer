@@ -1,0 +1,26 @@
+question_id	verdict	agent	completed_at	summary
+Q1.1	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	Mortar routing table missing 4 Mode values (code_audit, correctness, quality, subprocess) — silently falls back to quantitative-analyst
+Q1.1-FU1	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	question-designer-bl2 uses Operational Mode field and CamelCase values; Mortar reads Mode field with lowercase — incompatible, plus 5 of 9 modes have no route
+Q1.1-FU3	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	All 5 missing BL 2.0 specialist agents exist in template but are unreachable — pure routing table gap, no frontier-analyst.md exists
+Q1.1-FU2	HEALTHY	diagnose-analyst	2026-03-17T00:00:00Z	code_audit Mode in bl2 is a Python runner type flag, not Mortar routing — no archive corruption found; risk is latent
+Q1.1-WM1	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	Mortar has no startup Mode validation — routing failures discovered only at question dispatch time, no pre-flight catch
+Q1.1-WM2	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	Mortar research routing ambiguous (regulatory vs competitive) but recoverable from agent descriptions; Low severity
+Q1.1-WM3	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	Double field mismatch: **Method** vs **Agent**, plus frontier-analyst phantom reference — 100% of q-d-bl2 questions fail Mortar routing
+Q1.1-WM4	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	No master question schema doc exists — three mismatches share common root cause: question-designer-bl2 and mortar developed independently without shared interface contract
+Q1.1-FU4	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	research-analyst has no Frontier-mode instructions; epistemologically incompatible — no frontier-analyst.md exists in fleet
+Q1.2	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	All 10 agents in program.md have .md files; but agent-meta lacks .claude/agents/ directory — relative path resolution fails
+Q1.3	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	Planner writes CAMPAIGN_PLAN.md but neither question-designer nor Mortar reads it — interface severed, domain prioritization wasted
+Q2.1	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	Fix Specification field names differ (Target file/Concrete edit vs File/Change); code-reviewer also reads original finding, not _fix.md artifact
+Q2.2	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	Grep pattern matches correctly; but OVERRIDE not cleared after handling causes infinite re-queue loop; timing gap allows 9 contaminated downstream findings
+Q2.3	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	Thresholds match (0.80); but definitive whitelist excludes APPROVED/CONFIRMED/FLEET_COMPLETE — code-reviewer/peer-reviewer/forge-check all score UNDERPERFORMING incorrectly
+Q3.1	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	Hypothesis arithmetic wrong (55<60=FAILING); real gap: hollow section headers bypass -30 pts of checks, scoring broken stub agents as WARNING not FAILING
+Q3.2	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	NEEDS_REVISION/BLOCKED criteria clear; three soft gaps: no coverage tool, LLM-only regression detection, 2-cycle limit not tracked by code-reviewer
+Q4.1	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	Session-local counter resets on resume; sentinels never fire if < 5 questions remain on resume; correction depends on Recall retrieval quality
+Q4.2	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	_fix.md suffix causes silent re-queue failure; spurious OVERRIDE match if specialist misuses OVERRIDE; no handled-marker causes double re-queue
+Q5.1	HEALTHY	diagnose-analyst	2026-03-17T00:00:00Z	Tag namespacing works correctly; each agent's self-queries retrieve correct stores; only minor gap is planner's broad query and project name substitution
+Q6.1	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	Mortar says "validate structure" but no validation logic defined; empty/malformed findings create ghost DONE entries; peer-reviewer mitigates with INCONCLUSIVE
+Q6.2	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	No retry limit in Mortar or peer-reviewer; NEVER STOP + unresolved OVERRIDE = genuine infinite loop; relies on LLM non-determinism as de facto limit
+Q1.3-FU1	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	Neither QUICKSTART.md nor CLAUDE.md mentions planner; planner is doubly dead — output unconsumed and existence undocumented
+Q7.1	WARNING	hypothesis-generator	2026-03-17T00:00:00Z	hypothesis-generator uses domain "{project}-autoresearch" vs all other BL2.0 agents using "{project}-bricklayer" — all Recall queries return empty
+Q7.2	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	overseer.md exists but requires agent_db.json (not written by any agent); not in Mortar sentinel table; not in REQUIRED_AGENTS; escalations silently dropped
+Q7.3	WARNING	diagnose-analyst	2026-03-17T00:00:00Z	100% silent misrouting to quantitative-analyst; user sees plausible findings with wrong methodology; no error log written to file

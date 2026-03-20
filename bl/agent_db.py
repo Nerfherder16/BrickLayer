@@ -55,6 +55,7 @@ _PARTIAL_VERDICTS = frozenset(
         "PROBABLE",
         "POSSIBLE",
         "UNLIKELY",
+        "HEAL_EXHAUSTED",  # F-mid.1: agent ran correctly, system exhausted — half credit
     }
 )
 
@@ -126,13 +127,21 @@ def _compute_score(record: dict) -> float:
 # ---------------------------------------------------------------------------
 
 
-def record_run(project_root: Path, agent_name: str, verdict: str) -> float:
+def record_run(
+    project_root: Path | str,
+    agent_name: str,
+    verdict: str,
+    duration_ms: int = 0,
+    quality_score: float | None = None,
+) -> float:
     """
     Record one verdict for an agent.
 
     Creates the agent entry if it doesn't exist yet.
+    Appends a time-series entry to run_history[] (capped at 100).
     Returns the agent's updated score.
     """
+    project_root = Path(project_root)
     db = _load(project_root)
     now = datetime.now(timezone.utc).isoformat()
 
@@ -145,6 +154,7 @@ def record_run(project_root: Path, agent_name: str, verdict: str) -> float:
             "created": now,
             "repair_count": 0,
             "last_repair": None,
+            "run_history": [],
         }
 
     rec = db[agent_name]
@@ -153,16 +163,113 @@ def record_run(project_root: Path, agent_name: str, verdict: str) -> float:
     rec["last_run"] = now
     rec["score"] = round(_compute_score(rec), 4)
 
+    # Append time-series entry (backward compat: legacy entries lack run_history)
+    run_entry = {
+        "timestamp": now,
+        "verdict": verdict,
+        "duration_ms": duration_ms,
+        "quality_score": quality_score,
+    }
+    rec.setdefault("run_history", []).append(run_entry)
+    # Cap at 100 entries — drop oldest
+    if len(rec["run_history"]) > 100:
+        rec["run_history"] = rec["run_history"][-100:]
+
     _save(project_root, db)
     return rec["score"]
 
 
-def get_score(project_root: Path, agent_name: str) -> float:
+def get_score(project_root: Path | str, agent_name: str) -> float:
     """Return current score for an agent (1.0 if not yet tracked)."""
-    db = _load(project_root)
+    db = _load(Path(project_root))
     if agent_name not in db:
         return 1.0
     return round(_compute_score(db[agent_name]), 4)
+
+
+def get_trend(
+    project_root: Path | str,
+    agent_name: str,
+    window: int = 5,
+) -> dict:
+    """
+    Returns trend analysis over the last `window` runs vs prior `window` runs.
+
+    Return shape:
+    {
+        "score_recent": float,         # accuracy (fraction SUCCESS) in last window runs
+        "score_prior": float | None,   # accuracy in prior window runs, None if insufficient
+        "trending": str,               # "up" | "down" | "stable" | "insufficient_data"
+        "recent_runs": int,            # actual number of recent runs available
+    }
+
+    Rules:
+    - If total runs < window: trending="insufficient_data", score_recent computed over available
+    - Accuracy = fraction of runs whose verdict is in _SUCCESS_VERDICTS
+    - "up" if score_recent > score_prior + 0.1
+    - "down" if score_recent < score_prior - 0.1
+    - else "stable"
+    """
+    db = _load(Path(project_root))
+
+    if agent_name not in db:
+        return {
+            "score_recent": 0.0,
+            "score_prior": None,
+            "trending": "insufficient_data",
+            "recent_runs": 0,
+        }
+
+    history = db[agent_name].get("run_history", [])
+    total = len(history)
+
+    if total < window:
+        # Insufficient data — compute score over all available runs
+        recent_count = total
+        if recent_count == 0:
+            score_recent = 0.0
+        else:
+            success = sum(1 for r in history if r["verdict"] in _SUCCESS_VERDICTS)
+            score_recent = success / recent_count
+        return {
+            "score_recent": round(score_recent, 4),
+            "score_prior": None,
+            "trending": "insufficient_data",
+            "recent_runs": recent_count,
+        }
+
+    # We have at least `window` runs — compare last window vs prior window
+    recent = history[-window:]
+    prior = history[-(window * 2) : -window] if total >= window * 2 else None
+
+    success_recent = sum(1 for r in recent if r["verdict"] in _SUCCESS_VERDICTS)
+    score_recent = success_recent / window
+
+    if prior is None:
+        # Not enough prior data for comparison
+        return {
+            "score_recent": round(score_recent, 4),
+            "score_prior": None,
+            "trending": "insufficient_data",
+            "recent_runs": window,
+        }
+
+    success_prior = sum(1 for r in prior if r["verdict"] in _SUCCESS_VERDICTS)
+    score_prior = success_prior / len(prior)
+
+    if score_recent > score_prior + 0.1:
+        trending = "up"
+    elif score_recent < score_prior - 0.1:
+        trending = "down"
+    else:
+        trending = "stable"
+
+    return {
+        "score_recent": round(score_recent, 4),
+        "score_prior": round(score_prior, 4),
+        "trending": trending,
+        "recent_runs": window,
+    }
 
 
 def record_repair(project_root: Path, agent_name: str) -> None:

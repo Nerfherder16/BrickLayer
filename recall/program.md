@@ -351,3 +351,35 @@ interrupts you, period.
 
 When you discover a Critical or High severity finding, write the finding immediately,
 then continue to the next question. Do not stop to report.
+
+A stop-guard hook is installed at `.claude/hooks/bricklayer-stop-guard.js`. It will
+block any attempt to stop while PENDING questions exist. Do not try to work around it.
+
+---
+
+## Wave Transition Protocol
+
+When all questions in a wave are DONE or INCONCLUSIVE, execute these steps IN ORDER
+as tool calls — do NOT write a response to the user between them:
+
+1. Spawn synthesizer as a background Agent (non-blocking — do not wait)
+2. Invoke hypothesis-generator (blocking — wait for new questions to be added)
+3. Begin the first new PENDING question immediately
+
+There is no step 4. The loop continues. No summary. No handoff. No "ready to proceed."
+
+---
+
+## Anti-Patterns That Break the Loop
+
+These behaviors terminate the loop. Never do them:
+
+- Writing a "session complete" or "wave complete" summary response
+- Asking the user "should I continue?" or "ready to start Wave N?"
+- Treating an empty PENDING queue as a terminal state
+- Ending a response with a bulleted recap of what was accomplished
+- Pausing after the hypothesis-generator returns instead of immediately running Q{N}.1
+
+The correct behavior when a wave empties: no response, next tool call is the synthesizer
+spawn, followed immediately by hypothesis-generator, followed immediately by the first
+new question. The user sees tool activity, not a summary.

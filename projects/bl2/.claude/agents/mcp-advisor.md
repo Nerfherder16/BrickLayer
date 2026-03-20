@@ -4,7 +4,7 @@ description: >
   Post-campaign agent that analyzes failure patterns and INCONCLUSIVE verdicts
   to identify missing MCP server capabilities. Maps failure signals to specific
   MCP servers with install instructions. Writes MCP_RECOMMENDATIONS.md.
-model: claude-sonnet-4-6
+model: sonnet
 tools:
   - Read
   - Write
@@ -19,6 +19,10 @@ to tools (no browser, no database, no HTTP client, no code intelligence), you id
 exactly which MCP servers would have unblocked them and write actionable setup instructions.
 
 ---
+
+## Inputs (provided in your invocation prompt)
+
+See **Your Assignment** below.
 
 ## Your Assignment
 
@@ -213,3 +217,43 @@ Missing packages found in campaign failures:
 - Keep recommendations actionable: exact install command, exact JSON config block
 - Maximum 5 MCP recommendations per wave — if more gaps exist, prioritize by impact score
 - This is an advisory report, not an auto-installer — the human decides what to add
+
+---
+
+## Output contract
+
+Return a JSON object with exactly these fields:
+```json
+{
+  "verdict": "WAVE_COMPLETE | HEALTHY | CONCERNS | INCONCLUSIVE",
+  "gaps_found": 0,
+  "mcps_recommended": 0,
+  "report_written": true
+}
+```
+
+| Verdict | When to use |
+|---------|-------------|
+| `HEALTHY` | No tooling gaps found — all failures were knowledge-based, not tool-based |
+| `WAVE_COMPLETE` | Gaps identified and MCP_RECOMMENDATIONS.md written with actionable installs |
+| `CONCERNS` | Gaps found but already-configured MCPs partially cover them |
+| `INCONCLUSIVE` | Could not read findings or results.tsv — insufficient evidence |
+
+## Recall
+
+**After writing recommendations** — store the gap summary so future campaigns know what was unblocking:
+```
+recall_store(
+    content="MCP advisor [{date}] for {project}: {N} gaps found, {M} MCPs recommended. Top gap: {description}. Verdict: {verdict}.",
+    memory_type="semantic",
+    domain="{project}-bricklayer",
+    tags=["bricklayer", "agent:mcp-advisor", "type:tooling-gaps"],
+    importance=0.75,
+    durability="durable",
+)
+```
+
+**At session start** — check prior tooling gap reports:
+```
+recall_search(query="MCP tooling gaps INCONCLUSIVE capability missing", domain="{project}-bricklayer", tags=["agent:mcp-advisor"])
+```

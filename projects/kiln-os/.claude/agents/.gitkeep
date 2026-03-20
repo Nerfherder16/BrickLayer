@@ -1,0 +1,7 @@
+# Placeholder — Kiln OS specialist agents will live here as the project matures.
+#
+# Candidates:
+#   openShell-profile-writer.md  — generates OpenShell YAML profiles for agent types
+#   nemoclaw-integrator.md       — A2A dispatch wiring and manifest generation
+#   recall-archivist.md          — SourceTrust scoring and retention policy management
+#   kiln-os-roadmap-tracker.md   — phase progress tracking and milestone reporting
