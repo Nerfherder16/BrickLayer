@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `16aa905` chore: commit stale findings file from prior session (2026-03-20)
 - `a1b6ac6` fix: quantitative-analyst wave-partitioned findings path (2026-03-20)
 - `2dfa504` autopilot: tasks #5 #6 — Recall orchestrator hook + JSON validation gate (2026-03-20)
 - `d18fd29` autopilot: task #6 — JSON output validation gate (2026-03-20)
