@@ -184,9 +184,16 @@ Act as the {agent_name} agent defined in .claude/agents/{agent_name}.md.
 Current question:
 {full question block from questions.md}
 
-Project context:
-- project-brief.md: [read and summarize key constraints]
-- Recent synthesis: findings/synthesis.md (if exists)
+Campaign context (read in this order):
+1. campaign-context.md
+2. scratch.md (WATCH + BLOCK signals only)
+3. Latest checkpoint: findings/checkpoints/{latest}.md (if exists)
+4. Last 3 findings from findings/wave{N}/ (most recent by filename)
+5. Domain-relevant findings from findings/wave{N}/ matching question domain prefix
+6. project-brief.md (first paragraph only)
+
+Do NOT read the full findings corpus or synthesis.md — use the checkpoint instead.
+
 - Available skills: [list from ~/.claude/skills/ if any relevant to this question]
 
 Prior agent context (pull from Recall before invoking):
@@ -209,6 +216,7 @@ Fire when `global_count` crosses a multiple of the interval:
 | Interval | Action |
 |----------|--------|
 | Every 5 (global) | Spawn forge-check in background: `agents_dir=.claude/agents/, findings_dir=findings/, questions_md=questions.md` |
+| Every 8 (global) | Invoke pointer (foreground): write checkpoint to findings/checkpoints/ |
 | Every 10 (global) | Spawn agent-auditor in background: `agents_dir=.claude/agents/, findings_dir=findings/, results_tsv=results.tsv` — then check its output (see Overseer Escalation) |
 | Every 10 (global) | Invoke synthesizer-bl2 in **lightweight mode**: `mode=mid-session, findings_dir=findings/, project_name={project}` — does not commit, just refreshes synthesis.md. Read updated synthesis before routing the next question. |
 | After every finding | Spawn peer-reviewer in background: `primary_finding=findings/{id}.md, target_git=., agents_dir=.claude/agents/` |
@@ -232,6 +240,15 @@ Mode: background — do not wait for completion.
 Log: `[TROWEL] Sentinel: forge-check spawned (5-question interval)`
 
 After forge-check writes `FORGE_NEEDED.md`, the overseer consumes it on its next run. Trowel does NOT act on `FORGE_NEEDED.md` directly.
+
+### pointer Sentinel (every 8 questions)
+
+After each question completes, check: `global_count % 8 == 0 and global_count > 0`.
+
+If true:
+1. Invoke pointer agent (foreground — must complete before next question starts)
+2. Pass: `findings_dir`, `checkpoint_dir=findings/checkpoints/`, `wave_number`, `question_count=global_count`, `scratch_path`, `results_tsv`, `project_name`
+3. Log: `[TROWEL] Sentinel: pointer checkpoint written at Q{global_count}`
 
 ## Overseer Escalation
 
