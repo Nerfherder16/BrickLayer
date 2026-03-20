@@ -1,0 +1,16 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "adbp2_mc"
+requires-python = ">=3.11"
+version = "0.1.0"
+description = "ADBP v2 Monte Carlo simulation engine (Rust + PyO3)"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
