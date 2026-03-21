@@ -462,7 +462,7 @@ agents:
   tier: draft
   dspy_status: not_optimized
   drift_status: ok
-  last_score: null
+  last_score: 100.0
   runs_since_optimization: 0
   registrySource: frontmatter
 - name: hypothesis-generator
@@ -659,7 +659,7 @@ agents:
   tier: draft
   dspy_status: not_optimized
   drift_status: ok
-  last_score: null
+  last_score: 60.0
   runs_since_optimization: 0
   registrySource: frontmatter
 - name: tools-manifest

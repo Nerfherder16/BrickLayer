@@ -1,0 +1,32 @@
+{
+  "generated_at": "2026-03-21T14:48:21",
+  "campaign": "Bricklayer2.0",
+  "roses": [
+    "developer",
+    "test-writer",
+    "git-nerd",
+    "karen"
+  ],
+  "buds": [
+    "quantitative-analyst",
+    "synthesizer-bl2",
+    "regulatory-researcher",
+    "competitive-analyst",
+    "research-analyst",
+    "mortar"
+  ],
+  "thorns": [
+    "diagnose-analyst"
+  ],
+  "proposals": [
+    {
+      "agent_name": "diagnose-analyst",
+      "issue": "quality gate pass rate is 0% over 8 findings (threshold: 0.7)",
+      "evidence": "pass_rate=0.00, avg_length=5160chars, findings_analyzed=8",
+      "proposed_change": "Review the agent's system prompt for vague or overly broad instructions. Add explicit criteria for what constitutes a high-confidence finding and require citing specific data points from the simulation.",
+      "risk_level": "high",
+      "requires_human_approval": true,
+      "status": "pending"
+    }
+  ]
+}
