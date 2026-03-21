@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -21,12 +21,13 @@ from masonry.src.schemas.payloads import AgentRegistryEntry
 # Verdicts that indicate success
 _OK_VERDICTS = frozenset({
     "HEALTHY", "FIXED", "COMPLIANT", "CALIBRATED", "CONFIRMED", "OK",
-    "IMPROVEMENT", "PROMISING",
+    "IMPROVEMENT", "PROMISING", "DIAGNOSIS_COMPLETE", "FIX_APPLIED",
+    "COMPLETE",
 })
 
 # Verdicts that indicate partial success
 _PARTIAL_VERDICTS = frozenset({
-    "WARNING", "PARTIAL", "PROBABLE", "POSSIBLE",
+    "WARNING", "PARTIAL", "PROBABLE", "POSSIBLE", "UNCALIBRATED", "INCONCLUSIVE",
 })
 
 # Everything else = failure (0.0)
@@ -53,8 +54,8 @@ class DriftReport(BaseModel):
     agent_name: str
     baseline_score: float
     current_score: float
-    drift_pct: float
-    alert_level: Literal["ok", "warning", "critical"]
+    drift_pct: Optional[float]
+    alert_level: Literal["ok", "warning", "critical", "calibrating"]
     recommendation: str
 
 
@@ -79,28 +80,36 @@ def detect_drift(
         current_score = sum(_score_verdict(v) for v in recent_verdicts) / len(recent_verdicts)
 
     if baseline_score == 0.0:
-        drift_pct = 0.0
+        # No calibrated baseline yet — cannot compute meaningful drift.
+        # Return "calibrating" level so new agents are not silently masked as ok.
+        drift_pct = None
+        alert_level: Literal["ok", "warning", "critical", "calibrating"] = "calibrating"
+        recommendation = (
+            f"{agent_name} has no calibrated baseline (baseline_score=0.0). "
+            f"Current score: {current_score:.2f}. "
+            "Accumulate more findings to establish a baseline before drift detection is meaningful."
+        )
     else:
         drift_pct = (baseline_score - current_score) / baseline_score * 100
 
-    if drift_pct < 10:
-        alert_level: Literal["ok", "warning", "critical"] = "ok"
-        recommendation = (
-            f"{agent_name} is performing within acceptable range "
-            f"(drift {drift_pct:.1f}%). No action required."
-        )
-    elif drift_pct <= 25:
-        alert_level = "warning"
-        recommendation = (
-            f"{agent_name} shows moderate performance drift ({drift_pct:.1f}%). "
-            "Consider running DSPy re-optimization. Monitor closely."
-        )
-    else:
-        alert_level = "critical"
-        recommendation = (
-            f"{agent_name} has critical performance drift ({drift_pct:.1f}%). "
-            "Immediate re-optimization recommended. Review recent findings for root cause."
-        )
+        if drift_pct < 10:
+            alert_level = "ok"
+            recommendation = (
+                f"{agent_name} is performing within acceptable range "
+                f"(drift {drift_pct:.1f}%). No action required."
+            )
+        elif drift_pct <= 25:
+            alert_level = "warning"
+            recommendation = (
+                f"{agent_name} shows moderate performance drift ({drift_pct:.1f}%). "
+                "Consider running DSPy re-optimization. Monitor closely."
+            )
+        else:
+            alert_level = "critical"
+            recommendation = (
+                f"{agent_name} has critical performance drift ({drift_pct:.1f}%). "
+                "Immediate re-optimization recommended. Review recent findings for root cause."
+            )
 
     return DriftReport(
         agent_name=agent_name,
