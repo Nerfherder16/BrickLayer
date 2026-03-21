@@ -446,7 +446,7 @@ def main(argv: list[str] | None = None) -> int:
     output_dir: Path = (
         args.output.resolve()
         if args.output
-        else project_dir / "masonry" / "vigil"
+        else project_dir / "vigil"
     )
 
     result = run_vigil(
