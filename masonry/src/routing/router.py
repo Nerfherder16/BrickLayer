@@ -30,10 +30,12 @@ def _load_registry(project_dir: Path) -> list[AgentRegistryEntry]:
     """Load registry from the standard location inside a project dir."""
     registry_path = project_dir / "masonry" / "agent_registry.yml"
     if not registry_path.exists():
+        print(f"[ROUTER] Registry not found at {registry_path}", file=sys.stderr)
         # Also try relative to CWD
         fallback = Path("masonry") / "agent_registry.yml"
         if fallback.exists():
             return load_registry(fallback)
+        print(f"[ROUTER] Registry not found at {fallback} (CWD fallback) — returning empty registry", file=sys.stderr)
         return []
     return load_registry(registry_path)
 
