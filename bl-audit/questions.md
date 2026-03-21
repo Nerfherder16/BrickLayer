@@ -414,3 +414,122 @@ Domains: D1 Dead Code · D2 Unwired Items · D3 Bugs & Logic Errors · D4 Config
 **Hypothesis**: Masonry generates runtime artifacts that should be gitignored. Some may be missing from `.gitignore` and accidentally committed, polluting version history with session-transient data.
 **Agent**: compliance-auditor
 **Success criterion**: Read the root `.gitignore` and any project-level `.gitignore` files; compare against known runtime artifact patterns (`masonry-activity-*.ndjson`, `masonry-state.json`, `agent_db.json`, `.ui/`, `.autopilot/`, `history.db`, `masonry/optimized_prompts/`); list any artifacts that are tracked but should be ignored.
+
+---
+
+## Wave 2
+
+Domains: M (Mortar Adherence) · V (Post-fix Validation)
+
+Focus: Does the Mortar routing system actually function as documented? Do the Phase 1/2 fixes hold under inspection?
+
+---
+
+## M1.1 [diagnose] Does masonry-register.js crash silently due to a duplicate `const cwd` declaration?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: HIGH
+**Hypothesis**: `masonry-register.js` declares `const cwd` on line 88 (`const cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd()`) and again on line 105 inside the same `main()` function scope. In strict mode (`'use strict'` is declared at line 1), a duplicate `const` declaration is a SyntaxError that crashes the process before any output is written — meaning the Mortar routing directive is never injected on any prompt.
+**Agent**: diagnose-analyst
+**Success criterion**: Read `masonry/src/hooks/masonry-register.js` fully; confirm or deny the duplicate `const cwd` declaration; determine whether Node.js would throw a SyntaxError or silently shadow; test by running the hook directly; confirm whether the Mortar directive has ever successfully been injected.
+
+---
+
+## M1.2 [diagnose] Does the routing_log.jsonl contain only empty `{}` objects, indicating the subagent-tracker write path is broken?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: HIGH
+**Hypothesis**: `masonry/routing_log.jsonl` has 43 entries, all empty `{}`. The file is written by `masonry-subagent-tracker.js` (SubagentStart hook) and `masonry-observe.js` (PostToolUse). If both writers are appending empty objects, the DSPy routing training signal is entirely absent and `score_routing.py` has no data to score.
+**Agent**: diagnose-analyst
+**Success criterion**: Read both `masonry-subagent-tracker.js` and `masonry-observe.js` routing-log write paths; identify the condition under which they write `{}`; confirm whether any valid entry has ever been written; determine if the schema mismatch or missing fields causes serialization to produce empty objects.
+
+---
+
+## M1.3 [diagnose] Does masonry-register.js output conform to the Claude Code UserPromptSubmit hook spec for context injection?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: HIGH
+**Hypothesis**: `masonry-register.js` writes plain text to stdout (e.g., `[MASONRY] Route this prompt through Mortar...`). The Claude Code UserPromptSubmit hook spec may require a structured JSON envelope (e.g., `{"type": "context", "text": "..."}`) for the output to be injected as system context. Plain-text stdout may be silently ignored, meaning the Mortar directive never reaches the model.
+**Agent**: diagnose-analyst
+**Success criterion**: Read the Claude Code hook documentation or any spec file in the repo describing UserPromptSubmit output format; confirm whether plain-text stdout is valid or whether a JSON envelope is required; compare against what `masonry-register.js` actually writes; cross-reference with how other UserPromptSubmit hooks (e.g., `recall-retrieve.js`) format their output.
+
+---
+
+## M1.4 [research] When the Mortar directive IS successfully injected, does Claude Code invoke mortar.md as an agent subagent or treat it as advisory context text?
+
+**Status**: PENDING
+**Mode**: research
+**Priority**: MEDIUM
+**Hypothesis**: The `[MASONRY] Route this prompt through Mortar (.claude/agents/mortar.md)` directive is injected as a system message. Claude Code may interpret `.claude/agents/mortar.md` as an agent to invoke (spawning a subagent), as a file to read as context, or may ignore the instruction entirely and handle the request inline. The distinction determines whether Mortar's multi-agent dispatch actually fires.
+**Agent**: research-analyst
+**Success criterion**: Read `mortar.md` and `masonry-register.js`; determine the intended mechanism (subagent invocation vs context injection); check whether any session transcripts or logs show mortar.md being invoked as an agent vs. referenced as context; assess whether the "Every request → Mortar" policy is architecturally enforced or advisory-only.
+
+---
+
+## M1.5 [audit] Does masonry-register.js suppress Mortar injection in the bl-audit working directory, breaking routing during the audit itself?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: MEDIUM
+**Hypothesis**: `masonry-register.js` line 89: `if (isResearchProject(cwd)) return;` — `isResearchProject()` checks for both `program.md` AND `questions.md`. The `bl-audit/` directory has both files (it IS a research project). This means whenever Claude Code runs in `bl-audit/`, the Mortar directive is suppressed, and no routing occurs — the system running the audit is itself unrouted.
+**Agent**: compliance-auditor
+**Success criterion**: Confirm `bl-audit/` contains both `program.md` and `questions.md`; confirm `isResearchProject()` returns true for this path; determine the consequence — does masonry-register.js fully exit before writing the Mortar directive, meaning all audit-session prompts ran without Mortar routing?
+
+---
+
+## M1.6 [research] Does mortar.md contain routing trigger patterns that cover all task types, or are coding/git/docs tasks unrepresented?
+
+**Status**: PENDING
+**Mode**: research
+**Priority**: MEDIUM
+**Hypothesis**: Mortar is supposed to route ALL request types (coding, research, git, docs, UI, campaigns). If `mortar.md` only contains campaign routing patterns and lacks deterministic triggers for `fix this bug`, `git commit`, `update the docs` type requests, those tasks fall through and are handled inline by Claude without specialist dispatch.
+**Agent**: research-analyst
+**Success criterion**: Read `mortar.md` fully; catalog all routing patterns and dispatch targets; identify which request types have explicit routing rules and which are handled by fallback or inline; assess whether the "Mortar dispatches ALL work" claim in CLAUDE.md is supported by the agent's actual instruction set.
+
+---
+
+## V1.1 [audit] After the D4.4 fix, does masonry_status correctly count questions for the bl-audit campaign?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: HIGH
+**Hypothesis**: Phase 1 fixed `masonry_status` to recognize BL2.0 `## D1.1` format headers. The bl-audit campaign has 32 questions in this format. If the fix was applied correctly, `masonry_status` should now return `q_total=32` and accurate done/pending counts instead of the previous `q_total=0`.
+**Agent**: compliance-auditor
+**Success criterion**: Read the question-counting logic in `masonry/mcp_server/server.py`; verify the BL2.0 header pattern is now handled; count questions in `bl-audit/questions.md` against the pattern to confirm the fix produces the correct total; confirm no regression for BL1.x `### Q` format.
+
+---
+
+## V1.2 [diagnose] After the D3.3 OLLAMA_URL fix, does semantic.py now successfully read the OLLAMA_HOST env var?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: HIGH
+**Hypothesis**: The D3.3 fix changed `semantic.py` to read both `OLLAMA_URL` and `OLLAMA_HOST` with fallback. The actual fix should have been applied during Phase 1. Confirm the fix is in place in the live file, that the env var `OLLAMA_HOST=http://192.168.50.62:11434` (set in settings.json) is correctly read, and that a connection attempt to Ollama succeeds.
+**Agent**: diagnose-analyst
+**Success criterion**: Read `masonry/src/routing/semantic.py`; confirm the OLLAMA_URL/OLLAMA_HOST fallback chain is present; verify Ollama is reachable at the configured host; confirm semantic routing can produce a similarity score for a test query.
+
+---
+
+## V1.3 [audit] After D4.3+D6.5, does deterministic routing successfully match Mode fields to the correct BL2.0 agents?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: MEDIUM
+**Hypothesis**: Phase 2 added modes frontmatter to 16 agents and registered their mode values. The deterministic router's `get_agents_for_mode()` should now return `diagnose-analyst` for `**Mode**: diagnose`, `compliance-auditor` for `**Mode**: audit`, etc. Before the fix, all 16 agents returned nothing from this lookup.
+**Agent**: compliance-auditor
+**Success criterion**: Import `masonry/src/routing/deterministic.py` and `masonry/src/routing/registry_loader.py`; load the registry; call `get_agents_for_mode()` for each of the five BL2.0 modes (`audit`, `research`, `diagnose`, `simulate`, `campaign`); confirm each returns at least one agent; confirm BL1.x variants (`synthesis-bl1`, `hypothesis-bl1`) are NOT returned for BL2.0 mode labels.
+
+---
+
+## V1.4 [diagnose] Does masonry-agent-onboard.js (now registered in settings.json) successfully fire and update the registry when a new agent .md is written?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: MEDIUM
+**Hypothesis**: Phase 1 registered `masonry-agent-onboard.js` in settings.json as an async PostToolUse hook for Write/Edit events. The hook calls `onboard_agent.py` to extract frontmatter and upsert the registry. If the hook has path assumptions or env var dependencies that prevent `onboard_agent.py` from running (e.g., the `PYTHONPATH` issue discovered during Phase 2), the registration is nominal but the pipeline is still broken.
+**Agent**: diagnose-analyst
+**Success criterion**: Read `masonry-agent-onboard.js` fully; trace the subprocess call to `onboard_agent.py`; confirm whether PYTHONPATH or working-directory is set correctly for the Python invocation; determine if the hook would succeed end-to-end or fail silently due to the same import error seen when running onboard_agent.py manually.
+
