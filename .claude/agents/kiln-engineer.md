@@ -267,6 +267,70 @@ npx tsc --noEmit
 
 ---
 
+## Creating New Agents — Standard Requirements
+
+When you create a new agent `.md` file, you MUST do all three of the following:
+
+### 1. Write a `description:` in the YAML frontmatter
+
+Every new agent must have a `description:` field in its frontmatter. This is displayed in Kiln's
+AgentBriefModal "ABOUT" section when Tim clicks an agent card. Keep it to 1-2 sentences — what
+the agent does and when to invoke it.
+
+```yaml
+---
+name: my-new-agent
+description: Activates when X happens. Does Y and Z autonomously, then returns a structured report.
+model: sonnet
+---
+```
+
+If you omit `description:`, the agent card will show a mode-based fallback (e.g. "research mode") instead
+of a meaningful description. Always fill it in.
+
+### 2. Pick an avatar sprite
+
+Kiln renders a pixel-art avatar for each agent. If no PNG exists for the agent's slug, it falls back
+to a generic SVG. To give the agent a dedicated sprite:
+
+1. Open `C:/Users/trg16/Dev/BrickLayerHub/src/renderer/src/assets/avatars/picker.html` in a browser
+   to browse the Kenney roguelike sprite sheet. Each sprite is labeled with its `row,col` coordinate.
+2. Pick the sprite that best fits the agent's role/personality.
+3. Copy the corresponding file from `assets/avatars/sprites/dcss-char-r{row}c{col}.png` to
+   `assets/avatars/{slug}.png` (where `{slug}` matches the agent's filename without `.md`).
+
+```bash
+# Example: agent file is "my-agent.md", chose sprite at row 01, col 15
+cp C:/Users/trg16/Dev/BrickLayerHub/src/renderer/src/assets/avatars/sprites/dcss-char-r01c15.png \
+   C:/Users/trg16/Dev/BrickLayerHub/src/renderer/src/assets/avatars/my-agent.png
+```
+
+AgentAvatar.tsx uses `import.meta.glob` to eagerly load all `assets/avatars/*.png` at compile time,
+so the new PNG will be picked up automatically after the next build.
+
+### 3. Hot-load the avatar in the running Kiln exe
+
+The refresh button in Kiln's TopBar (`<RefreshCw>` icon, top-right) is fully wired:
+`TopBar → onRefresh → ipc.refresh() → bl:refresh IPC → buildState() → notifyRenderer()`
+
+It reloads the agent list from disk (new .md files, updated scores) but **does not** reload compiled
+assets (PNG avatars). To make a new avatar visible without a full restart:
+
+```bash
+cd C:/Users/trg16/Dev/BrickLayerHub
+
+# Step 1 — rebuild renderer bundle (picks up new avatar PNG via import.meta.glob)
+npm run build
+
+# Step 2 — patch the running asar (no Kiln restart needed if dist-exe/ is the active build)
+node -e "require('@electron/asar').createPackage('out/renderer', 'dist-exe/BrickLayerHub-win32-x64/resources/app.asar')"
+```
+
+If Tim is running a different numbered build (e.g. `dist-exe7/`), update the asar path accordingly.
+After the asar is patched, clicking the Kiln refresh button OR reloading the window will show the new avatar.
+
+---
+
 ## Output Contract
 
 After making changes, return:
