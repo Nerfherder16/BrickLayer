@@ -1034,7 +1034,7 @@
 
 ### F12.1: Replace verdict-based drift scoring with confidence-based metric in `drift_detector.py`
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Priority**: HIGH
 **Hypothesis**: F11.2 identified a semantic mismatch: `_score_verdict()` scores FAILURE=0.0, but FAILURE verdicts from research agents represent correct behavior (finding a real problem), not agent degradation. Drift should measure *agent certainty* (confidence field), not *finding polarity* (verdict field). All 75+ masonry findings include a `**Confidence**:` float. The fix: add confidence scores to `agent_db.json` via a new `confidences` field in `sync_verdicts_to_agent_db.py`, then update `drift_detector.py` to use mean confidence as `current_score` when `confidences` is present.
@@ -1045,7 +1045,7 @@
 
 ### F12.2: Add scope-clear behavior to `sync_verdicts_to_agent_db.py` when `--questions-md` is specified
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Priority**: HIGH
 **Hypothesis**: R11.1 found that narrowing sync scope (from all-projects to masonry-only) leaves stale verdicts in `agent_db.json` for agents not in the current scope (compliance-auditor retains 3 cross-project verdicts). The sync script writes only agents found in the current scan; agents outside the scope are untouched. Fix: when `--questions-md` is specified (scoped run), zero out `verdicts` and `confidences` for ALL agents before writing the scoped results. This makes scoped sync authoritative for the entire agent_db.
@@ -1056,7 +1056,7 @@
 
 ### R12.1: After F12.1 + F12.2, do all masonry agents show accurate drift alert levels?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: HIGH
 **Hypothesis**: After confidence-based drift metric (F12.1) and scope-clear sync (F12.2), the drift check should reflect actual agent quality. research-analyst and diagnose-analyst have consistently high-confidence findings (0.85–0.95) — they should show "ok" or "warning", not "critical". fix-implementer should continue to show "ok". compliance-auditor should disappear (no verdicts). benchmark-engineer (2 findings, both FAILURE but high confidence) should show "ok" if confidence > 0.75.
@@ -1067,7 +1067,7 @@
 
 ### R12.2: Is the `masonry_drift_check` MCP tool (`mcp__masonry__masonry_drift_check` equivalent) functional end-to-end?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Hypothesis**: The `masonry_drift_check` MCP tool (exposed via `masonry/src/core/registry.js` or similar) has never been tested since F11.1 fixed the registry loader and F11.2 scoped the verdicts. The MCP layer wraps the Python drift check via a Node.js subprocess or direct Python call. There may be import path issues, missing environment setup, or response schema mismatches that prevent the tool from returning structured results to Kiln.
@@ -1078,7 +1078,7 @@
 
 ### R12.3: Does `ResearchAgentSig` in `dspy_pipeline/signatures.py` match the fields populated by `build_dataset()` in `training_extractor.py`?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Hypothesis**: R5.2 (Wave 5) identified that `DiagnoseAgentSig` fields (`symptoms`, `affected_files`) are not populated by `build_dataset()`, causing a silent field mismatch. It was noted that all agents currently use `ResearchAgentSig` via `optimize_all()`. This question validates that `ResearchAgentSig` fields (input: `question_text`, `project_context`, `constraints`; output: `verdict`, `severity`, `evidence`, `mitigation`, `confidence`) are exactly populated by `build_dataset()` and that no field is systematically missing or misnamed.
@@ -1089,9 +1089,78 @@
 
 ### D12.1: Why does `masonry-subagent-tracker.js` have unstaged modifications in the current git status?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: LOW
 **Hypothesis**: The session-start git status shows `M src/hooks/masonry-subagent-tracker.js` (modified, unstaged). This file was last touched by F5.3 (atomic write fix) and should be clean. An unstaged modification may indicate: (1) a lint hook auto-formatted the file after F5.3 but the change wasn't committed; (2) a hook ran and modified the file during the campaign; (3) the DISABLE_OMC=1 kill switch change (7b4472f) modified it as part of that commit but left something unstaged.
 **Method**: diagnose-analyst
 **Success criterion**: Run `git diff src/hooks/masonry-subagent-tracker.js` to see what changed. Determine the cause and whether the change should be committed or reverted. Verdict: DIAGNOSIS_COMPLETE with a clear root cause and recommended action (commit or revert).
+
+---
+
+## Wave 13
+
+### R13.1: Does `score_all_agents.py` produce correct `scored_all.jsonl` when run against the current masonry findings?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: HIGH
+**Hypothesis**: The phase-16 commit (8c73818) introduced a full-fleet scoring pipeline (`score_all_agents.py` → `scored_all.jsonl`). The file already exists with 64 entries, all from the ADBP project (quantitative-analyst). Masonry's own findings (research-analyst, diagnose-analyst, fix-implementer, etc.) should also produce scoring entries, but may not be included because `backfill_agent_fields.py` has not been run to populate `**Agent**:` fields. Running `score_all_agents.py` against the masonry project should now include masonry-attributed findings via confidence-based rubric scoring.
+**Method**: research-analyst
+**Success criterion**: Run `python -m masonry.scripts.score_all_agents --base-dir . --output masonry/training_data/scored_all.jsonl`. Check: (1) Does it run without errors? (2) Are masonry agent findings included (research-analyst, diagnose-analyst, fix-implementer, design-reviewer, benchmark-engineer)? (3) What scores do they receive? (4) How many entries pass `min_training_score=60`? Verdict: HEALTHY if masonry agents appear with scores ≥60; WARNING if ADBP-only; FAILURE if errors.
+
+---
+
+### R13.2: Does `score_routing.py` produce useful training signal from the current `routing_log.jsonl`?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: HIGH
+**Hypothesis**: `masonry-subagent-tracker.js` (phase-16) writes to `routing_log.jsonl` on every SubagentStart event. The file currently has 4 "start" entries (karen, planner, question-designer-bl2, and one other) but zero "finding" events. `score_routing.py` scores mortar/trowel by checking: `correct_agent_dispatched` (70pts) — whether the agent name is in AGENT_CATEGORIES — and `downstream_success` (30pts) — whether a finding was written (verdict != INCONCLUSIVE). With no "finding" events in the log, all routing sessions would score at most 70/100, below the `min_training_score=65` threshold... or exactly 70 which passes. The log format must be verified end-to-end.
+**Method**: research-analyst
+**Success criterion**: Run `python -m masonry.scripts.score_routing --base-dir .`. Check: (1) Does it run without errors? (2) What sessions does it find? (3) What scores are assigned? (4) Are any sessions above min_training_score=65? (5) Does the log format from masonry-subagent-tracker.js match what score_routing.py expects? Verdict: HEALTHY if at least one session scores ≥65; WARNING if format issues or all below threshold; FAILURE if errors.
+
+---
+
+### D13.1: Why do existing masonry findings score 60/100 (minimum threshold) in `scored_all.jsonl` — are confidence scores missing or is the rubric scoring correctly?
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: MEDIUM
+**Hypothesis**: The 64 existing `scored_all.jsonl` entries show score=60 for all ADBP quantitative-analyst findings. The findings rubric has `confidence_calibration: 40`, `evidence_quality: 40`, `verdict_clarity: 20`. A score of 60 suggests either: (1) confidence is null → confidence_calibration dimension scores 0, evidence_quality=40, verdict_clarity=20 = 60; or (2) the scoring has a bug where partial credit is given. ADBP findings have `"confidence": null` per the jsonl entries. Masonry findings have explicit confidence values (0.88–1.00) — they should score much higher (e.g., confidence_calibration=40, evidence_quality=40, verdict_clarity=20 = 100).
+**Method**: diagnose-analyst
+**Success criterion**: (1) Read `scripts/score_findings.py` to understand how `confidence_calibration` is scored. (2) Confirm that null confidence → 0 pts on that dimension. (3) Confirm that masonry findings with explicit confidence 0.88–1.00 would score 90+ points. (4) Verify the dimension scoring formula. Verdict: DIAGNOSIS_COMPLETE with the exact scoring formula and expected score for masonry findings.
+
+---
+
+### R13.3: Does `backfill_agent_fields.py` correctly identify and write `**Agent**:` fields for existing masonry findings without one?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Hypothesis**: `backfill_agent_fields.py` uses a question_id prefix mapping (D→diagnose-analyst, F→fix-implementer, R→research-analyst, V→benchmark-engineer, etc.) to backfill `**Agent**:` fields in finding files that lack them. Masonry findings use the same ID scheme. If existing masonry findings already have `**Agent**:` fields (populated during the research loop), `backfill_agent_fields.py` would be a no-op. If they lack the field, the backfill would populate it, enabling `build_dataset()` to correctly attribute training examples.
+**Method**: research-analyst
+**Success criterion**: (1) Check whether existing masonry findings have `**Agent**:` fields by grepping findings/. (2) Run `python -m masonry.scripts.backfill_agent_fields --base-dir .` (dry run if supported). (3) Confirm the prefix-to-agent mapping matches masonry question naming. Verdict: HEALTHY if findings already have Agent fields or backfill correctly adds them; WARNING if mapping is wrong; FAILURE if backfill errors.
+
+---
+
+### R13.4: After running `score_all_agents.py` against masonry findings, how many training examples per masonry agent pass `min_training_score` for MIPROv2 optimization?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Hypothesis**: MIPROv2 requires at minimum ~5-10 examples per agent to produce meaningful prompt optimization. Masonry's research-analyst has 28+ findings, fix-implementer 43+, diagnose-analyst 34+. If these all pass min_training_score (expected 90+ due to explicit confidence), the training dataset should be sufficient. However, the current `build_dataset()` path reads from `extract_training_data()` which uses `findings/` — it may not use `scored_all.jsonl` at all. The two pipelines (score_all_agents.py → scored_all.jsonl vs. build_dataset() → DSPy Examples) may be parallel tracks that don't intersect.
+**Method**: research-analyst
+**Success criterion**: (1) Determine whether `optimizer.py` uses `build_dataset()` (training_extractor path) or `scored_all.jsonl`. (2) Count training examples per masonry agent in whichever path is used. (3) Assess whether MIPROv2 would receive ≥5 examples per agent. Verdict: HEALTHY if ≥5 examples per agent on the active path; WARNING if 2-4; FAILURE if 0-1 or pipeline paths don't connect.
+
+---
+
+### R13.5: Does `masonry_nl_generate` produce BL 2.0-compatible questions with correct `Mode` and `Status` fields from a natural language description?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: LOW
+**Hypothesis**: The `masonry_nl_generate` MCP tool calls `bl.nl_entry.generate_from_description()`. This function generates questions from a natural language description. BL 2.0 requires questions with `**Operational Mode**:` (diagnose/research/validate), `**Status**: PENDING`, `**Priority**:`, `**Hypothesis**:`, `**Method**:`, and `**Success criterion**:` fields. If the generator was written for BL 1.x format, it may omit the `**Operational Mode**:` and `**Method**:` fields, making generated questions incompatible with Trowel routing.
+**Method**: research-analyst
+**Success criterion**: (1) Read `bl/nl_entry.py` to see the question template. (2) Check whether generated questions include `**Operational Mode**:` and `**Method**:` fields. (3) If testable, call `generate_from_description("test question about hook latency")` and inspect the output. Verdict: HEALTHY if BL 2.0-compatible output; WARNING if missing optional fields; FAILURE if missing Mode or Method which would break Trowel routing.
+

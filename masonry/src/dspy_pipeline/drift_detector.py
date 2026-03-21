@@ -65,19 +65,25 @@ class DriftReport(BaseModel):
 def detect_drift(
     agent_name: str,
     baseline_score: float,
-    recent_verdicts: list[str],
+    recent_verdicts: "list[str] | list[float]",
 ) -> DriftReport:
     """Compute drift for a single agent and return a DriftReport.
 
     Args:
         agent_name: The agent being evaluated.
         baseline_score: The agent's historical quality score (from agent_db).
-        recent_verdicts: Recent verdict strings to compute current performance.
+        recent_verdicts: Recent verdict strings OR pre-computed quality scores
+            (float 0.0–1.0). When floats are passed (e.g., confidence scores
+            from F12.1), verdict scoring is skipped and the floats are used
+            directly as quality signals.
     """
     if not recent_verdicts:
         current_score = baseline_score  # no data → assume stable
+    elif recent_verdicts and isinstance(recent_verdicts[0], float):
+        # Pre-computed quality scores (e.g., confidence values from F12.1)
+        current_score = sum(recent_verdicts) / len(recent_verdicts)  # type: ignore[arg-type]
     else:
-        current_score = sum(_score_verdict(v) for v in recent_verdicts) / len(recent_verdicts)
+        current_score = sum(_score_verdict(v) for v in recent_verdicts) / len(recent_verdicts)  # type: ignore[arg-type]
 
     if baseline_score == 0.0:
         # No calibrated baseline yet — cannot compute meaningful drift.
@@ -130,6 +136,14 @@ def run_drift_check(
 ) -> list[DriftReport]:
     """Run drift check for all agents in the registry that have verdict history.
 
+    Uses confidence-based scoring when ``confidences`` is present in agent_db
+    (F12.1). Falls back to verdict-based scoring for backward compatibility.
+
+    Confidence-based scoring avoids the semantic mismatch where research agents
+    producing FAILURE verdicts (correct behavior — they found real problems)
+    score 0.0 under verdict-based scoring, triggering false critical drift
+    alerts (F11.2 / R11.1).
+
     Args:
         agent_db_path: Path to agent_db.json.
         registry: List of registered agents.
@@ -156,7 +170,28 @@ def run_drift_check(
             continue  # skip agents without verdict history
 
         baseline_score = entry.get("score", 0.0)
-        report = detect_drift(agent_name, baseline_score, verdicts)
+
+        # Prefer confidence-based scoring when confidences are available (F12.1).
+        # Confidence is a direct measure of agent certainty, independent of
+        # whether the finding verdict is FAILURE or HEALTHY.
+        confidences: list[float] = []
+        raw_confs = entry.get("confidences", [])
+        if raw_confs:
+            try:
+                confidences = [float(c) for c in raw_confs]
+            except (TypeError, ValueError):
+                confidences = []
+
+        if confidences:
+            # Confidence-based drift: use mean confidence as current quality score.
+            # High-confidence FAILURE findings (research agents correctly identifying
+            # problems) no longer depress the score.
+            quality_scores = confidences
+        else:
+            # Fallback: verdict-based scoring for agents without confidence data.
+            quality_scores = [_score_verdict(v) for v in verdicts]
+
+        report = detect_drift(agent_name, baseline_score, quality_scores)
         reports.append(report)
 
     return reports
