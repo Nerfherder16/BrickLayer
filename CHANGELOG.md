@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `104740f` feat(adbp3): add fee optimization sweep analysis for admin tier (2026-03-21)
 - `947104a` feat(adbp3): add vendor economics simulation and doc section (2026-03-21)
 - `1bc3586` feat(adbp3): add Scontext onboarding section for Scott to findings doc (2026-03-21)
 - `df4e6f0` feat(adbp3): add Section 12 Final Conclusions to research findings doc (2026-03-21)
