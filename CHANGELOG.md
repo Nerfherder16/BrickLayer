@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `b63d5ca` feat(masonry): add run_optimization.py — CLI bridge for Kiln OPTIMIZE button (2026-03-21)
 - `bd1e4ea` chore: session updates — optimizer, router, questions (2026-03-21)
 - `5b1d17c` chore: update masonry/questions.md (2026-03-21)
 - `0bfc56a` chore: session updates — hooks, routing, questions (2026-03-21)
