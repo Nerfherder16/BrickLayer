@@ -28,11 +28,15 @@ function getRecallConfig() {
 async function storeMemory({ content, domain, tags = [], importance = 0.5 }) {
   try {
     const { baseUrl, headers } = getRecallConfig();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
     const res = await fetch(`${baseUrl}/store`, {
       method: "POST",
       headers,
       body: JSON.stringify({ content, domain, tags, importance }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
     if (!res.ok) return null;
     return await res.json();
   } catch (_err) {
@@ -52,11 +56,15 @@ async function searchMemory({ query, domain, tags, limit = 5 }) {
     if (domain) body.domain = domain;
     if (tags && tags.length) body.tags = tags;
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
     const res = await fetch(`${baseUrl}/search`, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
     if (!res.ok) return [];
     const data = await res.json();
     // Recall returns { results: [...] } or just an array
