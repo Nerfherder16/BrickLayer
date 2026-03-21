@@ -231,6 +231,181 @@ for term, definition in terms:
     add_definition(doc, term, definition)
     doc.add_paragraph()
 
+# ── Scontext: Onboarding for Spicy Scott ─────────────────────────────────────
+doc.add_heading(
+    "Scontext  \u2014  Some Context for Spicy Scott (a.k.a. Zesty Tim\u2019s Sidekick)",
+    level=1,
+)
+doc.add_paragraph(
+    "Scott \u2014 welcome to ADBP3. This section is for you. It explains how the model evolved "
+    "from ADBP2 to ADBP3, why the rules changed, and what you actually need to understand "
+    "to operate in this version. Everything below is plain English with the numbers that matter."
+)
+doc.add_paragraph()
+
+doc.add_heading("What ADBP Actually Is (The 30-Second Version)", level=2)
+doc.add_paragraph(
+    "ADBP is a closed-loop discount-credit platform. Employees voluntarily pay $1.00 to buy "
+    "1 credit, which gives them $2.00 of purchasing power at participating vendors "
+    "(groceries, utilities, gas, rent, etc.). That $1.00 goes into a treasury. "
+    "The treasury earns interest. Over time, the treasury holds more than $1 per credit "
+    "outstanding \u2014 that surplus is periodically used to retire (burn) credits, shrinking "
+    "the obligation pool. Nobody gets cash back. Credits only ever get spent at vendors or destroyed."
+)
+doc.add_paragraph()
+
+doc.add_heading("What Changed from ADBP2 to ADBP3", level=2)
+doc.add_paragraph(
+    "ADBP2 was the working model. ADBP3 is what we learned after tearing it apart with "
+    "simulations. Here are the key differences, in plain English:"
+)
+doc.add_paragraph()
+
+changes = [
+    (
+        "1.  The $0.50 admin fee to treasury is gone.",
+        "ADBP2 had a $0.50 fee flowing into the treasury per credit. "
+        "That was wrong. The treasury receives the FULL $1.00 credit purchase price. "
+        "The 10% admin fee ($0.10/credit) goes to a SEPARATE admin revenue pool \u2014 "
+        "distributed to vendors and employers based on how much they recirculate credits. "
+        "It never touches the treasury. This makes the treasury stronger "
+        "(full $1.00 inflow instead of $0.50), and the admin pool is a separate incentive layer.",
+    ),
+    (
+        "2.  Burns are no longer on a fixed calendar.",
+        "ADBP2 had three scheduled burns at months 13, 25, and 37 with hardcoded sizes. "
+        "That was an early estimate, not the real design. ADBP3 burns are DISCRETIONARY "
+        "and THRESHOLD-TRIGGERED: a burn only fires when the backing ratio "
+        "(treasury balance / credits outstanding) reaches a target multiple. "
+        "The 300,000-run simulation campaign found the optimal trigger is 133.2% backing \u2014 "
+        "meaning the treasury holds $1.332 per $1.00 of credit. "
+        "This typically happens once, around year 17\u201320 of the program.",
+    ),
+    (
+        "3.  One burn, not many.",
+        "ADBP2 expected recurring burns every year or two. ADBP3 simulation proved that "
+        "one large late burn (34.9% of outstanding credits, at month ~200\u2013240) "
+        "outperforms many small early burns in every metric. Small frequent burns at low "
+        "trigger ratios can actually push the backing ratio into WARNING territory (50\u201374%). "
+        "The optimal strategy is: burn late, burn large, burn once.",
+    ),
+    (
+        "4.  Treasury failure is now mathematically proven impossible.",
+        "ADBP2 had a 2.33% failure rate in early simulations (before the affordability cap). "
+        "ADBP3 has 0.00% failure across 300,000 runs \u2014 and more importantly, we proved WHY. "
+        "Every credit minted deposits exactly $1.00 into the treasury. Interest only adds more. "
+        "So the treasury can never hold less than $1.00 per $1.00 of outstanding credits without "
+        "an explicit burn. The affordability cap formula then ensures no burn can ever push "
+        "backing below 50%. FAILURE is not just statistically rare \u2014 it is structurally impossible.",
+    ),
+    (
+        "5.  Credit expiry was added.",
+        "ADBP3 introduced credit expiry: credits that go unspent for 36 months expire at "
+        "$0 cost to the treasury (the $1.00 inflow was already collected; the $2.00 obligation "
+        "just terminates). This is modeled at ~5\u20137% annual breakage, consistent with "
+        "comparable closed-loop platforms like corporate perks and gift card programs. "
+        "Expiry is better for the treasury than burns ($0/credit vs. $2/credit) "
+        "and is now factored into the 240-month projections.",
+    ),
+    (
+        "6.  Simulation scale grew by 15x and doubled in time horizon.",
+        "ADBP2\u2019s model was validated with 20,000 Monte Carlo runs over 120 months (10 years). "
+        "ADBP3 ran 300,000 Monte Carlo runs over 240 months (20 years), plus 13 additional "
+        "simulation families covering: regime-switching growth, interest rate scenarios, "
+        "regulatory shocks, burn timing alternatives, tail risk, recirculation constraints, "
+        "liquidity constraints, cold start dynamics, and vendor dropout. "
+        "Every single scenario returned 0.00% FAILURE.",
+    ),
+    (
+        "7.  Credits per employee (CPE) is a non-variable for solvency purposes.",
+        "Early model versions explored CPE as a key tunable. ADBP3 proved it doesn\u2019t affect "
+        "solvency: both the treasury wallet and total credits outstanding scale linearly with CPE, "
+        "so the backing ratio is CPE-invariant. A program with 10 CPE and one with 5,000 CPE "
+        "produce identical solvency outcomes under identical burn strategies. "
+        "CPE affects employee value (purchasing power) and commercial viability \u2014 not the treasury.",
+    ),
+]
+
+for title, body in changes:
+    p = doc.add_paragraph()
+    p.paragraph_format.left_indent = Inches(0.2)
+    r = p.add_run(title + "\n")
+    r.bold = True
+    r.font.color.rgb = RGBColor(0x1F, 0x38, 0x64)
+    p.add_run(body)
+    doc.add_paragraph()
+
+doc.add_heading("The One Rule That Matters Most", level=2)
+p = doc.add_paragraph()
+p.paragraph_format.left_indent = Inches(0.3)
+p.paragraph_format.right_indent = Inches(0.3)
+r = p.add_run(
+    "Keep the burn trigger at or above 1.2\u00d7 (120% backing). "
+    "That is the only cliff in the entire system. Above 1.2\u00d7: 100% HEALTHY across all runs. "
+    "Below 1.2\u00d7: WARNING states start appearing. "
+    "Everything else \u2014 burn size, cooldown, first eligible month \u2014 is optimization around this floor."
+)
+r.bold = True
+r.font.size = Pt(11)
+r.font.color.rgb = RGBColor(0x1F, 0x38, 0x64)
+doc.add_paragraph()
+
+doc.add_heading("ADBP2 vs. ADBP3 \u2014 Quick Reference", level=2)
+add_table(
+    doc,
+    ["Topic", "ADBP2 (old model)", "ADBP3 (current)"],
+    [
+        [
+            "Treasury inflow per credit",
+            "$0.50 (after admin split)",
+            "$1.00 (full purchase price)",
+        ],
+        [
+            "Admin fee (10%) destination",
+            "Treasury",
+            "Separate vendor/employer pool (not treasury)",
+        ],
+        [
+            "Burn schedule",
+            "Fixed dates: months 13, 25, 37",
+            "Threshold-triggered at 133.2% backing",
+        ],
+        [
+            "Expected burn events over 20yr",
+            "Many (3+ per design)",
+            "1 large burn at ~year 17\u201320",
+        ],
+        [
+            "FAILURE rate",
+            "2.33% before cap; 0% after cap",
+            "0.00% \u2014 mathematically impossible",
+        ],
+        [
+            "Simulation scale",
+            "20,000 runs \u00d7 120 months",
+            "300,000+ runs \u00d7 240 months, 13 families",
+        ],
+        [
+            "Credit expiry modeled",
+            "No",
+            "Yes \u2014 36-month window, 5\u20137% annual breakage",
+        ],
+        ["Optimal trigger ratio", "~1.15\u00d7 (10yr)", "1.332\u00d7 (20yr)"],
+        ["Optimal burn size", "30.2% per event", "34.9% per event"],
+        ["Cash redemption", "Unclear in v2", "Never. Structural rule. Not possible."],
+    ],
+    col_widths=[1.8, 2.1, 2.1],
+)
+doc.add_paragraph()
+
+doc.add_paragraph(
+    "Last thing worth knowing, Scott: the risks that matter for commercial success "
+    "(vendor adoption, employee engagement, network effects) are entirely separate from the "
+    "risks that matter for financial solvency. The treasury is structurally bulletproof. "
+    "The hard work is building the two-sided network. That\u2019s the actual job."
+)
+doc.add_paragraph()
+
 # ── Section 1: Simulation Methods ────────────────────────────────────────────
 doc.add_heading("1. Simulation Methods Used", level=1)
 doc.add_paragraph(
