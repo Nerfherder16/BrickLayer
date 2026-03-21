@@ -1,0 +1,650 @@
+version: 1
+
+# Masonry Agent Registry
+# Auto-managed by masonry/scripts/onboard_agent.py
+# Tiers: draft | candidate | trusted | retired
+# Modes map to the **Mode**: field in questions.md
+
+agents:
+  # ── BL2.0 Project Agents (agents/) ──────────────────────────────────────
+
+  - name: quantitative-analyst
+    file: agents/quantitative-analyst.md
+    model: sonnet
+    description: "Runs simulations, parameter sweeps, and boundary-finding for BL2.0 campaigns"
+    modes:
+      - simulate
+    capabilities:
+      - simulation
+      - parameter-sweep
+      - boundary-finding
+      - sensitivity-analysis
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: trusted
+
+  - name: peer-reviewer
+    file: agents/peer-reviewer.md
+    model: haiku
+    description: "Reviews agent findings for quality, consistency, and logic errors"
+    modes:
+      - audit
+    capabilities:
+      - review
+      - quality-check
+      - finding-validation
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: candidate
+
+  - name: agent-auditor
+    file: agents/agent-auditor.md
+    model: sonnet
+    description: "Audits agent performance, scoring, and behavioral drift"
+    modes:
+      - audit
+    capabilities:
+      - agent-scoring
+      - behavioral-audit
+      - performance-review
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: candidate
+
+  - name: forge-check
+    file: agents/forge-check.md
+    model: haiku
+    description: "Pre-flight checks before forge runs: validates inputs and configuration"
+    modes:
+      - validate
+    capabilities:
+      - pre-flight
+      - config-validation
+      - input-checking
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: candidate
+
+  - name: commit-reviewer
+    file: agents/commit-reviewer.md
+    model: haiku
+    description: "Reviews git commits for quality, scope, and convention compliance"
+    modes:
+      - audit
+    capabilities:
+      - commit-review
+      - changelog-validation
+      - convention-checking
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: crucible
+    file: agents/crucible.md
+    model: sonnet
+    description: "Stress-tests business models under extreme scenarios and adversarial conditions"
+    modes:
+      - simulate
+      - research
+    capabilities:
+      - stress-testing
+      - adversarial-scenarios
+      - model-breaking
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: candidate
+
+  - name: fix-agent
+    file: agents/fix-agent.md
+    model: sonnet
+    description: "Implements targeted code and config fixes after diagnose-analyst identifies root cause"
+    modes:
+      - fix
+    capabilities:
+      - code-fix
+      - patch-generation
+      - regression-prevention
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: trusted
+
+  - name: forge
+    file: agents/forge.md
+    model: sonnet
+    description: "Runs full BL2.0 campaign forge cycles: question execution and findings generation"
+    modes:
+      - simulate
+      - research
+    capabilities:
+      - campaign-execution
+      - findings-generation
+      - wave-management
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: trusted
+
+  - name: lint-guard
+    file: agents/lint-guard.md
+    model: haiku
+    description: "Enforces code quality standards: ruff, prettier, eslint linting"
+    modes:
+      - validate
+    capabilities:
+      - linting
+      - code-quality
+      - style-enforcement
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: perf-optimizer
+    file: agents/perf-optimizer.md
+    model: sonnet
+    description: "Identifies and fixes performance bottlenecks in Python and TypeScript code"
+    modes:
+      - validate
+      - research
+    capabilities:
+      - performance-profiling
+      - bottleneck-detection
+      - optimization
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: probe-runner
+    file: agents/probe-runner.md
+    model: sonnet
+    description: "Runs targeted diagnostic probes against live systems and services"
+    modes:
+      - benchmark
+      - monitor
+    capabilities:
+      - probe-execution
+      - service-testing
+      - health-checking
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: regression-guard
+    file: agents/regression-guard.md
+    model: haiku
+    description: "Detects and prevents regressions in test suites and simulation results"
+    modes:
+      - validate
+    capabilities:
+      - regression-detection
+      - test-comparison
+      - result-diffing
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: retrospective
+    file: agents/retrospective.md
+    model: sonnet
+    description: "Analyzes campaign retrospectives for process improvements and pattern extraction"
+    modes:
+      - research
+      - evolve
+    capabilities:
+      - retrospective-analysis
+      - pattern-extraction
+      - process-improvement
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: candidate
+
+  - name: scope-analyzer
+    file: agents/scope-analyzer.md
+    model: haiku
+    description: "Analyzes task scope and complexity to prevent scope creep"
+    modes:
+      - validate
+    capabilities:
+      - scope-analysis
+      - complexity-estimation
+      - scope-creep-detection
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: scout
+    file: agents/scout.md
+    model: haiku
+    description: "Rapidly explores codebase structure and surfaces key facts for other agents"
+    modes:
+      - research
+    capabilities:
+      - codebase-exploration
+      - fact-extraction
+      - rapid-survey
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: candidate
+
+  - name: security-hardener
+    file: agents/security-hardener.md
+    model: sonnet
+    description: "Identifies and remediates security vulnerabilities in code and configuration"
+    modes:
+      - audit
+      - validate
+    capabilities:
+      - security-audit
+      - vulnerability-detection
+      - hardening
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: candidate
+
+  - name: test-writer
+    file: agents/test-writer.md
+    model: sonnet
+    description: "Writes failing tests following TDD RED-GREEN-REFACTOR discipline"
+    modes:
+      - validate
+    capabilities:
+      - test-writing
+      - tdd
+      - test-strategy
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: trusted
+
+  - name: triage
+    file: agents/triage.md
+    model: haiku
+    description: "Classifies and prioritizes incoming findings and escalations"
+    modes:
+      - diagnose
+    capabilities:
+      - finding-triage
+      - priority-classification
+      - escalation-routing
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: type-strictener
+    file: agents/type-strictener.md
+    model: haiku
+    description: "Adds and enforces strict type annotations in Python and TypeScript code"
+    modes:
+      - validate
+    capabilities:
+      - type-checking
+      - annotation-enforcement
+      - mypy-integration
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: adbp-model-analyst
+    file: agents/adbp-model-analyst.md
+    model: sonnet
+    description: "Specialist analyst for ADBP discount-credit platform business model simulations"
+    modes:
+      - simulate
+      - research
+    capabilities:
+      - adbp-modeling
+      - solana-economics
+      - token-simulation
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: candidate
+
+  # ── Global / Masonry Agents (~/.claude/agents/) ─────────────────────────
+
+  - name: mortar
+    file: ~/.claude/agents/mortar.md
+    model: sonnet
+    description: "Build orchestrator — manages state, spawns worker agents, validates results, commits"
+    modes:
+      - agent
+    capabilities:
+      - orchestration
+      - build-management
+      - state-tracking
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: trusted
+
+  - name: spec-writer
+    file: ~/.claude/agents/spec-writer.md
+    model: opus
+    description: "Explores codebase and writes detailed autopilot spec.md for build campaigns"
+    modes:
+      - agent
+    capabilities:
+      - spec-writing
+      - codebase-analysis
+      - task-decomposition
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: trusted
+
+  - name: developer
+    file: ~/.claude/agents/developer.md
+    model: sonnet
+    description: "Implements code to pass tests in TDD RED-GREEN-REFACTOR cycle"
+    modes:
+      - fix
+      - agent
+    capabilities:
+      - implementation
+      - tdd
+      - debugging
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: trusted
+
+  - name: karen
+    file: ~/.claude/agents/karen.md
+    model: sonnet
+    description: "Roadmaps, changelogs, folder audits, and documentation organization"
+    modes:
+      - agent
+      - audit
+    capabilities:
+      - roadmap-management
+      - changelog-generation
+      - docs-organization
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: candidate
+
+  - name: prompt-engineer
+    file: ~/.claude/agents/prompt-engineer.md
+    model: opus
+    description: "Transforms vague ideas into sharp, direct, structured prompts"
+    modes:
+      - agent
+      - evolve
+    capabilities:
+      - prompt-optimization
+      - instruction-writing
+      - dspy-integration
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: candidate
+
+  - name: refactorer
+    file: ~/.claude/agents/refactorer.md
+    model: sonnet
+    description: "Cleans up code structure without changing behavior"
+    modes:
+      - agent
+      - validate
+    capabilities:
+      - refactoring
+      - code-cleanup
+      - structure-improvement
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: candidate
+
+  - name: self-host
+    file: ~/.claude/agents/self-host.md
+    model: sonnet
+    description: "Self-hosted infrastructure management: Docker, CasaOS, Proxmox, Tailscale"
+    modes:
+      - agent
+      - benchmark
+    capabilities:
+      - infrastructure
+      - docker
+      - self-hosting
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: architect
+    file: ~/.claude/agents/architect.md
+    model: opus
+    description: "System architecture design and deep structural analysis"
+    modes:
+      - agent
+      - research
+    capabilities:
+      - architecture-design
+      - system-analysis
+      - design-patterns
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: candidate
+
+  - name: devops
+    file: ~/.claude/agents/devops.md
+    model: sonnet
+    description: "DevOps automation, CI/CD pipelines, Docker Compose, deployment workflows"
+    modes:
+      - agent
+      - validate
+    capabilities:
+      - devops
+      - ci-cd
+      - deployment
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: security
+    file: ~/.claude/agents/security.md
+    model: sonnet
+    description: "Security audits, OWASP Top 10, vulnerability assessment"
+    modes:
+      - audit
+      - agent
+    capabilities:
+      - security-audit
+      - owasp
+      - vulnerability-assessment
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: candidate
+
+  - name: spreadsheet-wizard
+    file: ~/.claude/agents/spreadsheet-wizard.md
+    model: sonnet
+    description: "Excel/CSV data analysis, formula generation, and data transformation"
+    modes:
+      - agent
+      - research
+    capabilities:
+      - spreadsheet-analysis
+      - data-transformation
+      - excel
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: rust-analyst
+    file: ~/.claude/agents/rust-analyst.md
+    model: sonnet
+    description: "Rust code analysis, performance profiling, and idiomatic review"
+    modes:
+      - audit
+      - agent
+    capabilities:
+      - rust-analysis
+      - performance-review
+      - idiomatic-rust
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: rust-developer
+    file: ~/.claude/agents/rust-developer.md
+    model: sonnet
+    description: "Implements Rust code: systems utilities, CLI tools, performance-critical components"
+    modes:
+      - fix
+      - agent
+    capabilities:
+      - rust-development
+      - systems-programming
+      - cli-tools
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  # ── Draft entries for modes without a dedicated agent yet ───────────────
+
+  - name: diagnose-analyst
+    file: agents/diagnose-analyst.md
+    model: opus
+    description: "Root cause analysis for complex failures and escalations"
+    modes:
+      - diagnose
+    capabilities:
+      - root-cause-analysis
+      - failure-diagnosis
+      - escalation-handling
+    input_schema: DiagnosePayload
+    output_schema: DiagnosisPayload
+    tier: draft
+
+  - name: compliance-auditor
+    file: agents/compliance-auditor.md
+    model: sonnet
+    description: "Regulatory and compliance auditing for financial and legal requirements"
+    modes:
+      - audit
+    capabilities:
+      - compliance-checking
+      - regulatory-analysis
+      - legal-review
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: regulatory-researcher
+    file: agents/regulatory-researcher.md
+    model: sonnet
+    description: "Research into regulatory, legal, and compliance landscapes"
+    modes:
+      - research
+    capabilities:
+      - regulatory-research
+      - legal-research
+      - compliance-mapping
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: competitive-analyst
+    file: agents/competitive-analyst.md
+    model: sonnet
+    description: "Competitive landscape analysis and market analogue identification"
+    modes:
+      - research
+    capabilities:
+      - competitive-analysis
+      - market-research
+      - analogue-finding
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: research-analyst
+    file: agents/research-analyst.md
+    model: sonnet
+    description: "General research synthesis and evidence aggregation"
+    modes:
+      - research
+    capabilities:
+      - research-synthesis
+      - evidence-aggregation
+      - literature-review
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: benchmark-engineer
+    file: agents/benchmark-engineer.md
+    model: sonnet
+    description: "Performance benchmarking against live services and external APIs"
+    modes:
+      - benchmark
+    capabilities:
+      - benchmarking
+      - performance-testing
+      - api-testing
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: design-reviewer
+    file: ~/.claude/agents/design-reviewer.md
+    model: sonnet
+    description: "Validates design and architecture against project invariants"
+    modes:
+      - validate
+      - agent
+    capabilities:
+      - design-review
+      - architecture-validation
+      - invariant-checking
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: evolve-optimizer
+    file: agents/evolve-optimizer.md
+    model: opus
+    description: "Evolves agent prompts and strategies based on campaign performance data"
+    modes:
+      - evolve
+    capabilities:
+      - prompt-evolution
+      - strategy-optimization
+      - performance-improvement
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: health-monitor
+    file: agents/health-monitor.md
+    model: haiku
+    description: "Continuous health monitoring of simulation results and agent performance"
+    modes:
+      - monitor
+    capabilities:
+      - health-monitoring
+      - metric-tracking
+      - alert-generation
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: cascade-analyst
+    file: agents/cascade-analyst.md
+    model: sonnet
+    description: "Predicts cascade failures and downstream effects from parameter changes"
+    modes:
+      - predict
+    capabilities:
+      - cascade-prediction
+      - failure-propagation
+      - scenario-modeling
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
+
+  - name: frontier-analyst
+    file: ~/.claude/agents/frontier-analyst.md
+    model: sonnet
+    description: "Blue-sky exploration, possibility mapping, and ceiling estimation"
+    modes:
+      - frontier
+      - research
+    capabilities:
+      - frontier-analysis
+      - possibility-mapping
+      - ceiling-estimation
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft
