@@ -504,7 +504,7 @@ Focus: Does the Mortar routing system actually function as documented? Do the Ph
 
 ## V1.2 [diagnose] After the D3.3 OLLAMA_URL fix, does semantic.py now successfully read the OLLAMA_HOST env var?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **Hypothesis**: The D3.3 fix changed `semantic.py` to read both `OLLAMA_URL` and `OLLAMA_HOST` with fallback. The actual fix should have been applied during Phase 1. Confirm the fix is in place in the live file, that the env var `OLLAMA_HOST=http://192.168.50.62:11434` (set in settings.json) is correctly read, and that a connection attempt to Ollama succeeds.
@@ -515,7 +515,7 @@ Focus: Does the Mortar routing system actually function as documented? Do the Ph
 
 ## V1.3 [audit] After D4.3+D6.5, does deterministic routing successfully match Mode fields to the correct BL2.0 agents?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: audit
 **Priority**: MEDIUM
 **Hypothesis**: Phase 2 added modes frontmatter to 16 agents and registered their mode values. The deterministic router's `get_agents_for_mode()` should now return `diagnose-analyst` for `**Mode**: diagnose`, `compliance-auditor` for `**Mode**: audit`, etc. Before the fix, all 16 agents returned nothing from this lookup.
@@ -526,7 +526,7 @@ Focus: Does the Mortar routing system actually function as documented? Do the Ph
 
 ## V1.4 [diagnose] Does masonry-agent-onboard.js (now registered in settings.json) successfully fire and update the registry when a new agent .md is written?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: MEDIUM
 **Hypothesis**: Phase 1 registered `masonry-agent-onboard.js` in settings.json as an async PostToolUse hook for Write/Edit events. The hook calls `onboard_agent.py` to extract frontmatter and upsert the registry. If the hook has path assumptions or env var dependencies that prevent `onboard_agent.py` from running (e.g., the `PYTHONPATH` issue discovered during Phase 2), the registration is nominal but the pipeline is still broken.
