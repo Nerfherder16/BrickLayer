@@ -348,6 +348,7 @@ def run(
     return {
         "scanned": len(paths),
         "training_ready": len(training_records),
+        "agents_covered": list(agent_counts.keys()),
         "agents_with_10_plus": agents_with_10_plus,
         "output_path": str(output_path),
     }

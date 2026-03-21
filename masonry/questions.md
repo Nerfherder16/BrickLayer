@@ -1322,3 +1322,103 @@
 **Method**: research-analyst
 **Success criterion**: (1) Read score_all_agents.py summary table logic. (2) Determine if the inconsistency is intentional or accidental. (3) Propose whether to fix or document. Verdict: HEALTHY if intentional/documented; WARNING if accidental inconsistency that misleads users.
 
+
+---
+
+## Wave 17
+
+### F17.1: Fix `extractMarkdownField` regex in `masonry-observe.js` to include hyphens so hyphenated agent names extract correctly
+
+**Status**: DONE
+**Operational Mode**: diagnose
+**Priority**: HIGH
+**Source**: synthesis_wave16
+**Hypothesis**: R16.1 found that `extractMarkdownField()` regex `[\w]+` stops at hyphens. Agent names like `research-analyst`, `fix-implementer`, `synthesizer-bl2` are truncated to `research`, `fix`, `synthesizer` — none in `AGENT_CATEGORIES`. Fix: `[\w]+` → `[\w-]+`.
+**Method**: fix-implementer
+**Success criterion**: Verify `fix-implementer`, `research-analyst`, `synthesizer-bl2` extract fully. Verdict: FIX_APPLIED.
+
+---
+
+### R17.1: After F17.1, does the routing pipeline have a clear path to generating training records?
+
+**Status**: DONE
+**Operational Mode**: research
+**Priority**: HIGH
+**Source**: synthesis_wave16
+**Hypothesis**: With agent name truncation fixed, remaining blocker is session ID mismatch. The NEVER STOP self-research loop writes findings directly without spawning subagents in the same session. A Mortar/Trowel-dispatched campaign from masonry/ would generate matching start+finding events.
+**Method**: research-analyst
+**Success criterion**: Re-run score_routing.py and verify record count. Describe minimum session structure needed. Verdict: HEALTHY if records produced; WARNING if 0 but path clear.
+
+---
+
+### F17.2: Fix `score_findings.run()` to return `agents_covered` key and standardize score_all_agents.py summary "Agents" column
+
+**Status**: DONE
+**Operational Mode**: diagnose
+**Priority**: LOW
+**Source**: synthesis_wave16
+**Hypothesis**: R16.2 found score_findings.run() returns only agents_with_10_plus, not agents_covered. This causes "Agents: 1" when 5 agents contribute. Fix: add agents_covered to return dict.
+**Method**: fix-implementer
+**Success criterion**: Summary shows "Agents: 5" for score_findings. Verdict: FIX_APPLIED.
+
+---
+
+### R17.2: Does `run_vigil.py` correctly reflect fleet health after Waves 14-16 fixes, or do false Thorn signals persist?
+
+**Status**: DONE
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Source**: synthesis_wave14
+**Hypothesis**: Wave 14 R14.1 found diagnose-analyst is a false Thorn (BL1.x findings with no Confidence in BL root findings/ dir). With scored_all.jsonl at 236 records, vigil may show a better picture. But the root cause (BL root findings/ having BL1.x format) is unfixed.
+**Method**: research-analyst
+**Success criterion**: Run run_vigil.py from masonry/ dir. Check for false Thorn signals. Verdict: HEALTHY if accurate; WARNING if false signals persist.
+
+---
+
+## Wave 18
+
+### R18.1: Can the NEVER STOP loop generate matching session ID pairs by using the Agent tool to dispatch specialist subagents for investigations?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: HIGH
+**Source**: synthesis_wave17
+**Hypothesis**: The sole remaining blocker for routing training records reaching 100pts is the session ID mismatch. The R17.1 finding identifies Option B: use Agent tool calls in the NEVER STOP loop instead of direct investigation. If the main session spawns a specialist via Agent tool, SubagentStart fires with parent_session=current, and if that agent writes a finding, PostToolUse fires with session_id=current — producing a matched pair at 100pts.
+**Method**: research-analyst
+**Success criterion**: Verify whether using Agent tool dispatch for a Wave 18 question produces a "start" event in routing_log.jsonl with the current session ID. Check whether the resulting finding event also carries the current session ID. Verdict: HEALTHY if matched pair produced; WARNING if still no match.
+
+---
+
+### D18.1: Why does `parse_findings_dir` in run_vigil.py classify 86% of masonry findings as "unknown" agent — is it a regex mismatch or a missing field in the finding template?
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: MEDIUM
+**Source**: synthesis_wave17
+**Hypothesis**: R17.2 shows 109/127 masonry findings are "unknown". Two possible root causes: (1) the BL2.0 finding template never included `**Agent**:` field — only Waves 16-17 findings have it; or (2) `_AGENT_PATTERN = re.compile(r"\*\*agent\*\*\s*:\s*(.+)", re.IGNORECASE)` fails to match even when the field exists due to encoding or whitespace variation. Need to distinguish which is the dominant cause and whether bulk backfill of `**Agent**:` field in pre-Wave 16 findings is warranted.
+**Method**: diagnose-analyst
+**Success criterion**: Read 5 pre-Wave 16 findings and check for `**Agent**:` field presence. Run the regex against those files to confirm parse behavior. If the field is absent: document which wave introduced it and propose a bulk backfill script. Verdict: DIAGNOSIS_COMPLETE.
+
+---
+
+### R18.2: Is quantitative-analyst's training data (36 findings, only agent ≥10) sufficient for a DSPy MIPROv2 optimization trial?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Source**: synthesis_wave17
+**Hypothesis**: quantitative-analyst has 36 training records in scored_findings.jsonl — the only agent above the 10-record threshold. DSPy MIPROv2 typically needs 20-50 examples for a useful optimization. With 36 examples, a trial optimization is feasible. Key questions: Does the optimizer have all required dependencies? Are the training records in the correct schema for the DSPy signature? Is the Ollama endpoint available?
+**Method**: research-analyst
+**Success criterion**: Check the optimizer entry point (masonry/src/dspy_pipeline/optimizer.py), verify quantitative-analyst's signature file, confirm training record schema compatibility, and check Ollama availability. Verdict: HEALTHY if optimization can proceed; WARNING if blockers exist; INCONCLUSIVE if Ollama unavailable.
+
+---
+
+### F18.1: Fix `load_scored_all` path resolution in `run_vigil.py` to work when CWD is the masonry/ directory
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: LOW
+**Source**: synthesis_wave17
+**Hypothesis**: `run_vigil.py` line 53 hardcodes `base_dir / "masonry" / "training_data" / "scored_all.jsonl"`. When run from masonry/ dir, this resolves to `masonry/masonry/training_data/scored_all.jsonl` (non-existent). Fix: detect whether base_dir IS the masonry dir (by checking for `base_dir.name == "masonry"` or `(base_dir / "training_data").exists()`) and adjust path accordingly. This would allow the 243 scored records to augment the vigil health classification.
+**Method**: fix-implementer
+**Success criterion**: After fix, run vigil from masonry/ dir and confirm scored_all agents (quantitative-analyst, karen, git-nerd, etc.) appear in the Rose/Bud/Thorn classification via augmentation. Verdict: FIX_APPLIED.
