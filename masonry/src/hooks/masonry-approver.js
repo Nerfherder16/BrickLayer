@@ -110,6 +110,20 @@ function isResearchProject(dir) {
   return existsSync(join(dir, "program.md")) && existsSync(join(dir, "questions.md"));
 }
 
+// Walk up from dir to find a BL research project root.
+// Handles cases where cwd is a subdirectory or the tool target is outside the project.
+function findResearchProject(startDir) {
+  if (!startDir) return false;
+  let dir = startDir;
+  for (let i = 0; i < 10; i++) {
+    if (isResearchProject(dir)) return true;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return false;
+}
+
 function getCandidateDirs(parsed) {
   const dirs = [];
   const toolInput = parsed.tool_input || {};
@@ -160,8 +174,12 @@ async function main() {
   const filePath = toolInput.file_path || toolInput.path || "";
 
   // BrickLayer research campaign — approve everything, including Bash.
-  // The campaign runs with --dangerously-skip-permissions; full autonomy is intentional.
-  if (isResearchProject(cwd)) {
+  // Walk up from cwd AND from the tool's target path — handles sessions whose cwd
+  // is a parent directory (e.g. BL root) or a sibling project.
+  const inResearch =
+    findResearchProject(cwd) ||
+    (filePath && findResearchProject(dirname(filePath)));
+  if (inResearch) {
     process.stdout.write(
       JSON.stringify({
         hookSpecificOutput: {
