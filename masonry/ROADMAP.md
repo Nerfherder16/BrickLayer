@@ -69,7 +69,7 @@ The scoring scripts (`score_all_agents.py`, `score_findings.py`, etc.) produce `
 
 `training_extractor.py` quality-gates examples by agent score, but:
 
-- The `finding.get("agent")` lookup requires that findings include an `agent` field in their metadata. BL2 finding files do not currently include this field by convention. `score_example` returns 0.0 (excluded) for any finding without an `agent` field, meaning all auto-extracted examples are currently excluded from quality-weighted training.
+- ~~The `finding.get("agent")` lookup requires that findings include an `agent` field in their metadata. BL2 finding files do not currently include this field by convention.~~ (resolved Wave 18: D18.1 backfilled `**Agent**:` field across 103 findings)
 - The `build_dataset` function will silently return an empty dict for all agents if no findings have agent attribution. A warning should be emitted when this happens.
 
 ---
@@ -96,6 +96,6 @@ The scoring scripts (`score_all_agents.py`, `score_findings.py`, etc.) produce `
 
 ---
 
-## No Tests
+## ~~No Tests~~ (resolved Wave 16+)
 
-`package.json` scripts section has `"test": "echo \"No tests yet\""`. The entire Python and JavaScript codebase has no test suite. The routing pipeline, payload schemas, and onboarding logic all have clear unit-testable contracts. This is the highest-leverage investment before any production use.
+Test suite now exists: 715/717 tests passing as of Wave 19. Coverage includes `run_vigil.py` (86 tests), `score_findings.py`, payload schemas, routing pipeline, and onboarding logic.

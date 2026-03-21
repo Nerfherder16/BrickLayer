@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+## [Wave 19] -- 2026-03-21
+
+4 questions answered. Vigil calibration fixed (false Thorns eliminated), routing reliability mapped at 60%, score_findings masonry extension specified.
+
+### Fixed
+- `D19.1`/`F19.1` -- Vigil false Thorn classifications: overlaid scored_all rubric percentages onto confidence-based pass_rate; gated OVERCONFIDENT check on `rubric_based` flag (`masonry/scripts/run_vigil.py`)
+- `F19.1` -- score_all_agents `agents_covered` for score_routing populated from `dispatched_agent` field instead of hardcoded empty list (`masonry/scripts/score_all_agents.py`)
+
+### Found (open)
+- `R19.1` [WARNING] -- score_routing session_id collision causes last-write-wins matching; fix-implementer/general-purpose missing from AGENT_CATEGORIES; 60% 100pt record rate
+- `R19.2` [WARNING] -- score_findings.py needs 3 changes to score masonry findings (discovery blocklist, regex subsection fix, FIX_APPLIED in VALID_VERDICTS); domain contamination risk without source-tagging
+
+### Healthy
+- Vigil fleet verdict now WARNING (1 genuine Thorn: `unknown`) instead of false CRITICAL (5 Thorns). 7 Roses, 6 Buds confirmed.
+
+## [Wave 18] -- 2026-03-21
+
+4 questions answered. Session ID pairing confirmed, vigil fully operational, DSPy blockers identified.
+
+### Fixed
+- `D18.1` -- 84% of findings lacked `**Agent**:` field; backfill script patched 103 files
+- `F18.1` -- `load_scored_all` dual-path detection fixed; vigil now augments with 248 scored records
+
+### Found (open)
+- `R18.2` [WARNING] -- DSPy trial blocked: no ANTHROPIC_API_KEY, all 36 QA records at score floor (60/100)
+
+### Healthy
+- R18.1: Agent tool dispatch produces matching session ID pairs; first 100pt routing record generated
+
 ### Added — Phase 3: Scoring, validation, and fleet tooling
 
 **Scoring pipeline** (`src/scoring/`, `scripts/`)

@@ -337,3 +337,18 @@ masonry/
 ```
 
 Python package root is the `Bricklayer2.0/` directory. Import as `from masonry.src.routing.router import route`.
+
+---
+
+## Key Findings
+
+- **D19.1/F19.1** [FIX_APPLIED] Wave 19: Vigil false Thorn classifications fixed -- rubric-based pass_rate replaces confidence-based proxy; OVERCONFIDENT gated on rubric_based flag
+- **R19.1** [WARNING] Wave 19: Routing 100pt record generation at 60% reliability due to session_id collision in scorer and missing AGENT_CATEGORIES entries
+- **R19.2** [WARNING] Wave 19: score_findings.py can score masonry findings after 3 targeted changes; domain contamination risk requires source-tagging
+
+## Open Items
+
+| ID | Verdict | Summary |
+|----|---------|---------|
+| R19.1 | WARNING | score_routing session_id collision causes last-write-wins; fix-implementer/general-purpose missing from AGENT_CATEGORIES |
+| R19.2 | WARNING | score_findings.py needs discovery blocklist removal, regex subsection fix, FIX_APPLIED in VALID_VERDICTS; domain contamination risk |
