@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `354aefa` chore(training-data): backfill Agent fields + initial scoring run (2026-03-21)
 - `3367210` fix(backfill): handle unprefixed numeric question IDs (1.x, 2.x, 3.x) (2026-03-21)
 - `b70a324` chore(masonry): campaign progress sync (2026-03-21)
 - `f2b6666` feat(stop-guard): warn on doc staleness when code committed without doc updates (2026-03-21)
