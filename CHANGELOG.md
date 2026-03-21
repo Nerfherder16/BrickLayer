@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `337628f` docs(masonry): Wave 21 -- vigil HEALTHY (0 thorns), stale path fixed, DSPy Ollama spec complete (2026-03-21)
 - `3b173fd` feat(bl-audit): add Wave 2 question bank — Mortar adherence + post-fix validation (2026-03-21)
 - `96933cd` fix(phase3/4/5): cleanup — dspy stubs, gitignore, port refs, tools-manifest, registry paths (2026-03-21)
 - `c82e74b` feat(masonry): Wave 20 -- routing 100pt records 3->9, training corpus 254->435, vigil WARNING healthy (2026-03-21)
