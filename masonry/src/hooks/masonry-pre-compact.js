@@ -6,15 +6,20 @@
  * memory. This hook writes a compact state summary to a known path so the
  * session-start hook can re-inject it after compaction completes.
  *
- * v2: Also reads transcript_path to store a mid-session checkpoint to Recall that
- * includes both user prompts AND assistant responses — the only mid-session hook
- * that has transcript access. Fills the gap for long-running sessions that never close.
+ * v2: Stores mid-session checkpoint to Recall including both user prompts AND
+ * assistant responses. Fills the gap for long-running sessions that never close.
+ *
+ * Note: Claude Code does NOT include transcript_path in PreCompact hook payloads
+ * (only Stop/SessionEnd get it). We derive the path from cwd + session_id using
+ * the known project slug format: ~/.claude/projects/{cwd-slug}/{session_id}.jsonl
+ * where slug = path separators → "--", drive colon removed.
  *
  * Output: hookSpecificOutput with a brief state reminder that survives compaction.
  */
 
 "use strict";
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 const RECALL_HOST = process.env.RECALL_HOST || "http://100.70.195.84:8200";
@@ -74,6 +79,28 @@ function tryRead(p) {
 
 function tryJSON(p) {
   try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; }
+}
+
+/**
+ * Derive the JSONL transcript path from cwd + session_id.
+ * Claude Code stores transcripts at:
+ *   ~/.claude/projects/{cwd-slug}/{session_id}.jsonl
+ * where cwd-slug = path separators replaced with "--", drive colon removed.
+ * Example: "C:/Users/trg16/Dev/Bricklayer2.0" → "C--Users-trg16-Dev-Bricklayer2-0"
+ */
+function deriveTranscriptPath(cwd, sessionId) {
+  if (!sessionId) return null;
+  // Normalize slashes, split into parts, join with "--"
+  const parts = cwd.replace(/\\/g, "/").split("/").filter(Boolean);
+  // Remove drive colon: "C:" → "C"
+  if (parts[0] && parts[0].endsWith(":")) {
+    parts[0] = parts[0].slice(0, -1);
+  }
+  const slug = parts.join("--");
+  const transcriptDir = path.join(os.homedir(), ".claude", "projects", slug);
+  const transcriptFile = path.join(transcriptDir, `${sessionId}.jsonl`);
+  // Only return if the file actually exists
+  return fs.existsSync(transcriptFile) ? transcriptFile : null;
 }
 
 async function main() {
@@ -158,9 +185,11 @@ async function main() {
   }
 
   // --- Recall: store mid-session checkpoint with assistant responses ---
-  const transcriptPath = input.transcript_path;
+  // PreCompact does not receive transcript_path — derive it from cwd + session_id.
   const projectName = path.basename(cwd);
   const domain = PROJECT_DOMAINS[projectName.toLowerCase()] || projectName.toLowerCase() || "general";
+
+  const transcriptPath = deriveTranscriptPath(cwd, input.session_id);
 
   if (transcriptPath) {
     const turns = extractRecentTurns(transcriptPath, 20);
