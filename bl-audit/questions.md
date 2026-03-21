@@ -427,7 +427,7 @@ Focus: Does the Mortar routing system actually function as documented? Do the Ph
 
 ## M1.1 [diagnose] Does masonry-register.js crash silently due to a duplicate `const cwd` declaration?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **Hypothesis**: `masonry-register.js` declares `const cwd` on line 88 (`const cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd()`) and again on line 105 inside the same `main()` function scope. In strict mode (`'use strict'` is declared at line 1), a duplicate `const` declaration is a SyntaxError that crashes the process before any output is written — meaning the Mortar routing directive is never injected on any prompt.
@@ -438,7 +438,7 @@ Focus: Does the Mortar routing system actually function as documented? Do the Ph
 
 ## M1.2 [diagnose] Does the routing_log.jsonl contain only empty `{}` objects, indicating the subagent-tracker write path is broken?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **Hypothesis**: `masonry/routing_log.jsonl` has 43 entries, all empty `{}`. The file is written by `masonry-subagent-tracker.js` (SubagentStart hook) and `masonry-observe.js` (PostToolUse). If both writers are appending empty objects, the DSPy routing training signal is entirely absent and `score_routing.py` has no data to score.
@@ -449,7 +449,7 @@ Focus: Does the Mortar routing system actually function as documented? Do the Ph
 
 ## M1.3 [diagnose] Does masonry-register.js output conform to the Claude Code UserPromptSubmit hook spec for context injection?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **Hypothesis**: `masonry-register.js` writes plain text to stdout (e.g., `[MASONRY] Route this prompt through Mortar...`). The Claude Code UserPromptSubmit hook spec may require a structured JSON envelope (e.g., `{"type": "context", "text": "..."}`) for the output to be injected as system context. Plain-text stdout may be silently ignored, meaning the Mortar directive never reaches the model.
@@ -460,7 +460,7 @@ Focus: Does the Mortar routing system actually function as documented? Do the Ph
 
 ## M1.4 [research] When the Mortar directive IS successfully injected, does Claude Code invoke mortar.md as an agent subagent or treat it as advisory context text?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: research
 **Priority**: MEDIUM
 **Hypothesis**: The `[MASONRY] Route this prompt through Mortar (.claude/agents/mortar.md)` directive is injected as a system message. Claude Code may interpret `.claude/agents/mortar.md` as an agent to invoke (spawning a subagent), as a file to read as context, or may ignore the instruction entirely and handle the request inline. The distinction determines whether Mortar's multi-agent dispatch actually fires.
@@ -471,7 +471,7 @@ Focus: Does the Mortar routing system actually function as documented? Do the Ph
 
 ## M1.5 [audit] Does masonry-register.js suppress Mortar injection in the bl-audit working directory, breaking routing during the audit itself?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: audit
 **Priority**: MEDIUM
 **Hypothesis**: `masonry-register.js` line 89: `if (isResearchProject(cwd)) return;` — `isResearchProject()` checks for both `program.md` AND `questions.md`. The `bl-audit/` directory has both files (it IS a research project). This means whenever Claude Code runs in `bl-audit/`, the Mortar directive is suppressed, and no routing occurs — the system running the audit is itself unrouted.
@@ -482,7 +482,7 @@ Focus: Does the Mortar routing system actually function as documented? Do the Ph
 
 ## M1.6 [research] Does mortar.md contain routing trigger patterns that cover all task types, or are coding/git/docs tasks unrepresented?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: research
 **Priority**: MEDIUM
 **Hypothesis**: Mortar is supposed to route ALL request types (coding, research, git, docs, UI, campaigns). If `mortar.md` only contains campaign routing patterns and lacks deterministic triggers for `fix this bug`, `git commit`, `update the docs` type requests, those tasks fall through and are handled inline by Claude without specialist dispatch.
@@ -493,7 +493,7 @@ Focus: Does the Mortar routing system actually function as documented? Do the Ph
 
 ## V1.1 [audit] After the D4.4 fix, does masonry_status correctly count questions for the bl-audit campaign?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: audit
 **Priority**: HIGH
 **Hypothesis**: Phase 1 fixed `masonry_status` to recognize BL2.0 `## D1.1` format headers. The bl-audit campaign has 32 questions in this format. If the fix was applied correctly, `masonry_status` should now return `q_total=32` and accurate done/pending counts instead of the previous `q_total=0`.

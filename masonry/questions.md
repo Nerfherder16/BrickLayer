@@ -1590,7 +1590,7 @@
 
 ### F22.1: Wire `configure_dspy()` in `optimizer.py` to accept an Ollama backend using the 2-line config change specified in R21.1
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: R21.1 WARNING — `configure_dspy()` (optimizer.py lines 73-76) hardcodes `dspy.LM(f"anthropic/{model}")` with no Ollama path. R21.1 identified this as the sole blocking config change: replace the function body with `dspy.LM("ollama_chat/qwen3:14b", api_base="http://192.168.50.62:11434")`. A caller-site parameter (e.g., `backend: str = "ollama"`) should guard the change so the Anthropic path remains reachable for future use.
@@ -1602,7 +1602,7 @@
 
 ### R22.1: Does a single-prediction smoke-run of `dspy.LM("ollama_chat/qwen3:14b")` against `ResearchAgentSig` produce valid structured output?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: HIGH
 **Motivated by**: R21.1 WARNING — "qwen3:14b structured output reliability under bootstrapping is unverified." R21.1 explicitly states the verdict changes to HEALTHY if "a short smoke-run of dspy.LM('ollama_chat/qwen3:14b') confirms structured output generation works for at least one sample prediction." F22.1 is a prerequisite (must be DONE before this runs).
@@ -1626,7 +1626,7 @@
 
 ### D22.1: Does the `confidence_calibration` component in `build_metric()` systematically penalize correct high-confidence findings, and what recalibration design would stop reducing training data volume?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: LOW
 **Motivated by**: synthesis_wave21 open issue #2 — "fix-implementer findings with confidence >= 0.96 score 10/40 on confidence_calibration, suppressing 55% of masonry findings below the 60-point training threshold." The current formula `1 - |predicted - 0.75|` in `build_metric()` (optimizer.py line 29 approx) scores confidence=1.0 as 0.75 (75% of max), while the external scorer in `score_findings.py` awards only 10/40 points to findings with confidence > 0.95. Both systems penalize empirically verified high-confidence findings (e.g., FIX_APPLIED with passing tests where confidence=0.99 is objectively correct). R19.2 flagged this as "Optional Change 4, design decision, not a bug."

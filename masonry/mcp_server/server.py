@@ -359,6 +359,7 @@ def _tool_masonry_optimize_agent(args: dict) -> dict:
         args.get("output_dir", str(_REPO_ROOT / "masonry" / "optimized_prompts"))
     )
     model = args.get("model", "claude-sonnet-4-6")
+    backend = args.get("backend", "anthropic")
 
     try:
         from masonry.src.dspy_pipeline.training_extractor import build_dataset  # noqa: PLC0415
@@ -377,12 +378,12 @@ def _tool_masonry_optimize_agent(args: dict) -> dict:
         }
 
     try:
-        configure_dspy(model=model)
+        configure_dspy(model=model, backend=backend)
     except Exception as exc:
         return {"error": f"DSPy configuration failed: {exc}"}
 
     try:
-        result = optimize_agent(agent_name, ResearchAgentSig, agent_dataset, output_dir)
+        result = optimize_agent(agent_name, ResearchAgentSig, agent_dataset, output_dir, backend=backend)
         result["example_count"] = len(agent_dataset)
         return result
     except Exception as exc:

@@ -70,9 +70,23 @@ def build_metric(signature_cls: type) -> Any:
 # ── configure_dspy ──────────────────────────────────────────────────────────
 
 
-def configure_dspy(model: str = "claude-sonnet-4-6") -> None:
-    """Configure DSPy with an Anthropic LM (requires ANTHROPIC_API_KEY)."""
-    lm = dspy.LM(f"anthropic/{model}")
+def configure_dspy(model: str = "claude-sonnet-4-6", backend: str = "anthropic") -> None:
+    """Configure DSPy with the specified LM backend.
+
+    Args:
+        model: Model name to use. For Anthropic: e.g. ``claude-sonnet-4-6``.
+            For Ollama: e.g. ``mistral`` or ``llama3``.
+        backend: Either ``"anthropic"`` (requires ANTHROPIC_API_KEY) or
+            ``"ollama"`` (uses local Ollama at http://192.168.50.62:11434).
+    """
+    if backend == "ollama":
+        lm = dspy.LM(
+            f"ollama_chat/{model}",
+            api_base="http://192.168.50.62:11434",
+            max_tokens=4096,
+        )
+    else:
+        lm = dspy.LM(f"anthropic/{model}")
     dspy.configure(lm=lm)
 
 
@@ -84,6 +98,7 @@ def optimize_agent(
     signature_cls: type,
     dataset: list[dict],
     output_dir: Path,
+    backend: str = "anthropic",
 ) -> dict[str, Any]:
     """Optimize a single agent's prompt using MIPROv2.
 
@@ -92,6 +107,8 @@ def optimize_agent(
         signature_cls: DSPy Signature class defining the I/O contract.
         dataset: List of training examples (dicts matching signature fields).
         output_dir: Directory to save the optimized module JSON.
+        backend: LM backend to use — ``"anthropic"`` or ``"ollama"``.
+            Passed through to :func:`configure_dspy` when called by the caller.
 
     Returns:
         Dict with agent, score, and optimized_at fields.
@@ -172,10 +189,18 @@ def optimize_all(
     registry: list[AgentRegistryEntry],
     datasets: dict[str, list[dict]],
     output_dir: Path,
+    backend: str = "anthropic",
 ) -> list[dict[str, Any]]:
     """Optimize all agents that have sufficient training data.
 
     Skips agents with fewer than 5 training examples.
+
+    Args:
+        registry: List of agents to consider for optimization.
+        datasets: Mapping of agent name to list of training example dicts.
+        output_dir: Directory to save optimized module JSON files.
+        backend: LM backend to use — ``"anthropic"`` or ``"ollama"``.
+            Passed through to :func:`optimize_agent`.
     """
     results: list[dict[str, Any]] = []
 
@@ -198,7 +223,7 @@ def optimize_all(
         from masonry.src.dspy_pipeline.signatures import ResearchAgentSig
         sig = ResearchAgentSig
 
-        result = optimize_agent(agent.name, sig, agent_dataset, output_dir)
+        result = optimize_agent(agent.name, sig, agent_dataset, output_dir, backend=backend)
         results.append(result)
 
     return results
