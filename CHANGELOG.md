@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `e1180dc` fix(routing+dspy): Wave 3-4 fixes — training extractor, LLM router, semantic threshold (2026-03-21)
 - `c638fc8` docs: comprehensive docs update — reflect BrickLayer 2.0 platform architecture (2026-03-21)
 - `124477d` chore: session updates — docs, routing, schemas, approver hook (2026-03-21)
 - `be709f4` fix(stop-guard): use session activity log as authoritative write tracker (2026-03-21)
