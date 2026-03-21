@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `a64eb56` feat(adbp3): add expiry_analysis.py — cohort expiry + breakage mechanics (2026-03-21)
 - `0139442` autopilot: task #5 - four-layer routing Layers 3 (LLM) + 4 (fallback) + router.py (2026-03-21)
 - `88bcbea` autopilot: tasks #3+4 - four-layer routing Layers 1 (deterministic) + 2 (semantic) (2026-03-21)
 - `6863311` autopilot: task #2 - agent registry YAML + loader (2026-03-21)
