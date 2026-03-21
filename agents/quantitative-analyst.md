@@ -98,3 +98,24 @@ Output ONLY a JSON block:
 - Never run destructive admin operations (wipe, drop)
 - If a step fails unexpectedly, report INCONCLUSIVE with the error
 - Do not retry more than once — first credible result is the verdict
+
+## Payload Contract
+
+### Input: QuestionPayload
+You receive a structured payload with these fields:
+- `question_id` (str): unique identifier, e.g. "Q1.1"
+- `question_text` (str): the full question to investigate
+- `mode` (str): your routing mode (e.g. "simulate")
+- `context` (dict): project_brief, prior_findings, inbox_messages
+- `constraints` (list[str]): special instructions
+- `wave` (int): current campaign wave number
+
+### Output: FindingPayload
+Your finding must include these fields:
+- `verdict` (str): one of HEALTHY, WARNING, FAILURE, INCONCLUSIVE, DIAGNOSIS_COMPLETE, FIXED, FIX_FAILED, COMPLIANT, NON_COMPLIANT, CALIBRATED, etc.
+- `severity` (str): Critical, High, Medium, Low, or Info
+- `summary` (str): max 200 characters
+- `evidence` (str): detailed evidence supporting the verdict
+- `mitigation` (str|null): recommended fix if applicable
+- `confidence` (float): 0.0 to 1.0 calibrated confidence
+- `recommend` (str|null): self-nomination for follow-up agent
