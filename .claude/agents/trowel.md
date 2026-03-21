@@ -204,6 +204,7 @@ recall_search(query="{question text}", domain="{project}-bricklayer", tags=["age
 Include any returned memories as: "Prior findings by {agent_name}: {summary}"
 
 Write the finding to findings/{question_id}.md following the finding format in {agent_name}.md.
+The finding MUST include `**Agent**: {agent_name}` on the line after `**Question**:` — required for DSPy training data attribution.
 ```
 
 ## Wave Sentinels

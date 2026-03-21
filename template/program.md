@@ -206,6 +206,7 @@ Write each finding to `findings/<question_id>.md` (flat directory, no wave subdi
 # Finding: <question_id> — <short title>
 
 **Question**: [copy from questions.md]
+**Agent**: [name of specialist agent that produced this finding, e.g. quantitative-analyst]
 **Verdict**: FAILURE | WARNING | HEALTHY | INCONCLUSIVE
 **Severity**: Critical | High | Medium | Low | Info
 
