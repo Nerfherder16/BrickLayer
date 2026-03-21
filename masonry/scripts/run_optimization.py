@@ -16,6 +16,13 @@ import json
 import sys
 from pathlib import Path
 
+# Ensure the BrickLayer root is on sys.path so `masonry` package is importable.
+# This script is invoked as: python masonry/scripts/run_optimization.py <agent>
+# with cwd=blRoot, so __file__ is blRoot/masonry/scripts/run_optimization.py.
+_SCRIPT_ROOT = Path(__file__).resolve().parent.parent.parent  # blRoot
+if str(_SCRIPT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_ROOT))
+
 
 def load_training_data_from_scored_all(
     scored_all_path: Path,
@@ -118,9 +125,13 @@ def run(agent_name: str, base_dir: Path) -> int:
 
     print(f"[data] Found {len(examples)} training examples.")
 
-    if len(examples) < 5:
+    if len(examples) < 3:
+        print(f"[error] Only {len(examples)} example(s) — need at least 3 to optimize.")
+        print(f"[error] Run more campaigns to accumulate training data, then Score All.")
+        return 1
+    elif len(examples) < 10:
         print(f"[warn] Only {len(examples)} examples — optimization works best with 10+.")
-        print(f"[warn] Proceeding anyway (minimum is 5).")
+        print(f"[warn] Proceeding anyway.")
 
     # ── Configure DSPy ───────────────────────────────────────────────────────
     print(f"[dspy] Configuring DSPy with claude-sonnet-4-6 ...")
@@ -130,8 +141,12 @@ def run(agent_name: str, base_dir: Path) -> int:
         configure_dspy()
         print(f"[dspy] DSPy configured.")
     except ImportError as exc:
-        print(f"[error] DSPy not installed or import failed: {exc}")
-        print(f"[error] Install with: pip install dspy-ai")
+        if "dspy" in str(exc).lower():
+            print(f"[error] DSPy not installed: {exc}")
+            print(f"[error] Install with: pip install dspy-ai")
+        else:
+            print(f"[error] Import failed: {exc}")
+            print(f"[error] Check that PYTHONPATH includes the BrickLayer root.")
         return 1
     except Exception as exc:
         print(f"[error] DSPy configuration failed: {exc}")
