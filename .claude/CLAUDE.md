@@ -124,30 +124,27 @@ The web dashboard has been retired — all UI goes through Kiln.
 
 ## Starting the Research Loop
 
-> **IMPORTANT — always set `DISABLE_MASONRY_HOOKS=1` before launching BrickLayer.**
-> BrickLayer runs in its own isolated `claude` subprocess. Without this, Masonry hooks in the
-> parent session (Mortar routing, stop-guard, lint-check, TDD enforcer, etc.) will fire on every
-> BrickLayer iteration — injecting Mortar routing directives into the autonomous research loop
-> and blocking the subprocess from stopping cleanly.
+> **Note:** Masonry hooks automatically detect BrickLayer research projects (via `program.md` +
+> `questions.md`) and stay silent inside BL subprocesses. No env var needed.
 
 **New project — after question bank is ready:**
 ```bash
 cd C:/Users/trg16/Dev/Bricklayer2.0/{project}
 git init && git add . && git commit -m "chore: init {project} autoresearch"
 git checkout -b {project}/$(date +%b%d | tr '[:upper:]' '[:lower:]')
-DISABLE_OMC=1 claude --dangerously-skip-permissions "Read program.md and questions.md. Begin the research loop from the first PENDING question. If any file edit fails, follow the self-recovery steps in program.md immediately — do not pause. NEVER STOP."
+claude --dangerously-skip-permissions "Read program.md and questions.md. Begin the research loop from the first PENDING question. If any file edit fails, follow the self-recovery steps in program.md immediately — do not pause. NEVER STOP."
 ```
 
 **Resuming an existing project:**
 ```bash
 cd C:/Users/trg16/Dev/Bricklayer2.0/{project}
 git checkout -b {project}/$(date +%b%d | tr '[:upper:]' '[:lower:]')
-DISABLE_OMC=1 claude --dangerously-skip-permissions "Read program.md, questions.md, and findings/synthesis.md. Resume the research loop from the first PENDING question. If any file edit fails, follow the self-recovery steps in program.md immediately — do not pause. NEVER STOP."
+claude --dangerously-skip-permissions "Read program.md, questions.md, and findings/synthesis.md. Resume the research loop from the first PENDING question. If any file edit fails, follow the self-recovery steps in program.md immediately — do not pause. NEVER STOP."
 ```
 
 **PowerShell equivalent (Windows):**
 ```powershell
-$env:DISABLE_OMC=1; claude --dangerously-skip-permissions "Read program.md and questions.md. Begin the research loop from the first PENDING question. NEVER STOP."
+claude --dangerously-skip-permissions "Read program.md and questions.md. Begin the research loop from the first PENDING question. NEVER STOP."
 ```
 
 **Starting Wave 2 (question bank exhausted):**
