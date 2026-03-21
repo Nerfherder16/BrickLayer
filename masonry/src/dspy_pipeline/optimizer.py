@@ -188,12 +188,13 @@ def optimize_all(
 
         print(f"[optimizer] Optimizing {agent.name} ({len(agent_dataset)} examples)...", file=sys.stderr)
 
-        # Select signature based on agent input_schema
-        from masonry.src.dspy_pipeline.signatures import (
-            DiagnoseAgentSig,
-            ResearchAgentSig,
-        )
-        sig = DiagnoseAgentSig if agent.input_schema == "DiagnosePayload" else ResearchAgentSig
+        # All agents use ResearchAgentSig — build_dataset() always shapes examples
+        # to ResearchAgentSig fields (question_text, project_context, constraints,
+        # verdict, severity, evidence, mitigation, confidence).
+        # DiagnoseAgentSig (symptoms, affected_files) is not currently populated
+        # by build_dataset(); using it causes a silent field mismatch (R5.2).
+        from masonry.src.dspy_pipeline.signatures import ResearchAgentSig
+        sig = ResearchAgentSig
 
         result = optimize_agent(agent.name, sig, agent_dataset, output_dir)
         results.append(result)

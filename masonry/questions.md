@@ -602,3 +602,78 @@
 **Hypothesis**: After F4.2+F4.3+F4.4, the 20-query benchmark will show: L2 acceptance increases from 3/20 to ~8/20 (40%); L3 will handle at least 3-4 of the remaining thin-margin cases that previously fell to L4; L4 will handle only the genuinely ambiguous queries (1-3/20). Net improvement: fewer than 5/20 queries requiring user clarification, down from ~13/20 before fixes.
 **Method**: benchmark-engineer
 **Success criterion**: (1) Confirm F4.2, F4.3, and F4.4 have been applied (read the relevant source files to verify). If any are missing, mark INCONCLUSIVE with a note on which fix is missing. (2) Re-run the 20-query benchmark from R3.1 against the same Ollama endpoint (`http://192.168.50.62:11434`, `qwen3-embedding:0.6b`). (3) For each query, record which layer routed it (L1/L2/L3/L4) and the routing decision. (4) Compare per-layer coverage against the R3.1 baseline and the projected targets from synthesis_wave3.md. Verdict: IMPROVEMENT if L2 coverage >= 35% and L4 fallback <= 30%; FAILURE if coverage is unchanged or worse; INCONCLUSIVE if Ollama is unreachable or prerequisite fixes are not applied.
+
+---
+
+## Wave 6
+
+**Wave generation source**: synthesis_wave5.md P1 carry-forwards + new issues discovered during Wave 5 source review.
+**Mode transitions applied**: R5.2 FAILURE (DiagnoseAgentSig mismatch) → Fix question F6.2; MCP server gap (masonry_optimize_agent missing) → Diagnose question D6.2; V1.4 carry-forward → Fix question F6.1; new TOCTOU race in onboard_agent.py → D6.1; shell:true path-with-spaces bug → R6.1; post-Wave5 state validation → V6.1.
+
+---
+
+### F6.1: Fix `_load_registry` — add path-level diagnostic logging when registry YAML is not found
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: D1.3 FAILURE (High) + V1.4 carry-forward — `_load_registry()` in `router.py` returns `[]` silently when both the primary path (`{project_dir}/masonry/agent_registry.yml`) and the CWD fallback (`masonry/agent_registry.yml`) fail to exist. The `route()` function does log `[ROUTER] Layer fallback resolved: user (registry empty, ...)` after the empty-registry check, but does not explain WHY the registry is empty (missing file? wrong CWD?). Operators see "registry empty" but cannot tell if this is a config error or a cold start.
+**Hypothesis**: Adding two `print(..., file=sys.stderr)` statements inside `_load_registry()` — one for each failed path attempt — requires three lines of code and gives operators the information needed to distinguish between "file not found" (config error) and "empty registry file" (data issue). The logging should use the same `[ROUTER]` prefix for consistency with existing router logs.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `src/routing/router.py` `_load_registry()` (lines 29-38). (2) Add a `print(f"[ROUTER] Registry not found at {registry_path}", file=sys.stderr)` before the fallback try. (3) Add a `print(f"[ROUTER] Registry not found at {fallback} (fallback)", file=sys.stderr)` before `return []`. (4) Confirm the log fires before the empty return, not after. (5) Confirm `route()` still logs its own "registry empty" message — the two levels of logging (path level + router level) together give complete diagnosis. Verdict: FIX_APPLIED when both path-level logs are in place and `return []` is preceded by a diagnostic.
+
+---
+
+### F6.2: Fix `optimize_all()` — remove `DiagnoseAgentSig` branch to unblock `diagnose-analyst` DSPy training
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: R5.2 FAILURE (Medium) — `optimize_all()` in `optimizer.py` selects `DiagnoseAgentSig` for agents with `input_schema: DiagnosePayload`, but `build_dataset()` always shapes examples to `ResearchAgentSig` fields. This causes a field mismatch for `diagnose-analyst` (13 examples — largest training set). Option B (simplest): remove the `DiagnoseAgentSig` branch and always use `ResearchAgentSig`. This unblocks training for all 4 qualifying agents (39 examples total).
+**Hypothesis**: `DiagnoseAgentSig` exists as a specialization for symptoms/root-cause analysis, but since `build_dataset()` does not shape examples to those fields, the specialization is currently unusable anyway. Removing the branch (2-line change) restores a working state. If `DiagnoseAgentSig` training is needed in the future, `build_dataset()` must be updated to produce `symptoms`/`affected_files` example shapes for diagnose agents — that is a separate future task.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `src/dspy_pipeline/optimizer.py` lines 191-198. (2) Remove the `DiagnoseAgentSig if agent.input_schema == "DiagnosePayload" else` conditional — replace with `sig = ResearchAgentSig` for all agents. (3) Remove the `DiagnoseAgentSig` import if it becomes unused. (4) Confirm `optimize_all()` now calls `optimize_agent(agent.name, ResearchAgentSig, agent_dataset, output_dir)` for all agents including `diagnose-analyst`. (5) Confirm `build_dataset()` example keys (`question_text`, `project_context`, `constraints`, `verdict`, `severity`, `evidence`, `mitigation`, `confidence`) still match all fields of `ResearchAgentSig`. Verdict: FIX_APPLIED when the branch is removed and field alignment is verified for all agents.
+
+---
+
+### D6.1: Does `upsert_registry_entry()` in `onboard_agent.py` use a non-atomic write that can corrupt `agent_registry.yml`?
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: MEDIUM
+**Hypothesis**: `upsert_registry_entry()` (and `append_to_registry()`) in `onboard_agent.py` write the updated YAML via `registry_path.write_text(yaml.dump(data, ...), encoding="utf-8")` — a direct overwrite with no atomic rename. If the Python process is killed mid-write (e.g., by OS due to memory pressure, or by Claude Code's hook timeout on Windows), the YAML file is left in a partially-written state. The next read of `agent_registry.yml` by any component (`router.py`, `_tool_masonry_registry_list`, etc.) would fail to parse and silently return an empty registry — losing all 46 registered agents. This is the same class of bug as masonry-guard.js strike counter (F5.1) and masonry-subagent-tracker.js agents.json (F5.3), both now fixed with atomic rename.
+**Agent**: diagnose-analyst
+**Success criterion**: (1) Read `onboard_agent.py` `upsert_registry_entry()` and `append_to_registry()`. (2) Identify whether the write uses `Path.write_text()` directly (non-atomic) or a temp+rename pattern (atomic). (3) Assess kill-mid-write risk: how long does yaml.dump() + write_text() take for a 46-agent YAML file? (4) Confirm whether `load_registry()` has parse-error recovery that would catch a partial write. Verdict: FAILURE if write is non-atomic AND `load_registry()` lacks recovery; WARNING if non-atomic but recovery exists; HEALTHY if atomic write is in place.
+
+---
+
+### D6.2: Is `masonry_optimize_agent` MCP tool missing from `mcp_server/server.py`?
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: HIGH
+**Hypothesis**: CLAUDE.md references `masonry_optimize_agent` as an MCP tool ("Trigger from Kiln UI 'OPTIMIZE' button or via `masonry_optimize_agent` MCP tool"). The `mcp_server/server.py` TOOLS dict was read during Wave 6 question generation and does NOT contain a `masonry_optimize_agent` handler — only `masonry_optimization_status` (read-only, returns existing JSON scores). This means the DSPy optimization pipeline cannot be triggered via MCP at all. The only way to run optimization is by calling `optimizer.py` directly from the command line. This is a missing implementation blocking the Phase 16 DSPy training roadmap item.
+**Agent**: diagnose-analyst
+**Success criterion**: (1) Read `mcp_server/server.py` TOOLS dict (lines 434-662). (2) Confirm whether `masonry_optimize_agent` or any equivalent optimization-trigger tool exists. (3) If absent, confirm that `masonry_optimization_status` is read-only (reads existing JSON) and cannot trigger a new optimization run. (4) Identify what `configure_dspy()` call order would be needed if the tool were implemented. Verdict: FAILURE (missing implementation) if no optimization-trigger tool exists; HEALTHY if it exists under a different name.
+
+---
+
+### R6.1: Does `masonry-lint-check.js` `runBackground()` break on Windows when file paths contain spaces?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Hypothesis**: `runBackground()` in `masonry-lint-check.js` uses `spawn(cmd, args, { shell: process.platform === "win32" })`. On Windows, `shell: true` causes Node.js to join the args array with spaces and invoke `cmd.exe /c cmd arg1 arg2 ...`. If `winPath` or `filePath` contains spaces (e.g., `C:\Users\trg16\My Documents\project\file.py`), the space splits the path into two separate arguments, breaking the ruff/prettier/eslint invocation. The background process would exit with a "file not found" error, but since `stdio: "ignore"` + `proc.unref()` discards all output, this failure is completely silent.
+**Method**: research-analyst
+**Success criterion**: (1) Read `masonry-lint-check.js` `runBackground()` implementation and the three call sites (ruff format, prettier, eslint). (2) Assess whether Node.js `spawn()` with `shell: true` and an args array quotes individual arguments automatically on Windows (check Node.js docs or source behavior). (3) Identify which invocations pass user-provided file paths as array elements: `runBackground(ruff, ["format", winPath], ...)`, `runBackground("npx", ["prettier", "--write", filePath], ...)`, `runBackground("npx", ["eslint", "--fix", winPath], ...)`. (4) Assess the blast radius: what fraction of real Windows user paths contain spaces? Verdict: FAILURE if args are not quoted and paths-with-spaces break the invocation; WARNING if the failure is silent but non-critical (background formatters); HEALTHY if Node.js automatically quotes args in this configuration.
+
+---
+
+### V6.1: Validate `mcp_server/server.py` error handling — does `_tool_masonry_route` correctly return a safe fallback when the routing import fails?
+
+**Status**: PENDING
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Hypothesis**: `_tool_masonry_route()` imports `masonry.src.routing.router` inside the function body (lazy import, line 297). If the import fails (e.g., `masonry` package not on sys.path, or a dependency like `yaml` missing), the `except Exception as exc` block returns `{"error": str(exc), "target_agent": "user", "layer": 4, "confidence": 0.0}`. This is a safe degradation: the caller gets a valid-shaped response (no crash), routing falls to user, and the error is surfaced in the `error` field. However: (a) `layer` is `4` (integer) but `RoutingDecision.layer` is a `str` in the schema — this type mismatch could cause downstream issues if the caller deserializes expecting a string; (b) `fallback_reason` is absent from the fallback dict but present in `RoutingDecision` — also a mismatch.
+**Method**: research-analyst
+**Success criterion**: (1) Read `_tool_masonry_route()` in `mcp_server/server.py` (lines 288-302). (2) Check the `RoutingDecision` schema for the `layer` field type — is it `str`, `int`, or `Literal`? (3) Confirm whether the error fallback dict `{"error": ..., "target_agent": "user", "layer": 4, "confidence": 0.0}` matches the schema shape that callers expect. (4) Check if `fallback_reason` being absent causes issues for any known callers. Verdict: HEALTHY if the fallback is schema-compatible; WARNING if `layer` type is wrong but callers tolerate it; FAILURE if the type mismatch causes callers to crash or misinterpret the response.
