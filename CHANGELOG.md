@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `ecc05e1` feat(masonry): Wave 13 complete — phase-16 scoring pipeline audit (2026-03-21)
 - `2db105e` feat(bl-audit): scaffold BrickLayer 2.0 code health audit campaign (2026-03-21)
 - `2965109` feat(masonry): Wave 12 complete + Wave 13 questions generated (2026-03-21)
 - `9901c84` docs(masonry): final campaign synthesis -- 11 waves, 83 questions (2026-03-21)
