@@ -1,0 +1,201 @@
+"""DSPy MIPROv2 optimization pipeline for Masonry agents.
+
+Optimizes agent prompts using campaign findings as training data.
+Uses a heuristic metric (no LLM judge required) to keep costs low.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+import dspy
+
+from masonry.src.schemas.payloads import AgentRegistryEntry
+
+
+# ── Metric ──────────────────────────────────────────────────────────────────
+
+
+def build_metric(signature_cls: type) -> Any:
+    """Build a heuristic scoring metric for the given DSPy Signature.
+
+    Components:
+    - verdict_match (0.4): exact string match of verdict field
+    - evidence_quality (0.4): length > 100 chars = 1.0, else 0.5
+    - confidence_calibration (0.2): 1 - |predicted - 0.75|
+
+    Returns a callable(example, prediction) -> float.
+    """
+
+    def metric(example: Any, prediction: Any) -> float:
+        score = 0.0
+
+        # Verdict match (0.4 weight)
+        try:
+            ex_verdict = str(getattr(example, "verdict", "") or "").strip()
+            pred_verdict = str(getattr(prediction, "verdict", "") or "").strip()
+            if ex_verdict and pred_verdict and ex_verdict == pred_verdict:
+                score += 0.4
+        except Exception:
+            pass
+
+        # Evidence quality (0.4 weight)
+        try:
+            evidence = str(getattr(prediction, "evidence", "") or "")
+            if len(evidence) > 100:
+                score += 0.4
+            else:
+                score += 0.2  # partial credit for short evidence
+        except Exception:
+            pass
+
+        # Confidence calibration (0.2 weight)
+        try:
+            raw = str(getattr(prediction, "confidence", "0.75") or "0.75")
+            pred_conf = float(raw)
+            calibration = 1.0 - abs(pred_conf - 0.75)
+            score += 0.2 * calibration
+        except (ValueError, TypeError):
+            score += 0.0  # no calibration if parse fails
+
+        return score
+
+    return metric
+
+
+# ── configure_dspy ──────────────────────────────────────────────────────────
+
+
+def configure_dspy(model: str = "claude-sonnet-4-6") -> None:
+    """Configure DSPy with an Anthropic LM (requires ANTHROPIC_API_KEY)."""
+    lm = dspy.LM(f"anthropic/{model}")
+    dspy.configure(lm=lm)
+
+
+# ── optimize_agent ──────────────────────────────────────────────────────────
+
+
+def optimize_agent(
+    agent_name: str,
+    signature_cls: type,
+    dataset: list[dict],
+    output_dir: Path,
+) -> dict[str, Any]:
+    """Optimize a single agent's prompt using MIPROv2.
+
+    Args:
+        agent_name: Name of the agent to optimize.
+        signature_cls: DSPy Signature class defining the I/O contract.
+        dataset: List of training examples (dicts matching signature fields).
+        output_dir: Directory to save the optimized module JSON.
+
+    Returns:
+        Dict with agent, score, and optimized_at fields.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Build the module
+    module = dspy.ChainOfThought(signature_cls)
+    metric = build_metric(signature_cls)
+
+    # Configure optimizer with low-cost settings
+    optimizer = dspy.MIPROv2(
+        metric=metric,
+        num_threads=1,
+    )
+
+    # Convert dataset dicts to DSPy Examples
+    input_keys = list(signature_cls.input_fields.keys())  # type: ignore[attr-defined]
+    trainset = [dspy.Example(**ex).with_inputs(*input_keys) for ex in dataset]
+
+    # Run optimization
+    try:
+        optimized = optimizer.compile(
+            module,
+            trainset=trainset,
+            max_bootstrapped_demos=3,
+            max_labeled_demos=3,
+        )
+    except Exception as exc:
+        print(f"[optimizer] MIPROv2 failed for {agent_name}: {exc}", file=sys.stderr)
+        optimized = module  # fall back to unoptimized
+
+    # Save the optimized module
+    output_file = output_dir / f"{agent_name}.json"
+    try:
+        optimized.save(str(output_file))
+    except Exception as exc:
+        print(f"[optimizer] Failed to save module for {agent_name}: {exc}", file=sys.stderr)
+        # Write a minimal JSON to signal optimization was attempted
+        output_file.write_text(
+            json.dumps({"agent": agent_name, "score": 0.0, "error": str(exc)}),
+            encoding="utf-8",
+        )
+
+    optimized_at = datetime.now(timezone.utc).isoformat()
+
+    # Try to get best score from the optimizer result
+    best_score = 0.0
+    try:
+        if hasattr(optimizer, "best_score"):
+            best_score = float(optimizer.best_score)
+    except Exception:
+        pass
+
+    result = {
+        "agent": agent_name,
+        "score": best_score,
+        "optimized_at": optimized_at,
+    }
+
+    # Update the output file with result metadata
+    try:
+        existing = json.loads(output_file.read_text(encoding="utf-8")) if output_file.exists() else {}
+        existing.update(result)
+        output_file.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+    return result
+
+
+# ── optimize_all ────────────────────────────────────────────────────────────
+
+
+def optimize_all(
+    registry: list[AgentRegistryEntry],
+    datasets: dict[str, list[dict]],
+    output_dir: Path,
+) -> list[dict[str, Any]]:
+    """Optimize all agents that have sufficient training data.
+
+    Skips agents with fewer than 5 training examples.
+    """
+    results: list[dict[str, Any]] = []
+
+    for agent in registry:
+        agent_dataset = datasets.get(agent.name, [])
+        if len(agent_dataset) < 5:
+            print(
+                f"[optimizer] Skipping {agent.name}: only {len(agent_dataset)} examples (need >= 5)",
+                file=sys.stderr,
+            )
+            continue
+
+        print(f"[optimizer] Optimizing {agent.name} ({len(agent_dataset)} examples)...", file=sys.stderr)
+
+        # Select signature based on agent input_schema
+        from masonry.src.dspy_pipeline.signatures import (
+            DiagnoseAgentSig,
+            ResearchAgentSig,
+        )
+        sig = DiagnoseAgentSig if agent.input_schema == "DiagnosePayload" else ResearchAgentSig
+
+        result = optimize_agent(agent.name, sig, agent_dataset, output_dir)
+        results.append(result)
+
+    return results
