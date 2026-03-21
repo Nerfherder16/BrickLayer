@@ -2,9 +2,11 @@
 /**
  * PostToolUse hook — auto-onboard new agent .md files to the registry.
  * Triggers when Write or Edit is called on a path matching /agents/*.md
+ * and the file has YAML frontmatter with a `name:` field.
  */
 "use strict";
 const path = require("path");
+const fs = require("fs");
 const { spawn } = require("child_process");
 
 function readStdin() {
@@ -33,6 +35,20 @@ async function main() {
   // Match: /agents/something.md (direct child only, not subdirectory)
   const agentFileRegex = /[/\\]agents[/\\][^/\\]+\.md$/;
   if (!agentFileRegex.test(filePath)) {
+    process.exit(0);
+  }
+
+  // Guard: only onboard files with YAML frontmatter containing `name:` field.
+  // This prevents synthesis.md, AUDIT_REPORT.md, and other .md files in agents/
+  // directories from being accidentally onboarded as agents.
+  try {
+    const content = fs.readFileSync(filePath, "utf8");
+    const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+    if (!fmMatch || !/^\s*name\s*:/m.test(fmMatch[1])) {
+      process.exit(0);
+    }
+  } catch {
+    // If we can't read the file (e.g. it was deleted), skip onboarding.
     process.exit(0);
   }
 

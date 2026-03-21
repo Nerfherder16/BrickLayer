@@ -1164,7 +1164,7 @@ def quick_campaign(
     estimated_minutes = sum(q["estimated_minutes"] for q in questions)
 
     next_step = (
-        "Run: DISABLE_OMC=1 claude --dangerously-skip-permissions "
+        "Run: claude --dangerously-skip-permissions "
         "'Read program.md and questions.md. Begin the research loop from the first "
         "PENDING question. NEVER STOP.'"
     )

@@ -89,7 +89,7 @@ If `project-brief.md` exists and has goals, extract them into a roadmap. Otherwi
 
 Write a getting-started guide covering: prerequisites (Python 3.11+, Claude Code with BrickLayer 2.0),
 how to run the simulation manually (`python simulate.py` should print `verdict: HEALTHY`),
-how to start a research campaign with `DISABLE_OMC=1 claude --dangerously-skip-permissions`,
+how to start a research campaign with `claude --dangerously-skip-permissions`,
 how to read findings in `findings/`, and how to monitor via Kiln (BrickLayerHub).
 
 ---
