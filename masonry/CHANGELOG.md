@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [Wave 21] -- 2026-03-21
+
+4 questions answered. VIGIL HEALTHY milestone: fleet reaches 0 thorns for the first time. Stale masonry/masonry/ path artifact fixed. DSPy Ollama integration spec complete (2 config changes).
+
+### Fixed
+- `D21.1`/`F21.1` -- Stale `masonry/masonry/training_data/` CWD artifact: deleted stale directory, applied dual-path detection to `score_all_agents.py:215` and `run_optimization.py:105` matching existing `run_vigil.py` pattern (`masonry/scripts/score_all_agents.py`, `masonry/scripts/run_optimization.py`)
+- `R21.2` -- Vigil unknown thorn: excluded `synthesis*.md` meta-files from `parse_findings_dir()` in `run_vigil.py`; fleet transitions WARNING to HEALTHY (`masonry/scripts/run_vigil.py`)
+
+### Found (open)
+- `R21.1` [WARNING] -- DSPy MIPROv2 + Ollama qwen3:14b structurally feasible (2 config changes), but qwen3:14b structured output reliability under bootstrapping is unverified; smoke-run needed before full optimization trial
+
+### Healthy
+- R21.2: Fleet HEALTHY -- 7 roses, 10 buds, 0 thorns (first clean fleet assessment)
+- R21.1: DSPy Ollama integration path confirmed -- `dspy.LM("ollama_chat/qwen3:14b")` + `build_dataset()` training path fully compatible
+
 ## [Wave 20] -- 2026-03-21
 
 4 questions answered. Routing session_id collision fixed (100pt records 3 to 9), masonry findings scoring unlocked (training corpus 61 to 271), overall corpus 435 records (+71%). Campaign STOP recommended.

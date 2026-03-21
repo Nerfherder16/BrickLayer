@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-21T18:57:07",
+  "generated_at": "2026-03-21T19:09:55",
   "campaign": "masonry",
   "roses": [
     "research-analyst",
@@ -22,18 +22,6 @@
     "health-monitor",
     "mortar"
   ],
-  "thorns": [
-    "unknown"
-  ],
-  "proposals": [
-    {
-      "agent_name": "unknown",
-      "issue": "quality gate pass rate is 0% over 13 findings (threshold: 0.7)",
-      "evidence": "pass_rate=0.00, avg_length=6503chars, findings_analyzed=13",
-      "proposed_change": "Review the agent's system prompt for vague or overly broad instructions. Add explicit criteria for what constitutes a high-confidence finding and require citing specific data points from the simulation.",
-      "risk_level": "high",
-      "requires_human_approval": true,
-      "status": "pending"
-    }
-  ]
+  "thorns": [],
+  "proposals": []
 }

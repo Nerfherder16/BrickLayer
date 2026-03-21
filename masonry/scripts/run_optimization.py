@@ -102,7 +102,11 @@ def run(agent_name: str, base_dir: Path) -> int:
     print(f"[init] Base directory: {base_dir}")
 
     # ── Load training data ───────────────────────────────────────────────────
-    scored_all_path = base_dir / "masonry" / "training_data" / "scored_all.jsonl"
+    # Self-research mode: CWD is masonry/ dir
+    _self_research_td = base_dir / "training_data"
+    _normal_td = base_dir / "masonry" / "training_data"
+    _td_dir = _self_research_td if _self_research_td.exists() else _normal_td
+    scored_all_path = _td_dir / "scored_all.jsonl"
     print(f"[data] Loading training data from scored_all.jsonl ...")
 
     examples = load_training_data_from_scored_all(scored_all_path, agent_name)
