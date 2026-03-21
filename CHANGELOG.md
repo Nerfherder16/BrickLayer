@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `a80a65b` chore(masonry): update agent-management-overhaul question bank (2026-03-21)
 - `2fe598d` fix(hooks): auto-detect BrickLayer research projects instead of env var (2026-03-21)
 - `76e18a6` docs(claude): update DISABLE_OMC to DISABLE_MASONRY_HOOKS in launch instructions (2026-03-21)
 - `8c73818` feat(phase-16): full-fleet DSPy training pipeline (2026-03-21)
