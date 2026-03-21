@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `667c76c` feat(bl): wire background-agent sentinels into both loop templates (2026-03-21)
 - `df8c8b3` chore: remove CHANGELOG auto-commit test line (2026-03-21)
 - `bcceb12` test: CHANGELOG auto-commit hook verification (2026-03-21)
 - `ce5609e` fix(masonry-register): parallelize Recall calls to fit within 8s hook budget (2026-03-21)
