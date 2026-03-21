@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `d0c7719` autopilot: task #6 - DSPy signatures + training data extractor (2026-03-21)
 - `5088a13` test: add dspy signatures test file (2026-03-21)
 - `f266e05` docs(adbp3): update system rules v3 with 300k-run MC findings and expiry mechanics (2026-03-21)
 - `a64eb56` feat(adbp3): add expiry_analysis.py — cohort expiry + breakage mechanics (2026-03-21)
