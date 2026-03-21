@@ -332,3 +332,127 @@
 **Hypothesis**: In normal operation (20-40 agents, stable registry), the cache will stay well under 150 entries. The WARNING threshold triggers only during extended testing scenarios with frequent agent description churn. The FAILURE threshold (500 entries) would indicate a cache growth bug rather than normal operation.
 **Method**: research-analyst
 **Success criterion**: (1) Confirm whether a `monitor-targets.md` file exists in the masonry project; if not, create it with a standard header. (2) Add a monitor entry for `_embedding_cache_size` with: metric name, measurement method (inspect `len(semantic._embedding_cache)` via MCP server diagnostic endpoint or log line), WARNING threshold = 150, FAILURE threshold = 500, check frequency = on each `masonry_optimization_status` MCP tool call. Verdict: COMPLETE when the monitor entry is written and the measurement method is actionable without code changes.
+
+---
+
+## Wave 3
+
+**Generated from findings**: F2.1, F2.2, D2.2, D2.3, R2.1, V2.1, R1.6, V1.2, synthesis_wave2.md open threads
+**Mode transitions applied**:
+- F2.1 DIAGNOSIS_COMPLETE → F3.1 Fix (implement the hooks.json emptying)
+- V2.1 DIAGNOSIS_COMPLETE (embedded in F2.2 chain) → F3.2 Fix (complete masonry-approver Bash vector + pattern fix)
+- D2.3 FAILURE (DSPy taxonomy defects, root cause at code level) → F3.3 Fix (2-line verdict taxonomy patch)
+- R1.6 FAILURE (RoutingDecision missing fallback_reason, fix spec known) → F3.4 Fix (schema field addition)
+- R2.1 FAILURE (threshold not discriminative, data gap = no live calibration) → R3.1 Research (live calibration benchmark)
+- synthesis thread (masonry-register.js UserPromptSubmit double-fire uninvestigated) → D3.1 Diagnose
+- synthesis thread (masonry-session-start.js SessionStart double-fire side effects uninvestigated) → D3.2 Diagnose
+- synthesis thread (DSPy build_dataset correctness with 27 Wave 1+2 findings) → R3.2 Research
+- V1.2 WARNING (re.IGNORECASE 2-line fix known) → F3.5 Fix
+
+---
+
+### F3.1: Implement the fix specified in F2.1 — empty the `hooks` object in the plugin-level `hooks/hooks.json` to eliminate double-fire across all 10 hook registrations.
+
+**Status**: PENDING
+**Operational Mode**: Fix
+**Priority**: HIGH
+**Motivated by**: F2.1 DIAGNOSIS_COMPLETE — the finding fully specified the safe fix: the plugin `hooks/hooks.json` contains 10 hook registrations that are exact duplicates of entries in `~/.claude/settings.json`. Setting `"hooks": {}` in `hooks/hooks.json` eliminates double-fire for every event type (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, SubagentStart, Stop) with zero coverage loss.
+**Hypothesis**: After the fix, each hook fires exactly once per lifecycle event. The race conditions identified in D1.4, D2.2, and the duplicate Stop output from D2.1 are resolved as a side effect. No new test infrastructure is needed — the fix is a JSON object change.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `hooks/hooks.json` and confirm its current `hooks` array contents. (2) Replace the `hooks` array with an empty object `{}` or empty array `[]`. (3) Verify that `~/.claude/settings.json` still contains all required hook registrations for this project. (4) Confirm the change by reading back the modified file. Verdict: FIX_APPLIED when `hooks/hooks.json` `hooks` object is empty and global settings.json retains all registrations.
+
+---
+
+### F3.2: Implement the complete masonry-approver path blocklist fix specified across V1.5, F2.2, and V2.1 — corrected directory patterns plus full Bash tool exclusion.
+
+**Status**: PENDING
+**Operational Mode**: Fix
+**Priority**: HIGH
+**Motivated by**: V2.1 DIAGNOSIS_COMPLETE (embedded in F2.2 finding chain) — the complete fix specification is: (1) patterns 5 and 6 in the Tier 1/2 blocklist must use `(?:^|[/\\])` prefix instead of `/[/\\]/` to catch relative paths; (2) Bash tool calls must be excluded from auto-approval entirely because `toolInput.file_path` is undefined for Bash and command-string scanning is insufficiently reliable. The synthesis_wave2.md lines 69-80 provide the exact implementation-ready code block.
+**Hypothesis**: With the corrected patterns and Bash exclusion in place, no developer agent path (`src/`, `docs/`, absolute, relative, traversal, or Bash-written) can auto-approve a write to a Tier 1/2 file. The fix requires changes to `masonry-approver.js` only.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `src/hooks/masonry-approver.js` and locate the `isTier1Tier2` function and the auto-approval logic block. (2) Update directory patterns 5 and 6 to use `(?:^|[/\\])` prefix. (3) Add the Bash tool exclusion block (`if (approve && toolName === 'bash') process.exit(0)`). (4) Verify the updated function against these 4 test paths: `src/hooks/foo.js`, `./src/hooks/foo.js`, `../../masonry/project-brief.md`, and an empty string for a Bash call. All Tier 1/2 paths must return true; the empty string must trigger the Bash exclusion branch. Verdict: FIX_APPLIED when all 4 test cases behave correctly per the specification.
+
+---
+
+### F3.3: Implement the DSPy drift detector verdict taxonomy patch — add `UNCALIBRATED` to `_PARTIAL_VERDICTS`, add `DIAGNOSIS_COMPLETE` to `_OK_VERDICTS`, and fix the `baseline_score == 0.0` division guard.
+
+**Status**: PENDING
+**Operational Mode**: Fix
+**Priority**: MEDIUM
+**Motivated by**: D2.3 FAILURE — two confirmed correctness defects: (1) `baseline_score == 0.0` forces `drift_pct = 0.0` regardless of `current_score`, producing false-negative drift alerts for newly onboarded agents; (2) `UNCALIBRATED` verdict is absent from both `_OK_VERDICTS` and `_PARTIAL_VERDICTS`, scoring it 0.0 (failure) and unfairly penalizing the research-analyst agent for inconclusive data-gap findings.
+**Hypothesis**: Adding `UNCALIBRATED` to `_PARTIAL_VERDICTS` (score 0.5) and `DIAGNOSIS_COMPLETE` to `_OK_VERDICTS` (score 1.0) fully corrects the taxonomy. The baseline=0.0 guard should be changed from `return 0.0` to use `current_score` directly (since there is no reference to compare against, treat it as initial calibration rather than zero-drift). Together these are a 6-line change to `drift_detector.py`.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `src/dspy_pipeline/drift_detector.py` and locate `_OK_VERDICTS`, `_PARTIAL_VERDICTS`, and the `baseline_score == 0.0` branch. (2) Add `DIAGNOSIS_COMPLETE` to `_OK_VERDICTS`. (3) Add `UNCALIBRATED` to `_PARTIAL_VERDICTS`. (4) Change the `baseline_score == 0.0` guard to emit `alert_level = "calibrating"` (or equivalent) with `drift_pct = None` rather than forcing `0.0`. (5) Confirm no other verdict strings in the Wave 1+2 findings fall outside both sets. Verdict: FIX_APPLIED when all three changes are in place and no known verdict string scores 0.0 incorrectly.
+
+---
+
+### F3.4: Add `fallback_reason` field to `RoutingDecision` in `payloads.py` to enable callers to distinguish correct fallback from infrastructure fallback.
+
+**Status**: PENDING
+**Operational Mode**: Fix
+**Priority**: LOW
+**Motivated by**: R1.6 FAILURE — the `RoutingDecision` schema has no mechanism for the router to communicate why a request reached Layer 4. Callers cannot distinguish "genuinely ambiguous request" from "Ollama timed out + LLM timed out + registry empty." The synthesis_wave2.md P2 fix table specifies this as a 5-line schema addition.
+**Hypothesis**: Adding an optional `fallback_reason: Optional[str] = None` field to `RoutingDecision` and populating it in `router.py` at the Layer 4 return site is a non-breaking change (no existing callers set this field). The field value should be one of: `"ambiguous"`, `"ollama_timeout"`, `"llm_timeout"`, `"registry_empty"`, or `"multi_failure"`. This enables downstream logging and alerting.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `src/schemas/payloads.py` and locate `RoutingDecision`. (2) Add `fallback_reason: Optional[str] = None` with appropriate Pydantic field annotation. (3) Read `src/routing/router.py` and find all Layer 4 return sites. (4) Populate `fallback_reason` at each return site with the appropriate value from the set above. (5) Confirm `extra="forbid"` still passes by verifying the field is declared in the model. Verdict: FIX_APPLIED when field is declared and populated at all Layer 4 return sites.
+
+---
+
+### F3.5: Apply the `re.IGNORECASE` fix to `_MODE_FIELD_RE` in `deterministic.py` and audit for other case-sensitivity issues in the deterministic layer.
+
+**Status**: PENDING
+**Operational Mode**: Fix
+**Priority**: LOW
+**Motivated by**: V1.2 WARNING — `_MODE_FIELD_RE = re.compile(r"\*\*Mode\*\*:\s*(\w+)")` is case-sensitive, missing `**mode**: diagnose` (lowercase M). The synthesis_wave2.md P2 fix table identifies this as a 2-line change. The open thread from synthesis_wave2.md also asks whether other case-sensitivity issues exist in the deterministic layer.
+**Hypothesis**: Adding `re.IGNORECASE` to `_MODE_FIELD_RE` is sufficient for the Mode field fix. A secondary audit of `deterministic.py` may reveal that slash command matching (`lower()` applied to `message`) is already case-insensitive, but autopilot state file names (`mode` vs `MODE`) or campaign file detection patterns may have similar case issues.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `src/routing/deterministic.py` and add `re.IGNORECASE` to `_MODE_FIELD_RE`. (2) Audit all other regex patterns and string comparisons in the file for case-sensitivity issues. (3) If additional case issues are found, fix them in the same pass or note them as separate findings. (4) Confirm the fix by testing `_MODE_FIELD_RE` against `**Mode**: diagnose`, `**mode**: diagnose`, and `**MODE**: diagnose`. Verdict: FIX_APPLIED when `_MODE_FIELD_RE` correctly matches all three variants and no other deterministic-layer case issues are found; FIX_APPLIED_WITH_FINDINGS if additional case issues were discovered and noted.
+
+---
+
+### R3.1: Run the 20-query calibration benchmark against the live `qwen3-embedding:0.6b` Ollama endpoint to determine whether the 0.70 threshold and the proposed 0.05 margin check are discriminative for the current agent registry.
+
+**Status**: PENDING
+**Operational Mode**: Research
+**Priority**: HIGH
+**Motivated by**: R2.1 FAILURE — the threshold 0.70 was confirmed as non-discriminative from first-principles analysis, but the proposed fix (margin check `best - second >= 0.05`) was not validated with live similarity data. The synthesis_wave2.md recommends `_MARGIN_THRESHOLD = 0.05` pending calibration data.
+**Hypothesis**: With 20 representative Masonry user prompts (4 per routing tier: code/build, research/campaign, audit/review, UI, and ad-hoc), the live similarity scores will show: (a) within-cluster pairs scoring 0.72-0.85, confirming the plateau identified in R2.1; (b) correct-agent vs. second-best margins typically 0.02-0.08; (c) the 0.05 margin threshold accepting roughly 60% of queries as unambiguous and deferring 40% to Layer 3. If the margin is below 0.02 for most queries, 0.05 is too aggressive; if above 0.10 for most, 0.05 is too conservative.
+**Method**: benchmark-engineer
+**Success criterion**: (1) Confirm Ollama is reachable at `http://192.168.50.62:11434` and `qwen3-embedding:0.6b` is loaded. If unreachable, mark INCONCLUSIVE per project-brief.md invariant 5. (2) Embed 20 sample prompts against the full agent registry. (3) For each prompt, record: top-1 similarity score, top-2 similarity score, margin (top1 - top2), whether the correct agent was top-1. (4) Report: mean margin, % of queries where margin >= 0.05, % of queries where correct agent was top-1. Verdict: CALIBRATED if >= 60% of queries have margin >= 0.05 and >= 80% of queries route to the correct agent at top-1; FAILURE if the margin distribution does not support the 0.05 threshold; INCONCLUSIVE if Ollama is unavailable.
+
+---
+
+### D3.1: What does `masonry-register.js` (UserPromptSubmit hook) do, and does its read-modify-write pattern on session state introduce a race condition analogous to the D2.2 agents.json race?
+
+**Status**: DONE
+**Operational Mode**: Diagnose
+**Priority**: MEDIUM
+**Motivated by**: synthesis_wave2.md open thread — `masonry-register.js` was identified in F2.1 as double-firing on every UserPromptSubmit event (fires twice per user prompt due to plugin + global registration). D2.2 found a similar race in masonry-subagent-tracker.js. Since register fires more frequently than SubagentStart (every prompt vs. every agent spawn), any race condition here has higher impact.
+**Hypothesis**: `masonry-register.js` reads prompt metadata (session ID, model, prompt text) and writes to a shared session log file using a read-modify-write pattern similar to agents.json. With double-fire, two instances run concurrently per prompt. If they write to the same session file without file locking, interleaved writes could corrupt the session log or drop entries, causing the routing log to show phantom duplicates.
+**Method**: diagnose-analyst
+**Success criterion**: (1) Read `src/hooks/masonry-register.js` (or `hooks/masonry-register.js` if at root) in full. (2) Identify every file it reads and writes. (3) For each write: determine if it is atomic or read-modify-write. (4) Determine what happens when two instances of the hook run concurrently on the same UserPromptSubmit event (as happens due to double-fire). Verdict: FAILURE if concurrent writes can corrupt shared state; WARNING if writes are safe but produce duplicate log entries; HEALTHY if all writes are idempotent or atomic.
+
+---
+
+### D3.2: Does double-firing of `masonry-session-start.js` on SessionStart cause harmful side effects — specifically, does it initialize session state twice in a way that drops the first initialization's data?
+
+**Status**: PENDING
+**Operational Mode**: Diagnose
+**Priority**: MEDIUM
+**Motivated by**: F2.1 DIAGNOSIS_COMPLETE — the finding confirmed masonry-session-start.js fires twice per session (registered in both plugin hooks.json and global settings.json). F3.1 will fix this, but before the fix is applied it is worth understanding whether the current double-fire is actively harmful (data loss) or merely wasteful (redundant work). If harmful, this elevates F3.1 urgency.
+**Hypothesis**: masonry-session-start.js initializes session context: loading saved context from Recall, restoring autopilot/UI/campaign state, and writing an initial session record. If two instances run concurrently, the second initialization may overwrite the first's Recall-loaded context with a stale or empty snapshot. Alternatively, if the hook is idempotent (always reads the same Recall data and writes the same session record), double-fire is harmless beyond the extra API call.
+**Method**: diagnose-analyst
+**Success criterion**: (1) Read `src/hooks/masonry-session-start.js` in full. (2) Identify all writes it performs (Recall store, local file writes, state initialization). (3) Determine if these writes are idempotent under concurrent execution. (4) Specifically: if the hook writes a "session start" record, does a second concurrent write create a duplicate record or overwrite the first? If it initializes state from Recall, does a second concurrent read-modify-write on that state cause data loss? Verdict: FAILURE if concurrent execution causes state corruption or data loss; WARNING if it causes duplicate records only; HEALTHY if fully idempotent.
+
+---
+
+### R3.2: Does `build_dataset()` in `training_extractor.py` correctly produce training examples from the 27 Wave 1+2 findings, and which agents receive training examples and how many?
+
+**Status**: PENDING
+**Operational Mode**: Research
+**Priority**: MEDIUM
+**Motivated by**: synthesis_wave2.md open thread — the DSPy training pipeline was partially investigated in D2.3 (drift detector defects) but `training_extractor.py`'s `build_dataset()` function was not checked. With 27 completed findings across Waves 1 and 2, the pipeline now has enough data to produce meaningful training sets. Before Wave 3 findings accumulate further, the extractor's correctness and agent coverage should be verified.
+**Hypothesis**: `build_dataset()` extracts (question_text, finding_summary, verdict) triples from findings/*.md. The 27 findings are dominated by diagnose-analyst (7 questions) and design-reviewer (5 questions), with research-analyst (5) and benchmark-engineer (2) less represented. Some agents (frontier-analyst, competitive-analyst) have zero findings and will produce empty training sets. The D2.3 finding suggests UNCALIBRATED verdicts may produce incorrect training labels — if UNCALIBRATED is scored as failure, research-analyst's training data will be polluted with false-negative examples.
+**Method**: research-analyst
+**Success criterion**: (1) Read `src/dspy_pipeline/training_extractor.py` and trace `build_dataset()` for the 27 existing findings. (2) For each agent name found in findings, count how many training examples it receives. (3) Confirm whether UNCALIBRATED findings are excluded, included as partial-credit, or included as failures in training data. (4) Identify any agents that are over-represented (>10 examples) or under-represented (0 examples). Verdict: HEALTHY if the distribution is reasonable and UNCALIBRATED findings are handled correctly; FAILURE if the extractor would poison any agent's training set with incorrectly labeled examples; INCONCLUSIVE if findings lack agent attribution fields needed for extraction.
