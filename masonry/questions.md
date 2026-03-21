@@ -1441,7 +1441,7 @@
 
 ### F19.1: Fix score_routing `agents_covered = []` hardcode in score_all_agents.py
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: LOW
 **Source**: synthesis_wave18
@@ -1453,7 +1453,7 @@
 
 ### R19.1: After Wave 18 routing infrastructure fixes, does running all future investigations via Agent tool dispatch generate 100pt routing records at scale?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Source**: synthesis_wave18
@@ -1465,7 +1465,7 @@
 
 ### R19.2: Can `score_findings.py` be extended to also score masonry self-research findings from `masonry/findings/`, and what would the agent distribution look like?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: LOW
 **Source**: synthesis_wave18
