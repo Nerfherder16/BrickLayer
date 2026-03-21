@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `cdc1cf0` fix(routing): batch embeddings + correct model + Windows LLM subprocess + reduce timeout (2026-03-21)
 - `608de86` docs(adbp3): expand Research Findings docx with glossary, sim descriptions, advanced results (2026-03-21)
 - `cc52369` chore: update CLAUDE.md (2026-03-21)
 - `be76128` feat(adbp3): add advanced_sims.py — 8-section extended simulation suite (2026-03-21)
