@@ -638,7 +638,7 @@
 
 ### D6.1: Does `upsert_registry_entry()` in `onboard_agent.py` use a non-atomic write that can corrupt `agent_registry.yml`?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: MEDIUM
 **Hypothesis**: `upsert_registry_entry()` (and `append_to_registry()`) in `onboard_agent.py` write the updated YAML via `registry_path.write_text(yaml.dump(data, ...), encoding="utf-8")` — a direct overwrite with no atomic rename. If the Python process is killed mid-write (e.g., by OS due to memory pressure, or by Claude Code's hook timeout on Windows), the YAML file is left in a partially-written state. The next read of `agent_registry.yml` by any component (`router.py`, `_tool_masonry_registry_list`, etc.) would fail to parse and silently return an empty registry — losing all 46 registered agents. This is the same class of bug as masonry-guard.js strike counter (F5.1) and masonry-subagent-tracker.js agents.json (F5.3), both now fixed with atomic rename.
@@ -649,7 +649,7 @@
 
 ### D6.2: Is `masonry_optimize_agent` MCP tool missing from `mcp_server/server.py`?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: HIGH
 **Hypothesis**: CLAUDE.md references `masonry_optimize_agent` as an MCP tool ("Trigger from Kiln UI 'OPTIMIZE' button or via `masonry_optimize_agent` MCP tool"). The `mcp_server/server.py` TOOLS dict was read during Wave 6 question generation and does NOT contain a `masonry_optimize_agent` handler — only `masonry_optimization_status` (read-only, returns existing JSON scores). This means the DSPy optimization pipeline cannot be triggered via MCP at all. The only way to run optimization is by calling `optimizer.py` directly from the command line. This is a missing implementation blocking the Phase 16 DSPy training roadmap item.
@@ -660,7 +660,7 @@
 
 ### R6.1: Does `masonry-lint-check.js` `runBackground()` break on Windows when file paths contain spaces?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Hypothesis**: `runBackground()` in `masonry-lint-check.js` uses `spawn(cmd, args, { shell: process.platform === "win32" })`. On Windows, `shell: true` causes Node.js to join the args array with spaces and invoke `cmd.exe /c cmd arg1 arg2 ...`. If `winPath` or `filePath` contains spaces (e.g., `C:\Users\trg16\My Documents\project\file.py`), the space splits the path into two separate arguments, breaking the ruff/prettier/eslint invocation. The background process would exit with a "file not found" error, but since `stdio: "ignore"` + `proc.unref()` discards all output, this failure is completely silent.
@@ -671,9 +671,291 @@
 
 ### V6.1: Validate `mcp_server/server.py` error handling — does `_tool_masonry_route` correctly return a safe fallback when the routing import fails?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: validate
 **Priority**: MEDIUM
 **Hypothesis**: `_tool_masonry_route()` imports `masonry.src.routing.router` inside the function body (lazy import, line 297). If the import fails (e.g., `masonry` package not on sys.path, or a dependency like `yaml` missing), the `except Exception as exc` block returns `{"error": str(exc), "target_agent": "user", "layer": 4, "confidence": 0.0}`. This is a safe degradation: the caller gets a valid-shaped response (no crash), routing falls to user, and the error is surfaced in the `error` field. However: (a) `layer` is `4` (integer) but `RoutingDecision.layer` is a `str` in the schema — this type mismatch could cause downstream issues if the caller deserializes expecting a string; (b) `fallback_reason` is absent from the fallback dict but present in `RoutingDecision` — also a mismatch.
 **Method**: research-analyst
 **Success criterion**: (1) Read `_tool_masonry_route()` in `mcp_server/server.py` (lines 288-302). (2) Check the `RoutingDecision` schema for the `layer` field type — is it `str`, `int`, or `Literal`? (3) Confirm whether the error fallback dict `{"error": ..., "target_agent": "user", "layer": 4, "confidence": 0.0}` matches the schema shape that callers expect. (4) Check if `fallback_reason` being absent causes issues for any known callers. Verdict: HEALTHY if the fallback is schema-compatible; WARNING if `layer` type is wrong but callers tolerate it; FAILURE if the type mismatch causes callers to crash or misinterpret the response.
+
+---
+
+## Wave 7
+
+**Generated**: 2026-03-21
+**Mode transitions applied**: V6.1 FAILURE (error fallback schema mismatch) → Fix question F7.1; D6.1 FAILURE (non-atomic registry write) → Fix question F7.2; Wave 6 synthesis identifies DSPy training data quality gap → R7.1; drift detector verdicts-always-empty → D7.1; agent_db_path resolution gap in masonry_drift_check → V7.1; training_extractor multi-project scan validation → R7.2.
+
+---
+
+### F7.1: Fix `_tool_masonry_route()` error fallback to be schema-compatible with `RoutingDecision`
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Hypothesis**: V6.1 confirmed three schema mismatches in the error fallback dict: `layer: 4` (int) vs `Literal["deterministic","semantic","llm","fallback"]` (str); `reason` missing (required field); `error` is an extra field (rejected by `extra="forbid"`). Fix is to replace the error dict with a properly shaped fallback matching `decision.model_dump()` shape: `layer: "fallback"`, add `reason` field, and optionally keep `error` only as a diagnostic addition.
+**Method**: fix-implementer
+**Success criterion**: (1) Edit `mcp_server/server.py` line 302 to return `{"error": str(exc), "target_agent": "user", "layer": "fallback", "confidence": 0.0, "reason": f"Router import failed: {str(exc)[:80]}", "fallback_agents": [], "fallback_reason": "multi_failure"}`. (2) Confirm the new dict is shape-compatible with `decision.model_dump()` output (same keys, compatible types). (3) Verify `layer` is now a string `"fallback"` not int `4`. Verdict: FIX_APPLIED if all three mismatches are corrected.
+
+---
+
+### F7.2: Fix `upsert_registry_entry()` and `append_to_registry()` to use atomic writes in `onboard_agent.py`
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Hypothesis**: D6.1 confirmed that `upsert_registry_entry()` uses `registry_path.write_text(yaml.dump(data, ...), encoding="utf-8")` — a direct truncate-then-write with no atomic rename. A mid-write process kill truncates all 46 registry entries to zero/partial YAML, silently emptying `load_registry()` output to `[]`. The fix is the same atomic pattern applied in masonry-guard.js (F5.1) and masonry-subagent-tracker.js (F5.3): write to `.tmp.{pid}`, then `Path.replace()`.
+**Method**: fix-implementer
+**Success criterion**: (1) Find `upsert_registry_entry()` in `scripts/onboard_agent.py` (lines 317-318) and replace `registry_path.write_text(...)` with: `tmp = registry_path.with_suffix(f".yml.tmp.{os.getpid()}"); tmp.write_text(yaml.dump(data, sort_keys=False), encoding="utf-8"); tmp.replace(registry_path)`. (2) Apply the same change to `append_to_registry()` if it also writes `registry_path` directly. (3) Add `import os` if not already present. Verdict: FIX_APPLIED if both write sites use atomic rename.
+
+---
+
+### R7.1: Does `build_dataset()` produce semantically degenerate training examples due to `question_text = question_id`?
+
+**Status**: DONE
+**Operational Mode**: research
+**Priority**: HIGH
+**Hypothesis**: `build_dataset()` in `training_extractor.py` (line 214) sets `"question_text": finding.get("question_id", "")` — the question ID string (e.g., "R5.1") rather than the actual question text from questions.md. It also sets `"project_context": ""` and `"constraints": ""` (always empty). These are the three PRIMARY INPUT FIELDS of `ResearchAgentSig`. MIPROv2 optimizes prompt instructions by learning from input/output distribution — if inputs are degenerate short IDs with empty context, the optimizer cannot extract meaningful prompt patterns. The resulting "optimized" prompt may be no better than the default.
+**Method**: research-analyst
+**Success criterion**: (1) Confirm `training_extractor.py:214` uses `question_id` as `question_text` (not the actual question text from questions.md). (2) Assess whether `_build_qid_to_agent_map()` extracts question text alongside agent attribution — it does not (only extracts agent name). (3) Assess the semantic quality of training examples where `question_text="R5.1"`, `project_context=""`, `constraints=""`. (4) Determine whether MIPROv2 can learn meaningful prompt optimizations from such degenerate inputs. Verdict: FAILURE if inputs are provably degenerate (ID strings + empty fields across all examples); WARNING if only some examples are degenerate; HEALTHY if the quality is adequate for optimization purposes.
+
+---
+
+### D7.1: Does `run_drift_check()` return zero reports because `agent_db.json` has `"verdicts": []` for all agents?
+
+**Status**: DONE
+**Operational Mode**: diagnose
+**Priority**: HIGH
+**Hypothesis**: `run_drift_check()` in `drift_detector.py` (line 155) skips agents with empty `verdicts` list: `if not verdicts: continue`. The current `agent_db.json` (at `C:/Users/trg16/Dev/Bricklayer2.0/agent_db.json`) has `"verdicts": []` for every agent. This means `run_drift_check()` always returns an empty list — the drift detection system is completely non-functional. `masonry_drift_check` MCP tool would return `{"reports": [], "count": 0}` for any valid input. The `verdicts` field is never populated because nothing writes to it — `masonry_observe.js` hook writes to Recall (the memory system) but not to `agent_db.json`.
+**Method**: diagnose-analyst
+**Success criterion**: (1) Confirm `agent_db.json` has `"verdicts": []` for all agents. (2) Trace who is responsible for populating `agent_db.json` `verdicts` field — is it `masonry-observe.js`, a scoring script, or another component? (3) Determine if `masonry_drift_check` MCP tool has ever returned a non-empty `reports` list. (4) Identify whether the missing verdicts population is a gap in the implementation or an intentional design (verdicts populated by an external scorer). Verdict: FAILURE if `verdicts` is never populated by any component and drift detection is permanently non-functional; WARNING if it is populated but population is unreliable.
+
+---
+
+### V7.1: Validate `masonry_drift_check` MCP tool: does it correctly resolve `agent_db_path` and handle the case where the path is unknown to callers?
+
+**Status**: DONE
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Hypothesis**: `_tool_masonry_drift_check()` in `server.py` (line 379) requires `agent_db_path` as an explicit argument — if not provided, it returns `{"error": "agent_db_path is required", "reports": []}`. There is no default path. The actual `agent_db.json` lives at `C:/Users/trg16/Dev/Bricklayer2.0/agent_db.json` — one directory above `_REPO_ROOT` (which is `C:/Users/trg16/Dev/Bricklayer2.0`). Wait — `_REPO_ROOT = Path(__file__).resolve().parent.parent.parent` where `__file__` is `masonry/mcp_server/server.py`. So `_REPO_ROOT` = `Bricklayer2.0/`. Therefore `_REPO_ROOT / "agent_db.json"` would be correct. The issue is the tool has no default for `agent_db_path` — callers must supply it explicitly.
+**Method**: research-analyst
+**Success criterion**: (1) Verify `_REPO_ROOT` value in `server.py` (line 38: `Path(__file__).resolve().parent.parent.parent`). (2) Confirm `agent_db.json` location relative to `_REPO_ROOT`. (3) Assess whether `agent_db_path` should have a default of `str(_REPO_ROOT / "agent_db.json")` — matching the pattern used by `masonry_run_question`, `masonry_optimization_status`, etc. (4) Confirm whether the missing default causes Kiln to always receive the error response when calling this tool. Verdict: FAILURE if default is missing and no caller supplies the path; WARNING if callers supply it but it's undocumented; HEALTHY if the default is present or the interface is intentional.
+
+---
+
+### R7.2: Does `extract_training_data()` correctly attribute findings to agents when `questions.md` uses `**Method**:` (Wave 2+) rather than `**Agent**:`?
+
+**Status**: DONE
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Hypothesis**: `_build_qid_to_agent_map()` in `training_extractor.py` (lines 24-43) handles both `**Agent**:` (Wave 1) and `**Method**:` (Wave 2+) fields: `re.search(r"\*\*(?:Agent|Method)\*\*:\s*(\S+)", block)`. The Masonry self-research campaign uses `**Method**:` in questions.md from Wave 2 onwards. The extraction should work correctly, but needs validation: (1) does the regex correctly split on `\n---\n` to isolate question blocks? (2) Are there Wave 7 questions (which now use `**Method**:`) correctly attributed? The `score_example()` function returns 0.0 for unrecognized agents, silently excluding them.
+**Method**: research-analyst
+**Success criterion**: (1) Confirm `_build_qid_to_agent_map()` regex `\*\*(?:Agent|Method)\*\*` matches the `**Method**:` field in questions.md waves 2+. (2) Verify the `\n---\n` block split correctly isolates question blocks (the questions.md format uses `---` as separator). (3) Test with a sample question from Wave 2+ to confirm agent attribution works. (4) Confirm that agents in `agent_db.json` have matching names to those in `**Method**:` fields (e.g., "research-analyst" in `**Method**: research-analyst` matches `agent_db["research-analyst"]`). Verdict: HEALTHY if attribution works correctly end-to-end; FAILURE if the regex misses `**Method**:` fields or the name normalization breaks.
+
+---
+
+## Wave 8
+
+**Generated**: 2026-03-21
+**Mode transitions applied**: R7.1 FAILURE (degenerate question_text) → Fix question F8.1; V7.1 FAILURE (missing agent_db_path default) → Fix question F8.2; D6.2 unimplemented MCP tool → investigate feasibility D8.1; D7.1 verdicts never populated → investigate fix path D8.2; masonry-observe.js Recall storage effectiveness → R8.1; score_example() exclusion behavior when agent_db is absent → R8.2.
+
+---
+
+### F8.1: Fix `build_dataset()` to extract actual question text instead of using question ID as `question_text`
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: HIGH
+**Hypothesis**: R7.1 confirmed that `build_dataset()` sets `"question_text": finding.get("question_id", "")` — using the ID ("R5.1") instead of the actual question text. `_build_qid_to_agent_map()` extracts only `{question_id: agent_name}` and discards the question text from `### R7.1: text...` header lines. Fix: extend the function to return `{question_id: {agent: name, question_text: text}}` by capturing group 2 of `r"###\s+(\w+\d+\.\d+):\s*(.+)"`, and update `build_dataset()` to use the extracted question text.
+**Method**: fix-implementer
+**Success criterion**: (1) Modify `_build_qid_to_agent_map()` in `training_extractor.py` to return `dict[str, dict[str, str]]` with `{qid: {agent: str, question_text: str}}` — or create a new `_build_qid_to_metadata_map()` that returns both fields. (2) Update `build_dataset()` to populate `"question_text"` from the extracted question text instead of `question_id`. (3) Also fix `"confidence"` extraction: extract `**Confidence**: 0.85` from finding files instead of hardcoding `"0.75"`. Verdict: FIX_APPLIED if training examples have actual question text in `question_text` field.
+
+---
+
+### F8.2: Fix `masonry_drift_check` to provide a default `agent_db_path`
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: LOW
+**Hypothesis**: V7.1 confirmed that `_tool_masonry_drift_check()` requires `agent_db_path` as an explicit argument with no default. `agent_db.json` is at `_REPO_ROOT / "agent_db.json"` (deterministic path). Fix: change `args.get("agent_db_path", "")` to `args.get("agent_db_path", str(_REPO_ROOT / "agent_db.json"))`, remove the "required" error check (or make it a non-blocking warning), and remove `agent_db_path` from the tool schema `"required"` list.
+**Method**: fix-implementer
+**Success criterion**: (1) Edit `mcp_server/server.py` `_tool_masonry_drift_check()` to provide a default value for `agent_db_path`. (2) Remove `agent_db_path` from `"required"` in the tool schema. (3) Confirm that calling `masonry_drift_check` with no arguments uses the default path and returns `{"reports": [], "count": 0}` (empty because D7.1 verdicts issue, but no error). Verdict: FIX_APPLIED if the tool returns reports (or empty reports) instead of an error when `agent_db_path` is not provided.
+
+---
+
+### D8.1: Is `masonry_optimize_agent` implementable? Does `dspy` package exist and does the fix spec in D6.2 have import/dependency gaps?
+
+**Status**: DONE
+**Operational Mode**: diagnose
+**Priority**: HIGH
+**Hypothesis**: D6.2's fix spec imports `from masonry.src.dspy_pipeline.optimizer import configure_dspy, optimize_agent` and `from masonry.src.dspy_pipeline.signatures import ResearchAgentSig`. The optimizer (`optimizer.py`) imports `import dspy` at the top level (line 15) — if `dspy` is not installed in the MCP server's Python environment, this import fails and `masonry_optimize_agent` would always return an error. Additionally, `configure_dspy()` requires `ANTHROPIC_API_KEY` to be set. If the environment lacks either, the tool is useless even after implementation. The D6.2 fix spec defers this check but it must be resolved before Phase 16 DSPy training can proceed.
+**Method**: diagnose-analyst
+**Success criterion**: (1) Check whether `dspy` is importable in the current Python environment (look for `dspy` in `requirements.txt`, `pyproject.toml`, or installed packages). (2) Verify `configure_dspy()` and `optimize_agent()` exist in `optimizer.py` (confirmed by Wave 7 reading). (3) Check whether `ANTHROPIC_API_KEY` environment variable is required by `configure_dspy()`. (4) Confirm whether `dspy.MIPROv2` exists in the installed version of DSPy (API changed between versions). Verdict: FAILURE if dspy is not installed; WARNING if dspy is installed but API mismatches exist; HEALTHY if all prerequisites are met.
+
+---
+
+### D8.2: Does the `score_example()` exclusion gate silently block all training data when `agent_db.json` is missing or has all agents with score=0.0?
+
+**Status**: DONE
+**Operational Mode**: diagnose
+**Priority**: MEDIUM
+**Hypothesis**: `score_example()` in `training_extractor.py` (lines 153–172) returns `0.0` when: (a) `agent_name` is None or not in `agent_db`, (b) agent score < 0.5. If `agent_db.json` is missing or has `score: 0.0` (not the current 0.85), ALL findings are excluded from training and `build_dataset()` returns `{}`. The call site `if weight == 0.0: continue` silently drops them. The current `agent_db.json` has `score: 0.85` for most agents, so this gate passes — but if `agent_db.json` were absent (common in fresh deployments), `build_dataset()` returns `{}` with no error, blocking DSPy optimization silently.
+**Method**: diagnose-analyst
+**Success criterion**: (1) Trace `build_dataset()` when `agent_db_path` doesn't exist — `json.JSONDecodeError` except block at line 197-198 returns `{}` immediately (returns empty dataset before any findings are read). (2) Confirm this is a silent failure — no error is logged, caller receives `{}`. (3) Assess the blast radius: a fresh deployment with no `agent_db.json` would cause `masonry_optimize_agent` (once implemented) to return "No training data for agent X" for all agents. Verdict: FAILURE if the silent return-empty has no diagnostic output; WARNING if it's logged.
+
+---
+
+### R8.1: Does `masonry-observe.js` correctly detect finding files written to `masonry/findings/` and store them to Recall?
+
+**Status**: DONE
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Hypothesis**: `masonry-observe.js` is a PostToolUse hook that fires on Write/Edit events. It detects finding files by checking if the written path matches a `findings/*.md` pattern. The hook stores findings to Recall via `storeMemory()` and also updates `masonry-state.json` with verdict counts. If the hook is disabled (DISABLE_OMC=1), or if the CWD doesn't match the expected pattern, findings from this campaign are NOT being stored to Recall — meaning the retrieve-on-prompt Recall context that Mortar injects is missing this campaign's findings. This would explain why Wave 7+ questions start without prior campaign context.
+**Method**: research-analyst
+**Success criterion**: (1) Read `masonry-observe.js` finding detection logic — what path pattern must a written file match? (2) Confirm the hook is registered in settings.json for PostToolUse events. (3) Assess whether `DISABLE_OMC=1` (the BL research kill switch) would prevent finding storage to Recall during this campaign. (4) Determine if findings from this campaign appear in Recall via the `masonry:finding` tag. Verdict: FAILURE if findings are not stored to Recall; WARNING if stored but missing context; HEALTHY if correctly stored and retrievable.
+
+---
+
+### R8.2: Does `build_dataset()` `project_context` gap prevent meaningful DSPy optimization even after R7.1 fix?
+
+**Status**: DONE
+**Operational Mode**: research
+**Priority**: HIGH
+**Hypothesis**: R7.1's fix spec suggests populating `project_context` from `project-brief.md`. But `project_context` is described as "Project brief summary, prior findings, and key constraints" — a dynamically constructed field that should include both the project brief AND prior findings context. If only `project-brief.md` is injected (static), the optimizer still can't learn "when prior findings show X pattern, adjust reasoning to Y." The fix needs to also inject a summary of prior findings per question. This is a deeper architectural gap: training examples need to be constructed with context that was available at the time the question was answered, not just the static project brief.
+**Method**: research-analyst
+**Success criterion**: (1) Assess whether injecting only `project-brief.md` into `project_context` is sufficient for MIPROv2 to learn useful prompt optimizations (is static context better than empty?). (2) Determine what "prior findings context" means for a training example dated Wave 3 — should it include Wave 1+2 findings only (context available at that time)? (3) Assess whether a simpler `project_context = first 1000 chars of project-brief.md` is good enough for initial DSPy training, or if the temporal context gap fundamentally limits optimization quality. Verdict: FAILURE if static project-brief alone is insufficient (too generic for meaningful optimization); WARNING if adequate for initial training but limited; HEALTHY if static context is sufficient.
+
+---
+
+## Wave 9
+
+### F9.1: Fix `build_dataset()` to inject `project-brief.md` as `project_context`
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: HIGH
+**Hypothesis**: R8.2 confirmed that `project-brief.md` is sufficient context and exists on disk, but `build_dataset()` still passes `project_context: ""`. The fix is to read `project-brief.md` from the project root (parent of each `findings/` directory) and inject up to 2000 chars as `project_context` for all examples from that project. This is the last non-trivial gap in training example quality before Phase 16 optimization can produce meaningful results.
+**Method**: fix-implementer
+**Success criterion**: After fix, `build_dataset()` returns examples with `project_context` containing the first 2000 chars of `project-brief.md` (or full text if shorter). Empty string is no longer used for projects that have a brief. Verify by inspecting example output for a sample masonry finding.
+
+---
+
+### R9.1: How many training examples does `build_dataset()` produce for the `research-analyst` agent in the current masonry findings?
+
+**Status**: DONE
+**Operational Mode**: research
+**Priority**: HIGH
+**Hypothesis**: The masonry self-research campaign has 60+ findings across 8 waves. `build_dataset()` attributes each finding to an agent via questions.md. `research-analyst` is the most-used agent (handles R-type questions, ~40% of all questions). With all agent scores at 0.85 (gold), every attributed research-analyst finding should pass the exclusion gate. The question is: how many examples actually flow through the full pipeline (attribution → score_example → dataset)?
+**Method**: research-analyst
+**Success criterion**: Count of training examples for `research-analyst` after full pipeline. Verdict: HEALTHY if >= 5 examples (optimizer minimum); FAILURE if < 5 examples (insufficient for optimization).
+
+---
+
+### D9.1: Design the `sync_verdicts_to_agent_db.py` pipeline for D7.1 remediation
+
+**Status**: DONE
+**Operational Mode**: diagnose
+**Priority**: MEDIUM
+**Hypothesis**: D7.1 confirmed that `agent_db.json` `verdicts` is never populated because the attribution pipeline from findings → agent_db was explicitly deferred to Phase 2. `training_extractor.py` already implements `_build_qid_to_agent_map()` which does findings-to-agent attribution. The question is: can we reuse this existing attribution logic to populate `verdicts` in `agent_db.json` without writing a fully new pipeline? The fix spec in D7.1 describes a `sync_verdicts_to_agent_db.py` script.
+**Method**: diagnose-analyst
+**Success criterion**: Design the minimal implementation of `sync_verdicts_to_agent_db.py` that reuses `extract_training_data()` to get `{question_id, verdict, agent}` tuples, groups by agent, and writes `agent_db[agent]["verdicts"]` list. Include atomic write. Identify whether this script should be invoked from `score_all_agents.py` or run standalone.
+
+---
+
+### R9.2: Does the deterministic routing layer (Layer 1) achieve the claimed 60%+ coverage for real Masonry requests?
+
+**Status**: DONE
+**Operational Mode**: research
+**Priority**: HIGH
+**Hypothesis**: The project-brief claims Layer 1 handles 60%+ of routing deterministically. R2.1 validated the semantic threshold (0.70 WARNING) but coverage was never directly measured. The deterministic layer handles: slash commands, autopilot state files, `**Mode**:` field matches. For real Masonry usage (campaign running, questions being routed, agents being invoked), the proportion that has a deterministic match may be much lower than 60% — most requests are conversational or ambiguous.
+**Method**: research-analyst
+**Success criterion**: Trace `src/routing/deterministic.py` coverage paths. Categorize which request types deterministically route vs. fall through. Estimate coverage fraction for a realistic request distribution (campaign questions, git ops, UI work, ad-hoc queries). Verdict: HEALTHY if ≥ 60%; WARNING if 40-60%; FAILURE if < 40%.
+
+---
+
+### V9.1: Does `_tool_masonry_optimize_agent()` correctly handle the case where `ResearchAgentSig.input_fields` is not a dict in dspy 3.1.3?
+
+**Status**: DONE
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Hypothesis**: `optimize_agent()` in `optimizer.py` calls `list(signature_cls.input_fields.keys())` at line 112. In dspy 3.1.3, DSPy Signatures use a class-level `model_fields` (Pydantic v2) rather than a separate `input_fields` attribute. The `input_fields` attribute may be a property, a cached value, or may not exist. If `signature_cls.input_fields` raises AttributeError, the optimizer silently falls back to the unoptimized module but the error is only printed to stderr, not returned in the MCP response.
+**Method**: design-reviewer
+**Success criterion**: Verify that `ResearchAgentSig.input_fields` exists and returns the expected dict-like object in dspy 3.1.3. If not, identify what attribute/method provides the input field list and confirm whether the fallback path in optimizer.py is correct.
+
+---
+
+### D9.2: Does `masonry-subagent-tracker.js` correctly write to `agents.json` after the F5.3 atomic write fix?
+
+**Status**: DONE
+**Operational Mode**: diagnose
+**Priority**: LOW
+**Hypothesis**: F5.3 applied atomic write to `masonry-subagent-tracker.js`. The fix changed `fs.writeFileSync(agentsFile, ...)` to a `tmp.{pid} + rename()` pattern. However, the deployed hook in `src/hooks/masonry-subagent-tracker.js` has been further modified since F5.3 was applied (Wave 5). The current file state should be verified to confirm the atomic write is still in place and the hook functions correctly.
+**Method**: diagnose-analyst
+**Success criterion**: Confirm current state of `masonry-subagent-tracker.js` write path. Verify the atomic tmp+rename pattern exists, not the original `writeFileSync` direct write. Verdict: HEALTHY if atomic write confirmed; FAILURE if reverted or never applied.
+
+---
+
+## Wave 10 Questions
+
+### F10.1: Fix `_MODE_FIELD_RE` to match `**Operational Mode**:` in `deterministic.py`
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Hypothesis**: R9.2 confirmed that `_MODE_FIELD_RE = re.compile(r"\*\*Mode\*\*:\s*(\w+)")` never matches BL 2.0 questions because they use `**Operational Mode**:` not `**Mode**:`. Every campaign question that enters the router falls through Rule 5 to Layer 2/3, costing an Ollama semantic lookup or LLM call for something that should be free. The fix is a one-line regex extension.
+**Method**: fix-implementer
+**Success criterion**: Change `_MODE_FIELD_RE` to `re.compile(r"\*\*(?:Operational\s+)?Mode\*\*:\s*(\w+)", re.IGNORECASE)`. Verify that `route_deterministic()` now returns a match for a question block containing `**Operational Mode**: research`. Verdict: FIX_APPLIED when the regex matches and the routing test passes.
+
+---
+
+### R10.1: Is `sync_verdicts_to_agent_db.py` integrated into the wave-end workflow or must it be run manually?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: HIGH
+**Hypothesis**: D9.1 created `sync_verdicts_to_agent_db.py` as a standalone script. For drift detection to remain current, it needs to run after each campaign wave. Neither `synthesizer-bl2.md` nor `trowel.md` currently invoke it. If it requires manual invocation, agent verdict history will drift unless the user remembers to run it.
+**Method**: research-analyst
+**Success criterion**: Check `synthesizer-bl2.md`, `trowel.md`, `karen.md`, and `masonry_run` skill for any reference to `sync_verdicts_to_agent_db`. If absent: propose where the invocation should live and what the integration looks like. Verdict: HEALTHY if integrated; WARNING if manual-only (with integration plan); FAILURE if no integration path exists.
+
+---
+
+### R10.2: Does `masonry_drift_check` produce actionable output now that `agent_db.json["verdicts"]` is populated?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: HIGH
+**Hypothesis**: D7.1 and D9.1 established that `masonry_drift_check` was broken because `verdicts` was always empty. Now that D9.1 has populated 81 verdicts across 6 agents, the drift check should run for the first time against real data. The question is whether the output is actionable or whether the drift thresholds, output format, or metric calculations are themselves untested.
+**Method**: research-analyst
+**Success criterion**: Run `masonry_drift_check` via the MCP tool or direct `drift_detector.py` call. Verify it produces a verdict (HEALTHY/WARNING/FAILURE) with per-agent drift scores. Check whether thresholds in `drift_detector.py` are calibrated or placeholder values. Verdict: HEALTHY if actionable output with calibrated thresholds; WARNING if output exists but thresholds need calibration; FAILURE if still broken.
+
+---
+
+### R10.3: Does `masonry_optimize_agent` complete end-to-end for `diagnose-analyst` (28 examples)?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Hypothesis**: D8.1 implemented `_tool_masonry_optimize_agent()` in `server.py`. V9.1 confirmed `input_fields` is correct. F9.1 confirmed training data is meaningful. The end-to-end pipeline has never been run — it may fail at `MIPROv2.compile()` (LLM calls required), at `optimized.save()`, or produce a `.json` that Kiln cannot load. `diagnose-analyst` has the most data (28 examples → actually 21 post-filter) and should be the first agent to try.
+**Method**: research-analyst
+**Success criterion**: Trace `optimize_agent()` call path for `diagnose-analyst`. Identify whether `configure_dspy(model="claude-sonnet-4-6")` will actually invoke the Anthropic API during `compile()`. Determine if `optimized.save()` produces a valid `.json` loadable by `optimized.load()`. Note: an actual live run may be cost-prohibitive; static code analysis to find failure modes is acceptable. Verdict: HEALTHY if no blocking issues; WARNING if LLM API call or save format issues; FAILURE if MIPROv2 compile will definitely fail.
+
+---
+
+### D10.1: Does `masonry_drift_check` in `server.py` use the updated `agent_db.json` format with populated `verdicts`, or does it read stale in-memory data?
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: MEDIUM
+**Hypothesis**: `_tool_masonry_drift_check()` in `server.py` reads `agent_db.json` from disk at call time. However, `sync_verdicts_to_agent_db.py` writes to the same file. If the MCP server cached `agent_db.json` in memory at startup, the drift check would always see empty `verdicts` even after the sync script runs. Checking whether the server reads fresh from disk vs. uses a module-level cache is critical for the D7.1 fix to be effective.
+**Method**: diagnose-analyst
+**Success criterion**: Read `_tool_masonry_drift_check()` in `server.py` and `drift_detector.py`. Confirm agent_db is read from disk at each call (not from a module-level cache). Verdict: HEALTHY if fresh read per call; FAILURE if cached at import time.
+
+---
+
+### F10.2: Fix `runBackground()` path-with-spaces on Windows (R6.1 open issue)
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: LOW
+**Hypothesis**: R6.1 identified that `runBackground()` in Masonry hooks may fail on Windows when `cwd` contains spaces (e.g., `C:\Users\trg16\Dev\Bricklayer2.0`). The issue is in the `spawn()` call's `cwd` option or the shell argument quoting. This affects async hook operations on Windows (the primary development platform).
+**Method**: fix-implementer
+**Success criterion**: Read the `runBackground()` implementation in the relevant hook(s). If path quoting is missing, add `JSON.stringify(cwd)` or wrap in quotes. Verify the fix handles `C:\Users\trg16\Dev\Bricklayer2.0` as a cwd argument. Verdict: FIX_APPLIED if quoting is added; ALREADY_FIXED if path quoting is already present; NOT_REPRODUCIBLE if the issue cannot be located.

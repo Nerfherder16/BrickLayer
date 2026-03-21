@@ -18,13 +18,15 @@ from typing import Any
 _QUESTION_ID_RE = re.compile(r"^#\s+Finding:\s+(\S+)", re.MULTILINE)
 _VERDICT_RE = re.compile(r"^\*\*Verdict\*\*:\s*(\S+)", re.MULTILINE)
 _SEVERITY_RE = re.compile(r"^\*\*Severity\*\*:\s*(\S+)", re.MULTILINE)
+_CONFIDENCE_RE = re.compile(r"^\*\*Confidence\*\*:\s*(\S+)", re.MULTILINE)
 _SECTION_RE = re.compile(r"^##\s+(\w[\w\s]*)", re.MULTILINE)
 
 
-def _build_qid_to_agent_map(questions_md_path: Path) -> dict[str, str]:
-    """Extract question_id → agent_name mapping from a questions.md file.
+def _build_qid_to_agent_map(questions_md_path: Path) -> dict[str, dict[str, str]]:
+    """Extract question_id → {agent, question_text} mapping from a questions.md file.
 
     Handles both ``**Agent**:`` (Wave 1) and ``**Method**:`` (Wave 2+) fields.
+    Captures the question text from the ``### QID: <text>`` header line.
     Returns an empty dict if the file cannot be read.
     """
     try:
@@ -32,14 +34,17 @@ def _build_qid_to_agent_map(questions_md_path: Path) -> dict[str, str]:
     except (OSError, FileNotFoundError):
         return {}
 
-    result: dict[str, str] = {}
+    result: dict[str, dict[str, str]] = {}
     # Split on section dividers to isolate individual question blocks
     blocks = re.split(r"\n---\n", text)
     for block in blocks:
-        qid_m = re.search(r"###\s+(\w+\d+\.\d+):", block)
+        qid_m = re.search(r"###\s+(\w+\d+\.\d+):\s*(.+)", block)
         agent_m = re.search(r"\*\*(?:Agent|Method)\*\*:\s*(\S+)", block)
         if qid_m and agent_m:
-            result[qid_m.group(1)] = agent_m.group(1)
+            result[qid_m.group(1)] = {
+                "agent": agent_m.group(1),
+                "question_text": qid_m.group(2).strip(),
+            }
     return result
 
 
@@ -66,7 +71,7 @@ def extract_finding(finding_path: Path) -> dict[str, Any] | None:
     Returns None if the file cannot be read or lacks a **Verdict** line.
     """
     try:
-        text = finding_path.read_text(encoding="utf-8")
+        text = finding_path.read_text(encoding="utf-8", errors="replace")
     except (OSError, FileNotFoundError):
         return None
 
@@ -85,6 +90,13 @@ def extract_finding(finding_path: Path) -> dict[str, Any] | None:
     sev_m = _SEVERITY_RE.search(text)
     severity = sev_m.group(1).strip() if sev_m else ""
 
+    # Extract confidence
+    conf_m = _CONFIDENCE_RE.search(text)
+    try:
+        confidence = float(conf_m.group(1)) if conf_m else 0.75
+    except ValueError:
+        confidence = 0.75
+
     # Extract sections
     evidence = _extract_section(text, "Evidence") or ""
     mitigation = _extract_section(text, "Mitigation")
@@ -97,6 +109,7 @@ def extract_finding(finding_path: Path) -> dict[str, Any] | None:
         "question_id": question_id,
         "verdict": verdict,
         "severity": severity,
+        "confidence": confidence,
         "evidence": evidence,
         "mitigation": mitigation,
         "source_file": str(finding_path),
@@ -134,7 +147,11 @@ def extract_training_data(
             if finding is None:
                 return
             if qid_map and not finding.get("agent"):
-                finding["agent"] = qid_map.get(finding.get("question_id", ""))
+                entry = qid_map.get(finding.get("question_id", ""))
+                if entry:
+                    finding["agent"] = entry["agent"]
+                    if not finding.get("question_text"):
+                        finding["question_text"] = entry["question_text"]
             results.append(finding)
 
         # Scan direct children
@@ -172,6 +189,29 @@ def score_example(finding: dict[str, Any], agent_db: dict[str, Any]) -> float:
     return 0.0
 
 
+_PROJECT_BRIEF_MAX_CHARS = 2000
+
+
+def _load_project_brief(source_file: str) -> str:
+    """Load project-brief.md from the project root containing source_file.
+
+    Walks up from the source file to find the ``findings/`` ancestor, then reads
+    ``project-brief.md`` from that directory's parent.  Returns empty string if
+    the brief cannot be found or read.
+    """
+    p = Path(source_file).resolve()
+    # Walk up looking for a 'findings' ancestor directory
+    for ancestor in p.parents:
+        if ancestor.name == "findings":
+            brief_path = ancestor.parent / "project-brief.md"
+            try:
+                text = brief_path.read_text(encoding="utf-8")
+                return text[:_PROJECT_BRIEF_MAX_CHARS]
+            except (OSError, FileNotFoundError):
+                return ""
+    return ""
+
+
 def build_dataset(
     projects_dir: Path,
     agent_db_path: Path,
@@ -200,6 +240,9 @@ def build_dataset(
     findings = extract_training_data(projects_dir, questions_md_path=questions_md_path)
     dataset: dict[str, list[dict[str, Any]]] = {}
 
+    # Cache project brief text per project root to avoid repeated disk reads
+    _brief_cache: dict[str, str] = {}
+
     for finding in findings:
         weight = score_example(finding, agent_db)
         if weight == 0.0:
@@ -209,16 +252,22 @@ def build_dataset(
         if agent_name not in dataset:
             dataset[agent_name] = []
 
+        # Load project_context from project-brief.md (cached by source_file path)
+        source_file = finding.get("source_file", "")
+        if source_file not in _brief_cache:
+            _brief_cache[source_file] = _load_project_brief(source_file)
+        project_context = _brief_cache[source_file]
+
         # Shape the example to match ResearchAgentSig fields
         example = {
-            "question_text": finding.get("question_id", ""),
-            "project_context": "",
+            "question_text": finding.get("question_text") or finding.get("question_id", ""),
+            "project_context": project_context,
             "constraints": "",
             "verdict": finding.get("verdict", ""),
             "severity": finding.get("severity", ""),
             "evidence": finding.get("evidence", ""),
             "mitigation": finding.get("mitigation", "") or "",
-            "confidence": "0.75",  # default calibration
+            "confidence": str(finding.get("confidence", 0.75)),
             "_weight": weight,
         }
         dataset[agent_name].append(example)
