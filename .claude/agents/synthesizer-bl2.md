@@ -227,6 +227,20 @@ Scan for roadmap items that match findings from this wave:
 
 ---
 
+## Step 5.5: Refresh Training Data
+
+Run `score_all_agents.py` to capture all findings from this wave as training examples.
+This is **non-fatal** — if it fails, log to stderr and continue.
+
+```bash
+python masonry/scripts/score_all_agents.py --base-dir {project_root} 2>&1 || true
+```
+
+This populates `masonry/training_data/scored_all.jsonl` so agents that participated in
+this wave immediately have training data available for DSPy optimization via Kiln.
+
+---
+
 ## Step 6: Commit Documentation
 
 Stage and commit all updated files:
@@ -251,6 +265,17 @@ Co-Authored-By: BrickLayer Synthesizer <noreply@bricklayer>"
 ```
 
 If the commit fails (nothing staged, pre-commit hook failure), log the error to stderr and continue — never block the campaign on a commit failure.
+
+After committing, sync finding verdicts to `agent_db.json` for drift detection (non-blocking — failure must not stop synthesis):
+
+```bash
+# Run from the project parent directory (BL2.0 repo root)
+cd {project_root}/..
+python -m masonry.scripts.sync_verdicts_to_agent_db \
+    --questions-md {project_root}/questions.md \
+    || echo "[SYNTHESIS] verdict sync failed (non-blocking)"
+cd {project_root}
+```
 
 ---
 
