@@ -117,6 +117,12 @@ Note: `lock_files` is populated from the planning spec's task descriptions. If o
 1. Set `progress.json` status → "COMPLETE"
 2. Clear `.autopilot/mode` (write empty string)
 3. Run `/masonry-verify` and report results
+4. Refresh training data (non-fatal — log and continue if it fails):
+   ```bash
+   python masonry/scripts/score_all_agents.py --base-dir $(git rev-parse --show-toplevel) 2>&1 || true
+   ```
+   This captures build signal (tests pass/fail, lint clean, no regression) for developer,
+   test-writer, and fix-implementer into `scored_all.jsonl` immediately.
 
 ### Rules
 
