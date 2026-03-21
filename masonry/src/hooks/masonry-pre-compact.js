@@ -193,11 +193,9 @@ async function main() {
   const domain = PROJECT_DOMAINS[projectName.toLowerCase()] || projectName.toLowerCase() || "general";
 
   const transcriptPath = deriveTranscriptPath(cwd, input.session_id);
-  process.stderr.write(`[pre-compact] transcript: ${transcriptPath || "NOT FOUND"}\n`);
 
   if (transcriptPath) {
     const turns = extractRecentTurns(transcriptPath, 20);
-    process.stderr.write(`[pre-compact] turns: ${turns.length}, hasAssistant: ${turns.some((t) => t.role === "Assistant")}\n`);
     // Only store if we have meaningful content (at least 1 assistant turn)
     const hasAssistant = turns.some((t) => t.role === "Assistant");
     if (turns.length >= 3 && hasAssistant) {
