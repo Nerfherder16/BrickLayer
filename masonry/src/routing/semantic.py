@@ -11,6 +11,7 @@ threshold, or None to fall through to Layer 3.
 from __future__ import annotations
 
 import math
+import os
 import sys
 from typing import Any
 
@@ -21,7 +22,9 @@ from masonry.src.schemas.payloads import AgentRegistryEntry, RoutingDecision
 # Module-level cache: corpus_key -> embedding vector
 _embedding_cache: dict[str, list[float]] = {}
 
-_DEFAULT_OLLAMA_URL = "http://192.168.50.62:11434"
+# Ollama URL is configurable via environment variable
+_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://192.168.50.62:11434")
+_DEFAULT_OLLAMA_URL = _OLLAMA_URL  # kept for backward-compat references
 _DEFAULT_MODEL = "qwen3-embedding:0.6b"
 _DEFAULT_THRESHOLD = 0.70
 _TIMEOUT = 15.0  # longer for batch requests
@@ -72,7 +75,7 @@ def _agent_corpus_key(agent: AgentRegistryEntry) -> str:
 def route_semantic(
     request_text: str,
     registry: list[AgentRegistryEntry],
-    ollama_url: str = _DEFAULT_OLLAMA_URL,
+    ollama_url: str = _OLLAMA_URL,
     model: str = _DEFAULT_MODEL,
     threshold: float = _DEFAULT_THRESHOLD,
 ) -> RoutingDecision | None:

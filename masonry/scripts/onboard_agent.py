@@ -1,12 +1,15 @@
 """Auto-onboarding script for Masonry agents.
 
-Detects new .md agent files not yet in the registry, extracts metadata
-from YAML frontmatter and body, registers them, and generates DSPy
-signature stubs.
+Reads YAML frontmatter directly — no keyword inference from body text.
+All fields (modes, capabilities, input_schema, output_schema, tier) are
+read exclusively from frontmatter.
 
 CLI usage:
-    python masonry/scripts/onboard_agent.py [--agents-dir PATH ...] \
+    python masonry/scripts/onboard_agent.py [--agents-dir PATH ...] \\
         [--registry PATH] [--dspy-dir PATH]
+
+Hook usage (masonry-agent-onboard.js calls with a single file path):
+    python masonry/scripts/onboard_agent.py <filepath>
 """
 
 from __future__ import annotations
@@ -24,16 +27,6 @@ from masonry.src.schemas import AgentRegistryEntry
 # ── Constants ────────────────────────────────────────────────────────────────
 
 _SKIP_STEMS = frozenset({"SCHEMA", "AGENTS", "README", "INDEX"})
-
-_MODE_KEYWORDS: dict[str, list[str]] = {
-    "simulate": ["simulat", "simulation", "model"],
-    "diagnose": ["diagnos", "diagnose", "debug"],
-    "research": ["research", "analys", "explore", "investigat"],
-    "audit": ["audit", "review", "check", "inspect"],
-    "synthesize": ["synthesiz", "summariz", "consolidat"],
-    "fix": ["fix", "repair", "patch", "remediat"],
-    "plan": ["plan", "design", "architect"],
-}
 
 _DEFAULT_AGENTS_DIRS: list[Path] = [
     Path.home() / ".claude" / "agents",
@@ -59,7 +52,6 @@ def detect_new_agents(
     Returns:
         List of Path objects for unregistered agent files.
     """
-    # Load registered names from the registry
     registered_names: set[str] = set()
     if registry_path.exists():
         try:
@@ -72,7 +64,6 @@ def detect_new_agents(
         except Exception:
             pass  # treat as empty registry on parse error
 
-    # Collect all .md files from agent directories
     new_agents: list[Path] = []
     for agents_dir in agents_dirs:
         if not agents_dir.is_dir():
@@ -80,12 +71,41 @@ def detect_new_agents(
         for md_file in sorted(agents_dir.glob("*.md")):
             if md_file.stem.upper() in _SKIP_STEMS:
                 continue
-            # Determine the effective name (stem, used for registry lookup)
             stem = md_file.stem
             if stem not in registered_names:
                 new_agents.append(md_file)
 
     return new_agents
+
+
+# ── detect_stale_registry_entries ────────────────────────────────────────────
+
+
+def detect_stale_registry_entries(registry_path: Path) -> list[dict[str, Any]]:
+    """Find registry entries whose file no longer exists at the path in 'file:'.
+
+    Args:
+        registry_path: Path to the agent registry YAML.
+
+    Returns:
+        List of raw agent dicts (from the YAML) whose file is missing.
+    """
+    if not registry_path.exists():
+        return []
+
+    try:
+        raw = registry_path.read_text(encoding="utf-8")
+        data = yaml.safe_load(raw) or {}
+    except Exception:
+        return []
+
+    stale: list[dict[str, Any]] = []
+    for entry in data.get("agents", []):
+        file_val = entry.get("file", "")
+        if file_val and not Path(file_val).exists():
+            stale.append(entry)
+
+    return stale
 
 
 # ── extract_agent_metadata ───────────────────────────────────────────────────
@@ -94,14 +114,16 @@ def detect_new_agents(
 def extract_agent_metadata(agent_path: Path) -> dict[str, Any]:
     """Extract metadata from an agent .md file.
 
-    Parses YAML frontmatter for name/model/description, then scans the
-    body for mode keywords to populate the modes list.
+    Reads ONLY from YAML frontmatter — no keyword inference from body text.
+    Fields read: name, model, description, modes, capabilities,
+                 input_schema, output_schema, tier.
 
     Args:
         agent_path: Path to the agent .md file.
 
     Returns:
-        Dict with keys: name, model, description, modes, capabilities, file.
+        Dict with keys: name, model, description, modes, capabilities,
+        input_schema, output_schema, tier, file.
     """
     try:
         content = agent_path.read_text(encoding="utf-8")
@@ -109,45 +131,36 @@ def extract_agent_metadata(agent_path: Path) -> dict[str, Any]:
         content = ""
 
     frontmatter: dict[str, Any] = {}
-    body = content
 
-    # Parse YAML frontmatter
     if content.startswith("---"):
         parts = content.split("---", 2)
         if len(parts) >= 3:
             try:
                 frontmatter = yaml.safe_load(parts[1]) or {}
-                body = parts[2]
             except Exception:
                 frontmatter = {}
 
-    # Extract fields with fallbacks
+    # All fields read directly from frontmatter — no inference
     name: str = str(frontmatter.get("name", "") or agent_path.stem)
     model: str = str(frontmatter.get("model", "") or "sonnet")
     description: str = str(frontmatter.get("description", "") or "")
 
-    # Detect modes from body text
-    body_lower = body.lower()
+    # Modes: frontmatter only, no body scanning
     modes: list[str] = []
-    for mode, keywords in _MODE_KEYWORDS.items():
-        for kw in keywords:
-            if kw in body_lower:
-                if mode not in modes:
-                    modes.append(mode)
-                break
-
-    # Also pick up explicit modes from frontmatter
     fm_modes = frontmatter.get("modes", [])
     if isinstance(fm_modes, list):
-        for m in fm_modes:
-            if m not in modes:
-                modes.append(str(m))
+        modes = [str(m) for m in fm_modes]
 
-    # Capabilities from frontmatter
+    # Capabilities: frontmatter only
     capabilities: list[str] = []
     fm_caps = frontmatter.get("capabilities", [])
     if isinstance(fm_caps, list):
         capabilities = [str(c) for c in fm_caps]
+
+    # Schema and tier fields from frontmatter
+    input_schema: str | None = frontmatter.get("input_schema") or None
+    output_schema: str | None = frontmatter.get("output_schema") or None
+    tier: str | None = frontmatter.get("tier") or None
 
     # Compute relative file path (best-effort)
     try:
@@ -162,6 +175,9 @@ def extract_agent_metadata(agent_path: Path) -> dict[str, Any]:
         "description": description,
         "modes": modes,
         "capabilities": capabilities,
+        "input_schema": input_schema,
+        "output_schema": output_schema,
+        "tier": tier,
         "file": file_str,
     }
 
@@ -173,7 +189,8 @@ def generate_registry_entry(meta: dict[str, Any]) -> AgentRegistryEntry:
     """Build an AgentRegistryEntry from extracted metadata.
 
     Defaults tier to "draft", input_schema to "QuestionPayload",
-    output_schema to "FindingPayload".
+    output_schema to "FindingPayload". All values from frontmatter take
+    precedence; missing values fall back to defaults.
 
     Args:
         meta: Dict as returned by extract_agent_metadata.
@@ -181,7 +198,6 @@ def generate_registry_entry(meta: dict[str, Any]) -> AgentRegistryEntry:
     Returns:
         Validated AgentRegistryEntry Pydantic model.
     """
-    # Build kwargs only for fields that have valid non-default values
     kwargs: dict[str, Any] = {
         "name": meta.get("name", ""),
         "file": meta.get("file", ""),
@@ -190,23 +206,15 @@ def generate_registry_entry(meta: dict[str, Any]) -> AgentRegistryEntry:
         "tier": meta.get("tier") or "draft",
     }
 
-    # Optional string fields — only set if non-empty
     description = meta.get("description") or ""
     if description:
         kwargs["description"] = description
 
-    # model must be one of opus/sonnet/haiku — default to sonnet
     model_val = meta.get("model") or "sonnet"
-    if model_val in ("opus", "sonnet", "haiku"):
-        kwargs["model"] = model_val
-    else:
-        kwargs["model"] = "sonnet"
+    kwargs["model"] = model_val if model_val in ("opus", "sonnet", "haiku") else "sonnet"
 
-    # List fields — use empty list as default (matches schema default_factory)
-    modes = meta.get("modes") or []
-    capabilities = meta.get("capabilities") or []
-    kwargs["modes"] = modes
-    kwargs["capabilities"] = capabilities
+    kwargs["modes"] = meta.get("modes") or []
+    kwargs["capabilities"] = meta.get("capabilities") or []
 
     return AgentRegistryEntry(**kwargs)
 
@@ -221,13 +229,13 @@ def append_to_registry(
     """Append an AgentRegistryEntry to the YAML registry file.
 
     Creates the registry file if it does not exist. Preserves all
-    existing agents.
+    existing agents. Does NOT check for duplicates — use upsert_registry_entry
+    for idempotent writes.
 
     Args:
         entry: The AgentRegistryEntry to add.
         registry_path: Path to the registry YAML file.
     """
-    # Load existing data
     data: dict[str, Any] = {"version": 1, "agents": []}
     if registry_path.exists():
         try:
@@ -242,15 +250,73 @@ def append_to_registry(
         except Exception:
             pass
 
-    # Convert entry to dict, dropping None values
     entry_dict = entry.model_dump(exclude_none=True)
-
-    # Append
     data["agents"].append(entry_dict)
 
-    # Write back
     registry_path.parent.mkdir(parents=True, exist_ok=True)
     registry_path.write_text(yaml.dump(data, sort_keys=False), encoding="utf-8")
+
+
+# ── upsert_registry_entry ─────────────────────────────────────────────────────
+
+
+def upsert_registry_entry(
+    entry: AgentRegistryEntry,
+    registry_path: Path,
+    extra_fields: dict[str, Any] | None = None,
+) -> bool:
+    """Insert or update an AgentRegistryEntry in the YAML registry.
+
+    If an entry with the same name already exists, it is updated in-place.
+    If not, a new entry is appended. Running twice with the same entry
+    produces the same result (idempotent).
+
+    Args:
+        entry: The AgentRegistryEntry to insert or update.
+        registry_path: Path to the registry YAML file.
+        extra_fields: Additional raw fields to merge into the stored dict
+            (e.g. runtime state fields not part of the Pydantic model).
+
+    Returns:
+        True if a new entry was added, False if an existing one was updated.
+    """
+    data: dict[str, Any] = {"version": 1, "agents": []}
+    if registry_path.exists():
+        try:
+            raw = registry_path.read_text(encoding="utf-8")
+            loaded = yaml.safe_load(raw) or {}
+            if isinstance(loaded, dict):
+                data = loaded
+                if "agents" not in data:
+                    data["agents"] = []
+                if "version" not in data:
+                    data["version"] = 1
+        except Exception:
+            pass
+
+    entry_dict = entry.model_dump(exclude_none=True)
+    if extra_fields:
+        entry_dict.update(extra_fields)
+
+    # Find existing entry by name
+    existing_idx: int | None = None
+    for idx, existing in enumerate(data["agents"]):
+        if existing.get("name") == entry.name:
+            existing_idx = idx
+            break
+
+    is_new = existing_idx is None
+    if is_new:
+        data["agents"].append(entry_dict)
+    else:
+        # Preserve existing extra fields (like runtime state) unless overridden
+        merged = dict(data["agents"][existing_idx])
+        merged.update(entry_dict)
+        data["agents"][existing_idx] = merged
+
+    registry_path.parent.mkdir(parents=True, exist_ok=True)
+    registry_path.write_text(yaml.dump(data, sort_keys=False), encoding="utf-8")
+    return is_new
 
 
 # ── generate_dspy_signature_stub ─────────────────────────────────────────────
@@ -270,10 +336,9 @@ def generate_dspy_signature_stub(
         Path to the generated .py file.
     """
     name = meta.get("name", "agent")
-    input_schema = meta.get("input_schema", "QuestionPayload")
-    output_schema = meta.get("output_schema", "FindingPayload")
+    input_schema = meta.get("input_schema") or "QuestionPayload"
+    output_schema = meta.get("output_schema") or "FindingPayload"
 
-    # Convert kebab-case to PascalCase class name
     class_name = "".join(part.capitalize() for part in re.split(r"[-_]", name)) + "Sig"
 
     stub = f'''"""DSPy Signature stub for {name} agent.
@@ -319,7 +384,6 @@ class {class_name}(dspy.Signature):
 '''
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    # Sanitize name for use as filename
     safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", name)
     output_path = output_dir / f"{safe_name}.py"
     output_path.write_text(stub, encoding="utf-8")
@@ -328,20 +392,34 @@ class {class_name}(dspy.Signature):
 
 # ── onboard ──────────────────────────────────────────────────────────────────
 
+_RUNTIME_STATE_DEFAULTS: dict[str, Any] = {
+    "dspy_status": "not_optimized",
+    "drift_status": "ok",
+    "last_score": None,
+    "runs_since_optimization": 0,
+}
+
 
 def onboard(
     agents_dirs: list[Path],
     registry_path: Path,
     dspy_output_dir: Path,
-) -> list[str]:
+) -> dict[str, Any]:
     """Detect, register, and generate stubs for new agents.
+
+    This function is idempotent: running twice produces the same registry
+    (no duplicate entries). Uses upsert semantics for existing entries.
+
+    Runtime state fields (dspy_status, drift_status, last_score,
+    runs_since_optimization) are written for new entries only.
 
     Orchestrates the full onboarding pipeline:
     1. detect_new_agents
     2. extract_agent_metadata
     3. generate_registry_entry
-    4. append_to_registry
+    4. upsert_registry_entry (with runtime state for new entries)
     5. generate_dspy_signature_stub
+    6. detect_stale_registry_entries
 
     Args:
         agents_dirs: Directories to scan for unregistered agents.
@@ -349,20 +427,40 @@ def onboard(
         dspy_output_dir: Directory for generated DSPy signature stubs.
 
     Returns:
-        List of agent names that were onboarded.
+        Structured result dict:
+        {
+            "added": int,       # new agents registered
+            "updated": int,     # existing entries updated
+            "stale": int,       # registry entries with missing files
+            "warnings": list[str],
+        }
     """
     new_paths = detect_new_agents(agents_dirs, registry_path)
-    onboarded: list[str] = []
+    added = 0
+    updated = 0
+    warnings: list[str] = []
 
     for agent_path in new_paths:
         meta = extract_agent_metadata(agent_path)
         entry = generate_registry_entry(meta)
-        append_to_registry(entry, registry_path)
+        is_new = upsert_registry_entry(entry, registry_path, extra_fields=_RUNTIME_STATE_DEFAULTS)
         generate_dspy_signature_stub(meta, dspy_output_dir)
-        onboarded.append(meta["name"])
-        print(f"[onboard] Registered: {meta['name']}", file=sys.stderr)
 
-    return onboarded
+        if is_new:
+            added += 1
+            print(f"[onboard] Registered: {meta['name']}", file=sys.stderr)
+        else:
+            updated += 1
+            print(f"[onboard] Updated: {meta['name']}", file=sys.stderr)
+
+    stale = detect_stale_registry_entries(registry_path)
+
+    return {
+        "added": added,
+        "updated": updated,
+        "stale": len(stale),
+        "warnings": warnings,
+    }
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
@@ -400,6 +498,19 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     parser = _build_parser()
+
+    # Support legacy positional single-file invocation from the hook:
+    #   python onboard_agent.py <filepath>
+    # If the first arg looks like a file path (not a flag), treat as single-file mode.
+    if len(sys.argv) == 2 and not sys.argv[1].startswith("-"):
+        agent_path = Path(sys.argv[1])
+        agents_dir = agent_path.parent
+        registry_path = Path(_DEFAULT_REGISTRY)
+        dspy_output_dir = Path(_DEFAULT_DSPY_DIR)
+        result = onboard([agents_dir], registry_path, dspy_output_dir)
+        print(f"added={result['added']} updated={result['updated']} stale={result['stale']}")
+        return
+
     args = parser.parse_args()
 
     agents_dirs: list[Path] = (
@@ -410,10 +521,13 @@ def main() -> None:
     registry_path = Path(args.registry)
     dspy_output_dir = Path(args.dspy_dir)
 
-    onboarded = onboard(agents_dirs, registry_path, dspy_output_dir)
+    result = onboard(agents_dirs, registry_path, dspy_output_dir)
 
-    if onboarded:
-        print(f"Onboarded {len(onboarded)} agent(s): {', '.join(onboarded)}")
+    if result["added"] or result["updated"]:
+        print(
+            f"Onboarded: {result['added']} added, {result['updated']} updated, "
+            f"{result['stale']} stale."
+        )
     else:
         print("No new agents found.")
 
