@@ -15,7 +15,7 @@
 
 ### D1.1: Do masonry-observe, masonry-guard, and masonry-agent-onboard fire twice per PostToolUse event when working inside the masonry project directory?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **Hypothesis**: Both `hooks.json` (project-scoped, lines 16-45) and `~/.claude/settings.json` (global) register the same three async PostToolUse hooks (masonry-observe, masonry-guard, masonry-agent-onboard). When CWD is the masonry project, Claude Code loads both configurations and fires each hook twice per tool call, causing duplicate Recall writes, double strike counting, and double agent registration attempts.
@@ -26,7 +26,7 @@
 
 ### D1.2: Can masonry-guard's 3-strike counter be corrupted by a timeout-killed partial write?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **Hypothesis**: masonry-guard (async, 3s timeout per `hooks.json` line 33) uses a file-based strike queue. If the hook exceeds its 3-second timeout mid-write, Claude Code kills the process, leaving the strike counter file in a partially-written state. The next invocation reads a corrupt counter and either (a) resets to zero (losing strikes) or (b) throws a parse error and silently fails, effectively disabling the guard.
@@ -37,7 +37,7 @@
 
 ### D1.3: Does `_load_registry` in `router.py` silently return an empty list when CWD is not the repository root?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **Hypothesis**: The registry loader tries `{project_dir}/masonry/agent_registry.yml` first, then relative `masonry/agent_registry.yml` from CWD (per `routing_architecture.md` lines 121-123). When Masonry is invoked from a subprocess whose CWD is a subdirectory (e.g., `src/` or a project within the BrickLayer repo), both paths fail. The function returns an empty list without logging. This silently disables Layer 1 Rule 5, all of Layer 2, and causes Layer 3 to prompt with zero agents.
@@ -48,7 +48,7 @@
 
 ### D1.4: Do masonry-observe and masonry-guard race on shared session state when both fire as async PostToolUse hooks on the same tool call?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **Hypothesis**: Both hooks are async PostToolUse handlers (per `hook_inventory.md` lines 32-33). Claude Code fires them in parallel without waiting. If both read and write the same session state file (e.g., a campaign state JSON or a shared temp file), the last writer wins. Specifically: masonry-observe could write a finding detection result that masonry-guard then overwrites with error pattern data, or vice versa, producing inconsistent state.
@@ -59,7 +59,7 @@
 
 ### D1.5: Does masonry-stop-guard block Stop before masonry-build-guard can run, hiding the build-guard's block reason?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: MEDIUM
 **Hypothesis**: Both are synchronous Stop hooks registered in `~/.claude/settings.json` (per `hook_inventory.md` lines 36-38). If Claude Code processes Stop hooks sequentially and the first hook exits with code 2 (block), the second hook may not execute. This means the block reason shown to the user depends on hook registration order, not on which condition is more important. If masonry-stop-guard blocks first (uncommitted changes), the user never learns about pending autopilot tasks from masonry-build-guard.
@@ -70,7 +70,7 @@
 
 ### D1.6: Does `shlex.quote` in `llm_router.py` produce correct escaping for Windows cmd.exe when `shell=True`?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: MEDIUM
 **Hypothesis**: On Windows (`llm_router.py` lines 46-48), the LLM router uses `shlex.quote(full_prompt)` to escape the prompt before passing it as a shell string with `shell=True`. However, `shlex.quote` uses POSIX quoting rules (wrapping in single quotes), which are not recognized by Windows cmd.exe. A prompt containing single quotes, ampersands (`&`), pipe characters (`|`), or angle brackets (`>`, `<`) could cause command breakage or truncation when executed via cmd.exe.
@@ -81,7 +81,7 @@
 
 ### D1.7: Does masonry-agent-onboard lose entries during concurrent Write events to multiple agent .md files?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: LOW
 **Hypothesis**: `masonry-agent-onboard` (async, 5s timeout) detects new `.md` files in agent directories and appends to `agent_registry.yml`. If two agent files are written in rapid succession (e.g., during batch copy), both hook invocations read the same YAML state, compute their append independently, and write back. The second write overwrites the first agent's entry — a classic read-modify-write race.
@@ -92,7 +92,7 @@
 
 ### R1.1: Is the semantic routing threshold of 0.70 well-calibrated for `qwen3-embedding:0.6b` and the current agent registry?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: research
 **Priority**: HIGH
 **Hypothesis**: The threshold `_DEFAULT_THRESHOLD = 0.70` in `semantic_layer.py` line 29 was set without calibration (per `routing_architecture.md` line 72). For a small embedding model (0.6B parameters), cosine similarity distributions may be compressed into a narrow band (e.g., 0.60-0.85 for all pairs), making 0.70 either too permissive (everything matches) or too restrictive (nothing matches). Without empirical distribution data, the threshold is arbitrary.
