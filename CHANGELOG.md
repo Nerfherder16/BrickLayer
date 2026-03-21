@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `e1f5487` feat(training): auto-refresh scored_all.jsonl at wave-end and build completion (2026-03-21)
 - `b489163` chore: commit session files — agent_db, questions (2026-03-21)
 - `744d67c` chore: commit session files — hooks, routing, schemas, training data (2026-03-21)
 - `aff8b08` fix(run_optimization): inject sys.path so masonry package is importable (2026-03-21)
