@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `63abdf5` chore(masonry): campaign progress + add monitor-targets.md (2026-03-21)
 - `5b2c843` docs(masonry): add ARCHITECTURE.md, ROADMAP.md; catch up CHANGELOG; add campaign program.md (2026-03-21)
 - `a80a65b` chore(masonry): update agent-management-overhaul question bank (2026-03-21)
 - `2fe598d` fix(hooks): auto-detect BrickLayer research projects instead of env var (2026-03-21)
