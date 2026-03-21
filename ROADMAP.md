@@ -280,6 +280,7 @@ to MCP aren't surfaced to existing agents.
 | `bl2` self-audit | `projects/bl2/` | **STOP** — 49 fixes, 25 waves | Wave 25 complete |
 | `agent-meta` | `projects/agent-meta/` | **STOP** — 28/28 HEALTHY, 96.1/100 avg | Wave 1+2 complete |
 | `recall-arch-frontier` | `recall-arch-frontier/` | **STOP** — build Recall 2.0 | Wave 34 complete |
+| `masonry` (bricklayer-meta) | `masonry/` | **STOP** — 28 findings, agent mgmt overhaul shipped | Wave 2 complete (2026-03-21) |
 
 ---
 
@@ -408,9 +409,11 @@ in `~/.claude.json`. Does NOT replace masonry-mcp.js — both run in parallel.
 
 ---
 
-## Phase 16 — Full-Fleet DSPy Training 📋
+## Phase 16 — Full-Fleet DSPy Training ✅
 
-**Goal:** Extend the existing DSPy training pipeline (score_findings.py → training_extractor.py → optimizer.py) to cover ALL 46 agents, not just findings-writing agents. Currently ~20 agents have no training signal and remain at `tier: draft` indefinitely.
+**Shipped**: 2026-03-21
+
+**Goal:** Extend the existing DSPy training pipeline (score_findings.py → training_extractor.py → optimizer.py) to cover ALL 46 agents, not just findings-writing agents. Previously ~20 agents had no training signal and remained at `tier: draft` indefinitely.
 
 **What already exists (do NOT rebuild):**
 - `masonry/scripts/score_findings.py` — findings-based scoring ✅
@@ -439,7 +442,7 @@ Existing findings from bricklayer-meta and prior campaigns show `agent: unknown`
 | # | Item | Status |
 |---|------|--------|
 | 16.02a | `masonry/scripts/backfill_agent_fields.py` — reads each finding, infers agent from question_id domain prefix (Q1.x→quantitative-analyst, Q2.x→regulatory-researcher, Q3.x→competitive-analyst, etc.), patches `**Agent**:` line if missing | ✅ |
-| 16.02b | Re-run `score_findings.py` after backfill — verify attributed count > 0 per agent | 📋 |
+| 16.02b | Re-run `score_findings.py` after backfill — verify attributed count > 0 per agent | ✅ |
 
 ### 16.03 — Code Agent Signal 📋
 Agents: `developer`, `test-writer`, `fix-implementer`, `code-reviewer`
