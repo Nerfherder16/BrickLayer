@@ -1,30 +1,69 @@
 {
-  "generated_at": "2026-03-21T17:32:07",
-  "campaign": "Bricklayer2.0",
+  "generated_at": "2026-03-21T18:22:37",
+  "campaign": "masonry",
   "roses": [
     "developer",
     "test-writer",
     "git-nerd",
-    "karen"
+    "karen",
+    "mortar"
   ],
   "buds": [
     "quantitative-analyst",
     "competitive-analyst",
     "synthesizer-bl2",
-    "regulatory-researcher",
-    "research-analyst",
-    "mortar"
+    "regulatory-researcher"
   ],
   "thorns": [
-    "diagnose-analyst"
+    "diagnose-analyst",
+    "fix-implementer",
+    "research-analyst",
+    "unknown",
+    "design-reviewer"
   ],
   "proposals": [
     {
       "agent_name": "diagnose-analyst",
-      "issue": "quality gate pass rate is 0% over 8 findings (threshold: 0.7)",
-      "evidence": "pass_rate=0.00, avg_length=5160chars, findings_analyzed=8",
+      "issue": "confidence consistently at or above 0.95 \u2014 possible over-confidence",
+      "evidence": "pass_rate=1.00, avg_length=4689chars, findings_analyzed=25",
+      "proposed_change": "Add explicit uncertainty language to the agent's output instructions. Require the agent to list at least one counter-argument or limitation in every finding.",
+      "risk_level": "low",
+      "requires_human_approval": true,
+      "status": "pending"
+    },
+    {
+      "agent_name": "fix-implementer",
+      "issue": "confidence consistently at or above 0.95 \u2014 possible over-confidence",
+      "evidence": "pass_rate=1.00, avg_length=3527chars, findings_analyzed=35",
+      "proposed_change": "Add explicit uncertainty language to the agent's output instructions. Require the agent to list at least one counter-argument or limitation in every finding.",
+      "risk_level": "low",
+      "requires_human_approval": true,
+      "status": "pending"
+    },
+    {
+      "agent_name": "research-analyst",
+      "issue": "confidence consistently at or above 0.95 \u2014 possible over-confidence",
+      "evidence": "pass_rate=1.00, avg_length=4790chars, findings_analyzed=42",
+      "proposed_change": "Add explicit uncertainty language to the agent's output instructions. Require the agent to list at least one counter-argument or limitation in every finding.",
+      "risk_level": "low",
+      "requires_human_approval": true,
+      "status": "pending"
+    },
+    {
+      "agent_name": "unknown",
+      "issue": "quality gate pass rate is 0% over 12 findings (threshold: 0.7)",
+      "evidence": "pass_rate=0.00, avg_length=6566chars, findings_analyzed=12",
       "proposed_change": "Review the agent's system prompt for vague or overly broad instructions. Add explicit criteria for what constitutes a high-confidence finding and require citing specific data points from the simulation.",
       "risk_level": "high",
+      "requires_human_approval": true,
+      "status": "pending"
+    },
+    {
+      "agent_name": "design-reviewer",
+      "issue": "confidence consistently at or above 0.95 \u2014 possible over-confidence",
+      "evidence": "pass_rate=1.00, avg_length=4456chars, findings_analyzed=9",
+      "proposed_change": "Add explicit uncertainty language to the agent's output instructions. Require the agent to list at least one counter-argument or limitation in every finding.",
+      "risk_level": "low",
       "requires_human_approval": true,
       "status": "pending"
     }
