@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `aff8b08` fix(run_optimization): inject sys.path so masonry package is importable (2026-03-21)
 - `50a0072` chore: commit session files — agent_db, mcp server, questions, scripts (2026-03-21)
 - `b63d5ca` feat(masonry): add run_optimization.py — CLI bridge for Kiln OPTIMIZE button (2026-03-21)
 - `bd1e4ea` chore: session updates — optimizer, router, questions (2026-03-21)
