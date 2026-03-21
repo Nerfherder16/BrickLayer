@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `cabd886` chore: standardize kiln build output to dist/ (canonical dir) (2026-03-21)
 - `6fce704` feat(kiln-engineer): add new agent creation SOPs — avatar, description, hot-load (2026-03-21)
 - `c19de6b` feat(audit): initial fleet audit — 30 agents scored across 500+ findings (2026-03-21)
 - `8371fa9` chore: add .gitattributes to enforce LF line endings (2026-03-21)
