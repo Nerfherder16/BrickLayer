@@ -1379,7 +1379,7 @@
 
 ### R18.1: Can the NEVER STOP loop generate matching session ID pairs by using the Agent tool to dispatch specialist subagents for investigations?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: HIGH
 **Source**: synthesis_wave17
@@ -1391,7 +1391,7 @@
 
 ### D18.1: Why does `parse_findings_dir` in run_vigil.py classify 86% of masonry findings as "unknown" agent — is it a regex mismatch or a missing field in the finding template?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: MEDIUM
 **Source**: synthesis_wave17
@@ -1403,7 +1403,7 @@
 
 ### R18.2: Is quantitative-analyst's training data (36 findings, only agent ≥10) sufficient for a DSPy MIPROv2 optimization trial?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Source**: synthesis_wave17

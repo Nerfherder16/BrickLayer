@@ -49,8 +49,19 @@ MIN_FINDINGS_FOR_METRICS = 5
 
 
 def load_scored_all(base_dir: Path) -> dict[str, list[dict[str, Any]]]:
-    """Load scored_all.jsonl and return {agent_name: [records]}."""
-    jsonl_path = base_dir / "masonry" / "training_data" / "scored_all.jsonl"
+    """Load scored_all.jsonl and return {agent_name: [records]}.
+
+    Handles two CWD layouts:
+      - Normal (base_dir = BL repo root): base_dir/masonry/training_data/scored_all.jsonl
+      - Self-research (base_dir = masonry/ dir): base_dir/training_data/scored_all.jsonl
+    """
+    # Self-research mode: CWD is the masonry/ dir itself
+    self_research_path = base_dir / "training_data" / "scored_all.jsonl"
+    normal_path = base_dir / "masonry" / "training_data" / "scored_all.jsonl"
+    if self_research_path.exists():
+        jsonl_path = self_research_path
+    else:
+        jsonl_path = normal_path
     if not jsonl_path.exists():
         return {}
     records: dict[str, list[dict[str, Any]]] = defaultdict(list)
