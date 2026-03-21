@@ -233,7 +233,7 @@ def run(
         scorer_summaries.append({
             "scorer": "score_findings",
             "records": sf_summary.get("training_ready", 0),
-            "agents_covered": list(sf_summary.get("agents_with_10_plus", {}).keys()),
+            "agents_covered": sf_summary.get("agents_covered", list(sf_summary.get("agents_with_10_plus", {}).keys())),
             "agents_10plus": len(sf_summary.get("agents_with_10_plus", {})),
         })
     except Exception as exc:  # noqa: BLE001

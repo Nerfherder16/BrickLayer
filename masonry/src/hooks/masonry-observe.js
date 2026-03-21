@@ -27,7 +27,7 @@ const SEVERITY_IMPORTANCE = {
  * Looks for "**Label**: value" patterns (case-insensitive label).
  */
 function extractMarkdownField(content, label) {
-  const re = new RegExp(`\\*{0,2}${label}\\*{0,2}:\\s*([\\w]+)`, 'i');
+  const re = new RegExp(`\\*{0,2}${label}\\*{0,2}:\\s*([\\w-]+)`, 'i');
   const m = content.match(re);
   return m ? m[1].trim() : null;
 }
