@@ -65,10 +65,15 @@ def _tool_masonry_status(args: dict) -> dict:
     if questions_file.exists():
         text = questions_file.read_text(errors="replace")
         lines = text.splitlines()
-        q_total = sum(1 for ln in lines if ln.startswith("### Q"))
+        # BL1.x: "### Q1", BL2.0: "## D1.1 [tag]", "## R1.1", "## V1", etc.
+        q_total = sum(
+            1 for ln in lines
+            if ln.startswith("### Q") or (ln.startswith("## ") and len(ln) > 3 and ln[3].isupper() and ln[4].isdigit())
+        )
         waves = sum(1 for ln in lines if ln.lower().startswith("## wave"))
-        pending = text.count("**Status:** PENDING")
-        done = text.count("**Status:** DONE")
+        # Match both BL1.x "**Status:** PENDING" and BL2.0 "**Status**: PENDING"
+        pending = sum(1 for ln in lines if "**Status" in ln and "PENDING" in ln)
+        done = sum(1 for ln in lines if "**Status" in ln and ln.strip().endswith("DONE"))
         result["questions"] = {
             "total": q_total,
             "waves": waves,
