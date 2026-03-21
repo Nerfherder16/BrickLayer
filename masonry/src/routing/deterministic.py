@@ -33,7 +33,7 @@ _SLASH_COMMANDS: list[tuple[re.Pattern[str], str]] = [
 
 # ── Mode field regex ───────────────────────────────────────────────────────
 
-_MODE_FIELD_RE = re.compile(r"\*\*Mode\*\*:\s*(\w+)")
+_MODE_FIELD_RE = re.compile(r"\*\*Mode\*\*:\s*(\w+)", re.IGNORECASE)
 
 
 def _read_file(path: Path) -> str | None:
@@ -102,7 +102,7 @@ def route_deterministic(
     # 5. Question **Mode**: field
     m = _MODE_FIELD_RE.search(request_text)
     if m:
-        mode_value = m.group(1).strip()
+        mode_value = m.group(1).strip().lower()
         agents = get_agents_for_mode(registry, mode_value)
         if agents:
             return _decision(agents[0].name, f"Mode field: {mode_value}")

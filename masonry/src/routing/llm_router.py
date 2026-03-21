@@ -13,7 +13,9 @@ import sys
 
 from masonry.src.schemas.payloads import AgentRegistryEntry, RoutingDecision
 
-_LLM_TIMEOUT = 8  # seconds — Layer 4 fallback is acceptable, don't wait long
+# Windows cold-starts for cmd.exe + claude subprocess average 4-6s (vs ~2s on Linux).
+# 20s gives sufficient headroom without exceeding Claude Code's hook timeout threshold.
+_LLM_TIMEOUT = 20 if platform.system() == "Windows" else 10
 _LLM_MODEL = "claude-haiku-4-5-20251001"
 _LLM_CONFIDENCE = 0.6
 
@@ -40,22 +42,21 @@ def route_llm(
 
     full_prompt = f"{system_prompt}\n\nUser request: {request_text}"
 
-    # On Windows, claude is a .cmd file — requires shell=True to be found.
-    # When shell=True, pass a single string (not list) to avoid argument corruption.
-    _is_windows = platform.system() == "Windows"
-    if _is_windows:
-        import shlex
-        cmd_str = f"claude --model {_LLM_MODEL} --print -p {shlex.quote(full_prompt)}"
+    # On Windows, claude is a .cmd file which is not directly executable.
+    # Wrap in ["cmd", "/c", "claude", ...] so cmd.exe resolves the .cmd extension
+    # while still passing arguments as a list (avoids shlex.quote POSIX escaping
+    # that cmd.exe does not understand, and eliminates shell=True injection risk).
+    if platform.system() == "Windows":
+        cmd = ["cmd", "/c", "claude", "--model", _LLM_MODEL, "--print", "-p", full_prompt]
     else:
-        cmd_str = None  # unused on non-Windows
+        cmd = ["claude", "--model", _LLM_MODEL, "--print", "-p", full_prompt]
 
     try:
         result = subprocess.run(
-            cmd_str if _is_windows else ["claude", "--model", _LLM_MODEL, "--print", "-p", full_prompt],
+            cmd,
             capture_output=True,
             text=True,
             timeout=_LLM_TIMEOUT,
-            shell=_is_windows,
         )
     except subprocess.TimeoutExpired:
         print("[llm_router] LLM routing timed out.", file=sys.stderr)

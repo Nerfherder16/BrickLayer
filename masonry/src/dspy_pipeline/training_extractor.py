@@ -21,6 +21,28 @@ _SEVERITY_RE = re.compile(r"^\*\*Severity\*\*:\s*(\S+)", re.MULTILINE)
 _SECTION_RE = re.compile(r"^##\s+(\w[\w\s]*)", re.MULTILINE)
 
 
+def _build_qid_to_agent_map(questions_md_path: Path) -> dict[str, str]:
+    """Extract question_id → agent_name mapping from a questions.md file.
+
+    Handles both ``**Agent**:`` (Wave 1) and ``**Method**:`` (Wave 2+) fields.
+    Returns an empty dict if the file cannot be read.
+    """
+    try:
+        text = questions_md_path.read_text(encoding="utf-8")
+    except (OSError, FileNotFoundError):
+        return {}
+
+    result: dict[str, str] = {}
+    # Split on section dividers to isolate individual question blocks
+    blocks = re.split(r"\n---\n", text)
+    for block in blocks:
+        qid_m = re.search(r"###\s+(\w+\d+\.\d+):", block)
+        agent_m = re.search(r"\*\*(?:Agent|Method)\*\*:\s*(\S+)", block)
+        if qid_m and agent_m:
+            result[qid_m.group(1)] = agent_m.group(1)
+    return result
+
+
 def _extract_section(text: str, section_name: str) -> str | None:
     """Extract content of a markdown section by name.
 
@@ -81,10 +103,18 @@ def extract_finding(finding_path: Path) -> dict[str, Any] | None:
     }
 
 
-def extract_training_data(projects_dir: Path) -> list[dict[str, Any]]:
+def extract_training_data(
+    projects_dir: Path,
+    questions_md_path: Path | None = None,
+) -> list[dict[str, Any]]:
     """Scan all findings directories under projects_dir and extract examples.
 
     Scans `*/findings/*.md` and `*/findings/wave*/*.md` patterns.
+
+    For each ``findings/`` directory found, looks for a ``questions.md`` in
+    the parent directory (the project root) to populate the ``"agent"`` field
+    on each extracted finding.  Pass ``questions_md_path`` to override the
+    auto-discovery logic with a specific file.
     """
     if not projects_dir.exists():
         return []
@@ -96,19 +126,26 @@ def extract_training_data(projects_dir: Path) -> list[dict[str, Any]]:
         if not findings_dir.is_dir():
             continue
 
+        # Build qid→agent map: explicit override > auto-discovery at project root
+        q_path = questions_md_path or (findings_dir.parent / "questions.md")
+        qid_map = _build_qid_to_agent_map(q_path) if q_path.exists() else {}
+
+        def _add(finding: dict[str, Any] | None) -> None:
+            if finding is None:
+                return
+            if qid_map and not finding.get("agent"):
+                finding["agent"] = qid_map.get(finding.get("question_id", ""))
+            results.append(finding)
+
         # Scan direct children
         for md_file in findings_dir.glob("*.md"):
-            finding = extract_finding(md_file)
-            if finding is not None:
-                results.append(finding)
+            _add(extract_finding(md_file))
 
         # Scan wave subdirectories
         for wave_dir in findings_dir.iterdir():
             if wave_dir.is_dir() and wave_dir.name.startswith("wave"):
                 for md_file in wave_dir.glob("*.md"):
-                    finding = extract_finding(md_file)
-                    if finding is not None:
-                        results.append(finding)
+                    _add(extract_finding(md_file))
 
     return results
 
@@ -138,10 +175,15 @@ def score_example(finding: dict[str, Any], agent_db: dict[str, Any]) -> float:
 def build_dataset(
     projects_dir: Path,
     agent_db_path: Path,
+    questions_md_path: Path | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """Build a grouped training dataset from project findings.
 
     Groups examples by agent name. Excludes examples from low-scoring agents.
+
+    Pass ``questions_md_path`` to supply the questions.md used for agent
+    attribution lookup; otherwise auto-discovery looks for ``questions.md``
+    in the parent of each ``findings/`` directory.
 
     Returns:
         Dict mapping agent_name -> list of example dicts.
@@ -155,7 +197,7 @@ def build_dataset(
     except (OSError, FileNotFoundError, json.JSONDecodeError):
         return {}
 
-    findings = extract_training_data(projects_dir)
+    findings = extract_training_data(projects_dir, questions_md_path=questions_md_path)
     dataset: dict[str, list[dict[str, Any]]] = {}
 
     for finding in findings:
