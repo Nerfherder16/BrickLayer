@@ -401,7 +401,7 @@
 
 ### F3.5: Apply the `re.IGNORECASE` fix to `_MODE_FIELD_RE` in `deterministic.py` and audit for other case-sensitivity issues in the deterministic layer.
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: Fix
 **Priority**: LOW
 **Motivated by**: V1.2 WARNING — `_MODE_FIELD_RE = re.compile(r"\*\*Mode\*\*:\s*(\w+)")` is case-sensitive, missing `**mode**: diagnose` (lowercase M). The synthesis_wave2.md P2 fix table identifies this as a 2-line change. The open thread from synthesis_wave2.md also asks whether other case-sensitivity issues exist in the deterministic layer.
@@ -413,7 +413,7 @@
 
 ### R3.1: Run the 20-query calibration benchmark against the live `qwen3-embedding:0.6b` Ollama endpoint to determine whether the 0.70 threshold and the proposed 0.05 margin check are discriminative for the current agent registry.
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: Research
 **Priority**: HIGH
 **Motivated by**: R2.1 FAILURE — the threshold 0.70 was confirmed as non-discriminative from first-principles analysis, but the proposed fix (margin check `best - second >= 0.05`) was not validated with live similarity data. The synthesis_wave2.md recommends `_MARGIN_THRESHOLD = 0.05` pending calibration data.
@@ -449,10 +449,89 @@
 
 ### R3.2: Does `build_dataset()` in `training_extractor.py` correctly produce training examples from the 27 Wave 1+2 findings, and which agents receive training examples and how many?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: Research
 **Priority**: MEDIUM
 **Motivated by**: synthesis_wave2.md open thread — the DSPy training pipeline was partially investigated in D2.3 (drift detector defects) but `training_extractor.py`'s `build_dataset()` function was not checked. With 27 completed findings across Waves 1 and 2, the pipeline now has enough data to produce meaningful training sets. Before Wave 3 findings accumulate further, the extractor's correctness and agent coverage should be verified.
 **Hypothesis**: `build_dataset()` extracts (question_text, finding_summary, verdict) triples from findings/*.md. The 27 findings are dominated by diagnose-analyst (7 questions) and design-reviewer (5 questions), with research-analyst (5) and benchmark-engineer (2) less represented. Some agents (frontier-analyst, competitive-analyst) have zero findings and will produce empty training sets. The D2.3 finding suggests UNCALIBRATED verdicts may produce incorrect training labels — if UNCALIBRATED is scored as failure, research-analyst's training data will be polluted with false-negative examples.
 **Method**: research-analyst
 **Success criterion**: (1) Read `src/dspy_pipeline/training_extractor.py` and trace `build_dataset()` for the 27 existing findings. (2) For each agent name found in findings, count how many training examples it receives. (3) Confirm whether UNCALIBRATED findings are excluded, included as partial-credit, or included as failures in training data. (4) Identify any agents that are over-represented (>10 examples) or under-represented (0 examples). Verdict: HEALTHY if the distribution is reasonable and UNCALIBRATED findings are handled correctly; FAILURE if the extractor would poison any agent's training set with incorrectly labeled examples; INCONCLUSIVE if findings lack agent attribution fields needed for extraction.
+
+---
+
+## Wave 4
+
+**Generated from findings**: R3.2, R3.1, D1.6, R2.2, R1.3, D3.2
+**Mode transitions applied**: R3.2 FAILURE (Research, fix spec complete) → F4.1 Fix; D1.6 FAILURE (Diagnose, diagnosis complete in prior wave) → F4.2 Fix; R2.2 FAILURE (Research, blocked on D1.6) → F4.3 Fix; R3.1 FAILURE (Research, fix spec complete) → F4.4 Fix; F4.1 FIX_APPLIED → R4.1 Validate; all P0/P1 fixes combined → R4.2 Research end-to-end measurement
+
+---
+
+### F4.1: Fix `training_extractor.py` — add agent attribution lookup from `questions.md` so `build_dataset()` produces non-empty training examples for all 35 findings
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: R3.2 FAILURE (High) — `extract_finding()` never populates the "agent" field; `score_example()` requires it; `build_dataset()` silently excludes all 35 findings, making DSPy optimization non-functional. Fix Specification Option A: add `_build_qid_to_agent_map(questions_md_path)` that parses `**Agent**:` / `**Method**:` fields from `questions.md`, then pass the resulting map into `extract_finding()` or `build_dataset()` to populate `finding["agent"]` before scoring.
+**Hypothesis**: After adding a `_build_qid_to_agent_map()` function and wiring it into `extract_finding()` or `build_dataset()`, at least 32 of the 35 findings will receive a non-None agent field, allowing `score_example()` to compute a non-zero weight, and `build_dataset()` to return a non-empty dict keyed by agent name.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `src/dspy_pipeline/training_extractor.py` and implement Option A: a regex-based `_build_qid_to_agent_map()` that extracts `question_id → agent_name` from `questions.md` using the `**Agent**:` and `**Method**:` fields. (2) Wire the map into `extract_finding()` (add optional `agent_map` param) or into `build_dataset()` before calling `score_example()`. (3) Verify by calling `build_dataset()` with the path to the findings directory — confirm the returned dict is non-empty and contains at least one agent key. (4) Count training examples per agent and compare to the expected distribution from R3.2 (diagnose-analyst ~11, research-analyst ~8, design-reviewer ~5, fix-implementer ~7). Verdict: FIX_APPLIED when `build_dataset()` returns a non-empty dict with correct agent attributions; FIX_FAILED if the dict remains empty or agent keys are systematically wrong.
+
+---
+
+### F4.2: Fix `llm_router.py` — replace `shlex.quote + shell=True` with list-form subprocess to eliminate Windows cmd.exe injection risk and Layer 3 overhead
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: D1.6 FAILURE (Medium) — on Windows, `shlex.quote()` uses POSIX single-quote escaping that cmd.exe does not recognize. A prompt containing `&`, `|`, `>`, `<`, or `"` can break or hijack the shell command. Additionally, `shell=True` adds cmd.exe process overhead that contributes to Layer 3 timeout failures (R2.2). Fix: use list-form `subprocess.run([sys.executable, "-c", llm_script, "--prompt", full_prompt], ...)` without `shell=True`, eliminating both the injection vector and the extra shell spawn.
+**Hypothesis**: Replacing the `shlex.quote(full_prompt) ... shell=True` pattern in `llm_router.py` with `subprocess.run(["python", "-c", ..., full_prompt], shell=False)` (or equivalent list-form) will eliminate the Windows escaping vulnerability and reduce subprocess overhead by removing the cmd.exe intermediary. This is a prerequisite for the `_LLM_TIMEOUT` fix (F4.3).
+**Method**: fix-implementer
+**Success criterion**: (1) Read `src/routing/llm_router.py` in full. (2) Locate the `subprocess.run` / `subprocess.Popen` call that uses `shell=True` and `shlex.quote`. (3) Rewrite the call to use list form (no `shell=True`). (4) Verify the function signature and argument passing are preserved — the LLM subprocess must still receive the full prompt as an argument. (5) Confirm no other `shell=True` usage exists in the file. Verdict: FIX_APPLIED when the `shell=True` usage is eliminated and the subprocess call uses list form; FIX_FAILED if the function's behavior changes in any way other than the escaping mechanism.
+
+---
+
+### F4.3: Set `_LLM_TIMEOUT = 20` on Windows in `llm_router.py` to prevent Layer 3 timeout failures on this machine
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: R2.2 FAILURE / R1.3 FAILURE — Layer 3 LLM router times out at 8 seconds on Windows (R2.2: median 6.2s cold, 2.1s warm; 8s limit fails ~30% of cold calls). R1.3 identified the 8s timeout as a root cause of Layer 3 being effectively dead on Windows. The synthesis_wave3.md P0 table prescribes `_LLM_TIMEOUT = 20 if sys.platform == "win32" else 10`. Requires F4.2 first (list-form subprocess eliminates cmd.exe overhead, reducing cold-start time).
+**Hypothesis**: After the F4.2 list-form subprocess fix, the cold-start overhead will decrease by approximately 1-2 seconds. Setting `_LLM_TIMEOUT = 20` for Windows will give the LLM router sufficient headroom for cold starts (estimated 4-6s post-F4.2) while remaining below Claude Code's hook timeout threshold, eliminating the ~30% Layer 3 failure rate on this machine.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `src/routing/llm_router.py` and locate the `_LLM_TIMEOUT` constant (or equivalent timeout parameter). (2) Apply platform-conditional timeout: `_LLM_TIMEOUT = 20 if sys.platform == "win32" else 10`. (3) Verify `import sys` is present or add it. (4) Confirm no other hardcoded 8s timeout values exist in the file. Verdict: FIX_APPLIED when the platform-conditional timeout is in place and no hardcoded 8s values remain; note if F4.2 was not applied first (dependency warning only, not a blocker for this change).
+
+---
+
+### F4.4: Implement `_DEFAULT_THRESHOLD = 0.60` and `_MARGIN_THRESHOLD = 0.05` in `semantic.py` to increase Layer 2 routing coverage from 15% to ~40%
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: R3.1 FAILURE (High) — live calibration benchmark confirmed only 15% of queries reach the 0.70 threshold. The recommended change (`_DEFAULT_THRESHOLD = 0.60`, `_MARGIN_THRESHOLD = 0.05`, margin check in `route_semantic()`) would increase Layer 2 acceptance to ~40% of queries while maintaining routing precision (7/8 margin-passing queries route correctly per benchmark data).
+**Hypothesis**: Lowering `_DEFAULT_THRESHOLD` from 0.70 to 0.60 and adding a margin gate (`sims[0][1] - sims[1][1] >= 0.05`) will route approximately 40% of queries through Layer 2 (up from 15%) while routing thin-margin cases to Layer 3. The benchmark showed 8/20 queries have margin >= 0.05, and 7 of those route to correct or plausible agents — implementing this change preserves precision while increasing recall.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `src/routing/semantic.py` in full. (2) Change `_DEFAULT_THRESHOLD` from 0.70 to 0.60 (or add the constant if it does not exist). (3) Add `_MARGIN_THRESHOLD = 0.05` constant. (4) In `route_semantic()`, after sorting similarities, add the margin check: if `len(sims) >= 2` and `sims[0][1] - sims[1][1] < _MARGIN_THRESHOLD`, return `None` (fall through to Layer 3) rather than routing to the top-1 agent. (5) Handle the single-agent case (only one agent in registry — no margin to compute, route directly). Verdict: FIX_APPLIED when both constants are in place and the margin check is correctly wired into the routing logic; FIX_FAILED if the margin check inverts the routing behavior (blocks instead of falls through).
+
+---
+
+### R4.1: After F4.1 is applied, verify `build_dataset()` produces non-empty training examples — count examples per agent and confirm verdict labels are correct
+
+**Status**: DONE
+**Operational Mode**: research
+**Priority**: HIGH
+**Motivated by**: F4.1 Fix — R3.2 confirmed zero training examples across 35 findings. After F4.1 adds agent attribution, this research question verifies the fix worked end-to-end: that `build_dataset()` returns non-empty data, the agent distribution matches expectations, and the verdict labels (1.0 for FIX_APPLIED/HEALTHY, 0.5 for WARNING/INCONCLUSIVE, 0.0 for FAILURE) are assigned correctly for the known corpus.
+**Hypothesis**: After F4.1, `build_dataset()` will return a dict with at least 5 agent keys. diagnose-analyst will have the most examples (~11), followed by fix-implementer (~7), research-analyst (~8), and design-reviewer (~5). FIX_APPLIED findings from Wave 3 will score 1.0; FAILURE findings will score 0.0; WARNING findings will score 0.5. The total example count will be 32-35 (3 findings may still lack mappable question IDs).
+**Method**: research-analyst
+**Success criterion**: (1) Read `src/dspy_pipeline/training_extractor.py` (post-F4.1). (2) Call `build_dataset()` with the findings directory path and confirm the return value is non-empty. (3) Count examples per agent key and compare to the expected distribution (R3.2 table: diagnose-analyst ~11, research-analyst ~8, design-reviewer ~5, fix-implementer ~7, benchmark-engineer ~1). (4) Spot-check 3-5 examples: verify verdict label matches the finding's actual verdict (e.g., F3.1 FIX_APPLIED → 1.0, R3.1 FAILURE → 0.0, D3.2 WARNING → 0.5). Verdict: HEALTHY if `build_dataset()` returns non-empty data with correct agent distribution and correct verdict labels; FAILURE if data is still empty or labels are systematically wrong; INCONCLUSIVE if F4.1 was not applied before this question runs.
+
+---
+
+### R4.2: Measure end-to-end routing pipeline coverage after F4.2 + F4.3 + F4.4 fixes — what percentage of requests does each layer handle empirically?
+
+**Status**: DONE
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Motivated by**: synthesis_wave3.md Wave 4 recommendation — after D1.6/F4.2 (list-form subprocess), R2.2/F4.3 (timeout 20s), and R3.1/F4.4 (threshold 0.60 + margin 0.05) are applied, the routing pipeline should have all four layers functional. The current empirical distribution (L1: ~15-20%, L2: ~15%, L3: 0% dead, L4: ~65-70%) should shift toward (L1: ~15-20%, L2: ~40%, L3: ~20-25%, L4: ~15-20%). This question measures the actual post-fix distribution.
+**Hypothesis**: After F4.2+F4.3+F4.4, the 20-query benchmark will show: L2 acceptance increases from 3/20 to ~8/20 (40%); L3 will handle at least 3-4 of the remaining thin-margin cases that previously fell to L4; L4 will handle only the genuinely ambiguous queries (1-3/20). Net improvement: fewer than 5/20 queries requiring user clarification, down from ~13/20 before fixes.
+**Method**: benchmark-engineer
+**Success criterion**: (1) Confirm F4.2, F4.3, and F4.4 have been applied (read the relevant source files to verify). If any are missing, mark INCONCLUSIVE with a note on which fix is missing. (2) Re-run the 20-query benchmark from R3.1 against the same Ollama endpoint (`http://192.168.50.62:11434`, `qwen3-embedding:0.6b`). (3) For each query, record which layer routed it (L1/L2/L3/L4) and the routing decision. (4) Compare per-layer coverage against the R3.1 baseline and the projected targets from synthesis_wave3.md. Verdict: IMPROVEMENT if L2 coverage >= 35% and L4 fallback <= 30%; FAILURE if coverage is unchanged or worse; INCONCLUSIVE if Ollama is unreachable or prerequisite fixes are not applied.

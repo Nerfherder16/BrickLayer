@@ -26,7 +26,8 @@ _embedding_cache: dict[str, list[float]] = {}
 _OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://192.168.50.62:11434")
 _DEFAULT_OLLAMA_URL = _OLLAMA_URL  # kept for backward-compat references
 _DEFAULT_MODEL = "qwen3-embedding:0.6b"
-_DEFAULT_THRESHOLD = 0.70
+_DEFAULT_THRESHOLD = 0.60  # lowered from 0.70 per R3.1 calibration (15% → ~40% coverage)
+_MARGIN_THRESHOLD = 0.05   # minimum gap between top-1 and top-2 scores for a confident route
 _TIMEOUT = 15.0  # longer for batch requests
 
 
@@ -78,10 +79,14 @@ def route_semantic(
     ollama_url: str = _OLLAMA_URL,
     model: str = _DEFAULT_MODEL,
     threshold: float = _DEFAULT_THRESHOLD,
+    margin_threshold: float = _MARGIN_THRESHOLD,
 ) -> RoutingDecision | None:
     """Attempt semantic routing via Ollama embeddings.
 
-    Returns RoutingDecision on a high-confidence match, or None to fall through.
+    Returns RoutingDecision only when the top-1 score meets ``threshold`` AND
+    the margin between top-1 and top-2 meets ``margin_threshold``.  Thin-margin
+    ties fall through to Layer 3 for LLM disambiguation.  Returns None to fall
+    through to the next routing layer.
     """
     if not registry:
         return None
@@ -128,19 +133,29 @@ def route_semantic(
     if not agent_embs:
         return None
 
-    # Compute similarities
-    scored = [
-        (agent, _cosine_similarity(request_emb, emb))
-        for agent, emb in agent_embs
-    ]
-    best_agent, best_score = max(scored, key=lambda x: x[1])
+    # Compute similarities and sort descending
+    scored = sorted(
+        [(agent, _cosine_similarity(request_emb, emb)) for agent, emb in agent_embs],
+        key=lambda x: x[1],
+        reverse=True,
+    )
+    best_agent, best_score = scored[0]
 
     if best_score < threshold:
         return None
+
+    # Margin check: if there are multiple agents and the gap between top-1 and
+    # top-2 is too narrow, fall through to Layer 3 for LLM disambiguation.
+    if len(scored) >= 2:
+        second_score = scored[1][1]
+        if best_score - second_score < margin_threshold:
+            return None
 
     return RoutingDecision(
         target_agent=best_agent.name,
         layer="semantic",
         confidence=best_score,
-        reason=f"Semantic match: {best_score:.2f}"[:100],
+        reason=f"Semantic match: {best_score:.2f} (margin: {best_score - scored[1][1]:.3f})"[:100]
+        if len(scored) >= 2
+        else f"Semantic match: {best_score:.2f}"[:100],
     )
