@@ -76,7 +76,7 @@ def _register_builtins() -> None:
             description="Browser runner — headless Playwright UI testing, checks page content, elements, and load time",
             target_types=["web_ui", "dashboard", "url"],
             syntax_summary="url:, expect_title:, expect_text:, expect_element:, latency_threshold_ms:, screenshot:",
-            example_question="**Mode**: browser\n**Test**: url: http://localhost:3100\n  expect_title: BrickLayer\n  expect_text: Dashboard\n  screenshot: true",
+            example_question="**Mode**: browser\n**Test**: url: https://example.com\n  expect_title: Example Domain\n  expect_text: Example\n  screenshot: true",
         ),
     )
     register(
