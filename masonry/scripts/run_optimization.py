@@ -95,11 +95,18 @@ def update_registry_dspy_status(
     registry_path.write_text("\n".join(updated), encoding="utf-8")
 
 
-def run(agent_name: str, base_dir: Path) -> int:
-    """Run optimization for agent_name. Returns exit code (0=success, 1=failure)."""
+def run(agent_name: str, base_dir: Path, backend: str = "anthropic") -> int:
+    """Run optimization for agent_name. Returns exit code (0=success, 1=failure).
+
+    Args:
+        agent_name: Name of the agent to optimize.
+        base_dir: BrickLayer root directory.
+        backend: LM backend — ``"anthropic"`` or ``"ollama"``.
+    """
 
     print(f"[init] Starting optimization for: {agent_name}")
     print(f"[init] Base directory: {base_dir}")
+    print(f"[init] Backend: {backend}")
 
     # ── Load training data ───────────────────────────────────────────────────
     # Self-research mode: CWD is masonry/ dir
@@ -138,11 +145,12 @@ def run(agent_name: str, base_dir: Path) -> int:
         print(f"[warn] Proceeding anyway.")
 
     # ── Configure DSPy ───────────────────────────────────────────────────────
-    print(f"[dspy] Configuring DSPy with claude-sonnet-4-6 ...")
+    _model_label = "qwen3:14b (Ollama)" if backend == "ollama" else "claude-sonnet-4-6 (Anthropic)"
+    print(f"[dspy] Configuring DSPy with {_model_label} ...")
     try:
         from masonry.src.dspy_pipeline.optimizer import configure_dspy, optimize_agent
         from masonry.src.dspy_pipeline.signatures import ResearchAgentSig
-        configure_dspy()
+        configure_dspy(backend=backend)
         print(f"[dspy] DSPy configured.")
     except ImportError as exc:
         if "dspy" in str(exc).lower():
@@ -167,6 +175,7 @@ def run(agent_name: str, base_dir: Path) -> int:
             signature_cls=ResearchAgentSig,
             dataset=examples,
             output_dir=output_dir,
+            backend=backend,
         )
     except Exception as exc:
         print(f"[error] Optimization failed: {exc}")
@@ -203,9 +212,15 @@ def _main() -> None:
         default=Path.cwd(),
         help="BrickLayer root directory (default: cwd)",
     )
+    parser.add_argument(
+        "--backend",
+        default="anthropic",
+        choices=["anthropic", "ollama"],
+        help='LM backend: "anthropic" (default) or "ollama" (uses http://192.168.50.62:11434)',
+    )
     args = parser.parse_args()
 
-    sys.exit(run(agent_name=args.agent_name, base_dir=args.base_dir.resolve()))
+    sys.exit(run(agent_name=args.agent_name, base_dir=args.base_dir.resolve(), backend=args.backend))
 
 
 if __name__ == "__main__":
