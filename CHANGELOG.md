@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `7b9ba84` test: add comprehensive test suite for VIGIL agent health monitor (2026-03-21)
 - `e9d08b7` chore: agent definition updates (batch 2) (2026-03-21)
 - `57db57b` chore: agent definitions and test file updates (2026-03-21)
 - `4871802` chore: masonry mcp server and onboard script updates (2026-03-21)
