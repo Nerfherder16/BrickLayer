@@ -78,11 +78,15 @@ function buildRoutingDirective(ctx, project) {
 // Main
 // ---------------------------------------------------------------------------
 
+function isResearchProject(dir) {
+  return fs.existsSync(path.join(dir, 'program.md')) &&
+         fs.existsSync(path.join(dir, 'questions.md'));
+}
+
 async function main() {
-  // Kill switch: disable all Masonry hooks when running BrickLayer in subprocess mode
-  if (process.env.DISABLE_OMC === '1' || process.env.DISABLE_MASONRY_HOOKS === '1') {
-    return;
-  }
+  // Auto-detect BrickLayer research project — hooks are silent inside BL subprocesses
+  const cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+  if (isResearchProject(cwd)) return;
 
   let raw = '';
   try {
