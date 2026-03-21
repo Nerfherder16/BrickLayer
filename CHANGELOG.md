@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `c19de6b` feat(audit): initial fleet audit — 30 agents scored across 500+ findings (2026-03-21)
 - `8371fa9` chore: add .gitattributes to enforce LF line endings (2026-03-21)
 - `cf163f8` fix(pre-compact): correct slug derivation + remove debug lines (2026-03-21)
 - `27a8388` fix(pre-compact): correct transcript path slug derivation (2026-03-21)
