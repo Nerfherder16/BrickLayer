@@ -90,16 +90,19 @@ function tryJSON(p) {
  */
 function deriveTranscriptPath(cwd, sessionId) {
   if (!sessionId) return null;
-  // Normalize slashes, split into parts, join with "--"
-  const parts = cwd.replace(/\\/g, "/").split("/").filter(Boolean);
-  // Remove drive colon: "C:" → "C"
-  if (parts[0] && parts[0].endsWith(":")) {
-    parts[0] = parts[0].slice(0, -1);
-  }
-  const slug = parts.join("--");
+  // Claude Code slug format: each character class replaced with "-"
+  //   "C:\Users\trg16\Dev\Bricklayer2.0"
+  //   → normalize backslashes: "C:/Users/trg16/Dev/Bricklayer2.0"
+  //   → colon → "-": "C-/Users/trg16/Dev/Bricklayer2.0"
+  //   → slash → "-": "C--Users-trg16-Dev-Bricklayer2.0"
+  //   → dot   → "-": "C--Users-trg16-Dev-Bricklayer2-0"
+  const slug = cwd
+    .replace(/\\/g, "/")
+    .replace(/:/g, "-")
+    .replace(/\//g, "-")
+    .replace(/\./g, "-");
   const transcriptDir = path.join(os.homedir(), ".claude", "projects", slug);
   const transcriptFile = path.join(transcriptDir, `${sessionId}.jsonl`);
-  // Only return if the file actually exists
   return fs.existsSync(transcriptFile) ? transcriptFile : null;
 }
 
@@ -190,9 +193,11 @@ async function main() {
   const domain = PROJECT_DOMAINS[projectName.toLowerCase()] || projectName.toLowerCase() || "general";
 
   const transcriptPath = deriveTranscriptPath(cwd, input.session_id);
+  process.stderr.write(`[pre-compact] transcript: ${transcriptPath || "NOT FOUND"}\n`);
 
   if (transcriptPath) {
     const turns = extractRecentTurns(transcriptPath, 20);
+    process.stderr.write(`[pre-compact] turns: ${turns.length}, hasAssistant: ${turns.some((t) => t.role === "Assistant")}\n`);
     // Only store if we have meaningful content (at least 1 assistant turn)
     const hasAssistant = turns.some((t) => t.role === "Assistant");
     if (turns.length >= 3 && hasAssistant) {
