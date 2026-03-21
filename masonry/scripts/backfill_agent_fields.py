@@ -38,6 +38,13 @@ DEFAULT_PREFIX_MAP: list[tuple[str, str]] = [
     ("D", "diagnose-analyst"),
     ("R", "research-analyst"),
     ("B", "benchmark-engineer"),
+    # Unprefixed numeric IDs (older campaign format: "1.x", "2.x", "3.x")
+    ("1.", "quantitative-analyst"),
+    ("2.", "regulatory-researcher"),
+    ("3.", "competitive-analyst"),
+    ("4.", "research-analyst"),
+    ("5.", "quantitative-analyst"),
+    ("6.", "synthesizer-bl2"),
 ]
 
 _RE_AGENT = re.compile(r"^\*\*Agent\*\*\s*:\s*(.+)$", re.MULTILINE | re.IGNORECASE)
