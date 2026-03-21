@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `73e944b` chore: add auto-generated DSPy stub for AUDIT_REPORT (onboard hook now active) (2026-03-21)
 - `2301338` feat(masonry): Wave 18 — session ID pairing confirmed, vigil operational, DSPy blockers (2026-03-21)
 - `443e9dd` chore: update CHANGELOG for 5ac9632 (2026-03-21)
 - `5ac9632` fix(D2.2+D4.1+D2.3): fix 17 broken agent_registry.yml file paths (2026-03-21)
