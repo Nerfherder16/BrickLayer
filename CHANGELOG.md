@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `9901c84` docs(masonry): final campaign synthesis -- 11 waves, 83 questions (2026-03-21)
 - `e5acd13` fix(masonry): apply Wave 11 fixes — optimizer score + wave-end verdict sync (2026-03-21)
 - `5ed52ed` fix(approver): auto-approve all tools in BrickLayer research campaign context (2026-03-21)
 - `e1f5487` feat(training): auto-refresh scored_all.jsonl at wave-end and build completion (2026-03-21)
