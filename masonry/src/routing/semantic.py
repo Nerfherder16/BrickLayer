@@ -22,9 +22,9 @@ from masonry.src.schemas.payloads import AgentRegistryEntry, RoutingDecision
 _embedding_cache: dict[str, list[float]] = {}
 
 _DEFAULT_OLLAMA_URL = "http://192.168.50.62:11434"
-_DEFAULT_MODEL = "qwen3:14b"
-_DEFAULT_THRESHOLD = 0.75
-_TIMEOUT = 5.0
+_DEFAULT_MODEL = "qwen3-embedding:0.6b"
+_DEFAULT_THRESHOLD = 0.70
+_TIMEOUT = 15.0  # longer for batch requests
 
 
 def _cosine_similarity(a: list[float], b: list[float]) -> float:
@@ -85,21 +85,38 @@ def route_semantic(
 
     try:
         with httpx.Client(timeout=_TIMEOUT) as client:
-            # Get request embedding
+            # Batch-fetch all uncached agent embeddings in a single Ollama call
+            uncached = [
+                a for a in registry
+                if _agent_corpus_key(a) not in _embedding_cache
+            ]
+            if uncached:
+                texts = [_agent_corpus_key(a) for a in uncached]
+                try:
+                    resp = client.post(
+                        f"{ollama_url}/api/embed",
+                        json={"model": model, "input": texts},
+                        timeout=_TIMEOUT,
+                    )
+                    resp.raise_for_status()
+                    batch_embs = resp.json().get("embeddings", [])
+                    for agent, emb in zip(uncached, batch_embs):
+                        _embedding_cache[_agent_corpus_key(agent)] = emb
+                except Exception as exc:
+                    print(f"[semantic] Ollama batch error: {exc}", file=sys.stderr)
+                    return None
+
+            # Get request embedding (single call)
             request_emb = _get_embedding(client, request_text, model, ollama_url)
             if request_emb is None:
                 return None
 
-            # Get/cache agent embeddings
-            agent_embs: list[tuple[AgentRegistryEntry, list[float]]] = []
-            for agent in registry:
-                corpus = _agent_corpus_key(agent)
-                if corpus not in _embedding_cache:
-                    emb = _get_embedding(client, corpus, model, ollama_url)
-                    if emb is None:
-                        continue
-                    _embedding_cache[corpus] = emb
-                agent_embs.append((agent, _embedding_cache[corpus]))
+            # Build agent embedding list from cache
+            agent_embs: list[tuple[AgentRegistryEntry, list[float]]] = [
+                (a, _embedding_cache[_agent_corpus_key(a)])
+                for a in registry
+                if _agent_corpus_key(a) in _embedding_cache
+            ]
 
     except Exception as exc:
         print(f"[semantic] Unexpected error: {exc}", file=sys.stderr)
