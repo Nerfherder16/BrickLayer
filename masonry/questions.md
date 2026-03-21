@@ -1429,7 +1429,7 @@
 
 ### D19.1: Is OVERCONFIDENT_PASS_RATE=0.95 miscalibrated for the masonry self-research campaign, causing false Thorn classifications for all agents?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: HIGH
 **Source**: synthesis_wave18

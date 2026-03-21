@@ -289,10 +289,14 @@ class TestClassifyRbt:
     def test_thorn_very_high_confidence_overconfident(self) -> None:
         from masonry.scripts.run_vigil import classify_rbt
 
-        # Confidence always >= 0.95 means over-confident — should be a thorn
-        metrics = {"overconfident": self._make_metrics(pass_rate=0.98)}
+        # Rubric-based pass_rate >= 0.95 means over-confident — should be a thorn.
+        # The OVERCONFIDENT check only fires when rubric_based=True so that
+        # confidence-only agents (no rubric data) are not falsely penalised.
+        m = self._make_metrics(pass_rate=0.98)
+        m["rubric_based"] = True
+        metrics = {"overconfident": m}
         roses, buds, thorns = classify_rbt(metrics)
-        # overconfident (pass_rate >= 0.95) is flagged as thorn, not rose
+        # overconfident (rubric pass_rate >= 0.95) is flagged as thorn, not rose
         assert "overconfident" in thorns
 
     def test_no_agents_returns_empty_lists(self) -> None:

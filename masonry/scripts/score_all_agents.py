@@ -272,10 +272,16 @@ def run(
     try:
         from masonry.scripts import score_routing  # type: ignore[import]
         sr_summary = score_routing.run(base_dir, routing_path)
+        routing_records = _load_jsonl(routing_path)
+        routing_agents = sorted({
+            rec["dispatched_agent"]
+            for rec in routing_records
+            if rec.get("dispatched_agent")
+        })
         scorer_summaries.append({
             "scorer": "score_routing",
             "records": sr_summary.get("training_ready", 0),
-            "agents_covered": [],
+            "agents_covered": routing_agents,
             "agents_10plus": 0,
         })
     except Exception as exc:  # noqa: BLE001
