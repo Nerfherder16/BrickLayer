@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `bcceb12` test: CHANGELOG auto-commit hook verification (2026-03-21)
 - `ce5609e` fix(masonry-register): parallelize Recall calls to fit within 8s hook budget (2026-03-21)
 - `55d27f6` feat(masonry): OMC gap fills — plan approval UX, SessionEnd, PreCompact hooks (2026-03-21)
 - `cd8abfd` fix(masonry): add fetch timeouts to recall.js + extend mortar to handle dev requests (2026-03-21)
