@@ -103,7 +103,7 @@
 
 ### R1.2: What percentage of real Masonry requests are routed deterministically, and does this meet the claimed 60%+ coverage?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: research
 **Priority**: HIGH
 **Hypothesis**: The 60%+ claim (per `deterministic_layer.py` docstring and `routing_architecture.md` line 33) is an assertion, not a measurement. The deterministic layer handles 5 rule types: slash commands, autopilot state, campaign state, UI state, and Mode field. In practice, many user requests are freeform text matching none of these patterns. Actual deterministic coverage may be 30-40% for mixed-use sessions.
@@ -114,7 +114,7 @@
 
 ### R1.3: Is the LLM router's 8-second timeout sufficient for Claude Haiku subprocess invocations on Windows?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: research
 **Priority**: HIGH
 **Hypothesis**: The LLM router (`llm_router.py` line 16) sets `_LLM_TIMEOUT = 8` seconds. On Windows with `shell=True` (lines 46-48), cmd.exe shell startup overhead is added. Claude Haiku cold-start latency plus shell overhead may regularly exceed 8 seconds, causing the LLM layer to timeout and fall through to Layer 4 on a significant fraction of calls, making Layer 3 unreliable on Windows.
@@ -125,7 +125,7 @@
 
 ### R1.4: Does the `_SLASH_COMMANDS` table in `deterministic.py` cover all slash commands defined in Masonry skills?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: research
 **Priority**: MEDIUM
 **Hypothesis**: The slash command table (`deterministic_layer.py` lines 25-32) hardcodes 6 patterns: `/plan`, `/build`, `/fix`, `/verify`, `/bl-run`, `/masonry-run`. CLAUDE.md lists 15+ additional skills (`/masonry-init`, `/masonry-status`, `/masonry-fleet`, `/ultrawork`, `/pipeline`, `/masonry-team`, `/masonry-code-review`, `/masonry-security-review`, `/ui-init`, `/ui-compose`, `/ui-review`, `/ui-fix`, `/retro-apply`). Each missed command traverses Layers 2-3, adding latency and LLM cost.
@@ -136,7 +136,7 @@
 
 ### R1.5: What is the failure behavior when Ollama at `192.168.50.62:11434` is unreachable during semantic routing?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: research
 **Priority**: MEDIUM
 **Hypothesis**: When Ollama is down, `route_semantic` catches the exception and returns None. However, the 15-second timeout (`_TIMEOUT = 15.0`, `semantic_layer.py` line 30) means each routing call blocks for up to 15 seconds before falling through to Layer 3. With no circuit-breaker or fast-fail after repeated failures, every non-deterministic request during an Ollama outage adds 15 seconds of latency.
@@ -147,7 +147,7 @@
 
 ### R1.6: What classes of requests reliably reach Layer 4 (fallback), and is this correct behavior or a gap?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: research
 **Priority**: MEDIUM
 **Hypothesis**: Layer 4 returns `target_agent="user"` for "genuinely ambiguous" requests. But if the registry is empty (D1.3), Ollama is down (R1.5), and the LLM times out (R1.3), then ALL non-deterministic requests reach fallback regardless of clarity. The fallback rate is a compound function of infrastructure availability, not just request ambiguity. A caller cannot distinguish "correct fallback" from "infrastructure fallback" using only the RoutingDecision.
@@ -158,7 +158,7 @@
 
 ### V1.1: Does the LLM router safely construct RoutingDecision without passing extra JSON fields to the `extra="forbid"` schema?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: validate
 **Priority**: HIGH
 **Hypothesis**: `RoutingDecision` uses `ConfigDict(extra="forbid")` (`payloads.py` line 130). The `routing_architecture.md` (line 88) claims this is safe because `llm_router.py` constructs `RoutingDecision` from named arguments, not by unpacking the parsed dict. This claim can be verified by reading `llm_router.py` lines 100-105 and confirming only `target_agent`, `layer`, `confidence`, and `reason` are passed.
@@ -169,7 +169,7 @@
 
 ### V1.2: Does the `_MODE_FIELD_RE` regex correctly extract Mode values from all valid BrickLayer question formats?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: validate
 **Priority**: MEDIUM
 **Hypothesis**: The regex `r"\*\*Mode\*\*:\s*(\w+)"` (`deterministic_layer.py` line 36) is case-sensitive. It matches `**Mode**: diagnose` but misses `**mode**: diagnose` (lowercase M). If any agent or tool produces lowercase mode fields, the deterministic layer misses them, forcing unnecessary Layer 2/3 routing.
@@ -180,7 +180,7 @@
 
 ### V1.3: Does the semantic layer's in-memory embedding cache handle registry changes (new/modified agents) correctly?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: validate
 **Priority**: MEDIUM
 **Hypothesis**: The cache `_embedding_cache` (`semantic_layer.py` line 23) is keyed by `agent.description + " " + ", ".join(agent.capabilities)`. If an agent's description changes, the old cache entry becomes dead weight and a new entry is created. If an agent is removed from the registry, its cached embedding is never evicted. Over a long-running process, the cache grows monotonically. More importantly, the cache never invalidates — stale entries cannot cause misrouting because similarity is only computed against current registry entries, but they do waste memory.
@@ -191,7 +191,7 @@
 
 ### V1.4: Does the LLM router validate that the returned `target_agent` exists in the registry before constructing the RoutingDecision?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: validate
 **Priority**: HIGH
 **Hypothesis**: `llm_router.py` lines 93-105 extract `target_agent` from the LLM's JSON response and pass it directly to `RoutingDecision` without checking membership in the registry. Claude Haiku could hallucinate an agent name, and the invalid name would propagate to the caller unchecked, causing a downstream dispatch failure.
@@ -202,7 +202,7 @@
 
 ### V1.5: Does masonry-approver auto-approve writes to Tier 1/2 authority files during build mode?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: validate
 **Priority**: MEDIUM
 **Hypothesis**: `masonry-approver` (PreToolUse, synchronous) auto-approves Write/Edit/Bash when `.autopilot/mode` is "build" or `.ui/mode` is "compose". If it checks mode but not target file path, it would auto-approve writes to `project-brief.md`, `agent_registry.yml`, or other Tier 1/2 files during automated builds, violating the source authority hierarchy.
@@ -210,3 +210,125 @@
 **Success criterion**: Read `masonry-approver.js` and determine whether it filters auto-approval by target file path or only by active mode. If it approves all writes when mode is active regardless of path, assess the risk to Tier 1/2 files.
 
 ---
+
+## Wave 2
+
+**Generated from findings**: D1.1, D1.5, R1.1, R1.3, V1.5, synthesis open threads
+**Mode transitions applied**:
+- D1.1 FAILURE (root cause identified: double-fire) → F2.1 Fix (minimum safe fix verification — remove plugin hooks.json entries)
+- V1.5 FAILURE (DIAGNOSIS_COMPLETE: path blocklist spec fully defined) → F2.2 Fix (implement blocklist)
+- D1.5 FAILURE (insufficient evidence: Stop hook ordering empirically unresolved) → D2.1 narrowing Diagnose
+- R1.1 UNCALIBRATED → R2.1 Research (live calibration benchmark)
+- R1.3 FAILURE → R2.2 Research (empirical subprocess latency measurement)
+- synthesis thread (masonry-subagent-tracker uninvestigated) → D2.2 Diagnose
+- synthesis thread (DSPy pipeline correctness uninvestigated) → D2.3 Diagnose
+- synthesis thread (masonry-approver path traversal edge case) → V2.1 Validate
+- V1.3 WARNING (stale cache) → M2.1 Monitor
+
+---
+
+### F2.1: What is the minimum safe change to eliminate hook double-fire, and does removing observe+guard from the plugin hooks.json break any functionality that the global settings.json registration does not already provide?
+
+**Status**: DONE
+**Operational Mode**: Fix
+**Priority**: HIGH
+**Motivated by**: D1.1 — FAILURE: masonry-observe and masonry-guard are registered in both the project-level `hooks/hooks.json` (no event matcher, fires on ALL PostToolUse) and the global `~/.claude/settings.json` (matcher: `Write|Edit`). The synthesis identified the fix as "remove the duplicate registrations from either the plugin config or the global settings, not both" and recommends keeping global settings.json and removing the observe+guard entries from `hooks/hooks.json`.
+**Hypothesis**: Removing masonry-observe and masonry-guard from `hooks/hooks.json` (keeping only masonry-stop in that file, or removing it entirely) eliminates the double-fire with no loss of coverage because the global `~/.claude/settings.json` registrations remain active. No functionality is lost because the global registrations already cover the exact same event type with a more specific matcher (`Write|Edit` vs. no matcher).
+**Method**: diagnose-analyst
+**Success criterion**: (1) Confirm which hooks are currently listed in `hooks/hooks.json` and whether any of them are NOT duplicated in `~/.claude/settings.json`. (2) Confirm that removing the duplicates from `hooks/hooks.json` leaves all intended coverage intact. (3) Identify any hook listed in `hooks/hooks.json` that serves a project-specific purpose not replicated in global config — if any such hook exists, it must be preserved. Verdict: DIAGNOSIS_COMPLETE if a safe, zero-loss removal list can be specified; FAILURE if removing entries from hooks.json would drop coverage for any event.
+
+---
+
+### F2.2: Does the Tier 1/2 path blocklist fix specified in V1.5 correctly reject `../`-traversed paths that resolve to Tier 1/2 targets, or can a path like `../../masonry/project-brief.md` bypass the regex patterns?
+
+**Status**: DONE
+**Operational Mode**: Fix
+**Priority**: HIGH
+**Motivated by**: V1.5 — FAILURE: masonry-approver auto-approves all writes during build mode with no path filtering. The finding specifies a 6-pattern blocklist using regex. The fix specification is structurally complete but has one untested edge case: whether the patterns handle path traversal (`../`) in `file_path` values, since a developer agent could write `file_path: "../../masonry/project-brief.md"` which the pattern `/project-brief\.md$/i` would match by suffix — but only if the suffix check is applied to the raw string.
+**Hypothesis**: The proposed regex patterns in V1.5 (`/project-brief\.md$/i`, `/agent_registry\.yml$/i`, etc.) match on the raw `file_path` string by suffix or substring. A path like `../../masonry/project-brief.md` ends with `project-brief.md` and would be caught by the `/project-brief\.md$/i` pattern. Similarly, `/[/\\]src[/\\]/` would NOT match `src/hooks/foo.js` if the path starts without a slash, but WOULD match if the path uses `./src/hooks/foo.js`. Verify all 6 proposed patterns against at least 4 path formats: relative, absolute Windows, absolute Unix, and `../`-traversed.
+**Method**: design-reviewer
+**Success criterion**: For each of the 6 proposed blocklist patterns from V1.5, provide at least one bypass path format (if any exists) and one confirmed-blocked path format. If all 6 patterns correctly block traversal paths AND cover all Tier 1/2 canonical locations, verdict: DIAGNOSIS_COMPLETE with fix implementation ready. If any pattern has a bypass, specify the corrected pattern. The fix spec must be complete enough to implement without ambiguity.
+
+---
+
+### D2.1: Does Claude Code run all registered Stop hooks regardless of individual exit codes, or does it short-circuit after the first hook exits with code 2?
+
+**Status**: DONE
+**Operational Mode**: Diagnose
+**Priority**: MEDIUM
+**Motivated by**: D1.5 — FAILURE (insufficient evidence): The finding concluded that masonry-stop-guard may prevent masonry-build-guard from executing because Claude Code may short-circuit on the first exit-code-2 Stop hook, but the exact ordering behavior could not be confirmed from documentation alone.
+**Hypothesis**: Claude Code processes synchronous Stop hooks in registration order (as they appear in `~/.claude/settings.json`). If the first hook exits with code 2 (block), Claude Code short-circuits and does not execute subsequent Stop hooks. This means the block reason shown to the user is always from whichever hook is registered first — masonry-stop-guard (uncommitted changes) would mask masonry-build-guard (pending autopilot tasks) if stop-guard is listed first.
+**Method**: diagnose-analyst
+**Success criterion**: (1) Determine the registration order of masonry-stop-guard and masonry-build-guard in `~/.claude/settings.json`. (2) Find any Claude Code documentation, source reference, or empirical test result that definitively describes Stop hook execution policy (run-all vs. short-circuit-on-block). (3) If documentation is absent, construct a minimal empirical test: two Stop hooks with different exit-code-2 conditions and distinct stdout messages — run both conditions and observe which block reason appears. Verdict: FAILURE if short-circuit is confirmed and stop-guard is registered before build-guard; HEALTHY if all Stop hooks run regardless of exit codes.
+
+---
+
+### D2.2: Does masonry-subagent-tracker.js correctly handle concurrent SubagentStart events, and does its routing_log.jsonl write introduce a race condition or data loss under rapid agent spawning?
+
+**Status**: DONE
+**Operational Mode**: Diagnose
+**Priority**: MEDIUM
+**Motivated by**: synthesis open thread — masonry-subagent-tracker.js was not investigated in Wave 1. The hook writes to two shared files per invocation: `~/.masonry/state/agents.json` (global) and `{cwd}/masonry/routing_log.jsonl`. The agents.json write is a read-modify-write (load state, push entry, save). Under rapid agent spawning (e.g., `/ultrawork` dispatching 5 agents simultaneously), multiple SubagentStart events fire concurrently.
+**Hypothesis**: The `agents.json` write in masonry-subagent-tracker.js uses `tryJSON` (read) → mutate → `safeWrite` (write) without any file locking or atomic rename. Under concurrent SubagentStart events, the last writer wins and earlier entries are silently lost. The `routing_log.jsonl` write uses `fs.appendFileSync` which is atomic for the single append but the active agent count in `masonry-state.json` will be incorrect if two hooks race on that file simultaneously.
+**Method**: diagnose-analyst
+**Success criterion**: Trace every file write in `masonry-subagent-tracker.js`. For each write: (1) determine if it is atomic (rename-based or append-only) or non-atomic (read-modify-write); (2) identify which files are shared across concurrent hook invocations; (3) for non-atomic writes, confirm whether data loss or corruption is possible. Verdict: FAILURE if agents.json or masonry-state.json can lose entries under concurrent writes; WARNING if routing_log.jsonl is safe but agents.json is not; HEALTHY if all writes are atomic or isolated.
+
+---
+
+### D2.3: Does the DSPy drift detector correctly compute `drift_pct` when `baseline_score` is 0.0, and does the training extractor produce valid training examples from findings that use non-standard verdict strings like `UNCALIBRATED`?
+
+**Status**: DONE
+**Operational Mode**: Diagnose
+**Priority**: MEDIUM
+**Motivated by**: synthesis open thread — the DSPy pipeline (drift_detector.py, training_extractor.py) was not investigated in Wave 1 despite being a core part of the Masonry optimization loop.
+**Hypothesis**: Two distinct correctness issues may exist: (1) In `drift_detector.py` line 81-84: when `baseline_score == 0.0`, `drift_pct` is forced to `0.0` regardless of `current_score`. This means a brand-new agent (score 0.0) that consistently produces FAILURE verdicts (current_score = 0.0) would report drift_pct = 0.0 and alert_level = "ok" — a false negative. (2) In `training_extractor.py`, the `_VERDICT_RE` regex matches `**Verdict**: UNCALIBRATED` and extracts the string "UNCALIBRATED". The `_score_verdict` function in drift_detector.py scores this as 0.0 (failure tier), but "UNCALIBRATED" is not a failure — it is a data-gap finding that should arguably score 0.5. If the training extractor passes "UNCALIBRATED" into drift scoring, it penalizes the research-analyst agent unfairly.
+**Method**: diagnose-analyst
+**Success criterion**: (1) Confirm whether `drift_pct = 0.0` when `baseline_score = 0.0` regardless of `current_score` — if yes, specify whether this is intentional guard behavior or a logic error. (2) Confirm whether "UNCALIBRATED" appears in `_OK_VERDICTS`, `_PARTIAL_VERDICTS`, or neither in `drift_detector.py`. If it is absent from both sets (scoring 0.0), determine whether this is a known gap in the verdict taxonomy or an omission. Verdict: FAILURE for each confirmed correctness defect; HEALTHY if both behaviors are intentional and documented.
+
+---
+
+### R2.1: What is the actual cosine similarity distribution produced by `qwen3-embedding:0.6b` for the current agent registry descriptions, and does the 0.70 threshold fall in a discriminative region or a plateau?
+
+**Status**: DONE
+**Operational Mode**: Research
+**Priority**: HIGH
+**Motivated by**: R1.1 UNCALIBRATED — the threshold 0.70 for semantic routing was set without calibration data. The finding could not estimate the distribution without live measurement. This question targets the specific data gap that caused UNCALIBRATED.
+**Hypothesis**: For a 0.6B embedding model, cosine similarities between unrelated short-text descriptions (agent capability strings of 10-30 words) typically cluster between 0.55 and 0.80 due to the model's limited representational capacity. The threshold 0.70 may fall inside this cluster, making it highly sensitive to small description wording changes. A discriminative threshold would be one where the similarity gap between a true positive (correct agent) and the next-best match exceeds 0.10.
+**Method**: research-analyst
+**Success criterion**: Using the agent descriptions in `agent_registry.yml`, compute (or estimate from qwen3-embedding literature/benchmarks) the expected pairwise similarity range between: (a) agents in the same mode (e.g., all diagnose-mode agents), (b) agents in different modes, and (c) a query string against its correct target agent vs. the second-best match. If the threshold 0.70 falls within a dense cluster where most pairs score 0.65-0.80, verdict: FAILURE (threshold not discriminative). If the threshold lies in a clear gap between positive and negative matches, verdict: CALIBRATED. Minimum acceptable evidence: cite published benchmarks for qwen3-embedding or similar small embedding models on short-text retrieval tasks.
+
+---
+
+### R2.2: What is the actual subprocess invocation latency for `claude --print` on this Windows 11 machine, and does it confirm or falsify the R1.3 finding that the 8-second timeout is too tight?
+
+**Status**: DONE
+**Operational Mode**: Research
+**Priority**: HIGH
+**Motivated by**: R1.3 FAILURE — the finding estimated 6-9 second median latency for `claude --print` on Windows based on known startup costs, but this was not empirically measured. The synthesis flags this as the highest-value Wave 2 benchmark.
+**Hypothesis**: Shell startup (cmd.exe) on Windows 11 adds 200-400ms. Claude CLI cold-start (process initialization, model connection) adds 2-5s. A minimal `claude --print -p "echo 1"` invocation should complete in 3-6 seconds total, leaving no margin against an 8-second timeout. Under any network latency or resource contention, the call will regularly exceed 8 seconds.
+**Method**: benchmark-engineer
+**Success criterion**: Measure wall-clock time for at least 3 invocations of `claude --model claude-haiku-4-5 --print -p "reply with the single word ok"` using `subprocess.run` with `shell=True` on this machine (Windows 11, PowerShell or cmd.exe). Report: min, median, max latency. Compare against the `_LLM_TIMEOUT = 8` budget. If median > 6s: verdict FAILURE (confirms R1.3, timeout confirmed too tight). If median <= 5s: verdict HEALTHY (R1.3 estimate was pessimistic). If the `claude` CLI is unavailable or errors on all 3 attempts, report INCONCLUSIVE with the error.
+
+---
+
+### V2.1: Does the `getCandidateDirs` function in masonry-approver.js correctly extract the target file path for Bash tool calls, and could a Bash command that writes to a Tier 1/2 file (e.g., `echo x >> project-brief.md`) bypass the proposed path blocklist?
+
+**Status**: DONE
+**Operational Mode**: Validate
+**Priority**: MEDIUM
+**Motivated by**: V1.5 FAILURE — the V1.5 fix specification (path blocklist) addresses Write and Edit tool calls but the `tool_input` for a Bash call does not have a `file_path` field — it has a `command` field. A developer agent using `Bash` to append to `project-brief.md` would pass `toolInput.command = "echo x >> project-brief.md"` with `toolInput.file_path = undefined`, causing `isTier1Tier2("")` to return false and the write to be auto-approved.
+**Hypothesis**: The proposed blocklist in V1.5 checks `toolInput.file_path || toolInput.path || ''`. For Bash tool calls, both `file_path` and `path` are undefined, so the effective path is `''`. The blocklist returns false for empty string, meaning ALL Bash commands are auto-approved during build mode regardless of what files they write to. Since developer agents routinely use Bash (`cp`, `echo >>`, `python scripts/...`) during builds, this represents a complete bypass for the Bash tool vector.
+**Method**: design-reviewer
+**Success criterion**: (1) Read `masonry-approver.js` `getCandidateDirs` and determine exactly what it extracts from a Bash tool call's `tool_input`. (2) Determine whether the proposed `isTier1Tier2` check from V1.5 would be applied to the Bash `command` string or only to `file_path`. (3) If the Bash vector is unblocked, specify the additional check needed (e.g., scan the `command` string for Tier 1/2 filename patterns). Verdict: FAILURE if Bash writes to Tier 1/2 files are not covered by the V1.5 fix specification; DIAGNOSIS_COMPLETE if a supplementary pattern for Bash command scanning can be fully specified.
+
+---
+
+### M2.1: Add `_embedding_cache` size to monitor-targets.md with a WARNING threshold at 150 entries and a FAILURE threshold at 500 entries, measured by inspecting the cache dict length in `semantic.py` during long-running MCP server sessions.
+
+**Status**: DONE
+**Operational Mode**: Monitor
+**Priority**: LOW
+**Motivated by**: V1.3 WARNING — the stale embedding cache grows monotonically and cannot cause misrouting but represents unbounded memory growth in long-running MCP server processes. The finding recommended a cache size limit as a future action.
+**Hypothesis**: In normal operation (20-40 agents, stable registry), the cache will stay well under 150 entries. The WARNING threshold triggers only during extended testing scenarios with frequent agent description churn. The FAILURE threshold (500 entries) would indicate a cache growth bug rather than normal operation.
+**Method**: research-analyst
+**Success criterion**: (1) Confirm whether a `monitor-targets.md` file exists in the masonry project; if not, create it with a standard header. (2) Add a monitor entry for `_embedding_cache_size` with: metric name, measurement method (inspect `len(semantic._embedding_cache)` via MCP server diagnostic endpoint or log line), WARNING threshold = 150, FAILURE threshold = 500, check frequency = on each `masonry_optimization_status` MCP tool call. Verdict: COMPLETE when the monitor entry is written and the measurement method is actionable without code changes.
