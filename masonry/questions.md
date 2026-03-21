@@ -1228,7 +1228,7 @@
 
 ### F15.1: Fix the ops dedup key collision — include `commit_hash` in `_dedup_records()` else-branch so git-nerd/karen training records survive
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: HIGH
 **Source**: synthesis_wave14
@@ -1240,7 +1240,7 @@
 
 ### R15.1: Does `masonry-subagent-tracker.js` correctly emit "start" events with session_id that matches the session_id used by `masonry-observe.js` when writing findings?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: HIGH
 **Source**: synthesis_wave14

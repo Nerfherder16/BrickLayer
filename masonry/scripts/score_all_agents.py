@@ -134,13 +134,15 @@ def _dedup_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         session = rec.get("session_id", "")
         source = rec.get("source", "")
         branch = rec.get("branch", "")
+        # commit_hash used as discriminator for ops records (F15.1)
+        commit_hash = rec.get("commit_hash", "")
 
         if qid:
             key = f"qid:{qid}:{agent}"
         elif session:
             key = f"session:{session}:{agent}"
         else:
-            key = f"src:{source}:{branch}:{agent}:{rec.get('score', 0)}"
+            key = f"src:{source}:{commit_hash or branch}:{agent}:{rec.get('score', 0)}"
 
         seen[key] = rec
 
