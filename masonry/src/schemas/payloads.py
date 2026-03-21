@@ -177,9 +177,15 @@ class DiagnosisPayload(BaseModel):
 # ---------------------------------------------------------------------------
 
 class AgentRegistryEntry(BaseModel):
-    """Registry entry for a Masonry agent, sourced from agent_registry.yml."""
+    """Registry entry for a Masonry agent, sourced from agent_registry.yml.
 
-    model_config = ConfigDict(extra="forbid")
+    Uses ``extra="ignore"`` (not ``extra="forbid"``) so that onboarding-added
+    fields (``dspy_status``, ``drift_status``, ``last_score``,
+    ``runs_since_optimization``, ``registrySource``) do not fail validation
+    when the registry is loaded by registry_loader or run_drift_check (F11.1).
+    """
+
+    model_config = ConfigDict(extra="ignore")
 
     name: str
     file: str

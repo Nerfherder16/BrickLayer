@@ -33,7 +33,7 @@ _SLASH_COMMANDS: list[tuple[re.Pattern[str], str]] = [
 
 # ── Mode field regex ───────────────────────────────────────────────────────
 
-_MODE_FIELD_RE = re.compile(r"\*\*Mode\*\*:\s*(\w+)", re.IGNORECASE)
+_MODE_FIELD_RE = re.compile(r"\*\*(?:Operational\s+)?Mode\*\*:\s*(\w+)", re.IGNORECASE)
 
 
 def _read_file(path: Path) -> str | None:

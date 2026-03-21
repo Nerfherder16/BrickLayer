@@ -21,11 +21,16 @@ const path = require("path");
  */
 function runBackground(cmd, args, cwd) {
   try {
-    const proc = spawn(cmd, args, {
+    // On Windows, wrap in cmd.exe to resolve .cmd shims (npx, etc.) without
+    // shell: true — shell: true joins args without quoting, breaking paths
+    // with spaces (R6.1 / F10.2).
+    const finalCmd = process.platform === "win32" ? "cmd" : cmd;
+    const finalArgs = process.platform === "win32" ? ["/c", cmd, ...args] : args;
+    const proc = spawn(finalCmd, finalArgs, {
       detached: true,
       stdio: "ignore",
       cwd,
-      shell: process.platform === "win32",
+      shell: false,
     });
     proc.unref();
   } catch {
