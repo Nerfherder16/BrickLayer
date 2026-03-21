@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `5b1d17c` chore: update masonry/questions.md (2026-03-21)
 - `0bfc56a` chore: session updates — hooks, routing, questions (2026-03-21)
 - `e1180dc` fix(routing+dspy): Wave 3-4 fixes — training extractor, LLM router, semantic threshold (2026-03-21)
 - `c638fc8` docs: comprehensive docs update — reflect BrickLayer 2.0 platform architecture (2026-03-21)
