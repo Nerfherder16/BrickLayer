@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `a038099` fix(hooks): remove duplicate const cwd declaration in masonry-register.js (2026-03-21)
 - `c12f221` chore: session artifacts — questions.md updates, routing log (2026-03-21)
 - `337628f` docs(masonry): Wave 21 -- vigil HEALTHY (0 thorns), stale path fixed, DSPy Ollama spec complete (2026-03-21)
 - `3b173fd` feat(bl-audit): add Wave 2 question bank — Mortar adherence + post-fix validation (2026-03-21)
