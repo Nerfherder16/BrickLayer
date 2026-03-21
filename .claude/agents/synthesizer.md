@@ -3,7 +3,7 @@ name: synthesizer
 model: opus
 description: >-
   Integrates findings from all domains into a coherent best-way-forward narrative. Invoke after the research loop completes, before running analyze.py. Identifies cross-domain dependencies, conflicting constraints, and the minimum viable set of changes.
-modes: [research]
+modes: [synthesis-bl1]
 capabilities:
   - cross-domain dependency and conflict mapping
   - critical path and minimum viable change set identification

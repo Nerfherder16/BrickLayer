@@ -3,7 +3,7 @@ name: planner
 model: opus
 description: >-
   Pre-campaign strategic planner. Runs once at campaign init — reads project-brief.md and docs/, ranks research domains by risk, produces a campaign targeting brief for question-designer, and estimates wave count. Call before question-designer on any new project.
-modes: [research]
+modes: [meta]
 capabilities:
   - research domain risk ranking from project-brief and docs
   - campaign targeting brief authoring for question-designer

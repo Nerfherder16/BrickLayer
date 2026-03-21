@@ -3,7 +3,7 @@ name: hypothesis-generator-bl2
 model: sonnet
 description: >-
   Generates follow-up questions for BL 2.0 campaigns. Use instead of hypothesis-generator.md. Reads recent findings, applies mode-transition rules, and generates questions with correct operational modes and ID prefixes based on what was found.
-modes: [research, evolve]
+modes: [hypothesis, hypothesis-bl2]
 capabilities:
   - BL 2.0 mode-transition rule application (DIAGNOSIS_COMPLETE → Fix questions, etc.)
   - correct operational mode and ID prefix assignment for generated questions

@@ -3,7 +3,7 @@ name: skill-forge
 model: haiku
 description: >-
   Post-campaign agent that distills synthesis findings into reusable Claude Code skills (~/.claude/skills/). Identifies recurring patterns, encodes them as executable procedures, and registers them in skill_registry.json for overseer review. Also repairs stale or incorrect existing skills.
-modes: [evolve, agent]
+modes: [meta]
 capabilities:
   - recurring finding pattern identification and skill extraction
   - Claude Code skill file authoring in ~/.claude/skills/
