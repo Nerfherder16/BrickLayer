@@ -1252,7 +1252,7 @@
 
 ### D15.1: Why does `score_findings.py` report 61 training_ready records from only 1 agent — which agent has 61 findings and are any masonry findings accidentally included?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: MEDIUM
 **Source**: synthesis_wave14
@@ -1264,11 +1264,61 @@
 
 ### R15.2: What is the current state of `masonry/src/hooks/masonry-subagent-tracker.js` — does it correctly track the session_id and agent name for routing training?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Source**: synthesis_wave14
 **Hypothesis**: masonry-subagent-tracker.js was the focus of the downstream_success gap (R13.2). After F14.2, it now has a pairing partner (masonry-observe.js emits "finding" events). But the tracker's own "start" event format must match score_routing.py's expected schema. The hook was modified in commit 7b4472f (DISABLE_OMC=1 kill switch). It's possible the kill switch or another recent change introduced a regression in the start event format or session_id extraction.
 **Method**: research-analyst
 **Success criterion**: (1) Read masonry-subagent-tracker.js in full. (2) Verify the "start" event JSON format matches score_routing.py's expected fields. (3) Verify DISABLE_OMC=1 kill switch is correct — it should disable the hook, not corrupt output. (4) Confirm agent name extraction from SubagentStart hook input. Verdict: HEALTHY if format correct; WARNING if schema mismatch detected.
+
+---
+
+## Wave 16
+
+### F16.1: Fix CWD guard in `masonry-observe.js` and `masonry-subagent-tracker.js` to resolve routing_log.jsonl path correctly when CWD is the masonry/ directory itself
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: HIGH
+**Source**: synthesis_wave15
+**Hypothesis**: R15.1 identified that both hooks use `path.join(cwd, 'masonry')` to locate the masonry/ directory. When CWD = masonry/ (as in self-research sessions), this resolves to `masonry/masonry/` which doesn't exist → routing_log.jsonl writes are silently dropped. Fix: check if `path.basename(cwd) === 'masonry'` first and use cwd directly, else fall back to `path.join(cwd, 'masonry')`.
+**Method**: fix-implementer
+**Success criterion**: (1) Update CWD guard in both masonry-observe.js and masonry-subagent-tracker.js. (2) Syntax-check both files. (3) Write a finding and verify routing_log.jsonl receives a "finding" event. Verdict: FIX_APPLIED if finding events appear in routing_log.jsonl during current session.
+
+---
+
+### R16.1: After F16.1 is applied, does `score_routing.py` successfully pair a "start" + "finding" event pair and produce a session scoring >70/100?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: HIGH
+**Source**: synthesis_wave15
+**Hypothesis**: Once the CWD guard is fixed, masonry self-research sessions can generate routing training signal. A "start" event (from SubagentStart when Mortar/Trowel spawns a specialist) + a matching "finding" event (from PostToolUse when the specialist writes a finding) with the same session_id → downstream_success=30pts → total=100pts for correctly dispatched known agents. This would exceed min_training_score=65 and produce the first routing training records from masonry self-research.
+**Method**: research-analyst
+**Success criterion**: Run `python masonry/scripts/score_routing.py` after F16.1 and verify at least 1 session scores >70/100. Verdict: HEALTHY if any session scores 100; WARNING if sessions score 70 (correct dispatch but no finding pair); FAILURE if no records produced.
+
+---
+
+### D16.1: Why does `score_findings.py` discovery include 675 findings but only 61 pass TRAINING_THRESHOLD=60 — which scoring dimension(s) fail for the rejected 614 findings?
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: LOW
+**Source**: synthesis_wave15
+**Hypothesis**: 614 of 675 findings are below the 60-point training threshold. These are predominantly from recall and recall-arch-frontier projects (494 findings combined). These BL1.x-format findings likely fail on `confidence_calibration` (no `**Confidence**:` field → 0 pts) and/or `evidence_quality` (short or generic evidence → low pts). Quantifying which dimension fails most often would help prioritize whether backfilling missing fields or adjusting the threshold would most improve training data coverage.
+**Method**: diagnose-analyst
+**Success criterion**: (1) Run score_finding() on a sample of the 614 rejected findings. (2) Identify which dimensions score 0. (3) Determine if most rejections are from confidence_calibration=0 (missing field) or evidence_quality=0. (4) Count how many would pass if the threshold were 50 instead of 60. Verdict: DIAGNOSIS_COMPLETE with dimension-level failure breakdown.
+
+---
+
+### R16.2: Is the `score_findings.py` summary table "Agents: 1" column inconsistency worth fixing, and what would the correct unified metric be?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: LOW
+**Source**: synthesis_wave15
+**Hypothesis**: D15.1 found that the "Agents" column in score_all_agents.py summary shows `agents_with_10_plus` for score_findings but `total agents covered` for other scorers. This inconsistency makes the TOTAL row meaningless for the "Agents" column (it sums across different semantics). The fix would standardize the column to always show total agents covered. But it may be intentional — agents_with_10_plus is the training-relevant metric for findings.
+**Method**: research-analyst
+**Success criterion**: (1) Read score_all_agents.py summary table logic. (2) Determine if the inconsistency is intentional or accidental. (3) Propose whether to fix or document. Verdict: HEALTHY if intentional/documented; WARNING if accidental inconsistency that misleads users.
 
