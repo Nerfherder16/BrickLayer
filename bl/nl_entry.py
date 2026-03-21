@@ -1088,20 +1088,28 @@ def generate_from_description(
 # ---------------------------------------------------------------------------
 
 
+_MODE_TO_METHOD_AGENT: dict[str, str] = {
+    "diagnose": "diagnose-analyst",
+    "validate": "benchmark-engineer",
+    "research": "research-analyst",
+}
+
+
 def _question_to_md(q: dict) -> str:
-    """Render a question dict as a questions.md block."""
+    """Render a question dict as a BL 2.0-compatible questions.md block."""
+    mode = q.get("mode", "diagnose")
+    method_agent = _MODE_TO_METHOD_AGENT.get(mode, "research-analyst")
+    priority = str(q.get("priority", "medium")).upper()
     lines = [
-        f"## {q['id']} [PENDING] {q['title']}",
-        f"**Mode**: {q['mode']}",
-        f"**Domain**: {q.get('domain', 'D4')}",
-        f"**Priority**: {q.get('priority', 'high')}",
-        "**Source**: nl_entry",
+        f"### {q['id']}: {q['title']}",
+        "",
         "**Status**: PENDING",
+        f"**Operational Mode**: {mode}",
+        f"**Priority**: {priority}",
+        "**Source**: nl_entry",
         f"**Hypothesis**: {q['question']}",
-        "**Test**: Read the relevant code and verify the behavior described above.",
-        "**Verdict threshold**:",
-        "- HEALTHY: No failure mode found; behavior is correct under the described conditions",
-        "- FAILURE: A concrete failure mode, race, or correctness gap is found",
+        f"**Method**: {method_agent}",
+        "**Success criterion**: No concrete failure mode found (HEALTHY) or a specific failure mode, race, or correctness gap is identified (FAILURE/WARNING).",
         "",
     ]
     return "\n".join(lines)

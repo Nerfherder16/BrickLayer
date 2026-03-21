@@ -287,6 +287,27 @@ async function main() {
     ...(Object.keys(verdictUpdate).length ? { verdicts: verdictUpdate } : {}),
   });
 
+  // Emit "finding" event to routing_log.jsonl for DSPy routing training signal (F14.2)
+  // Pairs with "start" events from masonry-subagent-tracker.js to score downstream_success.
+  if (verdict !== 'UNKNOWN') {
+    const agentField = extractMarkdownField(fileContent, 'Agent') || 'unknown';
+    const routingLogPath = path.join(cwd, 'masonry', 'routing_log.jsonl');
+    const findingEntry = JSON.stringify({
+      timestamp: new Date().toISOString(),
+      event: 'finding',
+      agent: agentField,
+      session_id: sessionId,
+      verdict,
+      qid,
+    });
+    try {
+      const masonryDir = path.join(cwd, 'masonry');
+      if (fs.existsSync(masonryDir)) {
+        fs.appendFileSync(routingLogPath, findingEntry + '\n', 'utf8');
+      }
+    } catch (_err) { /* non-fatal */ }
+  }
+
   process.exit(0);
 }
 

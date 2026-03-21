@@ -1164,3 +1164,111 @@
 **Method**: research-analyst
 **Success criterion**: (1) Read `bl/nl_entry.py` to see the question template. (2) Check whether generated questions include `**Operational Mode**:` and `**Method**:` fields. (3) If testable, call `generate_from_description("test question about hook latency")` and inspect the output. Verdict: HEALTHY if BL 2.0-compatible output; WARNING if missing optional fields; FAILURE if missing Mode or Method which would break Trowel routing.
 
+
+---
+
+## Wave 14
+
+### F14.1: Fix `_question_to_md()` in `bl/nl_entry.py` to use `**Operational Mode**:` and `**Method**:` instead of `**Mode**:` and `**Test**:`
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: HIGH
+**Hypothesis**: R13.5 identified that `masonry_nl_generate` outputs `**Mode**:` (not `**Operational Mode**:`) and `**Test**:` (not `**Method**:`). While Trowel's `_MODE_FIELD_RE` regex accepts `**Mode**:`, agents receive degraded context because they expect `**Method**:` to identify the specialist agent. The fix is a one-line template change in `_question_to_md()` in `bl/nl_entry.py`.
+**Method**: fix-implementer
+**Success criterion**: (1) Update `_question_to_md()` to use `**Operational Mode**:` instead of `**Mode**:` and `**Method**: {agent-from-mode}` instead of `**Test**:`. (2) Update `**Verdict threshold**:` to `**Success criterion**:`. (3) Verify `generate_from_description()` output matches BL 2.0 format. Verdict: FIX_APPLIED if all three fields corrected; PARTIAL if only Mode fixed; FAILURE if changes break anything.
+
+---
+
+### F14.2: Add `downstream_success` event emission to `masonry-observe.js` for routing training signal
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: MEDIUM
+**Hypothesis**: R13.2 found that `score_routing.py`'s `downstream_success` dimension (30pts) is permanently 0 because `masonry-subagent-tracker.js` never writes "finding" events to `routing_log.jsonl`. A "finding" event `{"event":"finding","agent":"...","session_id":"...","verdict":"..."}` should be emitted after a research agent writes a finding file. `masonry-observe.js` (PostToolUse Write/Edit hook) already detects when findings are written — it's the right place to emit this event.
+**Method**: fix-implementer
+**Success criterion**: (1) Locate where `masonry-observe.js` detects finding writes. (2) Add routing_log.jsonl append with `{"event":"finding","agent":"...","session_id":"...","verdict":"...","timestamp":"..."}` after finding detection. (3) Verify the format matches `score_routing.py`'s expected schema. Verdict: FIX_APPLIED if finding events are emitted and score_routing.py produces downstream_success>0.
+
+---
+
+### R14.1: Does `run_vigil.py` correctly classify masonry agents using the new `scored_all.jsonl` + `src/scoring/rubrics.py` integration?
+
+**Status**: DONE
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Hypothesis**: The phase-16 commit modified `run_vigil.py` to integrate `masonry.src.scoring.rubrics.max_score()` for normalizing scores when classifying agents into Roses/Buds/Thorns. Previously vigil only classified findings-category agents. Now it should classify code, ops, and routing agents too. Since scored_all.jsonl excludes masonry's own research agents (R13.1), vigil's masonry-scope view should only show findings agents from ADBP, plus code/ops/routing agents from the recent sessions.
+**Method**: research-analyst
+**Success criterion**: Run `python -m masonry.scripts.run_vigil --project .` and check: (1) Does it run without errors? (2) Does it use rubrics.py for normalization? (3) What agents appear in each category (Roses/Buds/Thorns)? (4) Are any masonry-specific research agents (fix-implementer, diagnose-analyst) incorrectly absent? Verdict: HEALTHY if vigil produces a meaningful Roses/Buds/Thorns report; WARNING if masonry agents absent; FAILURE if errors.
+
+---
+
+### R14.2: Are the `masonry.src.scoring.rubrics` import guards in `run_vigil.py` functioning correctly — does graceful fallback work when rubrics is unavailable?
+
+**Status**: DONE
+**Operational Mode**: research
+**Priority**: LOW
+**Hypothesis**: `run_vigil.py` has a try/except import guard for `masonry.src.scoring.rubrics`: `try: from masonry.src.scoring.rubrics import max_score as _rubric_max_score; _HAS_RUBRICS = True except ImportError: _HAS_RUBRICS = False; def _rubric_max_score(agent_name): return 100`. When `_HAS_RUBRICS=True`, scores are normalized against per-category maxima. When False, all agents use 100 as denominator. The guard has never been explicitly tested with rubrics unavailable.
+**Method**: research-analyst
+**Success criterion**: (1) Confirm `_HAS_RUBRICS=True` in the current environment. (2) Trace how `_rubric_max_score()` is used in classification logic. (3) Verify that `max_score("research-analyst")` returns 100 (findings category). (4) Verify `max_score("developer")` returns 100 (code: 50+20+30=100). Verdict: HEALTHY if rubrics loads correctly and max_scores are accurate; WARNING if normalization has bugs.
+
+---
+
+### D14.1: Why does `score_all_agents.py` count 238 total records but only write 64 to `scored_all.jsonl` — what filter reduces 238 to 64?
+
+**Status**: DONE
+**Operational Mode**: diagnose
+**Priority**: LOW
+**Hypothesis**: `score_all_agents.py` reports 238 total raw records across all scorers, but only 64 pass to `scored_all.jsonl`. A filter is applied — likely `min_training_score` per category (findings=60, code=70, ops=60, routing=65). The 238→64 reduction (73% filtered out) seems high. If most ops agent findings are being filtered, the training signal for git-nerd and karen is thin despite 170 raw records.
+**Method**: diagnose-analyst
+**Success criterion**: (1) Read `score_all_agents.py`'s merge/filter logic. (2) Identify what threshold each category applies. (3) Count how many records fail the threshold per category. (4) Verify whether the 170 ops records include many duplicate or low-quality entries. Verdict: DIAGNOSIS_COMPLETE with exact filter counts per category.
+
+---
+
+## Wave 15
+
+### F15.1: Fix the ops dedup key collision — include `commit_hash` in `_dedup_records()` else-branch so git-nerd/karen training records survive
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: HIGH
+**Source**: synthesis_wave14
+**Hypothesis**: D14.1 identified that 173 ops records collapse to 2 in `_dedup_records()` because the else-branch key `f"src:{source}:{branch}:{agent}:{score}"` has no discriminator — all ops records share source="git_log", branch="", and score=100. Adding `commit_hash` to the key restores full training signal for git-nerd (3 → 3) and karen (170 → 170) in scored_all.jsonl.
+**Method**: fix-implementer
+**Success criterion**: Modify `_dedup_records()` in `score_all_agents.py` to use `commit_hash` in the else-branch. Re-run `score_all_agents.py` and verify `scored_all.jsonl` grows from 64 to ~235 records with karen=170 and git-nerd=3. Verdict: FIX_APPLIED if counts are correct.
+
+---
+
+### R15.1: Does `masonry-subagent-tracker.js` correctly emit "start" events with session_id that matches the session_id used by `masonry-observe.js` when writing findings?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: HIGH
+**Source**: synthesis_wave14
+**Hypothesis**: F14.2 fixed masonry-observe.js to emit "finding" events with the session_id from the PostToolUse hook input. masonry-subagent-tracker.js emits "start" events with session_id from SubagentStart hook input. For score_routing.py to pair them, both hooks must use the same Claude Code session_id. If the session_id values differ between SubagentStart and PostToolUse events, downstream_success would never trigger even after F14.2.
+**Method**: research-analyst
+**Success criterion**: (1) Read masonry-subagent-tracker.js and confirm how session_id is extracted. (2) Read masonry-observe.js and confirm session_id extraction. (3) Verify both use `input.session_id` or equivalent from their respective hook payloads. (4) Check if SubagentStart and PostToolUse hooks receive the same session_id for the same Claude Code session. Verdict: HEALTHY if session_ids match; WARNING if there's a structural mismatch.
+
+---
+
+### D15.1: Why does `score_findings.py` report 61 training_ready records from only 1 agent — which agent has 61 findings and are any masonry findings accidentally included?
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: MEDIUM
+**Source**: synthesis_wave14
+**Hypothesis**: `score_all_agents.py` summary shows score_findings produced 61 records from 1 agent (the `agents_with_10_plus` count is 1, meaning only 1 agent has 10+ training examples). This single agent with 61 records is likely research-analyst or quantitative-analyst from ADBP. But the scored_all.jsonl shows quantitative-analyst=35, research-analyst=5, competitive-analyst=6, regulatory-researcher=5, synthesizer-bl2=6 = 57 findings-category records total. The 61 vs 57 discrepancy and the "1 agent with 10+" observation are inconsistent with 5 distinct agents having findings data.
+**Method**: diagnose-analyst
+**Success criterion**: (1) Run score_findings.py directly and capture its summary. (2) Identify which agent has 61 records (likely quantitative-analyst with ADBP simulation data). (3) Confirm no masonry findings are accidentally included. (4) Explain the discrepancy between score_findings output (61, 1 agent) and scored_all.jsonl breakdown (57 across 5 agents). Verdict: DIAGNOSIS_COMPLETE with exact record counts per agent before and after dedup.
+
+---
+
+### R15.2: What is the current state of `masonry/src/hooks/masonry-subagent-tracker.js` — does it correctly track the session_id and agent name for routing training?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Source**: synthesis_wave14
+**Hypothesis**: masonry-subagent-tracker.js was the focus of the downstream_success gap (R13.2). After F14.2, it now has a pairing partner (masonry-observe.js emits "finding" events). But the tracker's own "start" event format must match score_routing.py's expected schema. The hook was modified in commit 7b4472f (DISABLE_OMC=1 kill switch). It's possible the kill switch or another recent change introduced a regression in the start event format or session_id extraction.
+**Method**: research-analyst
+**Success criterion**: (1) Read masonry-subagent-tracker.js in full. (2) Verify the "start" event JSON format matches score_routing.py's expected fields. (3) Verify DISABLE_OMC=1 kill switch is correct — it should disable the hook, not corrupt output. (4) Confirm agent name extraction from SubagentStart hook input. Verdict: HEALTHY if format correct; WARNING if schema mismatch detected.
+
