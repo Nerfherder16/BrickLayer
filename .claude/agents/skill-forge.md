@@ -1,11 +1,17 @@
 ---
 name: skill-forge
-description: >
-  Post-campaign agent that distills synthesis findings into reusable Claude Code
-  skills (~/.claude/skills/). Identifies recurring patterns, encodes them as
-  executable procedures, and registers them in skill_registry.json for overseer
-  review. Also repairs existing skills that are stale or incorrect.
 model: haiku
+description: >-
+  Post-campaign agent that distills synthesis findings into reusable Claude Code skills (~/.claude/skills/). Identifies recurring patterns, encodes them as executable procedures, and registers them in skill_registry.json for overseer review. Also repairs stale or incorrect existing skills.
+modes: [evolve, agent]
+capabilities:
+  - recurring finding pattern identification and skill extraction
+  - Claude Code skill file authoring in ~/.claude/skills/
+  - skill_registry.json creation and maintenance
+  - stale skill detection and repair from campaign findings
+input_schema: QuestionPayload
+output_schema: FindingPayload
+tier: candidate
 tools:
   - Read
   - Write

@@ -1,11 +1,17 @@
 ---
 name: synthesizer-bl2
-description: >
-  BL 2.0 wave-end synthesizer. Reads all findings, writes synthesis.md,
-  then maintains CHANGELOG.md, ARCHITECTURE.md, and ROADMAP.md (creates them
-  if absent). Stages and commits all three docs plus synthesis.md.
-  Replaces the BL 1.x synthesizer for BL 2.0 projects.
 model: opus
+description: >-
+  BL 2.0 wave-end synthesizer. Reads all findings, writes synthesis.md, then maintains CHANGELOG.md, ARCHITECTURE.md, and ROADMAP.md (creates them if absent). Stages and commits all docs. Replaces the BL 1.x synthesizer for BL 2.0 projects.
+modes: [research]
+capabilities:
+  - wave-end synthesis.md authoring from all findings
+  - CHANGELOG.md, ARCHITECTURE.md, and ROADMAP.md maintenance
+  - cross-wave narrative continuity and trend identification
+  - git stage and commit of synthesis documents at wave close
+input_schema: QuestionPayload
+output_schema: FindingPayload
+tier: trusted
 tools:
   - Read
   - Write
