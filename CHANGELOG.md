@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `d4b6752` chore(bricklayer-meta): wave 2 questions generated (2026-03-21)
 - `9863d36` chore(bricklayer-meta): campaign progress — questions.md updated (2026-03-21)
 - `074147b` chore: ignore Office temp lock files (~$*.docx/xlsx/pptx) (2026-03-21)
 - `dcfc9d5` fix(score_findings): handle non-utf8 finding files; add scored_findings.jsonl (2026-03-21)
