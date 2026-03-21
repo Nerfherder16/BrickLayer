@@ -1415,10 +1415,60 @@
 
 ### F18.1: Fix `load_scored_all` path resolution in `run_vigil.py` to work when CWD is the masonry/ directory
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: LOW
 **Source**: synthesis_wave17
 **Hypothesis**: `run_vigil.py` line 53 hardcodes `base_dir / "masonry" / "training_data" / "scored_all.jsonl"`. When run from masonry/ dir, this resolves to `masonry/masonry/training_data/scored_all.jsonl` (non-existent). Fix: detect whether base_dir IS the masonry dir (by checking for `base_dir.name == "masonry"` or `(base_dir / "training_data").exists()`) and adjust path accordingly. This would allow the 243 scored records to augment the vigil health classification.
 **Method**: fix-implementer
 **Success criterion**: After fix, run vigil from masonry/ dir and confirm scored_all agents (quantitative-analyst, karen, git-nerd, etc.) appear in the Rose/Bud/Thorn classification via augmentation. Verdict: FIX_APPLIED.
+
+---
+
+## Wave 19
+
+### D19.1: Is OVERCONFIDENT_PASS_RATE=0.95 miscalibrated for the masonry self-research campaign, causing false Thorn classifications for all agents?
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: HIGH
+**Source**: synthesis_wave18
+**Hypothesis**: All masonry self-research agents (diagnose-analyst, fix-implementer, research-analyst, design-reviewer) have pass_rate=1.00 (every finding has confidence ≥ 0.70 — self-research findings consistently score 0.75-0.97). The OVERCONFIDENT_PASS_RATE=0.95 threshold was designed to catch agents that never express uncertainty. In self-research mode, high confidence is appropriate (targeted investigations with clear evidence). The threshold produces false Thorns for all self-research agents, making the CRITICAL verdict misleading.
+**Method**: diagnose-analyst
+**Success criterion**: Confirm whether pass_rate=1.00 is genuine overconfidence or expected high-quality signal. Propose threshold adjustment or context-specific classification mode. Verdict: DIAGNOSIS_COMPLETE.
+
+---
+
+### F19.1: Fix score_routing `agents_covered = []` hardcode in score_all_agents.py
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: LOW
+**Source**: synthesis_wave18
+**Hypothesis**: `score_all_agents.py` line 278 hardcodes `agents_covered: []` for the score_routing scorer entry. This causes the summary to always show "Agents: 0" for routing. The actual dispatched agents are in scored_routing.jsonl as `dispatched_agent` field — these should populate `agents_covered`. Fix: read scored_routing.jsonl and extract unique `dispatched_agent` values.
+**Method**: fix-implementer
+**Success criterion**: After fix, score_routing row in summary table shows "Agents: 3" (karen, planner, question-designer-bl2) or higher. Verdict: FIX_APPLIED.
+
+---
+
+### R19.1: After Wave 18 routing infrastructure fixes, does running all future investigations via Agent tool dispatch generate 100pt routing records at scale?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Source**: synthesis_wave18
+**Hypothesis**: R18.1 empirically confirmed the first 100pt record (research-analyst dispatch). Waves 18+ should continue generating matched pairs for every Agent tool dispatch. After several waves, routing scorer should have enough 100pt records (R19.1 itself, D18.1, R18.2 each dispatched an agent — that's 3 more potential 100pt records). Check routing_log.jsonl event count and scored_routing.jsonl for new 100pt records.
+**Method**: research-analyst
+**Success criterion**: Count "start" events and "finding" events in routing_log.jsonl since Wave 18 started. Verify each Agent-dispatched finding generated a 100pt record. Verdict: HEALTHY if scale is working; WARNING if mismatches found.
+
+---
+
+### R19.2: Can `score_findings.py` be extended to also score masonry self-research findings from `masonry/findings/`, and what would the agent distribution look like?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: LOW
+**Source**: synthesis_wave18
+**Hypothesis**: `score_findings.py:discover_findings()` explicitly excludes the `masonry/` subdirectory. After the backfill of `**Agent**:` fields (D18.1), masonry self-research findings could be scored and included in training data. ~115 findings across diagnose-analyst (25), research-analyst (41), fix-implementer (35), design-reviewer (9) — potentially pushing research-analyst well above the 10-record DSPy threshold.
+**Method**: research-analyst
+**Success criterion**: Run score_findings.py with masonry/findings/ as target (or modify discover path). Report how many masonry self-research findings pass the training threshold (≥60 score). Assess whether including them would improve DSPy training coverage. Verdict: HEALTHY if significant additions; WARNING if most score below threshold.
