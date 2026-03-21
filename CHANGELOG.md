@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `96933cd` fix(phase3/4/5): cleanup — dspy stubs, gitignore, port refs, tools-manifest, registry paths (2026-03-21)
 - `c82e74b` feat(masonry): Wave 20 -- routing 100pt records 3->9, training corpus 254->435, vigil WARNING healthy (2026-03-21)
 - `81ec35d` fix(phase3): runtime fixes — DISABLE_OMC cleanup, blRoot detection, onboard guard, /build subagent type (2026-03-21)
 - `bcd545a` docs(masonry): Wave 19 synthesis -- vigil calibration fixed, routing 60% at scale, score_findings gaps mapped (2026-03-21)
