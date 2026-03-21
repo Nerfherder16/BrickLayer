@@ -2,16 +2,13 @@
 
 ---
 
-## Start the Dashboard (always do this first)
+## Monitor Campaigns (Kiln)
 
-```bash
-cd C:/Users/trg16/Dev/autosearch/dashboard
-./start.sh C:/Users/trg16/Dev/autosearch/adbp   # swap project path as needed
-```
+All campaign monitoring, question queues, and findings are available in **Kiln** (BrickLayerHub).
 
-Open: http://localhost:3100
+Open Kiln from the desktop app. Switch projects from the project switcher in the top bar.
 
-Switch projects anytime from the project switcher in the top bar.
+> The web dashboard (localhost:3100) has been retired. Use Kiln instead.
 
 ---
 

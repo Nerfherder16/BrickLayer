@@ -70,7 +70,7 @@ agents:
   output_schema: FindingPayload
   tier: candidate
 - name: test-writer
-  file: .claude/agents/test-writer.md
+  file: ~/.claude/agents/test-writer.md
   model: sonnet
   description: Writes failing tests following TDD RED-GREEN-REFACTOR discipline
   modes:
@@ -444,7 +444,7 @@ agents:
   tier: draft
   dspy_status: not_optimized
   drift_status: ok
-  last_score: null
+  last_score: 75.0
   runs_since_optimization: 0
   registrySource: frontmatter
 - name: git-nerd
@@ -676,7 +676,7 @@ agents:
   tier: draft
   dspy_status: not_optimized
   drift_status: ok
-  last_score: 60.0
+  last_score: 69.3
   runs_since_optimization: 0
   registrySource: frontmatter
 - name: tools-manifest

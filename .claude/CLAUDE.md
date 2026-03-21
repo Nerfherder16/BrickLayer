@@ -257,5 +257,4 @@ git config --global core.hooksPath ~/.git-hooks
 
 **Edit to simulate.py keeps failing**: Run `git reset --hard HEAD` and retry. See loop self-recovery above.
 
-**Dashboard not loading**: Make sure both backend (port 8100) and frontend (port 3100) are running.
-Frontend must be built first: `cd dashboard/frontend && npm run build`.
+**Campaign not visible in Kiln**: Restart the Kiln (BrickLayerHub) desktop app. The web dashboard (ports 3100/8100) has been retired — all monitoring goes through Kiln.
