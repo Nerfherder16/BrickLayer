@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `3367210` fix(backfill): handle unprefixed numeric question IDs (1.x, 2.x, 3.x) (2026-03-21)
 - `b70a324` chore(masonry): campaign progress sync (2026-03-21)
 - `f2b6666` feat(stop-guard): warn on doc staleness when code committed without doc updates (2026-03-21)
 - `63abdf5` chore(masonry): campaign progress + add monitor-targets.md (2026-03-21)
