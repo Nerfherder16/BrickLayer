@@ -52,6 +52,11 @@ function ageLabel(days) {
 }
 
 async function main() {
+  // Kill switch: disable all Masonry hooks when running BrickLayer in subprocess mode
+  if (process.env.DISABLE_OMC === '1' || process.env.DISABLE_MASONRY_HOOKS === '1') {
+    process.exit(0);
+  }
+
   const input = await readStdin();
   if (!input) process.exit(0);
 
