@@ -243,11 +243,11 @@ npm run dev
 ```bash
 cd C:/Users/trg16/Dev/BrickLayerHub
 npm run package
-# Output: dist-exe/BrickLayerHub-win32-x64/BrickLayerHub.exe
-# NOTE: `npm run package` ALWAYS outputs to dist-exe/ (not dist-exe7/ or any other suffix)
-# If the user is running a different numbered build (e.g. dist-exe7/), they either:
-#   a) Use the new exe from dist-exe/ going forward, OR
-#   b) Copy the updated asar: cp dist-exe/BrickLayerHub-win32-x64/resources/app.asar dist-exe7/BrickLayerHub-win32-x64/resources/app.asar
+# Output: dist/BrickLayerHub-win32-x64/BrickLayerHub.exe
+# NOTE: `npm run package` ALWAYS outputs to dist/ (not dist7/ or any other suffix)
+# If the user is running a different numbered build (e.g. dist7/), they either:
+#   a) Use the new exe from dist/ going forward, OR
+#   b) Copy the updated asar: cp dist/BrickLayerHub-win32-x64/resources/app.asar dist7/BrickLayerHub-win32-x64/resources/app.asar
 # Always tell the user which directory the updated exe is in.
 ```
 
@@ -255,8 +255,8 @@ npm run package
 ```bash
 cd C:/Users/trg16/Dev/BrickLayerHub
 npm run build
-npx @electron/asar pack out dist-exe/BrickLayerHub-win32-x64/resources/app.asar
-# Same caveat: targets dist-exe/, not dist-exe7/
+npx @electron/asar pack out dist/BrickLayerHub-win32-x64/resources/app.asar
+# Same caveat: targets dist/, not dist7/
 ```
 
 **TypeScript check** (always run before deploying):
@@ -322,11 +322,11 @@ cd C:/Users/trg16/Dev/BrickLayerHub
 # Step 1 — rebuild renderer bundle (picks up new avatar PNG via import.meta.glob)
 npm run build
 
-# Step 2 — patch the running asar (no Kiln restart needed if dist-exe/ is the active build)
-node -e "require('@electron/asar').createPackage('out/renderer', 'dist-exe/BrickLayerHub-win32-x64/resources/app.asar')"
+# Step 2 — patch the running asar (no Kiln restart needed if dist/ is the active build)
+node -e "require('@electron/asar').createPackage('out/renderer', 'dist/BrickLayerHub-win32-x64/resources/app.asar')"
 ```
 
-If Tim is running a different numbered build (e.g. `dist-exe7/`), update the asar path accordingly.
+If Tim is running a different numbered build (e.g. `dist7/`), update the asar path accordingly.
 After the asar is patched, clicking the Kiln refresh button OR reloading the window will show the new avatar.
 
 ---
