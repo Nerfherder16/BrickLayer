@@ -281,6 +281,144 @@ def _tool_masonry_recall_search(args: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# New tool implementations — routing, optimization, onboarding, drift, registry
+# ---------------------------------------------------------------------------
+
+
+def _tool_masonry_route(args: dict) -> dict:
+    """Route a request to the appropriate Masonry agent using the four-layer router."""
+    request_text = args.get("request_text", "")
+    project_dir = Path(args.get("project_dir", os.getcwd()))
+
+    if not request_text:
+        return {"error": "request_text is required"}
+
+    try:
+        from masonry.src.routing.router import route  # noqa: PLC0415
+
+        decision = route(request_text, project_dir)
+        return decision.model_dump()
+    except Exception as exc:
+        return {"error": str(exc), "target_agent": "user", "layer": 4, "confidence": 0.0}
+
+
+def _tool_masonry_optimization_status(args: dict) -> dict:
+    """Return DSPy optimization scores for all agents in the optimized_prompts directory."""
+    optimized_dir = Path(
+        args.get("optimized_dir", str(_REPO_ROOT / "masonry" / "optimized_prompts"))
+    )
+
+    agents: list[dict] = []
+
+    if not optimized_dir.is_dir():
+        return {"agents": [], "count": 0}
+
+    for json_file in sorted(optimized_dir.glob("*.json")):
+        try:
+            data = json.loads(json_file.read_text(encoding="utf-8"))
+            if "agent" in data:
+                agents.append(
+                    {
+                        "agent": data["agent"],
+                        "score": data.get("score", 0.0),
+                        "optimized_at": data.get("optimized_at"),
+                    }
+                )
+        except Exception:
+            pass
+
+    return {"agents": agents, "count": len(agents)}
+
+
+def _tool_masonry_onboard(args: dict) -> dict:
+    """Detect and register new agent .md files not yet in the registry."""
+    agents_dirs_raw = args.get("agents_dirs", [])
+    registry_path_str = args.get(
+        "registry_path", str(_REPO_ROOT / "masonry" / "agent_registry.yml")
+    )
+    dspy_output_dir_str = args.get(
+        "dspy_output_dir",
+        str(_REPO_ROOT / "masonry" / "src" / "dspy_pipeline" / "generated"),
+    )
+
+    if isinstance(agents_dirs_raw, str):
+        agents_dirs_raw = [agents_dirs_raw]
+
+    agents_dirs = [Path(d) for d in agents_dirs_raw] if agents_dirs_raw else [
+        Path.home() / ".claude" / "agents",
+        Path("agents"),
+    ]
+    registry_path = Path(registry_path_str)
+    dspy_output_dir = Path(dspy_output_dir_str)
+
+    try:
+        from masonry.scripts.onboard_agent import onboard  # noqa: PLC0415
+
+        onboarded = onboard(agents_dirs, registry_path, dspy_output_dir)
+        return {"onboarded": onboarded, "count": len(onboarded)}
+    except Exception as exc:
+        return {"error": str(exc), "onboarded": [], "count": 0}
+
+
+def _tool_masonry_drift_check(args: dict) -> dict:
+    """Run drift detection for all registry agents that have verdict history."""
+    agent_db_path_str = args.get("agent_db_path", "")
+    registry_path_str = args.get(
+        "registry_path", str(_REPO_ROOT / "masonry" / "agent_registry.yml")
+    )
+
+    if not agent_db_path_str:
+        return {"error": "agent_db_path is required", "reports": []}
+
+    agent_db_path = Path(agent_db_path_str)
+    registry_path = Path(registry_path_str)
+
+    try:
+        from masonry.src.dspy_pipeline.drift_detector import run_drift_check  # noqa: PLC0415
+        from masonry.src.schemas.registry_loader import load_registry  # noqa: PLC0415
+
+        registry = load_registry(registry_path)
+        reports = run_drift_check(agent_db_path, registry)
+        return {
+            "reports": [r.model_dump() for r in reports],
+            "count": len(reports),
+        }
+    except Exception as exc:
+        return {"error": str(exc), "reports": []}
+
+
+def _tool_masonry_registry_list(args: dict) -> dict:
+    """List agents from the Masonry agent registry YAML."""
+    registry_path = Path(
+        args.get("registry_path", str(_REPO_ROOT / "masonry" / "agent_registry.yml"))
+    )
+    tier_filter = args.get("tier")
+    mode_filter = args.get("mode")
+
+    try:
+        from masonry.src.schemas.registry_loader import (  # noqa: PLC0415
+            load_registry,
+            get_agents_for_mode,
+        )
+
+        registry = load_registry(registry_path)
+        agents = registry
+
+        if mode_filter:
+            agents = get_agents_for_mode(agents, mode_filter)
+
+        if tier_filter:
+            agents = [a for a in agents if a.tier == tier_filter]
+
+        return {
+            "agents": [a.model_dump(exclude_none=True) for a in agents],
+            "count": len(agents),
+        }
+    except Exception as exc:
+        return {"error": str(exc), "agents": [], "count": 0}
+
+
+# ---------------------------------------------------------------------------
 # Tool registry
 # ---------------------------------------------------------------------------
 
@@ -399,6 +537,116 @@ TOOLS = {
                 "query": {"type": "string"},
                 "domain": {"type": "string", "description": "Optional domain filter"},
                 "limit": {"type": "integer", "default": 10},
+            },
+        },
+    },
+    "masonry_route": {
+        "fn": _tool_masonry_route,
+        "description": (
+            "Route a request to the appropriate Masonry agent using the four-layer routing engine "
+            "(deterministic → semantic → LLM → fallback). Returns a RoutingDecision with "
+            "target_agent, layer, confidence, and reasoning."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["request_text"],
+            "properties": {
+                "request_text": {
+                    "type": "string",
+                    "description": "The user request text to route.",
+                },
+                "project_dir": {
+                    "type": "string",
+                    "description": "Project directory for context. Defaults to cwd.",
+                },
+            },
+        },
+    },
+    "masonry_optimization_status": {
+        "fn": _tool_masonry_optimization_status,
+        "description": (
+            "Return DSPy prompt optimization scores for all agents. "
+            "Reads from the optimized_prompts directory (JSON files saved by MIPROv2)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "optimized_dir": {
+                    "type": "string",
+                    "description": "Directory containing optimized agent JSON files. "
+                    "Defaults to masonry/optimized_prompts/.",
+                },
+            },
+        },
+    },
+    "masonry_onboard": {
+        "fn": _tool_masonry_onboard,
+        "description": (
+            "Detect new agent .md files not yet in the registry and onboard them: "
+            "register in agent_registry.yml and generate DSPy signature stubs."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "agents_dirs": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Directories to scan for agent .md files.",
+                },
+                "registry_path": {
+                    "type": "string",
+                    "description": "Path to agent_registry.yml. Defaults to masonry/agent_registry.yml.",
+                },
+                "dspy_output_dir": {
+                    "type": "string",
+                    "description": "Output dir for DSPy stubs. Defaults to masonry/src/dspy_pipeline/generated/.",
+                },
+            },
+        },
+    },
+    "masonry_drift_check": {
+        "fn": _tool_masonry_drift_check,
+        "description": (
+            "Run drift detection for all registry agents with verdict history. "
+            "Returns DriftReport per agent with alert_level (ok/warning/critical) and recommendation."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["agent_db_path"],
+            "properties": {
+                "agent_db_path": {
+                    "type": "string",
+                    "description": "Path to agent_db.json containing verdict history.",
+                },
+                "registry_path": {
+                    "type": "string",
+                    "description": "Path to agent_registry.yml. Defaults to masonry/agent_registry.yml.",
+                },
+            },
+        },
+    },
+    "masonry_registry_list": {
+        "fn": _tool_masonry_registry_list,
+        "description": (
+            "List agents from the Masonry agent registry YAML, "
+            "optionally filtered by tier (draft/candidate/trusted/retired) or mode."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "registry_path": {
+                    "type": "string",
+                    "description": "Path to agent_registry.yml. Defaults to masonry/agent_registry.yml.",
+                },
+                "tier": {
+                    "type": "string",
+                    "enum": ["draft", "candidate", "trusted", "retired"],
+                    "description": "Filter by agent tier.",
+                },
+                "mode": {
+                    "type": "string",
+                    "description": "Filter agents that support this mode (e.g. 'simulate', 'fix').",
+                },
             },
         },
     },
