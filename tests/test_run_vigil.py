@@ -501,11 +501,16 @@ class TestRunVigil:
 
         findings_dir = tmp_path / "findings"
         findings_dir.mkdir()
-        for i in range(8):
+        # 7 high-confidence + 1 below threshold => pass_rate = 7/8 = 0.875 (rose zone)
+        for i in range(7):
             (findings_dir / f"q{i}.md").write_text(
                 _make_finding_md(str(i), "good-agent", 0.85),
                 encoding="utf-8",
             )
+        (findings_dir / "q7.md").write_text(
+            _make_finding_md("7", "good-agent", 0.55),
+            encoding="utf-8",
+        )
 
         result = run_vigil(project_dir=tmp_path, output_dir=tmp_path / "vigil")
         assert result["verdict"] == "HEALTHY"

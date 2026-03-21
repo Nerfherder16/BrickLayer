@@ -1,11 +1,17 @@
 ---
 name: pointer
 model: sonnet
-description: >
-  Mid-wave summarizer. Reads findings since last checkpoint, produces a compact
-  checkpoint file with verdicts table, failure boundaries, cross-domain conflicts,
-  and priorities for remaining questions. Fired by Trowel every 8 questions.
-  Named after the masonry pointing tool that finishes mortar joints.
+description: >-
+  Mid-wave summarizer. Reads findings since last checkpoint, produces a compact checkpoint file with verdicts table, failure boundaries, cross-domain conflicts, and priorities for remaining questions. Fired by Trowel every 8 questions.
+modes: [monitor]
+capabilities:
+  - finding consolidation into compact checkpoint format
+  - failure boundary and cross-domain conflict identification
+  - remaining question priority biasing for Trowel routing
+  - mid-wave summary generation without closing the wave
+input_schema: QuestionPayload
+output_schema: FindingPayload
+tier: candidate
 tools:
   - Read
   - Write
