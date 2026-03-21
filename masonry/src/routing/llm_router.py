@@ -7,12 +7,13 @@ Falls back to None on any failure so Layer 4 (fallback) can handle it.
 from __future__ import annotations
 
 import json
+import platform
 import subprocess
 import sys
 
 from masonry.src.schemas.payloads import AgentRegistryEntry, RoutingDecision
 
-_LLM_TIMEOUT = 15  # seconds
+_LLM_TIMEOUT = 8  # seconds — Layer 4 fallback is acceptable, don't wait long
 _LLM_MODEL = "claude-haiku-4-5-20251001"
 _LLM_CONFIDENCE = 0.6
 
@@ -39,12 +40,22 @@ def route_llm(
 
     full_prompt = f"{system_prompt}\n\nUser request: {request_text}"
 
+    # On Windows, claude is a .cmd file — requires shell=True to be found.
+    # When shell=True, pass a single string (not list) to avoid argument corruption.
+    _is_windows = platform.system() == "Windows"
+    if _is_windows:
+        import shlex
+        cmd_str = f"claude --model {_LLM_MODEL} --print -p {shlex.quote(full_prompt)}"
+    else:
+        cmd_str = None  # unused on non-Windows
+
     try:
         result = subprocess.run(
-            ["claude", "--model", _LLM_MODEL, "--print", "-p", full_prompt],
+            cmd_str if _is_windows else ["claude", "--model", _LLM_MODEL, "--print", "-p", full_prompt],
             capture_output=True,
             text=True,
             timeout=_LLM_TIMEOUT,
+            shell=_is_windows,
         )
     except subprocess.TimeoutExpired:
         print("[llm_router] LLM routing timed out.", file=sys.stderr)
