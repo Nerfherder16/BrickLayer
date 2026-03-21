@@ -439,6 +439,7 @@ def onboard(
     added = 0
     updated = 0
     warnings: list[str] = []
+    added_names: list[str] = []
 
     for agent_path in new_paths:
         meta = extract_agent_metadata(agent_path)
@@ -448,6 +449,7 @@ def onboard(
 
         if is_new:
             added += 1
+            added_names.append(meta["name"])
             print(f"[onboard] Registered: {meta['name']}", file=sys.stderr)
         else:
             updated += 1
@@ -460,6 +462,7 @@ def onboard(
         "updated": updated,
         "stale": len(stale),
         "warnings": warnings,
+        "names": added_names,
     }
 
 

@@ -354,8 +354,17 @@ def _tool_masonry_onboard(args: dict) -> dict:
     try:
         from masonry.scripts.onboard_agent import onboard  # noqa: PLC0415
 
-        onboarded = onboard(agents_dirs, registry_path, dspy_output_dir)
-        return {"onboarded": onboarded, "count": len(onboarded)}
+        result = onboard(agents_dirs, registry_path, dspy_output_dir)
+        # Return names of newly-added agents under the "onboarded" key for
+        # backwards compatibility with callers that expect a list of names.
+        names = result.get("names", [])
+        return {
+            "onboarded": names,
+            "count": result.get("added", len(names)),
+            "updated": result.get("updated", 0),
+            "stale": result.get("stale", 0),
+            "warnings": result.get("warnings", []),
+        }
     except Exception as exc:
         return {"error": str(exc), "onboarded": [], "count": 0}
 
