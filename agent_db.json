@@ -1,7 +1,10 @@
 {
   "benchmark-engineer": {
     "score": 0.85,
-    "verdicts": [],
+    "verdicts": [
+      "FAILURE",
+      "FAILURE"
+    ],
     "questions": 5,
     "overall": "HEALTHY"
   },
@@ -13,7 +16,27 @@
   },
   "research-analyst": {
     "score": 0.85,
-    "verdicts": [],
+    "verdicts": [
+      "COMPLETE",
+      "UNCALIBRATED",
+      "UNCALIBRATED",
+      "FAILURE",
+      "FAILURE",
+      "FAILURE",
+      "FAILURE",
+      "FAILURE",
+      "FAILURE",
+      "HEALTHY",
+      "HEALTHY",
+      "FAILURE",
+      "FAILURE",
+      "FAILURE",
+      "HEALTHY",
+      "WARNING",
+      "HEALTHY",
+      "FAILURE",
+      "FAILURE"
+    ],
     "questions": 130,
     "overall": "HEALTHY"
   },
@@ -29,23 +52,33 @@
     "questions": 24,
     "overall": "HEALTHY"
   },
-  "synthesizer-bl2": {
-    "score": 0.85,
-    "verdicts": [],
-    "questions": 2,
-    "overall": "HEALTHY"
-  },
   "diagnose-analyst": {
     "score": 0.85,
-    "verdicts": [],
+    "verdicts": [
+      "FAILURE",
+      "FAILURE",
+      "FAILURE",
+      "FAILURE",
+      "FAILURE",
+      "FAILURE",
+      "FAILURE",
+      "HEALTHY",
+      "FAILURE",
+      "FAILURE",
+      "FAILURE",
+      "WARNING",
+      "FAILURE",
+      "FAILURE",
+      "FAILURE",
+      "FIX_APPLIED",
+      "WARNING",
+      "DIAGNOSIS_COMPLETE",
+      "HEALTHY",
+      "HEALTHY",
+      "HEALTHY"
+    ],
     "questions": 3,
     "overall": "HEALTHY"
-  },
-  "hypothesis-generator-bl2": {
-    "score": 0.55,
-    "verdicts": [],
-    "questions": 15,
-    "overall": "WARNING"
   },
   "regulatory-researcher": {
     "score": 0.85,
@@ -67,13 +100,29 @@
   },
   "compliance-auditor": {
     "score": 0.85,
-    "verdicts": [],
+    "verdicts": [
+      "COMPLIANT",
+      "NON_COMPLIANT",
+      "NON_COMPLIANT"
+    ],
     "questions": 0,
     "overall": "HEALTHY"
   },
   "design-reviewer": {
     "score": 0.85,
-    "verdicts": [],
+    "verdicts": [
+      "FAILURE",
+      "HEALTHY",
+      "FAILURE",
+      "WARNING",
+      "FAILURE",
+      "FAILURE",
+      "FAILURE",
+      "NON_COMPLIANT",
+      "NON_COMPLIANT",
+      "COMPLIANT",
+      "COMPLIANT"
+    ],
     "questions": 0,
     "overall": "HEALTHY"
   },
@@ -85,7 +134,33 @@
   },
   "fix-implementer": {
     "score": 0.85,
-    "verdicts": [],
+    "verdicts": [
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIXED",
+      "FIXED",
+      "FIXED",
+      "FIXED",
+      "FIXED",
+      "FIXED",
+      "FIXED"
+    ],
     "questions": 0,
     "overall": "HEALTHY"
   },
@@ -144,12 +219,6 @@
     "overall": "HEALTHY"
   },
   "planner": {
-    "score": 0.85,
-    "verdicts": [],
-    "questions": 0,
-    "overall": "HEALTHY"
-  },
-  "question-designer-bl2": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,

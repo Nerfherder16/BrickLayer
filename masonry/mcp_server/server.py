@@ -299,7 +299,15 @@ def _tool_masonry_route(args: dict) -> dict:
         decision = route(request_text, project_dir)
         return decision.model_dump()
     except Exception as exc:
-        return {"error": str(exc), "target_agent": "user", "layer": 4, "confidence": 0.0}
+        return {
+            "error": str(exc),
+            "target_agent": "user",
+            "layer": "fallback",
+            "confidence": 0.0,
+            "reason": f"Router import failed: {str(exc)[:80]}",
+            "fallback_agents": [],
+            "fallback_reason": "multi_failure",
+        }
 
 
 def _tool_masonry_optimization_status(args: dict) -> dict:
@@ -328,6 +336,52 @@ def _tool_masonry_optimization_status(args: dict) -> dict:
             pass
 
     return {"agents": agents, "count": len(agents)}
+
+
+def _tool_masonry_optimize_agent(args: dict) -> dict:
+    """Trigger MIPROv2 prompt optimization for a single agent."""
+    agent_name = args.get("agent_name", "")
+    if not agent_name:
+        return {"error": "agent_name is required"}
+
+    projects_dir = Path(args.get("projects_dir", str(_REPO_ROOT)))
+    agent_db_path = Path(
+        args.get("agent_db_path", str(_REPO_ROOT / "agent_db.json"))
+    )
+    questions_md_path_str = args.get("questions_md_path")
+    questions_md_path = Path(questions_md_path_str) if questions_md_path_str else None
+    output_dir = Path(
+        args.get("output_dir", str(_REPO_ROOT / "masonry" / "optimized_prompts"))
+    )
+    model = args.get("model", "claude-sonnet-4-6")
+
+    try:
+        from masonry.src.dspy_pipeline.training_extractor import build_dataset  # noqa: PLC0415
+        from masonry.src.dspy_pipeline.optimizer import configure_dspy, optimize_agent  # noqa: PLC0415
+        from masonry.src.dspy_pipeline.signatures import ResearchAgentSig  # noqa: PLC0415
+    except ImportError as exc:
+        return {"error": f"DSPy pipeline import failed: {exc}"}
+
+    datasets = build_dataset(projects_dir, agent_db_path, questions_md_path=questions_md_path)
+    agent_dataset = datasets.get(agent_name, [])
+
+    if len(agent_dataset) < 5:
+        return {
+            "error": f"Insufficient training data for {agent_name}: {len(agent_dataset)} examples (need >= 5)",
+            "example_count": len(agent_dataset),
+        }
+
+    try:
+        configure_dspy(model=model)
+    except Exception as exc:
+        return {"error": f"DSPy configuration failed: {exc}"}
+
+    try:
+        result = optimize_agent(agent_name, ResearchAgentSig, agent_dataset, output_dir)
+        result["example_count"] = len(agent_dataset)
+        return result
+    except Exception as exc:
+        return {"error": f"Optimization failed: {exc}", "agent": agent_name}
 
 
 def _tool_masonry_onboard(args: dict) -> dict:
@@ -371,13 +425,12 @@ def _tool_masonry_onboard(args: dict) -> dict:
 
 def _tool_masonry_drift_check(args: dict) -> dict:
     """Run drift detection for all registry agents that have verdict history."""
-    agent_db_path_str = args.get("agent_db_path", "")
+    agent_db_path_str = args.get(
+        "agent_db_path", str(_REPO_ROOT / "agent_db.json")
+    )
     registry_path_str = args.get(
         "registry_path", str(_REPO_ROOT / "masonry" / "agent_registry.yml")
     )
-
-    if not agent_db_path_str:
-        return {"error": "agent_db_path is required", "reports": []}
 
     agent_db_path = Path(agent_db_path_str)
     registry_path = Path(registry_path_str)
@@ -588,6 +641,44 @@ TOOLS = {
             },
         },
     },
+    "masonry_optimize_agent": {
+        "fn": _tool_masonry_optimize_agent,
+        "description": (
+            "Trigger MIPROv2 prompt optimization for a specific agent using campaign findings as training data. "
+            "Requires ANTHROPIC_API_KEY. Saves optimized module to masonry/optimized_prompts/{agent}.json."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["agent_name"],
+            "properties": {
+                "agent_name": {
+                    "type": "string",
+                    "description": "Name of the agent to optimize, e.g. 'research-analyst'.",
+                },
+                "projects_dir": {
+                    "type": "string",
+                    "description": "Root directory to scan for findings. Defaults to repository root.",
+                },
+                "agent_db_path": {
+                    "type": "string",
+                    "description": "Path to agent_db.json. Defaults to agent_db.json at repository root.",
+                },
+                "questions_md_path": {
+                    "type": "string",
+                    "description": "Path to questions.md for agent attribution. Auto-discovered if omitted.",
+                },
+                "output_dir": {
+                    "type": "string",
+                    "description": "Directory to save optimized prompt JSON. Defaults to masonry/optimized_prompts/.",
+                },
+                "model": {
+                    "type": "string",
+                    "description": "Anthropic model for optimization. Defaults to claude-sonnet-4-6.",
+                    "default": "claude-sonnet-4-6",
+                },
+            },
+        },
+    },
     "masonry_onboard": {
         "fn": _tool_masonry_onboard,
         "description": (
@@ -621,11 +712,10 @@ TOOLS = {
         ),
         "inputSchema": {
             "type": "object",
-            "required": ["agent_db_path"],
             "properties": {
                 "agent_db_path": {
                     "type": "string",
-                    "description": "Path to agent_db.json containing verdict history.",
+                    "description": "Path to agent_db.json containing verdict history. Defaults to agent_db.json at repository root.",
                 },
                 "registry_path": {
                     "type": "string",

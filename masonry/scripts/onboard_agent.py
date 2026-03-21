@@ -15,6 +15,7 @@ Hook usage (masonry-agent-onboard.js calls with a single file path):
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 from pathlib import Path
@@ -254,7 +255,16 @@ def append_to_registry(
     data["agents"].append(entry_dict)
 
     registry_path.parent.mkdir(parents=True, exist_ok=True)
-    registry_path.write_text(yaml.dump(data, sort_keys=False), encoding="utf-8")
+    tmp_path = registry_path.with_suffix(f".yml.tmp.{os.getpid()}")
+    try:
+        tmp_path.write_text(yaml.dump(data, sort_keys=False), encoding="utf-8")
+        tmp_path.replace(registry_path)
+    except Exception:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+        raise
 
 
 # ── upsert_registry_entry ─────────────────────────────────────────────────────
@@ -315,7 +325,16 @@ def upsert_registry_entry(
         data["agents"][existing_idx] = merged
 
     registry_path.parent.mkdir(parents=True, exist_ok=True)
-    registry_path.write_text(yaml.dump(data, sort_keys=False), encoding="utf-8")
+    tmp_path = registry_path.with_suffix(f".yml.tmp.{os.getpid()}")
+    try:
+        tmp_path.write_text(yaml.dump(data, sort_keys=False), encoding="utf-8")
+        tmp_path.replace(registry_path)
+    except Exception:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+        raise
     return is_new
 
 
