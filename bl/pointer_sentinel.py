@@ -1,4 +1,9 @@
-"""Sentinel helpers for firing the pointer agent at regular question intervals."""
+"""Sentinel helpers for firing the pointer agent at regular question intervals.
+
+Utility library — trowel.md handles pointer firing inline via the wave sentinels section
+(checks global_count % 8 == 0 directly). This module is available for external tooling
+(e.g., masonry-mcp.js, CLI scripts) that needs the same logic without duplicating it.
+"""
 
 import re
 from pathlib import Path
