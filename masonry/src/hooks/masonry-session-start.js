@@ -120,7 +120,21 @@ async function main() {
 
       if (pendingMatches > 0) {
         const projectName = path.basename(cwd);
-        const blRoot = "C:/Users/trg16/Dev/Bricklayer2.0";
+        // Detect BL root by walking up from cwd — look for a directory that has
+        // both bl/ and masonry/ subdirectories. Falls back to null (omits path-dependent hints).
+        let blRoot = null;
+        {
+          let dir = cwd;
+          for (let i = 0; i < 10; i++) {
+            if (fs.existsSync(path.join(dir, "bl")) && fs.existsSync(path.join(dir, "masonry"))) {
+              blRoot = dir;
+              break;
+            }
+            const parent = path.dirname(dir);
+            if (parent === dir) break;
+            dir = parent;
+          }
+        }
         const tip = pendingMatches > 10 ? `\n  Tip: ${pendingMatches} questions — parallel workers will finish ~3x faster.` : "";
 
         // Check if claims.json has active workers (parallel session already running)
@@ -135,13 +149,15 @@ async function main() {
 
         if (activeWorkers > 0) {
           lines.push(`[BL] ${projectName}: ${pendingMatches} pending, ${activeWorkers} active worker(s) — parallel session may still be running.`);
-          lines.push(`  Check: python ${blRoot}/bl/claim.py status ${cwd}`);
+          if (blRoot) lines.push(`  Check: python ${blRoot}/bl/claim.py status ${cwd}`);
         } else {
           lines.push(`[BL] ${projectName}: ${pendingMatches} questions PENDING — ready to run.${tip}`);
           lines.push(`  Single worker:`);
-          lines.push(`    $env:DISABLE_OMC=1; claude --dangerously-skip-permissions "Read program.md and questions.md. Resume the research loop from the first PENDING question. NEVER STOP."`);
-          lines.push(`  Parallel (3x faster):`);
-          lines.push(`    cd ${blRoot} && ./bl-parallel.ps1 -Project ${projectName} -Workers 3`);
+          lines.push(`    claude --dangerously-skip-permissions "Read program.md and questions.md. Resume the research loop from the first PENDING question. NEVER STOP."`);
+          if (blRoot) {
+            lines.push(`  Parallel (3x faster):`);
+            lines.push(`    cd ${blRoot} && ./bl-parallel.ps1 -Project ${projectName} -Workers 3`);
+          }
         }
       }
     } catch {

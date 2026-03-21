@@ -27,7 +27,7 @@ You are an **ORCHESTRATOR**. You manage state, spawn worker agents, validate out
 Claude Code renders a live progress tree when you spawn agents in parallel:
 
 ```
-• Running 2 oh-my-claudecode:executor agents… (ctrl+o to expand)
+• Running 2 developer agents… (ctrl+o to expand)
   ├─ Build auth module · 4 tool uses · 12.1k tokens
   │  └ Writing src/auth/login.py…
   └─ Build test suite · 2 tool uses · 8.4k tokens
@@ -37,12 +37,12 @@ Claude Code renders a live progress tree when you spawn agents in parallel:
 **To get this display:**
 - Spawn 2+ Agent calls in a **single message** (parallel)
 - Use a 3-5 word `description`: `"Build auth module"`, `"Write test suite"`
-- Use `subagent_type="oh-my-claudecode:executor"` for implementation tasks
+- Use `subagent_type="developer"` for implementation tasks
 
 **Example — parallel spawn:**
 ```
-[Agent call 1]: description="Build {task A}", subagent_type="oh-my-claudecode:executor"
-[Agent call 2]: description="Build {task B}", subagent_type="oh-my-claudecode:executor"
+[Agent call 1]: description="Build {task A}", subagent_type="developer"
+[Agent call 2]: description="Build {task B}", subagent_type="developer"
 ```
 
 When tasks are independent (no shared files), always batch them. Dependent tasks run sequentially.
