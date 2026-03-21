@@ -1590,10 +1590,200 @@ doc.add_paragraph(
     "doing so via the recirculation-to-mint ratio."
 )
 
-# ── Section 13: Final Conclusions ─────────────────────────────────────────────
+# ── Section 13: Admin Fee Optimization ───────────────────────────────────────
 doc.add_page_break()
 
-title_conc = doc.add_heading("13. Final Conclusions", level=1)
+title_fo = doc.add_heading("13. Admin Fee Optimization", level=1)
+title_fo.runs[0].font.color.rgb = RGBColor(0x1F, 0x38, 0x64)
+
+doc.add_paragraph(
+    "Sweep of the admin fee from $0.01 to $0.10 to find the optimal level that maximizes "
+    "vendor incentive while maintaining zero treasury risk. The structural solvency guarantee "
+    "holds at every fee level — the treasury always receives exactly $1.00/credit regardless "
+    "of the admin fee, because the fee is additional to (not deducted from) the treasury inflow. "
+    "Treasury risk = 0.00% across the entire range."
+)
+
+# 13.1 Employee Impact
+h2 = doc.add_heading("13.1  Employee Effective Cost and Net Benefit", level=2)
+h2.runs[0].font.color.rgb = RGBColor(0x2E, 0x74, 0xB5)
+
+doc.add_paragraph(
+    "Employee pays $1.00 (treasury) + admin fee (admin pool) per credit, receiving $2.00 "
+    "of purchasing power. The fee range is imperceptible relative to the amplification employees already receive."
+)
+
+tbl_ee = doc.add_table(rows=1, cols=4)
+tbl_ee.style = "Table Grid"
+hdr = tbl_ee.rows[0].cells
+for i, txt in enumerate(
+    ["Fee", "Effective Cost", "Effective Discount", "Employee Premium"]
+):
+    hdr[i].text = txt
+    for run in hdr[i].paragraphs[0].runs:
+        run.bold = True
+
+ee_data = [
+    ("$0.01", "$1.01", "98.0%", "1%"),
+    ("$0.02", "$1.02", "96.1%", "2%"),
+    ("$0.03", "$1.03", "94.2%", "3%"),
+    ("$0.04", "$1.04", "92.3%", "4%"),
+    ("$0.05", "$1.05", "90.5%", "5%"),
+    ("$0.06", "$1.06", "88.7%", "6%"),
+    ("$0.07", "$1.07", "86.9%", "7%"),
+    ("$0.08", "$1.08", "85.2%", "8%"),
+    ("$0.09", "$1.09", "83.5%", "9%"),
+    ("$0.10", "$1.10", "81.8%", "10%"),
+]
+for row in ee_data:
+    r = tbl_ee.add_row().cells
+    for i, v in enumerate(row):
+        r[i].text = v
+
+doc.add_paragraph()
+doc.add_paragraph(
+    "Even at the maximum $0.10 fee, employees gain $0.90 for every $1.10 spent — an 81.8% "
+    "effective discount. The 9.2 percentage point discount difference between $0.01 and $0.10 "
+    "is negligible against the baseline $1.00 → $2.00 amplification."
+)
+
+# 13.2 Vendor Income by Fee
+h2 = doc.add_heading(
+    "13.2  Monthly Vendor Admin Income by Fee Level (10% Recirculation Share)", level=2
+)
+h2.runs[0].font.color.rgb = RGBColor(0x2E, 0x74, 0xB5)
+
+tbl_vi2 = doc.add_table(rows=1, cols=6)
+tbl_vi2.style = "Table Grid"
+hdr = tbl_vi2.rows[0].cells
+for i, txt in enumerate(["Fee", "Mo.12", "Mo.36", "Mo.60", "Mo.120", "Mo.240"]):
+    hdr[i].text = txt
+    for run in hdr[i].paragraphs[0].runs:
+        run.bold = True
+
+vi2_data = [
+    ("$0.01", "$26.0K", "$74.0K", "$122.0K", "$242.0K", "$482.0K"),
+    ("$0.02", "$52.0K", "$148.0K", "$244.0K", "$484.0K", "$964.0K"),
+    ("$0.03", "$78.0K", "$222.0K", "$366.0K", "$726.0K", "$1.4M"),
+    ("$0.04", "$104.0K", "$296.0K", "$488.0K", "$968.0K", "$1.9M"),
+    ("$0.05", "$130.0K", "$370.0K", "$610.0K", "$1.2M", "$2.4M"),
+    ("$0.06", "$156.0K", "$444.0K", "$732.0K", "$1.5M", "$2.9M"),
+    ("$0.07", "$182.0K", "$518.0K", "$854.0K", "$1.7M", "$3.4M"),
+    ("$0.08", "$208.0K", "$592.0K", "$976.0K", "$1.9M", "$3.9M"),
+    ("$0.09", "$234.0K", "$666.0K", "$1.1M", "$2.2M", "$4.3M"),
+    ("$0.10", "$260.0K", "$740.0K", "$1.2M", "$2.4M", "$4.8M"),
+]
+for row in vi2_data:
+    r = tbl_vi2.add_row().cells
+    for i, v in enumerate(row):
+        r[i].text = v
+
+doc.add_paragraph()
+
+# 13.3 Recirculation Gradient
+h2 = doc.add_heading("13.3  Recirculation Incentive Gradient", level=2)
+h2.runs[0].font.color.rgb = RGBColor(0x2E, 0x74, 0xB5)
+
+doc.add_paragraph(
+    "The recirculation gradient is the extra monthly admin income a vendor earns per 1% increase "
+    "in recirculation share. This is the behavioral lever that motivates vendors to maximize "
+    "credit absorption. Higher gradient → stronger competition for share → healthier recirculation flywheel."
+)
+
+tbl_rg = doc.add_table(rows=1, cols=5)
+tbl_rg.style = "Table Grid"
+hdr = tbl_rg.rows[0].cells
+for i, txt in enumerate(
+    ["Fee", "Mo.12 Gradient", "Mo.60 Gradient", "Mo.120 Gradient", "Mo.240 Gradient"]
+):
+    hdr[i].text = txt
+    for run in hdr[i].paragraphs[0].runs:
+        run.bold = True
+
+rg_data = [
+    ("$0.01", "$2.6K", "$12.2K", "$24.2K", "$48.2K"),
+    ("$0.02", "$5.2K", "$24.4K", "$48.4K", "$96.4K"),
+    ("$0.03", "$7.8K", "$36.6K", "$72.6K", "$144.6K"),
+    ("$0.04", "$10.4K", "$48.8K", "$96.8K", "$192.8K"),
+    ("$0.05", "$13.0K", "$61.0K", "$121.0K", "$241.0K"),
+    ("$0.06", "$15.6K", "$73.2K", "$145.2K", "$289.2K"),
+    ("$0.07", "$18.2K", "$85.4K", "$169.4K", "$337.4K"),
+    ("$0.08", "$20.8K", "$97.6K", "$193.6K", "$385.6K"),
+    ("$0.09", "$23.4K", "$109.8K", "$217.8K", "$433.8K"),
+    ("$0.10", "$26.0K", "$122.0K", "$242.0K", "$482.0K"),
+]
+for row in rg_data:
+    r = tbl_rg.add_row().cells
+    for i, v in enumerate(row):
+        r[i].text = v
+
+doc.add_paragraph()
+
+# 13.4 Composite Score and Recommendation
+h2 = doc.add_heading("13.4  Composite Score and Recommendation", level=2)
+h2.runs[0].font.color.rgb = RGBColor(0x2E, 0x74, 0xB5)
+
+doc.add_paragraph(
+    "Scoring weights: vendor income adequacy 35% | recirculation gradient 35% | "
+    "discount cost coverage 15% | employee cost 15%. Treasury score omitted — always 100% at every fee."
+)
+
+tbl_cs = doc.add_table(rows=1, cols=6)
+tbl_cs.style = "Table Grid"
+hdr = tbl_cs.rows[0].cells
+for i, txt in enumerate(
+    ["Fee", "Vendor Income", "Recirc. Gradient", "Coverage", "Emp. Cost", "COMPOSITE"]
+):
+    hdr[i].text = txt
+    for run in hdr[i].paragraphs[0].runs:
+        run.bold = True
+
+cs_data = [
+    ("$0.01", "10.0%", "10.0%", "10.0%", "100.0%", "23.5%"),
+    ("$0.02", "20.0%", "20.0%", "20.0%", "88.9%", "30.3%"),
+    ("$0.03", "30.0%", "30.0%", "30.0%", "77.8%", "37.2%"),
+    ("$0.04", "40.0%", "40.0%", "40.0%", "66.7%", "44.0%"),
+    ("$0.05", "50.0%", "50.0%", "50.0%", "55.6%", "50.8%"),
+    ("$0.06", "60.0%", "60.0%", "60.0%", "44.4%", "57.7%"),
+    ("$0.07", "70.0%", "70.0%", "70.0%", "33.3%", "64.5%"),
+    ("$0.08", "80.0%", "80.0%", "80.0%", "22.2%", "71.3%"),
+    ("$0.09", "90.0%", "90.0%", "90.0%", "11.1%", "78.2%"),
+    ("$0.10 ← OPTIMAL", "100.0%", "100.0%", "100.0%", "0.0%", "85.0%"),
+]
+for row in cs_data:
+    r = tbl_cs.add_row().cells
+    for i, v in enumerate(row):
+        r[i].text = v
+    # Bold the last row
+    if row[0].startswith("$0.10"):
+        for cell in r:
+            for para in cell.paragraphs:
+                for run in para.runs:
+                    run.bold = True
+
+doc.add_paragraph()
+doc.add_paragraph(
+    "RECOMMENDATION: Maintain the admin fee at $0.10 (10%). This is the optimal fee "
+    "across the full range $0.01–$0.10. Key reasons:"
+)
+bullets_fo = [
+    "Treasury is completely decoupled from fee level — zero treasury risk at $0.10.",
+    "Employee effective discount of 81.8% remains exceptional — employees still gain $0.90 per $1.10 spent.",
+    "Vendor income at 10% recirculation share: $260K/month at month 12, $1.2M/month at month 60.",
+    "Recirculation gradient of $122K/month per 1% share at month 60 creates meaningful behavioral incentive for vendors to maximize absorption.",
+    "Reducing the fee to $0.05 would halve vendor income and halve the recirculation gradient while saving employees only $0.05/credit — not a favorable tradeoff.",
+    "The admin fee is the primary financial incentive for vendor network formation, which is the critical path to program launch.",
+]
+for b in bullets_fo:
+    p = doc.add_paragraph(style="List Bullet")
+    p.add_run(b)
+
+doc.add_paragraph()
+
+# ── Section 14: Final Conclusions ─────────────────────────────────────────────
+doc.add_page_break()
+
+title_conc = doc.add_heading("14. Final Conclusions", level=1)
 
 doc.add_paragraph(
     "This section synthesizes all findings from the full simulation corpus: "
