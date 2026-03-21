@@ -6,7 +6,7 @@ ensuring strict payload validation at agent handoff boundaries.
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -134,6 +134,9 @@ class RoutingDecision(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     reason: str = Field(max_length=100)
     fallback_agents: list[str] = Field(default_factory=list)
+    fallback_reason: Optional[Literal[
+        "ambiguous", "ollama_timeout", "llm_timeout", "registry_empty", "multi_failure"
+    ]] = None
 
 
 # ---------------------------------------------------------------------------

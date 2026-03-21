@@ -89,6 +89,22 @@ function findUiMode(startDir) {
   return null;
 }
 
+// Tier 1/2 file patterns — these must never be auto-approved during build/compose.
+// Patterns 5+6 use (?:^|[/\\]) to match both relative paths (src/...) and absolute/separator-led paths.
+const TIER1_TIER2_PATTERNS = [
+  /project-brief\.md$/i,
+  /agent_registry\.yml$/i,
+  /hooks\.json$/i,
+  /constants\.py$/i,
+  /(?:^|[/\\])src[/\\]/i,
+  /(?:^|[/\\])docs[/\\]/i,
+];
+
+function isTier1Tier2(filePath) {
+  if (!filePath) return false;
+  return TIER1_TIER2_PATTERNS.some((p) => p.test(filePath));
+}
+
 function getCandidateDirs(parsed) {
   const dirs = [];
   const toolInput = parsed.tool_input || {};
@@ -146,6 +162,16 @@ async function main() {
   const approve =
     (autopilotMode === "build" || autopilotMode === "fix") ||
     (uiMode === "compose" || uiMode === "fix");
+
+  const toolInput = parsed.tool_input || {};
+  const toolName = (parsed.tool_name || "").toLowerCase();
+  const filePath = toolInput.file_path || toolInput.path || "";
+
+  // Block auto-approval for Tier 1/2 authority files — must always prompt user.
+  if (approve && isTier1Tier2(filePath)) process.exit(0);
+
+  // Never auto-approve Bash — command strings are too hard to analyze reliably for path safety.
+  if (approve && toolName === "bash") process.exit(0);
 
   if (approve) {
     const reason = autopilotMode

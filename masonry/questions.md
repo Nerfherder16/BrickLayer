@@ -365,7 +365,7 @@
 
 ### F3.2: Implement the complete masonry-approver path blocklist fix specified across V1.5, F2.2, and V2.1 — corrected directory patterns plus full Bash tool exclusion.
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: Fix
 **Priority**: HIGH
 **Motivated by**: V2.1 DIAGNOSIS_COMPLETE (embedded in F2.2 finding chain) — the complete fix specification is: (1) patterns 5 and 6 in the Tier 1/2 blocklist must use `(?:^|[/\\])` prefix instead of `/[/\\]/` to catch relative paths; (2) Bash tool calls must be excluded from auto-approval entirely because `toolInput.file_path` is undefined for Bash and command-string scanning is insufficiently reliable. The synthesis_wave2.md lines 69-80 provide the exact implementation-ready code block.
@@ -377,7 +377,7 @@
 
 ### F3.3: Implement the DSPy drift detector verdict taxonomy patch — add `UNCALIBRATED` to `_PARTIAL_VERDICTS`, add `DIAGNOSIS_COMPLETE` to `_OK_VERDICTS`, and fix the `baseline_score == 0.0` division guard.
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: Fix
 **Priority**: MEDIUM
 **Motivated by**: D2.3 FAILURE — two confirmed correctness defects: (1) `baseline_score == 0.0` forces `drift_pct = 0.0` regardless of `current_score`, producing false-negative drift alerts for newly onboarded agents; (2) `UNCALIBRATED` verdict is absent from both `_OK_VERDICTS` and `_PARTIAL_VERDICTS`, scoring it 0.0 (failure) and unfairly penalizing the research-analyst agent for inconclusive data-gap findings.
@@ -389,7 +389,7 @@
 
 ### F3.4: Add `fallback_reason` field to `RoutingDecision` in `payloads.py` to enable callers to distinguish correct fallback from infrastructure fallback.
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: Fix
 **Priority**: LOW
 **Motivated by**: R1.6 FAILURE — the `RoutingDecision` schema has no mechanism for the router to communicate why a request reached Layer 4. Callers cannot distinguish "genuinely ambiguous request" from "Ollama timed out + LLM timed out + registry empty." The synthesis_wave2.md P2 fix table specifies this as a 5-line schema addition.

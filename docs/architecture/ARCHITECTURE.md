@@ -1,317 +1,546 @@
-# BrickLayer 2.0 — Build Reference
+# BrickLayer 2.0 — Platform Architecture
 
-**Last updated**: 2026-03-17
-**Branch**: `bl2/mar16` (active development)
-**Self-audit campaign**: `projects/bl2/` -- Wave 25 complete, 49 bugs fixed, 2 open items remaining
-
----
-
-## What BrickLayer 2.0 Is
-
-BrickLayer is an autonomous research loop that runs structured question campaigns against a
-target codebase or live system. BL 2.0 adds a **9-mode lifecycle ontology** on top of the
-BL 1.x engine, a **self-healing code loop**, an **agent fleet with performance tracking**,
-and a **knowledge crystallization pipeline** that turns campaign findings into reusable skills.
+**Last updated**: 2026-03-21
+**Branch**: `bricklayer-meta/mar21`
 
 ---
 
-## Architecture Overview
+## What This Is
+
+BrickLayer 2.0 is a three-layer AI development platform built on top of Claude Code. It started as
+a research loop for stress-testing business models and has grown into a full orchestration platform
+combining autonomous campaign research, typed agent-to-agent communication, prompt optimization,
+and a complete development workflow.
+
+The three layers are distinct but integrated:
 
 ```
-Campaign Loop (campaign.py)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Claude Code                                    │
+│                        (the interface / runtime)                            │
+└────────────────────────────────┬────────────────────────────────────────────┘
+                                 │
+┌────────────────────────────────▼────────────────────────────────────────────┐
+│                               MASONRY                                       │
+│   The bridge / device layer                                                 │
+│   • 22 Claude Code hooks (session lifecycle, guards, lint, observe)         │
+│   • MCP server (masonry_mcp tools exposed to Claude and Kiln)               │
+│   • Typed Pydantic v2 payload schemas (QuestionPayload, FindingPayload, …)  │
+│   • Four-layer routing engine (deterministic → semantic → LLM → fallback)   │
+│   • DSPy MIPROv2 prompt optimization pipeline                               │
+│   • Agent registry (agent_registry.yml — declarative, YAML)                │
+│   • Plugin pack architecture (packs/masonry-core/, packs/masonry-frontier/) │
+└───────────┬─────────────────────────────────────────────────┬───────────────┘
+            │                                                 │
+┌───────────▼──────────────┐                 ┌───────────────▼───────────────┐
+│        BRICKLAYER        │                 │            MORTAR             │
+│   Research / campaign    │                 │      Executive router         │
+│   engine                 │                 │                               │
+│   • 10-mode question     │                 │   Every Claude Code request   │
+│     campaign system      │                 │   routes through Mortar first │
+│   • simulate.py runner   │                 │   Mortar dispatches to        │
+│   • Specialist agent     │                 │   specialist agents in        │
+│     fleet (30+ agents)   │                 │   parallel                    │
+│   • Wave-based research  │                 │                               │
+│   • findings/ + synthesis│                 │   Four routing layers:        │
+│   • DSPy training data   │                 │   1. Deterministic (60%+)     │
+│     extracted from       │                 │   2. Semantic (Ollama)        │
+│     findings/            │                 │   3. LLM (Haiku)              │
+└──────────────────────────┘                 │   4. Fallback (→ user)        │
+                                             └───────────────────────────────┘
+                                                           │
+                                             ┌─────────────▼─────────────────┐
+                                             │            KILN               │
+                                             │  (BrickLayerHub Electron app) │
+                                             │  • Campaign monitoring        │
+                                             │  • Question queue management  │
+                                             │  • Findings feed              │
+                                             │  • DSPy optimization trigger  │
+                                             │  • Agent fleet health         │
+                                             └───────────────────────────────┘
+```
+
+---
+
+## Layer 1: BrickLayer — Research / Campaign Engine
+
+### Campaign Loop
+
+The core loop lives in `bl/campaign.py`. It drives autonomous research by iterating a question
+bank, routing each question to a specialist agent, recording the verdict, and generating follow-up
+questions from findings.
+
+```
+Campaign Loop (bl/campaign.py)
   │
-  ├── parse_questions() → PENDING questions
-  │     └── _reactivate_pending_external()   # BL 2.0
+  ├── parse_questions()            → PENDING questions from questions.md
+  │     └── _reactivate_pending_external()   # BL 2.0: surfaces PENDING_EXTERNAL
   │
   ├── check_sentinels()
-  │     ├── FORGE_NEEDED.md → forge.md (blocking, BL 1.x)
+  │     ├── FORGE_NEEDED.md → forge.md (blocking)
   │     ├── AUDIT_REPORT.md → display advisory
   │     └── OVERRIDE verdicts → inject re-exam questions
   │
-  ├── _preflight_mode_check()                # blocks unknown modes/missing agents
+  ├── _preflight_mode_check()      # blocks unknown modes / missing agents
   │
   └── for each question:
-        ├── _load_mode_context()             # BL 2.0: modes/{mode}.md
-        ├── inject session_context           # BL 2.0: last 2000 chars of session-context.md
-        ├── Recall search (optional)         # BL 2.0: recall_bridge.py
-        ├── run_question()                   # routes to runner (agent/http/subprocess/correctness)
-        ├── write_finding() + update_results_tsv()
-        ├── record_verdict() + detect_regression()
-        ├── generate_followup()              # C-04: drill-down on FAILURE/WARNING
-        ├── run_fix_loop()                   # BL 1.x: BRICKLAYER_FIX_LOOP=1
-        ├── run_heal_loop()                  # BL 2.0: BRICKLAYER_HEAL_LOOP=1
-        ├── append session-context insight
-        ├── store_finding() to Recall        # BL 2.0: optional
-        ├── agent_db.record_run()            # BL 2.0: score tracking
-        └── spawn peer-reviewer (background)
+        ├── _load_mode_context()   # loads modes/{mode}.md into agent prompt
+        ├── inject session_context # last 2000 chars of session-context.md
+        ├── Recall search          # optional: prior findings from System-Recall
+        ├── run_question()         # routes to runner (agent/simulate/http/subprocess)
+        ├── write_finding()        # findings/{question_id}.md
+        ├── update_results_tsv()   # results.tsv append
+        ├── record_verdict()       # history.db + regression detection
+        ├── generate_followup()    # adaptive drill-down on FAILURE/WARNING
+        ├── run_heal_loop()        # BRICKLAYER_HEAL_LOOP=1: self-healing
+        ├── store_finding()        # Recall bridge (optional)
+        ├── agent_db.record_run()  # score tracking
+        └── spawn peer-reviewer   # background quality check
 
   Wave-end (every N questions + completion):
         ├── [5q]  forge-check (background)
         ├── [10q] agent-auditor (background)
-        ├── [10q] overseer if underperformers (background)   # BL 2.0
-        ├── [end] overseer (background)                      # BL 2.0
-        ├── [end] skill-forge (background)                   # BL 2.0
-        ├── [end] mcp-advisor (background)                   # BL 2.0
-        ├── [end] git-nerd (background) → ../archive/GITHUB_HANDOFF.md # BL 2.0
+        ├── [10q] overseer if underperformers (background)
+        ├── [end] overseer + skill-forge + mcp-advisor (background)
+        ├── [end] git-nerd (background) → GITHUB_HANDOFF.md
         ├── [end] synthesize() + parse_recommendation()
         └── [end] generate_hypotheses() if bank exhausted
 ```
 
+### 10 Operational Modes
+
+Each question in `questions.md` declares a `**Mode**:` field. The runner dispatches to the
+corresponding specialist agent with mode-appropriate verdict vocabulary.
+
+| Mode | Verdict Vocabulary | Agent |
+|------|--------------------|-------|
+| `simulate` | HEALTHY / WARNING / FAILURE / INCONCLUSIVE | quantitative-analyst |
+| `diagnose` | DIAGNOSIS_COMPLETE / PENDING_EXTERNAL / INCONCLUSIVE | diagnose-analyst |
+| `fix` | FIXED / FIX_FAILED / INCONCLUSIVE | fix-implementer |
+| `research` | HEALTHY / WARNING / FAILURE / INCONCLUSIVE | research-analyst |
+| `audit` | COMPLIANT / NON_COMPLIANT / PARTIAL / NOT_APPLICABLE | compliance-auditor |
+| `validate` | HEALTHY / WARNING / FAILURE / INCONCLUSIVE | design-reviewer |
+| `benchmark` | CALIBRATED / UNCALIBRATED / NOT_MEASURABLE | benchmark-engineer |
+| `evolve` | IMPROVEMENT / REGRESSION / INCONCLUSIVE | evolve-optimizer |
+| `monitor` | OK / DEGRADED / DEGRADED_TRENDING / ALERT / UNKNOWN | health-monitor |
+| `predict` | IMMINENT / PROBABLE / POSSIBLE / UNLIKELY | cascade-analyst |
+| `frontier` | PROMISING / BLOCKED / WEAK / INCONCLUSIVE | frontier-analyst |
+
+### Core Engine Modules (`bl/`)
+
+| Module | Purpose |
+|--------|---------|
+| `campaign.py` | Main loop — picks questions, routes runners, records verdicts |
+| `questions.py` | questions.md parser, results.tsv I/O, PENDING_EXTERNAL reactivation |
+| `config.py` | Project config singleton, `init_project()` |
+| `findings.py` | Finding schema, verdict/severity mappings (30+ verdicts, 32 severity entries) |
+| `healloop.py` | Self-healing state machine (BRICKLAYER_HEAL_LOOP=1) |
+| `recall_bridge.py` | Optional System-Recall integration. Graceful-fail with 2s health timeout |
+| `agent_db.py` | Agent performance tracking. Score 0.0–1.0, underperformer threshold 0.40 |
+| `skill_forge.py` | Skill registry — distills findings into `~/.claude/skills/` |
+| `history.py` | Verdict history ledger (SQLite), regression detection |
+| `synthesizer.py` | Wave-end synthesis, STOP/PIVOT/CONTINUE recommendation |
+| `hypothesis.py` | Next-wave hypothesis generation (local Ollama LLM) |
+| `followup.py` | Adaptive drill-down on FAILURE/WARNING (Q2.4 → Q2.4.1) |
+| `crucible.py` | Agent benchmarking via structural rubrics |
+| `goal.py` | Goal-directed campaigns from `goal.md` |
+| `runners/agent.py` | Spawns specialist agents via `claude -p` |
+| `runners/performance.py` | Async HTTP load sweeps |
+| `runners/correctness.py` | pytest subprocess runner |
+| `runners/http.py` | Single HTTP request checks |
+| `runners/subprocess_runner.py` | Arbitrary subprocess with verdict parsing |
+
+### Specialist Agent Fleet
+
+**Domain Agents** (run questions directly):
+
+| Agent | Mode | Description |
+|-------|------|-------------|
+| `quantitative-analyst` | simulate | Simulations, parameter sweeps, boundary-finding |
+| `regulatory-researcher` | research | Legal/compliance research, live web sources |
+| `competitive-analyst` | research | Market mapping, analogues, fee benchmarks |
+| `benchmark-engineer` | benchmark | Live service benchmarking, performance baselines |
+| `diagnose-analyst` | diagnose | Root cause analysis → DIAGNOSIS_COMPLETE + Fix Spec |
+| `fix-implementer` | fix | Applies Fix Spec → FIXED or FIX_FAILED |
+| `research-analyst` | research | Evidence-based assumption testing |
+| `compliance-auditor` | audit | Checklist compliance → COMPLIANT/NON_COMPLIANT/PARTIAL |
+| `design-reviewer` | validate | Pre-build design review |
+| `evolve-optimizer` | evolve | Optimization with measurement |
+| `health-monitor` | monitor | Live metric checks → OK/DEGRADED/ALERT |
+| `cascade-analyst` | predict | Cascade risk projection |
+| `frontier-analyst` | frontier | Possibility mapping, analogue identification |
+
+**Meta-Agents** (fleet management, wave-end):
+
+| Agent | Trigger | Purpose |
+|-------|---------|---------|
+| `overseer` | Every 10q + wave end | Repairs underperforming agents, reviews stale skills |
+| `skill-forge` | Wave end | Distills findings into `~/.claude/skills/` |
+| `mcp-advisor` | Wave end | Maps INCONCLUSIVE/FAILURE patterns → MCP recommendations |
+| `synthesizer-bl2` | Wave end | Writes synthesis.md, maintains CHANGELOG/ARCHITECTURE/ROADMAP |
+| `git-nerd` | Wave end + on-demand | Commits changes, creates/updates campaign PR, writes GITHUB_HANDOFF.md |
+| `planner` | Campaign init | Domain risk ranking (D1–D6), writes CAMPAIGN_PLAN.md |
+| `question-designer-bl2` | Campaign init | Generates questions.md with all 10 modes |
+| `hypothesis-generator-bl2` | Bank exhausted | Generates Wave N+1 questions from findings |
+
+**Dev Workflow Agents** (spawned by Mortar):
+
+| Agent | Trigger | Purpose |
+|-------|---------|---------|
+| `spec-writer` | `/plan` | Explores codebase, writes `.autopilot/spec.md` |
+| `test-writer` | `/build` per-task | Writes failing tests (RED phase) |
+| `developer` | `/build` per-task | Implements code to pass tests (GREEN phase) |
+| `code-reviewer` | After developer | Pre-commit quality gate |
+| `diagnose-analyst` | DEV_ESCALATE | Root cause on build failures |
+| `fix-implementer` | After diagnosis | Targeted fix |
+
+### Source Authority Hierarchy
+
+| Tier | Source | Who edits |
+|------|--------|-----------|
+| Tier 1 | `project-brief.md`, `docs/` | Human only — ground truth |
+| Tier 2 | `constants.py`, `simulate.py` | Human (constants) / Agent (scenario params only) |
+| Tier 3 | `findings/`, `questions.md` | Agent output — lower authority |
+
+Tier 1 always overrides Tier 3. If they conflict, the agent writes `CONFLICTS.md`.
+
 ---
 
-## Module Status
+## Layer 2: Masonry — The Bridge
 
-### Core Engine (`bl/`)
+Masonry is the communication layer between BrickLayer and Claude Code. It handles typed
+payloads, routing, hooks, and prompt optimization.
 
-| Module | Status | Description |
-|--------|--------|-------------|
-| `config.py` | ✅ Fixed | Config singleton. Fixed: `agents_dir` now set in `init_project()`, `recall_src`/`target_git` dual-key support |
-| `campaign.py` | ✅ Complete | Main campaign loop. BL 2.0: mode context, session context, Recall bridge, heal loop wiring, agent_db recording, overseer/skill-forge/mcp-advisor spawning |
-| `questions.py` | ✅ Complete | BL 2.0: `operational_mode` field (default `"diagnose"`), `resume_after`, `_PARKED_STATUSES` (12 verdicts), `_reactivate_pending_external()` |
-| `findings.py` | ✅ Fixed | BL 2.0: `_NON_FAILURE_VERDICTS` (18 verdicts — DEGRADED, ALERT, UNKNOWN, BLOCKED added in Wave 2), `severity_map` (32 entries), `_VERDICT_CLARITY` (35 entries) |
-| `healloop.py` | ✅ Fixed | Self-healing state machine. 6 bugs fixed via self-audit campaign (D2.3 alias, D2.5/D2.6 last_cycle tracker, D2.5 short_type ID, D2.4 identity check, D2.1 verdict coverage) |
-| `recall_bridge.py` | ✅ Complete | Optional Recall integration. Graceful-fail: `_HTTPX_AVAILABLE` flag, 2s health timeout, 5s op timeout. `_STORE_VERDICTS` frozenset (WARNING note: not in constants.py yet) |
-| `agent_db.py` | ✅ New | Agent performance tracking. Score 0.0–1.0 (success/partial/failure verdict weighting). Underperformer threshold: 0.40, min 3 runs. JSON-backed at `{project}/agent_db.json` |
-| `skill_forge.py` | ✅ New | Skill registry. Tracks campaign-created skills in `skill_registry.json`. `write_skill()`, `list_project_skills()`, `global_skill_inventory()` |
-| `runners/agent.py` | ✅ Fixed | BL 2.0: `session_ctx_block` injected between `mode_ctx_block` and `doctrine_prefix`. Fixed: `_verdict_from_agent_output()` now accepts all 30 BL 2.0 verdicts via `_ALL_VERDICTS` frozenset (was only 4) |
-| `fixloop.py` | ✅ Unchanged | BL 1.x fix loop. Still active via `BRICKLAYER_FIX_LOOP=1`. Independent of BL 2.0 |
-| `history.py` | ✅ Fixed | Verdict history ledger, regression detection. Fixed: 8 BL 2.0 regression pairs added (F12.1) |
-| `synthesizer.py` | ✅ Fixed | Wave-end synthesis, STOP/PIVOT/CONTINUE recommendation. Fixed: output path to `findings/synthesis.md` (F14.2), _HIGH_SEVERITY extended (F14.2), corpus severity sort (F11.3) |
-| `hypothesis.py` | ✅ Fixed | Next-wave hypothesis generation. Fixed: BL 2.0 ID regex (F10.1), recommendation section parsing (F10.2), wave detection (F9.1) |
-| `followup.py` | ✅ Fixed | Adaptive drill-down on FAILURE/WARNING. Fixed: NON_COMPLIANT in C-04 guards (F12.3), bracket tag lookup (F13.2), Operational Mode injection (F13.1), leaf ID detection (F7.2) |
-| `quality.py` | ✅ Unchanged | Quality scoring |
-| `crucible.py` | ✅ Fixed | Campaign health aggregate. 4 BL 2.0 scorers added (F17.1), _KNOWN_AGENTS extended (F15.2), all scorers use frontmatter-position guards (F22.1/F24.2/F25.1/F25.2) |
-| `goal.py` | ✅ Fixed | Goal-directed campaigns. Fixed: wave-index detection for BL 2.0 headers, focus default and prompt examples (F14.1) |
+### Typed Payload System (`masonry/src/schemas/payloads.py`)
 
-### Mode System (`{project}/modes/`)
+All agent-to-agent communication uses strict Pydantic v2 models with `extra="forbid"`.
 
-9 mode program files — loaded by `_load_mode_context()` and injected into agent prompt:
+| Schema | Direction | Key Fields |
+|--------|-----------|-----------|
+| `QuestionPayload` | → specialist agent | `question_id`, `mode`, `wave`, `priority`, `context`, `constraints` |
+| `FindingPayload` | ← specialist agent | `verdict`, `severity`, `summary` (≤200 chars), `evidence`, `confidence` |
+| `RoutingDecision` | router output | `target_agent`, `layer`, `confidence`, `reason`, `fallback_agents` |
+| `DiagnosePayload` | → diagnose-analyst | `symptoms`, `affected_files`, `prior_attempts` |
+| `DiagnosisPayload` | ← diagnose-analyst | `root_cause`, `fix_strategy`, `affected_scope`, `confidence` |
+| `AgentRegistryEntry` | registry loader | `name`, `model`, `modes`, `capabilities`, `tier`, `optimized_prompt` |
 
-| Mode | Verdict Vocab | File | Status |
-|------|--------------|------|--------|
-| `diagnose` | HEALTHY / FAILURE / DIAGNOSIS_COMPLETE / PENDING_EXTERNAL | `diagnose.md` | ✅ |
-| `fix` | FIXED / FIX_FAILED / INCONCLUSIVE | `fix.md` | ✅ |
-| `research` | HEALTHY / WARNING / FAILURE / INCONCLUSIVE | `research.md` | ✅ |
-| `audit` | COMPLIANT / NON_COMPLIANT / PARTIAL / NOT_APPLICABLE | `audit.md` | ✅ |
-| `validate` | HEALTHY / WARNING / FAILURE / INCONCLUSIVE | `validate.md` | ✅ |
-| `benchmark` | CALIBRATED / UNCALIBRATED / NOT_MEASURABLE | `benchmark.md` | ✅ |
-| `evolve` | IMPROVEMENT / REGRESSION / INCONCLUSIVE | `evolve.md` | ✅ |
-| `monitor` | OK / DEGRADED / DEGRADED_TRENDING / ALERT / UNKNOWN | `monitor.md` | ✅ |
-| `predict` | IMMINENT / PROBABLE / POSSIBLE / UNLIKELY | `predict.md` | ✅ |
-| `frontier` | PROMISING / BLOCKED / WEAK / INCONCLUSIVE | `frontier.md` | ✅ |
+30 valid verdict strings are enforced by `VALID_VERDICTS` frozenset. Passing an invalid verdict
+raises a `ValueError` at the model boundary before any agent executes.
 
-### Agent Fleet (`template/.claude/agents/`)
+### Four-Layer Routing Engine (`masonry/src/routing/`)
 
-#### BL 1.x Agents (pre-existing, unchanged)
-| Agent | Purpose |
-|-------|---------|
-| `forge.md` | Creates missing agents from FORGE_NEEDED.md briefs |
-| `forge-check.md` | Scans fleet for gaps, writes FORGE_NEEDED.md |
-| `peer-reviewer.md` | Reviews fixes, appends CONFIRMED/CONCERNS/OVERRIDE |
-| `agent-auditor.md` | Fleet health report → AUDIT_REPORT.md |
-| `fix-agent.md` | BL 1.x generic fix agent |
-| `retrospective.md` | End-of-session improvement synthesis |
-| `question-designer.md` | BL 1.x question bank generation |
-| `hypothesis-generator.md` | BL 1.x next-wave hypotheses |
-| `synthesizer.md` | Wave-end synthesis |
-| `quantitative-analyst.md` | Simulation/financial questions |
-| `regulatory-researcher.md` | Legal/compliance questions |
-| `competitive-analyst.md` | Market/competitor questions |
-| `benchmark-engineer.md` | Live service benchmarking |
+Every request routes through four layers in order. The first layer to produce a decision wins.
 
-#### BL 2.0 Agents (new)
-| Agent | Mode | Purpose | Status |
-|-------|------|---------|--------|
-| `diagnose-analyst.md` | diagnose | Root cause analysis → DIAGNOSIS_COMPLETE with Fix Spec | ✅ |
-| `fix-implementer.md` | fix | Applies Fix Spec → FIXED or FIX_FAILED | ✅ |
-| `research-analyst.md` | research | Evidence-based assumption testing | ✅ |
-| `compliance-auditor.md` | audit | Checklist compliance → COMPLIANT/NON_COMPLIANT/PARTIAL | ✅ |
-| `design-reviewer.md` | validate | Pre-build design review → HEALTHY/WARNING/FAILURE | ✅ |
-| `evolve-optimizer.md` | evolve | Optimization with measurement → IMPROVEMENT/REGRESSION | ✅ |
-| `health-monitor.md` | monitor | Live metric checks → OK/DEGRADED/ALERT | ✅ |
-| `cascade-analyst.md` | predict | Cascade risk projection → IMMINENT/PROBABLE/POSSIBLE | ✅ |
-| `question-designer-bl2.md` | — | Generates BL 2.0 question banks (all 9 modes) | ✅ |
-| `hypothesis-generator-bl2.md` | — | Next-wave hypotheses for BL 2.0 campaigns | ✅ |
+```
+Request text
+     │
+     ▼
+Layer 1: Deterministic (router.py → deterministic.py)
+  Handles 60%+ of all requests with zero LLM calls.
+  Checks (in order):
+    1. Slash command table (/plan → spec-writer, /build → build-workflow, etc.)
+    2. .autopilot/mode state file
+    3. masonry-state.json campaign state
+    4. .ui/mode state file
+    5. **Mode**: field extraction from question text
+  confidence=1.0 on any match, returns immediately.
+     │ (no match)
+     ▼
+Layer 2: Semantic (semantic.py)
+  Ollama cosine similarity at http://192.168.50.62:11434
+  Model: qwen3-embedding:0.6b
+  Threshold: 0.70
+  Computes embeddings for agent descriptions (cached per session).
+  Returns best-matching agent if similarity > threshold.
+     │ (no match above threshold)
+     ▼
+Layer 3: Structured LLM (llm_router.py)
+  Single Haiku call with JSON-constrained output.
+  Selects from registered agents in agent_registry.yml.
+  Used for ambiguous requests that don't match deterministic patterns.
+     │ (no match or LLM error)
+     ▼
+Layer 4: Fallback
+  target_agent="user", confidence=0.0
+  Returns to Claude with request for clarification.
+```
 
-#### BL 2.0 Meta-Agents (new — fleet management)
-| Agent | Trigger | Purpose | Status |
-|-------|---------|---------|--------|
-| `overseer.md` | Every 10q + wave end | Repairs underperforming agents + stale skills | ✅ |
-| `skill-forge.md` | Wave end | Campaign findings → `~/.claude/skills/` | ✅ |
-| `mcp-advisor.md` | Wave end | INCONCLUSIVE failures → MCP recommendations | ✅ |
-| `synthesizer-bl2.md` | Wave end | Writes synthesis.md + maintains CHANGELOG/ARCHITECTURE/ROADMAP + commits | ✅ |
-| `git-nerd.md` | Wave end + on-demand | Autonomous GitHub ops — commits, PR create/update, writes `GITHUB_HANDOFF.md` | ✅ |
+### Agent Registry (`masonry/agent_registry.yml`)
 
-### Skills (`~/.claude/skills/`)
+Declarative YAML registry for all agents. Each entry contains:
 
-| Skill | Invoke | Purpose | Status |
-|-------|--------|---------|--------|
-| `bl-init` | `/bl-init` | Bootstrap a new BL 2.0 project (mode selection, template copy, question design) | ✅ |
-| `bl-run` | `/bl-run` | Detect project, print exact launch command with env vars | ✅ |
-| `bl-status` | `/bl-status` | Show questions.md progress table + open PENDING/FAILURE items | ✅ |
-| Campaign-derived skills | `/auto-generated` | Created by skill-forge at wave end based on findings | 🔄 In progress |
+```yaml
+- name: quantitative-analyst
+  file: agents/quantitative-analyst.md
+  model: sonnet          # opus | sonnet | haiku
+  description: "..."
+  modes: [simulate]
+  capabilities: [simulation, parameter-sweep, boundary-finding]
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted          # draft | candidate | trusted | retired
+  optimized_prompt: null # path to MIPROv2-optimized JSON, if any
+```
+
+Tiers progress from `draft` (new, unoptimized) → `candidate` (some campaign runs) → `trusted`
+(proven, optimized) → `retired` (replaced or deprecated).
+
+Auto-onboarding: when any `.md` file is written to `agents/` or `~/.claude/agents/`, the
+`masonry-agent-onboard.js` hook triggers `masonry/scripts/onboard_agent.py` which extracts
+frontmatter and appends a new `AgentRegistryEntry` (tier: "draft") to `agent_registry.yml`.
+
+### DSPy Prompt Optimization Pipeline (`masonry/src/dspy_pipeline/`)
+
+BrickLayer campaigns generate training data that can be used to optimize agent prompts via
+MIPROv2, without requiring a separate labeled dataset.
+
+```
+Campaign findings (findings/*.md)
+         │
+         ▼
+training_extractor.py
+  Parses finding files → extracts:
+    question_id, verdict, severity, evidence, summary
+  Quality-weighted by agent_db scores
+  Output: training_data/{agent}.jsonl
+         │
+         ▼
+signatures.py
+  DSPy Signature class per agent:
+    Input fields: question_id, question_text, context
+    Output fields: verdict, severity, summary, evidence, confidence
+  Auto-generated stubs in dspy_pipeline/generated/{agent}.py
+         │
+         ▼
+optimizer.py (MIPROv2)
+  Heuristic metric (no LLM judge, keeps cost low):
+    - verdict_match   (0.4 weight): exact string match
+    - evidence_quality (0.4 weight): length > 100 chars
+    - confidence_calibration (0.2 weight): |predicted - 0.75|
+  Optimized prompt JSON written to:
+    masonry/optimized_prompts/{agent}.json
+         │
+         ▼
+Mortar injects optimized_prompt into agent spawn prompt
+  (when AgentRegistryEntry.optimized_prompt is set)
+         │
+         ▼
+drift_detector.py
+  Compares current agent outputs to training distribution.
+  Flags agents whose verdict distribution has shifted > threshold.
+  Surfaced in Kiln as "drift detected" badge.
+```
+
+Optimization is triggered from Kiln's "OPTIMIZE" button or via `masonry_optimize_agent` MCP tool.
+A DSPy signature stub is auto-generated at agent onboarding time.
+
+### 22 Masonry Hooks
+
+All hooks live in `masonry/src/hooks/`. They fire on Claude Code lifecycle events.
+Kill switch: `DISABLE_OMC=1` (env var) disables all hooks — required when running BrickLayer
+campaigns in a subprocess `claude` to prevent hook interference.
+
+The kill switch is complemented by auto-detection: hooks also detect whether the current project
+is a BrickLayer research project (via `simulate.py`, `questions.md`, or `.claude/agents/` sentinel)
+and self-disable for non-BL contexts.
+
+| Hook | Event | Purpose |
+|------|-------|---------|
+| `masonry-session-start.js` | SessionStart | Restore `.autopilot/`, `.ui/`, campaign mode context. Snapshot dirty files for stop-guard. |
+| `masonry-approver.js` | PreToolUse (Write/Edit/Bash) | Auto-approve writes when build/fix/compose mode is active (checks `.autopilot/mode`, `.ui/mode`). 30-min freshness window on progress.json. |
+| `masonry-context-safety.js` | PreToolUse (ExitPlanMode) | Block plan-mode exit during active build or high context |
+| `masonry-lint-check.js` | PostToolUse (Write/Edit) | ruff + prettier + eslint after every write. Runs formatters in background (non-blocking) to avoid VS Code scroll resets. |
+| `masonry-design-token-enforcer.js` | PostToolUse (Write/Edit) | Warn on hardcoded hex colors or banned fonts in UI files |
+| `masonry-observe.js` | PostToolUse (Write/Edit) | Async: detect finding files written → extract facts → store to Recall. Activity log. |
+| `masonry-guard.js` | PostToolUse (Write/Edit) | Async: 3-strike error fingerprinting. Same error pattern 3x → escalate. |
+| `masonry-tool-failure.js` | PostToolUseFailure | Error tracking + 3-strike escalation on tool failures |
+| `masonry-subagent-tracker.js` | SubagentStart | Async: track active agent spawns |
+| `masonry-agent-onboard.js` | PostToolUse (Write/Edit) | Detect new `agents/*.md` writes → trigger onboard_agent.py → append to registry |
+| `masonry-tdd-enforcer.js` | PostToolUse (Write/Edit) | Warn when implementation file is written without corresponding test file |
+| `masonry-stop-guard.js` | Stop | Block stop when files modified THIS session are uncommitted. Uses session-start snapshot to distinguish session files from pre-existing dirty state. |
+| `masonry-build-guard.js` | Stop | Block stop if `.autopilot/` has PENDING tasks |
+| `masonry-ui-compose-guard.js` | Stop | Block stop if `.ui/` compose has pending tasks |
+| `masonry-context-monitor.js` | Stop | Async: warn when context exceeds 150K tokens |
+| `masonry-statusline.js` | StatusLine | ANSI 24-bit campaign status bar: progress, verdicts, context %, Recall memory count |
+| `masonry-register.js` | UserPromptSubmit | Recall context injection, resume detection, guard state flush |
+| `masonry-session-end.js` | Stop | Structured session summary → Recall |
+| `masonry-session-summary.js` | Stop | Rich session summary extraction |
+| `masonry-handoff.js` | Stop | Handoff notes for cross-session continuity |
+| `masonry-recall-check.js` | UserPromptSubmit | Pre-prompt Recall health check |
+| `masonry-pre-compact.js` | PreCompact | Mid-session checkpoint to Recall (includes assistant responses) |
+
+### MCP Server (`masonry/mcp_server/server.py`)
+
+Exposes BrickLayer campaign operations via Model Context Protocol. Any MCP client (Claude Code,
+Kiln, CI tooling) can query and control campaigns without knowing the file layout.
+
+Transport: MCP Python SDK (stdio) with raw JSON-RPC 2.0 fallback (no deps required).
+
+| Tool | Purpose |
+|------|---------|
+| `masonry_route` | Route a request through the four-layer pipeline |
+| `masonry_status` | Current campaign status for a project directory |
+| `masonry_optimization_status` | DSPy optimization status for all agents |
+| `masonry_onboard` | Trigger agent auto-onboarding for new .md files |
+| `masonry_drift_check` | Run drift detection across all registry agents |
+| `masonry_optimize_agent` | Trigger MIPROv2 optimization for a specific agent |
+| `masonry_registry_list` | List all agents with scores from agent_db.json |
+
+### Plugin Pack Architecture (`masonry/packs/`)
+
+Masonry supports loadable plugin packs. Pack resolution order is defined in
+`~/.masonry/config.json` under `activePacks`.
+
+```
+packs/
+  masonry-core/       — core BL 2.0 skills and agents
+    pack.json
+    skills/
+    agents/
+  masonry-frontier/   — frontier-mode exploration extensions
+    pack.json
+    skills/
+    agents/
+```
 
 ---
 
-## BL 2.0 Key Invariants
+## Layer 3: Mortar — Executive Router
 
-From `project-brief.md` — these must never be violated:
+Mortar is the entry point for every Claude Code request. It reads the request, determines the
+right agents, and dispatches in parallel. Nothing bypasses Mortar for complex work.
 
-1. Campaign loop never raises — all errors caught, logged, turned into INCONCLUSIVE
+```
+Every request lands at Mortar
+         │
+         ├── /plan → spec-writer
+         ├── /build → test-writer + developer + code-reviewer (parallel)
+         ├── /fix → diagnose-analyst → fix-implementer
+         ├── /verify → verify-workflow (read-only)
+         ├── /ultrawork → all independent tasks simultaneously
+         ├── /pipeline → agent DAG from .pipeline/{name}.yml
+         ├── /masonry-run → campaign-conductor (Trowel)
+         ├── /masonry-team → N coordinated Claude instances
+         ├── coding task → developer + test-writer + code-reviewer (parallel)
+         ├── research question → research-analyst + competitive-analyst + others
+         ├── campaign / simulation → Trowel (owns full BL 2.0 loop)
+         ├── git hygiene → git-nerd
+         ├── folder/docs → karen
+         ├── UI/design → uiux-master
+         └── debugging → diagnose-analyst
+```
+
+Mortar uses the same four-layer routing engine as Masonry to determine agent dispatch.
+
+---
+
+## Kiln — BrickLayerHub (Electron App)
+
+Kiln replaces the old web dashboard entirely. It is the primary monitoring and control UI.
+
+Key capabilities:
+- Live campaign monitoring: question counts by status, verdict distribution
+- Question queue management: add questions mid-loop without touching files
+- Findings feed: sorted by severity, click to read full finding
+- Agent fleet health: tier filter pills, score cards, verdict accuracy sparkline
+- DSPy optimization: "OPTIMIZE" button per agent, drift detection badges
+- SignalBar weight visualization: question weight distribution
+- RunnerModePills: mode distribution across the question bank
+
+Kiln communicates with BrickLayer through the Masonry MCP server.
+
+---
+
+## Project Directory Structure
+
+```
+Bricklayer2.0/
+├── bl/                         # Campaign engine (Python package)
+│   ├── campaign.py             # Main loop
+│   ├── questions.py            # questions.md parser + results.tsv I/O
+│   ├── findings.py             # Finding schema, verdict/severity maps
+│   ├── healloop.py             # Self-healing state machine
+│   ├── recall_bridge.py        # Optional Recall integration
+│   ├── agent_db.py             # Agent performance tracking
+│   ├── skill_forge.py          # Skill crystallization pipeline
+│   ├── history.py              # Verdict history + regression detection
+│   ├── synthesizer.py          # Wave-end synthesis
+│   ├── hypothesis.py           # Next-wave hypothesis generation
+│   ├── followup.py             # Adaptive follow-up question generation
+│   ├── crucible.py             # Agent benchmarking
+│   ├── goal.py                 # Goal-directed campaigns
+│   └── runners/                # Mode-specific runners
+│       ├── agent.py
+│       ├── performance.py
+│       ├── correctness.py
+│       ├── http.py
+│       └── subprocess_runner.py
+├── masonry/                    # Masonry bridge layer
+│   ├── src/
+│   │   ├── schemas/
+│   │   │   ├── payloads.py     # Pydantic v2 payload contracts
+│   │   │   └── registry_loader.py
+│   │   ├── routing/
+│   │   │   ├── router.py       # Four-layer orchestrator
+│   │   │   ├── deterministic.py
+│   │   │   ├── semantic.py     # Ollama embedding similarity
+│   │   │   └── llm_router.py   # Haiku fallback
+│   │   ├── dspy_pipeline/
+│   │   │   ├── signatures.py   # DSPy Signature classes per agent
+│   │   │   ├── training_extractor.py
+│   │   │   ├── optimizer.py    # MIPROv2 optimizer
+│   │   │   ├── drift_detector.py
+│   │   │   └── generated/      # Auto-generated DSPy stubs (one per agent)
+│   │   ├── hooks/              # 22 Claude Code lifecycle hooks
+│   │   └── scoring/
+│   │       └── rubrics.py
+│   ├── mcp_server/
+│   │   └── server.py           # Masonry MCP server (dual-transport)
+│   ├── agent_registry.yml      # Declarative agent registry
+│   ├── optimized_prompts/      # MIPROv2-optimized prompt JSON files
+│   ├── training_data/          # DSPy training examples (from findings)
+│   ├── packs/                  # Plugin packs
+│   └── scripts/
+│       └── onboard_agent.py    # Auto-onboarding script
+├── template/                   # Copy to start a new campaign project
+│   ├── simulate.py             # The model (agent edits SCENARIO PARAMETERS only)
+│   ├── constants.py            # Immutable rules
+│   ├── program.md              # Loop instructions
+│   ├── questions.md            # Question bank
+│   ├── project-brief.md        # Human ground truth (Tier 1)
+│   ├── docs/                   # Supporting documents
+│   ├── findings/               # Per-question findings (*.md)
+│   ├── results.tsv             # Run log
+│   ├── analyze.py              # PDF report generator
+│   ├── modes/                  # Mode context files (diagnose.md, fix.md, etc.)
+│   └── .claude/agents/         # Project-specific agents
+├── .claude/agents/             # Global agent fleet (shared across all campaigns)
+├── docs/
+│   ├── architecture/
+│   │   └── ARCHITECTURE.md     # This file
+│   └── guides/
+│       ├── QUICKSTART.md
+│       └── FRAMEWORK.md
+├── dashboard/                  # Legacy web dashboard (superseded by Kiln)
+├── tests/                      # Engine test suite
+├── README.md
+├── CHANGELOG.md
+├── ROADMAP.md
+└── PROJECT_STATUS.md
+```
+
+---
+
+## Key Invariants
+
+These must never be violated:
+
+1. Campaign loop never raises — all errors are caught, logged, and turned into INCONCLUSIVE
 2. `session-context.md` writes use `open(..., "a")` — append-only
 3. Recall bridge always wrapped in `try/except Exception: pass`
-4. Heal loop exits after `max_cycles` — no infinite loop
-5. Heal intermediate IDs (`_heal{n}_diag`, `_heal{n}_fix`) are unique — no collisions with real question IDs
+4. Heal loop exits after `max_cycles` — no infinite loop possible
+5. Heal intermediate IDs (`_heal{n}_diag`, `_heal{n}_fix`) never collide with real question IDs
 6. `_PARKED_STATUSES` is a strict superset of `_PRESERVE_AS_IS`
-7. `operational_mode` defaults to `"diagnose"` — BL 1.x backwards compat
-
----
-
-## Self-Healing Loop
-
-```
-Activated by: BRICKLAYER_HEAL_LOOP=1
-Max cycles: BRICKLAYER_HEAL_MAX_CYCLES (default 3)
-
-FAILURE ──→ diagnose-analyst ──→ DIAGNOSIS_COMPLETE ──→ fix-implementer ──→ FIXED ✓
-                                                                           ↓
-                                                                      FIX_FAILED
-                                                                           ↓
-                                  ←──────────── next cycle ──────────────←┘
-                                  (uses fix finding with Root Cause Update as context)
-
-On FIXED: updates original question's results.tsv row to FIXED
-On exhaustion: appends "## Heal Cycle N — EXHAUSTED" to original finding
-```
-
-**Bugs fixed by bl2 self-audit campaign:**
-- `D2.3` Fix: `current_result = dict(fix_result)` — was alias, mutated fix_result verdict
-- `D2.5` Fix: `short_type` computed from agent_name (was hardcoded)
-- `D2.6` Fix: `last_cycle` tracker (EXHAUSTED note now shows actual exit cycle)
-- `D2.4` Fix: identity check `healed_result is not result` (was verdict comparison)
-- `D2.1` Fix: `_verdict_from_agent_output()` accepts all 30 BL 2.0 verdicts
-- `D2.2` Fix: DEGRADED/ALERT/UNKNOWN/BLOCKED added to `_NON_FAILURE_VERDICTS`
-
----
-
-## Agent Performance System
-
-```
-Per-run: agent_db.record_run(project_root, agent_name, verdict)
-  → updates agent_db.json with verdict history and recalculated score
-
-Score = (success_verdicts * 1.0 + partial_verdicts * 0.5) / total_runs
-  Success: HEALTHY, FIXED, COMPLIANT, CALIBRATED, IMPROVEMENT, OK, PROMISING, DIAGNOSIS_COMPLETE, NOT_APPLICABLE, DONE
-  Partial: WARNING, PARTIAL, WEAK, DEGRADED, DEGRADED_TRENDING, FIX_FAILED, PENDING_EXTERNAL, BLOCKED
-  Failure: FAILURE, INCONCLUSIVE, NON_COMPLIANT, ALERT, UNKNOWN, UNCALIBRATED, REGRESSION
-
-Underperformer: score < 0.40 AND runs >= 3
-  → Overseer spawned (background) to diagnose and repair
-```
-
----
-
-## Self-Audit Campaign Status (`projects/bl2/`)
-
-**Scope**: 157 questions across 25 waves targeting `bl/` source + dashboard
-**Recall source**: `C:/Users/trg16/Dev/autosearch`
-**Recommendation**: STOP -- engine ready for production campaigns
-
-| Wave | Questions | Fixed | Status |
-|------|-----------|-------|--------|
-| Wave 1 | D1-D10, A1-A12 (22q) | -- | 7 FAILURE, 1 WARNING, 1 NON_COMPLIANT |
-| Wave 2 | F2.1-F2.6 fix wave | 6 fixes | All FIXED |
-| Wave 3 | M2.x, F3.1, V3.1 | 1 fix | _STORE_VERDICTS extracted, print fix |
-| Wave 4 | D3.x, D4.x, F4.x | 4 fixes | parse_questions regex critical fix |
-| Wave 5 | D5.1, A5.1, F5.1, V5.1 | 1 fix | Body Mode dispatch fix |
-| Wave 6 | D6.x, F6.x, A6.1, V6.1 | 2 fixes | code_audit runner + results.tsv format |
-| Wave 7 | D7.x, F7.x, A7.1, V7.1 | 2 fixes | Verdict extraction + leaf ID detection |
-| Wave 8 | D8.x, F8.x, A8.1, V8.1 | 2 fixes | Override injection glob + status preservation |
-| Wave 9 | D9.x, F9.x, A9.1, V9.1 | 2 fixes | Wave detection regex + agent_db tracking |
-| Wave 10 | D10.x, F10.x, A10.1, V10.1 | 2 fixes | Hypothesis generation BL 2.0 compat |
-| Wave 11 | D11.x, F11.x, V11.1 | 3 fixes | Crucible scorers + sync preservation + corpus sort |
-| Wave 12 | D12.x, F12.x, A12.1, V12.1 | 3 fixes | Regression detection + failure classification + follow-up |
-| Wave 13 | D13.x, F13.x, A13.1, V13.1 | 2 fixes | Follow-up sub-question quality |
-| Wave 14 | D14.x, F14.x, A14.1, V14.x | 2 fixes | goal.py + synthesizer.py compat |
-| Wave 15 | D15.x, F15.x, A15.1, V15.1 | 2 fixes | crucible.py + questions.py compat |
-| Wave 16 | D16.x, A16.1, V16.1 | -- | 3 diagnoses, 1 audit, 1 validation |
-| Wave 16-mid | F-mid.1-5, D-mid.4 | 5 fixes | Heal loop TSV, peer-reviewer guard, text parsing |
-| Wave 17 | F17.1, D17.x, A17.1, V17.1 | 1 fix | 4 BL 2.0 crucible scorers implemented |
-| Wave 18 | V18.x, A18.1, D18.x | -- | Scorer verification, hoist confirmed |
-| Wave 19 | F19.1, F19.2 | 2 fixes | dc_rate scoping + fix_spec exact match |
-| Wave 20 | V20.x, A20.x, D20.1 | -- | Scorer verification + dashboard audit |
-| Wave 21 | F21.1, F21.2, D21.1 | 2 fixes | Dashboard status colors + prefix guard |
-| Wave 22 | F22.1, V22.x | 1 fix | Frontmatter-position guard (diagnose) |
-| Wave 23 | V23.1, D23.x, A23.1 | -- | Scorer audit + historical gap confirmation |
-| Wave 24 | F24.1, F24.2, V24.1, A24.1 | 2 fixes | Hypothesis field fix + compliance guard |
-| Wave 25 | F25.1, F25.2, V25.1, D25.1 | 2 fixes | Design-reviewer + fix-implementer guards |
-
-**Agent scores** (Wave 25 benchmarks):
-
-| Agent | Score | Key Metrics |
-|-------|-------|-------------|
-| fix-implementer | 0.97 | fixed_rate=1.00, verify_section=0.92 |
-| compliance-auditor | 0.86 | definitive_rate=1.00, fix_spec_rate=0.64 |
-| diagnose-analyst | 0.73 | dc_rate=1.00, fix_spec_completeness=0.32 |
-| design-reviewer | 0.71 | compliant_rate=0.74, lineno_reference_rate=0.68 |
-| hypothesis-generator | 0.37 | has_derived_from=0.62, has_test=0.01 (D25.1 field mismatch) |
-
-**Open items** (2 remaining):
-- `D25.1` [DIAGNOSIS_COMPLETE] -- `check_block()` uses BL 1.x field names; hypothesis-generator score artificially low
-- `A10.1` [NON_COMPLIANT] -- `_build_findings_corpus()` pop(0) alphabetical sort bias under budget pressure
-
----
-
-## Environment Variables
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `BRICKLAYER_HEAL_LOOP` | unset | Enable BL 2.0 self-healing loop |
-| `BRICKLAYER_HEAL_MAX_CYCLES` | `3` | Max heal cycles before EXHAUSTED |
-| `BRICKLAYER_FIX_LOOP` | unset | Enable BL 1.x fix loop (independent) |
-| `DISABLE_OMC` | unset | Must be `1` when launching campaigns — prevents OMC hooks from intercepting agent spawns |
-
----
-
-## File Layout
-
-```
-autosearch/
-  bl/                      — Engine source (Python package)
-    agent_db.py            — Agent performance tracking [BL 2.0]
-    campaign.py            — Campaign orchestration loop
-    config.py              — Config singleton (fixed: agents_dir, recall_src)
-    findings.py            — Finding writer, verdict classifier (fixed: _NON_FAILURE_VERDICTS)
-    fixloop.py             — BL 1.x fix loop
-    healloop.py            — BL 2.0 self-healing loop (fixed: 6 bugs)
-    hypothesis.py          — Next-wave generation
-    questions.py           — Question parser (BL 2.0: operational_mode, _PARKED_STATUSES)
-    recall_bridge.py       — Optional Recall integration [BL 2.0]
-    runners/
-      agent.py             — Agent runner (fixed: _verdict_from_agent_output)
-      ...
-    skill_forge.py         — Skill registry [BL 2.0]
-    synthesizer.py         — Wave-end synthesis
-
-  template/                — Copy this to start a new project
-    .claude/agents/        — 22 agents (13 BL 1.x + 4 BL 2.0 + 5 meta)
-    modes/                 — 9 mode program files [BL 2.0]
-    project-brief.md       — Fill in for each project
-    questions.md           — Template question bank
-    constants.py           — Template constants
-
-  projects/bl2/            — BL 2.0 self-audit campaign
-    .claude/agents/        — 22 agents (copy of template)
-    findings/              — 35+ finding files
-    modes/                 — 9 mode files
-    results.tsv            — Campaign results (all waves)
-    agent_db.json          — Agent scores (populated during campaign)
-    skill_registry.json    — Campaign-created skills
-
-  dashboard/               — Web UI (FastAPI + React)
-
-  ~/.claude/skills/        — Claude Code skills (global)
-    bl-init/               — Bootstrap new BL 2.0 project
-    bl-run/                — Launch/resume campaign
-    bl-status/             — Show campaign progress
-```
+7. `operational_mode` defaults to `"diagnose"` — maintains BL 1.x backwards compatibility
+8. All payload schemas use `extra="forbid"` — unknown fields are rejected at agent boundaries
+9. Routing always returns a `RoutingDecision` — Layer 4 fallback guarantees this
