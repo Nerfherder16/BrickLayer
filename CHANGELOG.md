@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `65c6353` autopilot: task #9 - MCP server 5 new tools (route, optimization_status, onboard, drift_check, registry_list) (2026-03-21)
 - `ac2ceba` feat(onboard): auto-onboarding script for Masonry agents (2026-03-21)
 - `83723ff` test: add onboard agent test file (2026-03-21)
 - `f262c62` docs(adbp3): add ADBP_Research_Findings.docx with 9 MC campaign findings (2026-03-21)
