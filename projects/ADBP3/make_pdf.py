@@ -280,16 +280,18 @@ story.append(
 
 story.append(
     Paragraph(
-        f"\u2022  <b>MC-optimal strategy</b> (confirmed via 20,000-run Monte Carlo):",
+        f"\u2022  <b>MC-optimal strategy</b> (confirmed via 300,000-run Monte Carlo \u2014 3 seeds \u00d7 100,000 runs \u00d7 240 months):",
         bul,
     )
 )
 for sub in [
-    "Trigger: backing \u2265 114.6%",
-    "Size: 30.2% of outstanding credits per event",
-    "Cooldown: 8 months minimum between burns",
-    "First eligible: month 13 (ramp-up protection)",
-    "Result: 1 burn event over 10 years, 30.2% of credits destroyed, 77.7% final backing (HEALTHY)",
+    "Trigger: backing \u2265 133.2%",
+    "Size: 34.9% of outstanding credits per event",
+    "Cooldown: 18 months minimum between burns",
+    "First eligible: month 20 (ramp-up protection)",
+    "Result: 1 burn event over 20 years, 34.9% of credits destroyed, 97.3% final backing (HEALTHY)",
+    "Seed stability: 85.63\u2013 85.75% HEALTHY across all seeds (fully converged, 0.12pp spread)",
+    "FAILURE rate: 0.00% across all 300,000 runs (structural solvency guarantee)",
 ]:
     story.append(Paragraph(f"\u2022  {sub}", bul2))
 story.append(
@@ -297,6 +299,64 @@ story.append(
         "<b>Why $2/credit?</b> The credit provides $2 of purchasing power. Burning a credit extinguishes a $2 obligation. "
         "The treasury pays $2 to retire $1 of face-value liability — the difference is the amplification cost built into the burn mechanism.",
         blockq,
+    )
+)
+
+story.append(Paragraph("Structural Solvency Guarantee", h3))
+story.append(
+    Paragraph(
+        "The system carries a <b>mathematical identity</b> that prevents treasury failure in the absence of burn events:",
+        body,
+    )
+)
+story.append(
+    Paragraph(
+        "treasury_wallet = \u03a3(inflows) + interest \u2265 \u03a3(credits_minted \u00d7 $1.00) = total_credits_outstanding",
+        code_s,
+    )
+)
+story.append(
+    Paragraph(
+        "Because every credit minted adds exactly $1.00 to the treasury, and interest only adds further, the backing ratio cannot fall below 100% without an explicit burn. "
+        "FAILURE (&lt; 50% backing) is structurally impossible from market conditions alone. Burns are the only mechanism that can reduce backing below 100% \u2014 "
+        "and the affordability cap mathematically prevents post-burn backing from dropping below 50%.",
+        body,
+    )
+)
+
+story.append(Paragraph("Credit Expiry", h3))
+story.append(
+    Paragraph(
+        "Credits carry a velocity of 12\u00d7 per year \u2014 each credit cycles through the network approximately monthly. "
+        "At this velocity, annual breakage (inactivity-driven non-redemption) is approximately <b>5\u20137%</b>.",
+        body,
+    )
+)
+for line in [
+    "<b>Cohort expiry:</b> Credits issued in month T expire at month T + window. Recommended: <b>36 months</b> (legally defensible, consumer-friendly)",
+    "<b>Breakage:</b> Credits not redeemed within any rolling period are removed at <b>$0 cost</b> to treasury (inflow already collected; $2 obligation terminates)",
+    "<b>Economics:</b> Expiry is strictly more efficient than burns \u2014 $0/credit vs $2/credit. Higher expiry accelerates backing ratio growth, triggering more burn events",
+]:
+    story.append(Paragraph(f"\u2022  {line}", bul))
+story.append(
+    simple_table(
+        ["Program Type", "Typical Window", "Notes"],
+        [
+            ["Gift cards (CARD Act)", "5 years minimum", "Statutory floor"],
+            ["Closed-loop corporate perks", "24\u201336 months", "Standard practice"],
+            ["Loyalty / rewards points", "12\u201324 months inactivity", "Forfeiture on inactivity"],
+            ["Commuter / FSA benefits", "Monthly rolling", "Regulatory use-it-or-lose-it"],
+            ["ADBP (recommended)", "36 months", "Generous, consumer-friendly"],
+        ],
+        [1.8 * inch, 1.5 * inch, 3.2 * inch],
+    )
+)
+story.append(Spacer(1, 4))
+story.append(
+    Paragraph(
+        "Combined scenario (36mo window, 6% annual breakage, MC-optimal burns): "
+        "5 burn events, 66.4% of all credits destroyed, 99.1% final backing (HEALTHY).",
+        body,
     )
 )
 

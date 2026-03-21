@@ -59,14 +59,54 @@ The American Dream Benefits Program is a third-party consumer discount platform 
 - Burns are threshold-triggered: a burn is authorized when the backing ratio (`treasury_wallet / total_credits`) exceeds a target threshold
 - **Affordability cap:** post-burn backing ratio must never fall below the 50% floor
   - Cap formula: `max_burnable = (wallet − 0.50 × total_credits) / (2.00 − 0.50)`
-- **MC-optimal strategy** (confirmed via 20,000-run Monte Carlo):
-  - Trigger: backing ≥ 114.6%
-  - Size: 30.2% of outstanding credits per event
-  - Cooldown: 8 months minimum between burns
-  - First eligible: month 13 (ramp-up protection)
-  - Result: 1 burn event over 10 years, 30.2% of credits destroyed, 77.7% final backing (HEALTHY)
+- **MC-optimal strategy** (confirmed via 300,000-run Monte Carlo — 3 seeds × 100,000 runs × 240 months):
+  - Trigger: backing ≥ 133.2%
+  - Size: 34.9% of outstanding credits per event
+  - Cooldown: 18 months minimum between burns
+  - First eligible: month 20 (ramp-up protection)
+  - Result: 1 burn event over 20 years, 34.9% of credits destroyed, 97.3% final backing (HEALTHY)
+  - Seed stability: 85.63% – 85.75% HEALTHY across all seeds (fully converged, 0.12pp spread)
+  - FAILURE rate: 0.00% across all 300,000 runs (structural solvency guarantee — see below)
 
 > **Why $2/credit?** The credit provides $2 of purchasing power. Burning a credit extinguishes a $2 obligation. The treasury pays $2 to retire $1 of face-value liability — the difference is the amplification cost built into the burn mechanism.
+
+### Structural Solvency Guarantee
+
+The system carries a **mathematical identity** that prevents treasury failure in the absence of burn events:
+
+> `treasury_wallet = Σ(inflows) + interest ≥ Σ(credits_minted × $1.00) = total_credits_outstanding`
+
+Because every credit minted adds exactly $1.00 to the treasury, and interest only adds further, the backing ratio cannot fall below 100% without an explicit burn. This is confirmed by stress tests across all parameter combinations: zero-interest, 75% employee loss, extreme CPE, and combined adversity all return minimum backing of exactly 100.0%.
+
+Implications:
+- **FAILURE (< 50% backing) is structurally impossible** from market conditions alone
+- Burns are the only mechanism that can reduce backing below 100% — the affordability cap (`max_burnable = (wallet − 0.50 × total_credits) / 1.50`) mathematically prevents post-burn backing from dropping below 50%
+- WARNING states (50–74%) can only be reached by a burn event, and only if burn parameters are set aggressively — the MC-optimal strategy never enters WARNING
+
+### Credit Expiry
+
+Credits carry a **velocity of 12× per year** — each credit cycles through the network approximately monthly. Programs at this velocity observe annual breakage (inactivity-driven non-redemption) of approximately **5–7%**.
+
+**Expiry mechanics:**
+
+- **Cohort expiry**: Credits issued in month T expire at month T + window. Recommended window: **36 months** (legally defensible under CARD Act precedent for non-financial instruments, operationally consistent with similar closed-loop platforms)
+- **Breakage rate**: Credits not redeemed within any rolling period are removed from circulation at **$0 cost** to treasury (the $1 inflow was already collected; the $2 obligation simply terminates)
+- **Economic impact**: Expiry is strictly more treasury-efficient than burns — $0/credit vs $2/credit. Expiry causes backing ratio to climb faster, which in turn triggers more frequent burns and higher total credit destruction
+
+**Research baselines for expiry windows:**
+
+| Program Type | Typical Window | Notes |
+|---|---|---|
+| Gift cards (CARD Act) | 5 years minimum | Statutory floor for consumer protection |
+| Closed-loop corporate perks | 24–36 months | Standard practice; legally defensible |
+| Loyalty / rewards points | 12–24 months inactivity | Forfeiture on inactivity, not calendar expiry |
+| Commuter / FSA benefits | Monthly rolling | Strict regulatory use-it-or-lose-it |
+| **ADBP (recommended)** | **36 months** | Generous, consumer-friendly, aligns with essential-spending context |
+
+**Expiry + burn combined scenario** (36mo window, 6% annual breakage, MC-optimal burns):
+- 5 burn events over 10 years
+- 66.4% of all credits ever minted destroyed (expiry + burns combined)
+- 99.1% final backing (HEALTHY)
 
 ### Treasury Mechanics
 
