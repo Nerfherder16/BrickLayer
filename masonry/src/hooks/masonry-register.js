@@ -102,7 +102,6 @@ async function main() {
   try { input = JSON.parse(raw); } catch (_err) { return; }
 
   const sessionId = input.session_id || 'unknown';
-  const cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 
   // Detect BrickLayer context
   const ctx = detectBrickLayerContext(cwd);
