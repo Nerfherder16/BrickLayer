@@ -90,7 +90,6 @@ async function main() {
   atomicWrite(stateFile, state);
 
   // Append to routing_log.jsonl for DSPy training signal (Phase 16)
-  const routingLogPath = path.join(cwd, 'masonry', 'routing_log.jsonl');
   const routingEntry = JSON.stringify({
     timestamp: new Date().toISOString(),
     event: 'start',
@@ -99,9 +98,12 @@ async function main() {
     parent_session: input.session_id || '',
   });
   try {
-    // ensure masonry/ dir exists in cwd
-    const masonryDir = path.join(cwd, 'masonry');
+    // Resolve masonry/ dir — cwd might be the masonry dir itself (self-research sessions)
+    const masonryDir = path.basename(cwd) === 'masonry' && fs.existsSync(cwd)
+      ? cwd
+      : path.join(cwd, 'masonry');
     if (fs.existsSync(masonryDir)) {
+      const routingLogPath = path.join(masonryDir, 'routing_log.jsonl');
       fs.appendFileSync(routingLogPath, routingEntry + '\n', 'utf8');
     }
   } catch (_err) { /* non-fatal */ }

@@ -1278,7 +1278,7 @@
 
 ### F16.1: Fix CWD guard in `masonry-observe.js` and `masonry-subagent-tracker.js` to resolve routing_log.jsonl path correctly when CWD is the masonry/ directory itself
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: HIGH
 **Source**: synthesis_wave15
