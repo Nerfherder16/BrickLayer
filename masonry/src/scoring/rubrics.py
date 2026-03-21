@@ -54,6 +54,8 @@ AGENT_CATEGORIES: dict[str, str] = {
     # routing category
     "mortar": "routing",
     "trowel": "routing",
+    # general category (catch-all for multi-purpose subagents)
+    "general-purpose": "findings",
 }
 
 RUBRICS: dict[str, Rubric] = {

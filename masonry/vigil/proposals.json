@@ -1,21 +1,25 @@
 {
-  "generated_at": "2026-03-21T18:31:41",
+  "generated_at": "2026-03-21T18:57:07",
   "campaign": "masonry",
   "roses": [
-    "diagnose-analyst",
-    "fix-implementer",
-    "design-reviewer",
+    "research-analyst",
+    "diagnose-analyst` but lack a `**Confidence**:` field. Vigil defaults missing confidence to 0.5, which falls below `CONFIDENCE_THRESHOLD=0.70`, causing all 8 to fail the quality gate. The diagnose-analyst agent's actual performance cannot be assessed from this data set.",
+    "` Field in BL2.0 Finding Template",
     "developer",
     "test-writer",
     "git-nerd",
     "karen"
   ],
   "buds": [
-    "research-analyst",
+    "diagnose-analyst",
+    "fix-implementer",
+    "design-reviewer",
     "quantitative-analyst",
+    "regulatory-researcher",
     "competitive-analyst",
     "synthesizer-bl2",
-    "regulatory-researcher",
+    "` Field; Regex Is Correct, Template Was Never Enforced",
+    "health-monitor",
     "mortar"
   ],
   "thorns": [
@@ -24,8 +28,8 @@
   "proposals": [
     {
       "agent_name": "unknown",
-      "issue": "quality gate pass rate is 0% over 12 findings (threshold: 0.7)",
-      "evidence": "pass_rate=0.00, avg_length=6566chars, findings_analyzed=12",
+      "issue": "quality gate pass rate is 0% over 13 findings (threshold: 0.7)",
+      "evidence": "pass_rate=0.00, avg_length=6503chars, findings_analyzed=13",
       "proposed_change": "Review the agent's system prompt for vague or overly broad instructions. Add explicit criteria for what constitutes a high-confidence finding and require citing specific data points from the simulation.",
       "risk_level": "high",
       "requires_human_approval": true,
