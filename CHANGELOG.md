@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `8c73818` feat(phase-16): full-fleet DSPy training pipeline (2026-03-21)
 - `7b4472f` fix(hooks): wire DISABLE_OMC=1 kill switch into all Masonry hooks (2026-03-21)
 - `314dfd2` docs(roadmap): add Phase 16 — Full-Fleet DSPy Training (2026-03-21)
 - `ca2a215` feat(masonry): init BL research campaign scaffolding (2026-03-21)
