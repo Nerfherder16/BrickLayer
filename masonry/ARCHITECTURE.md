@@ -342,12 +342,14 @@ Python package root is the `Bricklayer2.0/` directory. Import as `from masonry.s
 
 ## Key Findings
 
-- **R21.2** [HEALTHY] Wave 21: Vigil fleet HEALTHY -- 0 thorns for the first time; synthesis meta-files excluded from parse_findings_dir()
-- **F21.1** [FIX_APPLIED] Wave 21: Stale masonry/masonry/ CWD artifact deleted; dual-path detection applied to score_all_agents.py and run_optimization.py
-- **R21.1** [WARNING] Wave 21: DSPy MIPROv2 + Ollama qwen3:14b feasible with 2 config changes; build_dataset() training path compatible; structured output reliability unverified
+- **R22.1** [WARNING] Wave 22: DSPy + Ollama smoke test PASSED (qwen3:14b produces valid structured output) but configure_dspy() defaults to wrong model name when backend="ollama"
+- **D22.1** [DIAGNOSIS_COMPLETE] Wave 22: confidence_calibration band [0.5, 0.95] creates 30-pt cliff for confidence > 0.95, suppresses 40 training records (14.4%); fix spec complete
+- **F22.1** [FIX_APPLIED] Wave 22: Ollama backend wired into optimizer.py, run_optimization.py CLI, and mcp_server/server.py with backend="ollama" parameter
 
 ## Open Items
 
 | ID | Verdict | Summary |
 |----|---------|---------|
-| R21.1 | WARNING | DSPy Ollama smoke-run needed: qwen3:14b structured output reliability under MIPROv2 bootstrapping unverified |
+| R22.1 | WARNING | configure_dspy(backend="ollama") defaults to model="claude-sonnet-4-6"; 1-line fix needed in optimizer.py:38 |
+| D22.1 | DIAGNOSIS_COMPLETE | confidence_calibration band [0.5, 0.95] suppresses 40 training records; fix: widen to [0.5, 1.0] in score_findings.py:178 |
+| R22.2 | PENDING | Full MIPROv2 trial deferred; blocked on R22.1 default model fix |
