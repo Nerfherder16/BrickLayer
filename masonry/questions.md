@@ -565,7 +565,7 @@
 
 ### F5.3: Fix `masonry-subagent-tracker.js` — replace `safeWrite` with atomic rename to prevent agents.json corruption under concurrent SubagentStart events
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Priority**: MEDIUM
 **Motivated by**: D2.2 FAILURE (Medium) — `safeWrite()` in `masonry-subagent-tracker.js` uses `fs.writeFileSync()` (direct write). Under concurrent SubagentStart events (spawning multiple agents simultaneously — now possible post-F3.1 without the artificial double-fire), two instances could read the same `agents.json`, each add their entry, and the last write discards the first agent's entry. Fix: atomic rename write using a tmp file with process.pid suffix.
@@ -577,7 +577,7 @@
 
 ### R5.1: Validate `route_llm()` behavior post-F5.2 — confirm hallucinated agent names are rejected and valid names route correctly
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Motivated by**: F5.2 Fix — after adding registry membership validation to `route_llm()`, verify the check works correctly for both valid and invalid agent names. This is a unit-level validation of the fix, not a live benchmark (cannot invoke `claude` recursively).
@@ -589,7 +589,7 @@
 
 ### R5.2: DSPy dry run — attempt `build_dataset()` + optimizer initialization with 39 training examples to confirm the pipeline produces valid optimized prompts
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Motivated by**: R4.1 HEALTHY — `build_dataset()` now produces 39 training examples across 5 agents. DSPy 3.1.3 is confirmed installed. This research question validates the end-to-end DSPy pipeline: can the optimizer initialize, accept the training data, and produce a non-empty optimized prompt JSON without errors? Does not require a full MIPROv2 training run — just initialization and a dry run with minimal iterations.
