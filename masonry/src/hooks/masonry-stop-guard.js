@@ -56,6 +56,66 @@ function isResearchProject(dir) {
          fs.existsSync(path.join(dir, 'questions.md'));
 }
 
+// Key project docs that must stay current with code changes.
+const PROJECT_DOCS = [
+  "README.md",
+  "PROJECT_STATUS.md",
+  "ROADMAP.md",
+  "docs/architecture/ARCHITECTURE.md",
+];
+
+// Source patterns that count as "real code changes" (not just doc/changelog commits).
+const SOURCE_PATTERNS = [
+  /^masonry\//,
+  /^\.claude\//,
+  /^template\//,
+  /^adbp\//,
+  /^kiln\//,
+];
+
+/**
+ * Warn (non-blocking) if code was committed this session but no project docs were touched.
+ * Uses git log since the session snapshot mtime as a proxy for session start.
+ */
+function checkDocStaleness(cwd, snapPath) {
+  try {
+    // Use snapshot mtime as session-start anchor; fall back to midnight today.
+    let since = "";
+    try {
+      const snapStat = fs.statSync(snapPath);
+      const iso = new Date(snapStat.mtimeMs).toISOString();
+      since = `--after="${iso}"`;
+    } catch {
+      since = '--after="midnight"';
+    }
+
+    const log = execSync(`git log --name-only --pretty=format:"" ${since}`, {
+      encoding: "utf8",
+      timeout: 8000,
+      cwd,
+    }).trim();
+
+    if (!log) return; // no commits this session
+
+    const changedFiles = log.split("\n").map(l => l.trim()).filter(Boolean);
+    const hasSourceChange = changedFiles.some(f => SOURCE_PATTERNS.some(p => p.test(f)));
+    if (!hasSourceChange) return; // only doc/misc commits — no warning needed
+
+    const touchedDocs = changedFiles.filter(f => PROJECT_DOCS.includes(f));
+    if (touchedDocs.length > 0) return; // docs were updated — all good
+
+    // Docs are stale relative to code commits this session.
+    const missing = PROJECT_DOCS.filter(d => !touchedDocs.includes(d));
+    process.stderr.write(
+      `\n[Masonry] Doc staleness warning: code was committed this session but project docs were not updated.\n` +
+      `  Stale: ${missing.join(", ")}\n` +
+      `  Run karen or update docs before your next session.\n`
+    );
+  } catch {
+    // git unavailable or other error — skip silently
+  }
+}
+
 async function main() {
   // Auto-detect BrickLayer research project — hooks are silent inside BL subprocesses
   if (isResearchProject(process.cwd())) process.exit(0);
@@ -170,6 +230,10 @@ async function main() {
   } catch {
     // Not a git repo or git unavailable — allow stop
   }
+
+  // Non-blocking doc staleness check — warns but never blocks stopping.
+  const snapPath = sessionId ? path.join(os.tmpdir(), `masonry-snap-${sessionId}.json`) : null;
+  checkDocStaleness(cwd, snapPath);
 
   process.exit(0);
 }
