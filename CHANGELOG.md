@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `cf163f8` fix(pre-compact): correct slug derivation + remove debug lines (2026-03-21)
 - `27a8388` fix(pre-compact): correct transcript path slug derivation (2026-03-21)
 - `91cbc7f` fix(pre-compact): derive transcript path from cwd+session_id (2026-03-21)
 - `4906128` feat(pre-compact): store mid-session checkpoint to Recall with assistant responses (2026-03-21)
