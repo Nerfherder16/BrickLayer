@@ -36,7 +36,54 @@ docs/                 — Supporting documents (human authority)
 project-brief.md      — Ground truth (highest authority, human only)
 .claude/agents/       — Specialist agents
 reports/              — Generated PDF reports (python analyze.py)
+masonry/src/schemas/  — Pydantic v2 payload models (QuestionPayload, FindingPayload, etc.)
+masonry/src/routing/  — Four-layer routing engine (deterministic → semantic → LLM → fallback)
+masonry/src/dspy_pipeline/ — DSPy optimization pipeline (signatures, optimizer, drift detector)
+masonry/optimized_prompts/ — Per-agent optimized prompt JSON files
+masonry/agent_registry.yml — Declarative agent registry (modes, capabilities, tier)
 ```
+
+---
+
+## Masonry Orchestration Architecture
+
+### Typed Payload System
+All agent-to-agent communication uses structured Pydantic v2 models. Key schemas:
+- `QuestionPayload` — question routed to a specialist (question_id, mode, context, priority, wave)
+- `FindingPayload` — specialist output (verdict, severity, summary ≤200 chars, evidence, confidence 0-1)
+- `RoutingDecision` — routing layer output (target_agent, layer, confidence, reason)
+- `DiagnosePayload` / `DiagnosisPayload` — diagnose/fix cycle contracts
+- `AgentRegistryEntry` — agent metadata (modes, capabilities, tier, DSPy status)
+
+Source: `masonry/src/schemas/payloads.py`
+
+### Four-Layer Routing
+Mortar dispatches requests through four layers in priority order:
+1. **Deterministic** (0 LLM calls): slash commands, autopilot state files, `**Mode**:` field
+2. **Semantic** (0 LLM calls): Ollama cosine similarity at http://192.168.50.62:11434 (threshold 0.75)
+3. **Structured LLM** (1 Haiku call): JSON-constrained routing for ambiguous requests
+4. **Fallback**: returns target_agent="user" — asks for clarification
+
+Use `masonry_route` MCP tool or `masonry/src/routing/router.py` directly.
+
+### DSPy Prompt Optimization
+Agents can be optimized via MIPROv2 using training data from existing findings:
+- Training data extracted by `masonry/src/dspy_pipeline/training_extractor.py`
+- Optimization run via `masonry/src/dspy_pipeline/optimizer.py`
+- Drift detection via `masonry/src/dspy_pipeline/drift_detector.py`
+- Optimized prompts stored in `masonry/optimized_prompts/{agent}.json`
+- Mortar injects optimized prompts on specialist invocation automatically
+
+Trigger from Kiln UI "OPTIMIZE" button or via `masonry_optimize_agent` MCP tool.
+
+### Agent Onboarding (Zero Manual Steps)
+When a new `.md` file is written to `agents/` or `~/.claude/agents/`:
+1. `masonry-agent-onboard.js` hook detects the Write/Edit event
+2. `masonry/scripts/onboard_agent.py` extracts frontmatter metadata
+3. New `AgentRegistryEntry` appended to `masonry/agent_registry.yml` with `tier: "draft"`
+4. DSPy signature stub generated in `masonry/src/dspy_pipeline/generated/`
+5. Kiln shows new agent on next refresh as "draft / Not optimized"
+6. Run a campaign wave to generate training data, then optimize from Kiln UI
 
 ---
 
