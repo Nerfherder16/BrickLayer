@@ -324,7 +324,7 @@ DIAGNOSIS_COMPLETE suppression mechanism, and validate the evolution roadmap.*
 ## Q6.1 [SIMULATION] Recalibrated baseline: do all four Q1/Q3 fixes together produce HEALTHY and restore the novelty cliff?
 **Mode**: agent
 **Agent**: simulation-analyst
-**Status**: IN_PROGRESS
+**Status**: DONE
 **Hypothesis**: Applying the four recalibration changes from the Wave 1 synthesis simultaneously should (a) still produce verdict HEALTHY at nominal parameters, (b) produce a novelty cliff at DOMAIN_NOVELTY 0.65–0.75 (Q1.2 finding), and (c) produce a specialization floor at AGENT_SPECIALIZATION_RATIO ~0.20–0.35 (Q1.3 finding). All three behaviors should emerge together; if any is absent, the four changes interact in a way the individual-fix analysis didn't predict.
 **Test**: In a copy of simulate.py, apply all four recalibrations from the synthesis table simultaneously: (1) `PEER_REVIEW_CORRECTION_RATE` 0.55 → 0.40; (2) novelty discount formula `max(0.20, 1 - N*0.60)` → `max(0.05, 1 - N*0.90)`; (3) `BASE_GENERALIST_ACCURACY` 0.625 → 0.50; (4) `_wave_uniqueness()` inverted to start at 0.20, rise to 0.80 by wave 10, plateau at 0.70. Run the recalibrated model at: (a) nominal parameters (DOMAIN_NOVELTY=0.35, AGENT_SPECIALIZATION_RATIO=0.65) — expect HEALTHY; (b) DOMAIN_NOVELTY sweep 0.50–1.00 in steps of 0.05 — find the cliff crossing WARNING threshold; (c) AGENT_SPECIALIZATION_RATIO sweep 0.0–0.5 in steps of 0.05 — find the inflection point. Report: baseline verdict, cliff location, floor location. Compare to Q1.2 and Q1.3 findings.
 **Verdict threshold**:
@@ -338,7 +338,7 @@ DIAGNOSIS_COMPLETE suppression mechanism, and validate the evolution roadmap.*
 ## Q6.2 [SIMULATION] J-curve model: implement and validate the inverted _wave_uniqueness() against the empirical Recall curve
 **Mode**: agent
 **Agent**: simulation-analyst
-**Status**: IN_PROGRESS
+**Status**: DONE
 **Hypothesis**: The Q3.1 finding established that the real Recall campaign has a three-phase novelty curve: Phase 1 (waves 1-7) mean signal 0.150, Phase 2 (waves 13-24) mean signal 0.642, Phase 3 (waves 31-36) mean signal 0.665. An S-curve `_wave_uniqueness()` starting at 0.20, rising through an inflection near wave 8-10, and plateauing at 0.70-0.80 should reproduce this profile. A monotonic-decay model cannot reproduce it under any parameterization.
 **Test**: Implement two alternative `_wave_uniqueness()` models as standalone Python functions: (A) S-curve: `0.20 + 0.60 * (1 / (1 + exp(-0.5 * (wave - 8))))` — sigmoid centered at wave 8; (B) Piecewise: 0.20 for waves 1-7, linear rise from 0.20 to 0.75 for waves 8-15, plateau at 0.75 for waves 16+. For each model, compute the per-wave uniqueness value for waves 1–36. Compute the mean uniqueness for the three empirical phase bands (waves 1-7, waves 13-24, waves 31-36). Compare to empirical means (0.150, 0.642, 0.665). Report root-mean-square error for each model. Also test that neither model produces a FAILURE verdict at nominal parameters (WAVE_COUNT=36, QUESTIONS_PER_WAVE=7).
 **Verdict threshold**:
@@ -352,7 +352,7 @@ DIAGNOSIS_COMPLETE suppression mechanism, and validate the evolution roadmap.*
 ## Q6.3 [FIX-LOOP] DIAGNOSIS_COMPLETE design: define the exact mechanism to suppress deployment-blocked re-check questions
 **Mode**: agent
 **Agent**: evolution-architect
-**Status**: IN_PROGRESS
+**Status**: DONE
 **Hypothesis**: The Q2.4 finding showed that BrickLayer re-checked the double-decay bug for 18 consecutive waves after diagnosis, wasting ~30% of wave capacity. The fix is a new question state — either a new status value (`DEPLOYMENT_BLOCKED`) or a new verdict (`DIAGNOSIS_COMPLETE`) — that halts re-checking until the target code changes. The design must be compatible with the current questions.md flat-file format and must not require changes to constants.py (immutable).
 **Test**: Design the state machine extension as a concrete specification: (1) Define the trigger condition — after how many consecutive FAILURE re-checks with no code change detected should a question enter DEPLOYMENT_BLOCKED? (2) Define the questions.md entry format — what fields does a DEPLOYMENT_BLOCKED entry need that a DONE/PENDING entry does not? (3) Define the unblocking condition — what event causes the question to re-enter PENDING (code change detected via git diff, human override, timer)? (4) Check for conflicts with the existing status values (PENDING/IN_PROGRESS/DONE/INCONCLUSIVE) — does this require a 5th status or is it a sub-state of INCONCLUSIVE? (5) Estimate the capacity saving: in the Recall campaign, how many wave-question slots would DEPLOYMENT_BLOCKED have freed in waves 22-30?
 **Verdict threshold**:
@@ -366,7 +366,7 @@ DIAGNOSIS_COMPLETE suppression mechanism, and validate the evolution roadmap.*
 ## Q6.4 [COVERAGE] Category diversity sentinel: define a measurable metric and test whether it would have fired in the Recall campaign
 **Mode**: agent
 **Agent**: campaign-historian
-**Status**: IN_PROGRESS
+**Status**: DONE
 **Hypothesis**: The Q3.2 finding showed that retrieval (55.3%) and decay (27.7%) dominated 83% of WARNING/FAILURE findings across 36 waves, with 6+ failure categories near zero coverage. A category diversity metric — defined as a Herfindahl-Hirschman Index (HHI) over finding categories — would have detected this concentration. An HHI above a threshold (e.g., 0.40) should trigger the Forge sentinel to generate questions in underrepresented categories. The question is whether this metric is computable from data already present in findings files, and at what wave the threshold would have fired in the Recall campaign.
 **Test**: (1) Define a category taxonomy with 8-12 categories based on the Q3.2 finding (retrieval, decay, auth, write-path, cold-start, Neo4j correctness, rate-limiting, backup, cross-service, etc.). (2) Classify a sample of 40 findings from the Recall campaign (waves 1-20) into these categories using the finding title and hypothesis fields. (3) Compute per-wave cumulative HHI: after wave N, what fraction of WARNING/FAILURE findings falls in each category? Plot HHI over waves. (4) Identify the wave where HHI first exceeds 0.40 (proposed sentinel threshold). (5) Verify that the 6 near-zero categories from Q3.2 correspond to the same categories that are missing from the sample. Report: the wave at which the sentinel would have first fired, and the estimated coverage gain if the sentinel had redirected 2 questions per wave toward underrepresented categories starting at that wave.
 **Verdict threshold**:
@@ -380,7 +380,7 @@ DIAGNOSIS_COMPLETE suppression mechanism, and validate the evolution roadmap.*
 ## Q6.5 [CORRECTNESS] Peer review collapse root cause: what caused peer review to stop after wave 16?
 **Mode**: agent
 **Agent**: campaign-historian
-**Status**: PENDING
+**Status**: DONE
 **Hypothesis**: The Q2.3 finding confirmed peer review ran only in waves 13-16 of 36, then stopped entirely. Three plausible root causes exist: (A) a code bug in the peer-reviewer spawn logic — the async spawn silently failed starting at wave 17; (B) a configuration change — a human disabled peer review or the Forge retired the peer-reviewer agent between waves 16 and 17; (C) a capacity sentinel — peer review was suppressed because wave 16 had a high INCONCLUSIVE count (5 of 9 findings), triggering some auto-disable logic. Identifying the root cause determines whether this is a bug to fix or a design decision to document.
 **Test**: (1) Read all finding files from waves 13-20 in `C:/Users/trg16/Dev/autosearch/recall/findings/`. Identify any finding that mentions the peer-reviewer agent being spawned, timing out, or being explicitly disabled. (2) Check for a FORGE_LOG.md or agent audit log in `C:/Users/trg16/Dev/autosearch/recall/` that records when agents were added or retired. (3) Read `C:/Users/trg16/Dev/autosearch/bl/` for any sentinel or auto-disable logic that would suppress the peer-reviewer after a high INCONCLUSIVE wave. (4) Check `C:/Users/trg16/Dev/autosearch/recall/questions.md` waves 17-20 — do any questions reference peer review or mention it being disabled? (5) Report: which root cause is most consistent with the available evidence, and what the observable signature of that cause would be in the findings files.
 **Verdict threshold**:
@@ -394,7 +394,7 @@ DIAGNOSIS_COMPLETE suppression mechanism, and validate the evolution roadmap.*
 ## Q6.6 [FIX-LOOP] PENDING_EXTERNAL state machine: specify the fields, trigger, and resume_after protocol
 **Mode**: agent
 **Agent**: evolution-architect
-**Status**: PENDING
+**Status**: DONE
 **Hypothesis**: The Q4.3 finding showed 32 INCONCLUSIVE findings (15.4%) blocked by external timing constraints — cron windows, GC eligibility dates, deployment prerequisites. These are structurally different from INCONCLUSIVE findings caused by insufficient evidence: they have a known future unblocking time. A PENDING_EXTERNAL state (with a `resume_after` timestamp field in questions.md) would park these questions out of the active wave pool until the unblocking condition is met, recovering wave capacity. The hygiene cron chain alone (waves 29-31) would have freed 3 question slots.
 **Test**: Specify the state machine extension in full: (1) Define `PENDING_EXTERNAL` as a new Status value or as a metadata annotation on INCONCLUSIVE — which is architecturally cleaner given the current questions.md flat-file format? (2) Define required fields: `resume_after` (ISO-8601 timestamp or event description), `blocking_condition` (human-readable), `wave_last_checked` (to detect the broken-prerequisite case). (3) Define the broken-prerequisite escalation rule from Q4.3 mitigation: if `resume_after` is in the past and the question is still blocked, how many waves before it escalates to FAILURE? (3 consecutive waves? configurable?) (4) Construct two concrete example entries from the Recall campaign — the hygiene cron wait and the GC eligibility wait — showing exactly what they would look like in questions.md format with the new fields. (5) Estimate total wave slots recovered in the Recall campaign if PENDING_EXTERNAL had been active from wave 26.
 **Verdict threshold**:
@@ -408,7 +408,7 @@ DIAGNOSIS_COMPLETE suppression mechanism, and validate the evolution roadmap.*
 ## Q6.7 [EVOLUTION] Universal framework yield test: do the four roadmap changes each independently improve campaign yield in simulation?
 **Mode**: agent
 **Agent**: evolution-architect
-**Status**: PENDING
+**Status**: DONE
 **Hypothesis**: The Q5.4 finding identified four changes needed to make BrickLayer fully domain-agnostic: (1) SUBJECTIVE verdict type, (2) runner output contract standardization, (3) pluggable evaluate.py interface, (4) diagnosis/deployment split. Each change addresses a specific gap. In the recalibrated simulation (Q6.1), each change should independently improve campaign_yield by at least 0.03 when modeled as a parameter adjustment — otherwise the change is cosmetic (useful for architecture but not yield-affecting).
 **Test**: Using the recalibrated simulate.py from Q6.1 as the baseline, model each of the four roadmap changes as a parameter perturbation and measure campaign_yield delta: (1) SUBJECTIVE verdict: add a `SUBJECTIVE_VERDICT_RATE` parameter (fraction of questions that produce a SUBJECTIVE verdict rather than HEALTHY/WARNING/FAILURE); model SUBJECTIVE findings as half-actionable (they need human resolution before they produce a concrete finding); test at 0%, 20%, 40% SUBJECTIVE rates — does yield degrade gracefully or collapse? (2) Runner output contract: model as a reduction in `BASE_GENERALIST_ACCURACY` variance — a tighter contract reduces the spread of wrong verdicts; test the effect of reducing generalist variance by 20%. (3) Pluggable evaluate.py: model as an increase in `AGENT_SPECIALIZATION_RATIO` (a pluggable evaluator means domain-specific logic can be injected); test AGENT_SPECIALIZATION_RATIO going from 0.65 to 0.80. (4) Diagnosis/deployment split: model as removing DEPLOYMENT_BLOCKED re-checks from the wave pool (equivalent to the Q6.3 mechanism); test with 15% of wave slots freed. Report: yield delta for each change, and yield delta when all four are combined.
 **Verdict threshold**:
