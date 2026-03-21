@@ -75,6 +75,8 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `1e91afc` fix(wiring): resolve all BL 2.0 framework wiring gaps from audit (2026-03-20)
+- `4490835` chore: session cleanup — template updates, frontier agents, new global agents (2026-03-20)
 - `a7255ba` feat: parallel BL campaign launcher for Windows (2026-03-20)
 - `7c4c86e` chore: session files — CHANGELOG + ADBP3 system rules doc (2026-03-20)
 - `8a0b1a7` docs(adbp3): add System Rules v3 as editable Word document (2026-03-20)
