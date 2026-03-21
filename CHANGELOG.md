@@ -75,6 +75,8 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `ce5609e` fix(masonry-register): parallelize Recall calls to fit within 8s hook budget (2026-03-21)
+- `55d27f6` feat(masonry): OMC gap fills — plan approval UX, SessionEnd, PreCompact hooks (2026-03-21)
 - `cd8abfd` fix(masonry): add fetch timeouts to recall.js + extend mortar to handle dev requests (2026-03-21)
 - `6d42ae2` feat(session-start): auto-detect BL projects and inject run commands (2026-03-21)
 - `2d9e25c` feat(adbp3): extend MC to 240mo, multi-seed, stochastic employee growth (2026-03-20)
