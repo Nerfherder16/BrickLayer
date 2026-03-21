@@ -97,6 +97,50 @@ async function main() {
     lines.push(`[Masonry] Campaign active — ${campaign.project || path.basename(cwd)}: wave ${campaign.wave || 0}, Q${campaign.q_current || 0}/${campaign.q_total || 0}, mode: ${campaign.mode}.`);
   }
 
+  // --- BL project detection (auto bl-run) ---
+  // If cwd looks like a BL project with pending questions and no active campaign,
+  // inject the run commands so the user doesn't have to invoke /bl-run manually.
+  const hasProgramMd = fs.existsSync(path.join(cwd, "program.md"));
+  const hasQuestionsMd = fs.existsSync(path.join(cwd, "questions.md"));
+  const hasActiveCampaign = !!(campaign && campaign.mode);
+  const hasActiveAutopilot = !!(autopilotMode && ["build", "fix", "verify"].includes(autopilotMode));
+
+  if (hasProgramMd && hasQuestionsMd && !hasActiveCampaign && !hasActiveAutopilot) {
+    try {
+      const qText = fs.readFileSync(path.join(cwd, "questions.md"), "utf8");
+      const pendingMatches = (qText.match(/\|\s*PENDING\s*\|/gi) || []).length;
+
+      if (pendingMatches > 0) {
+        const projectName = path.basename(cwd);
+        const blRoot = "C:/Users/trg16/Dev/Bricklayer2.0";
+        const tip = pendingMatches > 10 ? `\n  Tip: ${pendingMatches} questions — parallel workers will finish ~3x faster.` : "";
+
+        // Check if claims.json has active workers (parallel session already running)
+        const claimsPath = path.join(cwd, "claims.json");
+        let activeWorkers = 0;
+        if (fs.existsSync(claimsPath)) {
+          try {
+            const claims = JSON.parse(fs.readFileSync(claimsPath, "utf8"));
+            activeWorkers = Object.values(claims).filter(c => c.status === "IN_PROGRESS").length;
+          } catch {}
+        }
+
+        if (activeWorkers > 0) {
+          lines.push(`[BL] ${projectName}: ${pendingMatches} pending, ${activeWorkers} active worker(s) — parallel session may still be running.`);
+          lines.push(`  Check: python ${blRoot}/bl/claim.py status ${cwd}`);
+        } else {
+          lines.push(`[BL] ${projectName}: ${pendingMatches} questions PENDING — ready to run.${tip}`);
+          lines.push(`  Single worker:`);
+          lines.push(`    $env:DISABLE_OMC=1; claude --dangerously-skip-permissions "Read program.md and questions.md. Resume the research loop from the first PENDING question. NEVER STOP."`);
+          lines.push(`  Parallel (3x faster):`);
+          lines.push(`    cd ${blRoot} && ./bl-parallel.ps1 -Project ${projectName} -Workers 3`);
+        }
+      }
+    } catch {
+      // questions.md unreadable — skip silently
+    }
+  }
+
   // --- Subagent tracking state (global ~/.masonry/state/) ---
   const agentState = tryJSON(path.join(os.homedir(), ".masonry", "state", "agents.json"));
   if (agentState && agentState.active && agentState.active.length > 0) {
