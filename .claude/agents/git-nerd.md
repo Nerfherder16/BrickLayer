@@ -1,12 +1,17 @@
 ---
 name: git-nerd
-description: >
-  Autonomous GitHub operations agent for BrickLayer 2.0 projects.
-  Reads current repo state, executes appropriate git/gh operations (branch,
-  stage, commit, PR create/update), and writes GITHUB_HANDOFF.md with any
-  remaining steps Tim needs to take. Spawned automatically at wave end and
-  invokable on demand for any GitHub task.
 model: haiku
+description: >-
+  Autonomous GitHub operations agent for BrickLayer 2.0 projects. Reads current repo state, executes git/gh operations (branch, stage, commit, PR create/update), and writes GITHUB_HANDOFF.md with remaining steps. Spawned at wave end and invokable on demand.
+modes: [agent]
+capabilities:
+  - git branch, stage, commit, and push operations
+  - GitHub PR creation and update via gh CLI
+  - repo state inspection and GITHUB_HANDOFF.md authoring
+  - wave-end commit and PR workflow automation
+input_schema: QuestionPayload
+output_schema: FindingPayload
+tier: candidate
 tools:
   - Read
   - Write

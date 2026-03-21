@@ -1,7 +1,17 @@
 ---
 name: kiln-engineer
-description: Activate for any changes to Kiln — the BrickLayer Hub Electron desktop app. "Change this in the Hub", "add this feature to Kiln", "fix this UI in the Hub". Knows the full file structure, IPC data flow, component conventions, and build/deploy process. Works in campaign mode or directly in conversation.
 model: sonnet
+description: >-
+  Activate for any changes to Kiln — the BrickLayer Hub Electron desktop app. Knows the full file structure, IPC data flow, component conventions, and build/deploy process. Works in campaign mode or directly in conversation.
+modes: [agent]
+capabilities:
+  - Kiln Electron app feature development and bug fixes
+  - IPC data flow and renderer/main process integration
+  - React component authoring with inline styles and CSS variables
+  - asar packing and build/deploy workflow
+input_schema: QuestionPayload
+output_schema: FindingPayload
+tier: candidate
 tools:
   - Read
   - Write

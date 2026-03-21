@@ -1,11 +1,17 @@
 ---
 name: overseer
-description: >
-  Meta-agent that monitors the agent fleet, identifies underperformers from
-  agent_db.json, reads their recent finding evidence, and rewrites their
-  instruction files to improve performance. Also creates new agents when
-  FORGE_NEEDED.md evidence points to missing capabilities.
 model: opus
+description: >-
+  Meta-agent that monitors the agent fleet, identifies underperformers from agent_db.json, reads their recent finding evidence, and rewrites their instruction files to improve performance. Also creates new agents when FORGE_NEEDED.md evidence points to missing capabilities.
+modes: [agent, monitor]
+capabilities:
+  - agent fleet scoring and underperformer identification
+  - evidence-driven targeted agent instruction improvement
+  - new agent creation from FORGE_NEEDED.md specs
+  - skill staleness detection and repair
+input_schema: QuestionPayload
+output_schema: FindingPayload
+tier: candidate
 tools:
   - Read
   - Edit
