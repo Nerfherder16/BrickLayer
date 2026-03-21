@@ -201,8 +201,9 @@ def classify_rbt(
 
     for agent, m in metrics.items():
         pr = m["pass_rate"]
-        if pr >= OVERCONFIDENT_PASS_RATE:
-            # Suspiciously over-confident
+        rubric_based = m.get("rubric_based", False)
+        if rubric_based and pr >= OVERCONFIDENT_PASS_RATE:
+            # Suspiciously over-confident per rubric scoring
             thorns.append(agent)
         elif pr >= ROSE_PASS_RATE:
             roses.append(agent)
@@ -348,10 +349,25 @@ def run_vigil(
             "proposals": [],
         }
 
+    # Load scored_all early so we can overlay rubric percentages onto
+    # findings-dir agent metrics (replaces confidence-based pass_rate).
+    scored_all_data = load_scored_all(project_dir)
+
+    for agent, agent_records in scored_all_data.items():
+        if agent not in metrics or not agent_records:
+            continue
+        scores = [rec.get("score", 0) for rec in agent_records]
+        if not scores:
+            continue
+        avg_score = sum(scores) / len(scores)
+        max_pts = _rubric_max_score(agent)
+        pct = avg_score / max_pts if max_pts > 0 else 0.0
+        metrics[agent]["pass_rate"] = pct
+        metrics[agent]["rubric_based"] = True
+
     roses, buds, thorns = classify_rbt(metrics)
 
-    # Augment with scored_all data for agents not present in results.tsv
-    scored_all_data = load_scored_all(project_dir)
+    # Augment with scored_all data for agents not present in findings-dir metrics
     tsv_agents = set(metrics.keys())
 
     for agent, agent_records in scored_all_data.items():
