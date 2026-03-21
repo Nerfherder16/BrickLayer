@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `346bad5` autopilot: task #0 - fix masonry-tool-failure.js global state scoping bug (2026-03-21)
 - `4526b1d` chore: update agent_db.json scores (2026-03-21)
 - `cabd886` chore: standardize kiln build output to dist/ (canonical dir) (2026-03-21)
 - `6fce704` feat(kiln-engineer): add new agent creation SOPs — avatar, description, hot-load (2026-03-21)
