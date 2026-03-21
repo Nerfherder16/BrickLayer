@@ -428,17 +428,17 @@ in `~/.claude.json`. Does NOT replace masonry-mcp.js — both run in parallel.
 
 | # | Item | Status |
 |---|------|--------|
-| 16.01a | `rubrics.py` — findings category: confidence calibration (40), evidence quality (40), verdict clarity (20), min_score=60 | 📋 |
-| 16.01b | `rubrics.py` — code category: tests_pass (50), lint_clean (20), no_regression (30), min_score=70 | 📋 |
-| 16.01c | `rubrics.py` — ops category: operation_succeeded (60), human_accepted (40), min_score=60 | 📋 |
-| 16.01d | `rubrics.py` — routing category: correct_agent_dispatched (70), downstream_success (30), min_score=65 | 📋 |
+| 16.01a | `rubrics.py` — findings category: confidence calibration (40), evidence quality (40), verdict clarity (20), min_score=60 | ✅ |
+| 16.01b | `rubrics.py` — code category: tests_pass (50), lint_clean (20), no_regression (30), min_score=70 | ✅ |
+| 16.01c | `rubrics.py` — ops category: operation_succeeded (60), human_accepted (40), min_score=60 | ✅ |
+| 16.01d | `rubrics.py` — routing category: correct_agent_dispatched (70), downstream_success (30), min_score=65 | ✅ |
 
 ### 16.02 — Backfill Agent Attribution 📋
 Existing findings from bricklayer-meta and prior campaigns show `agent: unknown` in scored_findings.jsonl because the `**Agent**:` field wasn't in the finding template until Wave 3.
 
 | # | Item | Status |
 |---|------|--------|
-| 16.02a | `masonry/scripts/backfill_agent_fields.py` — reads each finding, infers agent from question_id domain prefix (Q1.x→quantitative-analyst, Q2.x→regulatory-researcher, Q3.x→competitive-analyst, etc.), patches `**Agent**:` line if missing | 📋 |
+| 16.02a | `masonry/scripts/backfill_agent_fields.py` — reads each finding, infers agent from question_id domain prefix (Q1.x→quantitative-analyst, Q2.x→regulatory-researcher, Q3.x→competitive-analyst, etc.), patches `**Agent**:` line if missing | ✅ |
 | 16.02b | Re-run `score_findings.py` after backfill — verify attributed count > 0 per agent | 📋 |
 
 ### 16.03 — Code Agent Signal 📋
@@ -447,8 +447,8 @@ Signal source: `.autopilot/progress.json` + `build.log` across all git branches
 
 | # | Item | Status |
 |---|------|--------|
-| 16.03a | `masonry/scripts/score_code_agents.py` — walks all branches for `.autopilot/` dirs, scores developer on test pass rate, code-reviewer on catch rate (issues found / issues actually present) | 📋 |
-| 16.03b | Extend `masonry-observe.js` to append to `masonry/routing_log.jsonl` on every SubagentStart: `{timestamp, agent, prompt_hash, session_id}` | 📋 |
+| 16.03a | `masonry/scripts/score_code_agents.py` — walks all branches for `.autopilot/` dirs, scores developer on test pass rate, code-reviewer on catch rate (issues found / issues actually present) | ✅ |
+| 16.03b | Extend `masonry-subagent-tracker.js` to append to `masonry/routing_log.jsonl` on every SubagentStart | ✅ |
 
 ### 16.04 — Ops Agent Signal 📋
 Agents: `git-nerd`, `karen`, `forge-check`, `overseer`
@@ -456,8 +456,8 @@ Signal source: git log outcomes, FORGE_NEEDED.md acceptance history, AUDIT_REPOR
 
 | # | Item | Status |
 |---|------|--------|
-| 16.04a | `masonry/scripts/score_ops_agents.py` — reads git log for commit success from git-nerd; reads whether FORGE_NEEDED.md recommendations were acted on (agent files created); reads whether AUDIT_REPORT.md retirements were applied | 📋 |
-| 16.04b | karen scoring: track whether docs written by karen (CHANGELOG, ARCHITECTURE, ROADMAP) were committed without human edits (proxy for acceptance) | 📋 |
+| 16.04a | `masonry/scripts/score_ops_agents.py` — reads git log for commit success from git-nerd; reads whether FORGE_NEEDED.md recommendations were acted on (agent files created); reads whether AUDIT_REPORT.md retirements were applied | ✅ |
+| 16.04b | karen scoring: track whether docs written by karen (CHANGELOG, ARCHITECTURE, ROADMAP) were committed without human edits (proxy for acceptance) | ✅ |
 
 ### 16.05 — Routing Signal 📋
 Agents: `mortar`, `trowel`
@@ -465,16 +465,16 @@ Signal source: `masonry/routing_log.jsonl` (needs 16.03b), downstream outcome
 
 | # | Item | Status |
 |---|------|--------|
-| 16.05a | `masonry/scripts/score_routing.py` — reads routing_log.jsonl, checks whether dispatched agent produced a finding/commit/artifact (downstream success), scores mortar/trowel on accuracy | 📋 |
-| 16.05b | Extend `masonry-subagent-tracker.js` to write outcome back to routing_log.jsonl when agent completes (append `{outcome: "success"|"failure", duration_ms}` to matching session_id entry) | 📋 |
+| 16.05a | `masonry/scripts/score_routing.py` — reads routing_log.jsonl, checks whether dispatched agent produced a finding/commit/artifact (downstream success), scores mortar/trowel on accuracy | ✅ |
+| 16.05b | Extend `masonry-subagent-tracker.js` to write routing_log.jsonl start entries per SubagentStart | ✅ |
 
 ### 16.06 — Unified Aggregator 📋
 
 | # | Item | Status |
 |---|------|--------|
-| 16.06a | `masonry/scripts/score_all_agents.py` — calls all four scorers, merges output into `masonry/training_data/scored_all.jsonl`, updates `last_score` in `agent_registry.yml` | 📋 |
-| 16.06b | Kiln: wire "Score All" button to `score_all_agents.py` via new `score-all-agents` IPC handler | 📋 |
-| 16.06c | `masonry/scripts/run_vigil.py` extended to read `scored_all.jsonl` (not just findings) — VIGIL health for ALL 46 agents | 📋 |
+| 16.06a | `masonry/scripts/score_all_agents.py` — calls all four scorers, merges output into `masonry/training_data/scored_all.jsonl`, updates `last_score` in `agent_registry.yml` | ✅ |
+| 16.06b | Kiln: wire "Score All" button to `score_all_agents.py` via new `score-all-agents` IPC handler | ✅ |
+| 16.06c | `masonry/scripts/run_vigil.py` extended to read `scored_all.jsonl` — VIGIL health for ALL 46 agents | ✅ |
 
 **Initial training run sequence** (once 16.01–16.06 are built):
 ```bash

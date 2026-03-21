@@ -20,6 +20,19 @@ from pathlib import Path
 from typing import Any
 
 # ---------------------------------------------------------------------------
+# Try to import scoring rubrics for scored_all integration
+# ---------------------------------------------------------------------------
+
+try:
+    from masonry.src.scoring.rubrics import max_score as _rubric_max_score
+    _HAS_RUBRICS = True
+except ImportError:
+    _HAS_RUBRICS = False
+
+    def _rubric_max_score(agent_name: str) -> int:  # type: ignore[misc]
+        return 100
+
+# ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
@@ -33,6 +46,26 @@ MIN_FINDINGS_FOR_METRICS = 5
 # ---------------------------------------------------------------------------
 # parse_results_tsv
 # ---------------------------------------------------------------------------
+
+
+def load_scored_all(base_dir: Path) -> dict[str, list[dict[str, Any]]]:
+    """Load scored_all.jsonl and return {agent_name: [records]}."""
+    jsonl_path = base_dir / "masonry" / "training_data" / "scored_all.jsonl"
+    if not jsonl_path.exists():
+        return {}
+    records: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for line in jsonl_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+            agent = rec.get("agent", "unknown")
+            if agent and agent != "unknown":
+                records[agent].append(rec)
+        except json.JSONDecodeError:
+            continue
+    return dict(records)
 
 
 def parse_results_tsv(tsv_path: Path) -> list[dict[str, Any]]:
@@ -305,6 +338,28 @@ def run_vigil(
         }
 
     roses, buds, thorns = classify_rbt(metrics)
+
+    # Augment with scored_all data for agents not present in results.tsv
+    scored_all_data = load_scored_all(project_dir)
+    tsv_agents = set(metrics.keys())
+
+    for agent, agent_records in scored_all_data.items():
+        if agent in tsv_agents or not agent_records:
+            continue
+        scores = [rec.get("score", 0) for rec in agent_records]
+        if not scores:
+            continue
+        avg_score = sum(scores) / len(scores)
+        max_pts = _rubric_max_score(agent)
+        pct = avg_score / max_pts if max_pts > 0 else 0.0
+
+        if pct >= ROSE_PASS_RATE:
+            roses.append(agent)
+        elif pct >= THORN_PASS_RATE:
+            buds.append(agent)
+        else:
+            thorns.append(agent)
+
     proposals = generate_proposals(thorns, metrics)
 
     n_thorns = len(thorns)
