@@ -58,7 +58,7 @@ def extract_finding_fields(path: Path) -> dict[str, Any]:
     confidence, question_text, summary, evidence.
     """
     try:
-        text = path.read_text(encoding="utf-8")
+        text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         text = ""
 
