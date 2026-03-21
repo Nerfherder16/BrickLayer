@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `4871802` chore: masonry mcp server and onboard script updates (2026-03-21)
 - `fe3b647` chore: session cleanup — masonry registry, routing, ADBP3 doc updates (2026-03-21)
 - `104740f` feat(adbp3): add fee optimization sweep analysis for admin tier (2026-03-21)
 - `947104a` feat(adbp3): add vendor economics simulation and doc section (2026-03-21)
