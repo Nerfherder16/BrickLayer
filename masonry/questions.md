@@ -898,7 +898,7 @@
 
 ### F10.1: Fix `_MODE_FIELD_RE` to match `**Operational Mode**:` in `deterministic.py`
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Priority**: HIGH
 **Hypothesis**: R9.2 confirmed that `_MODE_FIELD_RE = re.compile(r"\*\*Mode\*\*:\s*(\w+)")` never matches BL 2.0 questions because they use `**Operational Mode**:` not `**Mode**:`. Every campaign question that enters the router falls through Rule 5 to Layer 2/3, costing an Ollama semantic lookup or LLM call for something that should be free. The fix is a one-line regex extension.
@@ -909,7 +909,7 @@
 
 ### R10.1: Is `sync_verdicts_to_agent_db.py` integrated into the wave-end workflow or must it be run manually?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: HIGH
 **Hypothesis**: D9.1 created `sync_verdicts_to_agent_db.py` as a standalone script. For drift detection to remain current, it needs to run after each campaign wave. Neither `synthesizer-bl2.md` nor `trowel.md` currently invoke it. If it requires manual invocation, agent verdict history will drift unless the user remembers to run it.
@@ -920,7 +920,7 @@
 
 ### R10.2: Does `masonry_drift_check` produce actionable output now that `agent_db.json["verdicts"]` is populated?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: HIGH
 **Hypothesis**: D7.1 and D9.1 established that `masonry_drift_check` was broken because `verdicts` was always empty. Now that D9.1 has populated 81 verdicts across 6 agents, the drift check should run for the first time against real data. The question is whether the output is actionable or whether the drift thresholds, output format, or metric calculations are themselves untested.
@@ -931,7 +931,7 @@
 
 ### R10.3: Does `masonry_optimize_agent` complete end-to-end for `diagnose-analyst` (28 examples)?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Hypothesis**: D8.1 implemented `_tool_masonry_optimize_agent()` in `server.py`. V9.1 confirmed `input_fields` is correct. F9.1 confirmed training data is meaningful. The end-to-end pipeline has never been run — it may fail at `MIPROv2.compile()` (LLM calls required), at `optimized.save()`, or produce a `.json` that Kiln cannot load. `diagnose-analyst` has the most data (28 examples → actually 21 post-filter) and should be the first agent to try.
@@ -942,7 +942,7 @@
 
 ### D10.1: Does `masonry_drift_check` in `server.py` use the updated `agent_db.json` format with populated `verdicts`, or does it read stale in-memory data?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: MEDIUM
 **Hypothesis**: `_tool_masonry_drift_check()` in `server.py` reads `agent_db.json` from disk at call time. However, `sync_verdicts_to_agent_db.py` writes to the same file. If the MCP server cached `agent_db.json` in memory at startup, the drift check would always see empty `verdicts` even after the sync script runs. Checking whether the server reads fresh from disk vs. uses a module-level cache is critical for the D7.1 fix to be effective.
@@ -953,9 +953,77 @@
 
 ### F10.2: Fix `runBackground()` path-with-spaces on Windows (R6.1 open issue)
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Priority**: LOW
 **Hypothesis**: R6.1 identified that `runBackground()` in Masonry hooks may fail on Windows when `cwd` contains spaces (e.g., `C:\Users\trg16\Dev\Bricklayer2.0`). The issue is in the `spawn()` call's `cwd` option or the shell argument quoting. This affects async hook operations on Windows (the primary development platform).
 **Method**: fix-implementer
 **Success criterion**: Read the `runBackground()` implementation in the relevant hook(s). If path quoting is missing, add `JSON.stringify(cwd)` or wrap in quotes. Verify the fix handles `C:\Users\trg16\Dev\Bricklayer2.0` as a cwd argument. Verdict: FIX_APPLIED if quoting is added; ALREADY_FIXED if path quoting is already present; NOT_REPRODUCIBLE if the issue cannot be located.
+
+---
+
+## Wave 11 Questions
+
+### F11.1: Fix `AgentRegistryEntry` `extra="forbid"` to allow onboarding-added fields
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: HIGH
+**Hypothesis**: R10.2 found that `AgentRegistryEntry` uses `model_config = ConfigDict(extra="forbid")` in `masonry/src/schemas/payloads.py`. The `masonry-agent-onboard.js` hook adds extra fields (`dspy_status`, `drift_status`, `last_score`, `runs_since_optimization`, `registrySource`) to `agent_registry.yml` entries during auto-onboarding. This causes 14 agents to be silently skipped by `load_registry()`, excluding them from drift checking. Fix: change `extra="forbid"` to `extra="ignore"` in `AgentRegistryEntry`.
+**Method**: fix-implementer
+**Success criterion**: Change `extra="forbid"` to `extra="ignore"` in `AgentRegistryEntry`. Re-run `load_registry(Path("masonry/agent_registry.yml"))` and confirm that all agents (including `fix-implementer`, `code-reviewer`, etc.) are loaded without validation errors. Verdict: FIX_APPLIED when no `[registry_loader] Skipping invalid agent` stderr output.
+
+---
+
+### F11.2: Scope `sync_verdicts_to_agent_db.py` to masonry-project verdicts only
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Hypothesis**: R10.2 found that verdict counts include FAILURE verdicts from other BL2.0 projects (adbp2, bl2, etc.) because `sync_verdicts_to_agent_db.py` scans the entire BL2.0 root. For `research-analyst`, 11/19 verdicts are FAILURE from non-masonry projects. This produces current_score=0.34 and false "critical drift" alerts. Fix: pass `--questions-md masonry/questions.md` to limit attribution to masonry questions only.
+**Method**: fix-implementer
+**Success criterion**: Modify the default invocation in `sync_verdicts_to_agent_db.py` to use `masonry/questions.md` when `--base-dir` is the BL2.0 root, or add a `--project` flag. Re-run and verify verdict counts reflect only masonry findings. Verdict: FIX_APPLIED when cross-project FAILURE verdicts are excluded.
+
+---
+
+### R11.1: After F11.1 + F11.2, does `masonry_drift_check` produce accurate per-agent drift reports?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: HIGH
+**Hypothesis**: R10.2 found two drift check defects: (1) 14 agents excluded by registry validation; (2) cross-project verdict contamination. F11.1 and F11.2 should fix both. This question validates the fixes end-to-end: after both fixes, drift check should show all 44 agents in the registry, with masonry-only verdict distributions, and alert levels that match actual masonry campaign performance.
+**Method**: research-analyst
+**Success criterion**: Run `masonry_drift_check` after F11.1 + F11.2. Verify: (1) No `Skipping invalid agent` messages; (2) Verdict distributions reflect only masonry findings; (3) Alert levels are consistent with known agent quality (research-analyst at 0.85 baseline should show "ok" or "warning", not "critical"). Verdict: HEALTHY if all three criteria pass; WARNING if partial; FAILURE if still broken.
+
+---
+
+### F11.3: Integrate `sync_verdicts_to_agent_db.py` into `synthesizer-bl2.md` wave-end workflow
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Hypothesis**: R10.1 found no integration between the verdict sync script and the wave-end workflow. `synthesizer-bl2.md` runs at wave end and already commits docs changes. Adding a non-blocking `sync_verdicts_to_agent_db.py` invocation here ensures verdict history stays current without manual intervention.
+**Method**: fix-implementer
+**Success criterion**: Add the following to `synthesizer-bl2.md` (in the "Commit" or "Post-synthesis" step): `python -m masonry.scripts.sync_verdicts_to_agent_db --questions-md masonry/questions.md || echo "[SYNTHESIS] verdict sync failed (non-blocking)"`. The addition should be non-blocking (failure continues synthesis). Verdict: FIX_APPLIED when the invocation is present in the agent file.
+
+---
+
+### F11.4: Fix `best_score = 0.0` in `optimize_agent()` result
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: LOW
+**Hypothesis**: R10.3 found that `optimizer.best_score` does not exist on `MIPROv2` in dspy 3.1.3 — the hasattr check returns False and score stays 0.0. The optimize result dict always shows `"score": 0.0`. Kiln displays this as "0% improvement." The fix is to find the correct attribute or compute a post-compile score.
+**Method**: fix-implementer
+**Success criterion**: Inspect dspy 3.1.3 `MIPROv2` attributes after `compile()` to find the actual best-program score. If no direct attribute exists, evaluate `optimized` on a subset of the trainset using `build_metric()` and use that as the score. Verdict: FIX_APPLIED when result["score"] > 0.0 for a known-healthy agent with good training data.
+
+---
+
+### R11.2: Does `masonry-lint-check.js` correctly handle the case where `ruff` is not in PATH on Windows after the F10.2 spawn fix?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: LOW
+**Hypothesis**: F10.2 changed `runBackground()` from `shell: true` to `shell: false` with explicit `cmd.exe /c` wrapping. When `shell: true` was used, cmd.exe searched PATH for executables. With `shell: false`, `spawn("cmd", ["/c", "ruff", ...])` still invokes cmd.exe which searches PATH. However, if `ruff` is in a virtual environment or not in system PATH, the PATH search may differ. The `findRuff()` helper uses an absolute path for ruff — this should be unaffected. But verify the change doesn't regress the `findRuff()` absolute path case or the `npx` resolution.
+**Method**: research-analyst
+**Success criterion**: Trace the `findRuff()` return value and how it's passed to `runBackground()`. Confirm that with `["cmd", "/c", absoluteRuffPath, "format", filePath]`, cmd.exe correctly resolves the absolute path even with spaces. Verdict: HEALTHY if no regression; WARNING if a new failure mode is introduced.
