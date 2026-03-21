@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `97367ba` finding: wave 1 complete — 32 findings written across 6 domains (2026-03-21)
 - `eedd826` chore: commit session files — questions, subagent tracker (2026-03-21)
 - `2ca4782` research(wave15): ops dedup fix + CWD guard gap found + wave16 questions (2026-03-21)
 - `6ad6198` chore: commit session files — questions, scorer, training data (2026-03-21)
