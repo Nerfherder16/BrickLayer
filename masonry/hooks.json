@@ -32,6 +32,16 @@
             "async": true
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-agent-onboard.js",
+            "timeout": 5,
+            "async": true
+          }
+        ]
       }
     ],
     "Stop": [
