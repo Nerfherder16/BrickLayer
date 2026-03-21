@@ -104,10 +104,14 @@ async function main() {
     counts[fp] = 0;
   }
 
-  // Persist updated counts
+  // Persist updated counts — atomic rename to prevent torn writes under concurrent execution
+  const guardCountTmp = `${guardCountFile}.tmp.${process.pid}`;
   try {
-    fs.writeFileSync(guardCountFile, JSON.stringify(counts), 'utf8');
-  } catch (_err) { /* non-fatal */ }
+    fs.writeFileSync(guardCountTmp, JSON.stringify(counts), 'utf8');
+    fs.renameSync(guardCountTmp, guardCountFile);
+  } catch (_err) {
+    try { fs.unlinkSync(guardCountTmp); } catch (_) { /* cleanup best-effort */ }
+  }
 
   process.exit(0);
 }

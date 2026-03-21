@@ -529,6 +529,73 @@
 ### R4.2: Measure end-to-end routing pipeline coverage after F4.2 + F4.3 + F4.4 fixes — what percentage of requests does each layer handle empirically?
 
 **Status**: DONE
+
+---
+
+## Wave 5
+
+**Generated from findings**: R4.2 IMPROVEMENT, synthesis_wave4.md P1 open items
+**Mode transitions applied**: synthesis_wave4.md P1 items (D1.2, V1.4, D2.2) → Fix questions; R5.1 from R4.2 IMPROVEMENT (Layer 3 now active, validate behavior); R5.2 from R4.1 HEALTHY (DSPy pipeline unblocked, run optimization)
+
+---
+
+### F5.1: Fix `masonry-guard.js` — replace direct `writeFileSync` on the strike counter with atomic rename-based write
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: D1.2 FAILURE (High) — `masonry-guard.js` uses `fs.writeFileSync(guardCountFile, JSON.stringify(counts))` (line 109) which is a direct non-atomic write. Under concurrent PostToolUse events (now rare post-F3.1 but still possible with genuine parallel tool calls), the last writer wins and can corrupt the strike counter. The fix is a rename-based atomic write: write to `guardCountFile + '.tmp.' + process.pid`, then `fs.renameSync(tmp, guardCountFile)`.
+**Hypothesis**: The atomic rename pattern prevents torn writes since POSIX rename is atomic. Even if two instances run concurrently, the rename ensures only one complete JSON payload reaches `guardCountFile`. The prior double-fire issue (resolved by F3.1) was the primary trigger, but genuine concurrent PostToolUse events on multi-file operations can still occur.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `src/hooks/masonry-guard.js`. (2) Replace the `fs.writeFileSync(guardCountFile, ...)` call with a write-to-tmp + rename pattern. (3) Verify `import`/`require` does not need additions (fs is already required). (4) Confirm no other non-atomic writes exist on session state files in the hook. Verdict: FIX_APPLIED when the strike counter write is atomic (rename-based) and no other bare `writeFileSync` calls on shared state remain.
+
+---
+
+### F5.2: Fix `llm_router.py` — add registry membership validation for `target_agent` returned by LLM
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: V1.4 FAILURE (Medium) — `route_llm()` returns whatever `target_agent` the LLM provides without checking if it exists in the registry. The LLM can hallucinate an agent name ("prompt-engineer", "code-fixer", "general") not present in `agent_registry.yml`. Mortar would then attempt to spawn a non-existent agent. Fix: validate `target` against `{a.name for a in registry}` before constructing `RoutingDecision`.
+**Hypothesis**: Adding a registry membership check (3 lines) will prevent hallucinated agent names from reaching Layer 4 or Mortar dispatch. If the LLM returns an unknown name, `route_llm()` logs a warning and returns `None` (falls to L4), same as a timeout or parse failure. This is a correctness fix — it prevents silent routing to unknown agents under ambiguous queries.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `src/routing/llm_router.py`. (2) After extracting `target = parsed.get("target_agent")`, add: `registry_names = {a.name for a in registry}; if target not in registry_names: print(..., file=sys.stderr); return None`. (3) Confirm the check runs before constructing `RoutingDecision`. (4) Verify the check uses the `registry` parameter (not a hardcoded list). Verdict: FIX_APPLIED when the membership check is in place and returns None for unrecognized agent names.
+
+---
+
+### F5.3: Fix `masonry-subagent-tracker.js` — replace `safeWrite` with atomic rename to prevent agents.json corruption under concurrent SubagentStart events
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Motivated by**: D2.2 FAILURE (Medium) — `safeWrite()` in `masonry-subagent-tracker.js` uses `fs.writeFileSync()` (direct write). Under concurrent SubagentStart events (spawning multiple agents simultaneously — now possible post-F3.1 without the artificial double-fire), two instances could read the same `agents.json`, each add their entry, and the last write discards the first agent's entry. Fix: atomic rename write using a tmp file with process.pid suffix.
+**Hypothesis**: After F3.1 eliminated double-fire, genuine concurrent SubagentStart events are the remaining race condition. Under parallel agent spawns (e.g., two Agent tool calls in one message), two subagent-tracker instances run with ~10ms separation. Atomic rename prevents the TOCTOU race. The routing_log.jsonl `appendFileSync` (line 95) is already append-only and is not a race — no change needed there.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `src/hooks/masonry-subagent-tracker.js`. (2) Replace the `safeWrite(stateFile, state)` call (which uses `writeFileSync`) with a write-to-tmp + rename pattern. (3) Keep `safeWrite` for masonry-state.json (that write is also non-critical, deferred). (4) Ensure the tmp file uses a unique name (`stateFile + '.tmp.' + process.pid`). Verdict: FIX_APPLIED when the agents.json write is atomic and the routing_log.jsonl append is unchanged.
+
+---
+
+### R5.1: Validate `route_llm()` behavior post-F5.2 — confirm hallucinated agent names are rejected and valid names route correctly
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Motivated by**: F5.2 Fix — after adding registry membership validation to `route_llm()`, verify the check works correctly for both valid and invalid agent names. This is a unit-level validation of the fix, not a live benchmark (cannot invoke `claude` recursively).
+**Hypothesis**: After F5.2, `route_llm()` will return `None` for any `target_agent` not in the registry (e.g., "general-assistant", "code-helper", "Claude"). Valid names from the 46-agent registry (e.g., "developer", "trowel", "security") will still produce a `RoutingDecision`. The check is a set membership test — O(1), no performance impact.
+**Method**: research-analyst
+**Success criterion**: (1) Read `src/routing/llm_router.py` post-F5.2. (2) Trace the registry membership check code path for both a valid name ("developer") and an invalid name ("code-helper"). (3) Confirm valid name → `RoutingDecision` returned; invalid name → `None` returned with stderr log. (4) Check if the empty-registry edge case is handled (registry = [] → all names invalid, returns None immediately). Verdict: HEALTHY if the check correctly handles valid, invalid, and empty-registry cases; FAILURE if valid agent names are incorrectly rejected or invalid names pass through.
+
+---
+
+### R5.2: DSPy dry run — attempt `build_dataset()` + optimizer initialization with 39 training examples to confirm the pipeline produces valid optimized prompts
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Motivated by**: R4.1 HEALTHY — `build_dataset()` now produces 39 training examples across 5 agents. DSPy 3.1.3 is confirmed installed. This research question validates the end-to-end DSPy pipeline: can the optimizer initialize, accept the training data, and produce a non-empty optimized prompt JSON without errors? Does not require a full MIPROv2 training run — just initialization and a dry run with minimal iterations.
+**Hypothesis**: With 39 training examples and DSPy 3.1.3, `masonry_optimize_agent` (or direct `optimizer.py` invocation) will initialize a `MIPROv2` optimizer for `diagnose-analyst` (largest example set: 13 examples), compile a `dspy.Module` using 1-2 examples as a dry run, and write a non-empty JSON to `masonry/optimized_prompts/diagnose-analyst.json`. The main failure modes are: (a) the `ResearchAgentSig` signature fields don't match the example keys, (b) Ollama is not configured as the LLM for DSPy, or (c) the MIPROv2 optimizer requires a minimum example count not met.
+**Method**: research-analyst
+**Success criterion**: (1) Read `src/dspy_pipeline/optimizer.py` and trace the `masonry_optimize_agent` function. (2) Identify which LLM backend is configured for DSPy (should be Ollama or Claude). (3) Check if `ResearchAgentSig` input/output fields match the example dict keys from `build_dataset()`. (4) If the fields match and the LLM is configured, attempt a minimal dry run (max_bootstrapped_demos=1, num_trials=1). (5) Report whether an optimized prompt JSON is written. Verdict: COMPLETE if the pipeline initializes and writes a non-empty prompt; FAILURE if field mismatch or backend misconfiguration prevents initialization; INCONCLUSIVE if the LLM backend is unavailable in this session.
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Motivated by**: synthesis_wave3.md Wave 4 recommendation — after D1.6/F4.2 (list-form subprocess), R2.2/F4.3 (timeout 20s), and R3.1/F4.4 (threshold 0.60 + margin 0.05) are applied, the routing pipeline should have all four layers functional. The current empirical distribution (L1: ~15-20%, L2: ~15%, L3: 0% dead, L4: ~65-70%) should shift toward (L1: ~15-20%, L2: ~40%, L3: ~20-25%, L4: ~15-20%). This question measures the actual post-fix distribution.
