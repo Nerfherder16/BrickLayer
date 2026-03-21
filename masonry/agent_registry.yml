@@ -1,7 +1,7 @@
 version: 1
 agents:
 - name: quantitative-analyst
-  file: agents/quantitative-analyst.md
+  file: .claude/agents/quantitative-analyst.md
   model: sonnet
   description: Runs simulations, parameter sweeps, and boundary-finding for BL2.0
     campaigns
@@ -16,7 +16,7 @@ agents:
   output_schema: FindingPayload
   tier: trusted
 - name: peer-reviewer
-  file: agents/peer-reviewer.md
+  file: .claude/agents/peer-reviewer.md
   model: haiku
   description: Reviews agent findings for quality, consistency, and logic errors
   modes:
@@ -29,7 +29,7 @@ agents:
   output_schema: FindingPayload
   tier: candidate
 - name: agent-auditor
-  file: agents/agent-auditor.md
+  file: .claude/agents/agent-auditor.md
   model: sonnet
   description: Audits agent performance, scoring, and behavioral drift
   modes:
@@ -42,7 +42,7 @@ agents:
   output_schema: FindingPayload
   tier: candidate
 - name: forge-check
-  file: agents/forge-check.md
+  file: .claude/agents/forge-check.md
   model: haiku
   description: 'Pre-flight checks before forge runs: validates inputs and configuration'
   modes:
@@ -55,7 +55,7 @@ agents:
   output_schema: FindingPayload
   tier: candidate
 - name: retrospective
-  file: agents/retrospective.md
+  file: .claude/agents/retrospective.md
   model: sonnet
   description: Analyzes campaign retrospectives for process improvements and pattern
     extraction
@@ -70,7 +70,7 @@ agents:
   output_schema: FindingPayload
   tier: candidate
 - name: test-writer
-  file: agents/test-writer.md
+  file: .claude/agents/test-writer.md
   model: sonnet
   description: Writes failing tests following TDD RED-GREEN-REFACTOR discipline
   modes:
@@ -265,7 +265,7 @@ agents:
   output_schema: FindingPayload
   tier: draft
 - name: diagnose-analyst
-  file: agents/diagnose-analyst.md
+  file: .claude/agents/diagnose-analyst.md
   model: opus
   description: Root cause analysis for complex failures and escalations
   modes:
@@ -278,7 +278,7 @@ agents:
   output_schema: DiagnosisPayload
   tier: draft
 - name: compliance-auditor
-  file: agents/compliance-auditor.md
+  file: .claude/agents/compliance-auditor.md
   model: sonnet
   description: Regulatory and compliance auditing for financial and legal requirements
   modes:
@@ -291,7 +291,7 @@ agents:
   output_schema: FindingPayload
   tier: draft
 - name: regulatory-researcher
-  file: agents/regulatory-researcher.md
+  file: .claude/agents/regulatory-researcher.md
   model: sonnet
   description: Research into regulatory, legal, and compliance landscapes
   modes:
@@ -304,7 +304,7 @@ agents:
   output_schema: FindingPayload
   tier: draft
 - name: competitive-analyst
-  file: agents/competitive-analyst.md
+  file: .claude/agents/competitive-analyst.md
   model: sonnet
   description: Competitive landscape analysis and market analogue identification
   modes:
@@ -317,7 +317,7 @@ agents:
   output_schema: FindingPayload
   tier: draft
 - name: research-analyst
-  file: agents/research-analyst.md
+  file: .claude/agents/research-analyst.md
   model: sonnet
   description: General research synthesis and evidence aggregation
   modes:
@@ -330,7 +330,7 @@ agents:
   output_schema: FindingPayload
   tier: draft
 - name: benchmark-engineer
-  file: agents/benchmark-engineer.md
+  file: .claude/agents/benchmark-engineer.md
   model: sonnet
   description: Performance benchmarking against live services and external APIs
   modes:
@@ -343,7 +343,7 @@ agents:
   output_schema: FindingPayload
   tier: draft
 - name: design-reviewer
-  file: ~/.claude/agents/design-reviewer.md
+  file: .claude/agents/design-reviewer.md
   model: sonnet
   description: Validates design and architecture against project invariants
   modes:
@@ -357,7 +357,7 @@ agents:
   output_schema: FindingPayload
   tier: draft
 - name: evolve-optimizer
-  file: agents/evolve-optimizer.md
+  file: .claude/agents/evolve-optimizer.md
   model: opus
   description: Evolves agent prompts and strategies based on campaign performance
     data
@@ -371,7 +371,7 @@ agents:
   output_schema: FindingPayload
   tier: draft
 - name: health-monitor
-  file: agents/health-monitor.md
+  file: .claude/agents/health-monitor.md
   model: haiku
   description: Continuous health monitoring of simulation results and agent performance
   modes:
@@ -384,7 +384,7 @@ agents:
   output_schema: FindingPayload
   tier: draft
 - name: cascade-analyst
-  file: agents/cascade-analyst.md
+  file: .claude/agents/cascade-analyst.md
   model: sonnet
   description: Predicts cascade failures and downstream effects from parameter changes
   modes:
@@ -397,7 +397,7 @@ agents:
   output_schema: FindingPayload
   tier: draft
 - name: frontier-analyst
-  file: ~/.claude/agents/frontier-analyst.md
+  file: .claude/agents/frontier-analyst.md
   model: sonnet
   description: Blue-sky exploration, possibility mapping, and ceiling estimation
   modes:
@@ -713,3 +713,16 @@ agents:
   last_score: null
   runs_since_optimization: 0
   registrySource: frontmatter
+- name: AUDIT_REPORT
+  file: .claude/agents/AUDIT_REPORT.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
