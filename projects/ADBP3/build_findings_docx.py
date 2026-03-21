@@ -1347,10 +1347,253 @@ doc.add_paragraph(
     "network effects \u2014 not treasury solvency. These are separable problems requiring separate solutions."
 )
 
-# ── Section 12: Final Conclusions ─────────────────────────────────────────────
+# ── Section 12: Vendor Economics ──────────────────────────────────────────────
 doc.add_page_break()
 
-title_conc = doc.add_heading("12. Final Conclusions", level=1)
+title_ve = doc.add_heading("12. Vendor Economics", level=1)
+title_ve.runs[0].font.color.rgb = RGBColor(0x1F, 0x38, 0x64)
+
+doc.add_paragraph(
+    "The admin revenue pool (10% fee, $0.10/credit) is tracked separately from the treasury and "
+    "distributed monthly to vendors and employers pro-rata by recirculation share. This section "
+    "models the financial picture for participating vendors — admin pool growth, per-vendor income, "
+    "break-even recirculation efficiency, and profitability by archetype."
+)
+
+# 12.1 Admin Pool Growth
+h2 = doc.add_heading("12.1  Admin Revenue Pool Growth Over Time", level=2)
+h2.runs[0].font.color.rgb = RGBColor(0x2E, 0x74, 0xB5)
+
+doc.add_paragraph(
+    "The admin pool is funded by the 10% fee on every credit purchase ($0.10/credit). "
+    "It grows as the employee base grows and is distributed monthly. "
+    "It is separate from and does not affect the treasury backing ratio."
+)
+
+tbl_ap = doc.add_table(rows=1, cols=5)
+tbl_ap.style = "Table Grid"
+hdr = tbl_ap.rows[0].cells
+for i, txt in enumerate(
+    ["Month", "Employees", "Monthly Admin Pool", "Cumul. Admin Pool", "Treasury Wallet"]
+):
+    hdr[i].text = txt
+    for run in hdr[i].paragraphs[0].runs:
+        run.bold = True
+
+ap_data = [
+    ("12", "12,000", "$2.4M", "$15.6M", "$157.9M"),
+    ("24", "24,000", "$4.8M", "$60.0M", "$615.6M"),
+    ("36", "36,000", "$7.2M", "$133.2M", "$1.39B"),
+    ("60", "60,000", "$12.0M", "$366.0M", "$3.91B"),
+    ("120", "120,000", "$24.0M", "$1.45B", "$16.64B"),
+    ("180", "180,000", "$36.0M", "$3.26B", "$40.15B"),
+    ("240", "240,000", "$48.0M", "$5.78B", "$76.80B"),
+]
+for row in ap_data:
+    r = tbl_ap.add_row().cells
+    for i, v in enumerate(row):
+        r[i].text = v
+
+doc.add_paragraph()
+doc.add_paragraph(
+    "Over the full 20-year run: $5.78B total admin fees generated vs $76.80B treasury wallet "
+    "(admin pool = 7.5% of treasury). By month 240, monthly admin distributions reach $48M."
+)
+
+# 12.2 Per-Vendor Income
+h2 = doc.add_heading(
+    "12.2  Per-Vendor Admin Fee Income by Recirculation Share", level=2
+)
+h2.runs[0].font.color.rgb = RGBColor(0x2E, 0x74, 0xB5)
+
+doc.add_paragraph(
+    "Admin fee income is pro-rata by recirculation share — a vendor absorbing 10% of all "
+    "credit transactions earns 10% of the monthly admin pool. Figures below show monthly "
+    "income and cumulative income at Month 120 and Month 240."
+)
+
+tbl_vi = doc.add_table(rows=1, cols=5)
+tbl_vi.style = "Table Grid"
+hdr = tbl_vi.rows[0].cells
+for i, txt in enumerate(
+    ["Share", "Mo.12 Monthly", "Mo.60 Monthly", "Mo.120 Monthly", "Mo.240 Monthly"]
+):
+    hdr[i].text = txt
+    for run in hdr[i].paragraphs[0].runs:
+        run.bold = True
+
+vi_data = [
+    ("1%", "$24.0K", "$120.0K", "$240.0K", "$480.0K"),
+    ("2%", "$48.0K", "$240.0K", "$480.0K", "$960.0K"),
+    ("5%", "$120.0K", "$600.0K", "$1.2M", "$2.4M"),
+    ("10%", "$240.0K", "$1.2M", "$2.4M", "$4.8M"),
+    ("15%", "$360.0K", "$1.8M", "$3.6M", "$7.2M"),
+    ("20%", "$480.0K", "$2.4M", "$4.8M", "$9.6M"),
+    ("30%", "$720.0K", "$3.6M", "$7.2M", "$14.4M"),
+]
+for row in vi_data:
+    r = tbl_vi.add_row().cells
+    for i, v in enumerate(row):
+        r[i].text = v
+
+doc.add_paragraph()
+
+# 12.3 Break-Even Analysis
+h2 = doc.add_heading("12.3  Vendor Break-Even Analysis", level=2)
+h2.runs[0].font.color.rgb = RGBColor(0x2E, 0x74, 0xB5)
+
+doc.add_paragraph(
+    "When a vendor accepts 1 credit, they provide $2 of goods for $1 face value — a $1.00 "
+    "discount cost per credit accepted. They recover this cost by recirculating credits "
+    "to pay their own suppliers, utilities, and operating expenses at the same 2:1 rate. "
+    "Each credit recirculated saves $1.00 in expenses."
+)
+
+doc.add_paragraph("Break-even analysis (discount side only, before admin fee income):")
+
+tbl_be = doc.add_table(rows=1, cols=4)
+tbl_be.style = "Table Grid"
+hdr = tbl_be.rows[0].cells
+for i, txt in enumerate(
+    [
+        "Recirculation Efficiency",
+        "Discount Cost/Credit",
+        "Recirculation Savings",
+        "Net Cost/Credit",
+    ]
+):
+    hdr[i].text = txt
+    for run in hdr[i].paragraphs[0].runs:
+        run.bold = True
+
+be_data = [
+    ("0%", "$1.00", "$0.00", "$1.00 (full loss)"),
+    ("25%", "$1.00", "$0.25", "$0.75"),
+    ("50%", "$1.00", "$0.50", "$0.50"),
+    ("75%", "$1.00", "$0.75", "$0.25"),
+    ("100%", "$1.00", "$1.00", "$0.00 (breakeven)"),
+]
+for row in be_data:
+    r = tbl_be.add_row().cells
+    for i, v in enumerate(row):
+        r[i].text = v
+
+doc.add_paragraph()
+doc.add_paragraph(
+    "Key finding: A vendor recirculating 100% of accepted credits breaks even on the discount "
+    "alone. Admin fee income is pure upside above that. A vendor recirculating 50% has a net "
+    "cost of $0.50/credit — and the admin fee alone ($0.10/credit) does not cover this gap "
+    "at any recirculation share within the 20-year window. Recirculation efficiency is the "
+    "primary lever for vendor profitability."
+)
+
+# 12.4 Full-Recirculator Pure Profit
+h2 = doc.add_heading(
+    "12.4  Full-Recirculator Vendor: Admin Fee as Pure Profit", level=2
+)
+h2.runs[0].font.color.rgb = RGBColor(0x2E, 0x74, 0xB5)
+
+doc.add_paragraph(
+    "A vendor that recirculates 100% of accepted credits has zero net discount cost. "
+    "All admin fee income is pure profit margin. Monthly admin income at steady state:"
+)
+
+tbl_fp = doc.add_table(rows=1, cols=5)
+tbl_fp.style = "Table Grid"
+hdr = tbl_fp.rows[0].cells
+for i, txt in enumerate(
+    [
+        "Acceptance Share",
+        "Mo.12 Monthly",
+        "Mo.60 Monthly",
+        "Mo.120 Monthly",
+        "Mo.240 Monthly",
+    ]
+):
+    hdr[i].text = txt
+    for run in hdr[i].paragraphs[0].runs:
+        run.bold = True
+
+fp_data = [
+    ("1%", "$24.0K", "$120.0K", "$240.0K", "$480.0K"),
+    ("2%", "$48.0K", "$240.0K", "$480.0K", "$960.0K"),
+    ("5%", "$120.0K", "$600.0K", "$1.2M", "$2.4M"),
+    ("10%", "$240.0K", "$1.2M", "$2.4M", "$4.8M"),
+    ("15%", "$360.0K", "$1.8M", "$3.6M", "$7.2M"),
+    ("20%", "$480.0K", "$2.4M", "$4.8M", "$9.6M"),
+]
+for row in fp_data:
+    r = tbl_fp.add_row().cells
+    for i, v in enumerate(row):
+        r[i].text = v
+
+doc.add_paragraph()
+
+# 12.5 Vendor ROI by Archetype
+h2 = doc.add_heading("12.5  Vendor ROI by Archetype", level=2)
+h2.runs[0].font.color.rgb = RGBColor(0x2E, 0x74, 0xB5)
+
+doc.add_paragraph("Three vendor archetypes summarize the range of financial outcomes:")
+
+tbl_arch = doc.add_table(rows=1, cols=5)
+tbl_arch.style = "Table Grid"
+hdr = tbl_arch.rows[0].cells
+for i, txt in enumerate(
+    [
+        "Archetype",
+        "Recirc. Efficiency",
+        "Net Cost/Credit",
+        "Admin Fee/Credit",
+        "Net Position",
+    ]
+):
+    hdr[i].text = txt
+    for run in hdr[i].paragraphs[0].runs:
+        run.bold = True
+
+arch_data = [
+    (
+        "Type A: Full Recirculator",
+        "100%",
+        "$0.00",
+        "$0.10",
+        "Pure profit — every accepted credit generates $0.10 admin income",
+    ),
+    (
+        "Type B: Partial Recirculator",
+        "50%",
+        "$0.50",
+        "$0.10",
+        "Net loss of $0.40/credit; needs very high recirculation share to offset at scale",
+    ),
+    (
+        "Type C: Low Recirculator",
+        "10%",
+        "$0.90",
+        "$0.10",
+        "Net loss of $0.80/credit; not commercially viable without in-network suppliers",
+    ),
+]
+for row in arch_data:
+    r = tbl_arch.add_row().cells
+    for i, v in enumerate(row):
+        r[i].text = v
+
+doc.add_paragraph()
+doc.add_paragraph(
+    "Conclusion: Vendor participation is commercially rational for businesses with strong "
+    "in-network supplier relationships (approaching Type A). The network effect compounds "
+    "this advantage — as more vendors join, recirculation rates naturally rise across all "
+    "participants. The 2:1 recirculation rule is not a burden; it is the structural incentive "
+    "that aligns vendor economics with network health. Vendors who cannot recirculate "
+    "meaningfully should not participate, and the design correctly prevents them from "
+    "doing so via the recirculation-to-mint ratio."
+)
+
+# ── Section 13: Final Conclusions ─────────────────────────────────────────────
+doc.add_page_break()
+
+title_conc = doc.add_heading("13. Final Conclusions", level=1)
 
 doc.add_paragraph(
     "This section synthesizes all findings from the full simulation corpus: "
