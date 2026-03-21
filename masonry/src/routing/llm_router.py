@@ -96,6 +96,12 @@ def route_llm(
         print("[llm_router] No target_agent in LLM response.", file=sys.stderr)
         return None
 
+    # Validate against registry — reject hallucinated agent names
+    registry_names = {a.name for a in registry}
+    if target not in registry_names:
+        print(f"[llm_router] LLM returned unknown agent '{target}' not in registry.", file=sys.stderr)
+        return None
+
     reason = parsed.get("reason", "LLM routing")[:100]
 
     return RoutingDecision(

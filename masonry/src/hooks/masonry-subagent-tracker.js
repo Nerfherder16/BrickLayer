@@ -40,6 +40,16 @@ function safeWrite(p, obj) {
   try { fs.writeFileSync(p, JSON.stringify(obj, null, 2), "utf8"); } catch (_) {}
 }
 
+function atomicWrite(p, obj) {
+  const tmp = `${p}.tmp.${process.pid}`;
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(obj, null, 2), "utf8");
+    fs.renameSync(tmp, p);
+  } catch (_) {
+    try { fs.unlinkSync(tmp); } catch (_2) {}
+  }
+}
+
 async function main() {
   const raw = await readStdin();
   let input = {};
@@ -77,7 +87,7 @@ async function main() {
   }
 
   state.updatedAt = now;
-  safeWrite(stateFile, state);
+  atomicWrite(stateFile, state);
 
   // Append to routing_log.jsonl for DSPy training signal (Phase 16)
   const routingLogPath = path.join(cwd, 'masonry', 'routing_log.jsonl');
