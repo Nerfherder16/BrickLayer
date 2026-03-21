@@ -75,6 +75,12 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `8a0b1a7` docs(adbp3): add System Rules v3 as editable Word document (2026-03-20)
+- `732e489` docs(adbp3): regenerate PDF with clean original-style formatting (2026-03-20)
+- `f604d19` docs(adbp3): apply user edits to System Rules v3 markdown (2026-03-20)
+- `c7616fe` docs(adbp3): generate System Rules v3 PDF (2026-03-20)
+- `63f7aad` docs(adbp3): add System Rules v3 reflecting confirmed model mechanics (2026-03-20)
+- `e35839b` feat(adbp3): init project + MC campaign findings + final model (2026-03-20)
 - `143f0a5` fix(adbp2): replace stale admin_fees_paid ref with operator_revenue in plot_charts (2026-03-20)
 - `86e97c8` chore(adbp2): extend simulation to 120 months + updated results (2026-03-20)
 - `36dda5e` chore: update results snapshot (2026-03-20)
