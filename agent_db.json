@@ -6,13 +6,18 @@
       "FAILURE"
     ],
     "questions": 5,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": [
+      1.0,
+      1.0
+    ]
   },
   "quantitative-analyst": {
     "score": 0.85,
     "verdicts": [],
     "questions": 280,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "research-analyst": {
     "score": 0.85,
@@ -27,6 +32,9 @@
       "WARNING",
       "WARNING",
       "WARNING",
+      "WARNING",
+      "HEALTHY",
+      "HEALTHY",
       "FAILURE",
       "FAILURE",
       "HEALTHY",
@@ -45,19 +53,52 @@
       "COMPLIANT"
     ],
     "questions": 130,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": [
+      1.0,
+      0.75,
+      0.85,
+      0.85,
+      1.0,
+      1.0,
+      1.0,
+      0.97,
+      0.93,
+      0.95,
+      0.94,
+      0.93,
+      0.99,
+      0.75,
+      1.0,
+      1.0,
+      1.0,
+      0.95,
+      0.85,
+      0.95,
+      0.9,
+      0.88,
+      0.97,
+      0.92,
+      0.95,
+      0.95,
+      0.75,
+      0.75,
+      0.75
+    ]
   },
   "competitive-analyst": {
     "score": 0.85,
     "verdicts": [],
     "questions": 35,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "peer-reviewer": {
     "score": 0.85,
     "verdicts": [],
     "questions": 24,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "diagnose-analyst": {
     "score": 0.85,
@@ -70,6 +111,7 @@
       "FAILURE",
       "FAILURE",
       "HEALTHY",
+      "DIAGNOSIS_COMPLETE",
       "HEALTHY",
       "FAILURE",
       "FAILURE",
@@ -84,6 +126,7 @@
       "HEALTHY",
       "DIAGNOSIS_COMPLETE",
       "FAILURE",
+      "DIAGNOSIS_COMPLETE",
       "FAILURE",
       "HEALTHY",
       "DIAGNOSIS_COMPLETE",
@@ -96,35 +139,71 @@
       "FIXED"
     ],
     "questions": 3,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": [
+      0.95,
+      0.9,
+      1.0,
+      0.95,
+      0.8,
+      1.0,
+      0.95,
+      0.99,
+      0.99,
+      0.85,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      0.9,
+      1.0,
+      1.0,
+      0.97,
+      0.95,
+      0.97,
+      0.99,
+      1.0,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75
+    ]
   },
   "regulatory-researcher": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "cascade-analyst": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "code-reviewer": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "compliance-auditor": {
     "score": 0.85,
-    "verdicts": [
-      "COMPLIANT",
-      "NON_COMPLIANT",
-      "NON_COMPLIANT"
-    ],
+    "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "design-reviewer": {
     "score": 0.85,
@@ -141,13 +220,26 @@
       "COMPLIANT"
     ],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      0.99,
+      0.75,
+      0.75
+    ]
   },
   "evolve-optimizer": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "fix-implementer": {
     "score": 0.85,
@@ -174,6 +266,12 @@
       "FIX_APPLIED",
       "FIX_APPLIED",
       "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIX_APPLIED",
+      "FIXED",
+      "FIXED",
       "FIXED",
       "FIXED",
       "FIXED",
@@ -193,90 +291,151 @@
       "FIXED"
     ],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": [
+      0.99,
+      0.98,
+      0.99,
+      0.92,
+      0.97,
+      0.96,
+      0.98,
+      0.98,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      0.95,
+      0.98,
+      0.97,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75
+    ]
   },
   "forge-check": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "frontier-analyst": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "git-nerd": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "health-monitor": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "hypothesis-generator": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "kiln-engineer": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "mcp-advisor": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "mortar": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "overseer": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "planner": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "skill-forge": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "synthesizer": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "trowel": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   },
   "agent-auditor": {
     "score": 0.85,
     "verdicts": [],
     "questions": 0,
-    "overall": "HEALTHY"
+    "overall": "HEALTHY",
+    "confidences": []
   }
 }
