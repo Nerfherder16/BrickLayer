@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `bc17ba5` fix(D4.3+D6.5): add modes frontmatter to 16 agents; BL1/BL2 variants disambiguated (2026-03-21)
 - `a916dd7` fix(approver): walk up directories to find research project root (2026-03-21)
 - `82ae1c6` feat(masonry): Wave 17 — routing pipeline fixes + vigil baseline (2026-03-21)
 - `dc41ca2` fix(masonry): Phase 1 remediation — semantic routing, status counter, hook wiring (2026-03-21)
