@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `314dfd2` docs(roadmap): add Phase 16 — Full-Fleet DSPy Training (2026-03-21)
 - `ca2a215` feat(masonry): init BL research campaign scaffolding (2026-03-21)
 - `b002434` chore: add masonry/questions.md to tracking (2026-03-21)
 - `ea6b9af` feat(findings): require **Agent** field in finding format for DSPy training attribution (2026-03-21)
