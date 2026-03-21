@@ -51,12 +51,13 @@ async function main() {
 
   const toolName = input.tool_name || "unknown";
   const errorText = input.tool_response || input.error || "";
-  // Scope to project CWD so concurrent multi-project sessions don't cross-contaminate
+  // Scope to project CWD + tool name so concurrent multi-project sessions
+  // and different tools within the same project don't cross-contaminate.
   const projectSlug = process.cwd().replace(/[^a-zA-Z0-9]/g, "-").replace(/-+/g, "-").slice(-40);
-  const stateDir = path.join(os.homedir(), ".masonry", "state", projectSlug);
+  const stateDir = path.join(os.homedir(), ".masonry", "state");
 
   ensureDir(stateDir);
-  const stateFile = path.join(stateDir, "last-error.json");
+  const stateFile = path.join(stateDir, `${projectSlug}-${toolName}.json`);
 
   // Load existing error state
   let state = { fp: "", retries: 0, firstSeen: 0 };
