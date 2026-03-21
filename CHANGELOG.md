@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `c28c2f6` feat(bricklayer-meta): complete Wave 2 — all Q6.x questions done (2026-03-21)
 - `d3ae33a` chore(bricklayer-meta): wave 2 campaign progress (2026-03-21)
 - `d4b6752` chore(bricklayer-meta): wave 2 questions generated (2026-03-21)
 - `9863d36` chore(bricklayer-meta): campaign progress — questions.md updated (2026-03-21)
