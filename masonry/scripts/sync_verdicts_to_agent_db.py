@@ -50,13 +50,19 @@ def sync_verdicts(
     # Extract all attributed findings
     findings = extract_training_data(projects_dir, questions_md_path=questions_md_path)
 
-    # Group verdicts by agent
+    # Group verdicts and confidences by agent
     verdicts_by_agent: dict[str, list[str]] = defaultdict(list)
+    confidences_by_agent: dict[str, list[float]] = defaultdict(list)
     for finding in findings:
         agent = finding.get("agent")
         verdict = finding.get("verdict", "")
         if agent and verdict:
             verdicts_by_agent[agent].append(verdict)
+            try:
+                conf = float(finding.get("confidence", 0.75) or 0.75)
+                confidences_by_agent[agent].append(conf)
+            except (TypeError, ValueError):
+                confidences_by_agent[agent].append(0.75)
 
     # Valid agent names: lowercase letters, digits, and hyphens only, start with lowercase letter.
     import re as _re
@@ -66,11 +72,20 @@ def sync_verdicts(
     for k in [k for k in list(agent_db.keys()) if not _valid_agent_name.match(k)]:
         del agent_db[k]
 
-    # Update agent_db with new verdicts — only for valid known agents
+    # When scope is narrowed (--questions-md specified), clear old verdicts/confidences
+    # for ALL agents before writing so stale data from prior broader scans is purged.
+    if questions_md_path is not None:
+        for entry in agent_db.values():
+            if isinstance(entry, dict):
+                entry["verdicts"] = []
+                entry["confidences"] = []
+
+    # Update agent_db with new verdicts and confidences — only for valid known agents
     written: dict[str, int] = {}
     for agent_name, verdicts in verdicts_by_agent.items():
         if _valid_agent_name.match(agent_name) and agent_name in agent_db:
             agent_db[agent_name]["verdicts"] = verdicts
+            agent_db[agent_name]["confidences"] = confidences_by_agent.get(agent_name, [])
             written[agent_name] = len(verdicts)
 
     # Atomic write
