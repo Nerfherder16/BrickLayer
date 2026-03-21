@@ -977,7 +977,7 @@
 
 ### F11.2: Scope `sync_verdicts_to_agent_db.py` to masonry-project verdicts only
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Priority**: HIGH
 **Hypothesis**: R10.2 found that verdict counts include FAILURE verdicts from other BL2.0 projects (adbp2, bl2, etc.) because `sync_verdicts_to_agent_db.py` scans the entire BL2.0 root. For `research-analyst`, 11/19 verdicts are FAILURE from non-masonry projects. This produces current_score=0.34 and false "critical drift" alerts. Fix: pass `--questions-md masonry/questions.md` to limit attribution to masonry questions only.
@@ -988,7 +988,7 @@
 
 ### R11.1: After F11.1 + F11.2, does `masonry_drift_check` produce accurate per-agent drift reports?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: HIGH
 **Hypothesis**: R10.2 found two drift check defects: (1) 14 agents excluded by registry validation; (2) cross-project verdict contamination. F11.1 and F11.2 should fix both. This question validates the fixes end-to-end: after both fixes, drift check should show all 44 agents in the registry, with masonry-only verdict distributions, and alert levels that match actual masonry campaign performance.
@@ -999,7 +999,7 @@
 
 ### F11.3: Integrate `sync_verdicts_to_agent_db.py` into `synthesizer-bl2.md` wave-end workflow
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Priority**: MEDIUM
 **Hypothesis**: R10.1 found no integration between the verdict sync script and the wave-end workflow. `synthesizer-bl2.md` runs at wave end and already commits docs changes. Adding a non-blocking `sync_verdicts_to_agent_db.py` invocation here ensures verdict history stays current without manual intervention.
@@ -1010,7 +1010,7 @@
 
 ### F11.4: Fix `best_score = 0.0` in `optimize_agent()` result
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Priority**: LOW
 **Hypothesis**: R10.3 found that `optimizer.best_score` does not exist on `MIPROv2` in dspy 3.1.3 — the hasattr check returns False and score stays 0.0. The optimize result dict always shows `"score": 0.0`. Kiln displays this as "0% improvement." The fix is to find the correct attribute or compute a post-compile score.
@@ -1021,9 +1021,77 @@
 
 ### R11.2: Does `masonry-lint-check.js` correctly handle the case where `ruff` is not in PATH on Windows after the F10.2 spawn fix?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: LOW
 **Hypothesis**: F10.2 changed `runBackground()` from `shell: true` to `shell: false` with explicit `cmd.exe /c` wrapping. When `shell: true` was used, cmd.exe searched PATH for executables. With `shell: false`, `spawn("cmd", ["/c", "ruff", ...])` still invokes cmd.exe which searches PATH. However, if `ruff` is in a virtual environment or not in system PATH, the PATH search may differ. The `findRuff()` helper uses an absolute path for ruff — this should be unaffected. But verify the change doesn't regress the `findRuff()` absolute path case or the `npx` resolution.
 **Method**: research-analyst
 **Success criterion**: Trace the `findRuff()` return value and how it's passed to `runBackground()`. Confirm that with `["cmd", "/c", absoluteRuffPath, "format", filePath]`, cmd.exe correctly resolves the absolute path even with spaces. Verdict: HEALTHY if no regression; WARNING if a new failure mode is introduced.
+
+---
+
+## Wave 12 — Drift Metric Accuracy, Sync Correctness, and DSPy Validation
+
+### F12.1: Replace verdict-based drift scoring with confidence-based metric in `drift_detector.py`
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Hypothesis**: F11.2 identified a semantic mismatch: `_score_verdict()` scores FAILURE=0.0, but FAILURE verdicts from research agents represent correct behavior (finding a real problem), not agent degradation. Drift should measure *agent certainty* (confidence field), not *finding polarity* (verdict field). All 75+ masonry findings include a `**Confidence**:` float. The fix: add confidence scores to `agent_db.json` via a new `confidences` field in `sync_verdicts_to_agent_db.py`, then update `drift_detector.py` to use mean confidence as `current_score` when `confidences` is present.
+**Method**: fix-implementer
+**Success criterion**: (1) Update `sync_verdicts_to_agent_db.py` to extract confidence floats alongside verdicts, writing `agent_db[agent]["confidences"] = [float, ...]`. (2) Update `drift_detector.py` to use `mean(confidences)` as `current_score` when `confidences` is non-empty (fall back to verdict scoring when absent for backward compatibility). (3) Re-run drift check and verify research-analyst and diagnose-analyst show alert_level != "critical". Verdict: FIX_APPLIED when confidence-based scoring produces sensible alerts for all 5 agents with history.
+
+---
+
+### F12.2: Add scope-clear behavior to `sync_verdicts_to_agent_db.py` when `--questions-md` is specified
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Hypothesis**: R11.1 found that narrowing sync scope (from all-projects to masonry-only) leaves stale verdicts in `agent_db.json` for agents not in the current scope (compliance-auditor retains 3 cross-project verdicts). The sync script writes only agents found in the current scan; agents outside the scope are untouched. Fix: when `--questions-md` is specified (scoped run), zero out `verdicts` and `confidences` for ALL agents before writing the scoped results. This makes scoped sync authoritative for the entire agent_db.
+**Method**: fix-implementer
+**Success criterion**: Modify `sync_verdicts()`  to clear `verdicts: []` and `confidences: []` for all agents in agent_db before writing scoped results (only when `questions_md_path` is not None). Re-run with `--questions-md masonry/questions.md` and verify compliance-auditor has `verdicts: []`. Verdict: FIX_APPLIED when stale-scope data is cleared on scoped sync.
+
+---
+
+### R12.1: After F12.1 + F12.2, do all masonry agents show accurate drift alert levels?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: HIGH
+**Hypothesis**: After confidence-based drift metric (F12.1) and scope-clear sync (F12.2), the drift check should reflect actual agent quality. research-analyst and diagnose-analyst have consistently high-confidence findings (0.85–0.95) — they should show "ok" or "warning", not "critical". fix-implementer should continue to show "ok". compliance-auditor should disappear (no verdicts). benchmark-engineer (2 findings, both FAILURE but high confidence) should show "ok" if confidence > 0.75.
+**Method**: research-analyst
+**Success criterion**: Run `masonry_drift_check` after F12.1 + F12.2. For each of the 5 agents with history: report alert_level and current_score. Verdict: HEALTHY if research-analyst and diagnose-analyst both show alert != "critical" AND compliance-auditor shows 0 verdicts; WARNING if partial improvement; FAILURE if confidence-based metric doesn't help.
+
+---
+
+### R12.2: Is the `masonry_drift_check` MCP tool (`mcp__masonry__masonry_drift_check` equivalent) functional end-to-end?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Hypothesis**: The `masonry_drift_check` MCP tool (exposed via `masonry/src/core/registry.js` or similar) has never been tested since F11.1 fixed the registry loader and F11.2 scoped the verdicts. The MCP layer wraps the Python drift check via a Node.js subprocess or direct Python call. There may be import path issues, missing environment setup, or response schema mismatches that prevent the tool from returning structured results to Kiln.
+**Method**: diagnose-analyst
+**Success criterion**: (1) Locate the MCP tool implementation for `masonry_drift_check`. (2) Determine how it invokes the Python drift check (subprocess? direct import?). (3) Trace the full call path and identify any failure modes (missing deps, wrong cwd, schema mismatch). (4) If testable without ANTHROPIC_API_KEY, run it and capture output. Verdict: HEALTHY if the tool returns structured results; WARNING if it runs but with incorrect data; FAILURE if it errors out or returns empty.
+
+---
+
+### R12.3: Does `ResearchAgentSig` in `dspy_pipeline/signatures.py` match the fields populated by `build_dataset()` in `training_extractor.py`?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Hypothesis**: R5.2 (Wave 5) identified that `DiagnoseAgentSig` fields (`symptoms`, `affected_files`) are not populated by `build_dataset()`, causing a silent field mismatch. It was noted that all agents currently use `ResearchAgentSig` via `optimize_all()`. This question validates that `ResearchAgentSig` fields (input: `question_text`, `project_context`, `constraints`; output: `verdict`, `severity`, `evidence`, `mitigation`, `confidence`) are exactly populated by `build_dataset()` and that no field is systematically missing or misnamed.
+**Method**: research-analyst
+**Success criterion**: (1) Read `ResearchAgentSig` input and output fields. (2) Read `build_dataset()` / `extract_finding()` to see what dict keys are produced. (3) Check that input fields match the dict keys used as `with_inputs()`. (4) Check that output fields match verdict/severity/evidence/mitigation/confidence keys. Verdict: HEALTHY if all fields match; WARNING if minor naming drift; FAILURE if systematic mismatch that would cause `dspy.Example` construction to fail.
+
+---
+
+### D12.1: Why does `masonry-subagent-tracker.js` have unstaged modifications in the current git status?
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: LOW
+**Hypothesis**: The session-start git status shows `M src/hooks/masonry-subagent-tracker.js` (modified, unstaged). This file was last touched by F5.3 (atomic write fix) and should be clean. An unstaged modification may indicate: (1) a lint hook auto-formatted the file after F5.3 but the change wasn't committed; (2) a hook ran and modified the file during the campaign; (3) the DISABLE_OMC=1 kill switch change (7b4472f) modified it as part of that commit but left something unstaged.
+**Method**: diagnose-analyst
+**Success criterion**: Run `git diff src/hooks/masonry-subagent-tracker.js` to see what changed. Determine the cause and whether the change should be committed or reverted. Verdict: DIAGNOSIS_COMPLETE with a clear root cause and recommended action (commit or revert).
