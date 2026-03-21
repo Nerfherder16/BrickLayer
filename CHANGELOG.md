@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `5a95ccf` feat(agents): three-layer agent management architecture overhaul (2026-03-21)
 - `17a135d` chore: update ADBP3 research findings document (2026-03-21)
 - `ff27cb9` chore: update ADBP2 simulation results (2026-03-21)
 - `7b9ba84` test: add comprehensive test suite for VIGIL agent health monitor (2026-03-21)
