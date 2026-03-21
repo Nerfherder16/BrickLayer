@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `6ad6198` chore: commit session files — questions, scorer, training data (2026-03-21)
 - `79100c4` research(wave14): F14.1/F14.2 fixes + R14.1/R14.2/D14.1 findings (2026-03-21)
 - `ecc05e1` feat(masonry): Wave 13 complete — phase-16 scoring pipeline audit (2026-03-21)
 - `2db105e` feat(bl-audit): scaffold BrickLayer 2.0 code health audit campaign (2026-03-21)
