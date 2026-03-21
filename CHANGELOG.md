@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `0415be6` autopilot: task #1 - Pydantic v2 payload schemas (masonry/src/schemas/) (2026-03-21)
 - `346bad5` autopilot: task #0 - fix masonry-tool-failure.js global state scoping bug (2026-03-21)
 - `4526b1d` chore: update agent_db.json scores (2026-03-21)
 - `cabd886` chore: standardize kiln build output to dist/ (canonical dir) (2026-03-21)
