@@ -331,6 +331,23 @@ After the asar is patched, clicking the Kiln refresh button OR reloading the win
 
 ---
 
+## Agent Onboarding Protocol
+
+When a new agent `.md` file is written to `agents/` or `~/.claude/agents/`, the onboarding pipeline runs automatically:
+
+1. **Hook fires**: `masonry-agent-onboard.js` (PostToolUse) detects Write/Edit to `agents/*.md`
+2. **Script runs**: `masonry/scripts/onboard_agent.py` extracts frontmatter metadata
+3. **Registry updated**: New `AgentRegistryEntry` appended to `masonry/agent_registry.yml` with `tier: "draft"`
+4. **DSPy stub generated**: Signature file created in `masonry/src/dspy_pipeline/generated/`
+5. **Kiln auto-displays**: Next Kiln refresh shows the new agent as "draft / Not optimized"
+6. **Optimization**: After a campaign wave with training data, trigger DSPy optimization from Kiln UI → `OPTIMIZE` button
+7. **Optimized prompt stored**: `masonry/optimized_prompts/{agent}.json`
+8. **Mortar picks up**: Next specialist invocation injects optimized instructions automatically
+
+No manual steps required when adding a new agent. The pipeline is fully automatic.
+
+---
+
 ## Output Contract
 
 After making changes, return:
