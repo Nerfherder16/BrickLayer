@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [Wave 22] -- 2026-03-21
+
+4/5 questions answered (R22.2 deferred by user). DSPy + Ollama pipeline end-to-end FUNCTIONAL: smoke test passed with qwen3:14b producing valid structured output. Confidence calibration cliff diagnosed with fix spec complete.
+
+### Fixed
+- `F22.1` -- Ollama backend wired into `configure_dspy()`, `optimize_agent()`, `optimize_all()` with `backend="ollama"` parameter; `--backend` CLI flag added to `run_optimization.py`; MCP server handler updated (`masonry/src/dspy_pipeline/optimizer.py`, `masonry/scripts/run_optimization.py`, `masonry/mcp_server/server.py`)
+
+### Found (open)
+- `R22.1` [WARNING] -- `configure_dspy(backend="ollama")` defaults to model="claude-sonnet-4-6" (Anthropic model name); Ollama rejects with 404; caller must pass `model="qwen3:14b"` explicitly; 1-line fix needed in optimizer.py:38
+- `D22.1` [DIAGNOSIS_COMPLETE] -- confidence_calibration band [0.5, 0.95] in `score_findings.py:178` creates 30-point cliff for confidence > 0.95; 40 training records suppressed (14.4%); fix spec: widen to [0.5, 1.0]
+- `R22.2` [PENDING] -- Full MIPROv2 trial deferred; blocked on configure_dspy default model fix
+
+### Healthy
+- R22.1: DSPy + Ollama smoke test PASSED -- qwen3:14b produces valid structured output via ChainOfThought(ResearchAgentSig); all 5 output fields populated
+- F22.1: All three optimizer entry points (Python API, CLI, MCP tool) verified with backend="ollama" parameter
+
 ## [Wave 21] -- 2026-03-21
 
 4 questions answered. VIGIL HEALTHY milestone: fleet reaches 0 thorns for the first time. Stale masonry/masonry/ path artifact fixed. DSPy Ollama integration spec complete (2 config changes).
