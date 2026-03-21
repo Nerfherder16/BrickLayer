@@ -1578,3 +1578,58 @@
 **Hypothesis**: The 13 "unknown" findings are synthesis files (`findings/synthesis_wave*.md`, `findings/cascade-map.md`, `findings/audit-report.md`, etc.) that have no `**Agent**:` frontmatter field. Vigil assigns them to the `unknown` bucket. Two resolution paths exist: (a) add `**Agent**: synthesizer-bl2` (or appropriate agent name) to each synthesis file's header — this re-attributes them and removes the unknown thorn; (b) exclude synthesis/meta files from vigil scoring by file-name pattern — this removes them from the count without attribution. After F21.1 removes the stale training_data copy, re-running vigil confirms whether record counts shift (the stale 235-record copy may have contributed unattributed records to vigil's corpus).
 **Method**: research-analyst
 **Success criterion**: (a) Run vigil after F21.1 and report whether the unknown thorn count changes; (b) inspect the 13 unattributed findings and identify their file names; (c) determine which resolution path (re-attribution vs exclusion) is correct given the finding types; (d) recommend a one-time fix (add Agent: fields or update vigil's exclusion list) that would move the fleet verdict from WARNING to HEALTHY. Verdict: HEALTHY if unknown thorn is provably removable with a concrete one-time action; WARNING if structurally unavoidable (e.g., vigil parses non-finding files by design).
+
+---
+
+## Wave 22
+
+**Generated from findings**: R21.1 (WARNING), synthesis_wave21 open issues
+**Mode transitions applied**: R21.1 WARNING (unverified qwen3:14b structured output) → F22.1 Fix (wire 2-line Ollama config specified in R21.1) + R22.1 Research (smoke-test structured output before full run); R22.1 HEALTHY (conditional) → R22.2 Research (full MIPROv2 trial, score delta measurement); synthesis_wave21 open issue #2 (confidence overcalibration limits training volume) → D22.1 Diagnose (characterize impact and design a calibration fix)
+
+---
+
+### F22.1: Wire `configure_dspy()` in `optimizer.py` to accept an Ollama backend using the 2-line config change specified in R21.1
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: R21.1 WARNING — `configure_dspy()` (optimizer.py lines 73-76) hardcodes `dspy.LM(f"anthropic/{model}")` with no Ollama path. R21.1 identified this as the sole blocking config change: replace the function body with `dspy.LM("ollama_chat/qwen3:14b", api_base="http://192.168.50.62:11434")`. A caller-site parameter (e.g., `backend: str = "ollama"`) should guard the change so the Anthropic path remains reachable for future use.
+**Hypothesis**: Adding a `backend` parameter to `configure_dspy()` with `"ollama"` as the default and conditional logic to select either the Ollama or Anthropic LM will allow the optimizer to run against qwen3:14b without breaking the existing Anthropic path. No changes to `optimize_agent()`, `optimize_all()`, or any DSPy signature are required — the LM is configured globally via `dspy.configure(lm=lm)`.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `src/dspy_pipeline/optimizer.py` in full. (2) Modify `configure_dspy()` to accept a `backend: str = "ollama"` parameter. When `backend == "ollama"`, configure `dspy.LM("ollama_chat/qwen3:14b", api_base="http://192.168.50.62:11434")`. When `backend == "anthropic"`, keep the existing `dspy.LM(f"anthropic/{model}")` path. (3) Verify `import sys` is already present (it is, line 10 — no addition needed). (4) Confirm no other hardcoded `anthropic/` LM strings remain in the file that would override the configured backend. Verdict: FIX_APPLIED when the Ollama path is wired and the Anthropic path remains intact; FIX_FAILED if `dspy.configure(lm=lm)` is not reached for the Ollama branch.
+
+---
+
+### R22.1: Does a single-prediction smoke-run of `dspy.LM("ollama_chat/qwen3:14b")` against `ResearchAgentSig` produce valid structured output?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: HIGH
+**Motivated by**: R21.1 WARNING — "qwen3:14b structured output reliability under bootstrapping is unverified." R21.1 explicitly states the verdict changes to HEALTHY if "a short smoke-run of dspy.LM('ollama_chat/qwen3:14b') confirms structured output generation works for at least one sample prediction." F22.1 is a prerequisite (must be DONE before this runs).
+**Hypothesis**: qwen3:14b is a capable 14B instruction-following model. When prompted with a single `ResearchAgentSig` example via `dspy.ChainOfThought(ResearchAgentSig)`, it will produce parseable output with all required fields populated: `verdict`, `severity`, `confidence`, `summary`, `evidence`, `mitigation`. The primary failure modes are: (a) the model returns free-form prose without field delimiters, (b) it omits one or more output fields, or (c) DSPy's field parser raises a validation error on the response. A single successful prediction is sufficient to unblock the full MIPROv2 trial.
+**Method**: research-analyst
+**Success criterion**: (1) Confirm F22.1 is DONE (Ollama backend wired). (2) Call `configure_dspy(backend="ollama")` to set the global LM. (3) Load one quantitative-analyst training example via `build_dataset()` from `training_extractor.py`. (4) Instantiate `dspy.ChainOfThought(ResearchAgentSig)` and call it with the example's input fields. (5) Inspect the returned prediction: all six output fields (`verdict`, `severity`, `confidence`, `summary`, `evidence`, `mitigation`) must be non-empty strings or floats. Verdict: HEALTHY if all output fields are populated and parseable; BLOCKED if qwen3:14b systematically returns malformed output (zero valid demos — optimization cannot proceed); WARNING if fields are partially populated (e.g., `mitigation` empty but others valid — optimization may still proceed with degraded quality).
+
+---
+
+### R22.2: Run full MIPROv2 optimization for `quantitative-analyst` using 125 training records via Ollama — what is the pre/post evaluation score delta?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Motivated by**: R21.1 WARNING + synthesis_wave21 "Next Phase Hypotheses" #2 — once smoke-run confirms qwen3:14b produces valid structured output (R22.1 HEALTHY), run the full MIPROv2 trial. quantitative-analyst has 125 training records — the largest single-agent corpus in the campaign, well above the 5-example minimum in `optimize_all()`. This is the primary validation question for the entire DSPy optimization pipeline.
+**Hypothesis**: MIPROv2 will bootstrap 3 demos from the 125-record trainset, run optimization trials, and produce an optimized prompt JSON at `masonry/optimized_prompts/quantitative-analyst.json`. The post-optimization evaluation score will exceed the unoptimized baseline by at least 5 percentage points on the held-out subset. The heuristic metric in `build_metric()` (verdict_match 0.4 + evidence_quality 0.4 + confidence_calibration 0.2) will drive the optimization toward higher-quality verdict and evidence generation.
+**Method**: research-analyst
+**Success criterion**: (1) Confirm R22.1 is DONE with HEALTHY verdict. (2) Run `optimize_agent("quantitative-analyst", ResearchAgentSig, dataset, output_dir)` with `max_bootstrapped_demos=3, max_labeled_demos=3`. (3) Report the `best_score` field on the returned module and the pre-optimization baseline score (unoptimized module score on the same trainset). (4) Confirm `masonry/optimized_prompts/quantitative-analyst.json` is written and non-empty. (5) Report wall-clock runtime for the optimization run. Verdict: HEALTHY if optimized score > baseline + 0.05 and JSON is written; WARNING if optimization completes but score delta < 0.05 (model converged near baseline); FAILURE if MIPROv2 raises an exception or the output file is not written.
+
+---
+
+### D22.1: Does the `confidence_calibration` component in `build_metric()` systematically penalize correct high-confidence findings, and what recalibration design would stop reducing training data volume?
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: LOW
+**Motivated by**: synthesis_wave21 open issue #2 — "fix-implementer findings with confidence >= 0.96 score 10/40 on confidence_calibration, suppressing 55% of masonry findings below the 60-point training threshold." The current formula `1 - |predicted - 0.75|` in `build_metric()` (optimizer.py line 29 approx) scores confidence=1.0 as 0.75 (75% of max), while the external scorer in `score_findings.py` awards only 10/40 points to findings with confidence > 0.95. Both systems penalize empirically verified high-confidence findings (e.g., FIX_APPLIED with passing tests where confidence=0.99 is objectively correct). R19.2 flagged this as "Optional Change 4, design decision, not a bug."
+**Hypothesis**: The penalty is real and measurable: a fix-implementer finding with confidence=0.99 and correct verdict receives a confidence_calibration component score of ~0.76 in the DSPy metric (instead of the maximum 1.0), reducing its training weight. For the external scorer, confidence > 0.95 receives only 10/40 pts on that rubric dimension — the dominant factor in 55% of masonry findings failing the 60-point threshold. A sigmoid recalibration (or a mode-specific bypass for FIX_APPLIED verdicts) would eliminate the penalty for empirically verified outcomes without affecting uncertainty-bearing research findings where confidence=0.75 is the appropriate prior.
+**Method**: diagnose-analyst
+**Success criterion**: (1) Read `build_metric()` in `optimizer.py` and the `confidence_calibration` scorer in `score_findings.py`. (2) Quantify the exact score penalty for confidence=0.99 vs confidence=0.75 in both systems. (3) Count how many masonry training records are suppressed by the penalty (records that would pass 60 pts if confidence scoring were neutral). (4) Propose a concrete recalibration: either (a) a sigmoid that scores confidence=0.75 at 0.5 and confidence=0.99 at 0.95 (rescaled), or (b) a verdict-conditional path where FIX_APPLIED findings use `1.0 - 0.1 * max(0, confidence - 0.98)` (near-flat above 0.75). Produce a Fix Specification with the exact line change for each affected file. Verdict: DIAGNOSIS_COMPLETE if the penalty is quantified and a recalibration design is specified with a projected record recovery count; WARNING if multiple recalibration designs are viable and a design decision is needed before fixing.
