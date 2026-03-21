@@ -291,7 +291,6 @@ async function main() {
   // Pairs with "start" events from masonry-subagent-tracker.js to score downstream_success.
   if (verdict !== 'UNKNOWN') {
     const agentField = extractMarkdownField(fileContent, 'Agent') || 'unknown';
-    const routingLogPath = path.join(cwd, 'masonry', 'routing_log.jsonl');
     const findingEntry = JSON.stringify({
       timestamp: new Date().toISOString(),
       event: 'finding',
@@ -301,8 +300,12 @@ async function main() {
       qid,
     });
     try {
-      const masonryDir = path.join(cwd, 'masonry');
+      // Resolve masonry/ dir — cwd might be the masonry dir itself (self-research sessions)
+      const masonryDir = path.basename(cwd) === 'masonry' && fs.existsSync(cwd)
+        ? cwd
+        : path.join(cwd, 'masonry');
       if (fs.existsSync(masonryDir)) {
+        const routingLogPath = path.join(masonryDir, 'routing_log.jsonl');
         fs.appendFileSync(routingLogPath, findingEntry + '\n', 'utf8');
       }
     } catch (_err) { /* non-fatal */ }

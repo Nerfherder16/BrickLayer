@@ -1290,7 +1290,7 @@
 
 ### R16.1: After F16.1 is applied, does `score_routing.py` successfully pair a "start" + "finding" event pair and produce a session scoring >70/100?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: HIGH
 **Source**: synthesis_wave15
@@ -1302,7 +1302,7 @@
 
 ### D16.1: Why does `score_findings.py` discovery include 675 findings but only 61 pass TRAINING_THRESHOLD=60 — which scoring dimension(s) fail for the rejected 614 findings?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: LOW
 **Source**: synthesis_wave15
@@ -1314,7 +1314,7 @@
 
 ### R16.2: Is the `score_findings.py` summary table "Agents: 1" column inconsistency worth fixing, and what would the correct unified metric be?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: LOW
 **Source**: synthesis_wave15

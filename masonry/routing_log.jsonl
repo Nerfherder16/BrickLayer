@@ -1,0 +1,8 @@
+{"timestamp":"2026-03-21T18:46:43.536Z","event":"start","agent":"karen","session_id":"f68d4e9c-7727-4ffe-93be-9ae7a59bc2de","parent_session":"f68d4e9c-7727-4ffe-93be-9ae7a59bc2de"}
+{"timestamp":"2026-03-21T21:16:28.786Z","event":"start","agent":"planner","session_id":"f68d4e9c-7727-4ffe-93be-9ae7a59bc2de","parent_session":"f68d4e9c-7727-4ffe-93be-9ae7a59bc2de"}
+{"timestamp":"2026-03-21T21:16:37.050Z","event":"start","agent":"question-designer-bl2","session_id":"f68d4e9c-7727-4ffe-93be-9ae7a59bc2de","parent_session":"f68d4e9c-7727-4ffe-93be-9ae7a59bc2de"}
+{"timestamp":"2026-03-21T21:18:40.307Z","event":"start","agent":"general-purpose","session_id":"f68d4e9c-7727-4ffe-93be-9ae7a59bc2de","parent_session":"f68d4e9c-7727-4ffe-93be-9ae7a59bc2de"}
+{"timestamp":"2026-03-21T21:51:41.000Z","event":"finding","agent":"fix","session_id":"315da739-556b-4e37-b870-355295efa309","verdict":"FIX_APPLIED","qid":"F16.1"}
+{"timestamp":"2026-03-21T21:54:53.794Z","event":"finding","agent":"research","session_id":"315da739-556b-4e37-b870-355295efa309","verdict":"WARNING","qid":"R16.1"}
+{"timestamp":"2026-03-21T21:56:21.866Z","event":"finding","agent":"diagnose","session_id":"315da739-556b-4e37-b870-355295efa309","verdict":"DIAGNOSIS_COMPLETE","qid":"D16.1"}
+{"timestamp":"2026-03-21T21:57:46.716Z","event":"finding","agent":"research","session_id":"315da739-556b-4e37-b870-355295efa309","verdict":"WARNING","qid":"R16.2"}
