@@ -46,6 +46,15 @@ Key invariants under test:
 | masonry-agent-onboard.js | (none) | DEAD: not in settings.json (D1.1/D2.1) |
 | masonry-recall-check.js | (none) | BY DESIGN: subprocess utility, not a hook |
 
+### Mortar Directive Injection (Node.js)
+`masonry-register.js` is a `UserPromptSubmit` hook intended to inject the Mortar routing directive into every prompt. Wave 2 found three independent failure points:
+
+1. **M1.1** (FIXED): Duplicate `const cwd` caused SyntaxError -- hook never parsed
+2. **M1.3** (OPEN): Hook writes plain text stdout; Claude Code requires `{additionalContext: "..."}` JSON
+3. **M1.4** (ARCHITECTURAL): Even with correct output, `additionalContext` is advisory context -- Claude may ignore it
+
+**Net status**: Mortar has never dispatched a request in production. The routing_log.jsonl confirms all 29 agent spawns were direct invocations, not Mortar-dispatched. BL research projects additionally suppress injection via `isResearchProject()` guard (M1.5, by design).
+
 ### Routing Pipeline (Python)
 Four-layer routing: deterministic -> semantic -> LLM -> fallback.
 
@@ -95,15 +104,17 @@ Four-layer routing: deterministic -> semantic -> LLM -> fallback.
 | D4: Config Drift | 4 | 4 | 0 | COMPLETE |
 | D5: Stale References | 6 | 4 | 2 | COMPLETE |
 | D6: Structural | 6 | 3 | 3 | COMPLETE |
-| **Total** | **36** | **24** | **12** | **COMPLETE** |
+| M1: Mortar Routing | 6 | 5 | 1 | COMPLETE |
+| V1: Fix Verification | 4 | 1 | 3 | COMPLETE |
+| **Total** | **46** | **30** | **16** | **COMPLETE** |
 
 ---
 
 ## Key Findings
 
-- **D3.4** [CONFIRMED/High] Wave 1: TDD enforcer async:true defeats exit(2) -- enforcement entirely non-functional
-- **D4.4** [CONFIRMED/High] Wave 1: masonry_status question parser BL1.x-only -- Kiln shows 0% for all BL2.0 campaigns
-- **D3.3** [CONFIRMED/High] Wave 1: semantic.py reads OLLAMA_URL but env sets OLLAMA_HOST -- semantic routing always falls through
+- **M1.3** [CONFIRMED/Critical] Wave 2: masonry-register.js outputs plain text instead of JSON envelope -- Mortar directive never injected even after M1.1 fix
+- **M1.4** [CONFIRMED/High] Wave 2: Mortar routing is advisory context, not enforced dispatch -- "Every request goes through Mortar" has never been technically true
+- **V1.4** [CONFIRMED/High] Wave 2: masonry-agent-onboard.js fires but spawns Python without PYTHONPATH -- auto-onboarding still broken end-to-end
 
 ---
 
@@ -111,13 +122,22 @@ Four-layer routing: deterministic -> semantic -> LLM -> fallback.
 
 | ID | Verdict | Severity | Summary |
 |----|---------|----------|---------|
+| M1.3 | CONFIRMED | Critical | masonry-register.js plain text output -- needs JSON envelope |
+| M1.4 | CONFIRMED | High | Mortar directive is advisory, not enforced -- design decision needed |
+| V1.4 | CONFIRMED | High | onboard hook spawns Python without PYTHONPATH -- silent failure |
 | D3.4 | CONFIRMED | High | TDD enforcer non-functional (async:true + exit(2)) |
-| D4.4 | CONFIRMED | High | masonry_status returns q_total=0 for BL2.0 |
-| D3.3 | CONFIRMED | High | Semantic router reads wrong env var |
-| D2.2/D4.1 | CONFIRMED | High | 9+ registry paths point to wrong location |
-| D1.1/D2.1 | CONFIRMED | Medium | Agent onboard hook not registered |
-| D2.6 | CONFIRMED | Medium | uiux-master and solana-specialist missing |
-| D4.3 | CONFIRMED | Medium | 16 agents unreachable via Mode routing |
+| M1.6 | CONFIRMED | Medium | mortar.md missing git-nerd and infra routing entries |
+| D2.6 | CONFIRMED | Medium | uiux-master and solana-specialist .md files missing |
 | D5.1 | CONFIRMED | Medium | masonry-build.md uses dead OMC executor |
+
+### Verified Fixed (Wave 2)
+
+| ID | Was | Fix Verified By |
+|----|-----|-----------------|
+| D4.4 | High | V1.1 -- q_total=46 returned correctly |
+| D3.3 | High | V1.2 -- OLLAMA_HOST fallback working |
+| D4.3+D6.5 | Medium | V1.3 -- all 5 BL2.0 modes routed |
+| D2.2/D4.1 | High | V1.3 -- registry paths corrected |
+| M1.1 | Critical | Fixed in commit a038099 |
 
 ---

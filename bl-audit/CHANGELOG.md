@@ -13,6 +13,25 @@ Format: wave entries newest-first. Each wave appended automatically.
 
 ---
 
+## [Wave 2] -- 2026-03-21
+
+10 questions across 2 domains (Mortar routing integrity + fix verification); 6 CONFIRMED, 4 FALSE_POSITIVE. Key outcome: Mortar "Every request" invariant has never been enforced -- triple failure in injection pipeline.
+
+### Fixed
+- `M1.1` -- masonry-register.js duplicate `const cwd` SyntaxError removed (commit `a038099`)
+
+### Found (open)
+- `M1.3` [CONFIRMED/Critical] -- masonry-register.js outputs plain text, needs JSON `{additionalContext}` envelope for UserPromptSubmit
+- `M1.4` [CONFIRMED/High] -- Mortar directive is advisory context, not enforced agent invocation; architectural limitation
+- `V1.4` [CONFIRMED/High] -- masonry-agent-onboard.js spawns onboard_agent.py without PYTHONPATH; ModuleNotFoundError silenced
+- `M1.6` [CONFIRMED/Medium] -- mortar.md routing table missing git-nerd and infrastructure task entries (~70% coverage)
+- `M1.5` [CONFIRMED/Medium] -- BL research projects suppress Mortar injection by design (intentional)
+
+### Healthy
+V1.1 (masonry_status counting fixed), V1.2 (semantic.py OLLAMA_HOST working), V1.3 (deterministic mode routing working for all 5 BL2.0 modes), M1.2 (routing_log.jsonl valid with 57 entries) confirmed working.
+
+---
+
 ## [Wave 1] -- 2026-03-21
 
 36 questions across 6 domains; 24 CONFIRMED issues, 12 FALSE_POSITIVE (working correctly). Full static code health audit of BrickLayer 2.0 / Masonry framework complete.
