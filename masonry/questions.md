@@ -1525,3 +1525,56 @@
 **Hypothesis**: F20.1 should add at least 1 new 100pt routing record (fix-implementer Wave 18 dispatch now matched), bringing routing 100pt records from 3 to at least 4. F20.2 should add 100-115 masonry self-research records across research-analyst (~43), fix-implementer (~32), diagnose-analyst (~25), design-reviewer (~8), raising total training records from ~254 to ~360+. Per-agent, research-analyst should cross the 10-record DSPy threshold for the first time (5 ADBP + 43 masonry = 48 records). Vigil fleet health should reflect the improved signal when re-run.
 **Method**: research-analyst
 **Success criterion**: Run `python scripts/score_all_agents.py` and `python scripts/score_routing.py` after both fixes are applied. Report: (a) total records in scored_all.jsonl and per-agent breakdown; (b) 100pt routing records count in scored_routing.jsonl; (c) which agents now meet the DSPy 10-record threshold; (d) vigil verdict after re-running `python scripts/run_vigil.py --project . --output vigil`. Verdict: HEALTHY if routing 100pt ≥4 and masonry records ≥100 and research-analyst ≥40 records; WARNING if any projected threshold is missed by >20%.
+
+---
+
+## Wave 21
+
+**Generated from findings**: R20.1, synthesis_wave20
+**Mode transitions applied**: R20.1 HEALTHY (open issue: DSPy trial via Ollama) → R21.1 Research (test Ollama DSPy integration before committing); R20.1 HEALTHY (open issue: stale masonry/masonry/training_data/ path) → D21.1 Diagnose (determine path nature) → F21.1 Fix (remove stale copy); R20.1 HEALTHY (open issue: unknown thorn in vigil) → R21.2 Research (determine whether "unknown" thorn is removable or structurally unavoidable after D21.1+F21.1)
+
+### R21.1: Can DSPy MIPROv2 optimization be run with Ollama qwen3:14b as the language model backend, using quantitative-analyst's 125 training records as the training set?
+
+**Status**: DONE
+**Operational Mode**: research
+**Priority**: HIGH
+**Motivated by**: R20.1 HEALTHY — synthesis_wave20 open issue #2 (DSPy trial blockers): ANTHROPIC_API_KEY not set, but Ollama qwen3:14b confirmed available at 192.168.50.62:11434; corpus is now 435 records with quantitative-analyst at 125 (largest single-agent corpus, well above any reasonable training minimum)
+**Hypothesis**: DSPy's `dspy.OllamaLocal` (or `dspy.LM("ollama/qwen3:14b", api_base=...)`) can serve as a drop-in replacement for the Anthropic backend in `masonry/src/dspy_pipeline/optimizer.py`. quantitative-analyst's 125 records exceed the minimum viable training set. An end-to-end MIPROv2 trial should complete without the ANTHROPIC_API_KEY gate, produce at least one optimized prompt JSON in `masonry/optimized_prompts/quantitative-analyst.json`, and show measurable improvement (>5%) in held-out evaluation score vs the unoptimized baseline.
+**Method**: research-analyst
+**Success criterion**: Verify (a) whether `dspy.OllamaLocal` or equivalent Ollama backend is present in the installed DSPy version; (b) what configuration changes `optimizer.py` requires to swap the LM backend from Anthropic to Ollama; (c) whether a dry-run (no actual HTTP calls) can be simulated to validate the pipeline wiring without network dependency; (d) if a live run is feasible, report the pre/post evaluation score delta. Verdict: HEALTHY if Ollama backend is supported and optimizer.py can be wired with <10 lines of config change; WARNING if significant refactor required; FAILURE if DSPy version lacks Ollama support entirely.
+
+---
+
+### D21.1: Is `masonry/masonry/training_data/` a symlink, a copy produced by a path-resolution artifact in score_all_agents.py, or a manually created directory — and what is the safe removal procedure?
+
+**Status**: DONE
+**Operational Mode**: diagnose
+**Priority**: MEDIUM
+**Motivated by**: R20.1 HEALTHY — synthesis_wave20 open issue #4: `masonry/masonry/training_data/` contains a stale 235-record copy (scored_all.jsonl 906K, scored_findings.jsonl 1.0M, scored_routing.jsonl 4.1K) while the authoritative file is `masonry/training_data/scored_all.jsonl` (435 records); the stale copy risks being read by downstream scripts that do not use `--base-dir .` flag
+**Hypothesis**: The `masonry/masonry/` directory was created when `score_all_agents.py` was invoked from inside `masonry/` as CWD (rather than from repo root with `--base-dir .`). In that case the script resolved its output path as a relative `masonry/training_data/` subfolder, which — from inside `masonry/` — produced `masonry/masonry/training_data/`. The directory is a real directory (not a symlink). It is safe to delete, but the correct invocation path should be documented to prevent recurrence.
+**Method**: diagnose-analyst
+**Success criterion**: Confirm (a) whether `masonry/masonry/` is a regular directory or a symlink (`ls -la` or `os.path.islink`); (b) trace which script invocation produced it by checking `score_all_agents.py` output path resolution logic; (c) verify no active script or import references `masonry/masonry/training_data/` as its read path; (d) produce a Fix Specification for F21.1 covering the removal command and the prevention note. Verdict: DIAGNOSIS_COMPLETE if safe removal is confirmed with no active references; WARNING if any live reference found.
+
+---
+
+### F21.1: Remove the stale `masonry/masonry/training_data/` directory identified in D21.1
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Motivated by**: D21.1 DIAGNOSIS_COMPLETE (expected) — stale 235-record copy in `masonry/masonry/training_data/` causes ambiguity about authoritative training data path; any script invoked from inside `masonry/` CWD without `--base-dir .` will write a new stale copy here rather than updating the canonical `masonry/training_data/` location
+**Hypothesis**: Deleting `masonry/masonry/` (which contains only `training_data/` with three JSONL files) will eliminate the ambiguity. Adding a note to the canonical invocation command in `project-brief.md` or a `README` inside `masonry/training_data/` will prevent recurrence. No code changes required; the fix is purely filesystem cleanup plus documentation.
+**Method**: fix-implementer
+**Success criterion**: After fix: (a) `masonry/masonry/` directory no longer exists; (b) `masonry/training_data/scored_all.jsonl` (435 records) remains intact and unchanged; (c) `python scripts/score_all_agents.py --base-dir .` from repo root still produces correct output to `masonry/training_data/`; (d) a short note documenting the correct invocation path is added somewhere visible (project-brief.md open issues section or a README). Verdict: FIX_APPLIED.
+
+---
+
+### R21.2: After D21.1 and F21.1, what is the final vigil fleet state — is the "unknown" thorn removable by re-attributing unattributed synthesis findings, or is it structurally unavoidable?
+
+**Status**: DONE
+**Operational Mode**: research
+**Priority**: LOW
+**Motivated by**: R20.1 HEALTHY — vigil reports 1 thorn: `unknown` agent with 0% quality gate pass rate over 13 findings; these are synthesis files written without an `Agent:` field; synthesis_wave20 notes this is "a data-quality issue with unattributed findings, not a fleet regression"; D21.1+F21.1 may alter the findings corpus vigil reads if the stale path contributed unattributed records
+**Hypothesis**: The 13 "unknown" findings are synthesis files (`findings/synthesis_wave*.md`, `findings/cascade-map.md`, `findings/audit-report.md`, etc.) that have no `**Agent**:` frontmatter field. Vigil assigns them to the `unknown` bucket. Two resolution paths exist: (a) add `**Agent**: synthesizer-bl2` (or appropriate agent name) to each synthesis file's header — this re-attributes them and removes the unknown thorn; (b) exclude synthesis/meta files from vigil scoring by file-name pattern — this removes them from the count without attribution. After F21.1 removes the stale training_data copy, re-running vigil confirms whether record counts shift (the stale 235-record copy may have contributed unattributed records to vigil's corpus).
+**Method**: research-analyst
+**Success criterion**: (a) Run vigil after F21.1 and report whether the unknown thorn count changes; (b) inspect the 13 unattributed findings and identify their file names; (c) determine which resolution path (re-attribution vs exclusion) is correct given the finding types; (d) recommend a one-time fix (add Agent: fields or update vigil's exclusion list) that would move the fleet verdict from WARNING to HEALTHY. Verdict: HEALTHY if unknown thorn is provably removable with a concrete one-time action; WARNING if structurally unavoidable (e.g., vigil parses non-finding files by design).

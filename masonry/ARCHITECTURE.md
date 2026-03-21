@@ -342,10 +342,12 @@ Python package root is the `Bricklayer2.0/` directory. Import as `from masonry.s
 
 ## Key Findings
 
-- **F20.1** [FIX_APPLIED] Wave 20: score_routing compound key + alias normalization fixes session_id collision; routing 100pt records 3 to 9
-- **F20.2** [FIX_APPLIED] Wave 20: score_findings masonry exclusion removed, regex fixed, VALID_VERDICTS expanded; training records 61 to 271
-- **R20.1** [HEALTHY] Wave 20: Training corpus at 435 merged records (+71%), 6 agents with 10+ records, vigil WARNING stable
+- **R21.2** [HEALTHY] Wave 21: Vigil fleet HEALTHY -- 0 thorns for the first time; synthesis meta-files excluded from parse_findings_dir()
+- **F21.1** [FIX_APPLIED] Wave 21: Stale masonry/masonry/ CWD artifact deleted; dual-path detection applied to score_all_agents.py and run_optimization.py
+- **R21.1** [WARNING] Wave 21: DSPy MIPROv2 + Ollama qwen3:14b feasible with 2 config changes; build_dataset() training path compatible; structured output reliability unverified
 
 ## Open Items
 
-*(none -- all critical questions resolved as of Wave 20)*
+| ID | Verdict | Summary |
+|----|---------|---------|
+| R21.1 | WARNING | DSPy Ollama smoke-run needed: qwen3:14b structured output reliability under MIPROv2 bootstrapping unverified |

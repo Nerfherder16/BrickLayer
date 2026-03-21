@@ -212,7 +212,10 @@ def run(
 
     Returns summary dict.
     """
-    td_dir = base_dir / "masonry" / "training_data"
+    # Self-research mode: CWD is masonry/ dir
+    _self_research_td = base_dir / "training_data"
+    _normal_td = base_dir / "masonry" / "training_data"
+    td_dir = _self_research_td if _self_research_td.exists() else _normal_td
     td_dir.mkdir(parents=True, exist_ok=True)
 
     if output_path is None:

@@ -116,12 +116,27 @@ def parse_findings_dir(findings_dir: Path) -> list[dict[str, Any]]:
 
     Returns a list of dicts with keys: agent, confidence, length, path.
     Defaults to agent='unknown' and confidence=0.5 if not found in the file.
+
+    Synthesis and meta files are excluded because they are campaign artifacts
+    produced by the synthesizer, not individual agent findings.  Including
+    them creates a phantom "unknown" agent that contaminates fleet metrics.
+
+    Excluded filename patterns (case-insensitive):
+        synthesis.md
+        synthesis_wave*.md
     """
+    # Prefixes/names that identify non-finding campaign meta files
+    _META_PREFIXES = ("synthesis",)
+
     if not findings_dir.exists():
         return []
 
     findings: list[dict[str, Any]] = []
     for md_file in sorted(findings_dir.glob("*.md")):
+        stem_lower = md_file.stem.lower()
+        if any(stem_lower == prefix or stem_lower.startswith(prefix + "_")
+               for prefix in _META_PREFIXES):
+            continue
         text = md_file.read_text(encoding="utf-8")
 
         agent_match = _AGENT_PATTERN.search(text)
