@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `dc41ca2` fix(masonry): Phase 1 remediation — semantic routing, status counter, hook wiring (2026-03-21)
 - `2c113a5` chore: wave 1 complete — synthesis, ARCHITECTURE, CHANGELOG written (2026-03-21)
 - `b3677e2` research(wave16): fix CWD guard in routing hooks; diagnose score_routing pipeline blockers (2026-03-21)
 - `97367ba` finding: wave 1 complete — 32 findings written across 6 domains (2026-03-21)
