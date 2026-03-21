@@ -150,13 +150,25 @@ async function main() {
     return;
   }
 
-  // Check for recent handoff (< 24h)
-  const handoffs = await searchMemory({
-    query: project,
-    tags: ['masonry:handoff'],
-    limit: 1,
-  });
+  // Run both searches concurrently — max wait = single search timeout (3s), not 6s
+  const [handoffs, findings] = await Promise.all([
+    searchMemory({ query: project, tags: ['masonry:handoff'], limit: 1 }),
+    searchMemory({
+      query: `${project} research findings`,
+      tags: [`project:${project}`, 'masonry:finding'],
+      limit: 5,
+    }),
+  ]);
 
+  // Fire-and-forget session start log — never block the hook on a write
+  storeMemory({
+    content: `Masonry session started for project "${project}"`,
+    domain: `${project}-autoresearch`,
+    tags: ['masonry', `project:${project}`, 'masonry:session-start', `session:${sessionId}`],
+    importance: 0.3,
+  }).catch(() => {});
+
+  // Check for recent handoff (< 24h)
   if (handoffs.length > 0) {
     const handoff = handoffs[0];
     const storedAt = handoff.created_at || handoff.timestamp || handoff.stored_at;
@@ -190,13 +202,7 @@ async function main() {
     }
   }
 
-  // No recent handoff — surface last 5 findings from Recall
-  const findings = await searchMemory({
-    query: `${project} research findings`,
-    tags: [`project:${project}`, 'masonry:finding'],
-    limit: 5,
-  });
-
+  // Surface last 5 findings from Recall
   if (findings.length > 0) {
     const lines = [`[MASONRY] Context for "${project}" — recent findings:`];
     for (const f of findings) {
@@ -205,14 +211,6 @@ async function main() {
     }
     process.stdout.write(lines.join('\n') + '\n');
   }
-
-  // Log session start
-  await storeMemory({
-    content: `Masonry session started for project "${project}"`,
-    domain: `${project}-autoresearch`,
-    tags: ['masonry', `project:${project}`, 'masonry:session-start', `session:${sessionId}`],
-    importance: 0.3,
-  });
 }
 
 main().catch(() => {});
