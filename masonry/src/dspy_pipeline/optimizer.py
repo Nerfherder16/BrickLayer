@@ -138,11 +138,13 @@ def optimize_agent(
 
     optimized_at = datetime.now(timezone.utc).isoformat()
 
-    # Try to get best score from the optimizer result
+    # MIPROv2 sets `optimized.score = best_score` on the returned program
+    # (mipro_optimizer_v2.py line 665, gated by track_stats=True which is the default).
+    # `optimizer.best_score` does not exist — the score lives on the returned module.
     best_score = 0.0
     try:
-        if hasattr(optimizer, "best_score"):
-            best_score = float(optimizer.best_score)
+        if hasattr(optimized, "score"):
+            best_score = float(optimized.score)
     except Exception:
         pass
 
