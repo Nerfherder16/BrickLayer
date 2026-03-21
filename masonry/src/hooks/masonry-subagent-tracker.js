@@ -79,6 +79,23 @@ async function main() {
   state.updatedAt = now;
   safeWrite(stateFile, state);
 
+  // Append to routing_log.jsonl for DSPy training signal (Phase 16)
+  const routingLogPath = path.join(cwd, 'masonry', 'routing_log.jsonl');
+  const routingEntry = JSON.stringify({
+    timestamp: new Date().toISOString(),
+    event: 'start',
+    agent: agentEntry.name,
+    session_id: agentEntry.sessionId || agentEntry.id,
+    parent_session: input.session_id || '',
+  });
+  try {
+    // ensure masonry/ dir exists in cwd
+    const masonryDir = path.join(cwd, 'masonry');
+    if (fs.existsSync(masonryDir)) {
+      fs.appendFileSync(routingLogPath, routingEntry + '\n', 'utf8');
+    }
+  } catch (_err) { /* non-fatal */ }
+
   // If campaign mode is active, update masonry-state.json active_agent
   const masonryStateFile = path.join(cwd, "masonry-state.json");
   const masonryState = tryJSON(masonryStateFile);
