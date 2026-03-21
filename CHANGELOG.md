@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `5ac9632` fix(D2.2+D4.1+D2.3): fix 17 broken agent_registry.yml file paths (2026-03-21)
 - `8e073a2` fix(vigil): correct default output path — was writing to masonry/masonry/vigil/ (2026-03-21)
 - `1a237cd` chore: commit session files — masonry findings, training data, routing log (2026-03-21)
 - `bc17ba5` fix(D4.3+D6.5): add modes frontmatter to 16 agents; BL1/BL2 variants disambiguated (2026-03-21)
