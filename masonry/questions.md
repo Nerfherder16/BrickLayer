@@ -1102,7 +1102,7 @@
 
 ### R13.1: Does `score_all_agents.py` produce correct `scored_all.jsonl` when run against the current masonry findings?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: HIGH
 **Hypothesis**: The phase-16 commit (8c73818) introduced a full-fleet scoring pipeline (`score_all_agents.py` → `scored_all.jsonl`). The file already exists with 64 entries, all from the ADBP project (quantitative-analyst). Masonry's own findings (research-analyst, diagnose-analyst, fix-implementer, etc.) should also produce scoring entries, but may not be included because `backfill_agent_fields.py` has not been run to populate `**Agent**:` fields. Running `score_all_agents.py` against the masonry project should now include masonry-attributed findings via confidence-based rubric scoring.
@@ -1113,7 +1113,7 @@
 
 ### R13.2: Does `score_routing.py` produce useful training signal from the current `routing_log.jsonl`?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: HIGH
 **Hypothesis**: `masonry-subagent-tracker.js` (phase-16) writes to `routing_log.jsonl` on every SubagentStart event. The file currently has 4 "start" entries (karen, planner, question-designer-bl2, and one other) but zero "finding" events. `score_routing.py` scores mortar/trowel by checking: `correct_agent_dispatched` (70pts) — whether the agent name is in AGENT_CATEGORIES — and `downstream_success` (30pts) — whether a finding was written (verdict != INCONCLUSIVE). With no "finding" events in the log, all routing sessions would score at most 70/100, below the `min_training_score=65` threshold... or exactly 70 which passes. The log format must be verified end-to-end.
@@ -1124,7 +1124,7 @@
 
 ### D13.1: Why do existing masonry findings score 60/100 (minimum threshold) in `scored_all.jsonl` — are confidence scores missing or is the rubric scoring correctly?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: MEDIUM
 **Hypothesis**: The 64 existing `scored_all.jsonl` entries show score=60 for all ADBP quantitative-analyst findings. The findings rubric has `confidence_calibration: 40`, `evidence_quality: 40`, `verdict_clarity: 20`. A score of 60 suggests either: (1) confidence is null → confidence_calibration dimension scores 0, evidence_quality=40, verdict_clarity=20 = 60; or (2) the scoring has a bug where partial credit is given. ADBP findings have `"confidence": null` per the jsonl entries. Masonry findings have explicit confidence values (0.88–1.00) — they should score much higher (e.g., confidence_calibration=40, evidence_quality=40, verdict_clarity=20 = 100).
@@ -1135,7 +1135,7 @@
 
 ### R13.3: Does `backfill_agent_fields.py` correctly identify and write `**Agent**:` fields for existing masonry findings without one?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Hypothesis**: `backfill_agent_fields.py` uses a question_id prefix mapping (D→diagnose-analyst, F→fix-implementer, R→research-analyst, V→benchmark-engineer, etc.) to backfill `**Agent**:` fields in finding files that lack them. Masonry findings use the same ID scheme. If existing masonry findings already have `**Agent**:` fields (populated during the research loop), `backfill_agent_fields.py` would be a no-op. If they lack the field, the backfill would populate it, enabling `build_dataset()` to correctly attribute training examples.
@@ -1146,7 +1146,7 @@
 
 ### R13.4: After running `score_all_agents.py` against masonry findings, how many training examples per masonry agent pass `min_training_score` for MIPROv2 optimization?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Hypothesis**: MIPROv2 requires at minimum ~5-10 examples per agent to produce meaningful prompt optimization. Masonry's research-analyst has 28+ findings, fix-implementer 43+, diagnose-analyst 34+. If these all pass min_training_score (expected 90+ due to explicit confidence), the training dataset should be sufficient. However, the current `build_dataset()` path reads from `extract_training_data()` which uses `findings/` — it may not use `scored_all.jsonl` at all. The two pipelines (score_all_agents.py → scored_all.jsonl vs. build_dataset() → DSPy Examples) may be parallel tracks that don't intersect.
@@ -1157,7 +1157,7 @@
 
 ### R13.5: Does `masonry_nl_generate` produce BL 2.0-compatible questions with correct `Mode` and `Status` fields from a natural language description?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: LOW
 **Hypothesis**: The `masonry_nl_generate` MCP tool calls `bl.nl_entry.generate_from_description()`. This function generates questions from a natural language description. BL 2.0 requires questions with `**Operational Mode**:` (diagnose/research/validate), `**Status**: PENDING`, `**Priority**:`, `**Hypothesis**:`, `**Method**:`, and `**Success criterion**:` fields. If the generator was written for BL 1.x format, it may omit the `**Operational Mode**:` and `**Method**:` fields, making generated questions incompatible with Trowel routing.
