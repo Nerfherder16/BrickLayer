@@ -353,7 +353,7 @@
 
 ### F3.1: Implement the fix specified in F2.1 — empty the `hooks` object in the plugin-level `hooks/hooks.json` to eliminate double-fire across all 10 hook registrations.
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: Fix
 **Priority**: HIGH
 **Motivated by**: F2.1 DIAGNOSIS_COMPLETE — the finding fully specified the safe fix: the plugin `hooks/hooks.json` contains 10 hook registrations that are exact duplicates of entries in `~/.claude/settings.json`. Setting `"hooks": {}` in `hooks/hooks.json` eliminates double-fire for every event type (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, SubagentStart, Stop) with zero coverage loss.
@@ -437,7 +437,7 @@
 
 ### D3.2: Does double-firing of `masonry-session-start.js` on SessionStart cause harmful side effects — specifically, does it initialize session state twice in a way that drops the first initialization's data?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: Diagnose
 **Priority**: MEDIUM
 **Motivated by**: F2.1 DIAGNOSIS_COMPLETE — the finding confirmed masonry-session-start.js fires twice per session (registered in both plugin hooks.json and global settings.json). F3.1 will fix this, but before the fix is applied it is worth understanding whether the current double-fire is actively harmful (data loss) or merely wasteful (redundant work). If harmful, this elevates F3.1 urgency.

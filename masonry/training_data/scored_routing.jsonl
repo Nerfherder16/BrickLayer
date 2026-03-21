@@ -1,0 +1,1 @@
+{"agent": "mortar", "source": "routing_log", "session_id": "f68d4e9c-7727-4ffe-9", "dispatched_agent": "karen", "score": 70, "score_breakdown": {"correct_agent_dispatched": 70, "downstream_success": 0}, "input": {"agent_dispatched": "karen", "parent_session": "f68d4e9c-7727-4ffe-9"}, "output": {"finding_verdict": null}}
