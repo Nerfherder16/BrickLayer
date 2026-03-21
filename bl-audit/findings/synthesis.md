@@ -195,3 +195,120 @@ The system is fundamentally well-designed but has accumulated significant integr
 | **Total** | **36** | **24** | **12** |
 
 **Signal quality**: The 33% false-positive rate indicates the question bank was well-calibrated -- it probed genuine risk areas (hook exit codes, path normalization, session state symmetry) and confirmed they were correctly implemented. The false positives in D3 (6 of 8) demonstrate that the hook system's core logic is sound even though the wiring and configuration around it has drifted.
+
+---
+---
+
+# Wave 2 Synthesis -- bl-audit
+
+**Date**: 2026-03-21
+**Questions**: 10 total -- 6 CONFIRMED, 4 FALSE_POSITIVE
+**Campaign**: Mortar routing integrity (M1.x) + Wave 1 fix verification (V1.x)
+
+---
+
+## Executive Summary
+
+Wave 2 investigated two concerns: (1) whether the Mortar routing directive -- the "Every request goes through Mortar" invariant from CLAUDE.md -- actually functions, and (2) whether Phase 1/2 fixes from Wave 1 were correctly applied.
+
+The Mortar investigation (M1.1-M1.6) revealed a **triple failure** in the directive injection pipeline: a SyntaxError that prevented the hook from running (M1.1, now fixed), a format mismatch that means the hook's output is ignored even after the SyntaxError fix (M1.3, unfixed), and an architectural reality that even perfect injection would only produce advisory context, not enforced routing (M1.4). The "Every request goes through Mortar" principle has never been technically enforced and cannot be with the current hook architecture.
+
+The verification questions (V1.1-V1.4) confirmed that three of four Wave 1 Phase 1/2 fixes are working correctly: question counting (D4.4), semantic router env var (D3.3), and deterministic mode routing (D4.3+D6.5). However, the agent onboard hook (V1.4), while now registered and firing, fails silently because it spawns Python without PYTHONPATH.
+
+---
+
+## Critical Findings (must act)
+
+1. **M1.3** [CONFIRMED/Critical] -- masonry-register.js writes plain text stdout, but Claude Code UserPromptSubmit hooks require a `{additionalContext: "..."}` JSON envelope. Even after M1.1 fix, the Mortar directive is silently discarded.
+   Fix: Wrap directive output in `JSON.stringify({ additionalContext: directive })`.
+
+2. **V1.4** [CONFIRMED/High] -- masonry-agent-onboard.js fires correctly on agent .md writes but spawns `onboard_agent.py` without PYTHONPATH. Python fails with `ModuleNotFoundError: No module named 'masonry'`, silenced by `stdio: "ignore"`. Auto-onboarding is still broken end-to-end.
+   Fix: Add `env: { ...process.env, PYTHONPATH: cwd }` to the spawn options.
+
+## Significant Findings (important but not blocking)
+
+3. **M1.4** [CONFIRMED/High] -- The Mortar directive is advisory context text, not automatic agent invocation. Claude Code has no mechanism to force agent dispatch from a hook. The "Every request goes through Mortar" policy is a voluntary compliance model. This is an architectural limitation, not a bug.
+   Action: Accept the advisory model and strengthen CLAUDE.md language, or redesign the routing architecture.
+
+4. **M1.6** [CONFIRMED/Medium] -- mortar.md routing table is missing entries for git operations (git-nerd) and infrastructure tasks. Coverage is approximately 70% of typical task types. Git and infra tasks fall through to inline Claude handling.
+   Fix: Add git-nerd and infrastructure routing entries to mortar.md.
+
+5. **M1.5** [CONFIRMED/Medium] -- bl-audit directory (and all BL research projects) suppress Mortar injection by design via `isResearchProject()` guard. This is intentional (BL subprocess isolation) but means the audit itself was never Mortar-routed. No fix needed -- documenting the design boundary.
+
+## Healthy / Verified
+
+- **M1.1** [CONFIRMED/Critical, FIXED] -- Duplicate `const cwd` SyntaxError fixed in commit `a038099`. Hook now parses cleanly.
+- **M1.2** [FALSE_POSITIVE] -- routing_log.jsonl has 57 valid entries (29 start + 28 finding). Prior empty-parse report was a script bug.
+- **V1.1** [FALSE_POSITIVE] -- masonry_status question counting now returns q_total=46 for bl-audit. D4.4 fix verified working.
+- **V1.2** [FALSE_POSITIVE] -- semantic.py OLLAMA_HOST fallback working. Ollama reachable at 192.168.50.62:11434. D3.3 fix verified.
+- **V1.3** [FALSE_POSITIVE] -- All 5 BL2.0 modes (audit/research/diagnose/simulate/campaign) now map to agents. D4.3+D6.5 fix verified.
+
+---
+
+## Cross-Wave Pattern: The Mortar Enforcement Gap
+
+Wave 2 adds a fifth root-cause pattern to the four identified in Wave 1:
+
+### Pattern 5: Advisory Architecture Masquerades as Enforcement
+
+The CLAUDE.md architecture section presents Mortar as an execution engine ("Every request goes through Mortar"). In reality, the system has three independent points of failure that all must work simultaneously for the directive to reach the model:
+
+1. **Hook must parse** (M1.1 -- was broken, now fixed)
+2. **Hook output must use correct format** (M1.3 -- still broken)
+3. **Model must choose to comply** (M1.4 -- architectural limitation)
+
+Additionally, BL research projects intentionally suppress the directive (M1.5), and mortar.md itself lacks routing entries for common task types (M1.6). The total picture: Mortar has never routed a single request in production. Every agent invocation in routing_log.jsonl was spawned directly by Claude, not dispatched by Mortar.
+
+This is the most significant finding of the entire audit. The claimed central architectural invariant of the system -- Mortar as universal dispatcher -- is an aspiration documented as a fact.
+
+---
+
+## Updated Remediation Roadmap
+
+Wave 1 Phase 1 items (D3.3, D4.4) are now verified fixed (V1.1, V1.2, V1.3). The updated priority list:
+
+```
+Still open from Wave 1 (not yet fixed):
+  - D3.4 [High]   TDD enforcer async:true -- enforcement non-functional
+  - D2.6 [Medium]  uiux-master and solana-specialist .md files missing
+  - D5.1 [Medium]  masonry-build.md uses dead OMC executor type
+
+New from Wave 2:
+  - M1.3 [Critical] masonry-register.js output format -- JSON envelope needed
+  - V1.4 [High]     onboard hook PYTHONPATH -- spawn env fix needed
+  - M1.6 [Medium]   mortar.md routing table gaps (git, infra)
+  - M1.4 [High]     Mortar advisory architecture -- decision needed on accept vs redesign
+
+Verified fixed (close these):
+  - D4.4 [was High] masonry_status question counting -- FIXED, verified V1.1
+  - D3.3 [was High] semantic.py OLLAMA_HOST -- FIXED, verified V1.2
+  - D4.3+D6.5 [was Medium] deterministic mode routing -- FIXED, verified V1.3
+  - M1.1 [was Critical] masonry-register.js SyntaxError -- FIXED in a038099
+  - D1.1/D2.1 [was Medium] onboard hook registration -- FIXED (but V1.4 found new issue)
+```
+
+---
+
+## Recommendation
+
+**STOP** -- Wave 2 is complete. All 10 questions answered (6 CONFIRMED, 4 FALSE_POSITIVE).
+
+The Mortar routing investigation has revealed the most architecturally significant finding of the audit: the central routing invariant has never been enforced and the current hook architecture cannot enforce it. This requires a design decision (accept advisory model vs redesign) before further remediation. The three remaining Wave 1 critical items (D3.4, M1.3, V1.4) are straightforward code fixes. The Mortar architecture question (M1.4) is a design decision that should be made by a human before investing in further Mortar-related work.
+
+---
+
+## Cumulative Metrics
+
+| Domain | Wave | Questions | CONFIRMED | FALSE_POSITIVE |
+|--------|------|-----------|-----------|----------------|
+| D1: Dead Code | 1 | 6 | 5 | 1 |
+| D2: Unwired Items | 1 | 6 | 6 | 0 |
+| D3: Bugs & Logic | 1 | 8 | 2 | 6 |
+| D4: Config Drift | 1 | 4 | 4 | 0 |
+| D5: Stale References | 1 | 6 | 4 | 2 |
+| D6: Structural | 1 | 6 | 3 | 3 |
+| M1: Mortar Routing | 2 | 6 | 5 | 1 |
+| V1: Fix Verification | 2 | 4 | 1 | 3 |
+| **Total** | **1-2** | **46** | **30** | **16** |
+
+**Wave 2 signal quality**: The 40% false-positive rate in Wave 2 is by design -- the V1.x verification questions were expected to confirm fixes were working (FALSE_POSITIVE = fix succeeded). The M1.x questions had a 17% false-positive rate (1 of 6), indicating the Mortar routing concerns were well-founded.
