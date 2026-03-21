@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `be76128` feat(adbp3): add advanced_sims.py — 8-section extended simulation suite (2026-03-21)
 - `362b469` autopilot: task #14 - masonry-agent-onboard.js hook + kiln-engineer onboarding protocol (2026-03-21)
 - `969eec8` chore(masonry): add agent onboard hook and update hooks registry (2026-03-21)
 - `65c6353` autopilot: task #9 - MCP server 5 new tools (route, optimization_status, onboard, drift_check, registry_list) (2026-03-21)
