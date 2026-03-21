@@ -42,7 +42,27 @@ python C:/Users/trg16/Dev/Bricklayer2.0/bl/claim.py complete . {question_id} {ve
 
 ## The Research Loop (Parallel Variant)
 
+Maintain a counter `questions_this_worker = 0` — incremented after each completed finding.
+
 ### Each iteration:
+
+**0. Wave-start sentinel check (worker-1 ONLY — all other workers skip this step)**
+
+Before picking the next question, check for pending background-agent outputs:
+
+1. **`.claude/agents/FORGE_NEEDED.md` exists?**
+   → Invoke forge-check **synchronously** (blocking) to create missing agents, then delete the file.
+   New agents may be needed for the next question — this must complete before proceeding.
+
+2. **`.claude/agents/AUDIT_REPORT.md` exists?**
+   → Read it. Apply RETIRE, PROMOTE, and UPDATE TRIGGERS recommendations immediately.
+   Delete `AUDIT_REPORT.md` when done. Non-blocking — continue to next question.
+
+3. **Any finding in `findings/` contains `**Verdict**: OVERRIDE` inside a `## Peer Review` section?**
+   → Insert a new PENDING re-examination question at the top of the next wave in `questions.md`.
+   Do not revert any commit without human confirmation. Non-blocking.
+
+---
 
 **1. Get next claimable question**
 ```bash
@@ -75,7 +95,45 @@ git add findings/{question_id}.md questions.md claims.json
 git commit -m "finding({question_id}): {one-line summary} [worker-{BL_WORKER_ID}]"
 ```
 
-**6. Back to step 1**
+**6. Spawn peer-reviewer in background (every worker, every finding)**
+
+Immediately after the commit — do NOT wait for it:
+```
+Spawn background agent — peer-reviewer:
+  "Act as peer-reviewer per .claude/agents/peer-reviewer.md.
+   primary_finding=findings/{question_id}.md, target_git=., agents_dir=.claude/agents/.
+   Re-run the original test independently, append ## Peer Review section with verdict
+   CONFIRMED | CONCERNS | OVERRIDE."
+```
+
+**7. Increment counter and fire sentinels (worker-1 ONLY — all other workers skip to step 8)**
+
+`questions_this_worker += 1`
+
+At `questions_this_worker % 5 == 0` — spawn hypothesis-generator-bl2 then forge-check in background:
+```
+Spawn background agent — hypothesis-generator-bl2:
+  "Act as hypothesis-generator-bl2 per .claude/agents/hypothesis-generator-bl2.md.
+   Read the 3 most recent findings in findings/. Add up to 5 new PENDING questions
+   to questions.md. Label them Wave-mid."
+
+Spawn background agent — forge-check:
+  "Act as forge-check per .claude/agents/forge-check.md.
+   Inputs: agents_dir=.claude/agents/, findings_dir=findings/, questions_md=questions.md.
+   Write .claude/agents/FORGE_NEEDED.md if gaps found, otherwise output FLEET COMPLETE."
+```
+
+At `questions_this_worker % 10 == 0` — additionally spawn agent-auditor in background:
+```
+Spawn background agent — agent-auditor:
+  "Act as agent-auditor per .claude/agents/agent-auditor.md.
+   Inputs: agents_dir=.claude/agents/, findings_dir=findings/, results_tsv=results.tsv.
+   Write the audit report to .claude/agents/AUDIT_REPORT.md."
+```
+
+Continue to the next question immediately. All background agents run concurrently.
+
+**8. Back to step 0**
 
 ---
 
@@ -86,6 +144,23 @@ When `pending` returns empty:
 1. Check claims status: `python C:/Users/trg16/Dev/Bricklayer2.0/bl/claim.py status .`
 2. If any questions show IN_PROGRESS from other workers, those are still running — you're done, they'll finish
 3. Do a final commit of anything uncommitted
+
+**Worker-1 only — final wave audit before stopping:**
+```
+Invoke agent-auditor (foreground — must complete before stopping):
+  "Act as agent-auditor per .claude/agents/agent-auditor.md.
+   Inputs: agents_dir=.claude/agents/, findings_dir=findings/, results_tsv=results.tsv.
+   Write the final audit report to .claude/agents/AUDIT_REPORT.md."
+
+Invoke forge-check (foreground):
+  "Act as forge-check per .claude/agents/forge-check.md.
+   Inputs: agents_dir=.claude/agents/, findings_dir=findings/, questions_md=questions.md."
+
+Invoke skill-forge (foreground):
+  "Act as skill-forge per .claude/agents/skill-forge.md (if it exists).
+   Distill reusable patterns from this campaign's findings into ~/.claude/skills/."
+```
+
 4. Print: `Worker {BL_WORKER_ID} complete. All pending questions claimed.`
 5. Stop.
 

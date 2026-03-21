@@ -266,6 +266,36 @@ recall_search(query="[topic]", domain="{project}-autoresearch", tags=["autoresea
 
 ---
 
+## Wave-End Shutdown (question bank exhausted)
+
+When all questions are DONE or INCONCLUSIVE and no new ones remain, run the final audit
+**before stopping** — do NOT skip these even if the loop ends naturally:
+
+```
+Invoke agent-auditor (foreground):
+  "Act as agent-auditor per .claude/agents/agent-auditor.md.
+   Inputs: agents_dir=.claude/agents/, findings_dir=findings/, results_tsv=results.tsv.
+   Write the final audit report to .claude/agents/AUDIT_REPORT.md."
+
+Invoke forge-check (foreground):
+  "Act as forge-check per .claude/agents/forge-check.md.
+   Inputs: agents_dir=.claude/agents/, findings_dir=findings/, questions_md=questions.md."
+
+Invoke skill-forge (foreground, if .claude/agents/skill-forge.md exists):
+  "Act as skill-forge per .claude/agents/skill-forge.md.
+   Distill reusable patterns from this campaign's findings into ~/.claude/skills/."
+
+Invoke synthesizer-bl2 (foreground):
+  "Act as synthesizer-bl2 per .claude/agents/synthesizer-bl2.md.
+   Read all findings in findings/. Write synthesis.md and update CHANGELOG.md,
+   ARCHITECTURE.md, ROADMAP.md."
+```
+
+Then stop. This is the only valid stopping condition — question bank exhausted AND
+final audit complete.
+
+---
+
 ## NEVER STOP
 
 Once the experiment loop has begun, do NOT pause to ask if you should continue.
