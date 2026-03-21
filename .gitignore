@@ -42,3 +42,6 @@ projects/MarchMadness/
 .DS_Store
 Thumbs.db
 .claude/settings.local.json
+~$*.docx
+~$*.xlsx
+~$*.pptx
