@@ -116,6 +116,35 @@ function checkDocStaleness(cwd, snapPath) {
   }
 }
 
+/**
+ * Load the set of files this session actually wrote to, from the activity log
+ * written by masonry-observe.js (PostToolUse Write/Edit hook).
+ * Returns a Set of normalized relative paths, or null if log unavailable.
+ */
+function loadSessionWrites(sessionId, cwd) {
+  if (!sessionId) return null;
+  try {
+    const activityFile = path.join(os.tmpdir(), `masonry-activity-${sessionId}.ndjson`);
+    if (!fs.existsSync(activityFile)) return null;
+    const lines = fs.readFileSync(activityFile, "utf8").trim().split("\n").filter(Boolean);
+    const writes = new Set();
+    const normalCwd = normalizeCwd(cwd).replace(/\\/g, "/");
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line);
+        if (!entry.file) continue;
+        // Normalize to a repo-relative path matching git status output
+        let f = entry.file.replace(/\\/g, "/");
+        if (f.startsWith(normalCwd + "/")) f = f.slice(normalCwd.length + 1);
+        writes.add(f);
+      } catch { /* skip malformed lines */ }
+    }
+    return writes;
+  } catch {
+    return null;
+  }
+}
+
 async function main() {
   // Auto-detect BrickLayer research project — hooks are silent inside BL subprocesses
   if (isResearchProject(process.cwd())) process.exit(0);
@@ -134,18 +163,20 @@ async function main() {
 
   const cwd = normalizeCwd(parsed.cwd || process.cwd());
   const sessionId = parsed.session_id || parsed.sessionId || null;
+  const snapPath = sessionId ? path.join(os.tmpdir(), `masonry-snap-${sessionId}.json`) : null;
 
-  // Load session snapshot (written by masonry-session-start.js at session open).
-  // preExistingSet = files that were already dirty when this session started.
+  // Primary: files this session's Write/Edit tools actually touched.
+  // This is the authoritative source — prevents false positives from sibling sessions
+  // modifying shared files (e.g. questions.md in a concurrent campaign session).
+  const sessionWrites = loadSessionWrites(sessionId, cwd);
+
+  // Fallback snapshot: files dirty at session start (pre-existing, not ours).
   let preExistingSet = null;
-  if (sessionId) {
+  if (snapPath) {
     try {
-      const snapPath = path.join(os.tmpdir(), `masonry-snap-${sessionId}.json`);
       const snap = JSON.parse(fs.readFileSync(snapPath, "utf8"));
       preExistingSet = new Set(snap.preExisting || []);
-    } catch {
-      // Snapshot missing or unreadable — fall back to mtime detection
-    }
+    } catch { /* fall through to mtime fallback */ }
   }
 
   try {
@@ -155,74 +186,59 @@ async function main() {
       cwd,
     }).trim();
 
-    if (!status) process.exit(0);
+    if (!status) {
+      checkDocStaleness(cwd, snapPath);
+      process.exit(0);
+    }
 
-    // Collect all dirty file paths, then filter out gitignored ones.
     const allLines = status.split("\n").filter(Boolean);
     const allFiles = allLines.map((l) => l.slice(3).trim());
 
+    // Filter out gitignored paths
     let ignoredSet = new Set();
     try {
-      const checkInput = allFiles.join("\n");
       const ignored = execSync("git check-ignore --stdin", {
-        input: checkInput,
+        input: allFiles.join("\n"),
         encoding: "utf8",
         timeout: 5000,
         cwd,
       }).trim();
-      if (ignored) {
-        for (const p of ignored.split("\n").filter(Boolean)) {
-          ignoredSet.add(p.trim());
-        }
-      }
-    } catch {
-      // Non-zero exit means no files are ignored — ignoredSet stays empty.
-    }
+      if (ignored) ignored.split("\n").filter(Boolean).forEach(p => ignoredSet.add(p.trim()));
+    } catch { /* no ignored files */ }
 
     const sessionModified = [];
     const sessionUntracked = [];
-    const staleFiles = [];
 
     for (const line of allLines) {
       const xy = line.slice(0, 2).trim();
       const file = line.slice(3).trim();
 
-      // Skip gitignored paths
       if (ignoredSet.has(file)) continue;
 
-      if (preExistingSet !== null) {
-        // Snapshot mode: only flag files not present at session start
+      if (sessionWrites !== null) {
+        // Activity-log mode: only flag files THIS session's tools wrote to.
+        if (!sessionWrites.has(file)) continue;
+      } else if (preExistingSet !== null) {
+        // Snapshot fallback: skip files dirty at session start.
         if (preExistingSet.has(file)) continue;
-        (xy === "??" ? sessionUntracked : sessionModified).push({ xy: xy || "??", file, days: 0 });
       } else {
-        // Fallback: mtime-based detection (today's files only)
+        // Last resort: mtime-based (today's files only).
         const days = fileAgeDays(path.join(cwd, file.replace(/\/$/, "")));
-        const entry = { xy: xy || "??", file, days };
-        if (days === 0 || days === null) {
-          (xy === "??" ? sessionUntracked : sessionModified).push(entry);
-        } else {
-          staleFiles.push(entry);
-        }
+        if (days !== 0 && days !== null) continue;
       }
+
+      (xy === "??" ? sessionUntracked : sessionModified).push(file);
     }
 
-    // Nothing from today — exit silently (don't nag about old changes)
     if (sessionModified.length === 0 && sessionUntracked.length === 0) {
+      checkDocStaleness(cwd, snapPath);
       process.exit(0);
     }
 
-    // Compact single-block output — session files only, no section headers
     const sessionCount = sessionModified.length + sessionUntracked.length;
-    const staleNote = staleFiles.length > 0 ? ` (+${staleFiles.length} pre-existing ignored)` : "";
-    let output = `\nStop blocked — ${sessionCount} uncommitted session file${sessionCount !== 1 ? "s" : ""}${staleNote}:\n`;
-
-    for (const { file } of sessionModified) {
-      output += `  M  ${file}\n`;
-    }
-    for (const { file } of sessionUntracked) {
-      output += `  ?  ${file}\n`;
-    }
-
+    let output = `\nStop blocked — ${sessionCount} uncommitted session file${sessionCount !== 1 ? "s" : ""}:\n`;
+    for (const file of sessionModified) output += `  M  ${file}\n`;
+    for (const file of sessionUntracked) output += `  ?  ${file}\n`;
     output += `Commit before stopping.\n`;
 
     process.stderr.write(output);
@@ -231,10 +247,7 @@ async function main() {
     // Not a git repo or git unavailable — allow stop
   }
 
-  // Non-blocking doc staleness check — warns but never blocks stopping.
-  const snapPath = sessionId ? path.join(os.tmpdir(), `masonry-snap-${sessionId}.json`) : null;
   checkDocStaleness(cwd, snapPath);
-
   process.exit(0);
 }
 
