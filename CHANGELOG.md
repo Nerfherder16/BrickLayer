@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `074147b` chore: ignore Office temp lock files (~$*.docx/xlsx/pptx) (2026-03-21)
 - `dcfc9d5` fix(score_findings): handle non-utf8 finding files; add scored_findings.jsonl (2026-03-21)
 - `5a95ccf` feat(agents): three-layer agent management architecture overhaul (2026-03-21)
 - `17a135d` chore: update ADBP3 research findings document (2026-03-21)
