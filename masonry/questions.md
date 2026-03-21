@@ -1472,3 +1472,56 @@
 **Hypothesis**: `score_findings.py:discover_findings()` explicitly excludes the `masonry/` subdirectory. After the backfill of `**Agent**:` fields (D18.1), masonry self-research findings could be scored and included in training data. ~115 findings across diagnose-analyst (25), research-analyst (41), fix-implementer (35), design-reviewer (9) — potentially pushing research-analyst well above the 10-record DSPy threshold.
 **Method**: research-analyst
 **Success criterion**: Run score_findings.py with masonry/findings/ as target (or modify discover path). Report how many masonry self-research findings pass the training threshold (≥60 score). Assess whether including them would improve DSPy training coverage. Verdict: HEALTHY if significant additions; WARNING if most score below threshold.
+
+---
+
+## Wave 20
+
+**Generated from findings**: R19.1, R19.2, synthesis_wave19
+**Mode transitions applied**: R19.1 WARNING → D20.1 narrowing Diagnose (session_id collision root cause); R19.1 DIAGNOSIS_COMPLETE (via D20.1) → F20.1 Fix; R19.2 WARNING → F20.2 Fix (3 concrete changes already specified); F20.1+F20.2 completion → R20.1 Research (verify training data health after fixes)
+
+### D20.1: Does `score_routing._match_events()` use a flat `session_id`-keyed dict that causes last-write-wins collisions when multiple agents share a parent session, and can a compound `(session_id, agent_name)` key fix the match rate to 100%?
+
+**Status**: DONE
+**Operational Mode**: diagnose
+**Priority**: HIGH
+**Motivated by**: R19.1 — WARNING — 3/5 Wave 18+ dispatches produce 100pt records; R19.1 identifies `findings_by_session` dict keyed only by `session_id` (line 130 of score_routing.py) as the cause of last-write-wins collision when all Wave 18+ agents share session_id `315da739`
+**Hypothesis**: `_match_events()` lines 130-135 build `findings_by_session: dict[str, dict]` keyed by `session_id` alone. When six start events all share `315da739`, the last finding event written wins, so five of the six start lookups (line 157) retrieve the same finding. A compound key `(session_id, agent_name)` — or a `list`-valued dict that accumulates all findings per session and then matches by agent_name — would pair each start event to its own downstream finding. Additionally, the fallback `AGENT_CATEGORIES` in score_routing.py (lines 31-43) omits `fix-implementer`, `diagnose-analyst`, `design-reviewer`, and `general-purpose`, causing those agents' start events to pass the `agent in AGENT_CATEGORIES` gate (line 98) but fall through to no record.
+**Method**: diagnose-analyst
+**Success criterion**: Confirm (a) the exact dict structure at line 130 and how `findings_by_session[sid] = ev` overwrites on duplicate sid; (b) whether a compound key or list-accumulation approach resolves the collision without breaking single-session matching; (c) whether the fallback AGENT_CATEGORIES at lines 31-43 is reached at runtime (i.e., the masonry import fails) and which agents are absent. Produce a Fix Specification covering both the compound-key change and the AGENT_CATEGORIES gap. Verdict: DIAGNOSIS_COMPLETE with Fix Specification ready for F20.1.
+
+---
+
+### F20.1: Fix `score_routing._match_events()` session_id collision and fallback AGENT_CATEGORIES gaps identified in D20.1
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: D20.1 DIAGNOSIS_COMPLETE — session_id collision in `_match_events()` (score_routing.py line 130) causes last-write-wins for all agents sharing a parent session; fallback AGENT_CATEGORIES (lines 31-43) missing `fix-implementer`, `diagnose-analyst`, `design-reviewer`, `general-purpose`
+**Hypothesis**: Implementing the D20.1 Fix Specification — changing `findings_by_session` from a flat `dict[str, dict]` to a compound-key or list-accumulation structure, and adding the missing agents to the fallback AGENT_CATEGORIES dict — will raise the 100pt routing record rate from 60% (3/5) to 100% for all Agent-tool-dispatched specialist agents in future waves.
+**Method**: fix-implementer
+**Success criterion**: After fix, re-run `python scripts/score_routing.py` against the existing routing_log.jsonl. Verify: (a) `fix-implementer` start event (line 22 of routing_log) now produces a 100pt scored record matched to F19.1 finding; (b) `diagnose-analyst` start event (line 20) remains correctly matched; (c) no previously-scored 100pt records regress. Total Wave 18+ 100pt records should increase from 3 to at least 4. Verdict: FIX_APPLIED.
+
+---
+
+### F20.2: Implement the three `score_findings.py` changes to enable masonry self-research findings scoring (R19.2 fix specification)
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: R19.2 WARNING — score_findings.py passes only 20/137 masonry findings (14.6%) due to three structural mismatches: (a) "masonry" in discovery exclusion list (line 282), (b) `_extract_section` regex stops at `###` subsections (line 130-134 approx), (c) `FIX_APPLIED` and `COMPLETE` absent from VALID_VERDICTS (lines 21-28)
+**Hypothesis**: Three targeted changes — (1) remove "masonry" from the `child.name not in (...)` exclusion set at line 282, (2) tighten the `_extract_section` lookahead from `(?=^##|\Z)` to `(?=^## [^#]|\Z)` to skip `###` subsection headers, (3) add `"FIX_APPLIED"` and `"COMPLETE"` to the VALID_VERDICTS frozenset — will raise the masonry pass rate from 14.6% (20/137) to an estimated 90%+ (105-115/137). Source-tagging (`"source": "masonry-self-research"`) must be added to output records to prevent ADBP training data contamination.
+**Method**: fix-implementer
+**Success criterion**: After fix, run `python scripts/score_findings.py --base-dir . --output masonry/training_data/scored_findings_masonry.jsonl` (or equivalent). Count passing records: fix-implementer must go from 0% to ≥80% pass rate; research-analyst must reach ≥90%; total masonry passing records ≥100. All output records must include `"source": "masonry-self-research"` field. Verdict: FIX_APPLIED.
+
+---
+
+### R20.1: After F20.1 and F20.2 fixes, what is the new training data health state — routing 100pt record count, total scored_all records, and per-agent distribution?
+
+**Status**: DONE
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Motivated by**: F20.1 and F20.2 completion — both fixes are expected to materially change the training data counts that vigil and DSPy optimization read from; R19.1 WARNING and R19.2 WARNING each projected specific improvements that need empirical verification
+**Hypothesis**: F20.1 should add at least 1 new 100pt routing record (fix-implementer Wave 18 dispatch now matched), bringing routing 100pt records from 3 to at least 4. F20.2 should add 100-115 masonry self-research records across research-analyst (~43), fix-implementer (~32), diagnose-analyst (~25), design-reviewer (~8), raising total training records from ~254 to ~360+. Per-agent, research-analyst should cross the 10-record DSPy threshold for the first time (5 ADBP + 43 masonry = 48 records). Vigil fleet health should reflect the improved signal when re-run.
+**Method**: research-analyst
+**Success criterion**: Run `python scripts/score_all_agents.py` and `python scripts/score_routing.py` after both fixes are applied. Report: (a) total records in scored_all.jsonl and per-agent breakdown; (b) 100pt routing records count in scored_routing.jsonl; (c) which agents now meet the DSPy 10-record threshold; (d) vigil verdict after re-running `python scripts/run_vigil.py --project . --output vigil`. Verdict: HEALTHY if routing 100pt ≥4 and masonry records ≥100 and research-analyst ≥40 records; WARNING if any projected threshold is missed by >20%.

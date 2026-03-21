@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -36,8 +37,11 @@ except ImportError:
         "benchmark-engineer": "findings",
         "synthesizer-bl2": "findings",
         "health-monitor": "findings",
+        "diagnose-analyst": "findings",
+        "general-purpose": "findings",
         "developer": "code",
         "test-writer": "code",
+        "fix-implementer": "code",
         "mortar": "routing",
         "trowel": "routing",
     }
@@ -51,6 +55,13 @@ _MATCH_WINDOW_HOURS = 1
 
 # Verdicts that count as "downstream success" (anything other than INCONCLUSIVE)
 _INCONCLUSIVE_VERDICT = "INCONCLUSIVE"
+
+# Normalize shortened legacy agent names to canonical full names
+_AGENT_ALIASES: dict[str, str] = {
+    "fix": "fix-implementer",
+    "research": "research-analyst",
+    "diagnose": "diagnose-analyst",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -90,9 +101,12 @@ def _parse_iso(ts: str) -> datetime | None:
 def _score_session(
     start_event: dict[str, Any],
     finding_event: dict[str, Any] | None,
+    normalized_agent: str | None = None,
 ) -> dict[str, Any]:
     """Score a single routing session."""
-    agent = start_event.get("agent", "unknown")
+    agent = normalized_agent if normalized_agent is not None else _normalize_agent(
+        start_event.get("agent", "unknown")
+    )
 
     # correct_agent_dispatched: agent is in the known registry
     if agent and agent != "unknown" and agent in AGENT_CATEGORIES:
@@ -121,18 +135,31 @@ def _score_session(
     }
 
 
+def _normalize_agent(agent: str) -> str:
+    """Resolve legacy shortened agent names to canonical full names."""
+    return _AGENT_ALIASES.get(agent, agent)
+
+
 def _match_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Match start events to finding events by session_id within the time window.
+    """Match start events to finding events by (session_id, agent) within the time window.
+
+    Uses a compound (session_id, normalized_agent_name) key so that multiple agents
+    sharing the same parent session do not overwrite each other.
 
     Returns list of training records for mortar/trowel.
     """
-    # Index finding events by session_id
-    findings_by_session: dict[str, dict[str, Any]] = {}
+    # Index finding events by (session_id, normalized_agent) compound key.
+    # Use defaultdict(list) so multiple findings per agent per session are kept;
+    # we take the last one written (same behaviour as before but without cross-agent
+    # collision).
+    findings_by_key: defaultdict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for ev in events:
         if ev.get("event") == "finding":
             sid = ev.get("session_id", "")
-            if sid:
-                findings_by_session[sid] = ev
+            agent_raw = ev.get("agent", "")
+            agent_norm = _normalize_agent(agent_raw)
+            if sid and agent_norm:
+                findings_by_key[(sid, agent_norm)].append(ev)
 
     records: list[dict[str, Any]] = []
 
@@ -142,7 +169,8 @@ def _match_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
         session_id = ev.get("session_id", "")
         parent_session = ev.get("parent_session", "")
-        agent = ev.get("agent", "unknown")
+        agent_raw = ev.get("agent", "unknown")
+        agent = _normalize_agent(agent_raw)
         timestamp = ev.get("timestamp", "")
 
         # The routing agent is the parent (mortar dispatched this start event)
@@ -153,8 +181,10 @@ def _match_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             # dispatch campaign agents)
             pass
 
-        # Find matching finding within time window
-        finding_event: dict[str, Any] | None = findings_by_session.get(session_id)
+        # Find matching finding within time window using compound key.
+        # Take the last finding written for this (session, agent) pair.
+        candidate_findings = findings_by_key.get((session_id, agent), [])
+        finding_event: dict[str, Any] | None = candidate_findings[-1] if candidate_findings else None
         if finding_event is not None:
             start_dt = _parse_iso(timestamp)
             finding_dt = _parse_iso(finding_event.get("timestamp", ""))
@@ -163,7 +193,7 @@ def _match_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 if diff > timedelta(hours=_MATCH_WINDOW_HOURS) or diff.total_seconds() < 0:
                     finding_event = None
 
-        scored = _score_session(ev, finding_event)
+        scored = _score_session(ev, finding_event, normalized_agent=agent)
 
         if scored["score"] >= min_training_score(routing_agent):
             records.append({

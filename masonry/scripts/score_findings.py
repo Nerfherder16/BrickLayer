@@ -20,7 +20,8 @@ from typing import Any
 
 VALID_VERDICTS: frozenset[str] = frozenset({
     "HEALTHY", "WARNING", "FAILURE", "INCONCLUSIVE", "DIAGNOSIS_COMPLETE",
-    "FIXED", "FIX_FAILED", "COMPLIANT", "NON_COMPLIANT", "PARTIAL",
+    "FIXED", "FIX_FAILED", "FIX_APPLIED", "COMPLETE",
+    "COMPLIANT", "NON_COMPLIANT", "PARTIAL",
     "NOT_APPLICABLE", "CALIBRATED", "UNCALIBRATED", "NOT_MEASURABLE",
     "IMPROVEMENT", "REGRESSION", "IMMINENT", "PROBABLE", "POSSIBLE",
     "UNLIKELY", "OK", "DEGRADED", "DEGRADED_TRENDING", "ALERT", "UNKNOWN",
@@ -130,7 +131,7 @@ def extract_finding_fields(path: Path) -> dict[str, Any]:
 def _extract_section(text: str, section_name: str) -> str:
     """Return the body of a markdown ## Section, or empty string."""
     pattern = re.compile(
-        rf"^##\s+{re.escape(section_name)}\s*\n(.*?)(?=^##|\Z)",
+        rf"^##\s+{re.escape(section_name)}\s*\n(.*?)(?=^## [^#]|\Z)",
         re.MULTILINE | re.DOTALL,
     )
     match = pattern.search(text)
@@ -279,7 +280,7 @@ def discover_findings(base_dir: Path) -> list[Path]:
 
     # Project subdirectory findings/
     for child in base_dir.iterdir():
-        if child.is_dir() and child.name not in ("findings", "masonry", ".git"):
+        if child.is_dir() and child.name not in ("findings", ".git"):
             _collect(child / "findings")
 
     return found

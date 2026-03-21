@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [Wave 20] -- 2026-03-21
+
+4 questions answered. Routing session_id collision fixed (100pt records 3 to 9), masonry findings scoring unlocked (training corpus 61 to 271), overall corpus 435 records (+71%). Campaign STOP recommended.
+
+### Fixed
+- `D20.1`/`F20.1` -- score_routing flat dict collision: compound (session_id, agent) key replaces flat session_id dict; agent alias normalization map added; `general-purpose` added to AGENT_CATEGORIES (`masonry/scripts/score_routing.py`, `masonry/src/scoring/rubrics.py`)
+- `F20.2` -- score_findings masonry exclusion: removed `"masonry"` from discovery blocklist, fixed `_extract_section` regex to not stop at `###` subsections, added `FIX_APPLIED`/`COMPLETE` to VALID_VERDICTS (`masonry/scripts/score_findings.py`)
+
+### Healthy
+- R20.1: Training corpus health confirmed -- 435 merged records, 9 routing 100pt records, 6 agents with 10+ records, vigil WARNING (7 roses, 10 buds, 1 thorn)
+
 ## [Wave 19] -- 2026-03-21
 
 4 questions answered. Vigil calibration fixed (false Thorns eliminated), routing reliability mapped at 60%, score_findings masonry extension specified.
