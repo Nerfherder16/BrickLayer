@@ -124,10 +124,11 @@ The web dashboard has been retired — all UI goes through Kiln.
 
 ## Starting the Research Loop
 
-> **IMPORTANT — always set `DISABLE_OMC=1` before launching BrickLayer.**
-> BrickLayer runs in its own isolated `claude` subprocess. Without this, OMC hooks in the
-> parent session will intercept agent spawns and replace BrickLayer's domain-specific agents
-> (benchmark-engineer, quantitative-analyst, etc.) with OMC's generic agents, breaking the loop.
+> **IMPORTANT — always set `DISABLE_MASONRY_HOOKS=1` before launching BrickLayer.**
+> BrickLayer runs in its own isolated `claude` subprocess. Without this, Masonry hooks in the
+> parent session (Mortar routing, stop-guard, lint-check, TDD enforcer, etc.) will fire on every
+> BrickLayer iteration — injecting Mortar routing directives into the autonomous research loop
+> and blocking the subprocess from stopping cleanly.
 
 **New project — after question bank is ready:**
 ```bash
