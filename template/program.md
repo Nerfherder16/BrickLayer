@@ -64,8 +64,7 @@ use your knowledge base and flag any post-2024 information as needing external v
 6. Run: `python simulate.py > run.log 2>&1`
 7. Read results: `grep "^verdict:\|^treasury_runway_months:\|^failure_reason:" run.log`
 8. Evaluate:
-   - `FAILURE` or `WARNING` → **keep the commit**, write a finding to `findings/wave{N}/<question_id>.md`
-     (The wave number N is provided by Trowel in your invocation prompt.)
+   - `FAILURE` or `WARNING` → **keep the commit**, write a finding to `findings/<question_id>.md`
    - `HEALTHY` → `git reset --hard HEAD~1`, try a different parameter value or move on
 9. Log to `results.tsv`
 10. Mark the question as DONE (or INCONCLUSIVE) in `questions.md`
@@ -75,7 +74,7 @@ use your knowledge base and flag any post-2024 information as needing external v
 
 1. Pick the next PENDING question
 2. Answer from your knowledge base, flagging anything uncertain or potentially outdated
-3. Write the finding directly to `findings/wave{N}/<question_id>.md`
+3. Write the finding directly to `findings/<question_id>.md`
 4. Log to `results.tsv` as a research run (no commit/reset cycle needed)
 5. Mark DONE or INCONCLUSIVE
 6. **Check the finding for follow-ups** (see Live Discovery below)
@@ -100,7 +99,7 @@ This keeps high-severity threads alive while they are hot.
 
 ### Every 5 completed questions
 
-Invoke `hypothesis-generator` with the 3 most recent findings as context. It will scan
+Invoke `hypothesis-generator-bl2` with the 3 most recent findings as context. It will scan
 for gaps and add new questions to `questions.md` as a mid-loop wave. This catches
 patterns that only become visible after several findings accumulate — things no initial
 question bank anticipates.
@@ -112,10 +111,10 @@ interactions, or cross-domain risks they imply that are not covered by remaining
 questions. Add up to 5 new PENDING questions to questions.md. Label them Wave-mid.
 ```
 
-Do not invoke hypothesis-generator on every question — only every 5. The overhead
+Do not invoke hypothesis-generator-bl2 on every question — only every 5. The overhead
 of running it too frequently outweighs the benefit.
 
-**Immediately after** hypothesis-generator completes, spawn forge-check and (if N is a
+**Immediately after** hypothesis-generator-bl2 completes, spawn forge-check and (if N is a
 multiple of 10) agent-auditor as **background agents** — do NOT wait for them:
 
 ```
@@ -143,7 +142,7 @@ as a **background agent** — do NOT wait for it:
 ```
 Spawn background agent — peer-reviewer:
   "Act as peer-reviewer per .claude/agents/peer-reviewer.md.
-   primary_finding=findings/wave{N}/<question_id>.md, target_git=., agents_dir=.claude/agents/.
+   primary_finding=findings/<question_id>.md, target_git=., agents_dir=.claude/agents/.
    Re-run the original test independently, review the fix code, append ## Peer Review
    section with verdict CONFIRMED | CONCERNS | OVERRIDE."
 ```
@@ -191,16 +190,17 @@ grep "^verdict:\|^primary_metric:\|^failure_reason:" run.log
 
 Tab-separated, NOT comma-separated. Header:
 ```
-commit	question_id	verdict	primary_metric	key_finding	scenario_name
+question_id	verdict	agent_name	timestamp	summary
 ```
 
-Use `N/A` for primary_metric on research questions (no sim run).
+Append one row per completed question in this exact column order.
+Use `N/A` for agent_name on manual runs if no agent was invoked.
 
 ---
 
 ## Finding Format
 
-Write each finding to `findings/wave{N}/<question_id>.md`:
+Write each finding to `findings/<question_id>.md` (flat directory, no wave subdirectories):
 
 ```markdown
 # Finding: <question_id> — <short title>
@@ -249,7 +249,7 @@ consistent tag. Use these tags to retrieve an agent's prior work without re-runn
 | `competitive-analyst` | `agent:competitive-analyst` | Market analogues, fee/participation benchmarks |
 | `benchmark-engineer` | `agent:benchmark-engineer` | Baselines, regression reports |
 | `synthesizer` | `agent:synthesizer` | Dependency map, minimum viable change set |
-| `hypothesis-generator` | `agent:hypothesis-generator` | Wave N summaries |
+| `hypothesis-generator-bl2` | `agent:hypothesis-generator-bl2` | Wave N summaries |
 
 **All agents use `domain="{project}-autoresearch"`** — replace `{project}` with the actual
 project name (e.g., `adbp-autoresearch`, `recall-autoresearch`).
