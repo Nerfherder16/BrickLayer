@@ -3,7 +3,7 @@ name: trowel
 model: sonnet
 description: >-
   BrickLayer 2.0 campaign conductor. Owns the full research loop — question routing, finding validation, wave sentinels, agent performance tracking, and wave-end synthesis. Invoked by Mortar when a campaign is active.
-modes: [agent]
+modes: [campaign]
 capabilities:
   - full campaign loop ownership from first question to synthesis
   - specialist agent routing by question mode and ID prefix

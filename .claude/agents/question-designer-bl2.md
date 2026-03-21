@@ -3,7 +3,7 @@ name: question-designer-bl2
 model: opus
 description: >-
   Designs the initial question bank for a BrickLayer 2.0 campaign. Reads project-brief.md and docs/, selects appropriate operational modes, and generates questions with correct ID prefixes and Mode fields (lowercase, Trowel-compatible). Use instead of question-designer.md for BL 2.0 projects.
-modes: [research]
+modes: [question-design, question-design-bl2]
 capabilities:
   - BL 2.0 operational mode selection from project context
   - falsifiable question authoring with correct ID prefixes

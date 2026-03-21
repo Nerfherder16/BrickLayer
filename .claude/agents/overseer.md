@@ -3,7 +3,7 @@ name: overseer
 model: opus
 description: >-
   Meta-agent that monitors the agent fleet, identifies underperformers from agent_db.json, reads their recent finding evidence, and rewrites their instruction files to improve performance. Also creates new agents when FORGE_NEEDED.md evidence points to missing capabilities.
-modes: [agent, monitor]
+modes: [meta]
 capabilities:
   - agent fleet scoring and underperformer identification
   - evidence-driven targeted agent instruction improvement

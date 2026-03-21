@@ -3,7 +3,7 @@ name: mcp-advisor
 model: sonnet
 description: >-
   Post-campaign agent that analyzes failure patterns and INCONCLUSIVE verdicts to identify missing MCP server capabilities. Maps failure signals to specific MCP servers with install instructions and writes MCP_RECOMMENDATIONS.md.
-modes: [audit, research]
+modes: [meta]
 capabilities:
   - tooling gap identification from INCONCLUSIVE and FAILURE findings
   - MCP server recommendation mapping with install instructions

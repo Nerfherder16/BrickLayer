@@ -3,7 +3,7 @@ name: fix-implementer
 model: sonnet
 description: >-
   Activate when a root cause is known and a specific fix needs to be implemented and verified. Requires a DIAGNOSIS_COMPLETE specification — will not attempt fixes without one. Use after diagnose-analyst has run, in campaign mode (F-prefix) or directly in conversation.
-modes: [fix]
+modes: [diagnose]
 capabilities:
   - surgical fix implementation from DIAGNOSIS_COMPLETE spec
   - fix verification via test execution and regression check

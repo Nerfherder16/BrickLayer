@@ -3,7 +3,7 @@ name: tools-manifest
 model: haiku
 description: >-
   Canonical catalog of all MCP tools available to BrickLayer agents. Reference when writing new agents or checking tool coverage. Not an interactive agent — a reference document read by forge-check and overseer.
-modes: [agent]
+modes: [meta]
 capabilities:
   - MCP tool catalog documentation for agent authors
   - tool coverage reference for forge-check validation

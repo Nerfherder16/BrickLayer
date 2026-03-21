@@ -3,7 +3,7 @@ name: code-reviewer
 model: sonnet
 description: >-
   Pre-commit code quality gate. Runs after fix-implementer produces a fix — reviews the diff for correctness, style, lint issues, and regression risk before the commit is made. Returns APPROVED, NEEDS_REVISION, or BLOCKED.
-modes: [validate]
+modes: [review]
 capabilities:
   - diff review for correctness and regression risk
   - style and lint compliance verification

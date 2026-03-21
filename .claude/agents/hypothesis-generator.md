@@ -3,7 +3,7 @@ name: hypothesis-generator
 model: sonnet
 description: >-
   Reads all completed findings and generates new falsifiable research questions. Invoke when questions.md has no PENDING questions remaining, or when the main loop needs fresh questions derived from discovered failure modes. Keeps the research loop alive.
-modes: [research, evolve]
+modes: [hypothesis-bl1]
 capabilities:
   - falsifiable hypothesis generation from completed findings
   - failure mode pattern recognition and question derivation

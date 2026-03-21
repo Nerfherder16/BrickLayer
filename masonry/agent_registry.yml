@@ -417,7 +417,8 @@ agents:
     \ a fix \u2014 reviews the diff for correctness, style, lint issues, and regression\
     \ risk before the commit is made. Returns APPROVED, NEEDS_REVISION, or BLOCKED.\
     \ Fix-implementer must not commit until this agent returns APPROVED."
-  modes: []
+  modes:
+  - review
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -435,7 +436,8 @@ agents:
     \ will not attempt fixes without one. Use after diagnose-analyst has run, in campaign\
     \ mode (F-prefix questions) or directly in conversation when a diagnosis is already\
     \ in hand."
-  modes: []
+  modes:
+  - diagnose
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -455,7 +457,8 @@ agents:
     task.
 
     '
-  modes: []
+  modes:
+  - agent
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -472,7 +475,8 @@ agents:
     questions. Invoke when questions.md has no PENDING questions remaining, or when
     the main loop needs fresh questions derived from discovered failure modes. Keeps
     the research loop alive without the orchestrator guessing.
-  modes: []
+  modes:
+  - hypothesis-bl1
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -489,7 +493,9 @@ agents:
     instead of hypothesis-generator.md for BL 2.0 projects. Reads recent findings,
     applies mode-transition rules, and generates questions with correct operational
     modes and ID prefixes based on what was found.
-  modes: []
+  modes:
+  - hypothesis
+  - hypothesis-bl2
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -507,7 +513,8 @@ agents:
     \ this UI in the Hub\". Knows the full file structure, IPC data flow, component\
     \ conventions, and build/deploy process. Works in campaign mode or directly in\
     \ conversation."
-  modes: []
+  modes:
+  - agent
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -525,7 +532,8 @@ agents:
     specific MCP servers with install instructions. Writes MCP_RECOMMENDATIONS.md.
 
     '
-  modes: []
+  modes:
+  - meta
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -544,7 +552,8 @@ agents:
     points to missing capabilities.
 
     '
-  modes: []
+  modes:
+  - meta
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -561,7 +570,8 @@ agents:
     \ reads project-brief.md and docs/, ranks research domains by risk, produces a\
     \ campaign targeting brief for question-designer, and estimates wave count. Call\
     \ before question-designer on any new project."
-  modes: []
+  modes:
+  - meta
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -580,7 +590,8 @@ agents:
     Named after the masonry pointing tool that finishes mortar joints.
 
     '
-  modes: []
+  modes:
+  - meta
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -597,7 +608,9 @@ agents:
     this instead of question-designer.md for BL 2.0 projects. Reads project-brief.md
     and docs/, selects the appropriate operational modes, and generates questions
     with correct ID prefixes and Mode fields (lowercase, Trowel-compatible).
-  modes: []
+  modes:
+  - question-design
+  - question-design-bl2
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -616,7 +629,8 @@ agents:
     review. Also repairs existing skills that are stale or incorrect.
 
     '
-  modes: []
+  modes:
+  - meta
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -633,7 +647,8 @@ agents:
     narrative. Invoke after the research loop completes, before running analyze.py.
     Identifies cross-domain dependencies, conflicting constraints, and the minimum
     viable set of changes.
-  modes: []
+  modes:
+  - synthesis-bl1
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -652,7 +667,9 @@ agents:
     1.x synthesizer for BL 2.0 projects.
 
     '
-  modes: []
+  modes:
+  - synthesis
+  - synthesis-bl2
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -667,7 +684,8 @@ agents:
   model: sonnet
   description: Canonical catalog of all MCP tools available to BrickLayer agents.
     Reference when writing new agents or checking tool coverage.
-  modes: []
+  modes:
+  - meta
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -684,7 +702,8 @@ agents:
     \ question routing, finding validation, wave sentinels, agent performance tracking,\
     \ and wave-end synthesis. Invoked by Mortar when a campaign is active. Named after\
     \ the masonry tool that applies mortar."
-  modes: []
+  modes:
+  - campaign
   capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
