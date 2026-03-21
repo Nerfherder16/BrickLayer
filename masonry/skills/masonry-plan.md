@@ -75,9 +75,25 @@ Create `.autopilot/` directory and write `spec.md`:
 
 ### Step 4 — Present & Approve
 
-Show the spec to the user. Say:
-> "Review the spec above. Reply **approve** to start `/masonry-build`, or tell me what to change."
+Show the spec to the user, then use the **AskUserQuestion** tool to present a choice:
 
-Wait for approval. Do NOT start building without explicit approval.
+```
+Question: "Spec ready — what would you like to do?"
+Options:
+  - "Approve & compact"
+  - "Revise the spec"
+  - "Cancel"
+```
 
-On approval: write "build" to `.autopilot/mode` and tell the user to run `/masonry-build`.
+Do NOT start building without explicit approval.
+
+**On "Approve & compact":**
+1. Write `"build"` to `.autopilot/mode`
+2. Tell the user:
+   > "Spec saved. Run `/compact` to trim context, then `/masonry-build` to start."
+
+**On "Revise the spec":**
+Ask what to change, update `spec.md`, re-present from Step 4.
+
+**On "Cancel":**
+Delete `.autopilot/mode` and tell the user the plan was discarded.
