@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `04c517c` docs(masonry): Wave 24 synthesis -- training attribution fixed, metric ceiling revised (2026-03-22)
 - `3139076` docs: Wave 24 — update ROADMAP + monitor targets (M24.1) (2026-03-22)
 - `0b48baa` research(dspy): Wave 24 — R24.1 WARNING + V24.1 FAILURE (2026-03-22)
 - `f4d1376` fix(dspy/onboard): Wave 24 — three diagnoses + two fixes applied (2026-03-22)
