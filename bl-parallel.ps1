@@ -140,7 +140,7 @@ for ($i = 1; $i -le $Workers; $i++) {
 
     # Bash command for this worker
     # Uses process substitution to pass prompt file to claude
-    $bashCmd = "cd '$projectPathFwd' && export BL_WORKER_ID=$i && export DISABLE_OMC=1 && git checkout $BranchName 2>/dev/null; DISABLE_OMC=1 claude --dangerously-skip-permissions \"\$(cat '$promptFile')\"; echo ''; echo 'Worker $i finished. Press Enter to close.'; read"
+    $bashCmd = "cd '$projectPathFwd' && export BL_WORKER_ID=$i && export DISABLE_OMC=1 && git checkout $BranchName 2>/dev/null; DISABLE_OMC=1 claude --dangerously-skip-permissions `"`$(cat '$promptFile')`"; echo ''; echo 'Worker `$i finished. Press Enter to close.'; read"
 
     $label = "BL-$Project-W$i"
 
