@@ -589,7 +589,7 @@ Focus: Whole-codebase efficiency audit targeting the economizer agent's six scan
 
 ## E1.5 [audit] Does `masonry/requirements.txt` pull in `dspy>=2.5` for a pipeline that has never run a successful optimization?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: audit
 **Priority**: MEDIUM
 **Hypothesis**: `masonry/requirements.txt` lists four dependencies: `pydantic>=2.10`, `pyyaml>=6.0`, `httpx>=0.27`, `dspy>=2.5`. DSPy is a large ML framework (pulls in PyTorch, transformers, and multiple ML transitive dependencies). The `masonry/optimized_prompts/` directory is empty — no optimization has ever completed. If DSPy is only used by `masonry/src/dspy_pipeline/optimizer.py` which itself is never invoked in production, the requirement may be a heavy optional dependency being carried as a hard dependency. Additionally, `httpx` may overlap with Python's native `urllib` for simple HTTP calls in `semantic.py`.
