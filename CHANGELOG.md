@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `aedfd01` feat(approver): session ID ownership lock for masonry-state.json (2026-03-22)
 - `00a05e0` fix(hooks): soften Mortar gate to advisory-only + untrack routing_log.jsonl (2026-03-21)
 - `43bd1ba` chore: commit routing log session entries (2026-03-21)
 - `3cc242c` feat(plan): wire compact+build flow into Mortar session token + pre-compact hook (2026-03-21)
