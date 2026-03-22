@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `66bef91` audit(bl2): add compliance audit findings A26.1 and Masonry settings (2026-03-21)
 - `0b1c761` chore(registry): update bug-catcher capabilities with Recall cross-reference (2026-03-21)
 - `489d773` feat(bug-catcher): add Recall cross-reference step (Step 7b) (2026-03-21)
 - `f538404` chore(masonry): DSPy training data scoring and F26.1/V26.1 audit findings (2026-03-21)
