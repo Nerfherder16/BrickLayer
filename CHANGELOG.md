@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `ab23b2f` fix(crucible): update scorers for BL 2.0 field name formats (2026-03-21)
 - `c4d8ff3` chore: update masonry routing log (2026-03-21)
 - `7c1e3f7` fix(hooks): move context-monitor from PostToolUse to Stop with correct output format (2026-03-21)
 - `c528347` chore(bl2): update question statuses and add A26.2 finding + run script (2026-03-21)
