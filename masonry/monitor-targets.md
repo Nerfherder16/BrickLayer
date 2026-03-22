@@ -46,3 +46,35 @@ if len(_embedding_cache) > 200:
 ```
 
 ---
+
+## `miprov2_run_duration`
+
+**Source**: `masonry/src/dspy_pipeline/optimizer.py`
+**Motivated by**: M24.1 (Wave 24) — R23.1 (WARNING) reported 5-7 hour run times for full MIPROv2 optimization
+
+**What it measures**: Wall-clock time from `optimize_agent()` invocation to completion, measured per agent per run. Extended runtimes indicate either Ollama inference bottlenecks (local model) or Anthropic API throughput limits (cloud model), or unexpectedly large training data sets passed to the optimizer.
+
+**How to measure**:
+1. Check the optimizer log output: `[optimizer] agent={name} trials={n} elapsed={seconds}s`
+2. Via Kiln UI: the "OPTIMIZE" button panel shows elapsed time during an active run
+3. Via `masonry_optimization_status` MCP tool: returns `last_run_duration_s` per agent when available
+
+**Thresholds**:
+
+| Level | Duration | Action |
+|-------|----------|--------|
+| OK | < 6 hours | Normal operation |
+| WARNING | 6–10 hours | Monitor — check `num_trials` setting and training data size; consider reducing `num_instruct_candidates` |
+| FAILURE | > 10 hours | Optimization likely stalled or looping. Kill the run, inspect logs, reduce search space before retrying |
+
+**Threshold rationale**:
+- Normal full run (13 trials, Ollama local): ~4 hours
+- Normal full run (20 trials, Anthropic API): ~8-15 minutes — FAILURE threshold applies to local Ollama runs
+- WARNING at 6h: exceeds expected ceiling for 13-trial run, likely due to Ollama inference slowdown or oversized training data
+- FAILURE at 10h: run is effectively stalled; no expected configuration produces a legitimate 10h+ run
+
+**Check frequency**: At start and end of each optimization run; also if Kiln shows an optimization task as active for > 3 hours.
+
+**Quick fix if threshold exceeded**: Kill the optimization process. Reduce `num_trials` to 10 and `max_bootstrapped_demos` to 2. Restart. If Ollama is the bottleneck, switch to `ANTHROPIC_API_KEY` mode for faster iteration.
+
+---
