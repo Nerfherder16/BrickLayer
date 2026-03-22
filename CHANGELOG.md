@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `8e8cd7a` finding: E1.5 — DSPy is hard requirement but MCP server already lazy-imports it; should be optional extra (2026-03-22)
 - `f82dc81` finding: E1.4 — 3 same-name agents across directories; tools-manifest global copy is redundant (2026-03-22)
 - `bf239df` finding: E1.3 — deterministic.py has no dead routing branches; FALSE_POSITIVE (2026-03-22)
 - `3ee4d80` finding: E1.2 — 3 hook files exceed 300-line limit with clear decomposition points (2026-03-22)
