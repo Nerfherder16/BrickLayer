@@ -1688,7 +1688,7 @@
 
 ### M24.1: Add MIPROv2 run-time duration to monitor-targets.md with WARNING and FAILURE thresholds
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: monitor
 **Priority**: MEDIUM
 **Motivated by**: R23.1 WARNING — full 10-trial MIPROv2 optimization with qwen3:14b requires 4-8 hours per agent. The synthesis identifies this as a blocking constraint for rapid metric iteration. Without a tracked threshold, long-running optimizations will silently exceed acceptable windows for interactive development cycles.

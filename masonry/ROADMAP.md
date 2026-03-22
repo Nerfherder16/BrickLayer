@@ -90,7 +90,9 @@ First MIPROv2 run (Wave 23, qwen3:14b) achieved **68.3%** on Trial 3 (best of 13
 3. Verdict-conditioned confidence calibration: expected confidence varies by verdict (`HEALTHY→0.85`, `WARNING→0.75`, `FAILURE→0.70`)
 4. Filter training records with `score < 0.4` before optimization to remove noise
 
-**Expected gain:** +5-8 points over current 68.3% ceiling → target 75-80%.
+**Actual expected gain:** +1-4 points (69-73% ceiling). The binding constraint is verdict prediction accuracy (~35-40%), not evidence quality. Changing evidence scoring redistributes 0.4 weight among already-passing findings without fixing the root bottleneck.
+
+**R24.1 finding** (Wave 24): Three of four planned changes have issues: severity validation adds ~0.14 mean score but 91.1% of findings already pass; verdict-conditioned confidence penalizes FAILURE findings (39.2% of training data, mean_conf=0.958 vs target 0.70); score<0.4 filter thins HEALTHY class below bootstrap threshold (n=13). Content signal replacement (change #1) is the only genuine improvement. Path to 75-80% requires the D24.1 attribution fix (now applied) to restore question_text attribution, compounding with metric changes.
 
 **Speed improvement:** With `ANTHROPIC_API_KEY`, full 13-trial run drops from ~4 hours to ~8 minutes. Enables rapid iteration on metric design.
 
@@ -98,6 +100,20 @@ First MIPROv2 run (Wave 23, qwen3:14b) achieved **68.3%** on Trial 3 (best of 13
 - `num_instruct_candidates`: 3 → 10
 - `max_bootstrapped_demos`: 2 → 5
 - `num_trials`: 10 → 20
+
+### Multi-Agent Optimization — KarenSig Required First
+
+V24.1 (Wave 24) confirmed karen is NOT viable with the current ResearchAgentSig pipeline:
+- All 191 karen training records use ops-domain schema (commit_subject/doc_files_written)
+- ResearchAgentSig fields (verdict, evidence, confidence) are absent from all records
+- optimize_all() is hardcoded to ResearchAgentSig for all agents — no dispatch mechanism exists
+
+Prerequisites before optimizing karen or any ops-domain agent:
+1. Define KarenSig in signatures.py (task/project_context → ops_verdict/files_written_count/summary)
+2. Add build_karen_metric() in optimizer.py
+3. Add load_karen_training_data() path in run_optimization.py
+4. Update optimize_all() to dispatch by agent name rather than hardcoding ResearchAgentSig
+5. Generate masonry/src/dspy_pipeline/generated/karen.py stub
 
 ---
 
