@@ -210,9 +210,26 @@ async function main() {
   // BrickLayer research campaign — approve everything, including Bash.
   // Walk up from cwd AND from the tool's target path — handles sessions whose cwd
   // is a parent directory (e.g. BL root) or a sibling project.
+  // Freshness guard: questions.md must have been modified within BUILD_FRESHNESS_MS
+  // to confirm an active running campaign (not a dormant project directory).
+  function isResearchProjectFresh(dir) {
+    if (!isResearchProject(dir)) return false;
+    return isFresh(join(dir, "questions.md"));
+  }
+  function findResearchProjectFresh(startDir) {
+    if (!startDir) return false;
+    let dir = startDir;
+    for (let i = 0; i < 10; i++) {
+      if (isResearchProjectFresh(dir)) return true;
+      const parent = dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+    return false;
+  }
   const inResearch =
-    findResearchProject(cwd) ||
-    (filePath && findResearchProject(dirname(filePath)));
+    findResearchProjectFresh(cwd) ||
+    (filePath && findResearchProjectFresh(dirname(filePath)));
   if (inResearch) {
     process.stdout.write(
       JSON.stringify({
