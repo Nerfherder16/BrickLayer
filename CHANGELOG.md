@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `0ec303e` feat(campaign): add Wave 24 questions (7 questions, 5 modes) (2026-03-22)
 - `74711de` feat(dspy): first optimized prompt for quantitative-analyst (66.07%, +6.4pts) (2026-03-22)
 - `23df5e0` synthesis: Wave 3 complete -- E-series efficiency audit (2026-03-22)
 - `4506323` finding: E1.9 — auto-loaded context is 22.6K tokens (45% of 50K threshold); agent fleet not auto-loaded (2026-03-22)
