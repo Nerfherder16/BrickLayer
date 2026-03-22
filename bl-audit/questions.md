@@ -622,7 +622,7 @@ Focus: Whole-codebase efficiency audit targeting the economizer agent's six scan
 
 ## E1.8 [audit] Is `masonry/src/dspy_pipeline/signatures.py` dead weight — 112 lines of DSPy class definitions with no callers in the production path?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: audit
 **Priority**: LOW
 **Hypothesis**: `masonry/src/dspy_pipeline/signatures.py` contains DSPy `Signature` class definitions (~112 lines). The DSPy pipeline was never successfully run (empty `optimized_prompts/`). If `signatures.py` is only imported by `optimizer.py` which is never invoked at runtime (only via `masonry_optimize_agent` MCP tool, manually), then the entire `dspy_pipeline/` subdirectory is effectively a draft that adds import overhead and maintenance surface without contributing to any production path. This connects to D1.2 (46 dead generated stubs) already confirmed DONE.
