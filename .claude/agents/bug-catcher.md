@@ -16,6 +16,7 @@ capabilities:
   - Duplicate variable declaration detection
   - Timeout budget analysis (internal timeouts vs hook budget)
   - Cross-repo hook path verification
+  - Recall memory cross-reference (flags intentional removals and known issues)
 input_schema: DiagnosePayload
 output_schema: FindingPayload
 tier: trusted
@@ -156,6 +157,48 @@ Check that:
 
 ---
 
+## Step 7b — Recall memory cross-reference
+
+**Run this for every finding before finalising the report.** Recall may contain context that changes the severity or meaning of a bug — e.g. "this was intentionally removed because it caused X", "this pattern was tried and abandoned", "this is a known Windows-only issue with a workaround".
+
+For each script with a finding, query Recall:
+
+```bash
+# Search by script name
+curl -s -X POST "http://100.70.195.84:8200/memory/search" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer recall-admin-key-change-me" \
+  -d "{\"query\": \"<script-filename> hook\", \"limit\": 5}" \
+  | node -e "const d=require('fs').readFileSync('/dev/stdin','utf8'); const r=JSON.parse(d); (r.results||r||[]).forEach(m=>console.log(m.score?.toFixed(2)||'?', m.content?.slice(0,200)))"
+
+# Search by bug pattern
+curl -s -X POST "http://100.70.195.84:8200/memory/search" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer recall-admin-key-change-me" \
+  -d "{\"query\": \"<error pattern or feature name>\", \"limit\": 5}" \
+  | node -e "const d=require('fs').readFileSync('/dev/stdin','utf8'); const r=JSON.parse(d); (r.results||r||[]).forEach(m=>console.log(m.score?.toFixed(2)||'?', m.content?.slice(0,200)))"
+```
+
+**Alternatively, use the `recall_search` MCP tool if available:**
+```
+recall_search: query="<script-filename> hook bug"
+recall_search: query="<feature name> removed disabled"
+```
+
+**Recall context changes the report as follows:**
+
+| Recall finding | Report action |
+|----------------|---------------|
+| "X was removed because it caused Y" | Flag as `⚠️ RECALL CONFLICT` — the bug you found may be intentional removal. Surface the original reason to the user before recommending a fix. |
+| "X was fixed before but reverted" | Upgrade severity — this is a recurrence. Note commit hash from Recall. |
+| "Known Windows-only issue, workaround: ..." | Add workaround to recommended fix. Lower severity if workaround is in place. |
+| "This was intentionally disabled by user" | Mark `ℹ️ USER INTENT` — do NOT recommend re-enabling without user confirmation. |
+| No relevant memories | Proceed as normal. |
+
+**Always include a `### Recall Context` section in the report** even if empty (write "No relevant memories found"). This makes it auditable.
+
+---
+
 ## Output format
 
 After running all checks, produce a structured report:
@@ -169,11 +212,20 @@ After running all checks, produce a structured report:
 ### WARNING (output silently dropped or degraded behavior)
 - [script] [check] [finding]
 
+### ⚠️ RECALL CONFLICT (finding may be intentional — user must decide)
+- [script] [finding] [Recall memory that conflicts] [original reason]
+
+### ℹ️ USER INTENT (intentionally disabled/removed — do NOT auto-fix)
+- [script] [what was found] [Recall memory confirming user intent]
+
 ### PASS
 - [count] scripts checked, [count] clean
 
+### Recall Context
+[memories queried and relevant hits, or "No relevant memories found"]
+
 ### Recommended fixes
-[ordered by severity]
+[ordered by severity — exclude RECALL CONFLICT and USER INTENT items unless user confirms]
 ```
 
 ---
