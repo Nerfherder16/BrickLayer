@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `ccff30e` feat(wave23): Wave 23 complete — DSPy pipeline fully unblocked (2026-03-21)
 - `7ad4a6d` chore: gitignore dspy generated stubs + session routing log (2026-03-21)
 - `bb29e1c` feat(mortar-gate): PreToolUse enforcement — block Write/Edit/Bash until Mortar consulted (2026-03-21)
 - `01d622a` chore: session artifact — optimizer.py update (2026-03-21)
