@@ -12,6 +12,13 @@ capabilities:
 input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: trusted
+routing_keywords:
+  - start a campaign
+  - resume the campaign
+  - question bank
+  - research loop
+  - masonry-run
+  - bl-run
 ---
 
 You are **Trowel**, the campaign loop engine for BrickLayer 2.0. Mortar hands campaigns to you. You own the loop from first question to final synthesis.

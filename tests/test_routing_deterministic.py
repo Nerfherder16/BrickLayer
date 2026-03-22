@@ -6,7 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from masonry.src.routing.deterministic import route_deterministic
+from masonry.src.routing.deterministic import (
+    _route_from_registry_keywords,
+    route_deterministic,
+)
 from masonry.src.schemas import AgentRegistryEntry, RoutingDecision
 
 
@@ -82,12 +85,16 @@ class TestSlashCommandRouting:
 
     def test_plan_embedded_in_sentence(self, tmp_path):
         """'/plan' inside a sentence should still match."""
-        result = route_deterministic("can you /plan this feature please", tmp_path, make_registry())
+        result = route_deterministic(
+            "can you /plan this feature please", tmp_path, make_registry()
+        )
         assert result is not None
         assert result.target_agent == "spec-writer"
 
     def test_build_embedded_in_sentence(self, tmp_path):
-        result = route_deterministic("please /build the API endpoints", tmp_path, make_registry())
+        result = route_deterministic(
+            "please /build the API endpoints", tmp_path, make_registry()
+        )
         assert result is not None
         assert result.target_agent == "build-workflow"
 
@@ -241,3 +248,93 @@ class TestRoutingDecisionFields:
         result = route_deterministic("/fix", tmp_path, make_registry())
         assert result is not None
         assert len(result.reason) > 0
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Registry keyword routing
+# ──────────────────────────────────────────────────────────────────────────
+
+
+def _registry_with_keywords(
+    *entries: tuple[str, list[str]],
+) -> list[AgentRegistryEntry]:
+    """Build a registry with named agents and their routing_keywords."""
+    return [
+        AgentRegistryEntry(
+            name=name,
+            file=f"agents/{name}.md",
+            routing_keywords=keywords,
+            tier="candidate",
+        )
+        for name, keywords in entries
+    ]
+
+
+class TestRegistryKeywordRouting:
+    def test_single_keyword_match(self):
+        registry = _registry_with_keywords(("deploy-agent", ["deploy to casaos"]))
+        result = _route_from_registry_keywords("please deploy to casaos now", registry)
+        assert result is not None
+        assert result.target_agent == "deploy-agent"
+        assert result.layer == "deterministic"
+        assert result.confidence == 1.0
+
+    def test_first_matching_entry_wins(self):
+        """When multiple entries match, the first one in registry order wins."""
+        registry = _registry_with_keywords(
+            ("agent-a", ["security audit"]),
+            ("agent-b", ["security audit"]),
+        )
+        result = _route_from_registry_keywords("run a security audit", registry)
+        assert result is not None
+        assert result.target_agent == "agent-a"
+
+    def test_no_match_returns_none(self):
+        registry = _registry_with_keywords(("agent-a", ["deploy to casaos"]))
+        result = _route_from_registry_keywords("write unit tests please", registry)
+        assert result is None
+
+    def test_empty_keywords_list_skipped(self):
+        registry = _registry_with_keywords(
+            ("agent-no-keywords", []),
+            ("agent-with-keywords", ["refactor"]),
+        )
+        result = _route_from_registry_keywords("please refactor this module", registry)
+        assert result is not None
+        assert result.target_agent == "agent-with-keywords"
+
+    def test_case_insensitive_match(self):
+        registry = _registry_with_keywords(("agent-a", ["ROOT CAUSE"]))
+        result = _route_from_registry_keywords("what is the root cause here?", registry)
+        assert result is not None
+        assert result.target_agent == "agent-a"
+
+    def test_multiword_keyword_match(self):
+        registry = _registry_with_keywords(("agent-a", ["pull request"]))
+        result = _route_from_registry_keywords("open a pull request for this", registry)
+        assert result is not None
+        assert result.target_agent == "agent-a"
+
+    def test_registry_keywords_take_precedence_over_hardcoded(self, tmp_path):
+        """Registry keywords fire before hardcoded patterns in route_deterministic."""
+        registry = _registry_with_keywords(("custom-git-agent", ["git commit"]))
+        result = route_deterministic("git commit the changes", tmp_path, registry)
+        assert result is not None
+        assert result.target_agent == "custom-git-agent"
+
+    def test_empty_registry_returns_none(self):
+        result = _route_from_registry_keywords("git commit", [])
+        assert result is None
+
+    def test_registry_without_keywords_falls_through_to_hardcoded(self, tmp_path):
+        """No routing_keywords in registry → hardcoded patterns still fire."""
+        registry = [
+            AgentRegistryEntry(
+                name="some-agent",
+                file="agents/some-agent.md",
+                tier="candidate",
+            )
+        ]
+        result = route_deterministic("git commit the changes", tmp_path, registry)
+        assert result is not None
+        assert result.target_agent == "git-nerd"

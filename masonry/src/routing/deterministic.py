@@ -251,6 +251,25 @@ def _decision(target_agent: str, reason: str) -> RoutingDecision:
     )
 
 
+def _route_from_registry_keywords(
+    request_text: str,
+    registry: list[AgentRegistryEntry],
+) -> RoutingDecision | None:
+    """Check registry entries' routing_keywords before hardcoded patterns.
+
+    Each entry's routing_keywords are OR-joined into a single word-boundary
+    regex. First match wins. Returns None if no registry entry matches.
+    """
+    for entry in registry:
+        if not entry.routing_keywords:
+            continue
+        escaped = [re.escape(kw) for kw in entry.routing_keywords]
+        pattern = re.compile(r"\b(" + "|".join(escaped) + r")\b", re.IGNORECASE)
+        if pattern.search(request_text):
+            return _decision(entry.name, f"Registry keyword matched for {entry.name}")
+    return None
+
+
 def route_deterministic(
     request_text: str,
     project_dir: Path,
@@ -263,7 +282,12 @@ def route_deterministic(
         if pattern.search(request_text):
             return _decision(target, f"Slash command matched: {pattern.pattern}")
 
-    # 1b. Deterministic agent keyword routing (zero LLM calls)
+    # 1b. Registry-driven keyword routing (frontmatter routing_keywords take precedence)
+    registry_match = _route_from_registry_keywords(request_text, registry)
+    if registry_match:
+        return registry_match
+
+    # 1c. Hardcoded fallback patterns (for agents without routing_keywords in frontmatter)
     if _GIT_PATTERN.search(request_text):
         return _decision("git-nerd", "Git operation keyword matched")
     if _SOLANA_PATTERN.search(request_text):

@@ -12,6 +12,12 @@ capabilities:
 input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: candidate
+routing_keywords:
+  - blue-sky
+  - possibility space
+  - what could this become
+  - ceiling estimation
+  - explore what it could be
 ---
 
 You are the Frontier Analyst for a BrickLayer 2.0 campaign. Your job is to explore what the system COULD be — unconstrained by current implementation, but anchored to feasibility evidence.

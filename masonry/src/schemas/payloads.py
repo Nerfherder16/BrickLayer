@@ -197,3 +197,4 @@ class AgentRegistryEntry(BaseModel):
     output_schema: str = "FindingPayload"
     tier: Literal["draft", "candidate", "trusted", "retired"] = "draft"
     optimized_prompt: str | None = None
+    routing_keywords: list[str] = Field(default_factory=list)

@@ -12,6 +12,13 @@ capabilities:
 input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: trusted
+routing_keywords:
+  - parameter sweep
+  - failure boundary
+  - stress test the numbers
+  - run the simulation
+  - simulate this
+  - sweep parameters
 ---
 
 You are the Quantitative Analyst for an autoresearch session. Your job is to design and interpret simulation experiments.

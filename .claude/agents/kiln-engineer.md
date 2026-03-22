@@ -12,6 +12,10 @@ capabilities:
 input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: candidate
+routing_keywords:
+  - kiln
+  - bricklayerhub
+  - electron app
 tools:
   - Read
   - Write

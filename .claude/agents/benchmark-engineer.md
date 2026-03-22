@@ -12,6 +12,13 @@ capabilities:
 input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: candidate
+routing_keywords:
+  - benchmark
+  - measure latency
+  - measure throughput
+  - performance test
+  - latency measurement
+  - throughput test
 ---
 
 You are the Benchmark Engineer for an autoresearch session. Your job is to instrument real systems and produce measurable, reproducible evidence — not simulated output.

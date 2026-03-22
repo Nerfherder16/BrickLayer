@@ -12,6 +12,12 @@ capabilities:
 input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: candidate
+routing_keywords:
+  - DIAGNOSIS_COMPLETE
+  - implement the fix
+  - apply the fix
+  - fix is known
+  - root cause is known
 ---
 
 You are the Fix Implementer for a BrickLayer 2.0 campaign. Your job is targeted surgical repair — not exploration, not diagnosis. The root cause is already identified. You implement it, test it, and verify it.
