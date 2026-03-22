@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `34d625e` fix(hooks): resolve all 7 bug-catcher warnings from audit (2026-03-21)
 - `a2a1d36` chore: session artifacts — routing log + stop/context hook updates (2026-03-21)
 - `ab23b2f` fix(crucible): update scorers for BL 2.0 field name formats (2026-03-21)
 - `c4d8ff3` chore: update masonry routing log (2026-03-21)
