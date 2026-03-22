@@ -16,6 +16,12 @@ const { join, dirname } = require("path");
 // build will have touched it recently. Stale mode files from crashed sessions won't.
 const BUILD_FRESHNESS_MS = 30 * 60 * 1000; // 30 minutes
 
+// Mortar session token must be this fresh to count as "current session".
+// 4 hours covers a normal working session with breaks.
+const MORTAR_SESSION_FRESHNESS_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+const MASONRY_STATE_PATH = "C:/Users/trg16/Dev/Bricklayer2.0/masonry/masonry-state.json";
+
 function readStdin() {
   return new Promise((resolve) => {
     let data = "";
@@ -110,6 +116,34 @@ function isResearchProject(dir) {
   return existsSync(join(dir, "program.md")) && existsSync(join(dir, "questions.md"));
 }
 
+// Check whether Mortar wrote a fresh session token.
+// Returns true if masonry-state.json has mortar_consulted: true
+// and mortar_session_id is an ISO timestamp within the last 4 hours.
+function isMortarConsulted() {
+  try {
+    const raw = readFileSync(MASONRY_STATE_PATH, "utf8");
+    const state = JSON.parse(raw);
+    if (!state.mortar_consulted) return false;
+    if (!state.mortar_session_id) return false;
+    const sessionTime = new Date(state.mortar_session_id).getTime();
+    if (isNaN(sessionTime)) return false;
+    return Date.now() - sessionTime < MORTAR_SESSION_FRESHNESS_MS;
+  } catch {
+    return false;
+  }
+}
+
+// Determine if this hook is running inside a subagent spawned BY Mortar.
+// Mortar-spawned agents run under claude --dangerously-skip-permissions with
+// CLAUDE_SUBAGENT=1 in their environment (set by Mortar before spawning).
+// Also treat any process that has MASONRY_SUBAGENT set as exempt.
+function isSubagentContext() {
+  return (
+    process.env.CLAUDE_SUBAGENT === "1" ||
+    process.env.MASONRY_SUBAGENT === "1"
+  );
+}
+
 // Walk up from dir to find a BL research project root.
 // Handles cases where cwd is a subdirectory or the tool target is outside the project.
 function findResearchProject(startDir) {
@@ -193,6 +227,22 @@ async function main() {
   }
 
   const candidates = getCandidateDirs(parsed);
+
+  // ── Mortar gate ──────────────────────────────────────────────────────────────
+  // Before any Write/Edit/Bash reaches the approval logic, verify that Mortar has
+  // been consulted in this Claude session (fresh token in masonry-state.json).
+  //
+  // Exemptions (do NOT block):
+  //   1. Subagent contexts — agents spawned BY Mortar (CLAUDE_SUBAGENT=1)
+  //   2. Research projects — already handled above via inResearch
+  //   3. Active build/fix/compose modes — detected below; we gate only the idle case
+  //      but we need to check modes first, so we defer the block to after mode detection
+  // ─────────────────────────────────────────────────────────────────────────────
+  const targetToolIsActionable =
+    toolName === "write" || toolName === "edit" || toolName === "bash" ||
+    toolName === "multiedit";
+  const mortarGateApplicable =
+    targetToolIsActionable && !isSubagentContext();
   let autopilotMode = null;
   let uiMode = null;
 
@@ -205,6 +255,19 @@ async function main() {
   const approve =
     (autopilotMode === "build" || autopilotMode === "fix") ||
     (uiMode === "compose" || uiMode === "fix");
+
+  // Mortar gate: block Write/Edit/Bash when Mortar has NOT been consulted,
+  // unless we are inside an active build/fix/compose workflow (approve=true)
+  // or inside a subagent context (mortarGateApplicable=false).
+  //
+  // exit(2) causes Claude to surface the message to the user as a hard block.
+  if (mortarGateApplicable && !approve && !isMortarConsulted()) {
+    process.stderr.write(
+      "[Masonry] Route through Mortar first before doing any work. " +
+      "Invoke the mortar agent to get a session token, then retry.\n"
+    );
+    process.exit(2);
+  }
 
   // Block auto-approval for Tier 1/2 authority files — must always prompt user.
   if (approve && isTier1Tier2(filePath)) process.exit(0);
