@@ -95,18 +95,28 @@ def update_registry_dspy_status(
     registry_path.write_text("\n".join(updated), encoding="utf-8")
 
 
-def run(agent_name: str, base_dir: Path, backend: str = "anthropic") -> int:
+def run(
+    agent_name: str,
+    base_dir: Path,
+    backend: str = "anthropic",
+    num_trials: int = 10,
+    valset_size: int = 100,
+) -> int:
     """Run optimization for agent_name. Returns exit code (0=success, 1=failure).
 
     Args:
         agent_name: Name of the agent to optimize.
         base_dir: BrickLayer root directory.
         backend: LM backend — ``"anthropic"`` or ``"ollama"``.
+        num_trials: Number of Bayesian optimization trials (default: 10).
+        valset_size: Validation set size for trials (default: 100).
     """
 
     print(f"[init] Starting optimization for: {agent_name}")
     print(f"[init] Base directory: {base_dir}")
     print(f"[init] Backend: {backend}")
+    print(f"[init] Num trials: {num_trials}")
+    print(f"[init] Valset size: {valset_size}")
 
     # ── Load training data ───────────────────────────────────────────────────
     # Self-research mode: CWD is masonry/ dir
@@ -176,6 +186,8 @@ def run(agent_name: str, base_dir: Path, backend: str = "anthropic") -> int:
             dataset=examples,
             output_dir=output_dir,
             backend=backend,
+            num_trials=num_trials,
+            valset_size=valset_size,
         )
     except Exception as exc:
         print(f"[error] Optimization failed: {exc}")
@@ -218,9 +230,27 @@ def _main() -> None:
         choices=["anthropic", "ollama"],
         help='LM backend: "anthropic" (default) or "ollama" (uses http://192.168.50.62:11434)',
     )
+    parser.add_argument(
+        "--num-trials",
+        type=int,
+        default=10,
+        help="Number of Bayesian optimization trials (default: 10)",
+    )
+    parser.add_argument(
+        "--valset-size",
+        type=int,
+        default=100,
+        help="Validation set size for trials (default: 100)",
+    )
     args = parser.parse_args()
 
-    sys.exit(run(agent_name=args.agent_name, base_dir=args.base_dir.resolve(), backend=args.backend))
+    sys.exit(run(
+        agent_name=args.agent_name,
+        base_dir=args.base_dir.resolve(),
+        backend=args.backend,
+        num_trials=args.num_trials,
+        valset_size=args.valset_size,
+    ))
 
 
 if __name__ == "__main__":
