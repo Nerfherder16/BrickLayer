@@ -529,16 +529,24 @@ def _build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = _build_parser()
 
-    # Support legacy positional single-file invocation from the hook:
+    # Single-file invocation from the hook:
     #   python onboard_agent.py <filepath>
-    # If the first arg looks like a file path (not a flag), treat as single-file mode.
+    # Always upsert the specific file — bypasses detect_new_agents so that
+    # edits to existing agents (e.g. adding routing_keywords) sync to the registry.
     if len(sys.argv) == 2 and not sys.argv[1].startswith("-"):
         agent_path = Path(sys.argv[1])
-        agents_dir = agent_path.parent
         registry_path = Path(_DEFAULT_REGISTRY)
         dspy_output_dir = Path(_DEFAULT_DSPY_DIR)
-        result = onboard([agents_dir], registry_path, dspy_output_dir)
-        print(f"added={result['added']} updated={result['updated']} stale={result['stale']}")
+        meta = extract_agent_metadata(agent_path)
+        entry = generate_registry_entry(meta)
+        # Only set runtime defaults for brand-new entries; preserve state for existing ones.
+        is_new = upsert_registry_entry(entry, registry_path)
+        if is_new:
+            upsert_registry_entry(entry, registry_path, extra_fields=_RUNTIME_STATE_DEFAULTS)
+        generate_dspy_signature_stub(meta, dspy_output_dir)
+        action = "added" if is_new else "updated"
+        print(f"{action}=1 name={meta['name']}", file=sys.stderr)
+        print(f"added={1 if is_new else 0} updated={0 if is_new else 1} stale=0")
         return
 
     args = parser.parse_args()

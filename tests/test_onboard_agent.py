@@ -414,6 +414,66 @@ class TestOnboard:
         result = onboard([agents_dir], registry_path, tmp_path / "gen")
         assert result["added"] == 2
 
+    def test_single_file_upsert_syncs_routing_keywords_without_wiping_runtime_state(
+        self, tmp_path
+    ):
+        """Editing an already-registered agent file (e.g. adding routing_keywords)
+        must sync the change to the registry without overwriting runtime-state fields
+        like dspy_status or last_score.
+        """
+        # 1. Write an agent file with routing_keywords.
+        agent_path = tmp_path / "existing-agent.md"
+        agent_path.write_text(
+            "---\n"
+            "name: existing-agent\n"
+            "model: sonnet\n"
+            "description: Already registered agent\n"
+            "routing_keywords:\n"
+            "  - dead code\n"
+            "  - unused imports\n"
+            "---\n\n"
+            "Body text.\n",
+            encoding="utf-8",
+        )
+
+        # 2. Pre-populate the registry with an existing entry that has runtime state.
+        registry_path = tmp_path / "registry.yml"
+        data = {
+            "version": 1,
+            "agents": [
+                {
+                    "name": "existing-agent",
+                    "file": str(agent_path),
+                    "tier": "candidate",  # promoted — should be preserved
+                    "dspy_status": "optimized",  # runtime state — must survive upsert
+                    "last_score": 0.92,  # runtime state — must survive upsert
+                    "routing_keywords": [],  # stale — should be replaced
+                }
+            ],
+        }
+        registry_path.write_text(yaml.dump(data), encoding="utf-8")
+
+        # 3. Simulate the single-file hook path: extract → generate entry → upsert.
+        meta = extract_agent_metadata(agent_path)
+        entry = generate_registry_entry(meta)
+        is_new = upsert_registry_entry(entry, registry_path)
+
+        # 4. Assertions.
+        assert is_new is False, (
+            "Agent was already registered — should not be treated as new"
+        )
+
+        updated = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
+        agents = {a["name"]: a for a in updated["agents"]}
+        agent = agents["existing-agent"]
+
+        # routing_keywords must be synced from frontmatter
+        assert agent["routing_keywords"] == ["dead code", "unused imports"]
+
+        # runtime state fields must be preserved (not wiped)
+        assert agent.get("dspy_status") == "optimized"
+        assert agent.get("last_score") == pytest.approx(0.92)
+
 
 # ------------------------------------------------------------------
 # No keyword inference — frontmatter fields read directly
