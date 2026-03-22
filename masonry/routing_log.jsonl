@@ -73,3 +73,5 @@
 {"timestamp":"2026-03-22T00:36:15.388Z","event":"finding","agent":"unknown","session_id":"adcae995-d78f-4ee8-993b-980dc5aec0ae","verdict":"CONFIRMED","qid":"V1.5-bug-catcher-audit-mar21"}
 {"timestamp":"2026-03-22T00:37:19.416Z","event":"start","agent":"research-analyst","session_id":"315da739-556b-4e37-b870-355295efa309","parent_session":"315da739-556b-4e37-b870-355295efa309"}
 {"timestamp":"2026-03-22T00:37:55.871Z","event":"start","agent":"git-nerd","session_id":"05a55339-9091-4acf-99b7-bcff77e1dd23","parent_session":"05a55339-9091-4acf-99b7-bcff77e1dd23"}
+{"timestamp":"2026-03-22T00:41:01.358Z","event":"start","agent":"git-nerd","session_id":"05a55339-9091-4acf-99b7-bcff77e1dd23","parent_session":"05a55339-9091-4acf-99b7-bcff77e1dd23"}
+{"timestamp":"2026-03-22T00:41:05.681Z","event":"start","agent":"general-purpose","session_id":"05a55339-9091-4acf-99b7-bcff77e1dd23","parent_session":"05a55339-9091-4acf-99b7-bcff77e1dd23"}
