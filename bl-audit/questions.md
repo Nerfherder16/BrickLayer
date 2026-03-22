@@ -600,7 +600,7 @@ Focus: Whole-codebase efficiency audit targeting the economizer agent's six scan
 
 ## E1.6 [audit] Do CLAUDE.md and the rules files contain redundant content that is already enforced by active hooks?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: audit
 **Priority**: MEDIUM
 **Hypothesis**: `~/.claude/CLAUDE.md` documents hook behavior in detail (e.g., "masonry-lint-check.js runs ruff + prettier + eslint after every write"). The hooks themselves enforce this behavior — the documentation in CLAUDE.md is advisory context loaded into every session. If CLAUDE.md describes what hooks already do automatically, those sections add token overhead without adding routing signal. Additionally, several `.claude/rules/` files (tdd-enforcement.md, verification-checklist.md, spec-workflow.md) may overlap with each other and with hook behavior already enforced by `masonry-tdd-enforcer.js` and `masonry-build-guard.js`.
