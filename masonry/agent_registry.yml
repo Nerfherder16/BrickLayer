@@ -753,3 +753,242 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
+- name: solana-specialist
+  file: C:/Users/trg16/.claude/agents/solana-specialist.md
+  model: opus
+  description: Solana blockchain specialist. Handles Anchor programs, DeFi integration,
+    Token-2022, SPL tokens, Solana security audits, and ADBP (employee utility token)
+    development. Invoked by Mortar for all Solana/blockchain tasks.
+  modes:
+  - audit
+  - research
+  - fix
+  capabilities:
+  - Anchor framework program development and debugging
+  - Solana program security audits (reentrancy, integer overflow, signer checks, PDA
+    validation)
+  - Token-2022 and SPL token integration
+  - DeFi protocol integration (Jupiter, Raydium, Orca swap routing)
+  - ADBP discount-credit platform development
+  - on-chain account validation and PDA derivation
+  - Solana RPC and web3.js / @solana/web3.js integration
+  - Metaplex NFT programs
+  - cross-program invocations (CPI)
+  - devnet / mainnet deployment and upgrade authority management
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: uiux-master
+  file: C:/Users/trg16/.claude/agents/uiux-master.md
+  model: sonnet
+  description: UI/UX design and implementation specialist. Handles dark dashboard
+    design, component builds, Figma token extraction, design system work, and the
+    full /ui-* workflow (ui-init, ui-compose, ui-review, ui-fix). Invoked by Mortar
+    for all UI and design tasks.
+  modes:
+  - compose
+  - review
+  - fix
+  capabilities:
+  - dark-first dashboard design (bento grid, glass cards, KPI rows)
+  - React + Tailwind component implementation
+  - Figma MCP token extraction and design-to-code translation
+  - design system setup (tokens.json, CSS custom properties)
+  - ui-init / ui-compose / ui-review / ui-fix workflow orchestration
+  - Lucide + Phosphor icon integration
+  - Nivo chart implementation (line, area, bar, donut)
+  - "responsive layout (mobile-first, breakpoints, icon sidebar \u2192 bottom tab)"
+  - accessibility (WCAG AA contrast, focus management, touch targets)
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: adbp-model-analyst
+  file: agents/adbp-model-analyst.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: commit-reviewer
+  file: agents/commit-reviewer.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: crucible
+  file: agents/crucible.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: fix-agent
+  file: agents/fix-agent.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: forge
+  file: agents/forge.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: lint-guard
+  file: agents/lint-guard.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: perf-optimizer
+  file: agents/perf-optimizer.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: probe-runner
+  file: agents/probe-runner.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: regression-guard
+  file: agents/regression-guard.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: scope-analyzer
+  file: agents/scope-analyzer.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: scout
+  file: agents/scout.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: security-hardener
+  file: agents/security-hardener.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: triage
+  file: agents/triage.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: type-strictener
+  file: agents/type-strictener.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
