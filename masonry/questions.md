@@ -1700,7 +1700,7 @@
 
 ### F24.1: Add `--num-trials` and `--valset-size` CLI flags to `run_optimization.py`
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: R23.1 WARNING — "Add `--num-trials` / `--valset-size` flags: Reduce to 5 trials × 20 examples → ~1-2 hour run." Without these flags, every optimization run uses the hardcoded constants in `optimizer.py` (`max_bootstrapped_demos=3`, `MIPROv2` defaults for num_trials). ROADMAP.md Phase 17 plans to increase search space (`num_instruct_candidates: 3 → 10`, `max_bootstrapped_demos: 2 → 5`, `num_trials: 10 → 20`), which makes the hardcoded constants an active impediment to iterating on metric design without editing source files.

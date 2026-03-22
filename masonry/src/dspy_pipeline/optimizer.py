@@ -102,6 +102,8 @@ def optimize_agent(
     dataset: list[dict],
     output_dir: Path,
     backend: str = "anthropic",
+    num_trials: int = 10,
+    valset_size: int = 100,
 ) -> dict[str, Any]:
     """Optimize a single agent's prompt using MIPROv2.
 
@@ -112,6 +114,8 @@ def optimize_agent(
         output_dir: Directory to save the optimized module JSON.
         backend: LM backend to use — ``"anthropic"`` or ``"ollama"``.
             Passed through to :func:`configure_dspy` when called by the caller.
+        num_trials: Number of Bayesian optimization trials (default: 10).
+        valset_size: Validation set size for trials (default: 100).
 
     Returns:
         Dict with agent, score, and optimized_at fields.
@@ -139,6 +143,8 @@ def optimize_agent(
             trainset=trainset,
             max_bootstrapped_demos=3,
             max_labeled_demos=3,
+            num_trials=num_trials,
+            valset_size=valset_size,
         )
     except Exception as exc:
         print(f"[optimizer] MIPROv2 failed for {agent_name}: {exc}", file=sys.stderr)
