@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `21fd8e2` fix(domain-routing): store BL campaign findings to {project}-bricklayer domain (2026-03-21)
 - `8ee4d43` chore: update masonry routing log (2026-03-21)
 - `00099ea` fix(hooks): add missing BL2.0 agent types to Mortar gate allowlist (2026-03-21)
 - `34d625e` fix(hooks): resolve all 7 bug-catcher warnings from audit (2026-03-21)
