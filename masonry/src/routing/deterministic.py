@@ -94,6 +94,132 @@ _CAMPAIGN_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_RESEARCH_PATTERN = re.compile(
+    r"\b(stress.test\s+(the\s+)?assumption|validate\s+assumption|"
+    r"research\s+question|hypothesis\s+test|research\s+this)\b",
+    re.IGNORECASE,
+)
+
+_COMPETITIVE_PATTERN = re.compile(
+    r"\b(competitor|competitive\s+landscape|analogous\s+system|"
+    r"how\s+have\s+others\s+solved|market\s+dynamic|benchmark\s+against)\b",
+    re.IGNORECASE,
+)
+
+_REGULATORY_PATTERN = re.compile(
+    r"\b(legal\s+(question|risk|review)|compliance\s+(question|requirement)|"
+    r"regulation|licensing|gdpr|hipaa|tax\s+implication|regulatory)\b",
+    re.IGNORECASE,
+)
+
+_QUANTITATIVE_PATTERN = re.compile(
+    r"\b(parameter\s+sweep|failure\s+boundary|stress\s+test\s+(the\s+)?number|"
+    r"run\s+(the\s+)?simulation|simulate\s+this|sweep\s+parameters)\b",
+    re.IGNORECASE,
+)
+
+_BENCHMARK_PATTERN = re.compile(
+    r"\b(benchmark|measure\s+(latency|throughput|performance)|"
+    r"performance\s+test|latency\s+measurement|throughput\s+test)\b",
+    re.IGNORECASE,
+)
+
+_BUG_CATCHER_PATTERN = re.compile(
+    r"\b(hook\s+(error|failing|broken)|script\s+health|hook\s+syntax|"
+    r"audit\s+(the\s+)?hooks|hook\s+not\s+firing)\b",
+    re.IGNORECASE,
+)
+
+_FIX_IMPLEMENTER_PATTERN = re.compile(
+    r"\b(DIAGNOSIS_COMPLETE|implement\s+the\s+fix|apply\s+the\s+fix|"
+    r"fix\s+is\s+known|root\s+cause\s+is\s+known)\b",
+    re.IGNORECASE,
+)
+
+_CODE_REVIEWER_PATTERN = re.compile(
+    r"\b(review\s+(the|this|my)\s+code|code\s+review|review\s+the\s+diff|"
+    r"review\s+this\s+PR|pre.commit\s+review)\b",
+    re.IGNORECASE,
+)
+
+_CASCADE_PATTERN = re.compile(
+    r"\b(what\s+breaks\s+next|failure\s+cascade|downstream\s+(impact|consequence)|"
+    r"propagation\s+risk|what\s+else\s+(breaks|fails))\b",
+    re.IGNORECASE,
+)
+
+_EVOLVE_PATTERN = re.compile(
+    r"\b(highest.ROI\s+change|make\s+it\s+(faster|better)|next\s+level|"
+    r"optimize\s+(the\s+)?system|what.s\s+the\s+next\s+improvement)\b",
+    re.IGNORECASE,
+)
+
+_HEALTH_PATTERN = re.compile(
+    r"\b(health\s+check|system\s+health|check\s+uptime|live\s+targets|"
+    r"service\s+status|is\s+.+\s+up)\b",
+    re.IGNORECASE,
+)
+
+_COMPLIANCE_AUDITOR_PATTERN = re.compile(
+    r"\b(owasp\s+audit|wcag|audit\s+against|compliance\s+(audit|check)|"
+    r"accessibility\s+audit)\b",
+    re.IGNORECASE,
+)
+
+_AGENT_AUDITOR_PATTERN = re.compile(
+    r"\b(audit\s+the\s+fleet|agent\s+scores|underperform(ing)?\s+agent|"
+    r"fleet\s+audit|agent\s+performance)\b",
+    re.IGNORECASE,
+)
+
+_SKILL_FORGE_PATTERN = re.compile(
+    r"\b(distill\s+(into|to)\s+skills?|skill\s+registry|reusable\s+skill|"
+    r"encode\s+(as\s+)?(a\s+)?skill)\b",
+    re.IGNORECASE,
+)
+
+_PROMPT_ENGINEER_PATTERN = re.compile(
+    r"\b(sharpen\s+this\s+prompt|rewrite\s+this\s+prompt|prompt\s+(isn.t|not)\s+working|"
+    r"improve\s+this\s+prompt|prompt\s+engineering)\b",
+    re.IGNORECASE,
+)
+
+_DEVOPS_PATTERN = re.compile(
+    r"\b(CI/?CD|github\s+actions|pipeline\s+(config|setup)|kubernetes|"
+    r"infrastructure\s+(as\s+code|config)|helm\s+chart|terraform)\b",
+    re.IGNORECASE,
+)
+
+_SPREADSHEET_PATTERN = re.compile(
+    r"\b(excel|spreadsheet|workbook|formula\s+(error|repair)|"
+    r"\.xlsx|pivot\s+table)\b",
+    re.IGNORECASE,
+)
+
+_SELF_HOST_PATTERN = re.compile(
+    r"\b(self.host|deploy\s+(to\s+)?(casaos|vps|streamy)|"
+    r"publish\s+(to\s+)?subdomain|nginx\s+config|casaos\s+deploy)\b",
+    re.IGNORECASE,
+)
+
+_HYPOTHESIS_PATTERN = re.compile(
+    r"\b(generate\s+(new|more)\s+questions|question\s+bank\s+exhausted|"
+    r"new\s+wave\s+questions|hypothesis\s+generator)\b",
+    re.IGNORECASE,
+)
+
+_SYNTHESIZER_PATTERN = re.compile(
+    r"\b(synthesize\s+findings|write\s+(the\s+)?synthesis|end.of.session\s+report|"
+    r"synthesis\.md)\b",
+    re.IGNORECASE,
+)
+
+_FRONTIER_PATTERN = re.compile(
+    r"\b(blue.sky|possibility\s+space|what\s+could\s+this\s+become|"
+    r"ceiling\s+estimation|explore\s+what\s+.+\s+could\s+be)\b",
+    re.IGNORECASE,
+)
+
 # ── Mode field regex ───────────────────────────────────────────────────────
 
 _MODE_FIELD_RE = re.compile(r"\*\*(?:Operational\s+)?Mode\*\*:\s*(\w+)", re.IGNORECASE)
@@ -158,6 +284,48 @@ def route_deterministic(
         return _decision("architect", "Architecture keyword matched")
     if _CAMPAIGN_PATTERN.search(request_text):
         return _decision("trowel", "Campaign keyword matched")
+    if _RESEARCH_PATTERN.search(request_text):
+        return _decision("research-analyst", "Research/hypothesis keyword matched")
+    if _COMPETITIVE_PATTERN.search(request_text):
+        return _decision("competitive-analyst", "Competitive/market keyword matched")
+    if _REGULATORY_PATTERN.search(request_text):
+        return _decision("regulatory-researcher", "Legal/regulatory keyword matched")
+    if _QUANTITATIVE_PATTERN.search(request_text):
+        return _decision("quantitative-analyst", "Simulation/parameter keyword matched")
+    if _BENCHMARK_PATTERN.search(request_text):
+        return _decision("benchmark-engineer", "Benchmark/perf keyword matched")
+    if _BUG_CATCHER_PATTERN.search(request_text):
+        return _decision("bug-catcher", "Hook/script health keyword matched")
+    if _FIX_IMPLEMENTER_PATTERN.search(request_text):
+        return _decision("fix-implementer", "Fix implementation keyword matched")
+    if _CODE_REVIEWER_PATTERN.search(request_text):
+        return _decision("code-reviewer", "Code review keyword matched")
+    if _CASCADE_PATTERN.search(request_text):
+        return _decision("cascade-analyst", "Failure cascade keyword matched")
+    if _EVOLVE_PATTERN.search(request_text):
+        return _decision("evolve-optimizer", "Optimization keyword matched")
+    if _HEALTH_PATTERN.search(request_text):
+        return _decision("health-monitor", "Health check keyword matched")
+    if _COMPLIANCE_AUDITOR_PATTERN.search(request_text):
+        return _decision("compliance-auditor", "Compliance audit keyword matched")
+    if _AGENT_AUDITOR_PATTERN.search(request_text):
+        return _decision("agent-auditor", "Fleet audit keyword matched")
+    if _SKILL_FORGE_PATTERN.search(request_text):
+        return _decision("skill-forge", "Skill distillation keyword matched")
+    if _PROMPT_ENGINEER_PATTERN.search(request_text):
+        return _decision("prompt-engineer", "Prompt engineering keyword matched")
+    if _DEVOPS_PATTERN.search(request_text):
+        return _decision("devops", "DevOps/CI/CD keyword matched")
+    if _SPREADSHEET_PATTERN.search(request_text):
+        return _decision("spreadsheet-wizard", "Excel/spreadsheet keyword matched")
+    if _SELF_HOST_PATTERN.search(request_text):
+        return _decision("self-host", "Self-host/deploy keyword matched")
+    if _HYPOTHESIS_PATTERN.search(request_text):
+        return _decision("hypothesis-generator", "Hypothesis generation keyword matched")
+    if _SYNTHESIZER_PATTERN.search(request_text):
+        return _decision("synthesizer-bl2", "Synthesis keyword matched")
+    if _FRONTIER_PATTERN.search(request_text):
+        return _decision("frontier-analyst", "Blue-sky/frontier keyword matched")
 
     # 2. Autopilot state
     autopilot_mode = _read_file(project_dir / ".autopilot" / "mode")
