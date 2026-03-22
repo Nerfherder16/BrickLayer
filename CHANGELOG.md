@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `27c0632` chore(cleanup): delete orphaned DSPy generated stubs + fix bl-run skill (2026-03-21)
 - `8eb8151` fix(hooks): add freshness guard to masonry-approver research detection (2026-03-21)
 - `738f076` feat(masonry): add MCP plugin manifest with serverInstructions for Tool Search (2026-03-21)
 - `eee878a` chore: session routing log (2026-03-21)
