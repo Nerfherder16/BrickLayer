@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `c09b196` fix(hooks): masonry-statusline — parse BL2 question formats and track q_done (2026-03-21)
 - `035b679` fix(hooks): fix M1.3 — wrap masonry-register output in JSON additionalContext envelope (2026-03-21)
 - `7b291ea` feat(masonry): Mortar gate in subagent-tracker + score_findings R19.2 fixes (2026-03-21)
 - `3d70aa5` docs(bl-audit): Wave 2 synthesis — Mortar injection triple failure documented (2026-03-21)
