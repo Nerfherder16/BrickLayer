@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `7b291ea` feat(masonry): Mortar gate in subagent-tracker + score_findings R19.2 fixes (2026-03-21)
 - `3d70aa5` docs(bl-audit): Wave 2 synthesis — Mortar injection triple failure documented (2026-03-21)
 - `b6bdc39` docs(masonry): Wave 22 -- DSPy Ollama smoke test PASSED, optimizer wired, confidence fix spec complete (2026-03-21)
 - `c39c00e` feat(bl-audit): Wave 2 complete — Mortar adherence + post-fix validation (2026-03-21)
