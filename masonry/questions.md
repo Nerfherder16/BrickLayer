@@ -1724,7 +1724,8 @@
 
 ### R24.1: Will the four Phase 17 metric improvements in ROADMAP.md actually move the `build_metric()` ceiling from 68.3% to 75-80%?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: [R24.1](findings/R24.1.md) — WARNING — Phase 17 changes yield +1-4 pts (reaching 69-73%), not 75-80%; binding constraint is verdict accuracy (~35-40%), not evidence scoring. Fix D24.1 attribution gap first for highest leverage.
 **Operational Mode**: research
 **Priority**: HIGH
 **Motivated by**: synthesis_wave23 milestone #1 — "First MIPROv2 run achieved 68.3% best score vs 59.5% baseline (+8.8pt)." ROADMAP.md Phase 17 proposes four changes to `build_metric()`: (1) replace `len(evidence) > 100` with content signals (`has_numbers`, `has_threshold_language`, `length > 300`), (2) add severity validation component (0.15 weight), (3) verdict-conditioned confidence calibration, (4) filter training records with `score < 0.4`. These are assumptions about what drives metric quality, not verified relationships. The expected gain of "+5-8 points" is a projection, not a measurement.
@@ -1736,7 +1737,7 @@
 
 ### V24.1: Is `karen` (191 training records) a viable next candidate for MIPROv2 optimization, and does `ResearchAgentSig` match karen's actual output structure?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: validate
 **Priority**: MEDIUM
 **Motivated by**: `training_data/scored_all.jsonl` shows karen has 191 training records — the single largest agent corpus, exceeding quantitative-analyst's 125. However, karen has no optimized prompt in `masonry/optimized_prompts/`. The architecture question is whether karen's outputs (roadmaps, changelogs, folder audit reports) fit the `ResearchAgentSig` output schema (`verdict`, `severity`, `confidence`, `evidence`, `mitigation`) or require a new `KarenSig` with different output fields.
