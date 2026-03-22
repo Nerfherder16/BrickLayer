@@ -51,3 +51,4 @@ masonry/optimized_prompts/
 masonry-activity-*.ndjson
 masonry/training_data/
 masonry/vigil/
+masonry/src/dspy_pipeline/generated/
