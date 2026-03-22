@@ -128,6 +128,8 @@ When the user asks about code, builds, planning, or tooling:
 | UI/UX work | uiux-master |
 | Kiln changes | kiln-engineer |
 | Roadmap / docs | karen |
+| Git: commit, push, PR, branch | git-nerd |
+| Docker, homelab, infrastructure | devops or health-monitor |
 
 ## Recall
 
