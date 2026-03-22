@@ -1,0 +1,92 @@
+{
+  "predict": {
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "augmented": true,
+        "question_text": "Does dormancy alone extend viability past year 20 in the pessimistic scenario?",
+        "project_context": "",
+        "constraints": "",
+        "reasoning": "In the pessimistic scenario (e.g., 3% monthly growth, 50 initial employees, no churn stress), dormancy alone provides limited runway extension beyond year 20. While dormancy reduces peak C/M by pausing credit accumulation, the slow growth rate and low initial employee volume create structural cash-flow challenges that dormancy cannot fully offset. Treasury runway remains critically constrained by Phase 2 ops cost ($200K/mo) and insufficient employee scaling to reach breakeven thresholds.",
+        "verdict": "WARNING",
+        "severity": "Medium",
+        "evidence": "Pessimistic scenario simulation (50 initial employees, 3%/mo growth, all 7 vendor categories, 60-month horizon):\n\n```\ntreasury_yr1_usd:       $1,731,395  (seed capital: $2M)\ntreasury_yr3_usd:       $1,347,622  (cumulative burn: $384K)\nfinal treasury (mo 60): $1,311,101\nfinal employees (mo 60): 294\ntreasury_runway_months: 43.7        (at Phase 1 ops cost = $30K/mo)\nmonthly_breakeven:      219 employees (reached ~month 50)\nverdict: WARNING (pp_ratio structural only)\n```\n\nKey findings:\n- Dormancy reduces peak C/M but fails to prevent Phase 2 ops cost ($200K/mo) from exhausting treasury within 7 months of reaching 294 employees (month 60).\n- At year 20 (month 240), employee count would be ~1,300 (3% growth) \u2014 still 36x below Phase 2 breakeven (1,461 employees).\n- Treasury would be depleted by month 60 ($1.31M) \u2014 insufficient to cover Phase 2 costs.",
+        "mitigation": "Combine dormancy with accelerated growth strategies (e.g., 8%+ monthly growth) or delay Phase 2 vendor activation until breakeven employee thresholds are met. Consider dynamic dormancy windows that adjust based on real-time employee growth and treasury health.",
+        "confidence": "0.75"
+      },
+      {
+        "question_text": "At 5,000 credit/month employee cap, what is maximum annual treasury revenue per employee? Does it support Phase 3 ops cost?",
+        "project_context": "",
+        "constraints": "",
+        "verdict": "WARNING",
+        "severity": "Info",
+        "evidence": "Scenario: 5,000 credits/mo per employee (hard cap), 500 employees, 8% growth, all vendors, 36 months.\n\n```\ntreasury_yr1_usd:       $19,069,125  (vs $2,860,039 at baseline \u2014 6.7x)\ntreasury_yr3_usd:       $181,852,324 (vs $12,636,663 at baseline \u2014 14.4x)\ntreasury_runway_months: 909.26       (75 years at Phase 2 ops cost)\ncredits_yr1:            35,487,803   (vs 2,484,146 at baseline \u2014 14.3x)\nverdict: WARNING (pp_ratio 1.04x \u2014 structural baseline issue only)\nFinal state: 7,984 employees | $181.9M treasury\n```\n\n### Annual Treasury Revenue Per Employee \u2014 At Cap\n\n| Engagement Level | Credits/Mo | Monthly Treasury/Emp | Annual Treasury/Emp |\n|-----------------|------------|---------------------|---------------------|\n| Min (no BPC) | 350 \u00d7 0.797 = 279 | $136.91 | $1,643 |\n| Baseline | 350 | $136.91 (effective) | $1,643 |\n| At 5K cap (w/ BPC) | 5000 \u00d7 0.797 = 3,985 | $1,957 | $23,490 |\n| At 5K cap (theoretical max) | 5,000 | $2,456 | $29,468 |\n\n**Maximum annual treasury revenue per employee = $29,468** (theoretical, no BPC discount)\n**Realistic max = $23,490/yr** (at cap with 20.3% BPC behavioral discount)\n\n### Phase 3 Support at Maximum Engagement\n\nPhase 3 ops = $65M/yr. Employees needed at max cap engagement:\n- With BPC: $65M / $23,490 = **2,768 employees** (vs 39,568 at baseline)\n- Without BPC: $65M / $29,468 = **2,206 employees** (absolute minimum)\n\n**Phase 3 becomes achievable with a single large employer** (e.g., a 3,000-employee company at max engagement). This is a fundamentally different scale than the baseline 39,568-employee requirement.\n\n### Cap Utilization Note\n\nIn the sim, BPC limits effective minting to 3,985 credits (79.7% of the 5,000 cap). In practice, high-income households spending $10K/yr on groceries, gas, utilities, and housing could legitimately approach the cap. The BPC discount models average behavior \u2014 motivated employees could beat it.",
+        "mitigation": "",
+        "confidence": "0.75"
+      },
+      {
+        "question_text": "The 2:1 recirculation gate \u2014 if vendor concentration is high (top 2 types = 80% of volume), does a single-vendor exit collapse minting capacity?",
+        "project_context": "",
+        "constraints": "",
+        "verdict": "WARNING",
+        "severity": "High",
+        "evidence": "Scenario: Top-2 vendors only (grocery + gas_station, avg recirculation 0.90), 10x churn accelerator simulating rapid exit of dominant vendor type. 500 employees, 8% monthly growth, 350 credits/mo average.\n\n```\ntreasury_runway_months: 63.18\nflywheel_velocity:      4.8x  (threshold: 8.0x)\npurchasing_power_ratio: 0.284x (floor: 1.5x; design target: 2.0x)\nverdict: WARNING\nfailure_reason: Flywheel velocity 4.8x < 8.0x threshold; Purchasing power ratio 0.28x < 1.5x floor\n```\n\nAt 5% effective monthly churn (0.5% base \u00d7 10x accelerator), vendor recirculation capacity degrades as:\n`0.90 \u00d7 (1 \u2212 0.05)^36 \u2248 0.145`\n\u2192 `purchasing_power_ratio = 2 \u00d7 0.145 = 0.29x`\n\nThe treasury remains solvent (63-month runway) because minting revenue continues even at degraded capacity. However, the employee value proposition is destroyed \u2014 credits deliver 0.28x purchasing power vs. the 2x design target, making them worse than cash.\n\nFlywheel velocity drops to 4.8x (below the 8x failure threshold) due to: `BASE_ANNUAL_VELOCITY \u00d7 (1 \u2212 effective_churn \u00d7 12) = 12 \u00d7 (1 \u2212 0.06) = 4.8x`",
+        "mitigation": "",
+        "confidence": "0.75"
+      }
+    ],
+    "signature": {
+      "instructions": "Analyze the research question within the project context, applying domain-specific reasoning and numerical modeling. Consider constraints and prior findings, then structure your response with: (1) a step-by-step reasoning process explaining key dynamics and thresholds, (2) a verdict (HEALTHY, WARNING, FAILURE, etc.), (3) severity assessment, (4) evidence including tables, calculations, or interpolations, (5) actionable mitigation strategies, and (6) a confidence score (0.0-1.0). Prioritize clarity in explaining how input parameters drive the verdict and ensure outputs align with project objectives.",
+      "fields": [
+        {
+          "prefix": "Question Text:",
+          "description": "The full research question to investigate"
+        },
+        {
+          "prefix": "Project Context:",
+          "description": "Project brief summary, prior findings, and key constraints"
+        },
+        {
+          "prefix": "Constraints:",
+          "description": "Special instructions or scope limits for this question"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Verdict:",
+          "description": "One of: HEALTHY, WARNING, FAILURE, INCONCLUSIVE, etc."
+        },
+        {
+          "prefix": "Severity:",
+          "description": "One of: Critical, High, Medium, Low, Info"
+        },
+        {
+          "prefix": "Evidence:",
+          "description": "Detailed evidence supporting the verdict"
+        },
+        {
+          "prefix": "Mitigation:",
+          "description": "Recommended fix or mitigation if applicable"
+        },
+        {
+          "prefix": "Confidence:",
+          "description": "Calibrated confidence 0.0-1.0 as a decimal string"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.14",
+      "dspy": "3.1.3",
+      "cloudpickle": "3.1"
+    }
+  },
+  "agent": "quantitative-analyst",
+  "score": 66.07,
+  "optimized_at": "2026-03-22T07:02:02.846830+00:00"
+}
