@@ -567,7 +567,7 @@ Focus: Whole-codebase efficiency audit targeting the economizer agent's six scan
 
 ## E1.3 [audit] Does `deterministic.py` at 387 lines contain dead routing branches for retired agent patterns?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: audit
 **Priority**: MEDIUM
 **Hypothesis**: `masonry/src/routing/deterministic.py` is the largest Python file at 387 lines — 29% over the 300-line limit. It contains keyword-based routing tables and pattern matchers. Some entries may target agents that no longer exist (e.g., BL 1.x variants, retired agents), making those branches permanently dead. Additionally, helper functions `_read_file` and `_read_json` (lines 228-244) may duplicate functionality already in the standard library or in `registry_loader.py`.
