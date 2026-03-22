@@ -611,7 +611,7 @@ Focus: Whole-codebase efficiency audit targeting the economizer agent's six scan
 
 ## E1.7 [audit] Does the masonry `package.json` declare zero dependencies while hooks use `require()` calls that assume global installs?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: audit
 **Priority**: MEDIUM
 **Hypothesis**: `masonry/package.json` has `"dependencies": {}` — it declares no runtime dependencies. Yet hook files use `require('../core/recall')`, `require('../core/state')`, and potentially other internal modules. If any hook `require()`s a package that is not listed in `package.json` and not a Node.js built-in, the hook silently fails on a fresh install (no `node_modules/`). The `bin/` entry points may also have undeclared assumptions. This is a dependency-declaration gap, not a bloat issue, but falls within the economizer's "dead config keys" and "installed but undeclared" scope.
