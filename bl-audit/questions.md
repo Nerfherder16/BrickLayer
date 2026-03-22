@@ -578,7 +578,7 @@ Focus: Whole-codebase efficiency audit targeting the economizer agent's six scan
 
 ## E1.4 [audit] Are there near-duplicate agents in the fleet whose descriptions overlap >60% and could be merged?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: audit
 **Priority**: HIGH
 **Hypothesis**: The combined agent fleet (~20 global agents in `~/.claude/agents/` plus ~33 project agents in `.claude/agents/`) contains multiple pairs with potentially overlapping responsibilities: `health-monitor` exists in both directories with different descriptions (fleet performance vs. live system health); `mortar.md` exists in both directories; `tools-manifest.md` exists in both directories (not an agent — likely misplaced); `hypothesis-generator` and `hypothesis-generator-bl2` coexist; `synthesizer` and `synthesizer-bl2` coexist. Each duplicate adds context overhead on every session start.
