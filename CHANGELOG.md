@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `f538404` chore(masonry): DSPy training data scoring and F26.1/V26.1 audit findings (2026-03-21)
 - `52989e5` docs(bug-catcher): add post-verification retraining step + V1.5 finding (2026-03-21)
 - `10f3c3b` fix(hooks): apply bug-catcher findings — 4 hooks patched (2026-03-21)
 - `a607524` chore: update routing log (2026-03-21)
