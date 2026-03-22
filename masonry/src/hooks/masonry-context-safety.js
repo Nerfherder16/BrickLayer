@@ -105,7 +105,13 @@ async function main() {
 
   if (reasons.length > 0) {
     const msg = `[Masonry] Context Safety: ExitPlanMode blocked.\n${reasons.map(r => `  • ${r}`).join("\n")}\n\nTo override, proceed with explicit intent.`;
-    process.stdout.write(JSON.stringify({ decision: "block", reason: msg }));
+    process.stdout.write(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "block",
+        permissionDecisionReason: msg,
+      },
+    }));
     process.exit(2);
   }
 

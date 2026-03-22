@@ -260,7 +260,7 @@ async function main() {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
 
-    await fetch(`${cfg.recallHost}/store`, {
+    await fetch(`${cfg.recallHost}/memory/store`, {
       method: "POST",
       headers,
       signal: controller.signal,

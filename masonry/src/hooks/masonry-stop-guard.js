@@ -182,7 +182,7 @@ async function main() {
   try {
     const status = execSync("git status --porcelain", {
       encoding: "utf8",
-      timeout: 10000,
+      timeout: 6000,
       cwd,
     }).trim();
 
