@@ -172,7 +172,7 @@ async function main() {
   }
 
   if (lines.length > 0) {
-    process.stderr.write("\n" + lines.join("\n") + "\n\n");
+    process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "SessionStart", content: lines.join("\n") } }));
   }
 
   // --- Session snapshot for stop-guard dirty-file diffing ---

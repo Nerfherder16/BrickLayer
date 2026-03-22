@@ -283,7 +283,6 @@ async function main() {
     try { fs.unlinkSync(logPath); } catch { /* non-fatal */ }
   }
 
-  process.exit(0);
 }
 
-main().catch(() => process.exit(0));
+main().catch(() => {});
