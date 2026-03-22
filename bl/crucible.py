@@ -191,15 +191,20 @@ def _score_hypothesis_generator(project_dir: Path) -> AgentScore:
             "has_derived_from": 1.0
             if ("Derived from" in b or "Motivated by" in b)
             else 0.0,
-            # BL 2.0 uses **Method**: / **Simulation path**:; BL 1.x used Test:/pytest
+            # BL 2.0 uses **Method**: / **Test**: / **Simulation path**:; BL 1.x used Test:/pytest
             "has_test": 1.0
             if re.search(
-                r"\*\*Method\*\*:|\*\*Simulation path\*\*:|Test:|pytest|Simulation path",
+                r"\*\*Method\*\*:|\*\*Test\*\*:|\*\*Simulation path\*\*:|Test:|pytest|Simulation path",
                 b,
             )
             else 0.0,
+            # BL 2.0 uses **Verdict threshold**: / **Success criterion**: narrative thresholds
             "has_verdict_threshold": 1.0
-            if ("FAILURE:" in b and "HEALTHY:" in b)
+            if (
+                ("FAILURE:" in b and "HEALTHY:" in b)
+                or "**Verdict threshold**:" in b
+                or "**Success criterion**:" in b
+            )
             else 0.0,
             # BL 2.0 uses **Hypothesis**: ; BL 1.x used bare Hypothesis:
             "has_hypothesis": 1.0
@@ -247,8 +252,16 @@ def _score_question_designer(project_dir: Path) -> AgentScore:
     wave1_text = text[: wave2_match.start()] if wave2_match else text
 
     # F11.1: split on any letter-prefixed question header (BL 1.x and BL 2.0)
-    blocks = re.split(r"(?=^## \w+\d+\.\d+)", wave1_text, flags=re.MULTILINE)
-    blocks = [b.strip() for b in blocks if re.match(r"## \w+\d+\.\d+", b.strip())]
+    # BL 2.0 Wave 1 uses ## D1 / ## A1 format (no decimal suffix)
+    # BL 1.x and BL 2.0 Wave 2+ use ## D1.1 / ## Q1.1 format
+    blocks = re.split(
+        r"(?=^## [A-Z]+\d+(?:\.\d+)?(?:\s|$))", wave1_text, flags=re.MULTILINE
+    )
+    blocks = [
+        b.strip()
+        for b in blocks
+        if re.match(r"## [A-Z]+\d+(?:\.\d+)?(?:\s|$)", b.strip())
+    ]
 
     if len(blocks) < 5:
         return AgentScore(
@@ -259,15 +272,26 @@ def _score_question_designer(project_dir: Path) -> AgentScore:
         )
 
     # domains_covered: find unique operational mode prefixes from wave1 block headers
-    unique_prefixes = set(re.findall(r"^## ([A-Z])\d+\.\d+", wave1_text, re.MULTILINE))
+    # BL 2.0 Wave 1 headers: ## D1 [...] or ## D1.1 [...]; extract leading letter prefix(es)
+    unique_prefixes = set(
+        re.findall(r"^## ([A-Z]+)\d+(?:\.\d+)?(?:\s|$)", wave1_text, re.MULTILINE)
+    )
     domains_score = min(1.0, len(unique_prefixes) / 5.0)  # 5 BL 2.0 prefixes: D/F/A/V/M
 
     # Per-question checks
     has_thresholds = sum(
-        1 for b in blocks if "FAILURE:" in b and "HEALTHY:" in b
+        1
+        for b in blocks
+        if (
+            ("FAILURE:" in b and "HEALTHY:" in b)
+            or "**Verdict threshold**:" in b
+            or "**Success criterion**:" in b
+        )
     ) / len(blocks)
     has_status = sum(1 for b in blocks if re.search(r"PENDING|DONE", b)) / len(blocks)
-    has_hypothesis = sum(1 for b in blocks if "Hypothesis:" in b) / len(blocks)
+    has_hypothesis = sum(
+        1 for b in blocks if re.search(r"\*\*Hypothesis\*\*:|Hypothesis:", b)
+    ) / len(blocks)
 
     weights = {
         "domains_covered": 0.35,
