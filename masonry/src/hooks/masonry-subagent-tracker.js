@@ -18,6 +18,85 @@ const os = require("os");
 const MAX_TRACKED = 20;
 const STALE_MS = 3600_000; // 1 hour — agents older than this are presumed done
 
+// ---------------------------------------------------------------------------
+// Mortar gate: block subagent spawns that bypass Mortar entirely.
+//
+// ALLOWED: any subagent_type that is a known specialist — these are already
+// dispatched by Mortar and just need to be tracked, not blocked.
+// BLOCKED: spawns with no recognized specialist type that don't originate from
+// a masonry:mortar parent context, which indicates Claude tried to do complex
+// work solo instead of routing through Mortar.
+//
+// Known specialist subagent_type values (set by Mortar when dispatching):
+// ---------------------------------------------------------------------------
+const MORTAR_DISPATCHED_TYPES = new Set([
+  // Claude Code built-in
+  "Explore",
+  "general-purpose",
+  // Autopilot agents
+  "developer",
+  "test-writer",
+  "code-reviewer",
+  "diagnose-analyst",
+  "fix-implementer",
+  "spec-writer",
+  // Masonry specialists
+  "masonry:mortar",
+  "mortar",
+  "trowel",
+  "uiux-master",
+  "solana-specialist",
+  "kiln-engineer",
+  "karen",
+  "frontier-analyst",
+  "design-reviewer",
+  "refactorer",
+  "prompt-engineer",
+  "git-nerd",
+  // Research fleet
+  "research-analyst",
+  "regulatory-researcher",
+  "competitive-analyst",
+  "quantitative-analyst",
+  "benchmark-engineer",
+  "hypothesis-generator",
+  "synthesizer",
+  "planner",
+  "question-designer-bl2",
+  "health-monitor",
+  "cascade-analyst",
+  "evolve-optimizer",
+  "compliance-auditor",
+  "security",
+  "architect",
+  "uiux-master",
+]);
+
+function isMortarGated(input) {
+  const subagentType = (input.subagent_type || "").trim().toLowerCase();
+
+  // No subagent_type set — this is a raw spawn; only allow if already in a
+  // known specialist context (agent_name is a specialist) or if the spawn
+  // carries a recognized type.
+  if (!subagentType) {
+    // Check agent_name / agent_type as fallback
+    const agentName = (input.agent_name || input.agent_type || "").trim().toLowerCase();
+    if (agentName && MORTAR_DISPATCHED_TYPES.has(agentName)) {
+      return false; // allow — already a specialist
+    }
+    // Untagged spawn from main context — gate it
+    return true;
+  }
+
+  // If type is recognized, allow through
+  if (MORTAR_DISPATCHED_TYPES.has(subagentType)) {
+    return false;
+  }
+
+  // Unknown type — gate it
+  return true;
+}
+
 function readStdin() {
   return new Promise((resolve) => {
     let data = "";
@@ -54,6 +133,22 @@ async function main() {
   const raw = await readStdin();
   let input = {};
   try { input = JSON.parse(raw); } catch {}
+
+  // ---------------------------------------------------------------------------
+  // Mortar gate check — block bypasses before any tracking work
+  // ---------------------------------------------------------------------------
+  if (isMortarGated(input)) {
+    const subagentType = input.subagent_type || "(none)";
+    const agentName = input.agent_name || input.agent_type || "(unknown)";
+    process.stderr.write(
+      `[masonry-subagent-tracker] BLOCKED: subagent spawn rejected.\n` +
+      `  subagent_type="${subagentType}" agent_name="${agentName}"\n` +
+      `  All agent spawns must be routed through Mortar first.\n` +
+      `  Set subagent_type to a recognized specialist (e.g. "developer", "research-analyst")\n` +
+      `  or route your request through Mortar with: Act as the mortar agent defined in .claude/agents/mortar.md\n`
+    );
+    process.exit(2);
+  }
 
   const cwd = input.cwd || process.cwd();
   // Use ~/.masonry/state/ — global, not per-project
