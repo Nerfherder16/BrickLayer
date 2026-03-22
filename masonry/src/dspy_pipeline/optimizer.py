@@ -70,23 +70,25 @@ def build_metric(signature_cls: type) -> Any:
 # ── configure_dspy ──────────────────────────────────────────────────────────
 
 
-def configure_dspy(model: str = "claude-sonnet-4-6", backend: str = "anthropic") -> None:
+def configure_dspy(model: str | None = None, backend: str = "anthropic") -> None:
     """Configure DSPy with the specified LM backend.
 
     Args:
-        model: Model name to use. For Anthropic: e.g. ``claude-sonnet-4-6``.
-            For Ollama: e.g. ``mistral`` or ``llama3``.
+        model: Model name to use. Defaults to ``qwen3:14b`` for Ollama and
+            ``claude-sonnet-4-6`` for Anthropic when not specified.
         backend: Either ``"anthropic"`` (requires ANTHROPIC_API_KEY) or
             ``"ollama"`` (uses local Ollama at http://192.168.50.62:11434).
     """
     if backend == "ollama":
+        effective_model = model or "qwen3:14b"
         lm = dspy.LM(
-            f"ollama_chat/{model}",
+            f"ollama_chat/{effective_model}",
             api_base="http://192.168.50.62:11434",
             max_tokens=4096,
         )
     else:
-        lm = dspy.LM(f"anthropic/{model}")
+        effective_model = model or "claude-sonnet-4-6"
+        lm = dspy.LM(f"anthropic/{effective_model}")
     dspy.configure(lm=lm)
 
 

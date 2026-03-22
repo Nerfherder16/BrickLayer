@@ -179,8 +179,8 @@ def _score_confidence_calibration(
     # +10: confidence field present
     points += 10
 
-    # +15: confidence in non-extreme range 0.5-0.95
-    if 0.5 <= confidence <= 0.95:
+    # +15: confidence in non-extreme range 0.5-1.0
+    if 0.5 <= confidence <= 1.0:
         points += 15
 
         # +15: confidence matches verdict severity

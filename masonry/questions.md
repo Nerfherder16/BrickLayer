@@ -1633,3 +1633,46 @@
 **Hypothesis**: The penalty is real and measurable: a fix-implementer finding with confidence=0.99 and correct verdict receives a confidence_calibration component score of ~0.76 in the DSPy metric (instead of the maximum 1.0), reducing its training weight. For the external scorer, confidence > 0.95 receives only 10/40 pts on that rubric dimension — the dominant factor in 55% of masonry findings failing the 60-point threshold. A sigmoid recalibration (or a mode-specific bypass for FIX_APPLIED verdicts) would eliminate the penalty for empirically verified outcomes without affecting uncertainty-bearing research findings where confidence=0.75 is the appropriate prior.
 **Method**: diagnose-analyst
 **Success criterion**: (1) Read `build_metric()` in `optimizer.py` and the `confidence_calibration` scorer in `score_findings.py`. (2) Quantify the exact score penalty for confidence=0.99 vs confidence=0.75 in both systems. (3) Count how many masonry training records are suppressed by the penalty (records that would pass 60 pts if confidence scoring were neutral). (4) Propose a concrete recalibration: either (a) a sigmoid that scores confidence=0.75 at 0.5 and confidence=0.99 at 0.95 (rescaled), or (b) a verdict-conditional path where FIX_APPLIED findings use `1.0 - 0.1 * max(0, confidence - 0.98)` (near-flat above 0.75). Produce a Fix Specification with the exact line change for each affected file. Verdict: DIAGNOSIS_COMPLETE if the penalty is quantified and a recalibration design is specified with a projected record recovery count; WARNING if multiple recalibration designs are viable and a design decision is needed before fixing.
+
+---
+
+## Wave 23
+
+**Generated from findings**: R22.1 (WARNING), D22.1 (DIAGNOSIS_COMPLETE), R22.2 (PENDING — deferred)
+**Mode transitions applied**: R22.1 WARNING (configure_dspy default model wrong for Ollama backend) → F23.1 Fix; D22.1 DIAGNOSIS_COMPLETE (confidence_calibration band cliff confirmed, fix spec complete) → F23.2 Fix; R22.2 PENDING deferred → R23.1 Research (carried forward, blocked on F23.1)
+
+---
+
+### F23.1: Fix `configure_dspy()` default model so that `backend="ollama"` does not silently use "claude-sonnet-4-6"
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: R22.1 WARNING — `configure_dspy(backend="ollama")` defaults to `model="claude-sonnet-4-6"` (optimizer.py line 73 signature). Ollama rejects this model with a 404. Confirmed by smoke-test: caller must pass `model="qwen3:14b"` explicitly or the call fails. Every Ollama-backend invocation that omits the `model` argument (including the MCP server default path and `optimize_all()`) will error silently until this default is corrected.
+**Hypothesis**: Changing the default value in the `configure_dspy()` signature from `model: str = "claude-sonnet-4-6"` to a backend-conditional default — either by overloading the parameter or by setting `model` to `None` and resolving the default inside the function body (`"qwen3:14b"` when `backend == "ollama"`, `"claude-sonnet-4-6"` when `backend == "anthropic"`) — will make `configure_dspy(backend="ollama")` work correctly without requiring callers to specify the model. No changes to `optimize_agent()`, `optimize_all()`, or the MCP server are required beyond this one fix.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `masonry/src/dspy_pipeline/optimizer.py` in full to confirm the current signature at line 73. (2) Change the `configure_dspy()` signature so that when `backend="ollama"` and no `model` is provided, the resolved model is `"qwen3:14b"`; when `backend="anthropic"` and no `model` is provided, the resolved model is `"claude-sonnet-4-6"`. (3) Verify the change does not break the existing Anthropic path (`backend="anthropic"` must still resolve to `"claude-sonnet-4-6"` by default). (4) Confirm `optimize_agent()` and `optimize_all()` propagate `backend` correctly to `configure_dspy()` — no caller-side changes should be needed. Verdict: FIX_APPLIED when `configure_dspy(backend="ollama")` resolves to `qwen3:14b` without an explicit `model` argument and `configure_dspy(backend="anthropic")` continues to resolve to `claude-sonnet-4-6`; FIX_FAILED if either path regresses.
+
+---
+
+### F23.2: Widen `confidence_calibration` band in `score_findings.py` from `[0.5, 0.95]` to `[0.5, 1.0]`
+
+**Status**: DONE
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: D22.1 DIAGNOSIS_COMPLETE — `_score_confidence_calibration()` in `score_findings.py` line 183 reads `if 0.5 <= confidence <= 0.95:` and awards 15 points only within that band. Findings with confidence > 0.95 fall outside the band and receive 10 points instead of 15 — a 30-point cliff when scaled (10/40 vs 40/40 on the full rubric). D22.1 quantified the impact: 77 findings affected, 40 training records suppressed below the 60-point threshold (14.4% of total training volume). Fix spec from D22.1 is complete: widen the upper bound from `0.95` to `1.0`. Projected result: +40 training records recoverable, raising training-ready count from 278 to ~318.
+**Hypothesis**: A single character change — replacing `0.95` with `1.0` on line 183 — removes the cliff without altering the band's lower behavior (confidence below 0.5 still scores the lower tier). The change is safe because empirically verified high-confidence findings (e.g., FIX_APPLIED with passing tests at confidence=0.99) are objectively correctly calibrated — the existing severity-match logic already penalizes overconfident findings that contradict their evidence, so the confidence band is redundant for that purpose.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `masonry/scripts/score_findings.py` and locate `_score_confidence_calibration()` (line ~183). (2) Confirm the current condition is `if 0.5 <= confidence <= 0.95:`. (3) Change `0.95` to `1.0`. (4) Re-run `python masonry/scripts/score_findings.py` (or the equivalent scoring invocation) on a sample finding with confidence=0.99 — confirm it now receives 15 points on the calibration component instead of 10. (5) Re-run `python masonry/scripts/score_all_agents.py --base-dir .` from repo root and report the new training-ready count (expected: ~318, up from 278). Verdict: FIX_APPLIED when (a) the line change is confirmed, (b) a confidence=0.99 finding scores 15 pts on calibration, and (c) total training-ready count increases; FIX_FAILED if scoring behavior does not change after the edit.
+
+---
+
+### R23.1: Run full MIPROv2 optimization trial for `quantitative-analyst` via Ollama — measure pre/post evaluation score delta
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Motivated by**: R22.2 PENDING (deferred by user pause) — the full MIPROv2 trial for `quantitative-analyst` was blocked by the `configure_dspy()` default model bug (R22.1 WARNING). F23.1 resolves that blocker. quantitative-analyst has 125 training records — the largest single-agent corpus — and the smoke test (R22.1) confirmed qwen3:14b produces valid structured output. This is the primary validation gate for the entire DSPy optimization pipeline.
+**Hypothesis**: With F23.1 DONE, `configure_dspy(backend="ollama")` will correctly resolve to qwen3:14b. MIPROv2 will bootstrap 3 demos from the 125-record trainset and run optimization trials. The optimized prompt JSON will be written to `masonry/optimized_prompts/quantitative-analyst.json`. The post-optimization evaluation score will exceed the unoptimized baseline by at least 5 percentage points on a held-out subset. After F23.2 is also applied, the effective training set for quantitative-analyst may grow (if any of the ~40 recovered records belong to this agent), further improving the optimization.
+**Method**: research-analyst
+**Success criterion**: (1) Confirm F23.1 is DONE before running. (2) Call `optimize_agent("quantitative-analyst", ResearchAgentSig, dataset, output_dir, backend="ollama")` with `max_bootstrapped_demos=3, max_labeled_demos=3`. (3) Report the `best_score` on the returned optimized module and the unoptimized baseline score (same metric on the same trainset). (4) Confirm `masonry/optimized_prompts/quantitative-analyst.json` is written and non-empty — inspect at least the `instructions` field. (5) Report wall-clock runtime for the full optimization run. Verdict: HEALTHY if optimized score > baseline + 0.05 and the JSON is written; WARNING if optimization completes but score delta < 0.05 (model converged near baseline — inspect demo quality); FAILURE if MIPROv2 raises an exception, times out, or the output file is not produced.

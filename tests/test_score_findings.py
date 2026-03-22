@@ -129,7 +129,7 @@ class TestScoreFindingConfidenceCalibration:
         f = tmp_path / "q.md"
         f.write_text(FULL_FINDING, encoding="utf-8")
         result = score_finding(f)
-        # Has confidence: +10, in range 0.5-0.95: +15
+        # Has confidence: +10, in range 0.5-1.0: +15
         assert result["score_breakdown"]["confidence_calibration"] >= 25
 
     def test_extreme_confidence_0_loses_mid_range_points(self, tmp_path):
@@ -140,12 +140,14 @@ class TestScoreFindingConfidenceCalibration:
         # Has confidence (+10), but out of range (0 for mid-range)
         assert result["score_breakdown"]["confidence_calibration"] < 25
 
-    def test_extreme_confidence_1_loses_mid_range_points(self, tmp_path):
+    def test_high_confidence_0_99_scores_in_range(self, tmp_path):
+        # Band widened to [0.5, 1.0] (F23.2) — confidence=0.99 is now in-range
         content = FULL_FINDING.replace("**Confidence**: 0.75", "**Confidence**: 0.99")
         f = tmp_path / "q.md"
         f.write_text(content, encoding="utf-8")
         result = score_finding(f)
-        assert result["score_breakdown"]["confidence_calibration"] < 25
+        # Has confidence (+10), in range 0.5-1.0 (+15) — total calibration >= 25
+        assert result["score_breakdown"]["confidence_calibration"] >= 25
 
     def test_missing_confidence_field_scores_zero_on_calibration(self, tmp_path):
         f = tmp_path / "q.md"
