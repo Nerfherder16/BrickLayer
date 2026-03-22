@@ -71,6 +71,33 @@ The scoring scripts (`score_all_agents.py`, `score_findings.py`, etc.) produce `
 
 - ~~The `finding.get("agent")` lookup requires that findings include an `agent` field in their metadata. BL2 finding files do not currently include this field by convention.~~ (resolved Wave 18: D18.1 backfilled `**Agent**:` field across 103 findings)
 - The `build_dataset` function will silently return an empty dict for all agents if no findings have agent attribution. A warning should be emitted when this happens.
+- `_build_qid_to_agent_map()` only parses the `### QID:` block format. Projects using the older markdown table format in `questions.md` (e.g. `| ID | Status | Question |`) produce zero agent-attributed records from the standard pipeline. Fix: add table-format parsing as a fallback, or use the `**Agent**:` field in finding files directly.
+
+---
+
+## DSPy Pipeline — Metric Quality (Phase 17 plan)
+
+The current `build_metric()` in `optimizer.py` scores on three signals:
+- verdict match (0.4 weight) — binary
+- evidence length > 100 chars (0.4 weight) — blunt proxy, not quality-sensitive
+- confidence calibration near 0.75 (0.2 weight) — penalizes high-confidence findings
+
+First MIPROv2 run (Wave 23, qwen3:14b) achieved **68.3%** on Trial 3 (best of 13 trials) vs 59.5% baseline — a +8.8pt lift. Identified ceiling: the evidence length check cannot distinguish substantive analysis from verbose filler.
+
+**Planned metric improvements:**
+1. Replace length check with content signals: presence of numbers/thresholds, quantitative language (`"fails at"`, `"above"`, `"below"`), minimum length of 300 chars
+2. Add severity validation component (0.15 weight): valid value in `(low, medium, high, critical)`
+3. Verdict-conditioned confidence calibration: expected confidence varies by verdict (`HEALTHY→0.85`, `WARNING→0.75`, `FAILURE→0.70`)
+4. Filter training records with `score < 0.4` before optimization to remove noise
+
+**Expected gain:** +5-8 points over current 68.3% ceiling → target 75-80%.
+
+**Speed improvement:** With `ANTHROPIC_API_KEY`, full 13-trial run drops from ~4 hours to ~8 minutes. Enables rapid iteration on metric design.
+
+**Search space improvements:**
+- `num_instruct_candidates`: 3 → 10
+- `max_bootstrapped_demos`: 2 → 5
+- `num_trials`: 10 → 20
 
 ---
 
