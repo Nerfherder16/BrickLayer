@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `f82dc81` finding: E1.4 — 3 same-name agents across directories; tools-manifest global copy is redundant (2026-03-22)
 - `bf239df` finding: E1.3 — deterministic.py has no dead routing branches; FALSE_POSITIVE (2026-03-22)
 - `3ee4d80` finding: E1.2 — 3 hook files exceed 300-line limit with clear decomposition points (2026-03-22)
 - `274e421` finding: E1.1 — isResearchProject() duplicated across 8 hook files with 2 behavioral divergences (2026-03-22)
