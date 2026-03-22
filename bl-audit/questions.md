@@ -633,7 +633,7 @@ Focus: Whole-codebase efficiency audit targeting the economizer agent's six scan
 
 ## E1.9 [audit] Does the combined CLAUDE.md + rules + agent fleet load more than 50K tokens of context overhead per session?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: audit
 **Priority**: HIGH
 **Hypothesis**: Each Claude Code session loads: `~/.claude/CLAUDE.md` (estimated ~600 lines), all `.claude/rules/*.md` files (10 files, ~1,400 lines total), and the project's `CLAUDE.md` (~120 lines). On top of this, `masonry-session-start.js` may inject additional campaign context. The economizer's context overhead analysis targets sessions where >30% of loaded context is boilerplate with no routing signal. The total may approach or exceed 50K tokens before any user message is processed — significant overhead for every session regardless of task type.
