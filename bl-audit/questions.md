@@ -545,7 +545,7 @@ Focus: Whole-codebase efficiency audit targeting the economizer agent's six scan
 
 ## E1.1 [audit] Is `isResearchProject()` copy-pasted into 9 separate hook files instead of a shared utility?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: audit
 **Priority**: HIGH
 **Hypothesis**: `isResearchProject()` is defined independently in at least 9 hook files (`masonry-approver.js`, `masonry-build-guard.js`, `masonry-context-safety.js`, `masonry-lint-check.js`, `masonry-register.js`, `masonry-session-start.js`, `masonry-stop-guard.js`, `masonry-tdd-enforcer.js`, and possibly others). Each copy may have drifted — `masonry-approver.js` additionally defines `isResearchProjectFresh()` as a variant. This is a textbook duplication problem: a fix to one copy never propagates to the others, as demonstrated by divergence already found in D3.2.
