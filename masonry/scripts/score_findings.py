@@ -129,9 +129,14 @@ def extract_finding_fields(path: Path) -> dict[str, Any]:
 
 
 def _extract_section(text: str, section_name: str) -> str:
-    """Return the body of a markdown ## Section, or empty string."""
+    """Return the body of a markdown ## Section, or empty string.
+
+    The lookahead stops at any heading of level 2+ (##, ###, ####, etc.)
+    so that ### subsections within the target section are included in the
+    body, but the next top-level ## section correctly terminates the match.
+    """
     pattern = re.compile(
-        rf"^##\s+{re.escape(section_name)}\s*\n(.*?)(?=^## [^#]|\Z)",
+        rf"^##\s+{re.escape(section_name)}\s*\n(.*?)(?=^##\s|\Z)",
         re.MULTILINE | re.DOTALL,
     )
     match = pattern.search(text)
@@ -261,16 +266,22 @@ def discover_findings(base_dir: Path) -> list[Path]:
     """Discover all finding .md files under base_dir.
 
     Scans:
-      - base_dir/*/findings/*.md  (project subdirectories)
-      - base_dir/findings/*.md    (root-level findings)
+      - base_dir/findings/*.md          (root-level findings)
+      - base_dir/*/findings/*.md        (project subdirectories, including masonry/)
+      - base_dir/../masonry/findings/   (sibling masonry/ when base_dir is a project subdir)
 
     Excludes synthesis.md and non-.md files.
     """
     found: list[Path] = []
+    seen: set[Path] = set()
 
     def _collect(findings_dir: Path) -> None:
         if not findings_dir.is_dir():
             return
+        resolved = findings_dir.resolve()
+        if resolved in seen:
+            return
+        seen.add(resolved)
         for p in findings_dir.iterdir():
             if p.suffix == ".md" and p.name != "synthesis.md":
                 found.append(p)
@@ -278,10 +289,15 @@ def discover_findings(base_dir: Path) -> list[Path]:
     # Root-level findings/
     _collect(base_dir / "findings")
 
-    # Project subdirectory findings/
+    # Project subdirectory findings/ — no exclusions; masonry/ is included
     for child in base_dir.iterdir():
-        if child.is_dir() and child.name not in ("findings", ".git"):
+        if child.is_dir() and child.name != ".git":
             _collect(child / "findings")
+
+    # If base_dir is itself a project subdir (e.g. adbp/), also scan the
+    # sibling masonry/findings/ so those findings are always scored.
+    sibling_masonry = base_dir.parent / "masonry" / "findings"
+    _collect(sibling_masonry)
 
     return found
 
