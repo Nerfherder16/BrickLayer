@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `10f3c3b` fix(hooks): apply bug-catcher findings — 4 hooks patched (2026-03-21)
 - `a607524` chore: update routing log (2026-03-21)
 - `b43b725` chore: update masonry routing log (2026-03-21)
 - `8d81c19` feat(masonry): add bug-catcher agent with hook health audit procedures (2026-03-21)
