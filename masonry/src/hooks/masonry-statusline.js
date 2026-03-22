@@ -203,36 +203,44 @@ if (!state) {
   process.exit(0);
 }
 
-// Parse questions.md to get accurate q_total and wave number
+// Parse questions.md to get accurate q_total, q_done, and wave number.
+// Handles both BL1 format (### Q1) and BL2 format (### D1.1, ### A1.1, ### R19.1).
 function parseQuestionsFile(cwd) {
   try {
     const qf = path.join(cwd, "questions.md");
-    if (!fs.existsSync(qf)) return { q_total: 0, wave: 0 };
+    if (!fs.existsSync(qf)) return { q_total: 0, q_done: 0, wave: 0 };
     const lines = fs.readFileSync(qf, "utf8").split("\n");
     let q_total = 0;
+    let q_done = 0;
     let wave = 0;
     for (const line of lines) {
       if (/^##\s+Wave\s+\d/i.test(line)) wave++;
-      if (/^###\s+Q\d+/.test(line)) q_total++;
+      // BL2 format: ### D1.1, ### A1.1, ### R19.1  |  BL1 format: ### Q1
+      if (/^###\s+([A-Z]\d+(\.\d+)?|Q\d+)/i.test(line)) q_total++;
+      if (/^\*\*Status\*\*:\s*(DONE|INCONCLUSIVE)/i.test(line)) q_done++;
     }
-    return { q_total, wave };
+    return { q_total, q_done, wave };
   } catch (_) {
-    return { q_total: 0, wave: 0 };
+    return { q_total: 0, q_done: 0, wave: 0 };
   }
 }
 
 const {
-  mode = "?",
   last_qid = "",
   verdicts = {},
 } = state;
 
-// Derive q_current from last_qid (e.g. "Q11" → 11)
-const q_current = last_qid ? (parseInt(last_qid.replace(/\D/g, ""), 10) || 0) : 0;
+// Derive mode label: prefer state.mode, else infer from last_qid prefix (D=diagnose, A=validate, R=research)
+const modeMap = { D: "diagnose", A: "validate", R: "research", V: "validate", F: "fix" };
+const qidPrefix = last_qid ? last_qid[0].toUpperCase() : "";
+const mode = state.mode || modeMap[qidPrefix] || (last_qid ? "research" : "?");
+
 // Get totals from questions.md — more accurate than state fields
-const { q_total, wave } = parseQuestionsFile(cwd);
+const { q_total, q_done, wave } = parseQuestionsFile(cwd);
+const fixCount = (verdicts.FIX_APPLIED || 0) + (verdicts.FIX_COMPLETE || 0) + (verdicts.CLEARED || 0);
 const v = [
   verdicts.HEALTHY > 0 ? c("green", `✓${verdicts.HEALTHY}`) : "",
+  fixCount > 0 ? c("cyan", `⚡${fixCount}`) : "",
   verdicts.WARNING > 0 ? c("amber", `⚠${verdicts.WARNING}`) : "",
   verdicts.FAILURE > 0 ? c("red", `✗${verdicts.FAILURE}`) : "",
 ]
@@ -246,7 +254,7 @@ process.stdout.write(
     dim(project),
     c("cyan", `${mode} · wave ${wave}`),
     sep,
-    `Q${q_current}/${q_total}`,
+    q_total > 0 ? `Q${q_done}/${q_total}` : "",
     agentsSegment(state),
     sep,
     gitSegment(cwd),
