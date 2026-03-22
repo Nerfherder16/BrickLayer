@@ -20,6 +20,7 @@ _VERDICT_RE = re.compile(r"^\*\*Verdict\*\*:\s*(\S+)", re.MULTILINE)
 _SEVERITY_RE = re.compile(r"^\*\*Severity\*\*:\s*(\S+)", re.MULTILINE)
 _CONFIDENCE_RE = re.compile(r"^\*\*Confidence\*\*:\s*(\S+)", re.MULTILINE)
 _SECTION_RE = re.compile(r"^##\s+(\w[\w\s]*)", re.MULTILINE)
+_AGENT_RE = re.compile(r'^\*\*Agent\*\*:\s*(\S+)', re.MULTILINE)
 
 
 def _build_qid_to_agent_map(questions_md_path: Path) -> dict[str, dict[str, str]]:
@@ -97,6 +98,10 @@ def extract_finding(finding_path: Path) -> dict[str, Any] | None:
     except ValueError:
         confidence = 0.75
 
+    # Extract agent
+    agent_m = _AGENT_RE.search(text)
+    agent = agent_m.group(1).strip() if agent_m else ""
+
     # Extract sections
     evidence = _extract_section(text, "Evidence") or ""
     mitigation = _extract_section(text, "Mitigation")
@@ -110,6 +115,7 @@ def extract_finding(finding_path: Path) -> dict[str, Any] | None:
         "verdict": verdict,
         "severity": severity,
         "confidence": confidence,
+        "agent": agent,
         "evidence": evidence,
         "mitigation": mitigation,
         "source_file": str(finding_path),
