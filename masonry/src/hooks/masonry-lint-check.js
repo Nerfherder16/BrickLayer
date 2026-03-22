@@ -31,6 +31,7 @@ function runBackground(cmd, args, cwd) {
       stdio: "ignore",
       cwd,
       shell: false,
+      windowsHide: true,
     });
     proc.unref();
   } catch {
