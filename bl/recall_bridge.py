@@ -114,6 +114,7 @@ def store_finding(
     summary: str,
     project: str,
     tags: list[str] | None = None,
+    domain: str | None = None,
 ) -> bool:
     """
     Store a BL finding to Recall for cross-project recall.
@@ -122,6 +123,7 @@ def store_finding(
     if not summary:
         return False
 
+    effective_domain = domain or f"{project}-bricklayer"
     content = f"[{project}/{question_id}] {verdict}: {summary}"
     all_tags = [
         "bricklayer",
@@ -133,10 +135,10 @@ def store_finding(
         all_tags.extend(tags)
 
     result = _post(
-        "/memory",
+        "/memory/store",
         {
             "content": content,
-            "domain": "autoresearch",
+            "domain": effective_domain,
             "importance": 0.7,
             "tags": all_tags,
         },
