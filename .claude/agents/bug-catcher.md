@@ -178,6 +178,50 @@ After running all checks, produce a structured report:
 
 ---
 
+## Step 8 — Post-verification retraining (automated, run after every verified fix)
+
+After fixes are applied and verified (exit 0, syntax clean, committed), store training data for every confirmed finding:
+
+```bash
+python3 -c "
+import json, sys
+
+# One entry per confirmed finding
+examples = [
+  {
+    'agent': 'bug-catcher',
+    'source': 'verified_audit',
+    'commit_hash': '<commit>',
+    'score': 100,
+    'score_breakdown': {'bug_found': 50, 'fix_verified': 30, 'no_regression': 20},
+    'input': {
+      'check': '<step_name>',          # e.g. output_envelope_validation
+      'script': '<filename>',
+      'event': '<hook_event>',
+      'pattern': '<Pattern N>'
+    },
+    'output': {
+      'verdict': 'BLOCKER|WARNING',
+      'finding': '<one line description>',
+      'fix': '<what was changed>',
+      'verified': True
+    }
+  }
+]
+
+with open('masonry/training_data/scored_ops_agents.jsonl', 'a') as f:
+    for ex in examples:
+        f.write(json.dumps(ex) + '\n')
+print(f'Stored {len(examples)} training examples')
+"
+```
+
+**Rule:** Only store `verified: True` entries — unverified findings are noise. Score = 100 only when fix is committed and exit code confirmed. This data feeds MIPROv2 optimization via `masonry_optimize_agent`.
+
+Also write a finding file to `bl-audit/findings/V1.N-bug-catcher-<date>.md` so the training extractor picks it up from git history.
+
+---
+
 ## Known failure history (use as pattern library)
 
 These are real bugs found in this codebase. Check for recurrence on every run.
