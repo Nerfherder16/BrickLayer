@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `4a2bd86` finding: E1.7 — package.json correctly declares zero deps; hooks use only Node.js built-ins; FALSE_POSITIVE (2026-03-22)
 - `8388c2a` finding: E1.6 — CLAUDE.md rules complement hooks, not redundant; FALSE_POSITIVE (2026-03-22)
 - `8e8cd7a` finding: E1.5 — DSPy is hard requirement but MCP server already lazy-imports it; should be optional extra (2026-03-22)
 - `f82dc81` finding: E1.4 — 3 same-name agents across directories; tools-manifest global copy is redundant (2026-03-22)
