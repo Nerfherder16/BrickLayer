@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `9b43feb` feat(economizer): sync routing_keywords into agent_registry.yml (2026-03-22)
 - `187b93c` feat(routing): add routing_keywords to agent frontmatter with auto-registration on onboard (2026-03-22)
 - `1814c08` revert(approver): remove session ID ownership lock — caused deadlocks (2026-03-22)
 - `057cb0b` feat(routing): expand deterministic routing to full agent fleet (2026-03-22)
