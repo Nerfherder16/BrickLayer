@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `43bd1ba` chore: commit routing log session entries (2026-03-21)
 - `3cc242c` feat(plan): wire compact+build flow into Mortar session token + pre-compact hook (2026-03-21)
 - `27c0632` chore(cleanup): delete orphaned DSPy generated stubs + fix bl-run skill (2026-03-21)
 - `8eb8151` fix(hooks): add freshness guard to masonry-approver research detection (2026-03-21)
