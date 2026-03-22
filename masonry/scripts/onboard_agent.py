@@ -103,7 +103,7 @@ def detect_stale_registry_entries(registry_path: Path) -> list[dict[str, Any]]:
     stale: list[dict[str, Any]] = []
     for entry in data.get("agents", []):
         file_val = entry.get("file", "")
-        if file_val and not Path(file_val).exists():
+        if file_val and not Path(file_val).expanduser().exists():
             stale.append(entry)
 
     return stale

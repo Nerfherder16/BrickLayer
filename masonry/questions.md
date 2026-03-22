@@ -1712,7 +1712,7 @@
 
 ### D24.1: How many agent-attributed training records does `_build_qid_to_agent_map()` silently drop from table-format `questions.md` projects, and what is the minimum fix?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: HIGH
 **Motivated by**: synthesis_wave23 open issue #3 — "`_build_qid_to_agent_map()` only parses the `### QID:` block format. Projects using the older markdown table format in `questions.md` (e.g. `| ID | Status | Question |`) produce zero agent-attributed records." The ROADMAP.md line 74 confirms this gap. The ADBP project's `questions.md` uses table format. If ~100+ findings from ADBP exist but have no `**Agent**:` field in their finding files, they would have zero agent attribution and be excluded from DSPy training entirely.
@@ -1748,19 +1748,22 @@
 
 ### D24.2: Why do all 17 records in `scored_routing.jsonl` have `target_agent = "unknown"`, making them unusable for routing optimization?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: diagnose
 **Priority**: MEDIUM
 **Motivated by**: Inspection of `masonry/training_data/scored_routing.jsonl` (17 records) shows every record has `agent: "mortar"` and `dispatched_agent` populated, but no `target_agent` field. The routing scoring script (`score_routing.py`) assigns `score_breakdown.correct_agent_dispatched = 70` for each record, but without a `target_agent` field, there is no ground-truth label against which to measure routing accuracy. This means the 17 routing records cannot currently train a routing optimizer — they measure dispatch events but not dispatch correctness.
 **Hypothesis**: The `score_routing.py` script reads `dispatched_agent` (the agent that was actually called) and writes it as `score_breakdown.correct_agent_dispatched`, but never writes a `target_agent` field (the agent that should have been called, i.e., the ground truth). This is a schema gap: the routing training record schema (`scored_routing.jsonl`) conflates the dispatched agent with the correct agent, awarding 70 points by assumption. If `dispatched_agent == target_agent` is never verified, all 17 records are trivially correct and provide no training signal for the routing optimizer.
 **Method**: diagnose-analyst
 **Success criterion**: (1) Read `masonry/scripts/score_routing.py` in full. (2) Confirm whether `target_agent` is ever written to the output record. (3) Identify the source of the 70-point `correct_agent_dispatched` score — is it a lookup against a ground-truth label, or a default award? (4) Determine: what data source would provide `target_agent` (ground truth)? Options: (a) the original user request text could be labelled manually, (b) a subset of records where the downstream agent succeeded could be retrospectively labelled as correct. (5) Produce a Fix Specification: the minimum change to `score_routing.py` to either (a) add a `target_agent` column sourced from human-labelled ground truth, or (b) emit a WARNING when writing routing records without ground-truth labels rather than silently writing unusable records. Verdict: DIAGNOSIS_COMPLETE if the schema gap is confirmed with the specific line in `score_routing.py` that omits `target_agent` and a fix spec is produced; WARNING if the gap is structural (ground truth not capturable without human annotation).
+**Finding**: [D24.2](findings/D24.2.md) — DIAGNOSIS_COMPLETE — Circular scoring: dispatched agent trivially passes "is known agent?" check at line 112, no ground-truth target_agent exists anywhere in pipeline
 
 ---
 
 ### D24.3: Does `detect_stale_registry_entries()` in `onboard_agent.py` incorrectly report `~/.claude/agents/*.md` entries as stale on Windows due to missing `expanduser()`?
 
-**Status**: PENDING
+**Status**: DONE
+**Verdict**: DIAGNOSIS_COMPLETE
+**Finding**: findings/D24.3.md
 **Operational Mode**: diagnose
 **Priority**: LOW
 **Motivated by**: ROADMAP.md line 110 — "Agents using `~/.claude/agents/` relative paths will always appear stale on Windows unless `~` is expanded before the file existence check. The current code uses `Path(file_val).exists()` without home directory expansion." On Windows, `Path("~/.claude/agents/foo.md").exists()` returns False because `~` is not expanded by the `Path` constructor — `Path.expanduser()` must be called explicitly. The agent_registry.yml contains approximately 20 agents with `file: .claude/agents/` paths (relative), plus global agents with `file: ~/.claude/agents/` paths (tilde-prefixed).
