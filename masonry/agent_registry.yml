@@ -726,3 +726,29 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
+- name: bug-catcher
+  file: .claude/agents/bug-catcher.md
+  model: sonnet
+  description: Proactive hook and script health auditor. Runs syntax checks, exit-code
+    tests, output-format validation, and Windows-specific runtime probes against all
+    Claude Code hook scripts registered in settings.json. Surfaces bugs BEFORE they
+    cause "hook error" banners. Activate when hooks behave unexpectedly or as a routine
+    health sweep.
+  modes:
+  - audit
+  - diagnose
+  capabilities:
+  - Node.js hook syntax validation
+  - Hook output envelope format verification
+  - Exit-code testing with live payloads
+  - Windows libuv process.exit() safety analysis
+  - Duplicate variable declaration detection
+  - Timeout budget analysis (internal timeouts vs hook budget)
+  - Cross-repo hook path verification
+  input_schema: DiagnosePayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
