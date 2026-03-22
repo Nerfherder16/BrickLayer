@@ -63,6 +63,7 @@ async function main() {
     detached: true,
     stdio: "ignore",
     cwd,
+    windowsHide: true,
   });
   child.unref();
 
