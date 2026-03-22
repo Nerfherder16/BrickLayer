@@ -31,6 +31,16 @@ _SLASH_COMMANDS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"/masonry-run\b"), "campaign-conductor"),
 ]
 
+# ── Git keyword patterns → git-nerd ───────────────────────────────────────
+# Any request mentioning git operations routes deterministically to git-nerd.
+
+_GIT_PATTERN = re.compile(
+    r"\b(git\s+\w+|commit|push|pull\s+request|open\s+a\s+pr|create\s+a?\s*pr|"
+    r"pull\s+request|branch\s+off|merge\s+branch|rebase|git\s+stash|"
+    r"stage\s+(files?|changes?)|unstage|amend\s+commit|cherry.pick)\b",
+    re.IGNORECASE,
+)
+
 # ── Mode field regex ───────────────────────────────────────────────────────
 
 _MODE_FIELD_RE = re.compile(r"\*\*(?:Operational\s+)?Mode\*\*:\s*(\w+)", re.IGNORECASE)
@@ -73,6 +83,10 @@ def route_deterministic(
     for pattern, target in _SLASH_COMMANDS:
         if pattern.search(request_text):
             return _decision(target, f"Slash command matched: {pattern.pattern}")
+
+    # 1b. Git operations → git-nerd (deterministic, before any LLM call)
+    if _GIT_PATTERN.search(request_text):
+        return _decision("git-nerd", "Git operation keyword matched")
 
     # 2. Autopilot state
     autopilot_mode = _read_file(project_dir / ".autopilot" / "mode")
