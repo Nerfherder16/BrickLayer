@@ -533,3 +533,110 @@ Focus: Does the Mortar routing system actually function as documented? Do the Ph
 **Agent**: diagnose-analyst
 **Success criterion**: Read `masonry-agent-onboard.js` fully; trace the subprocess call to `onboard_agent.py`; confirm whether PYTHONPATH or working-directory is set correctly for the Python invocation; determine if the hook would succeed end-to-end or fail silently due to the same import error seen when running onboard_agent.py manually.
 
+---
+
+## Wave 3
+
+Domains: E (Economizer — efficiency, dead weight, duplication, context overhead)
+
+Focus: Whole-codebase efficiency audit targeting the economizer agent's six scan categories — dead code, duplication, over-engineering, dependency bloat, context overhead, and complexity hotspots.
+
+---
+
+## E1.1 [audit] Is `isResearchProject()` copy-pasted into 9 separate hook files instead of a shared utility?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: HIGH
+**Hypothesis**: `isResearchProject()` is defined independently in at least 9 hook files (`masonry-approver.js`, `masonry-build-guard.js`, `masonry-context-safety.js`, `masonry-lint-check.js`, `masonry-register.js`, `masonry-session-start.js`, `masonry-stop-guard.js`, `masonry-tdd-enforcer.js`, and possibly others). Each copy may have drifted — `masonry-approver.js` additionally defines `isResearchProjectFresh()` as a variant. This is a textbook duplication problem: a fix to one copy never propagates to the others, as demonstrated by divergence already found in D3.2.
+**Agent**: economizer
+**Success criterion**: Read all 9+ `isResearchProject` definitions; count lines of duplicated logic; identify any behavioral divergence between copies; quantify total lines that could be replaced by a single shared `masonry-utils.js` module; estimate effort (Low) and impact (High — single source of truth for a security-critical gate).
+
+---
+
+## E1.2 [audit] Are masonry-observe.js and masonry-tdd-enforcer.js over 300 lines and decomposable?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: MEDIUM
+**Hypothesis**: `masonry-observe.js` (317 lines) and `masonry-tdd-enforcer.js` (311 lines) exceed the project's 300-line hard limit per `quality-standards.md`. `masonry-approver.js` (315 lines) also exceeds it. Files at this size typically contain multiple logical concerns that should be split into focused modules. Additionally, `masonry-session-summary.js` (288 lines) and `masonry-statusline.js` (273 lines) approach the limit and may benefit from decomposition.
+**Agent**: economizer
+**Success criterion**: For each file above 300 lines, identify the distinct logical concerns present; propose a decomposition into sub-modules with estimated line counts; confirm whether any sub-module would be shared across multiple hooks (reducing total lines further); score each split by effort/impact.
+
+---
+
+## E1.3 [audit] Does `deterministic.py` at 387 lines contain dead routing branches for retired agent patterns?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: MEDIUM
+**Hypothesis**: `masonry/src/routing/deterministic.py` is the largest Python file at 387 lines — 29% over the 300-line limit. It contains keyword-based routing tables and pattern matchers. Some entries may target agents that no longer exist (e.g., BL 1.x variants, retired agents), making those branches permanently dead. Additionally, helper functions `_read_file` and `_read_json` (lines 228-244) may duplicate functionality already in the standard library or in `registry_loader.py`.
+**Agent**: economizer
+**Success criterion**: Read `deterministic.py` fully; identify routing table entries that target agents not present in `agent_registry.yml` or either agents directory; identify any helper functions with zero callers outside this file that duplicate stdlib; quantify dead lines and propose either removal or extraction to a shared utils module.
+
+---
+
+## E1.4 [audit] Are there near-duplicate agents in the fleet whose descriptions overlap >60% and could be merged?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: HIGH
+**Hypothesis**: The combined agent fleet (~20 global agents in `~/.claude/agents/` plus ~33 project agents in `.claude/agents/`) contains multiple pairs with potentially overlapping responsibilities: `health-monitor` exists in both directories with different descriptions (fleet performance vs. live system health); `mortar.md` exists in both directories; `tools-manifest.md` exists in both directories (not an agent — likely misplaced); `hypothesis-generator` and `hypothesis-generator-bl2` coexist; `synthesizer` and `synthesizer-bl2` coexist. Each duplicate adds context overhead on every session start.
+**Agent**: economizer
+**Success criterion**: Read the `description:` and `capabilities:` frontmatter from all agents in both directories; identify pairs with overlapping responsibilities; flag agents that exist in both directories with diverged content (duplication risk) vs. intentional overrides; estimate total context tokens consumed by redundant agents per session; recommend merge or deprecation candidates.
+
+---
+
+## E1.5 [audit] Does `masonry/requirements.txt` pull in `dspy>=2.5` for a pipeline that has never run a successful optimization?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: MEDIUM
+**Hypothesis**: `masonry/requirements.txt` lists four dependencies: `pydantic>=2.10`, `pyyaml>=6.0`, `httpx>=0.27`, `dspy>=2.5`. DSPy is a large ML framework (pulls in PyTorch, transformers, and multiple ML transitive dependencies). The `masonry/optimized_prompts/` directory is empty — no optimization has ever completed. If DSPy is only used by `masonry/src/dspy_pipeline/optimizer.py` which itself is never invoked in production, the requirement may be a heavy optional dependency being carried as a hard dependency. Additionally, `httpx` may overlap with Python's native `urllib` for simple HTTP calls in `semantic.py`.
+**Agent**: economizer
+**Success criterion**: Audit which files import `dspy`, `httpx`, and `pyyaml`; determine if any import is in a production-critical path vs. an optimization-only path that could be behind a try/import guard; estimate the install footprint of `dspy>=2.5`; recommend whether DSPy should be an optional/extra dependency rather than a hard requirement.
+
+---
+
+## E1.6 [audit] Do CLAUDE.md and the rules files contain redundant content that is already enforced by active hooks?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: MEDIUM
+**Hypothesis**: `~/.claude/CLAUDE.md` documents hook behavior in detail (e.g., "masonry-lint-check.js runs ruff + prettier + eslint after every write"). The hooks themselves enforce this behavior — the documentation in CLAUDE.md is advisory context loaded into every session. If CLAUDE.md describes what hooks already do automatically, those sections add token overhead without adding routing signal. Additionally, several `.claude/rules/` files (tdd-enforcement.md, verification-checklist.md, spec-workflow.md) may overlap with each other and with hook behavior already enforced by `masonry-tdd-enforcer.js` and `masonry-build-guard.js`.
+**Agent**: economizer
+**Success criterion**: Read CLAUDE.md "Masonry Hooks" section and all files in `~/.claude/rules/`; identify content that describes behavior already enforced by a registered hook vs. content that provides genuine routing signal or override instructions; estimate total tokens consumed by redundant documentation per session; recommend which sections could be condensed or removed.
+
+---
+
+## E1.7 [audit] Does the masonry `package.json` declare zero dependencies while hooks use `require()` calls that assume global installs?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: MEDIUM
+**Hypothesis**: `masonry/package.json` has `"dependencies": {}` — it declares no runtime dependencies. Yet hook files use `require('../core/recall')`, `require('../core/state')`, and potentially other internal modules. If any hook `require()`s a package that is not listed in `package.json` and not a Node.js built-in, the hook silently fails on a fresh install (no `node_modules/`). The `bin/` entry points may also have undeclared assumptions. This is a dependency-declaration gap, not a bloat issue, but falls within the economizer's "dead config keys" and "installed but undeclared" scope.
+**Agent**: economizer
+**Success criterion**: Enumerate all `require()` calls across all `.js` files in `masonry/src/hooks/` and `masonry/bin/`; classify each as: Node.js built-in (safe), internal relative path (safe if file exists), or third-party package (must be in `package.json`); list any third-party requires not declared in `package.json`; assess whether the empty `dependencies: {}` is intentional (self-contained) or an oversight.
+
+---
+
+## E1.8 [audit] Is `masonry/src/dspy_pipeline/signatures.py` dead weight — 112 lines of DSPy class definitions with no callers in the production path?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: LOW
+**Hypothesis**: `masonry/src/dspy_pipeline/signatures.py` contains DSPy `Signature` class definitions (~112 lines). The DSPy pipeline was never successfully run (empty `optimized_prompts/`). If `signatures.py` is only imported by `optimizer.py` which is never invoked at runtime (only via `masonry_optimize_agent` MCP tool, manually), then the entire `dspy_pipeline/` subdirectory is effectively a draft that adds import overhead and maintenance surface without contributing to any production path. This connects to D1.2 (46 dead generated stubs) already confirmed DONE.
+**Agent**: economizer
+**Success criterion**: Map all callers of `signatures.py` classes across the codebase; determine if any production-critical path (MCP server startup, routing, hook execution) imports from `dspy_pipeline/`; confirm whether the entire subdirectory is exclusively triggered by the manual MCP tool call; estimate the token and import-time overhead of carrying dspy as a hard dependency; score removal vs. optional-extras approach by effort/impact.
+
+---
+
+## E1.9 [audit] Does the combined CLAUDE.md + rules + agent fleet load more than 50K tokens of context overhead per session?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: HIGH
+**Hypothesis**: Each Claude Code session loads: `~/.claude/CLAUDE.md` (estimated ~600 lines), all `.claude/rules/*.md` files (10 files, ~1,400 lines total), and the project's `CLAUDE.md` (~120 lines). On top of this, `masonry-session-start.js` may inject additional campaign context. The economizer's context overhead analysis targets sessions where >30% of loaded context is boilerplate with no routing signal. The total may approach or exceed 50K tokens before any user message is processed — significant overhead for every session regardless of task type.
+**Agent**: economizer
+**Success criterion**: Count total lines across `~/.claude/CLAUDE.md`, all files in `~/.claude/rules/`, `C:/Users/trg16/Dev/Bricklayer2.0/.claude/CLAUDE.md`, and any context injected by `masonry-session-start.js`; convert to approximate token count (1 token ≈ 4 chars); identify sections with zero routing signal (pure documentation, historical notes, examples not referenced by hooks); estimate token savings from condensing; flag any rules files with >50% overlap with another rules file.
+
