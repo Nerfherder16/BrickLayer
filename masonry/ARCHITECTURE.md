@@ -342,14 +342,14 @@ Python package root is the `Bricklayer2.0/` directory. Import as `from masonry.s
 
 ## Key Findings
 
-- **R22.1** [WARNING] Wave 22: DSPy + Ollama smoke test PASSED (qwen3:14b produces valid structured output) but configure_dspy() defaults to wrong model name when backend="ollama"
-- **D22.1** [DIAGNOSIS_COMPLETE] Wave 22: confidence_calibration band [0.5, 0.95] creates 30-pt cliff for confidence > 0.95, suppresses 40 training records (14.4%); fix spec complete
-- **F22.1** [FIX_APPLIED] Wave 22: Ollama backend wired into optimizer.py, run_optimization.py CLI, and mcp_server/server.py with backend="ollama" parameter
+- **D24.1** [FIX_APPLIED] Wave 24: training_extractor.py Agent field extraction added; 603 cross-project training records now recoverable; primary attribution source is finding file, qid_map is fallback
+- **R24.1** [WARNING] Wave 24: Phase 17 metric ceiling revised to 70-73% (was 75-80%); verdict accuracy ~35-40% is the binding constraint, not evidence quality scoring
+- **V24.1** [NOT_VALIDATED] Wave 24: karen (191 records) structurally incompatible with ResearchAgentSig; KarenSig definition required before multi-agent optimization
 
 ## Open Items
 
 | ID | Verdict | Summary |
 |----|---------|---------|
-| R22.1 | WARNING | configure_dspy(backend="ollama") defaults to model="claude-sonnet-4-6"; 1-line fix needed in optimizer.py:38 |
-| D22.1 | DIAGNOSIS_COMPLETE | confidence_calibration band [0.5, 0.95] suppresses 40 training records; fix: widen to [0.5, 1.0] in score_findings.py:178 |
-| R22.2 | PENDING | Full MIPROv2 trial deferred; blocked on R22.1 default model fix |
+| D24.2 | DIAGNOSIS_COMPLETE | score_routing.py awards 70pts by checking if dispatched agent is recognized (trivially true); no ground-truth target_agent exists; fix: capture request_text in routing log + ground-truth-aware scoring |
+| R24.1 | WARNING | Phase 17 metric changes yield +1-4pts (69-73%), not +5-8pts (75-80%); verdict accuracy is binding constraint; D24.1 attribution fix is higher leverage than metric weight changes |
+| V24.1 | NOT_VALIDATED | karen 191 training records use ops-domain schema; ResearchAgentSig incompatible; KarenSig + metric + loader needed |

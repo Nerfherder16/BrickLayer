@@ -71,7 +71,7 @@ The scoring scripts (`score_all_agents.py`, `score_findings.py`, etc.) produce `
 
 - ~~The `finding.get("agent")` lookup requires that findings include an `agent` field in their metadata. BL2 finding files do not currently include this field by convention.~~ (resolved Wave 18: D18.1 backfilled `**Agent**:` field across 103 findings)
 - The `build_dataset` function will silently return an empty dict for all agents if no findings have agent attribution. A warning should be emitted when this happens.
-- `_build_qid_to_agent_map()` only parses the `### QID:` block format. Projects using the older markdown table format in `questions.md` (e.g. `| ID | Status | Question |`) produce zero agent-attributed records from the standard pipeline. Fix: add table-format parsing as a fallback, or use the `**Agent**:` field in finding files directly.
+- ~~`_build_qid_to_agent_map()` only parses the `### QID:` block format. Projects using the older markdown table format in `questions.md` (e.g. `| ID | Status | Question |`) produce zero agent-attributed records from the standard pipeline. Fix: add table-format parsing as a fallback, or use the `**Agent**:` field in finding files directly.~~ (resolved Wave 24: D24.1 added `_AGENT_RE` extraction to `extract_finding()`, making `**Agent**:` field the primary attribution source; 603 cross-project records recoverable)
 
 ---
 
@@ -123,7 +123,7 @@ Prerequisites before optimizing karen or any ops-domain agent:
 
 - The stale entries are only counted, never removed.
 - A `masonry_registry_prune` MCP tool or CLI command to remove stale entries does not exist.
-- Agents using `~/.claude/agents/` relative paths will always appear stale on Windows unless `~` is expanded before the file existence check. The current code uses `Path(file_val).exists()` without home directory expansion.
+- ~~Agents using `~/.claude/agents/` relative paths will always appear stale on Windows unless `~` is expanded before the file existence check. The current code uses `Path(file_val).exists()` without home directory expansion.~~ (resolved Wave 24: D24.3 added `.expanduser()` to line 106 of `onboard_agent.py`; 14 false-positive stale entries eliminated)
 
 ---
 

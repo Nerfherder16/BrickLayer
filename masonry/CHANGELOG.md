@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [Wave 24] -- 2026-03-22
+
+7 questions answered. Training data attribution gap closed (+603 recoverable records), CLI optimization flags shipped, Phase 17 metric ceiling revised to 70-73% (verdict accuracy is binding constraint), karen confirmed incompatible with ResearchAgentSig (KarenSig required).
+
+### Fixed
+- `F24.1` -- `--num-trials` and `--valset-size` CLI flags added to `run_optimization.py`, wired through `run()` into `optimize_agent()` into `optimizer.compile()` (`masonry/scripts/run_optimization.py`, `masonry/src/dspy_pipeline/optimizer.py`)
+- `D24.1` -- `_AGENT_RE` regex added to `extract_finding()` in `training_extractor.py`; `**Agent**:` field is now primary attribution source; 137/162 masonry findings attributed, 603 cross-project records recoverable (`masonry/src/dspy_pipeline/training_extractor.py`)
+- `D24.3` -- `expanduser()` added to `detect_stale_registry_entries()` line 106; 14 false-positive stale entries on Windows eliminated (`masonry/scripts/onboard_agent.py`)
+
+### Changed
+- `M24.1` -- `monitor-targets.md` updated with `dspy_optimization_wall_time_minutes` (WARNING=120min, FAILURE=480min) and `dspy_bootstrap_failure_rate` thresholds
+- ROADMAP Phase 17 metric target revised from 75-80% to 70-73% based on R24.1 evidence
+
+### Found (open)
+- `D24.2` [DIAGNOSIS_COMPLETE] -- `score_routing.py` line 112 awards 70pts by checking if dispatched agent is recognized (trivially true), not comparing against ground-truth target_agent; all 17 routing records provide zero training signal
+- `R24.1` [WARNING] -- Phase 17 metric changes yield +1-4pts not +5-8pts; verdict accuracy (~35-40%) is the binding constraint; severity validation and verdict-conditioned confidence are counterproductive
+- `V24.1` [NOT_VALIDATED] -- karen's 191 training records use ops-domain schema (commit_subject/doc_files_written), structurally incompatible with ResearchAgentSig; KarenSig + metric + loader required before optimization
+
+### Healthy
+- F24.1: CLI flags verified end-to-end; existing callers (Kiln OPTIMIZE button) unaffected by defaults
+- D24.1: Agent field extraction confirmed working; masonry attribution 134 to 137 findings
+- D24.3: expanduser() fix zero-regression; 14 false positives eliminated
+
 ## [Wave 22] -- 2026-03-21
 
 4/5 questions answered (R22.2 deferred by user). DSPy + Ollama pipeline end-to-end FUNCTIONAL: smoke test passed with qwen3:14b producing valid structured output. Confidence calibration cliff diagnosed with fix spec complete.
