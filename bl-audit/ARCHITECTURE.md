@@ -105,32 +105,38 @@ Four-layer routing: deterministic -> semantic -> LLM -> fallback.
 | D5: Stale References | 6 | 4 | 2 | COMPLETE |
 | D6: Structural | 6 | 3 | 3 | COMPLETE |
 | M1: Mortar Routing | 6 | 5 | 1 | COMPLETE |
-| V1: Fix Verification | 4 | 1 | 3 | COMPLETE |
-| **Total** | **46** | **30** | **16** | **COMPLETE** |
+| V1: Fix Verification | 5 | 2 | 3 | COMPLETE |
+| E1: Efficiency/Overhead | 9 | 5 | 4 | COMPLETE |
+| **Total** | **56** | **36** | **20** | **COMPLETE** |
 
 ---
 
 ## Key Findings
 
-- **M1.3** [CONFIRMED/Critical] Wave 2: masonry-register.js outputs plain text instead of JSON envelope -- Mortar directive never injected even after M1.1 fix
-- **M1.4** [CONFIRMED/High] Wave 2: Mortar routing is advisory context, not enforced dispatch -- "Every request goes through Mortar" has never been technically true
-- **V1.4** [CONFIRMED/High] Wave 2: masonry-agent-onboard.js fires but spawns Python without PYTHONPATH -- auto-onboarding still broken end-to-end
+- **E1.1** [CONFIRMED/Medium] Wave 3: `isResearchProject()` duplicated in 8 hooks with 2 behavioral divergences -- null guard missing in 7 copies, inline requires in 1
+- **E1.4** [CONFIRMED/Medium] Wave 3: Fleet has 3 name collisions across global/BL directories; `tools-manifest` global copy is fully redundant (85% overlap, BL is superset)
+- **E1.9** [FALSE_POSITIVE] Wave 3: Auto-loaded context is 22.6K tokens (45% of 50K threshold) -- not breached, but 12.4K tokens of UI rules are irrelevant in non-UI sessions
 
 ---
 
 ## Open Items
 
-| ID | Verdict | Severity | Summary |
-|----|---------|----------|---------|
-| M1.3 | CONFIRMED | Critical | masonry-register.js plain text output -- needs JSON envelope |
-| M1.4 | CONFIRMED | High | Mortar directive is advisory, not enforced -- design decision needed |
-| V1.4 | CONFIRMED | High | onboard hook spawns Python without PYTHONPATH -- silent failure |
-| D3.4 | CONFIRMED | High | TDD enforcer non-functional (async:true + exit(2)) |
-| M1.6 | CONFIRMED | Medium | mortar.md missing git-nerd and infra routing entries |
-| D2.6 | CONFIRMED | Medium | uiux-master and solana-specialist .md files missing |
-| D5.1 | CONFIRMED | Medium | masonry-build.md uses dead OMC executor |
+| ID | Wave | Verdict | Severity | Summary |
+|----|------|---------|----------|---------|
+| M1.3 | 2 | CONFIRMED | Critical | masonry-register.js plain text output -- needs JSON envelope |
+| M1.4 | 2 | CONFIRMED | High | Mortar directive is advisory, not enforced -- design decision needed |
+| V1.4 | 2 | CONFIRMED | High | onboard hook spawns Python without PYTHONPATH -- silent failure |
+| D3.4 | 1 | CONFIRMED | High | TDD enforcer non-functional (async:true + exit(2)) |
+| E1.1 | 3 | CONFIRMED | Medium | isResearchProject() duplicated in 8 hooks with behavioral drift |
+| E1.4 | 3 | CONFIRMED | Medium | tools-manifest global redundant; health-monitor name collision |
+| M1.6 | 2 | CONFIRMED | Medium | mortar.md missing git-nerd and infra routing entries |
+| D2.6 | 1 | CONFIRMED | Medium | uiux-master and solana-specialist .md files missing |
+| D5.1 | 1 | CONFIRMED | Medium | masonry-build.md uses dead OMC executor |
+| E1.2 | 3 | CONFIRMED | Low | 3 hook files exceed 300-line limit |
+| E1.5 | 3 | CONFIRMED | Low | DSPy hard dependency should be optional extras |
+| E1.8 | 3 | CONFIRMED | Low | 3 dead DSPy signature classes (62% of file) |
 
-### Verified Fixed (Wave 2)
+### Verified Fixed (Waves 1-2)
 
 | ID | Was | Fix Verified By |
 |----|-----|-----------------|
