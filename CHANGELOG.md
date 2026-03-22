@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `1814c08` revert(approver): remove session ID ownership lock — caused deadlocks (2026-03-22)
 - `057cb0b` feat(routing): expand deterministic routing to full agent fleet (2026-03-22)
 - `0e3844a` feat(routing): add deterministic keyword routing for all major agents (2026-03-22)
 - `5f2d695` feat(routing): add deterministic git-nerd routing for all git operations (2026-03-22)
