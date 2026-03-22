@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `5e31f59` fix(hooks,mortar): V1.4 PYTHONPATH + M1.6 git/infra routing gaps (2026-03-21)
 - `21fd8e2` fix(domain-routing): store BL campaign findings to {project}-bricklayer domain (2026-03-21)
 - `8ee4d43` chore: update masonry routing log (2026-03-21)
 - `00099ea` fix(hooks): add missing BL2.0 agent types to Mortar gate allowlist (2026-03-21)
