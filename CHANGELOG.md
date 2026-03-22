@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `8ee4d43` chore: update masonry routing log (2026-03-21)
 - `00099ea` fix(hooks): add missing BL2.0 agent types to Mortar gate allowlist (2026-03-21)
 - `34d625e` fix(hooks): resolve all 7 bug-catcher warnings from audit (2026-03-21)
 - `a2a1d36` chore: session artifacts — routing log + stop/context hook updates (2026-03-21)
