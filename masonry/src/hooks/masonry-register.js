@@ -83,6 +83,14 @@ function isResearchProject(dir) {
          fs.existsSync(path.join(dir, 'questions.md'));
 }
 
+// Emit collected context as a JSON envelope (required by Claude Code UserPromptSubmit hooks).
+// All output must go through this — never call process.stdout.write() directly.
+function emit(parts) {
+  const text = parts.filter(Boolean).join('\n').trim();
+  if (!text) return;
+  process.stdout.write(JSON.stringify({ additionalContext: text }));
+}
+
 async function main() {
   // Auto-detect BrickLayer research project — hooks are silent inside BL subprocesses
   const cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd();
@@ -94,26 +102,19 @@ async function main() {
       raw += chunk;
       if (raw.length > MAX_STDIN) break;
     }
-  } catch (_err) {
-    return;
-  }
+  } catch (_err) { return; }
 
   let input = {};
   try { input = JSON.parse(raw); } catch (_err) { return; }
 
   const sessionId = input.session_id || 'unknown';
-
-  // Detect BrickLayer context
   const ctx = detectBrickLayerContext(cwd);
-
-  // Resolve project name (masonry.json > autopilot progress > cwd basename)
   const project = (ctx.masonryMeta && ctx.masonryMeta.name)
     || (ctx.autopilotProgress && ctx.autopilotProgress.project)
     || path.basename(cwd);
 
-  // --- Always: emit Mortar routing directive ---
-  const directive = buildRoutingDirective(ctx, project);
-  process.stdout.write(directive + '\n');
+  // Always: Mortar routing directive (first item in every context block)
+  const contextParts = [buildRoutingDirective(ctx, project)];
 
   const tempFile = path.join(os.tmpdir(), `masonry-${sessionId}.json`);
 
@@ -125,7 +126,7 @@ async function main() {
     }
   } catch (_err) { /* fresh session */ }
 
-  // --- Subsequent call: flush pending guard warnings ---
+  // --- Subsequent call: flush pending guard warnings then exit ---
   if (sessionState && sessionState.firstCall === false) {
     const guardFile = path.join(os.tmpdir(), `masonry-guard-${sessionId}.ndjson`);
     if (fs.existsSync(guardFile)) {
@@ -135,30 +136,27 @@ async function main() {
           const warnings = lines.map(l => {
             try { return JSON.parse(l); } catch (_e) { return null; }
           }).filter(Boolean);
-
           const messages = warnings.map(w => `[MASONRY GUARD] ${w.message}`).join('\n');
-          if (messages) {
-            process.stdout.write(messages + '\n');
-          }
-          // Clear the guard queue after flushing
+          if (messages) contextParts.push(messages);
           fs.unlinkSync(guardFile);
         }
       } catch (_err) { /* non-fatal */ }
     }
+    emit(contextParts);
     return;
   }
 
-  // --- First call: hydrate from Recall ---
-  // Mark session as started (firstCall = false going forward)
+  // --- First call: mark session started, hydrate from Recall ---
   try {
     fs.writeFileSync(tempFile, JSON.stringify({ project, sessionId, firstCall: false }), 'utf8');
   } catch (_err) { /* non-fatal */ }
 
   if (!(await isAvailable())) {
+    emit(contextParts);
     return;
   }
 
-  // Run both searches concurrently — max wait = single search timeout (3s), not 6s
+  // Run both searches concurrently
   const [handoffs, findings] = await Promise.all([
     searchMemory({ query: project, tags: ['masonry:handoff'], limit: 1 }),
     searchMemory({
@@ -168,7 +166,7 @@ async function main() {
     }),
   ]);
 
-  // Fire-and-forget session start log — never block the hook on a write
+  // Fire-and-forget session start log
   storeMemory({
     content: `Masonry session started for project "${project}"`,
     domain: `${project}-autoresearch`,
@@ -181,9 +179,8 @@ async function main() {
     const handoff = handoffs[0];
     const storedAt = handoff.created_at || handoff.timestamp || handoff.stored_at;
     const ageMs = storedAt ? Date.now() - new Date(storedAt).getTime() : Infinity;
-    const isRecent = ageMs < 24 * 60 * 60 * 1000;
 
-    if (isRecent) {
+    if (ageMs < 24 * 60 * 60 * 1000) {
       let payload = null;
       try {
         payload = typeof handoff.content === 'string'
@@ -192,19 +189,15 @@ async function main() {
       } catch (_err) { /* malformed handoff — fall through */ }
 
       if (payload && payload.resume_prompt) {
-        const lines = [
-          `[MASONRY] Resuming campaign for "${project}"`,
-          payload.resume_prompt,
-        ];
-
+        const lines = [`[MASONRY] Resuming campaign for "${project}"`, payload.resume_prompt];
         if (payload.recent_findings && payload.recent_findings.length > 0) {
           lines.push('\nRecent findings:');
           for (const f of payload.recent_findings) {
             lines.push(`  ${f.qid} — ${f.verdict} (${f.severity}): ${f.summary}`);
           }
         }
-
-        process.stdout.write(lines.join('\n') + '\n');
+        contextParts.push(lines.join('\n'));
+        emit(contextParts);
         return;
       }
     }
@@ -217,8 +210,10 @@ async function main() {
       const snippet = (f.content || '').slice(0, 150).replace(/\n/g, ' ');
       lines.push(`  • ${snippet}`);
     }
-    process.stdout.write(lines.join('\n') + '\n');
+    contextParts.push(lines.join('\n'));
   }
+
+  emit(contextParts);
 }
 
 main().catch(() => {});
