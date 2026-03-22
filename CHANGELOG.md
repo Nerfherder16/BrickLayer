@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `7c1e3f7` fix(hooks): move context-monitor from PostToolUse to Stop with correct output format (2026-03-21)
 - `c528347` chore(bl2): update question statuses and add A26.2 finding + run script (2026-03-21)
 - `66bef91` audit(bl2): add compliance audit findings A26.1 and Masonry settings (2026-03-21)
 - `0b1c761` chore(registry): update bug-catcher capabilities with Recall cross-reference (2026-03-21)
