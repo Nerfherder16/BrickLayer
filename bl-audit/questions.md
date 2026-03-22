@@ -556,7 +556,7 @@ Focus: Whole-codebase efficiency audit targeting the economizer agent's six scan
 
 ## E1.2 [audit] Are masonry-observe.js and masonry-tdd-enforcer.js over 300 lines and decomposable?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: audit
 **Priority**: MEDIUM
 **Hypothesis**: `masonry-observe.js` (317 lines) and `masonry-tdd-enforcer.js` (311 lines) exceed the project's 300-line hard limit per `quality-standards.md`. `masonry-approver.js` (315 lines) also exceeds it. Files at this size typically contain multiple logical concerns that should be split into focused modules. Additionally, `masonry-session-summary.js` (288 lines) and `masonry-statusline.js` (273 lines) approach the limit and may benefit from decomposition.
