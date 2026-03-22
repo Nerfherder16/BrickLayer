@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `274e421` finding: E1.1 — isResearchProject() duplicated across 8 hook files with 2 behavioral divergences (2026-03-22)
 - `949bed8` docs(roadmap): add Phase 17 DSPy metric improvement plan (2026-03-22)
 - `055729e` fix(bl-parallel): fix PowerShell syntax errors preventing campaign launch (2026-03-22)
 - `2457996` fix(bl-parallel): fix PowerShell here-string quoting for bash command in worker launcher (2026-03-22)
