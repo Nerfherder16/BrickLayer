@@ -94,25 +94,24 @@ Do NOT start building without explicit approval.
    ```json
    { "auto_build": true, "spec": "spec.md", "approved_at": "<ISO-8601>" }
    ```
-3. Write the Mortar session token to `masonry-state.json` (merge, don't overwrite).
-   Use the Write tool to merge these fields — include the actual `session_id` from the hook
-   payload (available as `$session_id` in the Claude context):
-   ```json
-   {
-     "mortar_consulted": true,
-     "mortar_session_id": "<ISO-8601 timestamp>",
-     "mortar_session_claude_id": "<the current Claude session_id>"
-   }
+3. Write the Mortar session token to `masonry-state.json` (merge, don't overwrite):
+   ```bash
+   node -e "
+   const fs = require('fs');
+   const p = 'masonry-state.json';
+   let s = {};
+   try { s = JSON.parse(fs.readFileSync(p, 'utf8')); } catch {}
+   s.mortar_consulted = true;
+   s.mortar_session_id = new Date().toISOString();
+   fs.writeFileSync(p, JSON.stringify(s, null, 2));
+   "
    ```
-   Read the existing `masonry-state.json` first, merge these three fields in, write it back.
-   The `mortar_session_claude_id` locks this state file to the current session — other sessions
-   cannot modify it.
 4. Tell the user:
    > "Spec approved. Run `/compact` now — after compaction I'll automatically resume with `/masonry-build`."
 
 **On "Approve & build now":**
 1. Write `"build"` to `.autopilot/mode`
-2. Write the Mortar session token to `masonry-state.json` (same merge as above — include `mortar_session_claude_id`)
+2. Write the Mortar session token to `masonry-state.json` (same node -e snippet above)
 3. Immediately hand off to Mortar's Build Workflow:
    ```
    Act as the mortar agent defined in ~/.claude/agents/mortar.md.

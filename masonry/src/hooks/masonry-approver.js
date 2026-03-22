@@ -119,8 +119,7 @@ function isResearchProject(dir) {
 // Check whether Mortar wrote a fresh session token.
 // Returns true if masonry-state.json has mortar_consulted: true
 // and mortar_session_id is an ISO timestamp within the last 4 hours.
-// If mortar_session_claude_id is stored, the currentSessionId must match.
-function isMortarConsulted(currentSessionId) {
+function isMortarConsulted() {
   try {
     const raw = readFileSync(MASONRY_STATE_PATH, "utf8");
     const state = JSON.parse(raw);
@@ -128,29 +127,7 @@ function isMortarConsulted(currentSessionId) {
     if (!state.mortar_session_id) return false;
     const sessionTime = new Date(state.mortar_session_id).getTime();
     if (isNaN(sessionTime)) return false;
-    // Session ID lock: if a Claude session ID is stored, current session must match.
-    // This prevents one session from modifying state owned by another session.
-    if (state.mortar_session_claude_id && currentSessionId) {
-      if (state.mortar_session_claude_id !== currentSessionId) return false;
-    }
     return Date.now() - sessionTime < MORTAR_SESSION_FRESHNESS_MS;
-  } catch {
-    return false;
-  }
-}
-
-// Check whether a file is "owned" by a different Claude session.
-// masonry-state.json stores mortar_session_claude_id when a session claims it.
-// Any other session attempting to write it gets blocked.
-function isOwnedByOtherSession(filePath, currentSessionId) {
-  if (!currentSessionId) return false;
-  // Only enforce on masonry-state.json for now
-  if (!filePath || !filePath.replace(/\\/g, "/").endsWith("masonry-state.json")) return false;
-  try {
-    const raw = readFileSync(MASONRY_STATE_PATH, "utf8");
-    const state = JSON.parse(raw);
-    if (!state.mortar_session_claude_id) return false;
-    return state.mortar_session_claude_id !== currentSessionId;
   } catch {
     return false;
   }
@@ -229,7 +206,6 @@ async function main() {
   const toolInput = parsed.tool_input || {};
   const toolName = (parsed.tool_name || "").toLowerCase();
   const filePath = toolInput.file_path || toolInput.path || "";
-  const currentSessionId = parsed.session_id || null;
 
   // BrickLayer research campaign — approve everything, including Bash.
   // Walk up from cwd AND from the tool's target path — handles sessions whose cwd
@@ -269,17 +245,6 @@ async function main() {
 
   const candidates = getCandidateDirs(parsed);
 
-  // ── Session ownership check ───────────────────────────────────────────────────
-  // Hard block writes to files owned by a different Claude session.
-  // Prevents an interactive session from stomping on an overnight/campaign session's state.
-  if ((toolName === "write" || toolName === "edit") && isOwnedByOtherSession(filePath, currentSessionId)) {
-    process.stderr.write(
-      `[Masonry] BLOCKED: ${filePath} is owned by a different Claude session. ` +
-      `Cannot modify another session's state.\n`
-    );
-    process.exit(2);
-  }
-
   // ── Mortar gate ──────────────────────────────────────────────────────────────
   // Before any Write/Edit/Bash reaches the approval logic, verify that Mortar has
   // been consulted in this Claude session (fresh token in masonry-state.json).
@@ -312,7 +277,7 @@ async function main() {
   // Bash is always allowed through — git ops and simple commands must never
   // be blocked in conversation. Write/Edit get a soft warning only (no hard block)
   // so the gate can't deadlock itself and agent-spawned tools aren't stalled.
-  if (mortarGateApplicable && !approve && !isMortarConsulted(currentSessionId)) {
+  if (mortarGateApplicable && !approve && !isMortarConsulted()) {
     if (toolName !== "bash") {
       process.stderr.write(
         "[Masonry] Heads up: Mortar hasn't been consulted this session. " +
