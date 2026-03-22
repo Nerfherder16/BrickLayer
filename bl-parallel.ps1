@@ -18,7 +18,7 @@
 
 .NOTES
     Requirements:
-    - Windows Terminal (wt.exe) — install from Microsoft Store if missing
+    - Windows Terminal (wt.exe) -- install from Microsoft Store if missing
     - Git Bash must be available as a WT profile named "Git Bash"
     - Project must have questions.md with PENDING questions
     - Run from the Bricklayer2.0 root directory
@@ -49,7 +49,7 @@ if (-not (Test-Path $ProjectPath)) {
 }
 
 if (-not (Test-Path (Join-Path $ProjectPath "questions.md"))) {
-    Write-Error "No questions.md in $ProjectPath — run /bl-questions first"
+    Write-Error "No questions.md in $ProjectPath -- run /bl-questions first"
     exit 1
 }
 
