@@ -31,13 +31,66 @@ _SLASH_COMMANDS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"/masonry-run\b"), "campaign-conductor"),
 ]
 
-# ── Git keyword patterns → git-nerd ───────────────────────────────────────
-# Any request mentioning git operations routes deterministically to git-nerd.
+# ── Agent keyword patterns (deterministic, zero LLM calls) ────────────────
 
 _GIT_PATTERN = re.compile(
     r"\b(git\s+\w+|commit|push|pull\s+request|open\s+a\s+pr|create\s+a?\s*pr|"
-    r"pull\s+request|branch\s+off|merge\s+branch|rebase|git\s+stash|"
+    r"branch\s+off|merge\s+branch|rebase|git\s+stash|"
     r"stage\s+(files?|changes?)|unstage|amend\s+commit|cherry.pick)\b",
+    re.IGNORECASE,
+)
+
+_UI_PATTERN = re.compile(
+    r"\b(figma|tailwind|css|component|dashboard|dark\s+mode|design\s+system|"
+    r"ui\s+review|ui\s+fix|ui\s+init|ui\s+compose|frontend|design\s+brief|"
+    r"tokens\.json|glassmorphi|bento\s+grid)\b",
+    re.IGNORECASE,
+)
+
+_KAREN_PATTERN = re.compile(
+    r"\b(changelog|roadmap|folder\s+audit|organize\s+(the\s+)?(docs|folder|project)|"
+    r"docs\s+organization|readme|project\s+structure|tidy\s+up)\b",
+    re.IGNORECASE,
+)
+
+_DIAGNOSE_PATTERN = re.compile(
+    r"\b(root\s+cause|why\s+is\s+(it\s+)?(broken|failing|not\s+working)|"
+    r"diagnose|trace\s+(the\s+)?error|something\s+is\s+broken|debug\s+this)\b",
+    re.IGNORECASE,
+)
+
+_SECURITY_PATTERN = re.compile(
+    r"\b(security\s+(audit|review)|owasp|vulnerability|xss|sql\s+injection|"
+    r"csrf|injection\s+attack|penetration\s+test|pentest|hardening)\b",
+    re.IGNORECASE,
+)
+
+_KILN_PATTERN = re.compile(
+    r"\b(kiln|bricklayerhub|electron\s+app)\b",
+    re.IGNORECASE,
+)
+
+_SOLANA_PATTERN = re.compile(
+    r"\b(solana|anchor\s+program|spl\s+token|token.?2022|defi|adbp|"
+    r"on.?chain|blockchain|wallet\s+integration)\b",
+    re.IGNORECASE,
+)
+
+_REFACTOR_PATTERN = re.compile(
+    r"\b(refactor|clean\s+up\s+(the\s+)?code|restructure|rename\s+(the\s+)?\w+|"
+    r"extract\s+(a\s+)?(function|class|module)|code\s+smell)\b",
+    re.IGNORECASE,
+)
+
+_ARCHITECT_PATTERN = re.compile(
+    r"\b(system\s+design|architecture\s+(decision|review)|tech\s+stack|"
+    r"scalab(le|ility)|trade.?off|design\s+pattern|microservice|monolith)\b",
+    re.IGNORECASE,
+)
+
+_CAMPAIGN_PATTERN = re.compile(
+    r"\b(start\s+(a\s+)?campaign|resume\s+(the\s+)?campaign|question\s+bank|"
+    r"research\s+loop|wave\s+\d|bl.run|masonry.run)\b",
     re.IGNORECASE,
 )
 
@@ -84,9 +137,27 @@ def route_deterministic(
         if pattern.search(request_text):
             return _decision(target, f"Slash command matched: {pattern.pattern}")
 
-    # 1b. Git operations → git-nerd (deterministic, before any LLM call)
+    # 1b. Deterministic agent keyword routing (zero LLM calls)
     if _GIT_PATTERN.search(request_text):
         return _decision("git-nerd", "Git operation keyword matched")
+    if _SOLANA_PATTERN.search(request_text):
+        return _decision("solana-specialist", "Solana/blockchain keyword matched")
+    if _KILN_PATTERN.search(request_text):
+        return _decision("kiln-engineer", "Kiln/Electron keyword matched")
+    if _SECURITY_PATTERN.search(request_text):
+        return _decision("security", "Security audit keyword matched")
+    if _UI_PATTERN.search(request_text):
+        return _decision("uiux-master", "UI/design keyword matched")
+    if _KAREN_PATTERN.search(request_text):
+        return _decision("karen", "Docs/changelog/organization keyword matched")
+    if _DIAGNOSE_PATTERN.search(request_text):
+        return _decision("diagnose-analyst", "Diagnosis keyword matched")
+    if _REFACTOR_PATTERN.search(request_text):
+        return _decision("refactorer", "Refactor keyword matched")
+    if _ARCHITECT_PATTERN.search(request_text):
+        return _decision("architect", "Architecture keyword matched")
+    if _CAMPAIGN_PATTERN.search(request_text):
+        return _decision("trowel", "Campaign keyword matched")
 
     # 2. Autopilot state
     autopilot_mode = _read_file(project_dir / ".autopilot" / "mode")
