@@ -1669,7 +1669,7 @@
 
 ### R23.1: Run full MIPROv2 optimization trial for `quantitative-analyst` via Ollama — measure pre/post evaluation score delta
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Motivated by**: R22.2 PENDING (deferred by user pause) — the full MIPROv2 trial for `quantitative-analyst` was blocked by the `configure_dspy()` default model bug (R22.1 WARNING). F23.1 resolves that blocker. quantitative-analyst has 125 training records — the largest single-agent corpus — and the smoke test (R22.1) confirmed qwen3:14b produces valid structured output. This is the primary validation gate for the entire DSPy optimization pipeline.
