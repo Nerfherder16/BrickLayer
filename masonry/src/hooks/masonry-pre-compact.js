@@ -118,6 +118,8 @@ async function main() {
   const autopilotMode = tryRead(path.join(cwd, ".autopilot", "mode"));
   if (autopilotMode && ["build", "fix"].includes(autopilotMode)) {
     const progress = tryJSON(path.join(cwd, ".autopilot", "progress.json"));
+    const compactState = tryJSON(path.join(cwd, ".autopilot", "compact-state.json"));
+
     if (progress) {
       const pending = (progress.tasks || []).filter(
         (t) => t.status !== "DONE" && t.status !== "BLOCKED"
@@ -132,8 +134,9 @@ async function main() {
         lines.push(`  Run /masonry-build to continue.`);
       }
 
-      // Write a compact-state file that survives the compaction
-      const compactState = {
+      // Update compact-state with progress info (preserve auto_build flag if set)
+      const updatedState = {
+        ...(compactState || {}),
         mode: autopilotMode,
         project: progress.project || path.basename(cwd),
         done,
@@ -144,10 +147,16 @@ async function main() {
       try {
         fs.writeFileSync(
           path.join(cwd, ".autopilot", "compact-state.json"),
-          JSON.stringify(compactState, null, 2),
+          JSON.stringify(updatedState, null, 2),
           "utf8"
         );
       } catch {}
+    } else if (compactState && compactState.auto_build) {
+      // Plan was just approved ("Approve & compact then build") but build hasn't started yet.
+      // No progress.json exists — trigger the build after compact.
+      lines.push(`[Masonry] COMPACTING — spec approved, build pending.`);
+      lines.push(`  Spec: ${compactState.spec || ".autopilot/spec.md"}`);
+      lines.push(`  After compact, run /masonry-build to start the build.`);
     }
   }
 

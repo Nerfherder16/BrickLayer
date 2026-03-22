@@ -80,20 +80,47 @@ Show the spec to the user, then use the **AskUserQuestion** tool to present a ch
 ```
 Question: "Spec ready — what would you like to do?"
 Options:
-  - "Approve & compact"
+  - "Approve & compact then build"
+  - "Approve & build now"
   - "Revise the spec"
   - "Cancel"
 ```
 
 Do NOT start building without explicit approval.
 
-**On "Approve & compact":**
+**On "Approve & compact then build":**
 1. Write `"build"` to `.autopilot/mode`
-2. Tell the user:
-   > "Spec saved. Run `/compact` to trim context, then `/masonry-build` to start."
+2. Write `.autopilot/compact-state.json`:
+   ```json
+   { "auto_build": true, "spec": "spec.md", "approved_at": "<ISO-8601>" }
+   ```
+3. Write the Mortar session token to `masonry-state.json` (merge, don't overwrite):
+   ```bash
+   node -e "
+   const fs = require('fs');
+   const p = 'masonry-state.json';
+   let s = {};
+   try { s = JSON.parse(fs.readFileSync(p, 'utf8')); } catch {}
+   s.mortar_consulted = true;
+   s.mortar_session_id = new Date().toISOString();
+   fs.writeFileSync(p, JSON.stringify(s, null, 2));
+   "
+   ```
+4. Tell the user:
+   > "Spec approved. Run `/compact` now — after compaction I'll automatically resume with `/masonry-build`."
+
+**On "Approve & build now":**
+1. Write `"build"` to `.autopilot/mode`
+2. Write the Mortar session token to `masonry-state.json` (same node -e snippet above)
+3. Immediately hand off to Mortar's Build Workflow:
+   ```
+   Act as the mortar agent defined in ~/.claude/agents/mortar.md.
+   Task: Run the Dev Workflow — Build.
+   Project directory: [current working directory]
+   ```
 
 **On "Revise the spec":**
 Ask what to change, update `spec.md`, re-present from Step 4.
 
 **On "Cancel":**
-Delete `.autopilot/mode` and tell the user the plan was discarded.
+Delete `.autopilot/mode` and `.autopilot/compact-state.json` (if present). Tell the user the plan was discarded.
