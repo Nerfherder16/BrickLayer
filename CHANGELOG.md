@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `74711de` feat(dspy): first optimized prompt for quantitative-analyst (66.07%, +6.4pts) (2026-03-22)
 - `23df5e0` synthesis: Wave 3 complete -- E-series efficiency audit (2026-03-22)
 - `4506323` finding: E1.9 — auto-loaded context is 22.6K tokens (45% of 50K threshold); agent fleet not auto-loaded (2026-03-22)
 - `6fc343d` finding: E1.8 — signatures.py has 3 dead DSPy classes; only ResearchAgentSig is used (2026-03-22)
