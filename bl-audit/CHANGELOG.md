@@ -13,6 +13,22 @@ Format: wave entries newest-first. Each wave appended automatically.
 
 ---
 
+## [Wave 3] -- 2026-03-22
+
+9 questions (E1.1-E1.9) — efficiency and overhead audit; 5 CONFIRMED, 4 FALSE_POSITIVE. No critical issues found. Hook duplication and DSPy dead weight are the main cleanup targets.
+
+### Found (open)
+- `E1.1` [CONFIRMED/Medium] -- `isResearchProject()` copy-pasted into 8 hook files with 2 behavioral divergences (null guard, inline requires)
+- `E1.4` [CONFIRMED/Medium] -- `tools-manifest` global copy redundant (85% overlap); `health-monitor` name collision (70% overlap, different purposes)
+- `E1.2` [CONFIRMED/Low] -- 3 hook files exceed 300-line limit: masonry-observe.js (317), masonry-approver.js (315), masonry-tdd-enforcer.js (311)
+- `E1.5` [CONFIRMED/Low] -- `dspy>=2.5` hard dependency in requirements.txt; MCP server lazy-imports it; should be optional
+- `E1.8` [CONFIRMED/Low] -- 3 of 4 DSPy signature classes dead (DiagnoseAgentSig, SynthesizerSig, QuestionDesignerSig); 69 lines / 62% of file
+
+### Healthy
+E1.3 (deterministic.py has no dead routing branches), E1.6 (CLAUDE.md rules complement hooks, only ~22 lines true overlap), E1.7 (package.json zero deps is intentional and correct), E1.9 (auto-loaded context 22.6K tokens, below 50K threshold) confirmed working/correct.
+
+---
+
 ## [Wave 2] -- 2026-03-21
 
 10 questions across 2 domains (Mortar routing integrity + fix verification); 6 CONFIRMED, 4 FALSE_POSITIVE. Key outcome: Mortar "Every request" invariant has never been enforced -- triple failure in injection pipeline.
