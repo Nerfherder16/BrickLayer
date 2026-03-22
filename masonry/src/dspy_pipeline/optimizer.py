@@ -28,10 +28,11 @@ def build_metric(signature_cls: type) -> Any:
     - evidence_quality (0.4): length > 100 chars = 1.0, else 0.5
     - confidence_calibration (0.2): 1 - |predicted - 0.75|
 
-    Returns a callable(example, prediction) -> float.
+    Returns a callable(example, prediction, trace) -> float.
+    The trace parameter is passed by DSPy's MIPROv2 bootstrapper and is ignored here.
     """
 
-    def metric(example: Any, prediction: Any) -> float:
+    def metric(example: Any, prediction: Any, trace: Any = None) -> float:
         score = 0.0
 
         # Verdict match (0.4 weight)
