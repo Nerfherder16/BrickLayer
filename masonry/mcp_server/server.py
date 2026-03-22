@@ -184,6 +184,38 @@ def _tool_masonry_git_hypothesis(args: dict) -> dict:
     }
 
 
+def _store_question_finding(result: dict, question: dict, project_dir: Path) -> None:
+    """Fire-and-forget: store question verdict to Recall with {project}-bricklayer domain."""
+    try:
+        verdict = result.get("verdict", "")
+        summary = result.get("summary", "")
+        if not verdict or not summary:
+            return
+
+        project_json = project_dir / "project.json"
+        project_name = project_dir.name  # fallback to dir name
+        if project_json.exists():
+            try:
+                pcfg = json.loads(project_json.read_text(encoding="utf-8"))
+                project_name = pcfg.get("name") or pcfg.get("display_name", project_dir.name)
+            except Exception:
+                pass
+
+        from bl.recall_bridge import store_finding  # noqa: PLC0415
+
+        question_id = question.get("id", "unknown")
+        agent_name = question.get("agent_name") or question.get("mode", "runner")
+        store_finding(
+            question_id=question_id,
+            verdict=verdict,
+            summary=summary,
+            project=project_name,
+            tags=[f"agent:{agent_name}", "type:finding"],
+        )
+    except Exception:
+        pass  # Never block a campaign
+
+
 def _tool_masonry_run_question(args: dict) -> dict:
     """Run a single BL question by ID and return the verdict envelope."""
     project_dir = args.get("project_dir", os.getcwd())
@@ -211,6 +243,8 @@ def _tool_masonry_run_question(args: dict) -> dict:
 
     try:
         result = runner(q)
+        # Store finding to Recall with correct {project}-bricklayer domain (fire-and-forget)
+        _store_question_finding(result, q, Path(project_dir))
         return {"question_id": question_id, "result": result}
     except Exception as e:
         return {"error": str(e), "question_id": question_id}

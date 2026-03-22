@@ -64,6 +64,7 @@ async function main() {
     stdio: "ignore",
     cwd,
     windowsHide: true,
+    env: { ...process.env, PYTHONPATH: cwd },
   });
   child.unref();
 
