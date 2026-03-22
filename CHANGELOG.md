@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `738f076` feat(masonry): add MCP plugin manifest with serverInstructions for Tool Search (2026-03-21)
 - `eee878a` chore: session routing log (2026-03-21)
 - `744985b` fix(mortar): replace stripped campaign-only router with full parallel orchestrator (2026-03-21)
 - `ccff30e` feat(wave23): Wave 23 complete — DSPy pipeline fully unblocked (2026-03-21)
