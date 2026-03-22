@@ -163,6 +163,12 @@ def extract_agent_metadata(agent_path: Path) -> dict[str, Any]:
     output_schema: str | None = frontmatter.get("output_schema") or None
     tier: str | None = frontmatter.get("tier") or None
 
+    # Routing keywords: frontmatter only, no inference
+    routing_keywords: list[str] = []
+    fm_keywords = frontmatter.get("routing_keywords", [])
+    if isinstance(fm_keywords, list):
+        routing_keywords = [str(k) for k in fm_keywords if k]
+
     # Compute relative file path (best-effort)
     try:
         rel = agent_path.relative_to(Path.cwd())
@@ -179,6 +185,7 @@ def extract_agent_metadata(agent_path: Path) -> dict[str, Any]:
         "input_schema": input_schema,
         "output_schema": output_schema,
         "tier": tier,
+        "routing_keywords": routing_keywords,
         "file": file_str,
     }
 
@@ -216,6 +223,7 @@ def generate_registry_entry(meta: dict[str, Any]) -> AgentRegistryEntry:
 
     kwargs["modes"] = meta.get("modes") or []
     kwargs["capabilities"] = meta.get("capabilities") or []
+    kwargs["routing_keywords"] = meta.get("routing_keywords") or []
 
     return AgentRegistryEntry(**kwargs)
 

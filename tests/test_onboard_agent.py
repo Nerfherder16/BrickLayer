@@ -180,6 +180,56 @@ class TestExtractAgentMetadata:
         meta = extract_agent_metadata(agent_path)
         assert meta.get("model") in ("sonnet", None, "")
 
+    def test_extracts_routing_keywords_from_frontmatter(self, tmp_path):
+        agent_path = tmp_path / "router-agent.md"
+        agent_path.write_text(
+            textwrap.dedent("""\
+                ---
+                name: router-agent
+                model: sonnet
+                description: "Handles deployments"
+                routing_keywords:
+                  - deploy to casaos
+                  - publish to subdomain
+                  - nginx config
+                ---
+
+                Body text.
+            """),
+            encoding="utf-8",
+        )
+        meta = extract_agent_metadata(agent_path)
+        assert meta.get("routing_keywords") == [
+            "deploy to casaos",
+            "publish to subdomain",
+            "nginx config",
+        ]
+
+    def test_routing_keywords_defaults_to_empty_list(self, tmp_path):
+        agent_path = tmp_path / "no-keywords.md"
+        _write_agent(agent_path, "no-keywords")
+        meta = extract_agent_metadata(agent_path)
+        assert meta.get("routing_keywords") == []
+
+    def test_routing_keywords_not_inferred_from_body(self, tmp_path):
+        """Body text containing keyword-like phrases must NOT be extracted."""
+        agent_path = tmp_path / "no-fm-keywords.md"
+        agent_path.write_text(
+            textwrap.dedent("""\
+                ---
+                name: no-fm-keywords
+                model: sonnet
+                description: "test"
+                ---
+
+                This agent can do a security audit, run a benchmark,
+                and refactor code.
+            """),
+            encoding="utf-8",
+        )
+        meta = extract_agent_metadata(agent_path)
+        assert meta.get("routing_keywords") == []
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # generate_registry_entry
@@ -205,6 +255,20 @@ class TestGenerateRegistryEntry:
         meta = {"name": "x", "file": "x.md"}
         entry = generate_registry_entry(meta)
         assert entry.tier == "draft"
+
+    def test_routing_keywords_passed_through(self):
+        meta = {
+            "name": "x",
+            "file": "x.md",
+            "routing_keywords": ["deploy to casaos", "nginx config"],
+        }
+        entry = generate_registry_entry(meta)
+        assert entry.routing_keywords == ["deploy to casaos", "nginx config"]
+
+    def test_routing_keywords_defaults_to_empty_list(self):
+        meta = {"name": "x", "file": "x.md"}
+        entry = generate_registry_entry(meta)
+        assert entry.routing_keywords == []
 
     def test_defaults_input_schema_to_question_payload(self):
         meta = {"name": "x", "file": "x.md"}

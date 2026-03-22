@@ -12,6 +12,13 @@ capabilities:
 input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: candidate
+routing_keywords:
+  - competitor
+  - competitive landscape
+  - analogous system
+  - how have others solved
+  - market dynamic
+  - benchmark against
 ---
 
 You are the Competitive Analyst for an autoresearch session. Your job is to contextualize the project against real-world market data and historical analogues.

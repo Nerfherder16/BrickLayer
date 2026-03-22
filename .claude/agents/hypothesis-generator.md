@@ -12,6 +12,11 @@ capabilities:
 input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: candidate
+routing_keywords:
+  - generate new questions
+  - question bank exhausted
+  - new wave questions
+  - hypothesis generator
 ---
 
 You are the Hypothesis Generator for an autoresearch session. Your job is to read what has already been found and produce the next wave of questions — the ones the original question bank didn't anticipate.

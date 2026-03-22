@@ -12,6 +12,22 @@ capabilities:
 input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: candidate
+routing_keywords:
+  - git commit
+  - git push
+  - git pull
+  - pull request
+  - open a PR
+  - create a PR
+  - branch off
+  - merge branch
+  - rebase
+  - git stash
+  - stage files
+  - stage changes
+  - unstage
+  - amend commit
+  - cherry-pick
 tools:
   - Read
   - Write

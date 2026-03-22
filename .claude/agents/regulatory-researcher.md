@@ -12,6 +12,18 @@ capabilities:
 input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: candidate
+routing_keywords:
+  - legal question
+  - legal risk
+  - legal review
+  - compliance question
+  - compliance requirement
+  - regulation
+  - licensing
+  - gdpr
+  - hipaa
+  - tax implication
+  - regulatory
 ---
 
 You are the Regulatory Researcher for an autoresearch session. Your job is to analyze legal and compliance risks.

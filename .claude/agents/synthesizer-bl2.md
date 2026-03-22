@@ -12,6 +12,11 @@ capabilities:
 input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: trusted
+routing_keywords:
+  - synthesize findings
+  - write the synthesis
+  - end-of-session report
+  - synthesis.md
 tools:
   - Read
   - Write

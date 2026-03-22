@@ -20,6 +20,14 @@ capabilities:
 input_schema: DiagnosePayload
 output_schema: FindingPayload
 tier: trusted
+routing_keywords:
+  - hook error
+  - hook failing
+  - hook broken
+  - script health
+  - hook syntax
+  - audit the hooks
+  - hook not firing
 ---
 
 # Bug Catcher

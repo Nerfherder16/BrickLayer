@@ -12,6 +12,11 @@ capabilities:
 input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: candidate
+routing_keywords:
+  - distill into skills
+  - skill registry
+  - reusable skill
+  - encode as a skill
 tools:
   - Read
   - Write
