@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `b43b725` chore: update masonry routing log (2026-03-21)
 - `8d81c19` feat(masonry): add bug-catcher agent with hook health audit procedures (2026-03-21)
 - `1451ec5` chore: add GITHUB_HANDOFF.md session handoff (2026-03-21)
 - `c09b196` fix(hooks): masonry-statusline — parse BL2 question formats and track q_done (2026-03-21)
