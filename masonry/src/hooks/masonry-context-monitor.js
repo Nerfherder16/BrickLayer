@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * PostToolUse hook (Masonry, async): Estimate context window usage.
- * Warns when approaching limits. Non-blocking.
+ * Stop hook (Masonry): Estimate context window usage.
+ * Blocks stop with a visible warning when context exceeds 150K tokens.
+ * stop_hook_active prevents infinite loops — fires once, then allows stop.
  */
 
 const { statSync } = require("fs");
@@ -23,6 +24,9 @@ async function main() {
   let parsed;
   try { parsed = JSON.parse(input); } catch { process.exit(0); }
 
+  // Don't block a second time — stop_hook_active is set after first block
+  if (parsed.stop_hook_active) process.exit(0);
+
   const transcriptPath = parsed.transcript_path;
   if (!transcriptPath) process.exit(0);
 
@@ -32,7 +36,8 @@ async function main() {
 
     if (estimatedTokens > 150000) {
       process.stdout.write(JSON.stringify({
-        additionalContext: `WARNING: Context ~${Math.round(estimatedTokens / 1000)}K tokens. Consider committing and starting fresh.`,
+        decision: "block",
+        reason: `Context is ~${Math.round(estimatedTokens / 1000)}K tokens (>150K). Consider committing work and starting a fresh session to avoid context degradation.`,
       }));
     }
   } catch {}
