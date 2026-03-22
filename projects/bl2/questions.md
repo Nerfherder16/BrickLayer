@@ -2367,7 +2367,7 @@ Status is tracked in results.tsv — do not edit manually.
 
 ### F26.1: Apply the D25.1 fix — update has_test and has_hypothesis in check_block() to accept BL 2.0 bold field names "**Method**:" and "**Hypothesis**:"
 
-**Status**: PENDING
+**Status**: FIXED
 **Operational Mode**: fix
 **Priority**: MEDIUM
 **Motivated by**: D25.1 (DIAGNOSIS_COMPLETE) — `check_block()` in `_score_hypothesis_generator` at `bl/crucible.py` lines 194 and 198 use bare BL 1.x strings: `has_test` checks `re.search(r"Test:|pytest|Simulation path", b)` and `has_hypothesis` checks `"Hypothesis:" in b`; all BL 2.0 Wave 2+ questions use `**Method**:` and `**Hypothesis**:` (bold markdown); neither BL 2.0 field name contains the bare substring, so both rates are 0.00 across all 88 scored Wave 2+ question blocks; combined weight is 0.30, suppressing the overall score from its potential ~0.67 to the observed ~0.37
@@ -2379,7 +2379,7 @@ Status is tracked in results.tsv — do not edit manually.
 
 ### V26.1: Verify F26.1 took effect — confirm has_test, has_hypothesis, and overall hypothesis-generator score improved from the D25.1 baseline of ~0.3733
 
-**Status**: PENDING
+**Status**: DIAGNOSIS_COMPLETE
 **Operational Mode**: validate
 **Priority**: MEDIUM
 **Motivated by**: D25.1 (DIAGNOSIS_COMPLETE) — D25.1 established the post-F24.1 benchmark baseline: has_test=0.01, has_hypothesis=0.01, overall hypothesis-generator score=0.3733; F26.1 applies the fix; this question validates the fix had the predicted effect and that no other scorer regressed
@@ -2391,7 +2391,7 @@ Status is tracked in results.tsv — do not edit manually.
 
 ### A26.1: Does _score_question_designer use the same bare "Hypothesis:" check as _score_hypothesis_generator, and does has_thresholds accept only BL 1.x "FAILURE:"/"HEALTHY:" labels — failing BL 2.0 Wave 1 questions that use "**Verdict threshold**:"?
 
-**Status**: PENDING
+**Status**: NON_COMPLIANT
 **Operational Mode**: audit
 **Priority**: LOW
 **Motivated by**: V25.1 (COMPLIANT) — the adjacent gap is _score_question_designer, which scores Wave 1 blocks and contains two checks that mirror the BL 1.x field name mismatch being fixed in F26.1: (1) line 261 `"Hypothesis:" in b` — the identical bare check corrected in _score_hypothesis_generator — and (2) lines 257–259 `"FAILURE:" in b and "HEALTHY:" in b` for has_thresholds, which likely fails all Wave 1 questions using BL 2.0 `**Verdict threshold**:` format (114 occurrences in questions.md) rather than BL 1.x FAILURE:/HEALTHY: labels; combined weight of these two checks is 0.20 + 0.30 = 0.50
@@ -2403,7 +2403,7 @@ Status is tracked in results.tsv — do not edit manually.
 
 ### A26.2: Does has_verdict_threshold in _score_hypothesis_generator need to also accept "**Success criterion**:" and "**Verdict threshold**:" as BL 2.0 structural equivalents — and what score gain would result?
 
-**Status**: PENDING
+**Status**: NON_COMPLIANT
 **Operational Mode**: audit
 **Priority**: LOW
 **Motivated by**: D25.1 (DIAGNOSIS_COMPLETE) — D25.1 notes has_verdict_threshold (weight=0.25, current rate=0.20) as a secondary gap: the check `"FAILURE:" in b and "HEALTHY:" in b` fires on ~20% of BL 2.0 questions that happen to use FAILURE:/HEALTHY: labels, but the remaining ~80% use `**Success criterion**:` (34 occurrences) or `**Verdict threshold**:` (114 occurrences) with narrative thresholds; this is the largest remaining scored weight gap in _score_hypothesis_generator after F26.1 fixes has_test and has_hypothesis; fixing it could raise the score from the expected post-F26.1 ~0.55–0.67 toward ~0.75+
