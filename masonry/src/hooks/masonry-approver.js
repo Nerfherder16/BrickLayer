@@ -273,17 +273,18 @@ async function main() {
     (autopilotMode === "build" || autopilotMode === "fix") ||
     (uiMode === "compose" || uiMode === "fix");
 
-  // Mortar gate: block Write/Edit/Bash when Mortar has NOT been consulted,
-  // unless we are inside an active build/fix/compose workflow (approve=true)
-  // or inside a subagent context (mortarGateApplicable=false).
-  //
-  // exit(2) causes Claude to surface the message to the user as a hard block.
+  // Mortar gate: advisory reminder when Mortar has NOT been consulted.
+  // Bash is always allowed through — git ops and simple commands must never
+  // be blocked in conversation. Write/Edit get a soft warning only (no hard block)
+  // so the gate can't deadlock itself and agent-spawned tools aren't stalled.
   if (mortarGateApplicable && !approve && !isMortarConsulted()) {
-    process.stderr.write(
-      "[Masonry] Route through Mortar first before doing any work. " +
-      "Invoke the mortar agent to get a session token, then retry.\n"
-    );
-    process.exit(2);
+    if (toolName !== "bash") {
+      process.stderr.write(
+        "[Masonry] Heads up: Mortar hasn't been consulted this session. " +
+        "For complex multi-file work, invoke the mortar agent first.\n"
+      );
+    }
+    // Always allow through — gate is advisory only.
   }
 
   // Block auto-approval for Tier 1/2 authority files — must always prompt user.
