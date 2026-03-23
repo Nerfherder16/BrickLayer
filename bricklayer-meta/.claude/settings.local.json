@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "Read(//c/Users/trg16/Dev/Bricklayer2.0/**)",
+      "Bash(python -m pytest masonry/tests/dspy_pipeline/test_run_optimization.py -v)",
+      "mcp__recall__recall_store",
+      "Bash(python -m pytest masonry/tests/dspy_pipeline/ -v)",
+      "Bash(python -m pytest masonry/tests/dspy_pipeline/test_optimizer.py -v)",
+      "Bash(git:*)"
+    ]
+  }
+}
