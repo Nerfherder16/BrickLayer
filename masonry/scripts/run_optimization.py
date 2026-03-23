@@ -60,6 +60,55 @@ def load_training_data_from_scored_all(
     return examples
 
 
+def load_karen_training_data(scored_all_path: Path) -> list[dict]:
+    """Load training examples for the karen agent from scored_all.jsonl.
+
+    Maps ops-domain fields to KarenSig I/O:
+    - input.commit_subject  → commit_subject
+    - input.files_modified  → files_changed (comma-separated string)
+    - score / 100.0         → quality_score
+    """
+    if not scored_all_path.exists():
+        return []
+
+    examples = []
+    for line in scored_all_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if rec.get("agent") != "karen":
+            continue
+
+        inp = rec.get("input", {})
+        out = rec.get("output", {})
+        commit_subject = inp.get("commit_subject", "")
+        if not commit_subject:
+            continue  # skip records without a commit subject
+
+        files_modified = inp.get("files_modified", [])
+        files_changed = ", ".join(files_modified) if files_modified else ""
+        reverted = bool(out.get("reverted", False))
+        doc_files_written = int(out.get("doc_files_written", 0))
+        quality_score = str(rec.get("score", 100) / 100.0)
+        action = "reverted" if reverted else ("updated" if doc_files_written > 0 else "skipped")
+
+        examples.append({
+            "commit_subject": commit_subject,
+            "files_changed": files_changed,
+            "doc_context": "",
+            "action": action,
+            "doc_updates": files_changed,
+            "changelog_entry": commit_subject,
+            "quality_score": quality_score,
+        })
+
+    return examples
+
+
 def update_registry_dspy_status(
     registry_path: Path,
     agent_name: str,
@@ -101,6 +150,7 @@ def run(
     backend: str = "anthropic",
     num_trials: int = 10,
     valset_size: int = 100,
+    signature: str = "research",
 ) -> int:
     """Run optimization for agent_name. Returns exit code (0=success, 1=failure).
 
@@ -110,6 +160,7 @@ def run(
         backend: LM backend — ``"anthropic"`` or ``"ollama"``.
         num_trials: Number of Bayesian optimization trials (default: 10).
         valset_size: Validation set size for trials (default: 100).
+        signature: DSPy signature to use — ``"research"`` (default) or ``"karen"``.
     """
 
     print(f"[init] Starting optimization for: {agent_name}")
@@ -117,6 +168,7 @@ def run(
     print(f"[init] Backend: {backend}")
     print(f"[init] Num trials: {num_trials}")
     print(f"[init] Valset size: {valset_size}")
+    print(f"[init] Signature: {signature}")
 
     # ── Load training data ───────────────────────────────────────────────────
     # Self-research mode: CWD is masonry/ dir
@@ -126,7 +178,10 @@ def run(
     scored_all_path = _td_dir / "scored_all.jsonl"
     print(f"[data] Loading training data from scored_all.jsonl ...")
 
-    examples = load_training_data_from_scored_all(scored_all_path, agent_name)
+    if signature == "karen":
+        examples = load_karen_training_data(scored_all_path)
+    else:
+        examples = load_training_data_from_scored_all(scored_all_path, agent_name)
 
     # Fallback: try the old build_dataset() approach if scored_all is empty
     if not examples:
