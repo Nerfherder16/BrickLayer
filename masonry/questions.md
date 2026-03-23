@@ -1871,7 +1871,8 @@
 
 ### F26.1: Enrich question_text in training_extractor.py to capture the full hypothesis body from questions.md
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: [F26.1](findings/F26.1.md) — FIX_APPLIED
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: R25.1 WARNING -- D24.1 restored agent attribution but question_text is still captured only from the ### QID: <title> header line (_build_qid_to_agent_map line 47). The full Hypothesis paragraph (50-150 words) in each question block is not captured, so training records carry a 5-15 word title where a rich research context should appear. MIPROv2 demo bootstrapping relies on question_text to select contextually similar examples -- sparse titles degrade retrieval quality.
@@ -1883,7 +1884,8 @@
 
 ### D26.1: How can target_agent labels be automatically generated from request_text in routing_log.jsonl for retrospective labelling?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: [D26.1](findings/D26.1.md) — WARNING
 **Operational Mode**: diagnose
 **Priority**: MEDIUM
 **Motivated by**: F25.1 follow-up -- request_text is now captured in routing log start events (up to 500 chars), but all 5 records in scored_routing.jsonl have target_agent = "" (no ground-truth labels). Without target_agent, score_routing.py can only award 35 partial points. To reach full 70-point routing training quality, historical routing log entries need retrospective target_agent labels derived from their request_text content.
@@ -1895,7 +1897,8 @@
 
 ### R26.1: Does running build_metric() on research-analyst records produce a higher baseline score than the quantitative-analyst baseline of ~68.3%?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: [R26.1](findings/R26.1.md) — HEALTHY
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Motivated by**: R25.2 HEALTHY -- research-analyst was identified as the next optimization candidate with 29 strictly viable records (verdict + evidence > 300 chars + confidence != None). quantitative-analyst achieved 68.3% in Wave 23. research-analyst has a better-balanced verdict distribution and longer evidence strings, which may produce a higher baseline metric score.
@@ -1907,7 +1910,8 @@
 
 ### R26.2: Are the 191 karen training records genuinely all quality_score=1.0, and are there recoverable negative examples from git history?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: [R26.2](findings/R26.2.md) — WARNING
 **Operational Mode**: research
 **Priority**: LOW
 **Motivated by**: F25.3 finding note -- all 191 karen records have score=100 and reverted=False, producing quality_score="1.0" for every example. This means build_karen_metric()'s quality_score_proximity component (0.5 weight) is trivially maximized for every record, providing no gradient on the most important metric component.
@@ -1919,7 +1923,8 @@
 
 ### V26.1: Does metric_fn=build_karen_metric() in optimize_agent() correctly score KarenSig predictions across edge cases without exception?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: [V26.1](findings/V26.1.md) — HEALTHY
 **Operational Mode**: validate
 **Priority**: MEDIUM
 **Motivated by**: F25.3 FIX_APPLIED -- metric_fn parameter was added to optimize_agent() and build_karen_metric() wired in for the karen signature. However, the integration was not tested against actual KarenSig predictions. build_karen_metric() parses quality_score using regex -- if the prediction returns a non-numeric string (e.g. "N/A" or empty), the fallback fires. This validation checks that all three metric components handle edge cases without exception.
