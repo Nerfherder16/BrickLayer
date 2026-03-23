@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `a506a9c` feat: add vitest hook test infra + session_id to build skill schemas (tasks 1-2/5) (2026-03-23)
 - `fd9c032` chore: session files from task 1 implementation (2026-03-23)
 - `9b641a0` feat: eval_agent.py — held-out eval engine (task 1/4) (2026-03-23)
 - `ba58a4c` chore: mark completed roadmap items as done after codebase verification (2026-03-23)
