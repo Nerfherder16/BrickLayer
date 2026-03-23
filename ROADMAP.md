@@ -211,7 +211,7 @@ Replace binary verdicts with a confidence-weighted tier system.
 
 | # | Item | Status |
 |---|------|--------|
-| 6.01a | Add `confidence: 0.0–1.0` field to finding frontmatter | 📋 |
+| 6.01a | Add `confidence: 0.0–1.0` field to finding frontmatter | ✅ |
 | 6.01b | Add `needs_human: bool` flag — auto-set when confidence < 0.35 | 📋 |
 | 6.01c | Kiln: render confidence as fill bar on finding cards | 📋 |
 | 6.01d | Dashboard: filter INCONCLUSIVE by confidence band | 📋 |
@@ -234,7 +234,7 @@ retroactively narrow *remaining PENDING questions* in the same domain.
 
 | # | Item | Status |
 |---|------|--------|
-| 6.03a | `bl/question_sharpener.py` — reads PENDING questions + recent INCONCLUSIVE findings, rewrites scope | 📋 |
+| 6.03a | `bl/question_sharpener.py` — reads PENDING questions + recent INCONCLUSIVE findings, rewrites scope | ✅ |
 | 6.03b | Wave synthesizer calls sharpener before writing synthesis.md | 📋 |
 | 6.03c | Dashboard: show "sharpened" badge on questions that were narrowed | 📋 |
 
@@ -267,7 +267,7 @@ to MCP aren't surfaced to existing agents.
 
 | # | Item | Status |
 |---|------|--------|
-| 6.06a | `template/.claude/agents/tools-manifest.md` — canonical tool list with descriptions | 📋 |
+| 6.06a | `template/.claude/agents/tools-manifest.md` — canonical tool list with descriptions | ✅ |
 | 6.06b | Agent frontmatter: `tools: [recall, simulate, filesystem]` declaration | 📋 |
 | 6.06c | `forge-check` validates agents aren't missing tool declarations | 📋 |
 
@@ -389,12 +389,12 @@ in `~/.claude.json`. Does NOT replace masonry-mcp.js — both run in parallel.
 
 | ID | Task | Status |
 |----|------|--------|
-| 14.01 | `scratch.md` — typed signal board at project root; 4 signal types (WATCH, BLOCK, DATA, RESOLVED); rolling 15-entry cap; Trowel trims RESOLVED rows after each question completes | 📋 |
-| 14.02 | `pointer` agent (~80 lines) — mid-wave summarizer; reads findings since last checkpoint; produces `findings/checkpoints/wave{N}-q{K}.md` with verdicts table, failure boundaries, cross-domain conflicts, and priorities for remaining questions | 📋 |
+| 14.01 | `scratch.md` — typed signal board at project root; 4 signal types (WATCH, BLOCK, DATA, RESOLVED); rolling 15-entry cap; Trowel trims RESOLVED rows after each question completes | ✅ |
+| 14.02 | `pointer` agent (~80 lines) — mid-wave summarizer; reads findings since last checkpoint; produces `findings/checkpoints/wave{N}-q{K}.md` with verdicts table, failure boundaries, cross-domain conflicts, and priorities for remaining questions | ✅ |
 | 14.03 | Trowel sentinel: fire Pointer every 8 questions; subsequent agents receive latest checkpoint + last 3 full findings + domain findings — not the full corpus | 📋 |
-| 14.04 | File structure reorganization — wave-partitioned findings (`findings/wave{N}/`), `findings/checkpoints/`, `findings/synthesis/`; `brief/`, `sim/`, `campaign/` subdirs; enforced agent read order in Trowel spawn prompts | 📋 |
-| 14.05 | Recall as orchestrator hook — move `recall_store` out of agent prompts into Trowel post-finding sequence; store executes from parsed JSON block regardless of agent behavior | 📋 |
-| 14.06 | JSON output validation — Trowel parses JSON block before marking DONE; malformed → `INCONCLUSIVE-FORMAT-ERROR` + single re-invoke; prevents silent findings corpus corruption | 📋 |
+| 14.04 | File structure reorganization — wave-partitioned findings (`findings/wave{N}/`), `findings/checkpoints/`, `findings/synthesis/`; `brief/`, `sim/`, `campaign/` subdirs; enforced agent read order in Trowel spawn prompts | ✅ |
+| 14.05 | Recall as orchestrator hook — move `recall_store` out of agent prompts into Trowel post-finding sequence; store executes from parsed JSON block regardless of agent behavior | ✅ |
+| 14.06 | JSON output validation — Trowel parses JSON block before marking DONE; malformed → `INCONCLUSIVE-FORMAT-ERROR` + single re-invoke; prevents silent findings corpus corruption | ✅ |
 
 ---
 
