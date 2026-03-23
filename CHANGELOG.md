@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `8b2c53a` chore(masonry): Wave 31 synthesis + Wave 32 question bank (2026-03-23)
 - `1599acb` research(masonry): Wave 31 -- injection path built, slot-miss 0%, auth gap mapped (2026-03-23)
 - `c401113` fix(masonry): apply peer review override — V30.5 FAILURE → WARNING (2026-03-23)
 - `1d7edbb` chore(masonry): Wave 30 — quantitative-analyst DSPy optimization + .mas/ test stubs (2026-03-23)
