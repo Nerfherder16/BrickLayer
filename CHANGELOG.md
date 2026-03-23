@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `77c1a2c` chore: update GITHUB_HANDOFF.md after PR #4 creation (2026-03-23)
 - `bfb463b` chore(dspy): writeback optimized instructions to research-analyst agent files (2026-03-23)
 - `efc35d9` fix(dspy): move minibatch_size from constructor to compile() call (2026-03-23)
 - `31032d1` fix(dspy): cap minibatch_size to valset size to prevent MIPROv2 crash (2026-03-23)
