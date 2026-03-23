@@ -47,11 +47,23 @@ Claude Code renders a live progress tree when you spawn agents in parallel:
 
 When tasks are independent (no shared files), always batch them. Dependent tasks run sequentially.
 
+### Initialization — Register Tasks in Task Manager
+
+After writing `progress.json`, **immediately call `TaskCreate` for every task** (all at once, single message). This makes the built-in task panel visible throughout the build:
+
+```
+TaskCreate: { title: "Task 1: {description}", status: "pending" }
+TaskCreate: { title: "Task 2: {description}", status: "pending" }
+... (one call per task)
+```
+
+Store the returned task IDs mapped to task numbers so you can call `TaskUpdate` later.
+
 ### Build Loop
 
 For each batch of independent PENDING tasks:
 
-**1. Mark tasks IN_PROGRESS** in progress.json
+**1. Mark tasks IN_PROGRESS** in progress.json and call `TaskUpdate` with `status: "in_progress"` for this task's ID.
 
 **2. Spawn worker agents in parallel** (single message, multiple Agent calls):
 
@@ -78,7 +90,7 @@ git add {changed files}
 git commit -m "feat: {task description} [masonry-build #{id}]"
 ```
 
-**5. Update progress.json** with DONE status
+**5. Update progress.json** with DONE status and call `TaskUpdate` with `status: "completed"` for this task's ID.
 
 ### progress.json Schema
 
