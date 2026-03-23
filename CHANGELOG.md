@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `b7e0551` fix(dspy): pass num_candidates to MIPROv2 constructor when auto=None (2026-03-23)
 - `1c4cab3` fix(dspy): set auto=None in MIPROv2 constructor to allow num_trials override (2026-03-23)
 - `fac4b9d` chore: update research-analyst.md across all project templates (2026-03-23)
 - `2b04697` fix(dspy): replace valset_size with explicit valset list for DSPy 3.x (2026-03-23)
