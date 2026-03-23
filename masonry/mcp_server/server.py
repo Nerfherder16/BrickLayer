@@ -81,6 +81,57 @@ def _tool_masonry_status(args: dict) -> dict:
             "done": done,
         }
 
+    # .mas/ telemetry
+    mas_dir = project_dir / ".mas"
+    if mas_dir.is_dir():
+        mas_data: dict[str, Any] = {}
+
+        # Current session
+        session_file = mas_dir / "session.json"
+        if session_file.exists():
+            try:
+                mas_data["session"] = json.loads(session_file.read_text())
+            except Exception:
+                pass
+
+        # Last pulse (read only the last line)
+        pulse_file = mas_dir / "pulse.jsonl"
+        if pulse_file.exists():
+            try:
+                lines_raw = pulse_file.read_text().strip().splitlines()
+                if lines_raw:
+                    mas_data["last_pulse"] = json.loads(lines_raw[-1])
+            except Exception:
+                pass
+
+        # Open issues
+        issues_file = mas_dir / "open_issues.json"
+        if issues_file.exists():
+            try:
+                mas_data["open_issues"] = json.loads(issues_file.read_text())
+            except Exception:
+                pass
+
+        # Agent scores
+        scores_file = mas_dir / "agent_scores.json"
+        if scores_file.exists():
+            try:
+                mas_data["agent_scores"] = json.loads(scores_file.read_text())
+            except Exception:
+                pass
+
+        # Error count (line count only, not full content)
+        errors_file = mas_dir / "errors.jsonl"
+        if errors_file.exists():
+            try:
+                error_lines = errors_file.read_text().strip().splitlines()
+                mas_data["error_count"] = len([ln for ln in error_lines if ln.strip()])
+            except Exception:
+                pass
+
+        if mas_data:
+            result["mas"] = mas_data
+
     return result
 
 
