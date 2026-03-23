@@ -157,12 +157,13 @@ def configure_dspy(
     Args:
         model: Model name to use. Defaults to ``qwen3:14b`` for Ollama and
             ``claude-sonnet-4-6`` for Anthropic when not specified.
-        backend: Either ``"anthropic"`` (requires ANTHROPIC_API_KEY) or
-            ``"ollama"`` (uses local Ollama at http://192.168.50.62:11434).
+        backend: Either ``"anthropic"`` (uses ANTHROPIC_API_KEY or Claude Max
+            session credentials) or ``"ollama"`` (uses local Ollama at
+            http://192.168.50.62:11434).
         api_key: Optional API key passed directly to ``dspy.LM`` (via LiteLLM).
-            When ``None`` (default), falls back to the ``ANTHROPIC_API_KEY``
-            environment variable as before.  Useful for triggering one-off
-            MIPROv2 runs without permanently exporting the key.
+            When ``None`` and ``ANTHROPIC_API_KEY`` is not set, falls back to
+            litellm's ``claude/`` provider which uses Claude Code session
+            credentials (Claude Max subscriptions).
     """
     if backend == "ollama":
         effective_model = model or "qwen3:14b"
@@ -175,10 +176,14 @@ def configure_dspy(
         lm = dspy.LM(f"ollama_chat/{effective_model}", **ollama_kwargs)
     else:
         effective_model = model or "claude-sonnet-4-6"
-        lm_kwargs: dict[str, Any] = {}
-        if api_key is not None:
-            lm_kwargs["api_key"] = api_key
-        lm = dspy.LM(f"anthropic/{effective_model}", **lm_kwargs)
+        # Prefer explicit api_key, then env var, then Claude Max session (claude/ provider).
+        resolved_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if resolved_key:
+            lm = dspy.LM(f"anthropic/{effective_model}", api_key=resolved_key)
+        else:
+            # No API key — use litellm's claude/ provider which routes through
+            # the active Claude Code session (Claude Max subscriptions).
+            lm = dspy.LM(f"claude/{effective_model}")
     dspy.configure(lm=lm)
 
 
@@ -194,8 +199,9 @@ def optimize_agent(
     num_trials: int = 10,
     valset_size: int = 100,
     metric_fn: Any = None,
+    optimizer_mode: str = "bootstrap",
 ) -> dict[str, Any]:
-    """Optimize a single agent's prompt using MIPROv2.
+    """Optimize a single agent's prompt using BootstrapFewShot or MIPROv2.
 
     Args:
         agent_name: Name of the agent to optimize.
@@ -204,12 +210,15 @@ def optimize_agent(
         output_dir: Directory to save the optimized module JSON.
         backend: LM backend to use — ``"anthropic"`` or ``"ollama"``.
             Passed through to :func:`configure_dspy` when called by the caller.
-        num_trials: Number of Bayesian optimization trials (default: 10).
+        num_trials: Number of Bayesian optimization trials (MIPROv2 only, default: 10).
         valset_size: Number of examples to use as the validation set (default: 100).
             The last ``valset_size`` examples are held out; the rest become trainset.
         metric_fn: Optional custom metric callable. When ``None``, defaults to
             :func:`build_metric` for the given signature. Pass
             :func:`build_karen_metric` when optimizing the karen agent.
+        optimizer_mode: ``"bootstrap"`` (default) uses BootstrapFewShot — fast,
+            no LLM instruction generation, selects best few-shot examples.
+            ``"mipro"`` uses MIPROv2 — full Bayesian instruction search, slower.
 
     Returns:
         Dict with agent, score, and optimized_at fields.
@@ -230,36 +239,49 @@ def optimize_agent(
     trainset = all_examples[:-actual_valset_size] if actual_valset_size < len(all_examples) else all_examples
     valset = all_examples[-actual_valset_size:]
 
-    # Configure optimizer.
-    # DSPy 3.x: auto=None requires num_candidates in the constructor.
-    optimizer = dspy.MIPROv2(
-        metric=metric,
-        num_threads=1,
-        auto=None,
-        num_candidates=num_trials,
-    )
-
-    # minibatch_size goes to compile(), not the constructor.
-    # Cap it to len(valset) — MIPROv2 raises if it exceeds valset size.
-    _minibatch_size = min(35, len(valset))
-
     # Run optimization
-    try:
-        optimized = optimizer.compile(
-            module,
-            trainset=trainset,
-            valset=valset,
-            max_bootstrapped_demos=3,
-            max_labeled_demos=3,
-            num_trials=num_trials,
-            minibatch_size=_minibatch_size,
-            # data_aware_proposer does re.search on bootstrap predictions which
-            # can be None when Ollama omits a field — disable to avoid TypeError.
-            data_aware_proposer=False,
+    if optimizer_mode == "mipro":
+        # MIPROv2: full Bayesian instruction + few-shot search.
+        # DSPy 3.x: auto=None requires num_candidates in the constructor.
+        optimizer = dspy.MIPROv2(
+            metric=metric,
+            num_threads=1,
+            auto=None,
+            num_candidates=num_trials,
         )
-    except Exception as exc:
-        print(f"[optimizer] MIPROv2 failed for {agent_name}: {exc}", file=sys.stderr)
-        optimized = module  # fall back to unoptimized
+
+        # minibatch_size goes to compile(), not the constructor.
+        # Cap it to len(valset) — MIPROv2 raises if it exceeds valset size.
+        _minibatch_size = min(35, len(valset))
+
+        try:
+            optimized = optimizer.compile(
+                module,
+                trainset=trainset,
+                valset=valset,
+                max_bootstrapped_demos=3,
+                max_labeled_demos=3,
+                num_trials=num_trials,
+                minibatch_size=_minibatch_size,
+                # data_aware_proposer does re.search on bootstrap predictions which
+                # can be None when Ollama omits a field — disable to avoid TypeError.
+                data_aware_proposer=False,
+            )
+        except Exception as exc:
+            print(f"[optimizer] MIPROv2 failed for {agent_name}: {exc}", file=sys.stderr)
+            optimized = module  # fall back to unoptimized
+    else:
+        # BootstrapFewShot: fast few-shot selection, no LLM instruction generation.
+        optimizer = dspy.BootstrapFewShot(
+            metric=metric,
+            max_bootstrapped_demos=4,
+            max_labeled_demos=4,
+        )
+        try:
+            optimized = optimizer.compile(module, trainset=trainset)
+        except Exception as exc:
+            print(f"[optimizer] BootstrapFewShot failed for {agent_name}: {exc}", file=sys.stderr)
+            optimized = module  # fall back to unoptimized
 
     # Save the optimized module
     output_file = output_dir / f"{agent_name}.json"
@@ -310,6 +332,7 @@ def optimize_all(
     datasets: dict[str, list[dict]],
     output_dir: Path,
     backend: str = "anthropic",
+    optimizer_mode: str = "bootstrap",
 ) -> list[dict[str, Any]]:
     """Optimize all agents that have sufficient training data.
 
@@ -320,6 +343,8 @@ def optimize_all(
         datasets: Mapping of agent name to list of training example dicts.
         output_dir: Directory to save optimized module JSON files.
         backend: LM backend to use — ``"anthropic"`` or ``"ollama"``.
+            Passed through to :func:`optimize_agent`.
+        optimizer_mode: ``"bootstrap"`` (default) or ``"mipro"``.
             Passed through to :func:`optimize_agent`.
     """
     results: list[dict[str, Any]] = []
@@ -351,7 +376,7 @@ def optimize_all(
         sig = sig_class
         metric = metric_fn(sig_class) if metric_fn is build_metric else metric_fn()
 
-        result = optimize_agent(agent.name, sig, agent_dataset, output_dir, backend=backend, metric_fn=metric)
+        result = optimize_agent(agent.name, sig, agent_dataset, output_dir, backend=backend, metric_fn=metric, optimizer_mode=optimizer_mode)
         results.append(result)
 
     return results

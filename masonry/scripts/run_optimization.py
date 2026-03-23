@@ -263,6 +263,7 @@ def run(
     valset_size: int = 100,
     signature: str = "research",
     api_key: str | None = None,
+    optimizer_mode: str = "bootstrap",
 ) -> int:
     """Run optimization for agent_name. Returns exit code (0=success, 1=failure).
 
@@ -270,17 +271,20 @@ def run(
         agent_name: Name of the agent to optimize.
         base_dir: BrickLayer root directory.
         backend: LM backend — ``"anthropic"`` or ``"ollama"``.
-        num_trials: Number of Bayesian optimization trials (default: 10).
+        num_trials: Number of Bayesian optimization trials (MIPROv2 only, default: 10).
         valset_size: Validation set size for trials (default: 100).
         signature: DSPy signature to use — ``"research"`` (default) or ``"karen"``.
         api_key: Optional API key passed to ``configure_dspy``. When ``None``
-            (default), falls back to the ``ANTHROPIC_API_KEY`` environment variable.
+            and ANTHROPIC_API_KEY is not set, uses Claude Max session credentials.
+        optimizer_mode: ``"bootstrap"`` (default, fast few-shot selection) or
+            ``"mipro"`` (full MIPROv2 Bayesian instruction search).
     """
 
     print(f"[init] Starting optimization for: {agent_name}")
     print(f"[init] Base directory: {base_dir}")
     print(f"[init] Backend: {backend}")
-    print(f"[init] Num trials: {num_trials}")
+    print(f"[init] Optimizer: {optimizer_mode}")
+    print(f"[init] Num trials: {num_trials}" + (" (mipro only)" if optimizer_mode != "mipro" else ""))
     print(f"[init] Valset size: {valset_size}")
     print(f"[init] Signature: {signature}")
 
@@ -349,8 +353,9 @@ def run(
 
     # ── Run optimization ─────────────────────────────────────────────────────
     output_dir = base_dir / "masonry" / "optimized_prompts"
-    print(f"[optimize] Running MIPROv2 for {agent_name} ...")
-    print(f"[optimize] This may take several minutes ...")
+    _optimizer_label = "MIPROv2" if optimizer_mode == "mipro" else "BootstrapFewShot"
+    print(f"[optimize] Running {_optimizer_label} for {agent_name} ...")
+    print(f"[optimize] This may take several minutes ..." if optimizer_mode == "mipro" else f"[optimize] Selecting best few-shot examples from training data ...")
 
     signature_cls = KarenSig if signature == "karen" else ResearchAgentSig
     metric_fn = build_karen_metric() if signature == "karen" else None
@@ -364,6 +369,7 @@ def run(
             num_trials=num_trials,
             valset_size=valset_size,
             metric_fn=metric_fn,
+            optimizer_mode=optimizer_mode,
         )
     except Exception as exc:
         print(f"[error] Optimization failed: {exc}")
@@ -386,18 +392,22 @@ def run(
             print(f"[warn] Could not update registry: {exc}")
 
     # ── Write-back optimized instructions to agent .md files ─────────────────
-    # Extract instructions from the saved JSON so agent behavior is affected
-    # at spawn time (Claude Code reads the .md system prompt directly).
+    # MIPROv2 generates new signature instructions — write those back to .md files
+    # so agent behavior is affected at spawn time.
+    # BootstrapFewShot only selects demos, not new instructions — skip writeback.
     instructions_text: str | None = None
-    try:
-        saved_json = json.loads(output_file.read_text(encoding="utf-8"))
-        instructions_text = (
-            saved_json.get("predict", {})
-            .get("signature", {})
-            .get("instructions")
-        )
-    except Exception as exc:
-        print(f"[warn] Could not read optimized instructions from JSON: {exc}")
+    if optimizer_mode != "mipro":
+        print(f"[writeback] Skipping instruction writeback (bootstrap mode — no new instructions generated).")
+    else:
+        try:
+            saved_json = json.loads(output_file.read_text(encoding="utf-8"))
+            instructions_text = (
+                saved_json.get("predict", {})
+                .get("signature", {})
+                .get("instructions")
+            )
+        except Exception as exc:
+            print(f"[warn] Could not read optimized instructions from JSON: {exc}")
 
     if instructions_text:
         try:
@@ -423,7 +433,7 @@ def run(
 
 def _main() -> None:
     parser = argparse.ArgumentParser(
-        description="Optimize a Masonry agent prompt via DSPy MIPROv2."
+        description="Optimize a Masonry agent prompt via DSPy (BootstrapFewShot or MIPROv2)."
     )
     parser.add_argument("agent_name", help="Name of the agent to optimize")
     parser.add_argument(
@@ -436,13 +446,23 @@ def _main() -> None:
         "--backend",
         default="anthropic",
         choices=["anthropic", "ollama"],
-        help='LM backend: "anthropic" (default) or "ollama" (uses http://100.70.195.84:11434)',
+        help='LM backend: "anthropic" (default, uses API key or Claude Max session) or "ollama"',
+    )
+    parser.add_argument(
+        "--optimizer",
+        default="bootstrap",
+        choices=["bootstrap", "mipro"],
+        dest="optimizer_mode",
+        help=(
+            '"bootstrap" (default) — fast BootstrapFewShot, selects best few-shot examples; '
+            '"mipro" — full MIPROv2 Bayesian instruction search, slower'
+        ),
     )
     parser.add_argument(
         "--num-trials",
         type=int,
         default=10,
-        help="Number of Bayesian optimization trials (default: 10)",
+        help="Number of Bayesian optimization trials, MIPROv2 only (default: 10)",
     )
     parser.add_argument(
         "--valset-size",
@@ -459,7 +479,7 @@ def _main() -> None:
     parser.add_argument(
         "--api-key",
         default=os.environ.get("ANTHROPIC_API_KEY"),
-        help="Anthropic API key (overrides ANTHROPIC_API_KEY env var)",
+        help="Anthropic API key (overrides ANTHROPIC_API_KEY env var; omit to use Claude Max session)",
     )
     args = parser.parse_args()
 
@@ -471,6 +491,7 @@ def _main() -> None:
         valset_size=args.valset_size,
         signature=args.signature,
         api_key=args.api_key,
+        optimizer_mode=args.optimizer_mode,
     ))
 
 
