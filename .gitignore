@@ -16,6 +16,9 @@ adbp/
 masonry-state.json
 .retro-pending
 
+# Per-project Masonry telemetry
+**/.mas/
+
 # OMC / Claude internal state (legacy)
 **/.omc/
 **/.claude/audit.log
