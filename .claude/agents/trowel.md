@@ -374,6 +374,23 @@ If confidence < 0.35:
 - Patch `needs_human: true` into the finding's YAML frontmatter block (insert after the `confidence:` line, or after `verdict:` if confidence is absent).
 - Log: `[TROWEL] needs_human flagged on {id} (confidence={value})`
 
+**Requeue check (INCONCLUSIVE + low quality):**
+After peer-reviewer completes for a finding:
+1. Read the finding's `quality_score:` from frontmatter. Skip if absent.
+2. If verdict == INCONCLUSIVE AND quality_score < 0.4:
+   - Find the original question in questions.md.
+   - Append a new question immediately after it:
+     ```
+     **ID**: {original_id}-RQ1
+     **Question**: {original question text} — REQUEUE: prior finding had low quality (score={quality_score}). Narrow scope: focus only on {top keyword from finding ## Summary section}.
+     **Status**: PENDING
+     **Mode**: {same mode as original}
+     **Wave**: {current_wave}
+     **Priority**: high
+     ```
+   - Log: `[TROWEL] Requeued {id} as {id}-RQ1 (quality_score={value})`
+   - Call `record_result` in bl.question_weights for the original question with the INCONCLUSIVE verdict and quality_score.
+
 ## Self-Nomination — RECOMMEND Signals
 
 After receiving a finding from any specialist, scan for a `[RECOMMEND: {agent}]` line:
@@ -538,6 +555,26 @@ When 0 PENDING questions remain after hypothesis-generator-bl2 has run:
    Wait for git-nerd to complete (ensures findings are committed before loop exits).
 
 8. Output campaign completion summary. Stop.
+
+## Requeue Example
+
+Original question in questions.md:
+```
+**ID**: Q3.2
+**Question**: Does the auth module handle token expiry correctly?
+**Status**: INCONCLUSIVE
+**Mode**: research
+```
+
+After requeue (appended immediately below):
+```
+**ID**: Q3.2-RQ1
+**Question**: Does the auth module handle token expiry correctly? — REQUEUE: prior finding had low quality (score=0.32). Narrow scope: focus only on token-expiry.
+**Status**: PENDING
+**Mode**: research
+**Wave**: 2
+**Priority**: high
+```
 
 ## Recall — inter-agent memory
 
