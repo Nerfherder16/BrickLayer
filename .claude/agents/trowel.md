@@ -368,6 +368,12 @@ Where:
 
 **Non-blocking**: If the Python call fails, the `|| echo` fallback logs and the loop continues.
 
+**needs_human auto-flag:**
+After each finding is written, read its `**Confidence**:` field from frontmatter (default 1.0 if absent).
+If confidence < 0.35:
+- Patch `needs_human: true` into the finding's YAML frontmatter block (insert after the `confidence:` line, or after `verdict:` if confidence is absent).
+- Log: `[TROWEL] needs_human flagged on {id} (confidence={value})`
+
 ## Self-Nomination — RECOMMEND Signals
 
 After receiving a finding from any specialist, scan for a `[RECOMMEND: {agent}]` line:
