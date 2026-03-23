@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `418fa10` feat(trowel): refresh campaign-context.md every 10 questions (2026-03-23)
 - `97910db` feat(trowel): add requeue logic for INCONCLUSIVE + low-quality findings (2026-03-23)
 - `6835b93` feat(peer-reviewer): add quality_score rubric and YAML frontmatter patch (2026-03-23)
 - `4b394dc` feat(trowel): auto-flag low-confidence findings with needs_human (2026-03-23)
