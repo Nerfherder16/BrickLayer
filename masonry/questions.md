@@ -2003,3 +2003,72 @@
 **Hypothesis**: The SubagentStart hook input object may have additional fields (task, description, or the raw tool input) that could be read. Alternatively, if Agent tool calls pass input.description for some spawn patterns, a simple hook extension could capture it. A 1-3 line change to masonry-subagent-tracker.js could populate request_text for >= 50% of future spawns.
 **Method**: research-analyst
 **Success criterion**: (1) Read masonry/src/hooks/masonry-subagent-tracker.js lines 185-215 -- identify all input fields currently read. (2) Check what fields are available in SubagentStart hook input for Agent tool calls (docs or existing log inspection). (3) If input.task or additional fields are available, assess whether adding them to the hook read captures request context. (4) Estimate: if modified, what % of future routing_log entries would have non-empty request_text? (5) Assess complexity (1-line vs larger refactor). Verdict: HEALTHY if a simple (1-3 line) change could populate request_text for >= 50% of future spawns; WARNING if fix requires structural changes; INCONCLUSIVE if SubagentStart input does not expose enough context.
+
+---
+
+## Wave 28
+
+**Generated from findings**: F27.1, F27.2, R27.1, V27.1, R27.2
+**Mode transitions applied**: R27.1 HEALTHY (regen scored_all.jsonl before MIPROv2) -> F28.1 Fix; V27.1 HEALTHY (pipeline validated, run is ready) -> F28.2 Fix; F27.1+F27.2 FIX_APPLIED (karen corpus now calibrated) -> V28.1 Validate; R27.2 WARNING (PreToolUse:Agent hook not a 1-3 line change) -> F28.3 Fix; F27.1 FIX_APPLIED (metric changed) -> D28.1 Diagnose drift check.
+
+---
+
+### F28.1: Regenerate scored_all.jsonl by running score_all.py so research-analyst MIPROv2 uses enriched question_text from F26.1
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: R27.1 HEALTHY -- F26.1 enrichment adds median +408 chars to research-analyst question_text, but existing scored_all.jsonl still has short pre-enrichment values. R27.1 recommends re-running score_all.py before the MIPROv2 run. Without this, 81% of research-analyst records will have truncated question_text and MIPROv2 demo selection will be degraded.
+**Hypothesis**: masonry/scripts/score_all.py (or equivalent) re-extracts all records from questions.md + findings/ and writes a fresh scored_all.jsonl. Running it now will incorporate the F26.1 _build_qid_to_agent_map() enrichment, raising median research-analyst question_text from ~87 chars to ~500 chars across the 30 mappable records.
+**Method**: fix-implementer
+**Success criterion**: (1) Locate score_all.py -- confirm it exists at masonry/scripts/score_all.py or equivalent path. (2) If it exists, run it and confirm no errors. (3) After run, sample 5 research-analyst records from the new scored_all.jsonl -- confirm question_text length >= 200 chars for mappable QIDs. (4) Confirm total record count is still >= 196 (karen synthetic negatives not lost). (5) Confirm karen records still include quality_score values of 0.0 (F27.2 negatives preserved). Verdict: FIX_APPLIED if score_all.py exists and produces enriched output with all negatives intact; FAILURE if score_all.py does not exist or erases F27.2 synthetic records; PARTIAL if script runs but enrichment not reflected in output.
+
+---
+
+### F28.2: Execute the research-analyst MIPROv2 optimization run and record the resulting score
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: V27.1 HEALTHY -- all pipeline components validated (37 records, PERFECT field alignment, metric_fn=None confirmed, CLI routing correct). The run has been deferred pending F28.1 scored_all.jsonl regeneration. This fix executes the actual optimization and stores the resulting prompt JSON.
+**Hypothesis**: Running run_optimization.py with --signature research will complete in 30-60 minutes and produce an optimized prompt stored in masonry/optimized_prompts/research-analyst.json. The expected MIPROv2 self-consistency score is 0.73-0.87 based on R26.1 projection. The run should complete without error given V27.1 validation.
+**Method**: fix-implementer
+**Success criterion**: (1) Confirm F28.1 is DONE (scored_all.jsonl regenerated) before starting. (2) Run: python masonry/src/dspy_pipeline/run_optimization.py --signature research. (3) Confirm the run completes without exception. (4) Verify masonry/optimized_prompts/research-analyst.json is written with non-empty instructions field. (5) Record the final MIPROv2 self-consistency score from stdout. (6) Confirm score >= 0.65 (minimum viable threshold). Verdict: FIX_APPLIED if run completes and score >= 0.65; WARNING if score is 0.50-0.65 (marginal); FAILURE if run errors out or score < 0.50.
+
+---
+
+### V28.1: Validate that karen MIPROv2 optimization is viable with 196 records and 2.6% negative rate before scheduling the run
+
+**Status**: DONE
+**Finding**: findings/V28.1.md
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Motivated by**: F27.1 FIX_APPLIED (all-empty floor corrected to 0.45) and F27.2 FIX_APPLIED (5 synthetic negatives added, corpus now 196 records). Karen corpus is now calibrated but 5/196 = 2.6% negative rate is low. Before committing a 30-60 minute optimization run, validate that build_karen_metric() produces useful gradient signal across the full corpus and that the 2.6% negative rate is sufficient for MIPROv2 calibration.
+**Hypothesis**: MIPROv2 requires diverse metric scores to select useful few-shot demonstrations. With 191 records scoring ~0.9 and 5 records scoring ~0.2, the score distribution has a bimodal shape. DSPy's MIPROv2 should be able to select the 5 negatives as contrastive examples -- they will be selected with high probability given their distinctive low scores. The 2.6% rate is low but sufficient because MIPROv2 selects ~10-20 demos and the negatives will be overrepresented.
+**Method**: research-analyst
+**Success criterion**: (1) Load karen training data -- confirm 196 records with quality_score distribution including both 0.0 and 1.0 values. (2) Call build_karen_metric() on the 5 synthetic negative records -- confirm scores <= 0.45. (3) Call build_karen_metric() on 5 positive records -- confirm scores >= 0.85. (4) Compute the score range (max - min across all 196) -- must be >= 0.4 to give MIPROv2 calibration signal. (5) Confirm no exception raised across full corpus pass. Verdict: HEALTHY if score range >= 0.4 and negatives score <= 0.45; WARNING if range is 0.25-0.40 (borderline); FAILURE if range < 0.25 or any negative scores >= 0.70.
+
+---
+
+### F28.3: Implement masonry-preagent-tracker.js PreToolUse:Agent hook to capture request_text for Agent tool spawns
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Motivated by**: R27.2 WARNING -- SubagentStart event does not expose the Agent tool's prompt parameter. All 66 start entries have empty request_text, blocking routing label extraction. R27.2 confirmed PreToolUse:Agent is the correct fix (new hook script + settings.json registration) and that it is not a 1-3 line change.
+**Hypothesis**: A new hook script masonry/src/hooks/masonry-preagent-tracker.js registered under PreToolUse:Agent can read input.prompt (the Agent tool's prompt parameter) before the subagent starts. It should write a transient record to a temp file (e.g., .masonry/pending_agent_prompt.json) keyed by a UUID, which masonry-subagent-tracker.js then reads on SubagentStart to populate request_text. This two-part approach works because PreToolUse fires synchronously before SubagentStart.
+**Method**: fix-implementer
+**Success criterion**: (1) Write masonry/src/hooks/masonry-preagent-tracker.js -- on PreToolUse:Agent event, read input.prompt (first 300 chars), write to .masonry/pending_agent_prompts/{hookEventId}.json. (2) Modify masonry-subagent-tracker.js -- on SubagentStart, check for pending_agent_prompts/{parentHookEventId}.json and populate request_text if found, then delete the temp file. (3) Register masonry-preagent-tracker.js in .claude/settings.json under hooks.PreToolUse with matcher "Agent". (4) Verify settings.json is valid JSON after edit. (5) In next routing_log entry for an Agent tool spawn, confirm request_text is non-empty. Verdict: FIX_APPLIED if hook fires and at least one future routing_log Agent entry has non-empty request_text; PARTIAL if hook is registered but temp file handoff fails; FAILURE if settings.json is corrupted or hook throws on startup.
+
+---
+
+### D28.1: Has the F27.1 metric change caused any currently-deployed karen optimized prompts to become stale or mis-calibrated?
+
+**Status**: DONE
+**Finding**: findings/D28.1.md
+**Operational Mode**: diagnose
+**Priority**: LOW
+**Motivated by**: F27.1 FIX_APPLIED -- build_karen_metric() quality_score_proximity fallback was changed (all-empty now scores 0.25 instead of 0.70). If a karen optimized prompt exists in masonry/optimized_prompts/karen.json, it was selected using the old metric. The selected few-shot demonstrations may now score differently under the new metric, meaning the optimized prompt may be suboptimal or its reported score is stale.
+**Hypothesis**: masonry/optimized_prompts/karen.json either does not exist (karen has never been optimized, so no stale prompt problem) or exists but was generated before F27.1. If it exists, running the drift detector against the current metric should report a score delta >= 0.1, triggering a re-optimization recommendation.
+**Method**: diagnose-analyst
+**Success criterion**: (1) Check if masonry/optimized_prompts/karen.json exists. (2) If it does not exist, verdict is HEALTHY (no stale prompt). (3) If it exists, read the stored score field. (4) Re-score the stored few-shot demonstrations using the current build_karen_metric() -- compare to stored score. (5) If delta >= 0.1, the prompt is stale and needs re-optimization. (6) Check drift_detector.py -- confirm it can be run against karen signature to detect this automatically. Verdict: HEALTHY if no karen.json exists or score delta < 0.05; WARNING if delta is 0.05-0.10; FAILURE if delta >= 0.10 (stale prompt deployed).
