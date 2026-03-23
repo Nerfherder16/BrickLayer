@@ -181,6 +181,25 @@ function loadSessionWrites(sessionId, cwd) {
   }
 }
 
+/**
+ * Check for overseer trigger flag at Stop. If found, print notice and delete flag.
+ * stderrFn defaults to process.stderr.write — injectable for testing.
+ */
+function checkOverseerTrigger(snapshotsDir, stderrFn) {
+  stderrFn = stderrFn || ((s) => process.stderr.write(s));
+
+  const flagPath = path.join(snapshotsDir, 'overseer_trigger.flag');
+  if (!fs.existsSync(flagPath)) return;
+
+  stderrFn(
+    '\n[overseer] 10 agent invocations since last health check.\n' +
+    'Run: claude -p "Act as overseer agent in ~/.claude/agents/overseer.md. Check all agents."\n'
+  );
+  fs.unlinkSync(flagPath);
+}
+
+module.exports.checkOverseerTrigger = checkOverseerTrigger;
+
 async function main() {
   // Auto-detect BrickLayer research project — hooks are silent inside BL subprocesses
   if (isResearchProject(process.cwd())) process.exit(0);
@@ -225,6 +244,7 @@ async function main() {
     if (!status) {
       closeSession(cwd);
       checkDocStaleness(cwd, snapPath);
+      checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
       process.exit(0);
     }
 
@@ -270,6 +290,7 @@ async function main() {
     if (sessionModified.length === 0 && sessionUntracked.length === 0) {
       closeSession(cwd);
       checkDocStaleness(cwd, snapPath);
+      checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
       process.exit(0);
     }
 
