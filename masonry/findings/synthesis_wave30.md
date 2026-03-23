@@ -3,7 +3,8 @@
 **Wave**: 30
 **Date**: 2026-03-23
 **Questions answered**: 6
-**Net verdicts**: 2 FIX_APPLIED, 1 HEALTHY, 1 BLOCKED, 1 WARNING, 1 FAILURE
+**Net verdicts**: 2 FIX_APPLIED, 1 HEALTHY, 1 BLOCKED, 2 WARNING
+**Peer Review Override**: V30.5 FAILURE → WARNING (mortar.md line 277 LLM-honor injection directive confirmed)
 
 ---
 
@@ -21,23 +22,25 @@ Wave 30's dominant theme was closing infrastructure gaps from Waves 28-29 while 
 | V30.1 | F29.1 + F29.2 corpus complete and stable for both MIPROv2 runs | HEALTHY | Info | 606 records, deterministic across reruns, all 5 pre-MIPROv2 readiness criteria met |
 | F30.2 | Both MIPROv2 runs still blocked: no LLM backend available | BLOCKED | Medium | Ollama offline, ANTHROPIC_API_KEY not set — unchanged from Wave 29 |
 | R30.1 | One-slot-per-type collision risk in masonry-preagent-tracker.js | WARNING | Low-Medium | 0% post-activation collision rate; theoretical risk confirmed by code but unrealized in practice |
-| V30.5 | Optimized prompt injection path does not exist in code | FAILURE | Critical | No code reads `optimized_prompts/*.json` at spawn time — optimization output has zero effect on agent behavior |
+| V30.5 | Optimized prompt injection path: LLM-honor only, no code enforcement | WARNING (override from FAILURE) | High | mortar.md line 277 has LLM-honor directive; code-enforced path (hooks/runner/router) is absent |
 | F30.5 | Fix optimize_all() signature dispatch | FIX_APPLIED | High | Dispatch table routes karen to KarenSig, others to ResearchAgentSig; 6 tests guard regression |
 
 ---
 
 ## Key Discoveries
 
-### V30.5 FAILURE — The Injection Path Is Missing (Critical)
+### V30.5 WARNING — Injection Is LLM-Honor Only, Not Code-Enforced (Peer Review Override)
 
-This is the most consequential finding of the entire self-research campaign since its inception. V30.5 performed an exhaustive code audit and found that:
+V30.5 originally returned FAILURE; a peer review OVERRIDE corrected it to WARNING after finding that `mortar.md` line 277 contains: "If `masonry/optimized_prompts/{agent_name}.json` exists, read it and inject the optimized instructions into the specialist invocation."
 
-1. MIPROv2 optimization correctly produces JSON files with an `instructions` field containing the optimized system prompt text (`quantitative-analyst.json` confirmed).
-2. **No code anywhere** — not in hooks, not in the routing layer, not in the MCP server, not in `bl/runners/agent.py`, not in Mortar's own agent instructions — reads these files when spawning a specialist agent.
-3. The `AgentRegistryEntry.optimized_prompt` schema field exists as a placeholder but is never populated from disk and never read by dispatch code.
-4. The `masonry_optimization_status` MCP tool reads the directory only for reporting scores — it does not inject anything.
+The final picture:
 
-This means all optimization work from Waves 23-29 (training data enrichment, synthetic negatives, question_text quality, KarenSig, metric calibration, scorer pipelines) produces artifacts that terminate at `optimized_prompts/` with no consumer. The pipeline is architecturally complete up to the write step but has no read step.
+1. MIPROv2 optimization correctly produces JSON files with an `instructions` field (`quantitative-analyst.json` confirmed).
+2. `mortar.md` line 277 instructs Mortar to read and inject the optimized prompt when spawning a specialist. This is an **LLM-honor-based** injection path — Mortar as an LLM orchestrator follows this directive when it acts as the dispatcher.
+3. **No code-enforced injection exists** — no hook, routing layer, MCP server, or runner reads `optimized_prompts/*.json`. If Mortar is bypassed (direct agent spawn, non-Mortar dispatch), the optimized prompts are not applied.
+4. The `AgentRegistryEntry.optimized_prompt` schema field remains a placeholder — never populated or read by code.
+
+The original finding missed mortar.md line 277. The CLAUDE.md claim of "automatic" injection is partially accurate (Mortar follows the directive) but overstated (not code-enforced, not guaranteed under all dispatch paths).
 
 ### F30.1 + F30.5 — Two Infrastructure Fixes Land
 
@@ -63,7 +66,7 @@ Code inspection confirms the one-slot-per-type overwrite strategy will produce m
 - PreToolUse:Agent hook: live, CWD fixed (F30.1)
 
 **What is broken:**
-- **Injection path: ABSENT** (V30.5 FAILURE) — optimized prompts are produced but never consumed at spawn time. This is the single most critical gap in the entire pipeline.
+- **Injection path: LLM-honor only** (V30.5 WARNING) — mortar.md line 277 has a directive to read and inject optimized prompts. Code-enforced injection (via hooks or runner) is absent. Direct spawns bypassing Mortar will not apply optimization.
 - **MIPROv2 execution: BLOCKED** (F30.2) — neither Ollama nor Anthropic API available. Ready to run the instant a backend is restored.
 
 **What is at risk:**
@@ -73,7 +76,7 @@ Code inspection confirms the one-slot-per-type overwrite strategy will produce m
 
 ## Open Issues (Priority Order)
 
-1. **V30.5 — CRITICAL: Build the optimized prompt injection path.** No code reads `optimized_prompts/*.json` at agent spawn time. Until this is implemented, MIPROv2 optimization has zero effect on agent behavior. Implementation options: (a) a PreToolUse or SubagentStart hook that reads the JSON and prepends `instructions` to the agent prompt, (b) modification to `bl/runners/agent.py` to load and inject, or (c) an instruction block in `mortar.md` directing Mortar to read the file (LLM-honor-based, weaker). Option (a) is recommended — it is code-enforced and hooks already intercept agent spawns. Also: correct the false claim in CLAUDE.md.
+1. **V30.5 — HIGH: Harden the injection path from LLM-honor to code-enforced.** `mortar.md` line 277 already provides an LLM-honor injection directive. However, this only works when Mortar is the dispatcher — direct spawns bypass it. Implementation: a PreToolUse or SubagentStart hook that reads `optimized_prompts/{agent_name}.json` and prepends the `instructions` field makes injection unconditional regardless of dispatch path. Also: update CLAUDE.md to accurately describe the injection as "LLM-honor-based via Mortar" rather than "automatic".
 
 2. **F30.2 — HIGH: Unblock MIPROv2 execution.** Set `ANTHROPIC_API_KEY` or restore Ollama at `192.168.50.62:11434`. All data preconditions are met. Run commands are ready:
    ```bash
@@ -92,7 +95,7 @@ Code inspection confirms the one-slot-per-type overwrite strategy will produce m
 - Current best score: 68.3% (Trial 3, Wave 23, quantitative-analyst)
 - Corpus state: 606 records (research-analyst: 57, karen: 301 + 5 synthetics)
 - Optimization: F30.2 BLOCKED — both backends unavailable
-- Injection: V30.5 FAILURE — even successful optimization would have no runtime effect
+- Injection: V30.5 WARNING — LLM-honor via mortar.md line 277; code-enforced path absent
 
 ---
 
@@ -100,9 +103,9 @@ Code inspection confirms the one-slot-per-type overwrite strategy will produce m
 
 Wave 31 must address the pipeline's terminal gap before anything else. The correct sequencing:
 
-1. **Implement the injection path** (V30.5 resolution). This is prerequisite to everything downstream. A hook-based approach (reading `optimized_prompts/{agent}.json` at SubagentStart and prepending the `instructions` field) is the recommended implementation. Without this, MIPROv2 optimization is an expensive no-op.
+1. **Harden the injection path** (V30.5 partial resolution). LLM-honor injection exists via mortar.md line 277. A hook-based approach (reading `optimized_prompts/{agent}.json` at SubagentStart) would make injection code-enforced and unconditional, covering direct spawns that bypass Mortar. This is the recommended next step.
 
-2. **Correct CLAUDE.md's false claim** about automatic Mortar injection. Replace with accurate documentation of whatever injection mechanism is built in priority 1.
+2. **Update CLAUDE.md** to accurately describe injection as "LLM-honor-based via Mortar (mortar.md line 277)" rather than "automatic". Code-enforced injection would allow stronger language once implemented.
 
 3. **Unblock and execute MIPROv2 runs** (F30.2 resolution). Only after the injection path exists does running MIPROv2 produce value. Set the API key, run both agents, validate output.
 
