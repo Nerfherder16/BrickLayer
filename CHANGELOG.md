@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `ec01663` chore(masonry): Wave 32 synthesis + Wave 33 question bank (2026-03-23)
 - `e30bf0f` chore(masonry): generate Wave 33 question bank (2026-03-23)
 - `f2d0783` research(masonry): Wave 32 — DSPy injection validated, api_key unblock, Ollama monitor (2026-03-23)
 - `ad76030` feat(masonry): implement .mas/ per-project telemetry layer (Tasks 1-10) (2026-03-23)
