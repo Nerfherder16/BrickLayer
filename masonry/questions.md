@@ -2615,7 +2615,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F35.1: Fix `_extract_section()` in `score_findings.py` to accept non-standard evidence section names used in Waves 11-13 findings
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/F35.1.md
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: R34.1 WARNING — `score_findings.py:_extract_section()` performs an exact match on `"Evidence"`. Findings from Waves 11-13 used `Analysis`, `Verification Results`, and `Code Trace` as their evidence section headers. This blocks 10 findings from receiving any evidence quality points (0 of 40), causing them to fail the 60-point TRAINING_THRESHOLD. Fixing the match to accept a list of known section names would unlock these 10 records, growing the corpus from 70 to 82 after score_all_agents.py is re-run.
@@ -2627,7 +2628,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F35.2: Fix `_RE_AGENT` regex in `score_findings.py` to prevent multi-line corruption when the H1 title contains backtick-delimited spans
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/F35.2.md
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: R34.1 WARNING — Two findings (R14.1, R17.2) have H1 titles containing backtick spans. R34.1 reports that the `**Agent**:` field extraction produces a corrupted multi-part string for these files, preventing them from being attributed to `research-analyst`. The current `_RE_AGENT` pattern `r"\*\*Agent\*\*\s*:\s*([^\n]+)"` with a trailing `.strip()` may capture unexpected content depending on the file's parsed structure.
@@ -2639,7 +2641,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### V35.1: Validate that re-running `score_all_agents.py` after F35.1 and F35.2 grows the research-analyst corpus to at least 70 records
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/V35.1.md
 **Operational Mode**: validate
 **Priority**: HIGH
 **Motivated by**: R34.2 HEALTHY — R34.2 recommended running `score_all_agents.py` after applying both pipeline fixes to grow the research-analyst corpus from 57 to 70 (13 Group A findings qualify as-is) and potentially 82 (fixes unlock 12 more). This question validates that the re-run produces the expected growth and that no deduplication or filtering issue silently blocks the increase.
@@ -2651,7 +2654,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### R35.1: Does `optimizer.py:optimize_agent()` independently load training data from disk, or does it always receive the dataset from its caller?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/R35.1.md
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Motivated by**: F34.1 FIX_APPLIED — F34.1 fixed `load_training_data_from_scored_all()` in `run_optimization.py` to populate `project_context` from `project-brief.md`. The pre-flight check in F34.1 confirmed the function lives in `run_optimization.py`, not `optimizer.py`. However, the original F34.1 hypothesis named `optimizer.py` as the target, suggesting a belief that `optimizer.py` had its own loading path. If `optimizer.py:optimize_agent()` has a default or fallback that reloads from `scored_all.jsonl` with a hardcoded `project_context: ""`, the F34.1 fix is silently bypassed in any code path that calls `optimize_agent()` directly without going through `run_optimization.py`.
@@ -2663,7 +2667,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### M35.1: Probe Ollama at `192.168.50.62:11434` for current online status and update `monitor-targets.md`
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/M35.1.md
 **Operational Mode**: monitor
 **Priority**: LOW
 **Motivated by**: M33.1 DONE — M33.1 confirmed Ollama OFFLINE as of 2026-03-23 with a documented CasaOS recovery procedure. Ollama is the zero-credential backend for DSPy optimization (no ANTHROPIC_API_KEY required) and the embedding source for semantic routing Layer 2. If Ollama has been restored, future MIPROv2 runs can use `--backend ollama` instead of `--backend anthropic`, removing the API key dependency. Semantic routing would also regain embedding-based dispatch.

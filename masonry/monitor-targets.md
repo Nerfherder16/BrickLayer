@@ -60,7 +60,7 @@ curl -s --connect-timeout 3 http://192.168.50.62:11434/api/tags
 ```
 A 200 response with JSON body indicates the backend is up. A timeout, connection refused, or non-200 response indicates degraded or unavailable state.
 
-**Current status**: OFFLINE (confirmed 2026-03-23). No local `ollama` binary on PATH, so localhost fallback (`127.0.0.1:11434`) is also unavailable. Semantic routing is degraded — all routing falls through to LLM layer.
+**Current status**: OFFLINE (confirmed 2026-03-23; re-confirmed M35.1 2026-03-23, exit code 28, 5 s timeout). No local `ollama` binary on PATH, so localhost fallback (`127.0.0.1:11434`) is also unavailable. Semantic routing is degraded — all routing falls through to LLM layer. Three health checks (M32.1, M33.1, M35.1) all confirm OFFLINE within the same campaign date.
 
 **Thresholds**:
 
@@ -83,7 +83,7 @@ A 200 response with JSON body indicates the backend is up. A timeout, connection
 
 ### Recovery Procedure
 
-*Established: M33.1, 2026-03-23. Outage confirmed: 2026-03-23 (exit code 28 timeout).*
+*Established: M33.1, 2026-03-23. Outage confirmed: M32.1 / M33.1 / M35.1 — all 2026-03-23 (exit code 28 timeout, 3 consecutive checks).*
 
 **Step 1 — SSH into CasaOS host**
 ```bash
