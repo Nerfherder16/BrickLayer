@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `5230c67` feat: snapshot_agent.py — versioned prompt store with rollback (task 2/4) (2026-03-23)
 - `a506a9c` feat: add vitest hook test infra + session_id to build skill schemas (tasks 1-2/5) (2026-03-23)
 - `fd9c032` chore: session files from task 1 implementation (2026-03-23)
 - `9b641a0` feat: eval_agent.py — held-out eval engine (task 1/4) (2026-03-23)
