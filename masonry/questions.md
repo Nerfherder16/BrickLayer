@@ -2165,7 +2165,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### V30.5: Does any code in the Masonry routing or hook layer actually read from optimized_prompts/ and inject those instructions when spawning a specialist agent?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/V30.5.md
 **Operational Mode**: validate
 **Priority**: CRITICAL
 **Motivated by**: synthesis_wave29.md open issue #5 (post-optimization validation) and a code audit finding from Wave 30 prep: grepping the entire `masonry/src/` directory for `optimized_prompts`, `inject.*prompt`, or `load.*optimized` returns zero matches in any hook or routing file. The CLAUDE.md project instructions claim "Mortar injects optimized prompts on specialist invocation automatically" but this mechanism has never been validated. `optimized_prompts/` is only read by `mcp_server.py:masonry_optimization_status` (status check) and `run_r23_1.py` (legacy). No routing code, no hook, no Mortar agent file reads from this directory. If the injection path does not exist, running MIPROv2 and producing `optimized_prompts/research-analyst.json` will have zero effect on agent behavior — a critical gap to resolve before the first optimization run.
