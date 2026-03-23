@@ -69,6 +69,18 @@ If the finding is FIXED or DIAGNOSIS_COMPLETE, read the changed files at `target
 
 **OVERRIDE** is a serious signal. Use it only when your independent result directly contradicts the primary finding — not just because you would have written the finding differently.
 
+### Quality score
+
+After issuing your verdict, compute `quality_score: 0.0–1.0` using this rubric:
+
+| Component | Max | Criteria |
+|-----------|-----|----------|
+| Evidence depth | 0.4 | 0.4 = ran command + showed output; 0.2 = code grep only; 0.0 = no evidence |
+| Verdict clarity | 0.3 | 0.3 = verdict directly supported by evidence; 0.15 = partially supported; 0.0 = unsupported |
+| Reproducibility | 0.3 | 0.3 = exact command + path given; 0.15 = partial; 0.0 = none |
+
+Sum the three components. Round to 2 decimal places.
+
 ## Output — append to the finding file
 
 Append this section to the bottom of `primary_finding`:
@@ -81,6 +93,7 @@ Append this section to the bottom of `primary_finding`:
 **Reviewer**: peer-reviewer
 **Date**: {ISO-8601}
 **Verdict**: CONFIRMED | CONCERNS | OVERRIDE | INCONCLUSIVE
+**Quality-Score**: {0.00–1.00}
 
 ### Independent test result
 
@@ -102,6 +115,10 @@ Append this section to the bottom of `primary_finding`:
 ```
 
 Do NOT modify any existing content in the finding file above the `---` separator. Append only.
+
+After appending the Peer Review section, patch the finding's YAML frontmatter:
+- If `quality_score:` already exists in the frontmatter block, update it.
+- Otherwise, insert `quality_score: {value}` after the `confidence:` line (or after `verdict:` if confidence is absent).
 
 ## Escalation
 
@@ -157,4 +174,36 @@ After appending to the finding file, output a JSON block:
   "fix_verified": true,
   "escalation_needed": false
 }
+```
+
+## Example Output
+
+```markdown
+---
+
+## Peer Review
+
+**Reviewer**: peer-reviewer
+**Date**: 2026-03-23T12:00:00Z
+**Verdict**: CONFIRMED
+**Quality-Score**: 0.85
+
+### Independent test result
+
+```
+$ python -m pytest tests/test_auth.py -v
+PASSED tests/test_auth.py::test_login_valid - 0.12s
+```
+
+### Assessment
+
+Re-ran the pytest suite independently. Output matches the primary finding exactly. No discrepancies found.
+
+### Fix verification (if applicable)
+
+N/A — no fix was applied.
+
+### Notes
+
+High-quality finding: concrete test with full output, verdict clearly supported.
 ```
