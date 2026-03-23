@@ -2397,7 +2397,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### R33.2: Does the injected `quantitative-analyst` DSPy instruction text represent a meaningful behavioral improvement over the base agent prompt?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/R33.2.md
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Motivated by**: V32.1 HEALTHY — confirmed that the `## DSPy Optimized Instructions` block is present on disk and that Claude Code delivers it in the system prompt. The structural injection loop is closed. However, V32.1 did not evaluate the *quality* of the instruction text itself. The block reads: "Analyze the research question within the project context, applying domain-specific reasoning and numerical modeling..." (~270 chars). This is the only MIPROv2-generated instruction in production. Whether it adds signal beyond the base quantitative-analyst.md system prompt — or is essentially a restatement of it — has never been assessed.
@@ -2422,7 +2423,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### V33.1: Confirm that all agents with an `optimized_prompts/*.json` file have a corresponding `## DSPy Optimized Instructions` block in their `.md` file
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/V33.1.md
 **Operational Mode**: validate
 **Priority**: MEDIUM
 **Motivated by**: V32.2 HEALTHY (writeback scope) — V32.2 confirmed that `writeback_optimized_instructions()` correctly handles edge cases (missing paths, changed text, empty instructions). However, the function's one-level scan covers `{base_dir}/.claude/agents/` and one-level sub-projects. V32.2 observation #3 explicitly flagged that `projects/bl2/.claude/agents/quantitative-analyst.md` did NOT receive the DSPy block because it is two levels deep from the BL root. As optimization runs expand to cover more agents (research-analyst, karen), this gap will compound: any agent `.md` file outside the one-level scan range will silently miss the writeback, running without optimization despite a valid JSON existing.
@@ -2434,7 +2436,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F33.1: Add a MIPROv2 optimization runbook to CLAUDE.md documenting the exact procedure for triggering research-analyst and karen optimization runs
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/F33.1.md
 **Operational Mode**: fix
 **Priority**: LOW
 **Motivated by**: R32.1 HEALTHY (run justified) + F32.2 FIX_APPLIED (api_key param added) — the optimization infrastructure is complete and the corpus is ready, but no procedure document exists that tells Tim (or a future session) exactly what to run. The CLAUDE.md DSPy section was updated in F32.1 to correct the injection mechanism description, but it does not include the specific commands needed to trigger an optimization run. Without a runbook, each attempt requires re-reading `run_optimization.py --help`, re-checking the signature class names, and reconstructing the correct flags from scratch — as evidenced by F30.2 and R32.1 spending substantial tokens rediscovering what command to issue.
@@ -2446,7 +2449,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### E33.1: Execute MIPROv2 optimization run for `research-analyst` (user provides `--api-key`)
 
-**Status**: PENDING
+**Status**: BLOCKED
 **Operational Mode**: fix
 **Priority**: CRITICAL
 **Motivated by**: synthesis_wave32 OPEN ISSUE #1 — all code blockers resolved (F32.2 FIX_APPLIED: `--api-key` CLI arg live). Corpus confirmed ready: 57 records, 500-char median `question_text`, projected +8 to +12 pts delta (R32.1 HEALTHY). Ollama is OFFLINE (M32.1) so the run must target `--backend anthropic`. This is the single highest-priority action gated only on Tim supplying an API key.
@@ -2458,7 +2461,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### E33.2: Execute MIPROv2 optimization run for `karen` (user provides `--api-key`)
 
-**Status**: PENDING
+**Status**: BLOCKED
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: synthesis_wave32 OPEN ISSUE #1 — karen optimization is the second pending run. Karen corpus: 301 records + 5 synthetics = 306 total (largest corpus in the system). Signature dispatch is confirmed correct — karen uses `KarenSig` (F30.5 FIX_APPLIED). No specific score projection exists for karen, but the 306-record corpus is substantially larger than the research-analyst corpus (57 records), providing stronger optimization signal.
@@ -2482,7 +2485,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### R33.3: Would adding more training examples to the research-analyst corpus improve MIPROv2 scores beyond the projected 70-80% ceiling, or is 57 records adequate?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/R33.3.md
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Motivated by**: R32.1 HEALTHY — R32.1 projected +8 to +12 pts delta and assessed the 57-record corpus as "adequate" for a 25-example valset split. However, the self-consistency ceiling for research-analyst was estimated at 0.9666 (R26.1), and the achievable range was 0.73-0.87 — the upper end of that range requires high-quality demonstrations that may not be fully represented in 57 records. The wave 32 synthesis flags `project_context` as empty for all 57 records, which is a known ceiling constraint. This question asks: post-E33.1, if the actual score falls below 0.80, what is the cost-benefit of adding 30-50 more training examples vs running more trials with the existing corpus?
@@ -2492,9 +2496,35 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ---
 
+### F33.2: Fix MCP masonry_optimize_agent tool to forward api_key to configure_dspy() (D33.1 DIAGNOSIS_COMPLETE)
+
+**Status**: DONE
+**Finding**: findings/F33.2.md
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Motivated by**: D33.1 PARTIAL — CLI path (run_optimization.py) was fixed by F32.2, but the MCP tool entry point (`_tool_masonry_optimize_agent` in server.py) calls `configure_dspy(model=model, backend=backend)` without api_key. Kiln "OPTIMIZE" button remains BLOCKED without env var.
+**Method**: fix-implementer
+**Success criterion**: `configure_dspy(model=model, backend=backend, api_key=api_key)` in server.py; api_key in inputSchema; no test regressions.
+
+---
+
+### F33.3: Correct --valset-size from 50 to 27 in CLAUDE.md runbook and run_optimization.py defaults (R33.3 WARNING)
+
+**Status**: DONE
+**Finding**: findings/F33.3.md
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: R33.3 WARNING — effective bootstrap training set = 57 - 50 = 7 examples when using --valset-size 50. DSPy requires 30 training examples for reliable optimization. With 57 total records, --valset-size 27 leaves 30 training examples (crosses threshold). F33.1 wrote CLAUDE.md runbook with --valset-size 50 — this must be corrected to --valset-size 27 for research-analyst. Karen has 301 records, so --valset-size 25 is fine (276 training examples).
+**Hypothesis**: Changing --valset-size from 50 to 27 in the research-analyst command in CLAUDE.md and in any default or comment in run_optimization.py will ensure 30 bootstrap training examples are available when the actual optimization run executes.
+**Method**: fix-implementer
+**Success criterion**: (1) Read CLAUDE.md DSPy optimization runbook — confirm research-analyst command uses --valset-size 50. (2) Change to --valset-size 27 with a comment explaining 57 total - 27 valset = 30 training examples (DSPy minimum). (3) Check run_optimization.py for any comment or default suggesting 25 or 50 for research-analyst — update if found. (4) Confirm karen command stays at --valset-size 25. Verdict: FIX_APPLIED if CLAUDE.md research-analyst command uses --valset-size 27; PARTIAL if comment added but valset-size unchanged; FAILURE if CLAUDE.md is not modified.
+
+---
+
 ### M33.1: Establish a restoration path for the Ollama backend at `192.168.50.62:11434` and update monitor-targets.md with a recovery procedure
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/M33.1.md
 **Operational Mode**: monitor
 **Priority**: MEDIUM
 **Motivated by**: M32.1 DONE (monitor entry added, current status OFFLINE) — the monitor entry records the OFFLINE state but provides no recovery procedure. Ollama is the designated zero-credential backend for DSPy optimization (no API key required) and the embedding source for semantic routing. With Ollama offline, semantic routing falls through to the LLM layer on every dispatch (additional latency and cost), and future optimization runs are locked to `--backend anthropic` (API key required). Restoring Ollama would remove the API key dependency for future runs.

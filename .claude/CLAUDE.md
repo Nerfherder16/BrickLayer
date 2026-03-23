@@ -77,6 +77,65 @@ Agents can be optimized via MIPROv2 using training data from existing findings:
 
 Trigger from Kiln UI "OPTIMIZE" button or via `masonry_optimize_agent` MCP tool.
 
+### Running an Optimization
+
+Use this runbook to trigger MIPROv2 optimization runs manually from the command line.
+
+**Precondition checks:**
+
+```bash
+# 1. Verify Ollama is reachable (required for semantic routing layer)
+curl -s http://192.168.50.62:11434/api/tags | python -c "import sys,json; d=json.load(sys.stdin); print('Ollama OK —', len(d.get('models',[])), 'models')"
+
+# 2. Verify Anthropic API key is set
+python -c "import os; k=os.environ.get('ANTHROPIC_API_KEY',''); print('ANTHROPIC_API_KEY set' if k.startswith('sk-ant-') else 'ERROR: ANTHROPIC_API_KEY missing or wrong prefix')"
+```
+
+**Optimize research-analyst** (corpus: ~57 records — use `--valset-size 27` to leave 30 training examples):
+
+```bash
+cd C:/Users/trg16/Dev/Bricklayer2.0
+python masonry/scripts/run_optimization.py research-analyst \
+  --backend anthropic \
+  --num-trials 10 \
+  --valset-size 27 \  # 57 total - 27 valset = 30 training examples (DSPy minimum)
+  --signature research \
+  --api-key sk-ant-...
+```
+
+**Optimize karen** (corpus: ~301 records — `--valset-size 25` is sufficient):
+
+```bash
+cd C:/Users/trg16/Dev/Bricklayer2.0
+python masonry/scripts/run_optimization.py karen \
+  --backend anthropic \
+  --num-trials 10 \
+  --valset-size 25 \
+  --signature karen \
+  --api-key sk-ant-...
+```
+
+**Post-run verification (run all three):**
+
+```bash
+# 1. Confirm optimized prompt JSON was written
+ls -lh masonry/optimized_prompts/research-analyst.json masonry/optimized_prompts/karen.json
+
+# 2. Confirm write-back block exists in each agent .md file
+grep -l "DSPy Optimized Instructions" .claude/agents/research-analyst.md .claude/agents/karen.md
+
+# 3. Confirm registry reflects updated optimization status
+python -c "
+import yaml
+reg = yaml.safe_load(open('masonry/agent_registry.yml'))
+for a in reg.get('agents', []):
+    if a['name'] in ('research-analyst', 'karen'):
+        print(a['name'], '—', a.get('dspy_status','unknown'))
+"
+```
+
+> **Warning (R33.1/R33.3):** The research-analyst corpus is ~57 records. Never set `--valset-size` above 57 or MIPROv2 will error on insufficient validation examples. The default (100) exceeds this limit. Use `--valset-size 27` for research-analyst — this leaves 30 training examples (57 - 27 = 30), which meets the DSPy minimum of ~30 required for reliable optimization. Using 50 would leave only 7 bootstrap training examples.
+
 ### Agent Onboarding (Zero Manual Steps)
 When a new `.md` file is written to `agents/` or `~/.claude/agents/`:
 1. `masonry-agent-onboard.js` hook detects the Write/Edit event

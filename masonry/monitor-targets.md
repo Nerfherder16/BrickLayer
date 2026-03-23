@@ -81,6 +81,73 @@ A 200 response with JSON body indicates the backend is up. A timeout, connection
 
 **Permanent fix if FAILURE threshold reached**: Either restore the Ollama host or update the routing configuration to treat semantic routing as optional. Document in `project-brief.md` that zero-credential optimization is unavailable for the current campaign.
 
+### Recovery Procedure
+
+*Established: M33.1, 2026-03-23. Outage confirmed: 2026-03-23 (exit code 28 timeout).*
+
+**Step 1 — SSH into CasaOS host**
+```bash
+ssh tim@192.168.50.19
+```
+
+**Step 2 — Check Ollama container status**
+```bash
+docker ps -a --filter name=ollama
+```
+If status shows `Exited`, proceed to Step 3.
+If no container is listed at all, re-deploy from CasaOS app store.
+
+**Step 3 — Restart the container**
+
+Via Docker Compose (preferred — standard CasaOS app store path):
+```bash
+cd /DATA/AppData/ollama
+docker compose up -d
+```
+
+Via Docker directly (fallback if compose file path differs):
+```bash
+docker start ollama
+```
+
+**Step 4 — Verify Ollama responds locally**
+```bash
+curl -s http://localhost:11434/api/tags
+```
+Expected: JSON body with model list. Exit code 0.
+
+**Step 5 — Verify from campaign host**
+```bash
+curl -s --connect-timeout 3 http://192.168.50.62:11434/api/tags
+```
+Expected: JSON body. Exit code 0. If timeout persists, check firewall/network: `ping 192.168.50.62` from CasaOS host and confirm port 11434 is not blocked.
+
+**Step 6 — Confirm qwen3:14b is present**
+```bash
+docker exec ollama ollama list
+```
+If `qwen3:14b` is missing (unlikely unless volume was wiped with `down -v`):
+```bash
+docker exec ollama ollama pull qwen3:14b
+```
+
+**Step 7 — Smoke test embedding (confirms semantic routing layer)**
+```bash
+curl -s http://192.168.50.62:11434/api/embeddings \
+  -H "Content-Type: application/json" \
+  -d '{"model":"qwen3:14b","prompt":"test routing query"}' \
+  | python -c "import sys,json; d=json.load(sys.stdin); print(f'OK — embedding dims: {len(d[\"embedding\"])}')"
+```
+Expected: `OK — embedding dims: 5120` (or model-specific dimension). Semantic routing is operational.
+
+**Common failure reasons (ranked by likelihood)**:
+1. Container stopped after CasaOS host reboot (no `restart: unless-stopped` policy set) → Fix: restart container; add `restart: unless-stopped` to compose file
+2. OOM kill (exit code 137 in `docker ps`) → Fix: restart; consider memory limit in compose file
+3. GPU/CUDA driver issue after host update → Fix: `docker logs ollama` for CUDA errors; may need GPU driver reinstall
+4. CasaOS host itself unreachable → Fix: check `ping 192.168.50.19` from local network; may require physical access
+
+**Note on model data persistence**: Docker volumes persist across container stop/start/restart. `qwen3:14b` weights survive all restart operations. They are only lost if `docker compose down -v` was explicitly run or the host storage volume was deleted.
+
 ---
 
 ## `miprov2_run_duration`
