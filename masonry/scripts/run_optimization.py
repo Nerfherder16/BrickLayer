@@ -73,15 +73,15 @@ def load_training_data_from_scored_all(
         if rec.get("agent") != agent_name:
             continue
 
-        inp = rec.get("input", {})
-        out = rec.get("output", {})
+        inp = rec.get("input") or {}
+        out = rec.get("output") or {}
         examples.append({
-            "question_text": inp.get("question_text", inp.get("question_id", "")),
+            "question_text": inp.get("question_text") or inp.get("question_id") or "",
             "project_context": project_context,
             "constraints": "",
-            "verdict": out.get("verdict", ""),
-            "severity": out.get("severity", ""),
-            "evidence": out.get("evidence", ""),
+            "verdict": out.get("verdict") or "",
+            "severity": out.get("severity") or "",
+            "evidence": out.get("evidence") or "",
             "mitigation": "",
             "confidence": str(out.get("confidence") or 0.75),
         })
@@ -112,25 +112,29 @@ def load_karen_training_data(scored_all_path: Path) -> list[dict]:
         if rec.get("agent") != "karen":
             continue
 
-        inp = rec.get("input", {})
-        out = rec.get("output", {})
-        commit_subject = inp.get("commit_subject", "")
+        inp = rec.get("input") or {}
+        out = rec.get("output") or {}
+        # Use `or ""` not `.get(k, "")` — the latter returns None when key exists with null value
+        commit_subject = inp.get("commit_subject") or ""
         if not commit_subject:
             continue  # skip records without a commit subject
 
-        files_modified = inp.get("files_modified", [])
-        files_changed = ", ".join(files_modified) if files_modified else ""
-        reverted = bool(out.get("reverted", False))
-        doc_files_written = int(out.get("doc_files_written", 0))
-        quality_score = str(rec.get("score", 100) / 100.0)
+        files_modified = inp.get("files_modified") or []
+        if isinstance(files_modified, str):
+            files_modified = [files_modified]
+        files_changed = ", ".join(str(f) for f in files_modified if f)
+        reverted = bool(out.get("reverted") or False)
+        doc_files_written = int(out.get("doc_files_written") or 0)
+        raw_score = rec.get("score")
+        quality_score = str((raw_score if raw_score is not None else 100) / 100.0)
         action = "reverted" if reverted else ("updated" if doc_files_written > 0 else "skipped")
 
         examples.append({
             "commit_subject": commit_subject,
-            "files_changed": files_changed,
+            "files_changed": files_changed or "",
             "doc_context": "",
             "action": action,
-            "doc_updates": files_changed,
+            "doc_updates": files_changed or "",
             "changelog_entry": commit_subject,
             "quality_score": quality_score,
         })
