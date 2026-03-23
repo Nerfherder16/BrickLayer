@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `37daba2` feat(masonry): add unified agent scorer and test coverage (2026-03-23)
 - `fa46dbe` fix(dspy): replace trivial chore demos in karen optimized prompt (2026-03-23)
 - `418fa10` feat(trowel): refresh campaign-context.md every 10 questions (2026-03-23)
 - `97910db` feat(trowel): add requeue logic for INCONCLUSIVE + low-quality findings (2026-03-23)
