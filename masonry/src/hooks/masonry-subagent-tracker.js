@@ -193,7 +193,9 @@ async function main() {
   if (!requestText) {
     try {
       const subagentType = (input.subagent_type || agentEntry.name || '').toLowerCase().trim();
-      const pendingDir = path.join(cwd, '.masonry', 'pending_agent_prompts');
+      // Use home-dir path to match masonry-preagent-tracker.js exactly — avoids
+      // CWD mismatch when PreToolUse fires in masonry/ but SubagentStart fires in repo root.
+      const pendingDir = path.join(os.homedir(), '.masonry', 'pending_agent_prompts');
       const slotPath = path.join(pendingDir, `${subagentType}_latest.json`);
       if (fs.existsSync(slotPath)) {
         const slot = JSON.parse(fs.readFileSync(slotPath, 'utf8'));
