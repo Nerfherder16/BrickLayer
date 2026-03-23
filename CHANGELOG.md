@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `092f6c8` chore(masonry): commit session artifacts — registry, questions, subagent/preagent trackers (2026-03-23)
 - `ad7cb1e` chore(masonry): commit session artifacts — agent_registry + questions update (2026-03-23)
 - `56eff3b` research(masonry): Wave 27 -- karen corpus fixed, pipeline validated, routing gap mapped (2026-03-23)
 - `19328b4` chore(masonry): commit session artifact — questions.md update (2026-03-23)
