@@ -87,6 +87,7 @@ git commit -m "feat: {task description} [masonry-build #{id}]"
   "project": "{name}",
   "status": "BUILDING",
   "branch": "masonry/{project}-YYYYMMDD",
+  "session_id": "{current_session_id}",
   "tasks": [
     {
       "id": 1,
@@ -100,6 +101,8 @@ git commit -m "feat: {task description} [masonry-build #{id}]"
   "updated_at": "ISO-8601"
 }
 ```
+
+> **Session ownership**: Write the current session's `session_id` into `progress.json` when creating it. Stop hooks use this to distinguish builds owned by this session from builds started in other sessions. The `session_id` is available from the hook input payload (`input.session_id || input.sessionId`).
 
 ### File Ownership
 

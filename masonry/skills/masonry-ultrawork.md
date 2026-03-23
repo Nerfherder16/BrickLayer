@@ -89,6 +89,7 @@ Same as `/build` with ownership fields:
   "project": "{name}",
   "status": "BUILDING",
   "branch": "masonry/{project}-YYYYMMDD",
+  "session_id": "{current_session_id}",
   "tasks": [
     {
       "id": 1,
@@ -102,6 +103,8 @@ Same as `/build` with ownership fields:
   "updated_at": "ISO-8601"
 }
 ```
+
+> **Session ownership**: Write the current session's `session_id` into `progress.json` when creating it. Stop hooks use this to distinguish builds owned by this session from builds started in other sessions. The `session_id` is available from the hook input payload (`input.session_id || input.sessionId`).
 
 ### Conflict Resolution
 

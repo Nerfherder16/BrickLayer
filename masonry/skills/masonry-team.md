@@ -91,6 +91,10 @@ The partition algorithm ensures no two workers own the same file. Workers are in
   ...
 ```
 
+Workers share the same `progress.json` schema as `/build` (see `masonry-build.md`), including the `session_id` field.
+
+> **Session ownership**: Write the current session's `session_id` into `progress.json` when creating it. Stop hooks use this to distinguish builds owned by this session from builds started in other sessions. The `session_id` is available from the hook input payload (`input.session_id || input.sessionId`).
+
 ### Rules
 
 - **Coordinator never writes code** — only spawns workers, validates, commits
