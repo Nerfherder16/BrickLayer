@@ -170,6 +170,34 @@ async function extractCodeFacts(filePath, toolName, toolInput, cwd) {
   return facts.slice(0, 5).map(f => f.slice(0, 200));
 }
 
+/**
+ * Track agent invocations. Called when Write/Edit targets an agent .md or findings/ file.
+ * Increments counter in snapshotsDir/.invocation_count and writes trigger flag at 10.
+ */
+function handleObserveWrite(filePath, snapshotsDir) {
+  const isAgentMd = /agents[\\/][^/\\]+\.md$/.test(filePath);
+  const isFinding = /findings[\\/]/.test(filePath);
+  if (!isAgentMd && !isFinding) return;
+
+  // Read/increment counter
+  const countFile = path.join(snapshotsDir, '.invocation_count');
+  let data = { count: 0 };
+  try { data = JSON.parse(fs.readFileSync(countFile, 'utf8')); } catch (_e) {}
+  data.count = (data.count || 0) + 1;
+  fs.mkdirSync(snapshotsDir, { recursive: true });
+  fs.writeFileSync(countFile, JSON.stringify(data), 'utf8');
+
+  // Write trigger flag when threshold reached
+  if (data.count >= 10) {
+    const flag = { triggered_at: new Date().toISOString(), count: data.count };
+    fs.writeFileSync(path.join(snapshotsDir, 'overseer_trigger.flag'), JSON.stringify(flag), 'utf8');
+    // Reset counter
+    fs.writeFileSync(countFile, JSON.stringify({ count: 0 }), 'utf8');
+  }
+}
+
+module.exports.handleObserveWrite = handleObserveWrite;
+
 async function main() {
   let raw = '';
   try {
@@ -188,6 +216,12 @@ async function main() {
 
   const rawFilePath = tool_input.file_path || tool_input.path || 'unknown';
   const filePath = path.normalize(rawFilePath).replace(/\\/g, '/');
+
+  // --- Overseer trigger counter ---
+  try {
+    const snapshotsDir = path.join(cwd, 'masonry', 'agent_snapshots');
+    handleObserveWrite(rawFilePath, snapshotsDir);
+  } catch (_err) { /* non-fatal */ }
 
   // --- B) Activity log (all watched edits) ---
   const activityFile = path.join(os.tmpdir(), `masonry-activity-${sessionId}.ndjson`);
