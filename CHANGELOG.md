@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `c401113` fix(masonry): apply peer review override — V30.5 FAILURE → WARNING (2026-03-23)
 - `1d7edbb` chore(masonry): Wave 30 — quantitative-analyst DSPy optimization + .mas/ test stubs (2026-03-23)
 - `0cc61ba` chore(masonry): Wave 30 partial build — mas.js core + .gitignore + TDD enforcer patch (2026-03-23)
 - `4b145fb` research(masonry): Wave 30 -- injection path absent, slot CWD fixed, corpus validated (2026-03-23)
