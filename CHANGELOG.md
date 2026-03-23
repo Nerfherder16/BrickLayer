@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `31032d1` fix(dspy): cap minibatch_size to valset size to prevent MIPROv2 crash (2026-03-23)
 - `b7e0551` fix(dspy): pass num_candidates to MIPROv2 constructor when auto=None (2026-03-23)
 - `1c4cab3` fix(dspy): set auto=None in MIPROv2 constructor to allow num_trials override (2026-03-23)
 - `fac4b9d` chore: update research-analyst.md across all project templates (2026-03-23)
