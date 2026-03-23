@@ -166,7 +166,7 @@ def configure_dspy(
     if backend == "ollama":
         effective_model = model or "qwen3:14b"
         ollama_kwargs: dict[str, Any] = {
-            "api_base": "http://192.168.50.62:11434",
+            "api_base": os.environ.get("OLLAMA_URL", "http://100.70.195.84:11434"),
             "max_tokens": 4096,
         }
         if api_key is not None:

@@ -329,7 +329,7 @@ async function main() {
   const recallUrlDefault =
     existingCfg.recallHost || "http://100.70.195.84:8200";
   const ollamaUrlDefault =
-    existingCfg.ollamaHost || "http://192.168.50.62:11434";
+    existingCfg.ollamaHost || "http://100.70.195.84:11434";
   const ollamaModelDefault = existingCfg.ollamaModel || "qwen3:14b";
   const apiKeyDefault =
     process.env.RECALL_API_KEY || existingCfg.recallApiKey || "";

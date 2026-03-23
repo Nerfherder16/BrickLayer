@@ -11,7 +11,7 @@ const CONFIG_PATH = path.join(os.homedir(), ".masonry", "config.json");
 const DEFAULTS = {
   recallHost: "http://100.70.195.84:8200",
   recallApiKey: process.env.RECALL_API_KEY || "",
-  ollamaHost: "http://192.168.50.62:11434",
+  ollamaHost: "http://100.70.195.84:11434",
   ollamaModel: "qwen3:14b",
   handoffThreshold: 70,
 };
