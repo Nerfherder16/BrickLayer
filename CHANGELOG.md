@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `63fd62e` chore(masonry): finalize Wave 30 question bank in questions.md (2026-03-23)
 - `9ee03ae` chore(masonry): Wave 29 synthesis + Wave 30 question bank (2026-03-23)
 - `587d1e6` chore(masonry): commit session artifacts — questions + subagent tracker (2026-03-23)
 - `0b34189` chore(masonry): Wave 29 — preagent tracker CWD fix + question bank expansion (2026-03-23)
