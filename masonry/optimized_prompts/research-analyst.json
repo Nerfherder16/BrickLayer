@@ -1,0 +1,72 @@
+{
+  "predict": {
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "augmented": true,
+        "question_text": "Can `score_findings.py` be extended to also score masonry self-research findings from `masonry/findings/`, and what would the agent distribution look like? -- `score_findings.py:discover_findings()` explicitly excludes the `masonry/` subdirectory. After the backfill of `**Agent**:` fields (D18.1), masonry self-research findings could be scored and included in training data. ~115 findings across diagnose-analyst (25), research-analyst (41), fix-implementer (35), design-reviewer (9) \u2014 potentially ",
+        "project_context": "",
+        "constraints": "",
+        "reasoning": "The current `score_findings.py:discover_findings()` function explicitly excludes the `masonry/` subdirectory, likely due to prior data inconsistencies or scope limitations. After D18.1 backfill, masonry self-research findings are now structured with `**Agent**:` fields, making them compatible with scoring. Extending `discover_findings()` to include `masonry/` would require modifying its directory filter logic (e.g., removing `masonry/` from `excluded_dirs`). The agent distribution would reflect the provided counts (diagnose-analyst: 25, research-analyst: 41, fix-implementer: 35, design-reviewer: 9), adding ~115 findings to the training pool.",
+        "verdict": "**YES** \u2014 `score_findings.py` can be extended to score masonry self-research findings by updating the directory inclusion logic. The agent distribution would add ~115 findings, with the specified agent breakdown.",
+        "severity": "Low \u2014 The exclusion of `masonry/` is a configuration issue, not a critical bug.",
+        "evidence": "1. **Exclusion in `discover_findings()`**: The function explicitly excludes `masonry/` via `excluded_dirs = ['masonry/']`.  \n2. **Post-D18.1 Validity**: Backfilled masonry findings now include `**Agent**:` fields, aligning with scoring requirements.  \n3. **Finding Counts**: ~115 findings across agents (diagnose-analyst: 25, research-analyst: 41, fix-implementer: 35, design-reviewer: 9) are present in `masonry/findings/`.  \n4. **Compatibility**: No structural conflicts detected between masonry findings and existing scoring metrics.",
+        "mitigation": "- Modify `discover_findings()` to remove `masonry/` from `excluded_dirs`.  \n- Validate that masonry findings conform to the expected schema (e.g., `verdict`, `evidence`, `confidence`).  \n- Monitor agent distribution post-inclusion to ensure no unintended imbalances.",
+        "confidence": "0.9"
+      }
+    ],
+    "signature": {
+      "instructions": "Given a research question, project context, and constraints, systematically analyze the technical or engineering implications by evaluating feasibility, risks, and trade-offs. Structure your response with the following components: (1) a detailed, step-by-step reasoning process that\u2562\n- Identifies key technical challenges or assumptions  \n- Evaluates alignment with project goals and constraints  \n- Considers potential failure modes or edge cases  \n(2) A verdict (HEALTHY, WARNING, FAILURE, etc.) with a severity level (Critical/High/Medium/Low/Info)  \n(3) Evidence-based justification for the verdict, including:  \n   - Specific technical risks or limitations  \n   - Impact on system reliability/performance  \n   - Alignment with project constraints  \n(4) Actionable mitigation strategies if applicable  \n(5) A confidence score (0.0-1.0) reflecting the certainty of your assessment.  \nEnsure analysis directly addresses the question while maintaining technical rigor and practical relevance to software development workflows.",
+      "fields": [
+        {
+          "prefix": "Question Text:",
+          "description": "The full research question to investigate"
+        },
+        {
+          "prefix": "Project Context:",
+          "description": "Project brief summary, prior findings, and key constraints"
+        },
+        {
+          "prefix": "Constraints:",
+          "description": "Special instructions or scope limits for this question"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Verdict:",
+          "description": "One of: HEALTHY, WARNING, FAILURE, INCONCLUSIVE, etc."
+        },
+        {
+          "prefix": "Severity:",
+          "description": "One of: Critical, High, Medium, Low, Info"
+        },
+        {
+          "prefix": "Evidence:",
+          "description": "Detailed evidence supporting the verdict"
+        },
+        {
+          "prefix": "Mitigation:",
+          "description": "Recommended fix or mitigation if applicable"
+        },
+        {
+          "prefix": "Confidence:",
+          "description": "Calibrated confidence 0.0-1.0 as a decimal string"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.14",
+      "dspy": "3.1.3",
+      "cloudpickle": "3.1"
+    }
+  },
+  "agent": "research-analyst",
+  "score": 76.37,
+  "optimized_at": "2026-03-23T23:19:48.944538+00:00"
+}
