@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `fac4b9d` chore: update research-analyst.md across all project templates (2026-03-23)
 - `2b04697` fix(dspy): replace valset_size with explicit valset list for DSPy 3.x (2026-03-23)
 - `65761d1` fix(dspy): add missing `import os` to optimizer.py (2026-03-23)
 - `68a2221` fix(masonry): replace hardcoded LAN IP with Tailscale IP for Ollama (2026-03-23)
