@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `fb13980` chore(masonry): Wave 25 — karen optimizer metric + --signature CLI flag (F25.3) (2026-03-23)
 - `810df00` chore(masonry): commit remaining session artifacts — run_optimization + signatures (2026-03-23)
 - `9dafcba` chore(masonry): commit session artifacts — DSPy optimizer + signatures + Wave 24 questions (2026-03-23)
 - `0c37f19` chore(masonry): Wave 25 fixes — routing scorer, karen DSPy sig, evidence quality metric (2026-03-23)
