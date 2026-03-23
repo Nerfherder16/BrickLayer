@@ -2605,3 +2605,70 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 **Success criterion**: (1) Reference R34.1 findings (or estimate from the question): how many unscored research-analyst findings exist? (2) Estimate the score improvement between a 30-example run vs. a 37-example run using DSPy's documented performance curves. (3) Estimate the time cost of running `build_dataset()` to grow the corpus vs. the time cost of a 10-trial MIPROv2 run at 30 examples. (4) Produce a clear recommendation: "Run now at 30 examples" (if corpus growth is blocked or the expected score at 30 crosses 75%) OR "Wait for corpus growth" (if R34.1 confirms 30+ unscored findings exist and can be processed in < 30 minutes). (5) If "Run now": confirm E33.1 should be re-enabled as the next executable question once an API key is available. Verdict: HEALTHY if a clear, evidence-backed recommendation is produced with a decision threshold; WARNING if the recommendation is ambiguous or conditional on data not yet available.
 
 ---
+
+## Wave 35
+
+**Generated from findings**: R34.1, R34.2, F34.1, M33.1
+**Mode transitions applied**: R34.1 WARNING → F35.1 Fix (section name mismatch in score_findings.py blocks 10 findings); R34.1 WARNING → F35.2 Fix (agent field regex corrupted by backtick H1 titles blocks 2 findings); R34.2 HEALTHY (clear recommendation: apply fixes, re-run score_all_agents.py) → V35.1 Validate (confirm 13 Group A findings score cleanly after both fixes applied); F34.1 FIX_APPLIED (applied to run_optimization.py, not optimizer.py — original hypothesis named optimizer.py) → R35.1 Research (verify optimizer.py has no independent training data load path with hardcoded project_context); M33.1 DONE (Ollama offline, recovery procedure documented) → M35.1 Monitor (probe whether Ollama has come back online since M33.1)
+
+---
+
+### F35.1: Fix `_extract_section()` in `score_findings.py` to accept non-standard evidence section names used in Waves 11-13 findings
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: R34.1 WARNING — `score_findings.py:_extract_section()` performs an exact match on `"Evidence"`. Findings from Waves 11-13 used `Analysis`, `Verification Results`, and `Code Trace` as their evidence section headers. This blocks 10 findings from receiving any evidence quality points (0 of 40), causing them to fail the 60-point TRAINING_THRESHOLD. Fixing the match to accept a list of known section names would unlock these 10 records, growing the corpus from 70 to 82 after score_all_agents.py is re-run.
+**Hypothesis**: The `_extract_section(text, "Evidence")` call on line 139 of `score_findings.py` can be extended with a fallback list: try `"Evidence"` first, then `"Analysis"`, then `"Verification Results"`, then `"Code Trace"`. The first non-empty match wins. This change is additive — findings that already have `## Evidence` are unaffected. The 10 blocked findings gain evidence quality points and cross the 60-point threshold.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `masonry/scripts/score_findings.py` — confirm that `extract_finding_fields()` calls `_extract_section(text, "Evidence")` with a single hardcoded section name on line ~139. (2) Confirm `_extract_section()` uses `re.escape(section_name)` in its regex, meaning only exact matches succeed. (3) Modify `extract_finding_fields()` to attempt extraction in priority order: `["Evidence", "Analysis", "Verification Results", "Code Trace"]` — return the first non-empty result. Keep `_extract_section()` itself unchanged (single-name interface). (4) Run `python -m pytest masonry/tests/ -k "score" -v` — confirm no test regressions. (5) Run `python masonry/scripts/score_findings.py --base-dir C:/Users/trg16/Dev/Bricklayer2.0 --output masonry/training_data/scored_findings_test.jsonl` and confirm the count of research-analyst records increases relative to the pre-fix baseline. Verdict: FIX_APPLIED if the fallback list is in place and at least 8 of the 10 previously-blocked findings now produce non-zero evidence quality scores when scored individually; PARTIAL if the code change is correct but the count increase cannot be confirmed; FAILURE if any existing test regresses.
+
+---
+
+### F35.2: Fix `_RE_AGENT` regex in `score_findings.py` to prevent multi-line corruption when the H1 title contains backtick-delimited spans
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: R34.1 WARNING — Two findings (R14.1, R17.2) have H1 titles containing backtick spans. R34.1 reports that the `**Agent**:` field extraction produces a corrupted multi-part string for these files, preventing them from being attributed to `research-analyst`. The current `_RE_AGENT` pattern `r"\*\*Agent\*\*\s*:\s*([^\n]+)"` with a trailing `.strip()` may capture unexpected content depending on the file's parsed structure.
+**Hypothesis**: The fix is to tighten the agent capture group from `[^\n]+` (any non-newline chars) to `([\w-]+)` (word chars and hyphens only, matching `research-analyst` exactly). This eliminates any trailing artifacts, backtick rendering leftovers, or whitespace continuation issues. The change is safe because all valid agent names in the registry consist only of word characters and hyphens.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `masonry/scripts/score_findings.py` line 49 — confirm `_RE_AGENT = re.compile(r"\*\*Agent\*\*\s*:\s*([^\n]+)", re.IGNORECASE)`. (2) Read the raw bytes of `masonry/findings/R14.1.md` and `masonry/findings/R17.2.md` — extract the `**Agent**:` line and run the current pattern against it. Record what `group(1).strip()` produces. If it already returns `"research-analyst"` cleanly, record HEALTHY for this defect (corruption may be a different mechanism). (3) If corruption is confirmed: change the capture group to `([\w-]+)` so the pattern is `r"\*\*Agent\*\*\s*:\s*([\w-]+)"`. (4) Verify by calling `score_finding(Path("masonry/findings/R14.1.md"))` and `score_finding(Path("masonry/findings/R17.2.md"))` — confirm `fields["agent"] == "research-analyst"` for both. (5) Run `python -m pytest masonry/tests/ -k "score" -v` — confirm no regressions. Verdict: FIX_APPLIED if both files return `agent="research-analyst"` from `score_finding()` and all tests pass; HEALTHY if the corruption cannot be reproduced (R34.1 diagnosis was incorrect about the mechanism); FAILURE if any test regresses.
+
+---
+
+### V35.1: Validate that re-running `score_all_agents.py` after F35.1 and F35.2 grows the research-analyst corpus to at least 70 records
+
+**Status**: PENDING
+**Operational Mode**: validate
+**Priority**: HIGH
+**Motivated by**: R34.2 HEALTHY — R34.2 recommended running `score_all_agents.py` after applying both pipeline fixes to grow the research-analyst corpus from 57 to 70 (13 Group A findings qualify as-is) and potentially 82 (fixes unlock 12 more). This question validates that the re-run produces the expected growth and that no deduplication or filtering issue silently blocks the increase.
+**Hypothesis**: After F35.1 and F35.2 are applied, running `score_all_agents.py` will produce a `scored_all.jsonl` with at least 70 research-analyst records (57 existing + 13 Group A). If both fixes fully succeed, the count may reach 82. The deduplication logic uses `question_id` as key — existing 57 records are not re-added, only new records are appended.
+**Method**: research-analyst
+**Success criterion**: (1) Gate check: confirm F35.1 status is DONE and F35.2 status is DONE before proceeding. If either is PENDING or FAILURE, mark this question BLOCKED and report which fix is incomplete. (2) Read `masonry/scripts/score_all_agents.py` — confirm the deduplication strategy (does it skip already-scored `question_id` values, or rebuild from scratch?). (3) Run `python masonry/scripts/score_all_agents.py` (or the equivalent command from R34.2). (4) Count research-analyst records in the updated `masonry/training_data/scored_all.jsonl`. Report: baseline (57), net-new added, total. (5) If total >= 70: confirm bootstrap pool for `--valset-size 27` is now 43+ examples and recommend immediately running MIPROv2 optimization once ANTHROPIC_API_KEY is available. If total 63-69: diagnose which Group A findings failed to score and why. If total <= 57: FAILURE — fixes did not take effect. Verdict: HEALTHY if research-analyst corpus reaches >= 70 records after the re-run; WARNING if corpus reaches 63-69 (partial improvement, some Group A findings still blocked); FAILURE if corpus stays at 57.
+
+---
+
+### R35.1: Does `optimizer.py:optimize_agent()` independently load training data from disk, or does it always receive the dataset from its caller?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Motivated by**: F34.1 FIX_APPLIED — F34.1 fixed `load_training_data_from_scored_all()` in `run_optimization.py` to populate `project_context` from `project-brief.md`. The pre-flight check in F34.1 confirmed the function lives in `run_optimization.py`, not `optimizer.py`. However, the original F34.1 hypothesis named `optimizer.py` as the target, suggesting a belief that `optimizer.py` had its own loading path. If `optimizer.py:optimize_agent()` has a default or fallback that reloads from `scored_all.jsonl` with a hardcoded `project_context: ""`, the F34.1 fix is silently bypassed in any code path that calls `optimize_agent()` directly without going through `run_optimization.py`.
+**Hypothesis**: `optimizer.py:optimize_agent()` takes a `dataset: list[dict]` parameter that is always provided by the caller. It does not load from disk. The `project_context` enrichment in F34.1 flows correctly from `run_optimization.py:load_training_data_from_scored_all()` through the `dataset` argument into `optimize_agent()`. No second hardcoding point exists in `optimizer.py`.
+**Method**: research-analyst
+**Success criterion**: (1) Read `masonry/src/dspy_pipeline/optimizer.py` in full — locate `optimize_agent()` and `optimize_all_agents()`. Confirm whether either function contains any file I/O call (`open(`, `Path(`, `.read_text`, `.jsonl`, reference to `scored_all`). (2) Confirm the signature of `optimize_agent()`: does the `dataset` parameter have a default value that would trigger an internal load if omitted? (3) Check whether any other script or test in the repo calls `optimize_agent()` or `optimize_all_agents()` directly with an un-enriched dataset (grep for `optimize_agent(` outside of `run_optimization.py`). (4) Confirm the end-to-end call chain: `run_optimization.py:run()` → `load_training_data_from_scored_all(base_dir=base_dir)` → `optimize_agent(dataset=examples)`. Verdict: HEALTHY if `optimizer.py` has no independent loading path and the F34.1 fix is the sole injection point; WARNING if a secondary path exists but is not the default (latent risk — recommend adding a guard or test); FAILURE if `optimize_agent()` has a fallback load with `project_context: ""` that can bypass the F34.1 fix.
+
+---
+
+### M35.1: Probe Ollama at `192.168.50.62:11434` for current online status and update `monitor-targets.md`
+
+**Status**: PENDING
+**Operational Mode**: monitor
+**Priority**: LOW
+**Motivated by**: M33.1 DONE — M33.1 confirmed Ollama OFFLINE as of 2026-03-23 with a documented CasaOS recovery procedure. Ollama is the zero-credential backend for DSPy optimization (no ANTHROPIC_API_KEY required) and the embedding source for semantic routing Layer 2. If Ollama has been restored, future MIPROv2 runs can use `--backend ollama` instead of `--backend anthropic`, removing the API key dependency. Semantic routing would also regain embedding-based dispatch.
+**Hypothesis**: Ollama may have been restarted since M33.1 (2026-03-23). A connectivity probe will determine current status. If ONLINE, the CLAUDE.md optimization runbook should note that `--backend ollama` is available. If still OFFLINE, the monitor entry is updated with a new timestamp and no other action is needed.
+**Method**: research-analyst
+**Success criterion**: (1) Run `curl -s --connect-timeout 5 http://192.168.50.62:11434/api/tags` — capture exit code and response body. Exit code 0 with JSON response = ONLINE; exit code 7 (connection refused) or 28 (timeout) = OFFLINE. (2) If ONLINE: confirm which models are available. If `qwen3:14b` is listed, note that `--backend ollama --model qwen3:14b` is now viable. Run a test embedding query (`curl -s -X POST http://192.168.50.62:11434/api/embeddings -d '{"model":"nomic-embed-text","prompt":"test"}'`) to confirm the semantic routing endpoint is functional. Update `masonry/monitor-targets.md` `ollama_backend_reachable` entry to ONLINE with today's date. (3) If OFFLINE: update `masonry/monitor-targets.md` `ollama_backend_reachable` entry with today's date and the exit code (to confirm the probe ran). No other action required. Verdict: HEALTHY if Ollama is ONLINE and the embedding endpoint responds correctly; WARNING if Ollama is ONLINE but embedding endpoint fails or required model is missing; DONE if Ollama is still OFFLINE and monitor-targets.md is updated with the current probe timestamp.
+
+---
