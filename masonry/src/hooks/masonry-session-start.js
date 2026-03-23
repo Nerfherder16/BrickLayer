@@ -16,6 +16,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { execSync } = require("child_process");
+const { writeJson, initKilnJson } = require("../core/mas");
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -170,6 +171,35 @@ async function main() {
   if (agentState && agentState.active && agentState.active.length > 0) {
     lines.push(`[Masonry] ${agentState.active.length} agent(s) were active at last session: ${agentState.active.map(a => a.name || a.type).join(", ")}.`);
   }
+
+  // --- .mas/ session + context injection ---
+  try {
+    const sessionId0 = input.session_id || input.sessionId || null;
+    const sessionObj = {
+      session_id: sessionId0 || 'unknown',
+      started_at: new Date().toISOString(),
+      cwd,
+      branch: null,
+    };
+    try {
+      sessionObj.branch = execSync('git branch --show-current', {
+        encoding: 'utf8', timeout: 3000, cwd,
+      }).trim() || null;
+    } catch (_) {}
+    writeJson(cwd, 'session.json', sessionObj);
+    initKilnJson(cwd);
+  } catch (_) {}
+
+  // Inject context.md if present
+  try {
+    const ctxPath = path.join(cwd, '.mas', 'context.md');
+    if (fs.existsSync(ctxPath)) {
+      const ctx = fs.readFileSync(ctxPath, 'utf8').trim();
+      if (ctx) {
+        lines.push('[Masonry] Campaign context loaded from .mas/context.md');
+      }
+    }
+  } catch (_) {}
 
   if (lines.length > 0) {
     process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "SessionStart", content: lines.join("\n") } }));

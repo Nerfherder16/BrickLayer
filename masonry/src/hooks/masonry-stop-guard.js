@@ -17,6 +17,7 @@ const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { readJson, writeJson, appendJsonl } = require("../core/mas");
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -54,6 +55,18 @@ function ageLabel(days) {
 function isResearchProject(dir) {
   return fs.existsSync(path.join(dir, 'program.md')) &&
          fs.existsSync(path.join(dir, 'questions.md'));
+}
+
+function closeSession(projectDir) {
+  try {
+    const session = readJson(projectDir, 'session.json');
+    if (!session || !session.started_at) return;
+    const now = new Date();
+    session.ended_at = now.toISOString();
+    session.duration_ms = now.getTime() - new Date(session.started_at).getTime();
+    writeJson(projectDir, 'session.json', session);
+    appendJsonl(projectDir, 'history.jsonl', session);
+  } catch (_) {}
 }
 
 // Key project docs that must stay current with code changes.
@@ -187,6 +200,7 @@ async function main() {
     }).trim();
 
     if (!status) {
+      closeSession(cwd);
       checkDocStaleness(cwd, snapPath);
       process.exit(0);
     }
@@ -231,6 +245,7 @@ async function main() {
     }
 
     if (sessionModified.length === 0 && sessionUntracked.length === 0) {
+      closeSession(cwd);
       checkDocStaleness(cwd, snapPath);
       process.exit(0);
     }
@@ -247,6 +262,7 @@ async function main() {
     // Not a git repo or git unavailable — allow stop
   }
 
+  closeSession(cwd);
   checkDocStaleness(cwd, snapPath);
   process.exit(0);
 }

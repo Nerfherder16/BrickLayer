@@ -29,9 +29,11 @@ function initCleanGitRepo(dir) {
     execSync("git init", { cwd: dir, encoding: "utf8", stdio: "pipe" });
     execSync("git config user.email test@test.com", { cwd: dir, encoding: "utf8", stdio: "pipe" });
     execSync("git config user.name Test", { cwd: dir, encoding: "utf8", stdio: "pipe" });
+    // Gitignore .mas/ so the stop-guard doesn't flag it as untracked
+    fs.writeFileSync(path.join(dir, ".gitignore"), "**/.mas/\n", "utf8");
     // Need at least one commit so git status works
     fs.writeFileSync(path.join(dir, ".gitkeep"), "", "utf8");
-    execSync("git add .gitkeep", { cwd: dir, encoding: "utf8", stdio: "pipe" });
+    execSync("git add .gitkeep .gitignore", { cwd: dir, encoding: "utf8", stdio: "pipe" });
     execSync('git commit -m "init"', { cwd: dir, encoding: "utf8", stdio: "pipe" });
   } catch (_) {}
 }

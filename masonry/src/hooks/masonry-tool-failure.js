@@ -12,6 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { appendJsonl } = require("../core/mas");
 
 const MAX_RETRIES = 3;
 const RETRY_WINDOW_MS = 120_000; // 2 minutes
@@ -83,6 +84,17 @@ async function main() {
 
   // Build guidance output
   const errSnippet = errorText.slice(0, 400).replace(/\n/g, " ").trim();
+
+  // Per-project error log in .mas/
+  try {
+    appendJsonl(process.cwd(), 'errors.jsonl', {
+      timestamp: new Date().toISOString(),
+      tool: toolName,
+      error: errSnippet,
+      retries,
+      fingerprint: fp,
+    });
+  } catch (_) {}
 
   if (retries >= MAX_RETRIES) {
     // 3-strike rule: escalate to spawn research agent

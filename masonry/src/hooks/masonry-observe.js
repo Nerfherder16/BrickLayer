@@ -9,6 +9,7 @@ const os = require('os');
 
 const { storeMemory } = require('../core/recall');
 const { readState, writeState } = require('../core/state');
+const { appendJsonl: masAppendJsonl, writeJson: masWriteJson, readJson: masReadJson } = require('../core/mas');
 
 const WATCHED_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const MAX_STDIN = 2 * 1024 * 1024;
@@ -259,7 +260,7 @@ async function main() {
   } catch (_err) { /* optional */ }
 
   // Store finding to Recall
-  await storeMemory({
+  const recallResult = await storeMemory({
     content: snippet,
     domain: `${project}-autoresearch`,
     tags: [
@@ -310,6 +311,45 @@ async function main() {
       }
     } catch (_err) { /* non-fatal */ }
   }
+
+  // .mas/ timing telemetry
+  try {
+    const waveMatch = fileContent.match(/\*\*Wave\*\*:\s*(\d+)/i);
+    const wave = waveMatch ? parseInt(waveMatch[1], 10) : null;
+    masAppendJsonl(cwd, 'timing.jsonl', {
+      qid,
+      wave,
+      agent: extractMarkdownField(fileContent, 'Agent') || 'unknown',
+      started_at: null,
+      duration_ms: null,
+      verdict,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (_) {}
+
+  // .mas/ agent scores
+  try {
+    const agentName = extractMarkdownField(fileContent, 'Agent') || 'unknown';
+    const scores = masReadJson(cwd, 'agent_scores.json') || {};
+    if (!scores[agentName]) {
+      scores[agentName] = { count: 0, verdicts: {}, last_seen: null };
+    }
+    scores[agentName].count += 1;
+    scores[agentName].verdicts[verdict] = (scores[agentName].verdicts[verdict] || 0) + 1;
+    scores[agentName].last_seen = new Date().toISOString();
+    masWriteJson(cwd, 'agent_scores.json', scores);
+  } catch (_) {}
+
+  // .mas/ recall log
+  try {
+    masAppendJsonl(cwd, 'recall_log.jsonl', {
+      qid,
+      query: snippet.slice(0, 100),
+      memory_id: recallResult && recallResult.id ? recallResult.id : null,
+      domain: `${project}-autoresearch`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (_) {}
 
   process.exit(0);
 }
