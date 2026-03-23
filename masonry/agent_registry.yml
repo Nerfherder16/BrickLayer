@@ -544,25 +544,18 @@ agents:
   runs_since_optimization: 0
   registrySource: frontmatter
 - name: overseer
-  file: .claude/agents/overseer.md
-  model: opus
-  description: 'Meta-agent that monitors the agent fleet, identifies underperformers
-    from agent_db.json, reads their recent finding evidence, and rewrites their instruction
-    files to improve performance. Also creates new agents when FORGE_NEEDED.md evidence
-    points to missing capabilities.
-
-    '
+  file: ~/.claude/agents/overseer.md
+  model: sonnet
+  description: Agent health monitor — evaluates, improves, and rolls back agents
   modes:
-  - meta
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: draft
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-  registrySource: frontmatter
+  - agent
+  - audit
+  capabilities:
+  - agent-health
+  - prompt-optimization
+  - regression-detection
+  - rollback
+  tier: trusted
 - name: planner
   file: .claude/agents/planner.md
   model: opus
