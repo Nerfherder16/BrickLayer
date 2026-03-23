@@ -1,0 +1,280 @@
+"""masonry/scripts/eval_agent.py
+
+Held-out eval engine that runs agent prompts through ``claude -p`` and scores
+the results against expected outputs from scored_all.jsonl.
+
+Usage:
+    python masonry/scripts/eval_agent.py karen --signature karen --eval-size 20
+    python masonry/scripts/eval_agent.py research-analyst --eval-size 10
+
+Output:
+    score=0.87 (17/20 passed), per-example breakdown
+    Writes: masonry/agent_snapshots/{agent}/eval_latest.json
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
+
+_SCRIPT_ROOT = Path(__file__).resolve().parent.parent.parent  # blRoot
+if str(_SCRIPT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_ROOT))
+
+from masonry.src.dspy_pipeline.optimizer import build_karen_metric, build_metric  # noqa: E402
+
+_DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+
+
+# ── Data loading ──────────────────────────────────────────────────────────────
+
+
+def _load_records(data_file: Path, agent_name: str) -> list[dict]:
+    """Load and filter records from scored_all.jsonl for the given agent."""
+    if not data_file.exists():
+        return []
+    records: list[dict] = []
+    for line in data_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if rec.get("agent") == agent_name:
+            records.append(rec)
+    return records
+
+
+# ── Agent prompt discovery ────────────────────────────────────────────────────
+
+
+def _find_agent_md_files(base_dir: Path, agent_name: str) -> list[Path]:
+    """Locate agent .md files — same logic as optimize_claude.py."""
+    candidates = [
+        base_dir / ".claude" / "agents" / f"{agent_name}.md",
+        Path.home() / ".claude" / "agents" / f"{agent_name}.md",
+    ]
+    for child in base_dir.iterdir():
+        if child.is_dir() and not child.name.startswith("."):
+            p = child / ".claude" / "agents" / f"{agent_name}.md"
+            if p.exists():
+                candidates.append(p)
+
+    seen: set[Path] = set()
+    unique: list[Path] = []
+    for c in candidates:
+        resolved = c.resolve() if c.exists() else c
+        if resolved not in seen:
+            seen.add(resolved)
+            unique.append(c)
+    return [p for p in unique if p.exists()]
+
+
+def _load_agent_prompt(base_dir: Path, agent_name: str) -> str:
+    """Return the contents of the first found agent .md file, or empty string."""
+    found = _find_agent_md_files(base_dir, agent_name)
+    if found:
+        return found[0].read_text(encoding="utf-8")
+    return ""
+
+
+# ── Scoring ───────────────────────────────────────────────────────────────────
+
+
+def _score_example(
+    record: dict,
+    predicted_raw: str,
+    metric_fn: Any,
+) -> tuple[float, dict]:
+    """Score one example. Returns (score, predicted_dict)."""
+    try:
+        predicted = json.loads(predicted_raw)
+    except (json.JSONDecodeError, ValueError):
+        return 0.0, {}
+
+    expected = record.get("expected", record.get("output", {}))
+
+    # Metric functions expect objects with attributes
+    pred_ns = SimpleNamespace(**predicted) if isinstance(predicted, dict) else predicted
+    example_ns = SimpleNamespace(**expected) if isinstance(expected, dict) else expected
+
+    try:
+        raw_score = metric_fn(example_ns, pred_ns)
+    except Exception:
+        raw_score = 0.0
+
+    return float(raw_score), predicted
+
+
+# ── Core eval function ────────────────────────────────────────────────────────
+
+
+def run_eval(
+    agent: str,
+    data_file: Path,
+    snapshot_dir: Path,
+    signature: str = "research",
+    eval_size: int = 20,
+    model: str = _DEFAULT_MODEL,
+    base_dir: Path | None = None,
+) -> dict:
+    """Run held-out eval for the given agent.
+
+    Parameters
+    ----------
+    agent:
+        Agent name (e.g. "karen", "research-analyst").
+    data_file:
+        Path to scored_all.jsonl.
+    snapshot_dir:
+        Directory where ``{agent}/eval_latest.json`` will be written.
+    signature:
+        Metric signature to use — "karen" or "research".
+    eval_size:
+        Number of held-out examples (last N records).
+    model:
+        Claude model to use for inference.
+    base_dir:
+        BrickLayer root (used to locate agent .md files). Defaults to
+        the repository root derived from this script's location.
+    """
+    if base_dir is None:
+        base_dir = _SCRIPT_ROOT
+
+    # Load records
+    records = _load_records(data_file, agent)
+    held_out = records[-eval_size:] if len(records) >= eval_size else records
+
+    # Load agent prompt
+    agent_prompt = _load_agent_prompt(base_dir, agent)
+
+    # Build metric — build_metric requires a signature class; passing object as
+    # a sentinel when we only need the returned callable (not DSPy bootstrapping).
+    if signature == "karen":
+        metric_fn = build_karen_metric()
+    else:
+        metric_fn = build_metric(object)  # type: ignore[arg-type]  # sentinel for non-DSPy eval
+
+    # Evaluate each held-out example
+    examples_out: list[dict] = []
+    passed = 0
+    failed = 0
+
+    for i, record in enumerate(held_out, 1):
+        inp = record.get("input", {})
+        commit_subject = inp.get("commit_subject", "") if isinstance(inp, dict) else ""
+
+        prompt = f"{agent_prompt}\n\nInput:\n{json.dumps(inp)}"
+        proc = subprocess.run(
+            ["claude", "-p", prompt, "--model", model],
+            capture_output=True,
+            text=True,
+        )
+
+        score, predicted = _score_example(record, proc.stdout, metric_fn)
+        passes = score >= 0.5
+
+        if passes:
+            passed += 1
+        else:
+            failed += 1
+
+        subject_preview = str(commit_subject)[:50]
+        print(f"[{i}/{len(held_out)}] score={score:.2f}  commit: {subject_preview}")
+
+        examples_out.append({
+            "input": inp,
+            "expected": record.get("expected", record.get("output", {})),
+            "predicted": predicted,
+            "score": score,
+        })
+
+    total = len(held_out)
+    overall_score = passed / total if total > 0 else 0.0
+
+    print(f"score={overall_score:.2f} ({passed}/{total} passed)")
+
+    # Write eval_latest.json
+    out_dir = snapshot_dir / agent
+    out_dir.mkdir(parents=True, exist_ok=True)
+    evaluated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    result: dict = {
+        "agent": agent,
+        "score": overall_score,
+        "eval_size": total,
+        "passed": passed,
+        "failed": failed,
+        "evaluated_at": evaluated_at,
+        "model": model,
+        "examples": examples_out,
+    }
+
+    out_path = out_dir / "eval_latest.json"
+    out_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+
+    return result
+
+
+# ── CLI ───────────────────────────────────────────────────────────────────────
+
+
+def _main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Run held-out eval for a Masonry agent using claude -p."
+    )
+    parser.add_argument("agent_name", help="Name of the agent to evaluate")
+    parser.add_argument(
+        "--base-dir",
+        type=Path,
+        default=Path.cwd(),
+        help="BrickLayer root directory (default: cwd)",
+    )
+    parser.add_argument(
+        "--signature",
+        default="research",
+        choices=["research", "karen"],
+        help='Metric signature: "research" (default) or "karen"',
+    )
+    parser.add_argument(
+        "--eval-size",
+        type=int,
+        default=20,
+        help="Number of held-out examples to evaluate (default: 20)",
+    )
+    parser.add_argument(
+        "--model",
+        default=_DEFAULT_MODEL,
+        help=f"Claude model to use (default: {_DEFAULT_MODEL})",
+    )
+    args = parser.parse_args()
+
+    base_dir = args.base_dir.resolve()
+    td_self = base_dir / "training_data"
+    td_normal = base_dir / "masonry" / "training_data"
+    td_dir = td_self if td_self.exists() else td_normal
+    data_file = td_dir / "scored_all.jsonl"
+
+    snapshot_dir = base_dir / "masonry" / "agent_snapshots"
+
+    run_eval(
+        agent=args.agent_name,
+        data_file=data_file,
+        snapshot_dir=snapshot_dir,
+        signature=args.signature,
+        eval_size=args.eval_size,
+        model=args.model,
+        base_dir=base_dir,
+    )
+
+
+if __name__ == "__main__":
+    _main()
