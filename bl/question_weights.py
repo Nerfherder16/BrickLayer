@@ -38,6 +38,13 @@ _VERDICT_INCONCLUSIVE = "INCONCLUSIVE"
 
 _WEIGHTS_FILE = ".bl-weights.json"
 
+NEEDS_HUMAN_THRESHOLD = 0.35
+
+
+def should_flag_human(confidence: float) -> bool:
+    """Return True when confidence is below the human-review threshold (< 0.35)."""
+    return confidence < NEEDS_HUMAN_THRESHOLD
+
 
 # ---------------------------------------------------------------------------
 # Data model
