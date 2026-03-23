@@ -120,7 +120,8 @@ def run_optimize_and_prove(
         ])
         print(
             f"REJECTED: {agent_name}: candidate {score_after:.3f}"
-            f" < baseline {score_before:.3f} — reverted"
+            f" did not improve over baseline {score_before:.3f}"
+            f" by min_delta — reverted"
         )
         return {
             "deployed": False,
