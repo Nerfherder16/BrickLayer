@@ -205,7 +205,8 @@ def optimize_agent(
         backend: LM backend to use — ``"anthropic"`` or ``"ollama"``.
             Passed through to :func:`configure_dspy` when called by the caller.
         num_trials: Number of Bayesian optimization trials (default: 10).
-        valset_size: Validation set size for trials (default: 100).
+        valset_size: Number of examples to use as the validation set (default: 100).
+            The last ``valset_size`` examples are held out; the rest become trainset.
         metric_fn: Optional custom metric callable. When ``None``, defaults to
             :func:`build_metric` for the given signature. Pass
             :func:`build_karen_metric` when optimizing the karen agent.
@@ -227,17 +228,22 @@ def optimize_agent(
 
     # Convert dataset dicts to DSPy Examples
     input_keys = list(signature_cls.input_fields.keys())  # type: ignore[attr-defined]
-    trainset = [dspy.Example(**ex).with_inputs(*input_keys) for ex in dataset]
+    all_examples = [dspy.Example(**ex).with_inputs(*input_keys) for ex in dataset]
+
+    # Split into train / val — DSPy 3.x takes valset as an explicit list
+    actual_valset_size = min(valset_size, max(1, len(all_examples) // 4))
+    trainset = all_examples[:-actual_valset_size] if actual_valset_size < len(all_examples) else all_examples
+    valset = all_examples[-actual_valset_size:]
 
     # Run optimization
     try:
         optimized = optimizer.compile(
             module,
             trainset=trainset,
+            valset=valset,
             max_bootstrapped_demos=3,
             max_labeled_demos=3,
             num_trials=num_trials,
-            valset_size=valset_size,
         )
     except Exception as exc:
         print(f"[optimizer] MIPROv2 failed for {agent_name}: {exc}", file=sys.stderr)
