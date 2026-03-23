@@ -445,6 +445,7 @@ def _tool_masonry_optimize_agent(args: dict) -> dict:
     )
     model = args.get("model", "claude-sonnet-4-6")
     backend = args.get("backend", "anthropic")
+    api_key = args.get("api_key")
 
     try:
         from masonry.src.dspy_pipeline.training_extractor import build_dataset  # noqa: PLC0415
@@ -463,7 +464,7 @@ def _tool_masonry_optimize_agent(args: dict) -> dict:
         }
 
     try:
-        configure_dspy(model=model, backend=backend)
+        configure_dspy(model=model, backend=backend, api_key=api_key)
     except Exception as exc:
         return {"error": f"DSPy configuration failed: {exc}"}
 
@@ -766,6 +767,10 @@ TOOLS = {
                     "type": "string",
                     "description": "Anthropic model for optimization. Defaults to claude-sonnet-4-6.",
                     "default": "claude-sonnet-4-6",
+                },
+                "api_key": {
+                    "type": "string",
+                    "description": "Anthropic API key. Falls back to ANTHROPIC_API_KEY env var.",
                 },
             },
         },
