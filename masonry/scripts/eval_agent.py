@@ -36,6 +36,15 @@ from masonry.src.dspy_pipeline.optimizer import build_karen_metric, build_metric
 
 _DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 
+_KAREN_JSON_INSTRUCTION = (
+    "\n\nRespond ONLY with a valid JSON object and no other text. "
+    "The JSON must have exactly these keys: "
+    '"action" (one of: "updated", "created", "reverted", "skipped"), '
+    '"doc_updates" (comma-separated doc file paths or empty string), '
+    '"changelog_entry" (single-line summary string), '
+    '"quality_score" (decimal string 0.0–1.0).'
+)
+
 
 # ── Data loading ──────────────────────────────────────────────────────────────
 
