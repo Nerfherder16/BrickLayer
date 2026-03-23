@@ -1812,7 +1812,8 @@
 
 ### F25.3: Define `KarenSig` in `signatures.py` and add karen-specific data loader to `training_extractor.py`
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: [F25.3](findings/F25.3.md) — FIX_APPLIED
 **Operational Mode**: fix
 **Priority**: MEDIUM
 **Motivated by**: V24.1 NOT_VALIDATED — karen's 191 training records use ops-domain fields (`commit_subject`, `doc_files_written`, `reverted`, `files_changed`) with zero overlap to `ResearchAgentSig`'s (`verdict`, `severity`, `confidence`, `evidence`, `mitigation`). Attempting optimization with the wrong signature would produce a degenerate prompt. V24.1 identified 5 prerequisite steps; this question implements the first two (signature + data loader) as a precondition for the eventual karen optimization run.

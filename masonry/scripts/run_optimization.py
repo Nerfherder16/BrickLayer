@@ -298,6 +298,12 @@ def _main() -> None:
         default=100,
         help="Validation set size for trials (default: 100)",
     )
+    parser.add_argument(
+        "--signature",
+        default="research",
+        choices=["research", "karen"],
+        help='DSPy signature to use: "research" (default) or "karen"',
+    )
     args = parser.parse_args()
 
     sys.exit(run(
@@ -306,6 +312,7 @@ def _main() -> None:
         backend=args.backend,
         num_trials=args.num_trials,
         valset_size=args.valset_size,
+        signature=args.signature,
     ))
 
 

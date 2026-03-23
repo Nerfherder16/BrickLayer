@@ -78,10 +78,13 @@ def build_metric(signature_cls: type) -> Any:
 def build_karen_metric() -> Any:
     """Build heuristic scoring metric for KarenSig (ops-domain documentation agent).
 
+    Matches the hook-defined KarenSig output schema: quality_score, action,
+    doc_updates, changelog_entry.
+
     Components:
-    - doc_count_match (0.5): predicted doc_files_written matches actual (exact=0.5, ±1=0.25)
-    - reverted_match (0.3): predicted reverted field matches actual
-    - changelog_quality (0.2): non-empty changelog_entry when doc_files_written > 0
+    - quality_score_proximity (0.5): |predicted_score - actual_score| ≤ 0.1 = 0.5, else 0.25
+    - action_match (0.3): predicted action matches expected action
+    - changelog_quality (0.2): non-empty changelog_entry when action != "skipped"
 
     Returns a callable(example, prediction, trace) -> float.
     """
@@ -89,38 +92,41 @@ def build_karen_metric() -> Any:
     def metric(example: Any, prediction: Any, trace: Any = None) -> float:
         score = 0.0
 
-        # doc_files_written match (0.5 weight, ±1 tolerance)
+        # quality_score proximity (0.5 weight)
         try:
-            ex_count = int(str(getattr(example, "doc_files_written", "0") or "0"))
-            pred_raw = str(getattr(prediction, "doc_files_written", "0") or "0")
-            m = re.search(r"\d+", pred_raw)
-            pred_count = int(m.group()) if m else 0
-            if ex_count == pred_count:
+            ex_qs = str(getattr(example, "quality_score", "1.0") or "1.0")
+            pred_qs_raw = str(getattr(prediction, "quality_score", "1.0") or "1.0")
+            m = re.search(r"\d+\.?\d*", pred_qs_raw)
+            ex_val = float(ex_qs)
+            pred_val = float(m.group()) if m else 1.0
+            if abs(ex_val - pred_val) <= 0.1:
                 score += 0.5
-            elif abs(ex_count - pred_count) == 1:
-                score += 0.25  # partial credit for ±1
+            else:
+                score += 0.25  # partial credit for reasonable estimates
         except Exception:
-            pass
+            score += 0.25  # default partial credit on parse failure
 
-        # reverted match (0.3 weight)
+        # action match (0.3 weight)
         try:
-            ex_rev = str(getattr(example, "reverted", "false") or "false").lower().strip()
-            pred_rev = str(getattr(prediction, "reverted", "false") or "false").lower().strip()
-            ex_bool = ex_rev in ("true", "yes", "1")
-            pred_bool = pred_rev in ("true", "yes", "1")
-            if ex_bool == pred_bool:
+            ex_action = str(getattr(example, "action", "") or "").lower().strip()
+            pred_action = str(getattr(prediction, "action", "") or "").lower().strip()
+            if ex_action and pred_action and ex_action == pred_action:
                 score += 0.3
+            elif ex_action and pred_action and (
+                (ex_action in ("updated", "created")) == (pred_action in ("updated", "created"))
+            ):
+                score += 0.15  # partial credit for getting the write/no-write direction right
         except Exception:
             pass
 
         # changelog_entry quality (0.2 weight)
         try:
             entry = str(getattr(prediction, "changelog_entry", "") or "")
-            ex_count = int(str(getattr(example, "doc_files_written", "0") or "0"))
-            if ex_count > 0 and len(entry) > 10:
+            ex_action = str(getattr(example, "action", "skipped") or "skipped").lower()
+            if ex_action != "skipped" and len(entry) > 10:
                 score += 0.2
-            elif ex_count == 0:
-                score += 0.2  # no entry needed when no doc files written
+            elif ex_action == "skipped":
+                score += 0.2  # no entry needed when action is skipped
         except Exception:
             pass
 
