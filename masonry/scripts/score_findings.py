@@ -14,6 +14,12 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+# Import _build_qid_to_agent_map for hypothesis-block enrichment (F29.1)
+try:
+    from masonry.src.dspy_pipeline.training_extractor import _build_qid_to_agent_map
+except ImportError:
+    _build_qid_to_agent_map = None  # type: ignore[assignment]
+
 # ---------------------------------------------------------------------------
 # Valid verdict set (mirrors masonry.src.schemas.payloads.VALID_VERDICTS)
 # ---------------------------------------------------------------------------
@@ -52,11 +58,20 @@ TRAINING_THRESHOLD = 60
 # Field extraction
 # ---------------------------------------------------------------------------
 
-def extract_finding_fields(path: Path) -> dict[str, Any]:
+def extract_finding_fields(
+    path: Path,
+    qid_map: dict[str, dict[str, str]] | None = None,
+) -> dict[str, Any]:
     """Extract structured fields from a finding markdown file.
 
     Returns a dict with keys: question_id, agent, verdict, severity,
     confidence, question_text, summary, evidence.
+
+    When ``qid_map`` is provided (built from questions.md via
+    ``_build_qid_to_agent_map``), the extracted ``question_text`` is
+    replaced with the enriched hypothesis-block text from questions.md
+    if the question_id is found in the map (F29.1).  The file-header
+    subtitle value is kept as a fallback.
     """
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -109,6 +124,16 @@ def extract_finding_fields(path: Path) -> dict[str, Any]:
         # Try to extract subtitle from header: "# Finding: Q1.1 — <text>"
         sub_match = re.search(r"^#\s+Finding\s*:[^—–\n]*[—–]\s*(.+)$", text, re.MULTILINE)
         question_text = sub_match.group(1).strip() if sub_match else ""
+
+    # F29.1: enrich question_text with hypothesis-block text from questions.md
+    # when available.  Only overwrite if the map has an entry for this question_id
+    # AND the enriched text is longer than the header-derived text.
+    if qid_map:
+        entry = qid_map.get(question_id)
+        if entry:
+            enriched = entry.get("question_text", "")
+            if enriched and len(enriched) > len(question_text):
+                question_text = enriched[:500]
 
     # evidence: content of ## Evidence section
     evidence = _extract_section(text, "Evidence")
@@ -232,12 +257,17 @@ def _score_verdict_clarity(verdict: str) -> int:
     return points
 
 
-def score_finding(path: Path) -> dict[str, Any]:
+def score_finding(
+    path: Path,
+    qid_map: dict[str, dict[str, str]] | None = None,
+) -> dict[str, Any]:
     """Score a single finding file on three dimensions.
 
     Returns a dict with keys: score, score_breakdown, fields.
+    Pass ``qid_map`` (from ``_build_qid_to_agent_map``) to enrich
+    question_text with hypothesis-block text from questions.md (F29.1).
     """
-    fields = extract_finding_fields(path)
+    fields = extract_finding_fields(path, qid_map=qid_map)
 
     confidence_cal = _score_confidence_calibration(
         fields["confidence"], fields["verdict"], fields["severity"]
@@ -329,11 +359,23 @@ def run(
     """
     paths = discover_findings(base_dir)
 
+    # F29.1: build qid→{agent, question_text} map once for the entire run.
+    # Looks for questions.md adjacent to the masonry/ dir or at base_dir root.
+    qid_map: dict[str, dict[str, str]] = {}
+    if _build_qid_to_agent_map is not None:
+        for candidate in (
+            base_dir / "masonry" / "questions.md",
+            base_dir / "questions.md",
+        ):
+            if candidate.exists():
+                qid_map = _build_qid_to_agent_map(candidate)
+                break
+
     training_records: list[dict[str, Any]] = []
     agent_counts: dict[str, int] = defaultdict(int)
 
     for finding_path in paths:
-        scored = score_finding(finding_path)
+        scored = score_finding(finding_path, qid_map=qid_map)
         fields = scored["fields"]
 
         if scored["score"] >= TRAINING_THRESHOLD:
