@@ -171,6 +171,7 @@ def optimize_agent(
     backend: str = "anthropic",
     num_trials: int = 10,
     valset_size: int = 100,
+    metric_fn: Any = None,
 ) -> dict[str, Any]:
     """Optimize a single agent's prompt using MIPROv2.
 
@@ -183,6 +184,9 @@ def optimize_agent(
             Passed through to :func:`configure_dspy` when called by the caller.
         num_trials: Number of Bayesian optimization trials (default: 10).
         valset_size: Validation set size for trials (default: 100).
+        metric_fn: Optional custom metric callable. When ``None``, defaults to
+            :func:`build_metric` for the given signature. Pass
+            :func:`build_karen_metric` when optimizing the karen agent.
 
     Returns:
         Dict with agent, score, and optimized_at fields.
@@ -191,7 +195,7 @@ def optimize_agent(
 
     # Build the module
     module = dspy.ChainOfThought(signature_cls)
-    metric = build_metric(signature_cls)
+    metric = metric_fn if metric_fn is not None else build_metric(signature_cls)
 
     # Configure optimizer with low-cost settings
     optimizer = dspy.MIPROv2(
