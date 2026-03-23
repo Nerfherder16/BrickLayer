@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `fd9c032` chore: session files from task 1 implementation (2026-03-23)
 - `9b641a0` feat: eval_agent.py — held-out eval engine (task 1/4) (2026-03-23)
 - `ba58a4c` chore: mark completed roadmap items as done after codebase verification (2026-03-23)
 - `eb59c1e` chore: refresh karen few-shot examples (optimize_claude.py run) (2026-03-23)
