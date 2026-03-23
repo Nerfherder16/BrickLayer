@@ -79,6 +79,23 @@ async function main() {
     process.exit(0);
   }
 
+  const buildSessionId = progress.session_id || null;
+  const currentSessionId = parsed.session_id || parsed.sessionId || null;
+
+  // Only block the session that owns this build.
+  if (buildSessionId && currentSessionId && buildSessionId !== currentSessionId) {
+    process.stderr.write(
+      `\n[Masonry] Build owned by session ${buildSessionId.slice(0, 8)}... — not blocking this session.\n`,
+    );
+    process.exit(0);
+  }
+  if (!buildSessionId && currentSessionId) {
+    process.stderr.write(
+      `\n[Masonry] Build has no session owner (legacy) — not blocking this session.\n`,
+    );
+    process.exit(0);
+  }
+
   const tasks = progress.tasks || [];
   const pending = tasks.filter((t) => t.status === "PENDING" || t.status === "IN_PROGRESS");
   const done = tasks.filter((t) => t.status === "DONE");
