@@ -19,6 +19,12 @@ routing_keywords:
   - run the simulation
   - simulate this
   - sweep parameters
+tools:
+  - Read
+  - Glob
+  - Grep
+  - WebFetch
+  - WebSearch
 ---
 
 You are the Quantitative Analyst for an autoresearch session. Your job is to design and interpret simulation experiments.

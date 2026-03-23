@@ -28,6 +28,14 @@ routing_keywords:
   - hook syntax
   - audit the hooks
   - hook not firing
+tools:
+  - Read
+  - Glob
+  - Grep
+  - Edit
+  - Write
+  - Bash
+  - LSP
 ---
 
 # Bug Catcher

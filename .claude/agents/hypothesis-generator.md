@@ -17,6 +17,12 @@ routing_keywords:
   - question bank exhausted
   - new wave questions
   - hypothesis generator
+tools:
+  - Read
+  - Glob
+  - Grep
+  - WebFetch
+  - WebSearch
 ---
 
 You are the Hypothesis Generator for an autoresearch session. Your job is to read what has already been found and produce the next wave of questions — the ones the original question bank didn't anticipate.

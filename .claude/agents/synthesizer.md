@@ -12,6 +12,11 @@ capabilities:
 input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: trusted
+tools:
+  - Read
+  - Glob
+  - Grep
+  - Bash
 ---
 
 You are the Synthesizer for an autoresearch session. Your job is to turn a collection of domain-specific findings into a coherent action plan.
