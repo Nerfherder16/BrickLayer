@@ -92,5 +92,71 @@ class TestRunOptimizationApiKey(unittest.TestCase):
         self.assertEqual(captured.get("api_key"), "sk-from-env")
 
 
+class TestLoadTrainingDataProjectContext(unittest.TestCase):
+    """Verify that load_training_data_from_scored_all() populates project_context from project-brief.md."""
+
+    def test_project_context_populated_from_base_dir(self):
+        """When base_dir has project-brief.md, examples[0].project_context must be non-empty."""
+        import json
+        import tempfile
+        from pathlib import Path
+
+        from masonry.scripts.run_optimization import load_training_data_from_scored_all
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+
+            # Write project-brief.md
+            brief_text = "This is the ADBP project brief — describes the system under test."
+            (tmp_path / "project-brief.md").write_text(brief_text, encoding="utf-8")
+
+            # Write a minimal scored_all.jsonl with one research-analyst record
+            record = {
+                "agent": "research-analyst",
+                "score": 80,
+                "input": {"question_text": "Does the system handle X?"},
+                "output": {"verdict": "HEALTHY", "severity": "Low", "evidence": "No issues found.", "confidence": 0.8},
+            }
+            scored_path = tmp_path / "scored_all.jsonl"
+            scored_path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+            examples = load_training_data_from_scored_all(scored_path, "research-analyst", base_dir=tmp_path)
+
+        self.assertEqual(len(examples), 1, "Expected exactly 1 training example")
+        self.assertTrue(
+            len(examples[0]["project_context"]) > 0,
+            "project_context must be non-empty when base_dir has project-brief.md",
+        )
+        self.assertIn(
+            "ADBP",
+            examples[0]["project_context"],
+            "project_context should contain text from project-brief.md",
+        )
+
+    def test_project_context_empty_without_base_dir(self):
+        """When base_dir is None (default), project_context falls back to empty string."""
+        import json
+        import tempfile
+        from pathlib import Path
+
+        from masonry.scripts.run_optimization import load_training_data_from_scored_all
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            record = {
+                "agent": "research-analyst",
+                "score": 80,
+                "input": {"question_text": "Q?"},
+                "output": {"verdict": "HEALTHY", "severity": "Low", "evidence": "e", "confidence": 0.8},
+            }
+            scored_path = tmp_path / "scored_all.jsonl"
+            scored_path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+            examples = load_training_data_from_scored_all(scored_path, "research-analyst")
+
+        self.assertEqual(len(examples), 1)
+        self.assertEqual(examples[0]["project_context"], "", "project_context must be '' when base_dir is None")
+
+
 if __name__ == "__main__":
     unittest.main()
