@@ -2175,62 +2175,13 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ---
 
-### D30.1: Why did the spec-writer slot-miss occur in V29.1? Is it a CWD mismatch, TTL expiry, or subagent_type mismatch between masonry-preagent-tracker.js and masonry-subagent-tracker.js?
-
-**Status**: PENDING
-**Operational Mode**: diagnose
-**Priority**: HIGH
-**Motivated by**: V29.1 WARNING — a spec-writer spawn at 2026-03-23T14:08:32Z wrote a pending slot file but the SubagentStart hook could not find it, resulting in `rt_len=0` in the `start` log entry. This is an ~17% miss rate on 6 observed spawns. The two hooks resolve the pending slot directory differently: `masonry-preagent-tracker.js` writes to `{masonryDir}/.masonry/pending_agent_prompts/{type}_latest.json` where `masonryDir = cwd === "masonry" ? cwd : path.join(cwd, "masonry")`, while `masonry-subagent-tracker.js` reads from `path.join(cwd, '.masonry', 'pending_agent_prompts')` without the masonry-subdirectory logic. When `cwd` is `C:/Users/trg16/Dev/Bricklayer2.0` (the repo root), preagent-tracker writes to `.../bricklayer2.0/masonry/.masonry/...` but subagent-tracker reads from `.../bricklayer2.0/.masonry/...` — a path mismatch.
-**Hypothesis**: The slot-miss is caused by a CWD-root mismatch: `masonry-preagent-tracker.js` applies masonry-subdirectory resolution to the `cwd` (producing `bricklayer2.0/masonry/.masonry/...`) but `masonry-subagent-tracker.js` uses `cwd` directly without the masonry-subdirectory step (producing `bricklayer2.0/.masonry/...`). The six successful slots worked because all occurred when CWD was already inside the `masonry/` directory. The spec-writer spawn may have been triggered from a different CWD context. A secondary hypothesis is TTL expiry: if > 10 seconds elapsed between PreToolUse firing and SubagentStart firing, the slot would be treated as stale. The fix is to unify the pending directory resolution logic between the two hooks.
-**Method**: diagnose-analyst
-**Success criterion**: (1) Read the full `masonry-preagent-tracker.js` and `masonry-subagent-tracker.js` and trace the exact `pendingDir` path each produces for `cwd = "C:/Users/trg16/Dev/Bricklayer2.0"` (repo root). (2) Check whether these two paths are the same or different. (3) Check the spec-writer slot timestamps in `masonry/.masonry/pending_agent_prompts/` (if the directory exists) or in any other location. (4) Confirm whether the slot file exists and was written to the preagent-tracker path vs the subagent-tracker lookup path. (5) Determine whether the cause is (a) path mismatch, (b) TTL expiry, or (c) `subagent_type` normalization mismatch. Write a Fix Specification identifying the minimal code change. Verdict: ROOT_CAUSE_IDENTIFIED if the exact mismatch is pinpointed with code evidence; INCONCLUSIVE if neither path mismatch nor TTL can be confirmed from the available artifacts.
-
----
-
-### F30.1: Fix optimize_all() to dispatch per-agent signatures instead of hardcoding ResearchAgentSig for all agents
-
-**Status**: PENDING
-**Operational Mode**: fix
-**Priority**: HIGH
-**Motivated by**: Wave 25 open issue #6 (never closed) and synthesis_wave29.md open issue #4. `optimize_all()` in `masonry/src/dspy_pipeline/optimizer.py` lines 306-312 contains a comment acknowledging the issue ("All agents use ResearchAgentSig") and hardcodes `sig = ResearchAgentSig` for every agent in the registry. When karen is optimized via `optimize_all()`, it will use ResearchAgentSig's fields (question_text, project_context, constraints, verdict, severity, evidence, mitigation, confidence) instead of KarenSig's fields (commit_subject, files_changed, doc_context, action, doc_updates, changelog_entry, quality_score). This would produce a corrupted optimization: the training examples have KarenSig field names, the signature has ResearchAgentSig field names — DSPy will either fail or optimize a completely wrong prompt. Note: `run_optimization.py` already dispatches correctly (line 241: `signature_cls = KarenSig if signature == "karen" else ResearchAgentSig`). Only `optimize_all()` needs fixing.
-**Hypothesis**: A simple dispatch table in `optimize_all()` mapping agent names to their (signature_cls, metric_fn) tuples will fix this. A minimal implementation: build a dict `{"karen": (KarenSig, build_karen_metric())}` with `ResearchAgentSig` as the default for all other agents. The fix should also wire the correct `metric_fn` (ResearchAgentSig agents use `None` → `build_metric(sig)`, karen uses `build_karen_metric()`).
-**Method**: fix-implementer
-**Success criterion**: (1) Read `optimize_all()` — confirm the hardcoded `sig = ResearchAgentSig` at lines 306-314. (2) Implement dispatch table: import KarenSig, build_karen_metric; create a dict mapping `"karen"` to `(KarenSig, build_karen_metric())` with a default fallback to `(ResearchAgentSig, None)`. (3) Replace the hardcoded `sig` and `metric_fn=None` with lookups from the dispatch table. (4) Run the test suite — confirm no regressions. (5) Write a focused unit test: call `optimize_all()` with a mock dataset containing one karen agent entry and verify the resolved signature is KarenSig (inspect the `signature_cls` passed to `optimize_agent`). Verdict: FIX_APPLIED if dispatch table is in place and test verifies KarenSig is used for karen; PARTIAL if table is present but metric_fn is not wired; FAILURE if optimize_all() still uses ResearchAgentSig for karen after the change.
-
----
-
-### R30.1: Is valset_size=25 safe for research-analyst MIPROv2 given only 56 training records — will MIPROv2 have enough bootstrapping data after the validation split?
-
-**Status**: PENDING
-**Operational Mode**: research
-**Priority**: MEDIUM
-**Motivated by**: synthesis_wave29.md open issue — the upcoming research-analyst MIPROv2 run uses `--num-trials 10 --valset-size 25 --signature research` with 56 research-analyst records. MIPROv2 internally splits the training set: `valset_size` records go to validation, the remainder (56 - 25 = 31) go to bootstrapping. With `max_bootstrapped_demos=3` and `max_labeled_demos=3` (optimizer.py lines 223-224), MIPROv2 needs to bootstrap demonstrations from the 31 training records. DSPy documentation notes that too few training examples relative to demo count causes degraded optimization — bootstrapping 3 demos from 31 records should be fine, but the 45% validation fraction is significantly higher than the typical 15-20% recommendation.
-**Hypothesis**: `valset_size=25` is marginally safe but suboptimal for 56 records. The 31 remaining training examples are sufficient for bootstrapping 3 demos, but MIPROv2's Bayesian search quality degrades with fewer training signals per trial. A better setting would be `valset_size=10` (18% of 56) which leaves 46 for bootstrapping — a 50% increase in training data. The current `valset_size=100` default in `optimize_agent()` (line 181) would crash with 56 records since valset_size > trainset_size causes a DSPy error. The CLI caps this explicitly at 25 via the argument.
-**Method**: research-analyst
-**Success criterion**: (1) Read DSPy MIPROv2 source (or context7 docs) — find the exact error behavior when `valset_size >= len(trainset)`. (2) Calculate the training/validation split for 56-record dataset with `valset_size=25`: confirm 31 training records remain. (3) Determine whether `max_bootstrapped_demos=3` with 31 training examples is within DSPy's recommended range (typically demos << training set). (4) Recommend the optimal `valset_size` for the 56-record corpus (target: ~15-20% validation). (5) Check whether `run_optimization.py` validates `valset_size < len(dataset)` before calling `optimize_agent()`, or whether it silently passes an invalid value. Verdict: HEALTHY if valset_size=25 is safe and within expected parameters; WARNING if it reduces optimization quality (recommend lowering to 10); FAILURE if valset_size=25 exceeds trainset size and would cause a crash.
-
----
-
-### V30.2: Does the full MIPROv2 pipeline (--backend anthropic, --num-trials 1, --valset-size 5) complete without error on a minimal dry run using the existing research-analyst training corpus?
-
-**Status**: PENDING
-**Operational Mode**: validate
-**Priority**: MEDIUM
-**Motivated by**: F29.3 BLOCKED (full 10-trial run blocked on API key) and synthesis_wave29.md open issue #1 (run research-analyst MIPROv2). Before investing in a 10-trial production run, validating the full end-to-end pipeline with `num_trials=1` and `valset_size=5` confirms: (a) the scored_all.jsonl → load_training_data → DSPy Examples conversion is correct; (b) MIPROv2 compile() completes without field mismatch or schema errors; (c) `optimized_prompts/research-analyst.json` is written with a non-empty `instructions` field; (d) `agent_registry.yml` is updated. This is a cheap prerequisite check before committing to the full 30-60 minute production run. Requires `ANTHROPIC_API_KEY` to be set.
-**Hypothesis**: The dry run will succeed if F29.1 is confirmed applied (median question_text = 500 chars), the `load_training_data_from_scored_all()` function correctly filters for research-analyst records, and the ResearchAgentSig input/output field names match the keys in the training examples. One likely failure point: the function at `run_optimization.py` lines ~50-80 reads `input.question_text` — if scored_all.jsonl stores the field as `inp.question_text` (nested), the loader may produce empty strings for all examples, causing the optimizer to train on empty inputs.
-**Method**: fix-implementer
-**Success criterion**: (1) Confirm ANTHROPIC_API_KEY is set — if not, return BLOCKED. (2) Read `load_training_data_from_scored_all()` in `run_optimization.py` — confirm the exact field path it reads for `question_text`, `verdict`, `severity`, `evidence`, `confidence`. (3) Sample 3 research-analyst records from `scored_all.jsonl` and verify the field structure matches what the loader expects. (4) Run: `python masonry/scripts/run_optimization.py research-analyst --backend anthropic --num-trials 1 --valset-size 5 --signature research`. (5) Confirm `masonry/optimized_prompts/research-analyst.json` is written and contains a non-empty `instructions` or `predict` field. Verdict: HEALTHY if dry run completes without error and JSON is written; WARNING if run completes but with score=0.0 (optimization failed silently); BLOCKED if ANTHROPIC_API_KEY not set; FAILURE if run crashes with an exception.
-
-## Wave 30
-
-**Generated from findings**: F29.1, F29.2, F29.3, F29.4, V29.1
-**Mode transitions applied**: F29.1 FIX_APPLIED -> V30.1 Validate; F29.2 FIX_APPLIED -> V30.1 Validate (merged with F29.1, same corpus gate); F29.3 BLOCKED (external auth, no code fix needed) -> F30.2 Fix (combined with F29.4, user-action preconditioned); F29.4 BLOCKED (same backend blocker) -> F30.2 Fix (merged); V29.1 WARNING (spec-writer slot-miss ~17%, CWD mismatch) -> F30.1 Fix + R30.1 Research (collision side-finding).
 
 ---
 
 ### F30.1: Fix CWD mismatch between masonry-preagent-tracker.js and masonry-subagent-tracker.js that causes spec-writer slot misses
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/F30.1.md
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: V29.1 WARNING -- spec-writer slot written at 14:08:32.839Z (rt_len=504) but the corresponding SubagentStart start event at 14:08:32.843Z had rt_len=0, slot file unconsumed. Root cause identified: masonry-preagent-tracker.js derives the pending dir from process.cwd() at PreToolUse time (src/hooks line 53), while masonry-subagent-tracker.js derives it from input.cwd from the SubagentStart payload (src/hooks line 155, then builds pendingDir at line 196). When spec-writer or any agent spawns in a CWD that differs from the parent session CWD, the two paths diverge and the slot lookup returns nothing.
@@ -2242,7 +2193,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### V30.1: Validate that F29.1 + F29.2 together produce a complete, enriched, and stable training corpus ready for both MIPROv2 runs
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/V30.1.md
 **Operational Mode**: validate
 **Priority**: HIGH
 **Motivated by**: F29.1 FIX_APPLIED (research-analyst question_text enriched from median 88 to 500 chars via _build_qid_to_agent_map wiring) and F29.2 FIX_APPLIED (scored_synthetic.jsonl created; karen negatives confirmed stable across consecutive reruns). Both fixes interact with the same scored_all.jsonl output file. Neither finding validated joint corpus readiness end-to-end: that a fresh run of score_all_agents.py now satisfies all MIPROv2 preconditions for both agents simultaneously without further data preparation steps.
@@ -2266,10 +2218,23 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### R30.1: Research whether the one-slot-per-type strategy in masonry-preagent-tracker.js causes prompt collisions when two agents of the same type spawn concurrently
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/R30.1.md
 **Operational Mode**: research
 **Priority**: LOW
 **Motivated by**: V29.1 WARNING side-finding -- masonry-preagent-tracker.js uses {subagent_type}_latest.json as the slot filename (one slot per agent type). If two fix-implementer agents spawn within the same 10-second TTL window, the second PreToolUse event overwrites the first slot before SubagentStart can consume it, causing the first agent to either capture the wrong prompt or find no slot at all. Wave 29 observed two fix-implementer spawns at 14:03:04Z and 14:03:15Z (11 seconds apart -- just outside the collision window). As campaign parallelism grows (parallel waves, /ultrawork mode), same-type concurrent spawns are likely to become more frequent.
 **Hypothesis**: The one-slot-per-type strategy produces a collision rate proportional to how often the same agent type is spawned in parallel within the TTL window. At current serialized campaign throughput the rate is near zero, but a parallel-wave campaign with 3+ simultaneous fix-implementer spawns would produce collisions affecting routing log fidelity. A UUID-keyed or timestamp-keyed slot design would eliminate collisions at the cost of more complex slot matching in SubagentStart.
 **Method**: research-analyst
 **Success criterion**: (1) Inspect masonry-preagent-tracker.js lines 13-15 (design comment on one-slot-per-type strategy) and lines 63-73 (slot write -- confirm unconditional overwrite of {subagent_type}_latest.json). (2) Scan masonry/routing_log.jsonl for any two consecutive start events of the same agent type (e.g., fix-implementer) with timestamps within 10 seconds of each other -- count such pairs as collision-exposed windows. (3) Estimate observed collision exposure as: (collision-exposed windows) / (total start events). (4) If exposure > 5%: sketch an alternative slot design (e.g., {subagent_type}_{epoch_ms}.json with glob-based oldest-slot matching in SubagentStart) and estimate implementation complexity in lines-of-change. (5) Check whether any start event in the log shows a request_text value that appears to belong to a different question than the agent was assigned (cross-contamination evidence). Verdict: HEALTHY if observed collision exposure < 1% and no cross-contamination evidence found; WARNING if exposure is 1-10% or a plausible collision scenario is found in the log; FAILURE if a confirmed collision has already caused a wrong request_text to be recorded for any agent spawn.
+
+---
+
+### F30.5: Fix optimize_all() to dispatch per-agent signatures and metrics instead of hardcoding ResearchAgentSig for all agents
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: Wave 25 open issue #6 (never closed) — `optimize_all()` in `masonry/src/dspy_pipeline/optimizer.py` lines 306-312 hardcodes `sig = ResearchAgentSig` for every agent, ignoring agent-specific signature requirements. When karen is optimized via `optimize_all()`, DSPy would receive KarenSig training examples (fields: commit_subject, files_changed, doc_context, quality_score, action, changelog_entry) mapped against a ResearchAgentSig (fields: question_text, project_context, constraints, verdict, severity, evidence, mitigation, confidence) — producing a field mismatch that either crashes or trains the wrong prompt. Note: `run_optimization.py` already dispatches correctly (line 241: `signature_cls = KarenSig if signature == "karen" else ResearchAgentSig`); only `optimize_all()` is broken.
+**Hypothesis**: A minimal dispatch table `_SIG_MAP = {"karen": (KarenSig, build_karen_metric())}` with a default fallback to `(ResearchAgentSig, None)` inserted at the top of the `for agent in registry` loop in `optimize_all()` will fix this. The change is ~5 lines and has no external dependencies.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `optimize_all()` lines 295-316 — confirm hardcoded `sig = ResearchAgentSig` and `metric_fn=None`. (2) Import `KarenSig` and `build_karen_metric` at the top of the function body (lazy import to avoid circular deps). (3) Build `_SIG_MAP = {"karen": (KarenSig, build_karen_metric())}` and replace lines 311-313 with a lookup: `sig, metric_fn = _SIG_MAP.get(agent.name, (ResearchAgentSig, None))`. (4) Run the full test suite — confirm no regressions. (5) Add a unit test: call `optimize_all()` with a registry entry for "karen" and a mock dataset; assert the `signature_cls` argument passed to `optimize_agent` is `KarenSig`, not `ResearchAgentSig`. Verdict: FIX_APPLIED if dispatch table is in place, test confirms KarenSig for karen and ResearchAgentSig for other agents, and full suite passes; PARTIAL if table is present but `metric_fn` is not wired correctly; FAILURE if `optimize_all()` still uses `ResearchAgentSig` for karen after the change.
