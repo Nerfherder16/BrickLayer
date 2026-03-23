@@ -2384,7 +2384,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### R33.1: Is there a complete, tested end-to-end procedure for triggering a research-analyst MIPROv2 optimization run and verifying its output?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/R33.1.md
 **Operational Mode**: research
 **Priority**: HIGH
 **Motivated by**: F32.2 FIX_APPLIED + R32.1 HEALTHY — F32.2 added `--api-key` to the CLI, making the run triggerable without environment setup. R32.1 confirmed the corpus is ready (57 records, 500-char median `question_text`) and the expected delta (+8 to +12 pts) justifies the API cost. However, no verified end-to-end procedure exists: what preconditions must pass before the run, what exact command should be issued, what files are written, and what post-run verification confirms success? Without a verified procedure, a first run attempt risks silent failure (wrong working directory, wrong signature name, JSON written to wrong path) with no clear diagnostic path.
@@ -2408,7 +2409,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### D33.1: Is the recurring "no LLM backend" BLOCKED state a systematic infrastructure gap, or does F32.2 durably resolve it?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/D33.1.md
 **Operational Mode**: diagnose
 **Priority**: MEDIUM
 **Motivated by**: F30.2 BLOCKED — this is the third BLOCKED verdict on MIPROv2 runs across consecutive waves (F29.3 BLOCKED Wave 29, F29.4 BLOCKED Wave 29, F30.2 BLOCKED Wave 30). All three cite the same root: `ANTHROPIC_API_KEY` not in environment and Ollama at `192.168.50.62:11434` offline. F32.2 (Wave 32) added `--api-key` to the CLI to allow key injection at invocation time. However, the fix addresses the ergonomics of key passing, not the underlying question: why does the ANTHROPIC_API_KEY not persist in the shell environment across sessions, and is the Ollama offline state persistent or transient? Without understanding the root cause, BLOCKED states will recur whenever optimization runs are attempted.
@@ -2439,3 +2441,63 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 **Hypothesis**: A 10-15 line runbook block in the CLAUDE.md DSPy section — covering precondition checks (backend availability, API key), exact command for each pending agent (research-analyst, karen), expected runtime, and three post-run verification commands — will reduce the per-run rediscovery overhead to near zero and eliminate the risk of silent misconfiguration (wrong CWD, wrong signature name).
 **Method**: fix-implementer
 **Success criterion**: (1) Read `C:/Users/trg16/Dev/Bricklayer2.0/.claude/CLAUDE.md` — locate the DSPy Optimization section (updated by F32.1). (2) Insert a "Running an Optimization" subsection containing: (a) precondition check command (`curl` for Ollama, `python -c "import os; print(...)"` for env key), (b) exact `run_optimization.py` command for research-analyst with correct flags (`--signature research --backend anthropic --num-trials 10 --valset-size 25`), (c) same for karen (`--signature karen`), (d) expected runtime per agent (4-8 hours), (e) three post-run verification commands (check JSON exists, grep .md for block, check registry). (3) Do not change any other section of CLAUDE.md. Verdict: FIX_APPLIED if the runbook subsection is present with at least the two agent commands and three verification checks; PARTIAL if only one agent is documented; FAILURE if CLAUDE.md is not modified.
+
+---
+
+### E33.1: Execute MIPROv2 optimization run for `research-analyst` (user provides `--api-key`)
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: CRITICAL
+**Motivated by**: synthesis_wave32 OPEN ISSUE #1 — all code blockers resolved (F32.2 FIX_APPLIED: `--api-key` CLI arg live). Corpus confirmed ready: 57 records, 500-char median `question_text`, projected +8 to +12 pts delta (R32.1 HEALTHY). Ollama is OFFLINE (M32.1) so the run must target `--backend anthropic`. This is the single highest-priority action gated only on Tim supplying an API key.
+**Hypothesis**: Running `python masonry/scripts/run_optimization.py research-analyst --api-key sk-ant-... --backend anthropic --num-trials 10 --valset-size 25 --signature research` from `C:/Users/trg16/Dev/Bricklayer2.0` will complete without error, write `masonry/optimized_prompts/research-analyst.json` with a non-empty `predict.signature.instructions` field, trigger `writeback_optimized_instructions()` to inject a `## DSPy Optimized Instructions` block into `.claude/agents/research-analyst.md`, and update `agent_registry.yml` with `dspy_status: optimized`. Best score is expected >= 70% based on R32.1 projection (current quantitative-analyst baseline: 68.3%).
+**Method**: fix-implementer
+**Success criterion**: (1) **User action required**: Tim runs the command with a valid Anthropic API key. (2) Run completes without `Exception` or `BLOCKED` in stdout. (3) `masonry/optimized_prompts/research-analyst.json` exists and `cat research-analyst.json | python -c "import json,sys; d=json.load(sys.stdin); print(d['predict']['signature']['instructions'])"` returns non-empty text. (4) `.claude/agents/research-analyst.md` contains a `## DSPy Optimized Instructions` section with the same instruction text. (5) `masonry/agent_registry.yml` shows `dspy_status: optimized` for `research-analyst`. (6) Report the best trial score and compare to the 68.3% quantitative-analyst baseline and the R32.1 projected range (70-80%). Verdict: FIX_APPLIED if all 5 post-run checks pass and best score >= 68%; WARNING if run completes but score < 68% or writeback has partial failures; BLOCKED if Tim has not yet provided an API key (do not attempt to run without key).
+
+---
+
+### E33.2: Execute MIPROv2 optimization run for `karen` (user provides `--api-key`)
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: synthesis_wave32 OPEN ISSUE #1 — karen optimization is the second pending run. Karen corpus: 301 records + 5 synthetics = 306 total (largest corpus in the system). Signature dispatch is confirmed correct — karen uses `KarenSig` (F30.5 FIX_APPLIED). No specific score projection exists for karen, but the 306-record corpus is substantially larger than the research-analyst corpus (57 records), providing stronger optimization signal.
+**Hypothesis**: Running `python masonry/scripts/run_optimization.py karen --api-key sk-ant-... --backend anthropic --num-trials 10 --valset-size 25 --signature karen` from `C:/Users/trg16/Dev/Bricklayer2.0` will complete without error, write `masonry/optimized_prompts/karen.json` with a non-empty `predict.signature.instructions` field, inject a `## DSPy Optimized Instructions` block into all reachable `karen.md` agent files, and update `agent_registry.yml` with `dspy_status: optimized`. The larger corpus (306 vs 57 records) should enable a more robust demo selection, potentially yielding a higher best-score than the research-analyst run.
+**Method**: fix-implementer
+**Success criterion**: (1) **User action required**: Tim runs the command with a valid Anthropic API key (may be run after E33.1 or in a separate session). (2) Run completes without `Exception` or `BLOCKED`. (3) `masonry/optimized_prompts/karen.json` exists with non-empty `predict.signature.instructions`. (4) At least one reachable `karen.md` contains a `## DSPy Optimized Instructions` section. (5) `agent_registry.yml` shows `dspy_status: optimized` for `karen`. (6) Report best trial score. Verdict: FIX_APPLIED if all 5 checks pass; WARNING if run completes but writeback fails for karen.md (file not found or regex error); BLOCKED if API key not yet provided.
+
+---
+
+### V33.2: Confirm the optimized `research-analyst` receives and acts on its injected instructions when spawned on a real question
+
+**Status**: PENDING
+**Operational Mode**: validate
+**Priority**: HIGH
+**Motivated by**: E33.1 (gated — runs after E33.1 FIX_APPLIED) — E33.1 will confirm the optimization artifacts exist. This question validates the behavioral end: does a live spawned `research-analyst` actually respond differently (structuring output with numbered steps, explicit confidence score, quantitative evidence) in a way consistent with the MIPROv2-generated instruction text? V32.1 validated injection structurally via documentation; V33.2 validates it behaviorally via a live spawn.
+**Hypothesis**: After E33.1, spawning `research-analyst` on a real BL question will produce a response that includes at least two elements specified in the injected DSPy instruction block (e.g., numbered reasoning steps, explicit confidence score 0.0-1.0, tabular evidence) that are absent or inconsistent in a base (pre-optimization) spawn of the same agent. The delta confirms the instruction is active, not inert.
+**Method**: research-analyst
+**Success criterion**: (1) **Gated on E33.1 FIX_APPLIED**. (2) Read `research-analyst.md` `## DSPy Optimized Instructions` section — extract the 2-3 behavioral requirements (e.g., "step-by-step reasoning", "verdict", "confidence score", "evidence tables"). (3) Spawn research-analyst on a real PENDING question from questions.md (any Wave 33 question will do). (4) Check the response: does it contain numbered reasoning steps? An explicit confidence score in [0,1]? An evidence section with quantitative content >= 100 chars? (5) Compare against a base agent response (without DSPy block) on an equivalent question from an earlier wave. If no base comparison is available, assess presence/absence of each behavioral element in the current response alone. Verdict: HEALTHY if the live response contains all behavioral elements specified in the injected instruction block; WARNING if 1 of 3 behavioral elements is missing; FAILURE if the response shows no structural alignment with the injected instructions (suggesting the block is present on disk but not influencing behavior — e.g., a system-prompt ordering issue).
+
+---
+
+### R33.3: Would adding more training examples to the research-analyst corpus improve MIPROv2 scores beyond the projected 70-80% ceiling, or is 57 records adequate?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Motivated by**: R32.1 HEALTHY — R32.1 projected +8 to +12 pts delta and assessed the 57-record corpus as "adequate" for a 25-example valset split. However, the self-consistency ceiling for research-analyst was estimated at 0.9666 (R26.1), and the achievable range was 0.73-0.87 — the upper end of that range requires high-quality demonstrations that may not be fully represented in 57 records. The wave 32 synthesis flags `project_context` as empty for all 57 records, which is a known ceiling constraint. This question asks: post-E33.1, if the actual score falls below 0.80, what is the cost-benefit of adding 30-50 more training examples vs running more trials with the existing corpus?
+**Hypothesis**: The 57-record corpus is near the minimum viable size for MIPROv2 with `valset_size=25` (32 training examples left). Diminishing returns set in quickly above 60-80 records for the research-analyst task type. The primary ceiling constraint is not corpus size but `project_context` emptiness (100% of records) — adding records without fixing `project_context` will produce marginal gains. If the E33.1 best score falls below 0.75, the recommended action is to enrich `project_context` in existing records (using the F29.1 enrichment pattern), not to add more records.
+**Method**: research-analyst
+**Success criterion**: (1) Review DSPy MIPROv2 documentation on bootstrap sample size effects — what is the documented minimum record count for reliable optimization, and at what size do returns diminish? (2) Assess the `project_context` gap: how many of the 57 records have non-empty `project_context`? What is the score distribution for records with vs without `project_context`? (3) Estimate the incremental score gain from adding 30 more records vs from enriching `project_context` in existing records. (4) If E33.1 has completed, report the actual best score and compare to the 70-80% projection — if actual < 70%, diagnose which corpus gap (size, context, verdict balance) is most likely responsible. Verdict: HEALTHY if 57 records is sufficient (actual score >= 70% or analysis shows corpus size is not the binding constraint); WARNING if corpus size is the binding constraint and adding 30+ records would likely push score above 75%; INCONCLUSIVE if the question cannot be resolved without the E33.1 actual score result.
+
+---
+
+### M33.1: Establish a restoration path for the Ollama backend at `192.168.50.62:11434` and update monitor-targets.md with a recovery procedure
+
+**Status**: PENDING
+**Operational Mode**: monitor
+**Priority**: MEDIUM
+**Motivated by**: M32.1 DONE (monitor entry added, current status OFFLINE) — the monitor entry records the OFFLINE state but provides no recovery procedure. Ollama is the designated zero-credential backend for DSPy optimization (no API key required) and the embedding source for semantic routing. With Ollama offline, semantic routing falls through to the LLM layer on every dispatch (additional latency and cost), and future optimization runs are locked to `--backend anthropic` (API key required). Restoring Ollama would remove the API key dependency for future runs.
+**Hypothesis**: The Ollama backend at `192.168.50.62:11434` is a CasaOS Docker container that may have stopped or failed. The restoration path is: (1) check CasaOS Docker container status for Ollama, (2) if stopped, `docker compose up -d` or restart from CasaOS UI, (3) confirm `qwen3:14b` model is still loaded (or re-pull if needed), (4) re-run `curl -s http://192.168.50.62:11434/api/tags` to confirm availability. The semantic routing threshold and embedding model configuration in `masonry/src/routing/semantic.py` do not need changes — the backend URL is already correct.
+**Method**: research-analyst
+**Success criterion**: (1) Run `curl -s --connect-timeout 3 http://192.168.50.62:11434/api/tags` — report current status (ONLINE or OFFLINE). (2) If OFFLINE: identify the Docker container name or CasaOS app hosting Ollama. Provide the exact command(s) Tim should run to restart it. (3) Confirm whether `qwen3:14b` model would still be available after restart (check if models persist across container restarts in the Docker volume). (4) Update `masonry/monitor-targets.md` `ollama_backend_reachable` entry: add a "Recovery procedure" subsection with the identified restart commands. (5) If ONLINE: record the recovery date, update the monitor entry status to ONLINE, and recommend running a test embedding query to confirm the semantic routing can use the backend. Verdict: DONE if monitor-targets.md is updated with a concrete recovery procedure (even if Ollama remains OFFLINE — the procedure itself is the deliverable); WARNING if the recovery procedure cannot be determined without physical access to the CasaOS host.
