@@ -221,12 +221,14 @@ def optimize_agent(
     metric = metric_fn if metric_fn is not None else build_metric(signature_cls)
 
     # Configure optimizer with low-cost settings.
-    # auto=None is required when passing num_trials to compile() — DSPy 3.x
-    # raises if both auto and num_trials are set simultaneously.
+    # DSPy 3.x: auto=None requires num_candidates in the constructor.
+    # num_trials (passed to compile) controls Bayesian search steps;
+    # num_candidates controls how many instruction variants are generated.
     optimizer = dspy.MIPROv2(
         metric=metric,
         num_threads=1,
         auto=None,
+        num_candidates=num_trials,
     )
 
     # Convert dataset dicts to DSPy Examples
