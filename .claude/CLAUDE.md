@@ -72,7 +72,8 @@ Agents can be optimized via MIPROv2 using training data from existing findings:
 - Optimization run via `masonry/src/dspy_pipeline/optimizer.py`
 - Drift detection via `masonry/src/dspy_pipeline/drift_detector.py`
 - Optimized prompts stored in `masonry/optimized_prompts/{agent}.json`
-- Mortar injects optimized prompts on specialist invocation automatically
+- After each MIPROv2 run, `run_optimization.py` writes the optimized `signature.instructions` back into the agent `.md` file under a `## DSPy Optimized Instructions` delimited section (write-back mechanism)
+- Agents receive these instructions in their system prompt on every spawn — code-enforced, no runtime lookup required
 
 Trigger from Kiln UI "OPTIMIZE" button or via `masonry_optimize_agent` MCP tool.
 

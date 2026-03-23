@@ -146,7 +146,11 @@ def build_karen_metric() -> Any:
 # ── configure_dspy ──────────────────────────────────────────────────────────
 
 
-def configure_dspy(model: str | None = None, backend: str = "anthropic") -> None:
+def configure_dspy(
+    model: str | None = None,
+    backend: str = "anthropic",
+    api_key: str | None = None,
+) -> None:
     """Configure DSPy with the specified LM backend.
 
     Args:
@@ -154,17 +158,26 @@ def configure_dspy(model: str | None = None, backend: str = "anthropic") -> None
             ``claude-sonnet-4-6`` for Anthropic when not specified.
         backend: Either ``"anthropic"`` (requires ANTHROPIC_API_KEY) or
             ``"ollama"`` (uses local Ollama at http://192.168.50.62:11434).
+        api_key: Optional API key passed directly to ``dspy.LM`` (via LiteLLM).
+            When ``None`` (default), falls back to the ``ANTHROPIC_API_KEY``
+            environment variable as before.  Useful for triggering one-off
+            MIPROv2 runs without permanently exporting the key.
     """
     if backend == "ollama":
         effective_model = model or "qwen3:14b"
-        lm = dspy.LM(
-            f"ollama_chat/{effective_model}",
-            api_base="http://192.168.50.62:11434",
-            max_tokens=4096,
-        )
+        ollama_kwargs: dict[str, Any] = {
+            "api_base": "http://192.168.50.62:11434",
+            "max_tokens": 4096,
+        }
+        if api_key is not None:
+            ollama_kwargs["api_key"] = api_key
+        lm = dspy.LM(f"ollama_chat/{effective_model}", **ollama_kwargs)
     else:
         effective_model = model or "claude-sonnet-4-6"
-        lm = dspy.LM(f"anthropic/{effective_model}")
+        lm_kwargs: dict[str, Any] = {}
+        if api_key is not None:
+            lm_kwargs["api_key"] = api_key
+        lm = dspy.LM(f"anthropic/{effective_model}", **lm_kwargs)
     dspy.configure(lm=lm)
 
 

@@ -47,6 +47,42 @@ if len(_embedding_cache) > 200:
 
 ---
 
+## `ollama_backend_reachable`
+
+**Source**: `masonry/src/routing/semantic.py` (Ollama embedding calls), `masonry/src/dspy_pipeline/optimizer.py` (local model fallback)
+**Motivated by**: M32.1 — confirmed OFFLINE 2026-03-23; no local `ollama` binary on PATH either
+
+**What it measures**: Whether the Ollama inference backend at `192.168.50.62:11434` is reachable and responding to API requests. This host is the designated fallback for zero-credential optimization (DSPy MIPROv2 via local Ollama rather than Anthropic API). Semantic routing also uses this endpoint for cosine-similarity embedding at similarity threshold 0.75. When unreachable, semantic routing falls back to the LLM layer (one Haiku call per route), increasing latency and API cost.
+
+**How to measure**:
+```bash
+curl -s --connect-timeout 3 http://192.168.50.62:11434/api/tags
+```
+A 200 response with JSON body indicates the backend is up. A timeout, connection refused, or non-200 response indicates degraded or unavailable state.
+
+**Current status**: OFFLINE (confirmed 2026-03-23). No local `ollama` binary on PATH, so localhost fallback (`127.0.0.1:11434`) is also unavailable. Semantic routing is degraded — all routing falls through to LLM layer.
+
+**Thresholds**:
+
+| Level | Condition | Action |
+|-------|-----------|--------|
+| OK | 200 response within 3 s | Normal operation — semantic routing active, zero-credential optimization available |
+| WARNING | Any non-200 response or timeout (single check) | Investigate host status; semantic routing degraded; increase monitoring frequency |
+| FAILURE | Unreachable for > 7 consecutive campaign days | Blocks zero-credential optimization fallback. Update `constants.py` `SEMANTIC_ROUTING_ENABLED` to `False` and document the outage; switch DSPy optimization to `ANTHROPIC_API_KEY` mode |
+
+**Threshold rationale**:
+- Single failure is likely transient (host reboot, CasaOS restart, Docker restart)
+- 7-day threshold is conservative: a week of absence means the host is not coming back on its own; the campaign planning assumption of local-model optimization is invalid
+- No localhost fallback means there is no secondary path — the WARNING state is meaningful even for a single miss
+
+**Check frequency**: At the start of each optimization run (`masonry_optimize_agent`) and each `masonry_status` call. Also check manually if semantic routing appears to be running slower than expected (indicates LLM fallback is active).
+
+**Quick fix if WARNING**: SSH into CasaOS (`192.168.50.19`) and check whether the Ollama container/service is running. Restart with `docker compose restart ollama` if the container is stopped.
+
+**Permanent fix if FAILURE threshold reached**: Either restore the Ollama host or update the routing configuration to treat semantic routing as optional. Document in `project-brief.md` that zero-credential optimization is unavailable for the current campaign.
+
+---
+
 ## `miprov2_run_duration`
 
 **Source**: `masonry/src/dspy_pipeline/optimizer.py`
