@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `393b169` chore(masonry): Wave 35 questions — score_findings.py pipeline fixes + corpus validation (2026-03-23)
 - `866a113` feat(masonry): Wave 34 — corpus growth path, project_context fix, api_key validation (2026-03-23)
 - `683fe2a` chore(masonry): generate Wave 34 question bank (2026-03-23)
 - `d03b7d7` research(masonry): Wave 33 — MIPROv2 run procedure, corpus audit, backend fixes (2026-03-23)
