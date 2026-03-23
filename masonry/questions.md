@@ -2292,47 +2292,6 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ## Wave 32
 
-**Generated from findings**: F31.1 (FIX_APPLIED), V31.1 (HEALTHY), R31.1 (WARNING)
-**Mode transitions applied**: R31.1 WARNING (configure_dspy() has no api_key parameter, DPAPI-encrypted OAuth is not usable) → F32.1 Fix (patch configure_dspy() and run_optimization.py CLI to accept api_key= kwarg); F31.1 FIX_APPLIED (writeback built, tested with existing JSON fixture but not against a real MIPROv2 run) → V32.1 Validate (edge cases: path-not-found graceful skip and idempotency under changed instruction text); V31.1 HEALTHY + F30.2 still BLOCKED (only remaining blocker is API key) → R32.1 Research (estimate MIPROv2 score improvement for research-analyst given enriched 500-char vs 88-char question_text, to inform API cost decision).
-
----
-
-### F32.1: Patch `configure_dspy()` to accept an `api_key` kwarg and add `--api-key` to the `run_optimization.py` CLI
-
-**Status**: PENDING
-**Operational Mode**: Fix
-**Priority**: HIGH
-**Motivated by**: R31.1 WARNING — `configure_dspy()` (optimizer.py line 149) calls `dspy.LM(f"anthropic/{effective_model}")` with no `api_key` argument. R31.1 confirmed that `dspy.LM()` accepts `api_key` as a pass-through kwarg to `litellm.completion()`, making this the cleanest code-level unblock for the `ANTHROPIC_API_KEY` env-var requirement. The current `run_optimization.py` CLI also has no `--api-key` argument, forcing any non-env-var key injection to go through source edits.
-**Hypothesis**: Adding `api_key: str | None = None` to the `configure_dspy()` signature and forwarding it to `dspy.LM()` via `kwargs["api_key"] = api_key` (when non-None) removes the env-var hard dependency without breaking the existing path — callers that pass nothing continue to rely on the env var as before. Adding a corresponding `--api-key` optional argument to `_main()` in `run_optimization.py` gives a clean CLI path: `python run_optimization.py research-analyst --backend anthropic --api-key sk-ant-...`. No changes to `optimize_agent()`, `optimize_all()`, or any DSPy signature are required beyond the two touched functions.
-**Method**: fix-implementer
-**Success criterion**: (1) Read `masonry/src/dspy_pipeline/optimizer.py` — confirm `configure_dspy()` signature at line 149 is `def configure_dspy(model: str | None = None, backend: str = "anthropic") -> None:`. (2) Add `api_key: str | None = None` to the signature. (3) In the `else` (anthropic) branch, conditionally build kwargs: `kwargs = {"api_key": api_key} if api_key else {}` and call `dspy.LM(f"anthropic/{effective_model}", **kwargs)`. (4) Read `masonry/scripts/run_optimization.py` — in `_main()`, add `parser.add_argument("--api-key", default=None, help="Anthropic API key (overrides ANTHROPIC_API_KEY env var)")` after the existing `--signature` argument at line 417. (5) Thread `api_key=args.api_key` through the `run()` call and into `configure_dspy()`. (6) Verify existing tests pass (`pytest masonry/tests/ -q`); confirm calling `configure_dspy()` with no args still works (env-var path unchanged); confirm calling `configure_dspy(api_key="sk-ant-test")` passes the key without raising. Verdict: FIX_APPLIED if the signature change is confirmed in both files, the `--api-key` flag is present in CLI help, and existing tests remain green; FIX_FAILED if `configure_dspy()` no longer accepts the old zero-arg call form or if tests break.
-
----
-
-### V32.1: Validate that `writeback_optimized_instructions()` gracefully skips missing `.md` paths and is truly idempotent under changed instruction text
-
-**Status**: PENDING
-**Operational Mode**: Validate
-**Priority**: MEDIUM
-**Motivated by**: F31.1 FIX_APPLIED — `writeback_optimized_instructions()` was built and tested against the existing `quantitative-analyst.json` fixture (6 files updated, idempotency confirmed). However two edge cases were not exercised in the F31.1 verification: (a) the `continue` guard at line 176-177 when none of the three candidate paths resolve to an existing file — must return `[]` silently without raising; (b) true idempotency when `instructions` text changes between consecutive calls — the regex `section_pattern.sub()` path must fully replace the old section, not append, so `.md` line count stabilizes.
-**Hypothesis**: (a) Calling `writeback_optimized_instructions(base_dir, "nonexistent-agent", "...", "...")` for an agent with no `.md` file on any of the three candidate paths returns `[]` without raising. (b) Calling `writeback_optimized_instructions()` twice with different `instructions` values on the same `.md` file results in exactly one `## DSPy Optimized Instructions` section containing the second call's text — `.md` line count after call 2 equals line count after call 1 (no growth).
-**Method**: research-analyst
-**Success criterion**: (1) Read `masonry/scripts/run_optimization.py` lines 175-187 — confirm `if not md_path.exists(): continue` covers all three candidate paths (project-level, sub-project, and user-global). (2) Identify an agent name guaranteed to have no `.md` on disk (e.g., `"ghost-agent"`); invoke `writeback_optimized_instructions()` with that name and confirm the return value is `[]` with no exception. (3) Take a `.md` that F31.1 already patched (e.g., `C:/Users/trg16/Dev/Bricklayer2.0/.claude/agents/quantitative-analyst.md`). Record current line count. Call `writeback_optimized_instructions()` with different instruction text (e.g., append " CHANGED"). Confirm: (a) section count = 1 (grep for `## DSPy Optimized Instructions`), (b) section body contains the new text, (c) line count equals the pre-call line count ± 3. (4) Repeat with a third instruction string — confirm line count remains stable and section count = 1. Verdict: HEALTHY if missing-path returns `[]` silently AND changed-text idempotency holds for 2 consecutive calls with stable line count; WARNING if graceful skip works but line count grows by > 3 lines per call (slow accumulation that would corrupt `.md` over many runs); FAILURE if any call raises on a missing path or if two sections appear after two calls with different text.
-
----
-
-### R32.1: Estimate the expected MIPROv2 score improvement for `research-analyst` given 500-char vs 88-char `question_text` input fields
-
-**Status**: PENDING
-**Operational Mode**: Research
-**Priority**: MEDIUM
-**Motivated by**: V31.1 HEALTHY (slot injection clean) + F31.1 FIX_APPLIED (writeback path operational) + F30.2 still BLOCKED on API key — the corpus is fully ready (V30.1 HEALTHY: 606 records, research-analyst median `question_text` ~500 chars post-F26.1/F29.1 enrichment). Before Tim exports an API key and runs the first real `research-analyst` MIPROv2 optimization, this question estimates whether the richer input context is likely to produce a meaningfully better prompt than the pre-enrichment 88-char baseline, informing the "is this API call worth the cost" decision.
-**Hypothesis**: MIPROv2 selects few-shot demonstrations by co-variate similarity — longer, semantically richer `question_text` fields give the optimizer more signal to cluster demos by question type, domain, and difficulty. Based on the `quantitative-analyst` empirical data point (R23.1: 125 records, 88-char `question_text`, +8.8 pt score delta), the `research-analyst` run with 500-char `question_text` and 37 records should achieve a delta of at least comparable magnitude, and plausibly higher due to the richer co-variate space — offset by the smaller corpus (37 vs 125). If the projected delta is < 3 pts, the run is marginal given API cost; if >= 5 pts, it is clearly worth proceeding.
-**Method**: research-analyst
-**Success criterion**: (1) Sample 10 research-analyst records from `masonry/training_data/scored_all.jsonl` and report actual median `question_text` length (must confirm >= 200 chars, expected ~500 after F29.1). (2) Review R23.1 finding as the pre-enrichment analogue (125 records, 88-char `question_text`, +8.8 pt delta via Ollama qwen3:14b). (3) Assess how DSPy MIPROv2 demonstration selection uses input-field similarity — does richer `question_text` improve demo diversity and metric coverage? Cite DSPy source or documentation. (4) Estimate the expected score delta for `research-analyst` with 500-char `question_text` and 37 records: weigh enrichment ratio (~5.7x), corpus-size penalty (37 vs 125), and the R23.1 empirical anchor. (5) Report a projected score delta range (e.g., "+6 to +14 pts") with confidence level and the top two uncertainty factors. Verdict: HEALTHY if projected delta >= 5 pts (API run is clearly worth it); WARNING if projected delta is 2-5 pts (marginal — run but set expectations low); INCONCLUSIVE if available data cannot distinguish >= 5 pts from < 2 pts (need empirical run to resolve).
-
-## Wave 32
-
 **Generated from findings**: F31.1, R31.1
 **Mode transitions applied**: F31.1 FIX_APPLIED (write-back injection built, but CLAUDE.md line 75 NOT updated — partial success criterion) → F32.1 Fix (correct CLAUDE.md description of injection mechanism); F31.1 FIX_APPLIED → V32.1 Validate (end-to-end confirmation that spawned agents actually receive the injected block in their system prompt); R31.1 WARNING (api_key kwarg identified as the durable unblock path for MIPROv2) → F32.2 Fix (add api_key parameter to configure_dspy() and --api-key CLI flag); R31.1 WARNING (Ollama offline, separate infrastructure issue) → M32.1 Monitor (add Ollama reachability to monitor-targets.md); F31.1 FIX_APPLIED (write-back covers only quantitative-analyst in testing) → V32.2 Validate (confirm write-back handles all agents and edge cases before more JSON files exist).
 
@@ -2340,7 +2299,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F32.1: Correct CLAUDE.md line 75 to accurately describe the write-back injection mechanism built in F31.1
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/F32.1.md
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: F31.1 FIX_APPLIED — the success criterion for F31.1 explicitly required updating the CLAUDE.md "Mortar injects optimized prompts on specialist invocation automatically" claim. Post-fix inspection of `C:/Users/trg16/Dev/Bricklayer2.0/.claude/CLAUDE.md` line 75 confirms it still reads: "Mortar injects optimized prompts on specialist invocation automatically." This is inaccurate — the actual mechanism is a post-optimization write-back that injects a `## DSPy Optimized Instructions` block into the agent `.md` file, not a runtime Mortar injection. F31.1 was PARTIAL by its own success criterion: write-back implemented, CLAUDE.md not updated.
@@ -2352,7 +2312,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### V32.1: Validate end-to-end that a spawned agent receives the DSPy Optimized Instructions block in its active system prompt
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/V32.1.md
 **Operational Mode**: validate
 **Priority**: HIGH
 **Motivated by**: F31.1 FIX_APPLIED — `writeback_optimized_instructions()` was verified to write the `## DSPy Optimized Instructions` block to disk in all candidate agent `.md` files. However, the finding only confirmed the write step. The injection path's last mile — whether Claude Code reads the full `.md` file (including appended body content) when spawning a subagent — was assumed but not confirmed. If Claude Code reads only frontmatter metadata and ignores body text, the entire F31.1 injection mechanism is silently ineffective.
@@ -2364,7 +2325,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F32.2: Add api_key parameter to configure_dspy() in optimizer.py so MIPROv2 runs are triggerable without manual ANTHROPIC_API_KEY env export
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/F32.2.md
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: R31.1 WARNING — E4 confirmed that `configure_dspy()` currently calls `dspy.LM("anthropic/claude-sonnet-4-6")` with no credential argument, relying entirely on `ANTHROPIC_API_KEY` env var (E5: not present in subprocess). E2 confirmed that `dspy.LM()` accepts `api_key` as a kwargs pass-through to `litellm.completion()`. R31.1 Path 2 (add api_key parameter to configure_dspy) is the recommended durable unblock — it makes the credential injection explicit and allows Kiln or CLI callers to supply the key without requiring the user to export an env var before each session.
@@ -2376,10 +2338,37 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### M32.1: Add Ollama reachability at 192.168.50.62:11434 to monitor-targets.md as a fallback-backend health check
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/M32.1.md
 **Operational Mode**: monitor
 **Priority**: LOW
 **Motivated by**: R31.1 WARNING — E8 confirmed `http://192.168.50.62:11434` is unreachable (timeout) and no local `ollama` binary exists on PATH, making the `--backend ollama` flag in `run_optimization.py` non-functional. Ollama is the zero-credential fallback optimization backend (no API key required). Its persistent unavailability means there is no alternative when ANTHROPIC_API_KEY is not set. Adding Ollama reachability to the monitor-targets produces a visible signal when the CasaOS container recovers, at which point `--backend ollama` becomes immediately viable.
 **Hypothesis**: Adding a reachability check for `http://192.168.50.62:11434/api/tags` to `monitor-targets.md` with appropriate thresholds will surface Ollama recovery events to the campaign without requiring a dedicated research question each time. Current state: OFFLINE. Expected recovery signal: HTTP 200 from `/api/tags` listing available models including `qwen3:14b`.
 **Method**: research-analyst
 **Success criterion**: (1) Read `C:/Users/trg16/Dev/Bricklayer2.0/masonry/monitor-targets.md` — determine if it exists and what format existing entries use. (2) Add an entry: metric name `ollama_backend_reachable`, check command `curl -s --connect-timeout 3 http://192.168.50.62:11434/api/tags`, WARNING threshold = unreachable (any non-200 or timeout), FAILURE threshold = unreachable for > 7 consecutive campaign days (blocks the no-credential fallback path), current status = OFFLINE (confirmed R31.1 2026-03-23). (3) Note that local `ollama` binary absence means localhost fallback is also unavailable. (4) Confirm the file is written and the new entry follows the same format as existing entries. Verdict: DONE if the monitor entry is written with check command and thresholds; INCONCLUSIVE if `monitor-targets.md` does not exist and the correct creation path is unclear.
+
+---
+
+### V32.2: Validate that `writeback_optimized_instructions()` gracefully skips missing `.md` paths and is truly idempotent under changed instruction text
+
+**Status**: DONE
+**Finding**: findings/V32.2.md
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Motivated by**: F31.1 FIX_APPLIED — `writeback_optimized_instructions()` was built and tested against the existing `quantitative-analyst.json` fixture (6 files updated, idempotency confirmed with identical instruction text). Two edge cases were not exercised in the F31.1 verification: (a) the `continue` guard at line 176-177 when none of the three candidate paths resolve to an existing file — must return `[]` silently without raising; (b) true idempotency when `instructions` text changes between consecutive calls — the regex `section_pattern.sub()` path must fully replace the old section without appending, so `.md` line count stabilizes after repeated runs with new content.
+**Hypothesis**: (a) Calling `writeback_optimized_instructions(base_dir, "nonexistent-agent", "...", "...")` for an agent with no `.md` file on any of the three candidate paths returns `[]` without raising. (b) Calling `writeback_optimized_instructions()` twice with different `instructions` values on the same `.md` file results in exactly one `## DSPy Optimized Instructions` section containing the second call's text — `.md` line count after call 2 equals line count after call 1 (no growth).
+**Method**: research-analyst
+**Success criterion**: (1) Read `masonry/scripts/run_optimization.py` lines 175-187 — confirm `if not md_path.exists(): continue` covers all three candidate paths (project-level, sub-project, and user-global). (2) Identify an agent name guaranteed to have no `.md` on disk (e.g., `"ghost-agent"`); invoke `writeback_optimized_instructions()` with that name and confirm the return value is `[]` with no exception raised. (3) Take a `.md` that F31.1 already patched (e.g., `C:/Users/trg16/Dev/Bricklayer2.0/.claude/agents/quantitative-analyst.md`). Record current line count. Call `writeback_optimized_instructions()` with a different instruction string. Confirm: (a) `grep -c "## DSPy Optimized Instructions"` = 1, (b) section body contains the new text, (c) line count equals the pre-call line count ± 3. (4) Repeat with a third instruction string — confirm line count is still stable and section count = 1. Verdict: HEALTHY if missing-path returns `[]` silently AND changed-text idempotency holds for 2 consecutive calls with stable line count; WARNING if graceful skip works but line count grows by > 3 lines per call (slow accumulation that would corrupt `.md` over many runs); FAILURE if any call raises on a missing path or if two sections appear after two calls with different text.
+
+---
+
+### R32.1: Estimate the expected MIPROv2 score improvement for `research-analyst` given 500-char vs 88-char `question_text` input fields
+
+**Status**: DONE
+**Finding**: findings/R32.1.md
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Motivated by**: V31.1 HEALTHY (slot injection clean) + F31.1 FIX_APPLIED (writeback path operational) + F30.2 still BLOCKED on API key — the corpus is fully ready (V30.1 HEALTHY: 606 records, research-analyst median `question_text` approximately 500 chars post-F26.1/F29.1 enrichment). Before Tim exports an API key and runs the first real `research-analyst` MIPROv2 optimization, this question estimates whether the richer input context is likely to produce a meaningfully better prompt than the pre-enrichment 88-char baseline, informing the "is this API call worth the cost" decision.
+**Hypothesis**: MIPROv2 selects few-shot demonstrations by co-variate similarity — longer, semantically richer `question_text` fields give the optimizer more signal to cluster demos by question type, domain, and difficulty. Based on the `quantitative-analyst` empirical data point (R23.1: 125 records, 88-char `question_text`, +8.8 pt score delta via Ollama qwen3:14b), the `research-analyst` run with 500-char `question_text` and 37 records should achieve a delta of at least comparable magnitude, offset by the smaller corpus (37 vs 125 records). If the projected delta is < 3 pts, the run is marginal given API cost; if >= 5 pts, it is clearly worth proceeding.
+**Method**: research-analyst
+**Success criterion**: (1) Sample 10 research-analyst records from `masonry/training_data/scored_all.jsonl` and report actual median `question_text` length (must confirm >= 200 chars, expected approximately 500 after F29.1 enrichment). (2) Review R23.1 as the pre-enrichment analogue (125 records, 88-char `question_text`, +8.8 pt delta). (3) Assess how DSPy MIPROv2 demonstration selection uses input-field similarity — does richer `question_text` improve demo diversity and metric coverage? Cite DSPy source or documentation. (4) Estimate the expected score delta for `research-analyst` with 500-char `question_text` and 37 records: weigh enrichment ratio (approximately 5.7x), corpus-size penalty (37 vs 125), and the R23.1 empirical anchor. (5) Report a projected score delta range (e.g., "+6 to +14 pts") with a confidence level and the top two uncertainty factors. Verdict: HEALTHY if projected delta >= 5 pts (API run is clearly worth it); WARNING if projected delta is 2-5 pts (marginal — run but set expectations low); INCONCLUSIVE if available data cannot distinguish >= 5 pts from < 2 pts (need empirical run to resolve).

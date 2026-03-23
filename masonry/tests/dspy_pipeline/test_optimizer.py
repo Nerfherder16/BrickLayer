@@ -151,5 +151,43 @@ class TestOptimizeAllDispatch(unittest.TestCase):
         self.assertIs(sig_map["competitive-analyst"], ResearchAgentSig)
 
 
+# ---------------------------------------------------------------------------
+# Tests for configure_dspy() api_key parameter (F32.2)
+# ---------------------------------------------------------------------------
+
+
+class TestConfigureDspyApiKey(unittest.TestCase):
+    """Verify that configure_dspy() passes api_key to dspy.LM when provided."""
+
+    def test_api_key_passed_to_dspy_lm(self):
+        """When api_key is provided, dspy.LM must be called with api_key kwarg."""
+        import dspy as dspy_module
+        from masonry.src.dspy_pipeline.optimizer import configure_dspy
+
+        mock_lm = MagicMock()
+        with patch.object(dspy_module, "LM", return_value=mock_lm) as mock_lm_cls:
+            with patch.object(dspy_module, "configure"):
+                configure_dspy(api_key="sk-test-123")
+
+        # dspy.LM must have been called with api_key="sk-test-123"
+        call_kwargs = mock_lm_cls.call_args.kwargs
+        self.assertEqual(call_kwargs.get("api_key"), "sk-test-123",
+                         "dspy.LM was not called with api_key='sk-test-123'")
+
+    def test_no_api_key_omits_kwarg(self):
+        """When api_key is None (default), dspy.LM must NOT receive api_key kwarg."""
+        import dspy as dspy_module
+        from masonry.src.dspy_pipeline.optimizer import configure_dspy
+
+        mock_lm = MagicMock()
+        with patch.object(dspy_module, "LM", return_value=mock_lm) as mock_lm_cls:
+            with patch.object(dspy_module, "configure"):
+                configure_dspy()
+
+        call_kwargs = mock_lm_cls.call_args.kwargs
+        self.assertNotIn("api_key", call_kwargs,
+                         "dspy.LM should not receive api_key when none is provided")
+
+
 if __name__ == "__main__":
     unittest.main()

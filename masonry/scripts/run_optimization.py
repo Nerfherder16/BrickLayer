@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -229,6 +230,7 @@ def run(
     num_trials: int = 10,
     valset_size: int = 100,
     signature: str = "research",
+    api_key: str | None = None,
 ) -> int:
     """Run optimization for agent_name. Returns exit code (0=success, 1=failure).
 
@@ -239,6 +241,8 @@ def run(
         num_trials: Number of Bayesian optimization trials (default: 10).
         valset_size: Validation set size for trials (default: 100).
         signature: DSPy signature to use — ``"research"`` (default) or ``"karen"``.
+        api_key: Optional API key passed to ``configure_dspy``. When ``None``
+            (default), falls back to the ``ANTHROPIC_API_KEY`` environment variable.
     """
 
     print(f"[init] Starting optimization for: {agent_name}")
@@ -297,7 +301,7 @@ def run(
             optimize_agent,
         )
         from masonry.src.dspy_pipeline.signatures import KarenSig, ResearchAgentSig
-        configure_dspy(backend=backend)
+        configure_dspy(backend=backend, api_key=api_key)
         print(f"[dspy] DSPy configured.")
     except ImportError as exc:
         if "dspy" in str(exc).lower():
@@ -420,6 +424,11 @@ def _main() -> None:
         choices=["research", "karen"],
         help='DSPy signature to use: "research" (default) or "karen"',
     )
+    parser.add_argument(
+        "--api-key",
+        default=os.environ.get("ANTHROPIC_API_KEY"),
+        help="Anthropic API key (overrides ANTHROPIC_API_KEY env var)",
+    )
     args = parser.parse_args()
 
     sys.exit(run(
@@ -429,6 +438,7 @@ def _main() -> None:
         num_trials=args.num_trials,
         valset_size=args.valset_size,
         signature=args.signature,
+        api_key=args.api_key,
     ))
 
 
