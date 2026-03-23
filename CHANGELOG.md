@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `0b34189` chore(masonry): Wave 29 — preagent tracker CWD fix + question bank expansion (2026-03-23)
 - `861199b` chore(masonry): Wave 29 training data refresh + agent registry update (2026-03-23)
 - `f15c408` research(masonry): Wave 29 -- enrichment wired, synthetic store stable, MIPROv2 blocked on auth (2026-03-23)
 - `95b6c78` chore(masonry): commit Wave 28 findings + scoring scripts + registry update (2026-03-23)
