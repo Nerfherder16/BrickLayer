@@ -1859,3 +1859,70 @@
 **Hypothesis**: F24.1 added `--num-trials` and `--valset-size` to `run_optimization.py` and wired them into `optimize_agent()`. D24.1 added `_AGENT_RE` extraction to `training_extractor.py`. A dry-run invocation (`python masonry/scripts/run_optimization.py quantitative-analyst --backend ollama --num-trials 1 --valset-size 5`) should complete the CLI parsing, load training data, instantiate MIPROv2 with the specified parameters, and either complete one trial or fail with a recoverable error. This is the minimal end-to-end gate before committing to a full overnight run.
 **Method**: research-analyst
 **Success criterion**: (1) Read `masonry/scripts/run_optimization.py` in full (post-F24.1) — confirm `--num-trials` and `--valset-size` are in argparse and forwarded to `optimize_agent()`. (2) Read `masonry/src/dspy_pipeline/optimizer.py:optimize_agent()` — confirm `num_trials` is passed to `MIPROv2(num_trials=...)` constructor or `compile()`. (3) Read `masonry/src/dspy_pipeline/training_extractor.py:build_dataset()` — confirm D24.1 `_AGENT_RE` regex is present and agent attribution is extracted from `**Agent**:` field. (4) Count quantitative-analyst records in `scored_all.jsonl` — confirm ≥50 records (sufficient for a valset of 5-20). (5) Verify that `configure_dspy(backend="ollama")` resolves to `qwen3:14b` (F23.1 fix). Verdict: HEALTHY if all five components are correctly wired and the dry-run prerequisites are satisfied; WARNING if one component has a gap that would cause a runtime error; FAILURE if multiple gaps exist that would abort the overnight run before Trial 1 completes.
+
+
+---
+
+## Wave 26
+
+**Mode transitions applied**: R25.1 WARNING (question_text enrichment missing) -> F26.1 Fix; R25.2 HEALTHY (research-analyst ready) -> R26.1 Research; F25.1 follow-up (request_text available, target_agent labelling needed) -> D26.1 Diagnose; V25.1 HEALTHY (overnight run gate passed) -> V26.1 Validate; F25.3 homogeneity observation (all karen records quality_score=1.0) -> R26.2 Research.
+
+---
+
+### F26.1: Enrich question_text in training_extractor.py to capture the full hypothesis body from questions.md
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: R25.1 WARNING -- D24.1 restored agent attribution but question_text is still captured only from the ### QID: <title> header line (_build_qid_to_agent_map line 47). The full Hypothesis paragraph (50-150 words) in each question block is not captured, so training records carry a 5-15 word title where a rich research context should appear. MIPROv2 demo bootstrapping relies on question_text to select contextually similar examples -- sparse titles degrade retrieval quality.
+**Hypothesis**: _build_qid_to_agent_map() can be extended to also capture the Hypothesis field from each question block by adding a regex pattern for the Hypothesis section. If the hypothesis is present, concatenate title + hypothesis as question_text (capped at 500 chars). The existing question_text fallback (title-only) should remain for blocks without a Hypothesis field.
+**Method**: fix-implementer
+**Success criterion**: (1) Read masonry/src/dspy_pipeline/training_extractor.py:_build_qid_to_agent_map() in full -- understand the current regex-split-block approach. (2) Add hypothesis capture: pattern matching the Hypothesis field in each question block. (3) Set question_text = title + ' -- ' + hypothesis[:400] when hypothesis is present, else keep title-only fallback. (4) Verify: run _build_qid_to_agent_map on questions.md -- confirm >= 80% of entries have question_text > 30 chars. (5) Re-run score_all (or verify scored_all.jsonl can be regenerated with enriched question_text). Verdict: FIX_APPLIED if enrichment implemented and >= 80% entries have question_text > 30 chars; PARTIAL if hypothesis capture works but regeneration fails; FAILURE if the regex breaks question block parsing.
+
+---
+
+### D26.1: How can target_agent labels be automatically generated from request_text in routing_log.jsonl for retrospective labelling?
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: MEDIUM
+**Motivated by**: F25.1 follow-up -- request_text is now captured in routing log start events (up to 500 chars), but all 5 records in scored_routing.jsonl have target_agent = "" (no ground-truth labels). Without target_agent, score_routing.py can only award 35 partial points. To reach full 70-point routing training quality, historical routing log entries need retrospective target_agent labels derived from their request_text content.
+**Hypothesis**: The four-layer Mortar routing engine classifies requests to target agents. Running request_text values from routing_log.jsonl through the deterministic layer (slash-command detection, autopilot state, Mode field) + semantic layer (Ollama cosine similarity) could retrospectively predict the intended target_agent for each routing event. A script masonry/scripts/label_routing.py could process routing_log.jsonl in batch, invoke masonry/src/routing/router.py:route() for each request_text, and annotate the routing log with predicted target_agent fields.
+**Method**: diagnose-analyst
+**Success criterion**: (1) Read masonry/scripts/score_routing.py -- understand the target_agent scoring logic (35pts partial vs 70pts confirmed). (2) Read masonry/src/routing/router.py -- confirm whether a batch labelling script can call route() with a text string and get target_agent + confidence. (3) Read 10 sample routing_log.jsonl entries with non-empty request_text -- do they contain enough signal for classification? (4) Estimate what % of entries have request_text long enough (> 50 chars) for reliable classification. (5) Propose a concrete label_routing.py script spec with inputs, output format, confidence threshold. Verdict: DIAGNOSIS_COMPLETE if a viable labelling approach is identified; WARNING if request_text is too sparse for reliable classification; FAILURE if the routing engine cannot be called in batch mode.
+
+---
+
+### R26.1: Does running build_metric() on research-analyst records produce a higher baseline score than the quantitative-analyst baseline of ~68.3%?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Motivated by**: R25.2 HEALTHY -- research-analyst was identified as the next optimization candidate with 29 strictly viable records (verdict + evidence > 300 chars + confidence != None). quantitative-analyst achieved 68.3% in Wave 23. research-analyst has a better-balanced verdict distribution and longer evidence strings, which may produce a higher baseline metric score.
+**Hypothesis**: research-analyst records have average evidence lengths of ~2500 chars vs quantitative-analyst ~1800 chars, so the evidence quality component (0.4 weight) should score higher. Combined with a balanced verdict distribution, the pre-optimization metric baseline could exceed 68.3%. Computing build_metric() on the 29 viable records gives a baseline estimate before scheduling an actual MIPROv2 run.
+**Method**: research-analyst
+**Success criterion**: (1) Read masonry/training_data/scored_all.jsonl -- pull the 29 research-analyst viable records. (2) Import build_metric() from optimizer.py. (3) For each record, compute metric(example=record_as_example, prediction=record_as_example) to measure the self-consistency score. (4) Compare mean score to the quantitative-analyst baseline of 0.683. (5) Check if confidence type (float vs str) causes issues in build_metric(). Verdict: HEALTHY if mean metric score >= 0.70; WARNING if mean is 0.60-0.70 (similar baseline, re-run may still be worthwhile); FAILURE if mean < 0.60 or type errors occur.
+
+---
+
+### R26.2: Are the 191 karen training records genuinely all quality_score=1.0, and are there recoverable negative examples from git history?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: LOW
+**Motivated by**: F25.3 finding note -- all 191 karen records have score=100 and reverted=False, producing quality_score="1.0" for every example. This means build_karen_metric()'s quality_score_proximity component (0.5 weight) is trivially maximized for every record, providing no gradient on the most important metric component.
+**Hypothesis**: The karen corpus was assembled from post-Wave commit events where the ops scorer always awards full score. Reverted commits in the masonry git history would produce score < 100 and reverted=True records if run through the ops scorer. Even 5 negative examples would break the homogeneity and make quality_score_proximity a meaningful metric component.
+**Method**: research-analyst
+**Success criterion**: (1) Run git log --oneline --grep=revert (case-insensitive) restricted to masonry/ -- count genuine revert commits. (2) Check CHANGELOG.md for any entries with reverted action from karen. (3) If >= 1 revert commit exists, check whether masonry/scripts/score_ops.py (or equivalent) could produce a score < 100 record for that commit. (4) Estimate how many negative examples are realistically recoverable. Verdict: HEALTHY if >= 5 revert commits found that could produce negative examples; WARNING if 1-4 found; INCONCLUSIVE if no revert commits exist in masonry scope.
+
+---
+
+### V26.1: Does metric_fn=build_karen_metric() in optimize_agent() correctly score KarenSig predictions across edge cases without exception?
+
+**Status**: PENDING
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Motivated by**: F25.3 FIX_APPLIED -- metric_fn parameter was added to optimize_agent() and build_karen_metric() wired in for the karen signature. However, the integration was not tested against actual KarenSig predictions. build_karen_metric() parses quality_score using regex -- if the prediction returns a non-numeric string (e.g. "N/A" or empty), the fallback fires. This validation checks that all three metric components handle edge cases without exception.
+**Hypothesis**: build_karen_metric() is defensively written -- each component is wrapped in try/except. A synthetic KarenSig prediction with edge-case values (empty strings, "N/A", None) should produce a score in [0, 1] without exception. The perfect prediction case should score >= 0.9 and the all-empty prediction should score <= 0.25.
+**Method**: research-analyst
+**Success criterion**: (1) Import build_karen_metric from optimizer.py and KarenSig from signatures.py. (2) Create mock DSPy Example and Prediction objects with KarenSig fields. (3) Test 4 edge cases: (a) perfect prediction (exact quality_score match, correct action, non-empty changelog), (b) wrong action + empty changelog, (c) quality_score = "N/A" (non-numeric), (d) all fields empty. (4) For each case, call metric(example, prediction) and confirm result is float in [0.0, 1.0] with no exception. (5) Verify perfect prediction scores >= 0.9 and all-empty prediction scores <= 0.25. Verdict: HEALTHY if all 4 edge cases produce valid float scores without exception; WARNING if one edge case throws but is caught; FAILURE if exception propagates or perfect prediction scores < 0.8.

@@ -27,7 +27,8 @@ def _build_qid_to_agent_map(questions_md_path: Path) -> dict[str, dict[str, str]
     """Extract question_id → {agent, question_text} mapping from a questions.md file.
 
     Handles both ``**Agent**:`` (Wave 1) and ``**Method**:`` (Wave 2+) fields.
-    Captures the question text from the ``### QID: <text>`` header line.
+    Captures the question text from the ``### QID: <text>`` header line, enriched
+    with the ``**Hypothesis**:`` paragraph when present (F26.1 enrichment).
     Returns an empty dict if the file cannot be read.
     """
     try:
@@ -42,9 +43,20 @@ def _build_qid_to_agent_map(questions_md_path: Path) -> dict[str, dict[str, str]
         qid_m = re.search(r"###\s+(\w+\d+\.\d+):\s*(.+)", block)
         agent_m = re.search(r"\*\*(?:Agent|Method)\*\*:\s*(\S+)", block)
         if qid_m and agent_m:
+            title = qid_m.group(2).strip()
+            # F26.1: enrich question_text with the Hypothesis body (up to 400 chars)
+            # This replaces 5-15 word titles with rich research context for MIPROv2 demos.
+            hyp_m = re.search(
+                r"\*\*Hypothesis\*\*:\s*(.+?)(?=\n\*\*|\Z)", block, re.DOTALL
+            )
+            if hyp_m:
+                hyp_body = hyp_m.group(1).strip().replace("\n", " ")
+                question_text = f"{title} -- {hyp_body}"[:500]
+            else:
+                question_text = title
             result[qid_m.group(1)] = {
                 "agent": agent_m.group(1),
-                "question_text": qid_m.group(2).strip(),
+                "question_text": question_text,
             }
     return result
 
