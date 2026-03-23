@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `859eb8c` feat: session-start picks up karen flag for automatic doc maintenance (task 5/5) (2026-03-23)
 - `4ee13b4` feat: session-aware build guard + karen flag on stale docs (tasks 3-4/5) (2026-03-23)
 - `5230c67` feat: snapshot_agent.py — versioned prompt store with rollback (task 2/4) (2026-03-23)
 - `a506a9c` feat: add vitest hook test infra + session_id to build skill schemas (tasks 1-2/5) (2026-03-23)
