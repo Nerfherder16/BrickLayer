@@ -48,6 +48,8 @@ const TEST_FILE_PATTERNS = [
   /^.*_test\.py$/,
   /^.*\.test\.(ts|tsx|js|jsx)$/,
   /^.*\.spec\.(ts|tsx|js|jsx)$/,
+  // Node --test pattern: test_*.js (e.g. test_mas_core.js, test_pulse_hook.js)
+  /^test_.*\.js$/,
 ];
 
 function readStdin() {
@@ -160,6 +162,8 @@ function findTestFile(filePath) {
       if (existsSync(testsDir)) {
         candidates.push(path.join(testsDir, `${base}.test${ext}`));
         candidates.push(path.join(testsDir, `${base}.spec${ext}`));
+        // Node --test pattern: test_{base}.js
+        candidates.push(path.join(testsDir, `test_${base}.js`));
         // Also check subdirectories of tests/
         try {
           const { readdirSync, statSync } = require("fs");

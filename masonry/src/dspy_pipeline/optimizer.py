@@ -303,15 +303,23 @@ def optimize_all(
 
         print(f"[optimizer] Optimizing {agent.name} ({len(agent_dataset)} examples)...", file=sys.stderr)
 
-        # All agents use ResearchAgentSig — build_dataset() always shapes examples
-        # to ResearchAgentSig fields (question_text, project_context, constraints,
-        # verdict, severity, evidence, mitigation, confidence).
-        # DiagnoseAgentSig (symptoms, affected_files) is not currently populated
-        # by build_dataset(); using it causes a silent field mismatch (R5.2).
-        from masonry.src.dspy_pipeline.signatures import ResearchAgentSig
-        sig = ResearchAgentSig
+        # Dispatch table — add new agent signatures here.
+        # Agents not listed fall back to ResearchAgentSig + build_metric (the
+        # general research-finding schema).  karen uses KarenSig because its
+        # training examples are shaped around commit/changelog fields rather than
+        # question/verdict fields.
+        from masonry.src.dspy_pipeline.signatures import KarenSig, ResearchAgentSig
 
-        result = optimize_agent(agent.name, sig, agent_dataset, output_dir, backend=backend)
+        _AGENT_SIGNATURES: dict[str, tuple[type, Any]] = {
+            "karen": (KarenSig, build_karen_metric),
+        }
+        _DEFAULT_SIG = (ResearchAgentSig, build_metric)
+
+        sig_class, metric_fn = _AGENT_SIGNATURES.get(agent.name, _DEFAULT_SIG)
+        sig = sig_class
+        metric = metric_fn(sig_class) if metric_fn is build_metric else metric_fn()
+
+        result = optimize_agent(agent.name, sig, agent_dataset, output_dir, backend=backend, metric_fn=metric)
         results.append(result)
 
     return results
