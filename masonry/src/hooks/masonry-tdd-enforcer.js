@@ -118,7 +118,8 @@ function findTestFile(filePath) {
       path.join(dir, `${base}_test.py`),
     ];
 
-    // Walk up to find a tests/ directory
+    // Walk up to find all tests/ directories (do not break at first match —
+    // a project may have masonry/tests/ and a root tests/; check both)
     let searchDir = dir;
     for (let i = 0; i < 10; i++) {
       const testsDir = path.join(searchDir, "tests");
@@ -135,7 +136,7 @@ function findTestFile(filePath) {
             }
           }
         } catch {}
-        break;
+        // Do NOT break — continue walking up to find higher-level tests/ dirs
       }
       const parent = path.dirname(searchDir);
       if (parent === searchDir) break;
