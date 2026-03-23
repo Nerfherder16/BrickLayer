@@ -79,8 +79,14 @@ def build_metric(signature_cls: type) -> Any:
 def build_karen_metric() -> Any:
     """Build heuristic scoring metric for KarenSig (ops-domain documentation agent).
 
-    Matches the hook-defined KarenSig output schema: quality_score, action,
-    doc_updates, changelog_entry.
+    Handles two example schemas:
+    - Training data schema: doc_files_written (int), reverted (bool)
+    - KarenSig schema: quality_score, action, doc_updates, changelog_entry
+
+    Training data fields are mapped to equivalent KarenSig fields:
+    - reverted=True  → action="reverted",  quality_score=0.0
+    - reverted=False, doc_files_written>0 → action="updated", quality_score=1.0
+    - reverted=False, doc_files_written=0 → action="skipped", quality_score=1.0
 
     Components:
     - quality_score_proximity (0.5): |predicted_score - actual_score| ≤ 0.1 = 0.5, else 0.25
@@ -90,20 +96,34 @@ def build_karen_metric() -> Any:
     Returns a callable(example, prediction, trace) -> float.
     """
 
+    def _derive_expected(example: Any) -> tuple[float, str]:
+        """Return (expected_quality_score, expected_action) from either schema."""
+        ex_reverted = getattr(example, "reverted", None)
+        if ex_reverted is not None:
+            # Training data schema
+            if ex_reverted:
+                return 0.0, "reverted"
+            ex_doc_files = getattr(example, "doc_files_written", 0) or 0
+            if ex_doc_files > 0:
+                return 1.0, "updated"
+            return 1.0, "skipped"
+        # KarenSig schema
+        ex_qs = float(str(getattr(example, "quality_score", "1.0") or "1.0"))
+        ex_action = str(getattr(example, "action", "") or "").lower().strip()
+        return ex_qs, ex_action
+
     def metric(example: Any, prediction: Any, trace: Any = None) -> float:
         score = 0.0
 
-        # quality_score proximity (0.5 weight) — F27.1 fix
-        # Separate parse-failure path from proximity check:
-        # - if prediction quality_score is non-parseable (empty/non-numeric): 0.25 partial credit
-        # - if parseable: apply proximity check (|pred - actual| <= 0.1 -> 0.5, else 0.25)
-        # This prevents empty-string predictions from accidentally triggering the proximity
-        # bonus via the `or "1.0"` fallback (V26.1 calibration gap).
         try:
-            ex_qs = str(getattr(example, "quality_score", "1.0") or "1.0")
+            ex_val, ex_action = _derive_expected(example)
+        except Exception:
+            ex_val, ex_action = 1.0, ""
+
+        # quality_score proximity (0.5 weight) — F27.1 fix
+        try:
             pred_qs_raw = str(getattr(prediction, "quality_score", "") or "")
             m = re.search(r"\d+\.?\d*", pred_qs_raw)
-            ex_val = float(ex_qs)
             if m:
                 pred_val = float(m.group())
                 if abs(ex_val - pred_val) <= 0.1:
@@ -117,7 +137,6 @@ def build_karen_metric() -> Any:
 
         # action match (0.3 weight)
         try:
-            ex_action = str(getattr(example, "action", "") or "").lower().strip()
             pred_action = str(getattr(prediction, "action", "") or "").lower().strip()
             if ex_action and pred_action and ex_action == pred_action:
                 score += 0.3
@@ -131,7 +150,6 @@ def build_karen_metric() -> Any:
         # changelog_entry quality (0.2 weight)
         try:
             entry = str(getattr(prediction, "changelog_entry", "") or "")
-            ex_action = str(getattr(example, "action", "skipped") or "skipped").lower()
             if ex_action != "skipped" and len(entry) > 10:
                 score += 0.2
             elif ex_action == "skipped":
