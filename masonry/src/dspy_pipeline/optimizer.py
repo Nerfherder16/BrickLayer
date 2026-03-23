@@ -92,19 +92,27 @@ def build_karen_metric() -> Any:
     def metric(example: Any, prediction: Any, trace: Any = None) -> float:
         score = 0.0
 
-        # quality_score proximity (0.5 weight)
+        # quality_score proximity (0.5 weight) — F27.1 fix
+        # Separate parse-failure path from proximity check:
+        # - if prediction quality_score is non-parseable (empty/non-numeric): 0.25 partial credit
+        # - if parseable: apply proximity check (|pred - actual| <= 0.1 -> 0.5, else 0.25)
+        # This prevents empty-string predictions from accidentally triggering the proximity
+        # bonus via the `or "1.0"` fallback (V26.1 calibration gap).
         try:
             ex_qs = str(getattr(example, "quality_score", "1.0") or "1.0")
-            pred_qs_raw = str(getattr(prediction, "quality_score", "1.0") or "1.0")
+            pred_qs_raw = str(getattr(prediction, "quality_score", "") or "")
             m = re.search(r"\d+\.?\d*", pred_qs_raw)
             ex_val = float(ex_qs)
-            pred_val = float(m.group()) if m else 1.0
-            if abs(ex_val - pred_val) <= 0.1:
-                score += 0.5
+            if m:
+                pred_val = float(m.group())
+                if abs(ex_val - pred_val) <= 0.1:
+                    score += 0.5
+                else:
+                    score += 0.25  # partial credit for reasonable but off estimates
             else:
-                score += 0.25  # partial credit for reasonable estimates
+                score += 0.25  # partial credit — prediction quality_score not parseable
         except Exception:
-            score += 0.25  # default partial credit on parse failure
+            score += 0.25  # default partial credit on example parse failure
 
         # action match (0.3 weight)
         try:

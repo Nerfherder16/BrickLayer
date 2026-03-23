@@ -1931,3 +1931,71 @@
 **Hypothesis**: build_karen_metric() is defensively written -- each component is wrapped in try/except. A synthetic KarenSig prediction with edge-case values (empty strings, "N/A", None) should produce a score in [0, 1] without exception. The perfect prediction case should score >= 0.9 and the all-empty prediction should score <= 0.25.
 **Method**: research-analyst
 **Success criterion**: (1) Import build_karen_metric from optimizer.py and KarenSig from signatures.py. (2) Create mock DSPy Example and Prediction objects with KarenSig fields. (3) Test 4 edge cases: (a) perfect prediction (exact quality_score match, correct action, non-empty changelog), (b) wrong action + empty changelog, (c) quality_score = "N/A" (non-numeric), (d) all fields empty. (4) For each case, call metric(example, prediction) and confirm result is float in [0.0, 1.0] with no exception. (5) Verify perfect prediction scores >= 0.9 and all-empty prediction scores <= 0.25. Verdict: HEALTHY if all 4 edge cases produce valid float scores without exception; WARNING if one edge case throws but is caught; FAILURE if exception propagates or perfect prediction scores < 0.8.
+
+
+---
+
+## Wave 27
+
+**Mode transitions applied**: V26.1 HEALTHY (all-empty floor = 0.70, not calibrated) -> F27.1 Fix; R26.1 HEALTHY (research-analyst optimization recommended) -> V27.1 Validate; R26.2 WARNING (karen needs synthetic negatives) -> F27.2 Fix; F26.1 FIX_APPLIED (enrichment done, scored_all needs regen) -> R27.1 Research; D26.1 WARNING (routing labelling blocked) -> R27.2 Research.
+
+---
+
+### F27.1: Fix build_karen_metric() quality_score_proximity fallback to prevent all-empty predictions scoring 0.5
+
+**Status**: DONE
+**Finding**: findings/F27.1.md
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Motivated by**: V26.1 HEALTHY finding -- the all-empty prediction case scores 0.70 because the `or "1.0"` fallback in quality_score_proximity treats empty string as quality_score=1.0 (perfect match). The defensive fallback is too lenient: it should award partial credit (0.25) when quality_score cannot be parsed, not trigger the proximity bonus.
+**Hypothesis**: Separate the parse-failure path from the proximity check in quality_score_proximity: when prediction quality_score cannot be parsed to a float (empty or non-numeric), award 0.25 partial credit and skip the proximity check. When parseable, apply existing proximity logic. This makes the all-empty case score ~0.45 (0.25 quality + 0.2 skipped-action) instead of 0.70.
+**Method**: fix-implementer
+**Success criterion**: (1) Read masonry/src/dspy_pipeline/optimizer.py:build_karen_metric() quality_score_proximity block. (2) Modify so that when regex fails on pred_qs_raw (non-numeric/empty), score += 0.25 and skip proximity check. (3) When prediction IS parseable, apply proximity check as before. (4) Verify: all-empty prediction scores <= 0.50, N/A case scores <= 0.65, perfect prediction scores >= 0.9. Verdict: FIX_APPLIED if all-empty <= 0.50 and perfect >= 0.9; PARTIAL if fix applied but one test fails; FAILURE if perfect score drops below 0.8.
+
+---
+
+### F27.2: Add 5 synthetic negative examples to karen training corpus to break quality_score homogeneity
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Motivated by**: R26.2 WARNING -- all 191 karen records have quality_score=1.0. The build_karen_metric() quality_score_proximity component (0.5 weight) has zero gradient. Adding 5-10 synthetic negative examples (quality_score=0.0, action=reverted) would break homogeneity and give MIPROv2 calibration signal.
+**Hypothesis**: 5 synthetic training examples can be constructed using the single genuine revert commit (1814c08) as a template. Written directly to masonry/training_data/scored_all.jsonl with score=0 and agent=karen. After appending, load_karen_training_data() should return 196 examples with quality_score values including 0.0.
+**Method**: fix-implementer
+**Success criterion**: (1) Read masonry/training_data/scored_all.jsonl -- understand karen record schema. (2) Construct 5 synthetic records with agent=karen, score=0, reverted=True, action=reverted, quality_score=0.0. (3) Vary commit_subject across 5 different plausible revert scenarios. (4) Append to scored_all.jsonl. (5) Verify: load_karen_training_data() returns 196 examples with quality_score values including 0.0. Verdict: FIX_APPLIED if 5 records appended and loader returns them; PARTIAL if appended but schema mismatch; FAILURE if records corrupt the jsonl file.
+
+---
+
+### R27.1: After F26.1 hypothesis enrichment, how much longer are research-analyst question_text fields vs current scored_all.jsonl values?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Motivated by**: F26.1 FIX_APPLIED -- _build_qid_to_agent_map() now enriches question_text with the Hypothesis paragraph (up to 500 chars). But existing scored_all.jsonl records still have the old short question_text. To get the benefit of F26.1, scored_all.jsonl must be regenerated. This research question measures the gap between old and new question_text lengths.
+**Hypothesis**: Current scored_all.jsonl research-analyst records have question_text of 5-30 chars (just the title). After F26.1, the same QIDs would map to 200-500 chars (title + hypothesis). The gap is significant enough to meaningfully improve MIPROv2 demo co-variate selection.
+**Method**: research-analyst
+**Success criterion**: (1) Read 5 research-analyst records from scored_all.jsonl -- measure current question_text field lengths. (2) Run _build_qid_to_agent_map() on questions.md and look up the same QIDs -- compare enriched lengths. (3) Compute median length increase. (4) Confirm QIDs in scored_all.jsonl can be mapped to question blocks in questions.md. (5) Estimate how many of 37 research-analyst records can be enriched. Verdict: HEALTHY if median question_text increases by >= 100 chars; WARNING if increase < 100 chars or < 50% of records can be enriched; INCONCLUSIVE if QID mapping fails for most records.
+
+---
+
+### V27.1: Validate end-to-end pipeline for a research-analyst MIPROv2 run before scheduling the actual run.
+
+**Status**: PENDING
+**Operational Mode**: validate
+**Priority**: HIGH
+**Motivated by**: R26.1 HEALTHY -- research-analyst is the recommended next optimization target (expected MIPROv2 score 0.73-0.87). Before scheduling a 30-60 minute run, validate that all pipeline components are correctly wired: data loading, ResearchAgentSig field alignment, build_metric(), and optimize_agent().
+**Hypothesis**: run_optimization.py with --signature research routes to: load_training_data_from_scored_all -> ResearchAgentSig -> build_metric(ResearchAgentSig) -> optimize_agent(metric_fn=None). All components are independently verified -- this validates the assembled pipeline.
+**Method**: research-analyst
+**Success criterion**: (1) Run load_training_data_from_scored_all(scored_all_path, 'research-analyst') -- confirm 29-37 records with correct field names. (2) Verify ResearchAgentSig.input_fields and output_fields match loaded record keys. (3) Call build_metric(ResearchAgentSig) and score 3 sample records -- confirm scores in [0.6, 1.0]. (4) Confirm optimize_agent() has metric_fn=None default (fallback to build_metric). (5) Verify --signature research routes to metric_fn=None. Verdict: HEALTHY if all 5 checks pass; WARNING if one reveals a non-fatal gap; FAILURE if a gap would abort the optimization run.
+
+---
+
+### R27.2: Can masonry-subagent-tracker.js be modified to populate request_text for autonomous research loop agent spawns?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: LOW
+**Motivated by**: D26.1 WARNING -- routing labelling is blocked because autonomous research loop agent spawns produce empty request_text. The hook reads input.prompt || input.description, but these are empty for programmatic Agent tool calls.
+**Hypothesis**: The SubagentStart hook input object may have additional fields (task, description, or the raw tool input) that could be read. Alternatively, if Agent tool calls pass input.description for some spawn patterns, a simple hook extension could capture it. A 1-3 line change to masonry-subagent-tracker.js could populate request_text for >= 50% of future spawns.
+**Method**: research-analyst
+**Success criterion**: (1) Read masonry/src/hooks/masonry-subagent-tracker.js lines 185-215 -- identify all input fields currently read. (2) Check what fields are available in SubagentStart hook input for Agent tool calls (docs or existing log inspection). (3) If input.task or additional fields are available, assess whether adding them to the hook read captures request context. (4) Estimate: if modified, what % of future routing_log entries would have non-empty request_text? (5) Assess complexity (1-line vs larger refactor). Verdict: HEALTHY if a simple (1-3 line) change could populate request_text for >= 50% of future spawns; WARNING if fix requires structural changes; INCONCLUSIVE if SubagentStart input does not expose enough context.
