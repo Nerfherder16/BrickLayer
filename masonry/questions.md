@@ -2531,3 +2531,72 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 **Hypothesis**: The Ollama backend at `192.168.50.62:11434` is a CasaOS Docker container that may have stopped or failed. The restoration path is: (1) check CasaOS Docker container status for Ollama, (2) if stopped, `docker compose up -d` or restart from CasaOS UI, (3) confirm `qwen3:14b` model is still loaded (or re-pull if needed), (4) re-run `curl -s http://192.168.50.62:11434/api/tags` to confirm availability. The semantic routing threshold and embedding model configuration in `masonry/src/routing/semantic.py` do not need changes — the backend URL is already correct.
 **Method**: research-analyst
 **Success criterion**: (1) Run `curl -s --connect-timeout 3 http://192.168.50.62:11434/api/tags` — report current status (ONLINE or OFFLINE). (2) If OFFLINE: identify the Docker container name or CasaOS app hosting Ollama. Provide the exact command(s) Tim should run to restart it. (3) Confirm whether `qwen3:14b` model would still be available after restart (check if models persist across container restarts in the Docker volume). (4) Update `masonry/monitor-targets.md` `ollama_backend_reachable` entry: add a "Recovery procedure" subsection with the identified restart commands. (5) If ONLINE: record the recovery date, update the monitor entry status to ONLINE, and recommend running a test embedding query to confirm the semantic routing can use the backend. Verdict: DONE if monitor-targets.md is updated with a concrete recovery procedure (even if Ollama remains OFFLINE — the procedure itself is the deliverable); WARNING if the recovery procedure cannot be determined without physical access to the CasaOS host.
+
+---
+
+## Wave 34
+
+**Generated from findings**: R33.3, R33.2, D33.1, F33.2, F33.3, V33.1
+**Mode transitions applied**: R33.3 WARNING → F34.1 Fix (populate project_context in load_training_data_from_scored_all); R33.3 WARNING → R34.1 Research (score 30+ new findings to grow corpus above 87-record threshold); R33.2 HEALTHY with latent inconsistency → D34.1 Diagnose (does build_metric score "CONCERNS" correctly or as 0); F33.2 FIX_APPLIED (D33.1 PARTIAL) → V34.1 Validate (confirm server.py api_key change works end-to-end with mock key); F33.3 FIX_APPLIED → R34.2 Research (given valset=27 and corpus=57, is 30 bootstrap examples at the threshold boundary sufficient for a reliable run or should we wait for corpus growth first)
+
+---
+
+### F34.1: Fix `load_training_data_from_scored_all()` to populate `project_context` from `project-brief.md` instead of hardcoding `""`
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Motivated by**: R33.3 WARNING — all 57 research-analyst records in `scored_all.jsonl` have `project_context = ""`. `ResearchAgentSig` defines `project_context` as a named `InputField`. Bootstrapped few-shot demos always show the agent operating with no project context, meaning MIPROv2 cannot learn from context-aware reasoning patterns. The fix is to populate `project_context` using `_load_project_brief()` (already implemented in `build_dataset()` at optimizer.py line ~183) when loading records from `scored_all.jsonl`.
+**Hypothesis**: `load_training_data_from_scored_all()` in `masonry/src/dspy_pipeline/optimizer.py` hardcodes `project_context: ""` for all records. Calling `_load_project_brief(base_dir)` and injecting the result into each Example object when constructing the training set will enrich the bootstrap demos without requiring new findings to be scored.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `masonry/src/dspy_pipeline/optimizer.py` — locate `load_training_data_from_scored_all()` and confirm `project_context` is hardcoded to `""`. (2) Confirm `_load_project_brief()` is defined and returns the content of `project-brief.md` given a `base_dir` path. (3) Add a `base_dir: Path | None = None` parameter to `load_training_data_from_scored_all()`. (4) When `base_dir` is provided and `_load_project_brief(base_dir)` returns non-empty text, set `project_context` to that value for each Example; otherwise keep `""` as fallback. (5) Update the call site in `optimize_agent()` to pass `base_dir` through. (6) Run `python -m pytest masonry/tests/dspy_pipeline/test_optimizer.py -v` — confirm all existing tests pass. (7) Add 1 new test: call `load_training_data_from_scored_all(scored_path, base_dir=tmp_path_with_brief)` and assert `examples[0].project_context` is non-empty. Verdict: FIX_APPLIED if `project_context` is populated from `project-brief.md` in the returned Examples and all tests pass; PARTIAL if `base_dir` parameter is added but not wired to the call site; FAILURE if any existing test regresses.
+
+---
+
+### R34.1: How many unscored findings in `findings/` could be processed by `build_dataset()` to grow the research-analyst corpus from 57 to 87+ records?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: HIGH
+**Motivated by**: R33.3 WARNING — 57 research-analyst records leaves only 30 bootstrap training examples at the corrected --valset-size 27 (exactly at the DSPy 30-example threshold). Adding 30 more records (to 87 total) would raise the effective bootstrap pool to 60 and move the expected score above the 75% WARNING boundary. The question is whether enough unscored findings exist to reach 87 without running a new campaign.
+**Hypothesis**: Findings from Waves 24-33 that have not been processed into `scored_all.jsonl` could be scored by `build_dataset()` to grow the corpus. If 30+ unscored research-analyst findings exist in `masonry/findings/`, the corpus can cross the 87-record threshold without any API key or new campaign run.
+**Method**: research-analyst
+**Success criterion**: (1) Count the total number of `*.md` files in `masonry/findings/` that are research-analyst findings (identify by `**Agent**: research-analyst` header or question IDs matching `R{wave}.{n}` pattern). (2) Read `masonry/training_data/scored_all.jsonl` — count distinct `question_id` values where agent = "research-analyst". (3) Compute unscored = total research-analyst findings − already-scored findings. (4) If unscored >= 30: confirm that `build_dataset()` would process these (check whether `scored_all.jsonl` uses `question_id` deduplication to skip already-scored records, or if it would re-score them). (5) Provide the exact `python` command Tim should run to rebuild the corpus. (6) If unscored < 30: report the current gap and recommend the minimum number of new research questions that would need to be answered to reach 87. Verdict: HEALTHY if 30+ unscored research-analyst findings exist and the rebuild command is confirmed valid; WARNING if fewer than 30 exist but a concrete path to 87 is specified; FAILURE if `build_dataset()` would not incorporate existing findings without re-running the full campaign.
+
+---
+
+### D34.1: Does `build_metric()` score a "CONCERNS" verdict correctly, or does it always produce 0 on the verdict component when ground truth is "CONCERNS"?
+
+**Status**: PENDING
+**Operational Mode**: diagnose
+**Priority**: MEDIUM
+**Motivated by**: R33.2 HEALTHY — the finding noted a latent inconsistency: some findings in `findings/` use the verdict "CONCERNS" (non-standard; not in the HEALTHY/WARNING/FAILURE/DIAGNOSIS_COMPLETE/PARTIAL/FIX_APPLIED canonical set). `build_metric()` uses exact string match (`ex_verdict == pred_verdict`). If 3 out of 57 training records have `verdict = "CONCERNS"` and the agent predicts "WARNING" (the semantically equivalent standard verdict), those records score 0.0 on the 0.4-weight verdict component — effectively penalizing correct near-miss predictions and reducing the achievable optimization score ceiling.
+**Hypothesis**: `scored_all.jsonl` contains records with `verdict = "CONCERNS"` (the non-standard 3 records noted in R33.3). The exact-match metric will score these 0 even when the agent predicts the correct semantic equivalent. Additionally, the `build_dataset()` scoring pipeline may be labeling new records with "CONCERNS" from raw finding files, compounding the issue as the corpus grows.
+**Method**: diagnose-analyst
+**Success criterion**: (1) Read `masonry/training_data/scored_all.jsonl` — count records where `verdict` is not in `{"HEALTHY", "WARNING", "FAILURE", "DIAGNOSIS_COMPLETE", "PARTIAL", "FIX_APPLIED", "BLOCKED", "PROMISING", "PROBABLE", "IMMINENT", "NON_COMPLIANT", "INCONCLUSIVE"}`. Report the count and the distinct non-standard verdict strings found. (2) Read `masonry/src/dspy_pipeline/optimizer.py` `build_metric()` (lines 24-75) — confirm whether exact string match is used for verdict scoring or if a normalization/synonym map exists. (3) If non-standard verdicts exist AND no normalization is present: produce a DIAGNOSIS_COMPLETE verdict with a Fix Specification: add a `_VERDICT_ALIASES` dict that maps non-standard strings to canonical equivalents (`"CONCERNS" → "WARNING"`) applied to `ex_verdict` before the comparison. (4) If no non-standard verdicts exist in `scored_all.jsonl`: produce a HEALTHY verdict confirming the inconsistency is limited to the findings prose and does not affect the metric. Verdict: DIAGNOSIS_COMPLETE if non-standard verdicts exist and a fix specification is written; HEALTHY if the metric is unaffected; FAILURE if the scoring pipeline actively imports non-standard verdicts into future corpus records.
+
+---
+
+### V34.1: Validate that the `server.py` `masonry_optimize_agent` MCP tool correctly forwards `api_key` to `configure_dspy()` without breaking existing tool behavior
+
+**Status**: PENDING
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Motivated by**: F33.2 FIX_APPLIED (D33.1 PARTIAL) — F33.2 added `api_key` to the MCP tool inputSchema and threaded it to `configure_dspy()`. The fix was applied with confidence 0.97 but was not validated with a live or mock end-to-end call. The concern is that the MCP inputSchema change could break Kiln's schema introspection if the new optional field is not correctly typed, or that `args.get("api_key")` silently returns `None` in cases where Kiln omits the field, which would regress to the original blocked state.
+**Hypothesis**: The three-point change in `server.py` (inputSchema addition + `args.get("api_key")` extraction + `configure_dspy(api_key=api_key)` call) is complete and correct. When `api_key` is omitted from the MCP call, `args.get("api_key")` returns `None` and `configure_dspy` falls back to env var — preserving the original behavior. When `api_key` is provided, it is forwarded correctly.
+**Method**: research-analyst
+**Success criterion**: (1) Read `masonry/mcp_server/server.py` — find `_tool_masonry_optimize_agent` function and the `masonry_optimize_agent` inputSchema block. (2) Confirm `api_key` is listed in `inputSchema["properties"]` with `"type": "string"` and `"required"` does NOT include `"api_key"` (it must be optional). (3) Confirm the function body contains `api_key = args.get("api_key")` (or equivalent). (4) Confirm `configure_dspy(model=model, backend=backend, api_key=api_key)` is the call — all three keyword arguments present. (5) Read `masonry/tests/` — check whether a test for `_tool_masonry_optimize_agent` with an explicit `api_key` argument exists. If not, note the test gap. (6) Run `python -m pytest masonry/tests/ -k "optimize" -v` — confirm all optimization-related tests pass. Verdict: HEALTHY if all 4 code checks pass and tests pass; WARNING if the test for explicit api_key does not exist (functional but undertested); FAILURE if `api_key` is in `"required"` (breaking change for callers that omit it) or if any test regresses.
+
+---
+
+### R34.2: Given the corrected `--valset-size 27` and corpus of 57, should we attempt the research-analyst optimization run now or wait until corpus reaches 87+?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: HIGH
+**Motivated by**: F33.3 FIX_APPLIED — the runbook now uses `--valset-size 27`, leaving exactly 30 bootstrap training examples. R33.3 WARNING noted that 30 examples is the DSPy minimum threshold ("substantial value") but the recommended target is 87+ (37 effective bootstrap examples). E33.1 is BLOCKED pending API key. The question is whether to unblock E33.1 immediately (accepting the 30-example floor risk) or wait until R34.1 confirms corpus can grow to 87+ first.
+**Hypothesis**: Running optimization at the 30-example threshold will produce a usable but potentially suboptimal result. The expected score range at 30 examples is 65-75% (touching but not reliably above the 75% WARNING boundary). If corpus can be grown to 87+ with minimal effort (unscored findings exist), waiting 1-2 campaign waves before running is the better risk-adjusted choice. If corpus growth requires new findings, the 30-example run should proceed now to establish a baseline.
+**Method**: research-analyst
+**Success criterion**: (1) Reference R34.1 findings (or estimate from the question): how many unscored research-analyst findings exist? (2) Estimate the score improvement between a 30-example run vs. a 37-example run using DSPy's documented performance curves. (3) Estimate the time cost of running `build_dataset()` to grow the corpus vs. the time cost of a 10-trial MIPROv2 run at 30 examples. (4) Produce a clear recommendation: "Run now at 30 examples" (if corpus growth is blocked or the expected score at 30 crosses 75%) OR "Wait for corpus growth" (if R34.1 confirms 30+ unscored findings exist and can be processed in < 30 minutes). (5) If "Run now": confirm E33.1 should be re-enabled as the next executable question once an API key is available. Verdict: HEALTHY if a clear, evidence-backed recommendation is produced with a decision threshold; WARNING if the recommendation is ambiguous or conditional on data not yet available.
+
+---
