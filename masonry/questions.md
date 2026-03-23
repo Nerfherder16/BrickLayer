@@ -1786,7 +1786,8 @@
 
 ### F25.1: Implement D24.2 fix — add `request_text` capture to `masonry-subagent-tracker.js` and ground-truth-aware scoring to `score_routing.py`
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: [F25.1](findings/F25.1.md) — FIX_APPLIED
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: D24.2 DIAGNOSIS_COMPLETE — `score_routing.py` awards 70pts by checking `agent in AGENT_CATEGORIES` (trivially true for any dispatched agent), not by comparing against a ground-truth target. D24.2 fix spec: (A) add `request_text` field to routing log entries in `masonry-subagent-tracker.js`; (B) replace the circular 70-point award in `score_routing.py` with 35pts partial credit when no ground-truth label exists, reserving 70pts for confirmed matches. This unblocks the routing training signal from producing meaningful optimization data.
@@ -1798,7 +1799,8 @@
 
 ### F25.2: Implement Phase 17 change #1 only — replace `len(evidence) > 100` with content signals in `build_metric()`
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: [F25.2](findings/F25.2.md) — FIX_APPLIED
 **Operational Mode**: fix
 **Priority**: MEDIUM
 **Motivated by**: R24.1 WARNING — of the four planned Phase 17 metric changes, only content signal replacement (change #1) provides genuine gradient improvement. Severity validation adds noise (91.1% pass rate, partly redundant with verdict). Verdict-conditioned confidence actively penalizes 39.2% of findings (FAILURE class, mean conf=0.958). Score < 0.4 filter removes 17% of training data without proportional gain. The selective implementation strategy: ship change #1, drop the other three.

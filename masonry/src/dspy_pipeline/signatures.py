@@ -41,6 +41,27 @@ class ResearchAgentSig(dspy.Signature):
     )
 
 
+class KarenSig(dspy.Signature):
+    """Given a git commit context, decide documentation update actions."""
+
+    commit_subject: str = dspy.InputField(
+        desc="Git commit subject line describing what changed"
+    )
+    files_modified: str = dspy.InputField(
+        desc="Comma-separated list of files modified in this commit"
+    )
+
+    doc_files_written: str = dspy.OutputField(
+        desc="Number of documentation files to write (0, 1, 2, ...)"
+    )
+    reverted: str = dspy.OutputField(
+        desc="Whether this commit should be reverted: 'true' or 'false'"
+    )
+    changelog_entry: str = dspy.OutputField(
+        desc="One-line changelog entry text for this commit, or empty string if no docs needed"
+    )
+
+
 class DiagnoseAgentSig(dspy.Signature):
     """Diagnose the root cause of observed symptoms."""
 
@@ -87,6 +108,34 @@ class SynthesizerSig(dspy.Signature):
     )
     recommendations: str = dspy.OutputField(
         desc="Prioritized recommendations based on the findings"
+    )
+
+
+class KarenSig(dspy.Signature):
+    """Given a git commit, produce documentation updates and a changelog entry."""
+
+    commit_subject: str = dspy.InputField(
+        desc="The git commit subject line (e.g. 'docs(masonry): Wave 19 synthesis')"
+    )
+    files_changed: str = dspy.InputField(
+        desc="Comma-separated list of files modified in this commit"
+    )
+    doc_context: str = dspy.InputField(
+        default="",
+        desc="Optional context about which documentation domains are affected",
+    )
+
+    action: str = dspy.OutputField(
+        desc="High-level action taken: 'updated', 'created', 'reverted', or 'skipped'"
+    )
+    doc_updates: str = dspy.OutputField(
+        desc="Comma-separated list of documentation files that were written or updated"
+    )
+    changelog_entry: str = dspy.OutputField(
+        desc="Single-line changelog entry summarising the documentation change"
+    )
+    quality_score: str = dspy.OutputField(
+        desc="Quality score 0.0-1.0 as a decimal string (1.0 = accepted, 0.0 = reverted)"
     )
 
 

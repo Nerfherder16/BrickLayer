@@ -7,6 +7,7 @@ Uses a heuristic metric (no LLM judge required) to keep costs low.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,7 +26,7 @@ def build_metric(signature_cls: type) -> Any:
 
     Components:
     - verdict_match (0.4): exact string match of verdict field
-    - evidence_quality (0.4): length > 100 chars = 1.0, else 0.5
+    - evidence_quality (0.4): len > 300 AND (has_numbers OR threshold_language) = 1.0, else 0.5
     - confidence_calibration (0.2): 1 - |predicted - 0.75|
 
     Returns a callable(example, prediction, trace) -> float.
@@ -44,13 +45,19 @@ def build_metric(signature_cls: type) -> Any:
         except Exception:
             pass
 
-        # Evidence quality (0.4 weight)
+        # Evidence quality (0.4 weight) — Phase 17 change #1 (F25.2)
+        # Content signal check: length > 300 chars AND (contains numbers OR threshold language)
+        # Rationale: replaces the old binary length > 100 check which was satisfied by verbose filler.
+        # Qualitative findings without quantitative evidence receive 0.2 partial credit.
+        _THRESHOLD_KEYWORDS = ("threshold", "baseline", "%", "ms", "pts", "seconds")
         try:
             evidence = str(getattr(prediction, "evidence", "") or "")
-            if len(evidence) > 100:
+            has_numbers = bool(re.search(r"\d+\.?\d*", evidence))
+            has_threshold_language = any(kw in evidence.lower() for kw in _THRESHOLD_KEYWORDS)
+            if len(evidence) > 300 and (has_numbers or has_threshold_language):
                 score += 0.4
             else:
-                score += 0.2  # partial credit for short evidence
+                score += 0.2  # partial credit for short or purely qualitative evidence
         except Exception:
             pass
 
@@ -62,6 +69,60 @@ def build_metric(signature_cls: type) -> Any:
             score += 0.2 * calibration
         except (ValueError, TypeError):
             score += 0.0  # no calibration if parse fails
+
+        return score
+
+    return metric
+
+
+def build_karen_metric() -> Any:
+    """Build heuristic scoring metric for KarenSig (ops-domain documentation agent).
+
+    Components:
+    - doc_count_match (0.5): predicted doc_files_written matches actual (exact=0.5, ±1=0.25)
+    - reverted_match (0.3): predicted reverted field matches actual
+    - changelog_quality (0.2): non-empty changelog_entry when doc_files_written > 0
+
+    Returns a callable(example, prediction, trace) -> float.
+    """
+
+    def metric(example: Any, prediction: Any, trace: Any = None) -> float:
+        score = 0.0
+
+        # doc_files_written match (0.5 weight, ±1 tolerance)
+        try:
+            ex_count = int(str(getattr(example, "doc_files_written", "0") or "0"))
+            pred_raw = str(getattr(prediction, "doc_files_written", "0") or "0")
+            m = re.search(r"\d+", pred_raw)
+            pred_count = int(m.group()) if m else 0
+            if ex_count == pred_count:
+                score += 0.5
+            elif abs(ex_count - pred_count) == 1:
+                score += 0.25  # partial credit for ±1
+        except Exception:
+            pass
+
+        # reverted match (0.3 weight)
+        try:
+            ex_rev = str(getattr(example, "reverted", "false") or "false").lower().strip()
+            pred_rev = str(getattr(prediction, "reverted", "false") or "false").lower().strip()
+            ex_bool = ex_rev in ("true", "yes", "1")
+            pred_bool = pred_rev in ("true", "yes", "1")
+            if ex_bool == pred_bool:
+                score += 0.3
+        except Exception:
+            pass
+
+        # changelog_entry quality (0.2 weight)
+        try:
+            entry = str(getattr(prediction, "changelog_entry", "") or "")
+            ex_count = int(str(getattr(example, "doc_files_written", "0") or "0"))
+            if ex_count > 0 and len(entry) > 10:
+                score += 0.2
+            elif ex_count == 0:
+                score += 0.2  # no entry needed when no doc files written
+        except Exception:
+            pass
 
         return score
 
