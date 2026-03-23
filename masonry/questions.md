@@ -1838,7 +1838,8 @@
 
 ### R25.2: Which Masonry agent (excluding `quantitative-analyst` and `karen`) has the most viable `scored_all.jsonl` records for the next `ResearchAgentSig` optimization run?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: [R25.2](findings/R25.2.md) — HEALTHY
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Motivated by**: synthesis_wave24.md open issue #5 — "Identify which agent (after quantitative-analyst) has the most scored_all.jsonl records with populated verdict/evidence/confidence fields for the next optimization run." With quantitative-analyst already optimized (Wave 23) and karen requiring KarenSig (V24.1), the next target should be the ResearchAgentSig-compatible agent with the strongest training corpus. The ROADMAP targets `research-analyst`, `diagnose-analyst`, and `fix-implementer` as secondary candidates.
