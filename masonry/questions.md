@@ -2087,6 +2087,8 @@
 
 ### F29.1: Wire _build_qid_to_agent_map() into score_findings.py so enriched question_text reaches scored_all.jsonl
 
+**Status**: DONE
+**Finding**: findings/F29.1.md
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: F28.1 PARTIAL -- root cause #1: score_findings.py extracts question_text from finding file header subtitles (median 88 chars) and never reads questions.md or calls _build_qid_to_agent_map(). F26.1 enrichment (500-char hypothesis text) only flows through training_extractor.py, a separate path not touched by score_all_agents.py. The research-analyst MIPROv2 run will train on degraded 88-char question_text until this is fixed.
@@ -2098,6 +2100,8 @@
 
 ### F29.2: Create a stable scored_synthetic.jsonl that score_all_agents.py merges so synthetic negatives survive reruns
 
+**Status**: DONE
+**Finding**: findings/F29.2.md
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: F28.1 PARTIAL -- root cause #2: score_ops_agents.py regenerates scored_ops_agents.jsonl from git log on every run, overwriting any manually appended synthetic negatives. The 5 karen synthetic negatives added in F27.2 are lost whenever score_all_agents.py runs. V28.1 confirmed this is a precondition blocker for karen MIPROv2: without negatives, score range = 0.0 and MIPROv2 has zero gradient signal.
@@ -2109,6 +2113,8 @@
 
 ### F29.3: Validate --backend anthropic path and execute research-analyst MIPROv2 run without Ollama dependency
 
+**Status**: DONE
+**Finding**: findings/F29.3.md
 **Operational Mode**: fix
 **Priority**: MEDIUM
 **Motivated by**: F28.2 BLOCKED -- Ollama at 192.168.50.62:11434 is unreachable (connection timeout). The research-analyst MIPROv2 run has been deferred since Wave 27. F28.2 notes that run_optimization.py has a --backend anthropic flag that would use the Claude API instead of Ollama, but this path was not validated by V27.1 (which only checked --backend ollama routing). This fix validates the anthropic backend path and, if clear, executes the run -- conditional on F29.1 enrichment being applied first.
@@ -2120,6 +2126,8 @@
 
 ### V29.1: Verify that masonry-preagent-tracker.js produces non-empty request_text in routing_log.jsonl for real Agent tool spawns in the active session
 
+**Status**: DONE
+**Finding**: findings/V29.1.md
 **Operational Mode**: validate
 **Priority**: MEDIUM
 **Motivated by**: F28.3 FIX_APPLIED -- the hook was written, registered in settings.json, and passed a smoke test with a synthetic payload. However, the smoke test used a manually constructed JSON string piped to node, not an actual Agent tool call in a live Claude Code session. The smoke-test pre_spawn entry in routing_log.jsonl was produced by a manual invocation. This validation confirms the hook fires correctly during real campaign execution.
@@ -2131,9 +2139,17 @@
 
 ### F29.4: Re-append synthetic karen negatives to scored_all.jsonl and execute karen MIPROv2 optimization run
 
+**Status**: DONE
+**Finding**: findings/F29.4.md
 **Operational Mode**: fix
 **Priority**: MEDIUM
 **Motivated by**: D28.1 HEALTHY (no stale karen prompt, safe to optimize) and V28.1 HEALTHY (score range 0.75 with 5 negatives, MIPROv2 viable) -- both blockers cleared. The only remaining precondition is that the 5 synthetic negatives were wiped from scored_all.jsonl by the F28.1 run. V28.1 recommends: git show 56eff3b:masonry/training_data/scored_all.jsonl | tail -5 >> masonry/training_data/scored_all.jsonl before running. F29.2 provides a permanent fix for future runs; this question handles the immediate pre-run state.
 **Hypothesis**: Re-appending the 5 synthetic negatives from git commit 56eff3b restores the 196-record corpus with score range 0.75. Running karen MIPROv2 with --num-trials 10 --valset-size 25 --signature karen should complete in 30-60 minutes and produce masonry/optimized_prompts/karen.json. Expected score: 0.70-0.85 based on the validated gradient signal.
 **Method**: fix-implementer
 **Success criterion**: (1) Confirm F29.2 is DONE (stable scored_synthetic.jsonl exists) OR manually re-append synthetics from commit 56eff3b if F29.2 is not yet applied. (2) Verify scored_all.jsonl contains exactly 5 records with agent=karen, score=0. (3) Check Ollama at 192.168.50.62:11434 -- if online use --backend ollama; if offline use --backend anthropic. (4) Run: python masonry/scripts/run_optimization.py karen --backend [ollama|anthropic] --num-trials 10 --valset-size 25 --signature karen. (5) Confirm masonry/optimized_prompts/karen.json written with non-empty instructions and final score >= 0.65. Verdict: FIX_APPLIED if run completes and score >= 0.65; WARNING if score is 0.50-0.65; BLOCKED if synthetics cannot be recovered or Ollama offline and anthropic key unavailable; FAILURE if run errors or score < 0.50.
+
+## Fix Status
+Updated: 2026-03-23 — BLOCKED by fix-implementer. See masonry/findings/F29.4.md.
+All data preconditions confirmed: scored_all.jsonl has 602 records with 5 karen negatives (score=0).
+BLOCKED on LLM backends: Ollama unreachable (192.168.50.62:11434 timeout), ANTHROPIC_API_KEY not set.
+To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimization.py karen --backend anthropic --num-trials 10 --valset-size 25 --signature karen`.
