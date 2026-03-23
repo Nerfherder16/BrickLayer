@@ -157,13 +157,13 @@ def configure_dspy(
     Args:
         model: Model name to use. Defaults to ``qwen3:14b`` for Ollama and
             ``claude-sonnet-4-6`` for Anthropic when not specified.
-        backend: Either ``"anthropic"`` (uses ANTHROPIC_API_KEY or Claude Max
-            session credentials) or ``"ollama"`` (uses local Ollama at
+        backend: Either ``"anthropic"`` (requires ANTHROPIC_API_KEY or --api-key;
+            Claude Max subscriptions do not provide an API key — use ``"ollama"``
+            instead) or ``"ollama"`` (uses local Ollama at
             http://192.168.50.62:11434).
         api_key: Optional API key passed directly to ``dspy.LM`` (via LiteLLM).
-            When ``None`` and ``ANTHROPIC_API_KEY`` is not set, falls back to
-            litellm's ``claude/`` provider which uses Claude Code session
-            credentials (Claude Max subscriptions).
+            When ``None``, falls back to the ``ANTHROPIC_API_KEY`` environment
+            variable.  Raises ``ValueError`` if neither is set.
     """
     if backend == "ollama":
         effective_model = model or "qwen3:14b"
@@ -176,14 +176,15 @@ def configure_dspy(
         lm = dspy.LM(f"ollama_chat/{effective_model}", **ollama_kwargs)
     else:
         effective_model = model or "claude-sonnet-4-6"
-        # Prefer explicit api_key, then env var, then Claude Max session (claude/ provider).
         resolved_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        if resolved_key:
-            lm = dspy.LM(f"anthropic/{effective_model}", api_key=resolved_key)
-        else:
-            # No API key — use litellm's claude/ provider which routes through
-            # the active Claude Code session (Claude Max subscriptions).
-            lm = dspy.LM(f"claude/{effective_model}")
+        if not resolved_key:
+            raise ValueError(
+                "No Anthropic API key found. "
+                "Pass --api-key or set ANTHROPIC_API_KEY. "
+                "Claude Max subscriptions do not expose an API key — "
+                "use --backend ollama instead."
+            )
+        lm = dspy.LM(f"anthropic/{effective_model}", api_key=resolved_key)
     dspy.configure(lm=lm)
 
 
