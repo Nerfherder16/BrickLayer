@@ -225,6 +225,7 @@ def run(
     code_path = td_dir / "scored_code_agents.jsonl"
     ops_path = td_dir / "scored_ops_agents.jsonl"
     routing_path = td_dir / "scored_routing.jsonl"
+    synthetic_path = td_dir / "scored_synthetic.jsonl"
 
     scorer_summaries: list[dict[str, Any]] = []
 
@@ -291,19 +292,29 @@ def run(
         print(f"WARNING: score_routing failed: {exc}", file=sys.stderr)
         scorer_summaries.append({"scorer": "score_routing", "records": 0, "agents_covered": [], "agents_10plus": 0})
 
-    # 5. Merge all JSONL files
+    # 5. Load synthetic negatives (stable, not regenerated) and add to summary
+    synthetic_records = _load_jsonl(synthetic_path)
+    synthetic_agents = sorted({rec.get("agent", "") for rec in synthetic_records if rec.get("agent")})
+    scorer_summaries.append({
+        "scorer": "scored_synthetic",
+        "records": len(synthetic_records),
+        "agents_covered": synthetic_agents,
+        "agents_10plus": 0,
+    })
+
+    # 6. Merge all JSONL files (including stable synthetic negatives)
     all_records: list[dict[str, Any]] = []
-    for path in (findings_path, code_path, ops_path, routing_path):
+    for path in (findings_path, code_path, ops_path, routing_path, synthetic_path):
         all_records.extend(_load_jsonl(path))
 
     merged = _dedup_records(all_records)
 
-    # 6. Write merged output
+    # 7. Write merged output
     with output_path.open("w", encoding="utf-8") as fh:
         for rec in merged:
             fh.write(json.dumps(rec) + "\n")
 
-    # 7. Compute per-agent averages
+    # 8. Compute per-agent averages
     agent_scores: dict[str, list[float]] = defaultdict(list)
     for rec in merged:
         agent = rec.get("agent", "")
@@ -321,7 +332,7 @@ def run(
         agent: len(scores) for agent, scores in agent_scores.items()
     }
 
-    # 8. Update agent_registry.yml
+    # 9. Update agent_registry.yml
     registry_path = base_dir / "masonry" / "agent_registry.yml"
     updated_agents = _update_registry_last_scores(registry_path, agent_averages)
 
