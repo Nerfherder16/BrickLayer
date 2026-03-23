@@ -2253,6 +2253,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F31.1: Build the optimized prompt injection path so that MIPROv2 output in optimized_prompts/{agent}.json actually affects agent behavior at spawn time
 
+**Status**: DONE
+**Finding**: findings/F31.1.md
 **Operational Mode**: Fix
 **Priority**: CRITICAL
 **Motivated by**: V30.5 FAILURE — `optimized_prompts/{agent}.json` files are written by the optimizer but never read at agent spawn time. The `signature.instructions` field is present in every optimized JSON (confirmed in `quantitative-analyst.json` line 40) but zero code in any hook, router, or Mortar agent file reads it. Running MIPROv2 optimization currently produces zero behavioral change in any agent. The CLAUDE.md claim "Mortar injects optimized prompts on specialist invocation automatically" is false — the injection path does not exist. This fix closes that gap before F30.2 optimization runs are worth executing.
@@ -2264,6 +2266,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### V31.1: Validate that the F30.1 homedir fix eliminated spec-writer slot misses under real post-fix agent spawns
 
+**Status**: DONE
+**Finding**: findings/V31.1.md
 **Operational Mode**: Validate
 **Priority**: HIGH
 **Motivated by**: F30.1 FIX_APPLIED — both tracker hooks now use `os.homedir()` as the base for `pending_agent_prompts/` (verified syntax-clean via `node -c`) but no live spawn validation was performed. V29.1 established the pre-fix baseline: ~17% slot-miss rate for spec-writer spawns (SubagentStart events showing `request_text` length = 0). The fix hypothesis is that this rate drops to 0% for all agent types post-fix. This question validates that hypothesis against routing_log.jsonl entries written after 2026-03-23 (the F30.1 fix date).
@@ -2275,6 +2279,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### R31.1: Research whether ANTHROPIC_API_KEY can be sourced from Claude Code's native session credentials to unblock MIPROv2 runs without manual key export
 
+**Status**: DONE
+**Finding**: findings/R31.1.md
 **Operational Mode**: Research
 **Priority**: MEDIUM
 **Motivated by**: F30.2 BLOCKED — both MIPROv2 optimization runs are blocked because `ANTHROPIC_API_KEY` is absent from the shell environment and Ollama at 192.168.50.62:11434 is offline. The training corpus is fully ready (V30.1 HEALTHY: 606 records). Claude Code is itself an active Anthropic API session — it is plausible that the credentials it uses are accessible to child processes or scripts invoked from within the session, which would allow `run_optimization.py --backend anthropic` to execute without the user manually exporting a key.
