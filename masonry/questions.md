@@ -1171,7 +1171,8 @@
 
 ### F14.1: Fix `_question_to_md()` in `bl/nl_entry.py` to use `**Operational Mode**:` and `**Method**:` instead of `**Mode**:` and `**Test**:`
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: [F14.1](findings/F14.1.md) — FIX_APPLIED
 **Operational Mode**: diagnose
 **Priority**: HIGH
 **Hypothesis**: R13.5 identified that `masonry_nl_generate` outputs `**Mode**:` (not `**Operational Mode**:`) and `**Test**:` (not `**Method**:`). While Trowel's `_MODE_FIELD_RE` regex accepts `**Mode**:`, agents receive degraded context because they expect `**Method**:` to identify the specialist agent. The fix is a one-line template change in `_question_to_md()` in `bl/nl_entry.py`.
@@ -1182,7 +1183,8 @@
 
 ### F14.2: Add `downstream_success` event emission to `masonry-observe.js` for routing training signal
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: [F14.2](findings/F14.2.md) — FIX_APPLIED
 **Operational Mode**: diagnose
 **Priority**: MEDIUM
 **Hypothesis**: R13.2 found that `score_routing.py`'s `downstream_success` dimension (30pts) is permanently 0 because `masonry-subagent-tracker.js` never writes "finding" events to `routing_log.jsonl`. A "finding" event `{"event":"finding","agent":"...","session_id":"...","verdict":"..."}` should be emitted after a research agent writes a finding file. `masonry-observe.js` (PostToolUse Write/Edit hook) already detects when findings are written — it's the right place to emit this event.
@@ -1614,7 +1616,8 @@
 
 ### R22.2: Run full MIPROv2 optimization for `quantitative-analyst` using 125 training records via Ollama — what is the pre/post evaluation score delta?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: Deferred to R23.1 (carried forward after configure_dspy() bug resolved). R23.1 DONE — WARNING, 68.3% best score vs 59.5% baseline (+8.8pt).
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Motivated by**: R21.1 WARNING + synthesis_wave21 "Next Phase Hypotheses" #2 — once smoke-run confirms qwen3:14b produces valid structured output (R22.1 HEALTHY), run the full MIPROv2 trial. quantitative-analyst has 125 training records — the largest single-agent corpus in the campaign, well above the 5-example minimum in `optimize_all()`. This is the primary validation question for the entire DSPy optimization pipeline.
@@ -1771,3 +1774,82 @@
 **Hypothesis**: `detect_stale_registry_entries()` at line 106 calls `Path(file_val).exists()` without `.expanduser()`. On Windows, any registry entry with `file: ~/.claude/agents/foo.md` will return `False` from `.exists()` regardless of whether the file actually exists, causing those entries to appear in the stale list. The net effect: `masonry_status` and Kiln's fleet view will show false-positive stale entries for all global agents, potentially triggering unnecessary re-onboarding or incorrect health warnings.
 **Method**: diagnose-analyst
 **Success criterion**: (1) Read `masonry/scripts/onboard_agent.py:detect_stale_registry_entries()` (lines 85-109). (2) Confirm the exact call site: `Path(file_val).exists()` without `.expanduser()`. (3) Count how many entries in `masonry/agent_registry.yml` use tilde-prefixed paths (`file: ~/.claude/agents/...`) vs relative paths (`file: .claude/agents/...`). (4) Verify on Windows: `Path("~/.claude/agents/quantitative-analyst.md").exists()` should return False (demonstrating the bug), while `Path("~/.claude/agents/quantitative-analyst.md").expanduser().exists()` returns True if the file exists. (5) Produce a Fix Specification: change line 106 to `Path(file_val).expanduser().exists()`. Verdict: DIAGNOSIS_COMPLETE if the bug is confirmed at the specific line and the one-line fix is specified with the count of affected registry entries; HEALTHY if the code already calls expanduser (ROADMAP entry is stale/already fixed).
+
+---
+
+## Wave 25
+
+**Generated from findings**: synthesis_wave24.md open issues #1-6 — routing ground-truth fix (D24.2 deferred), Phase 17 metric selective implementation (R24.1 WARNING), KarenSig prerequisite (V24.1 NOT_VALIDATED), MIPROv2 re-run with enriched data (synthesis open issue #4), next ResearchAgentSig candidate (synthesis open issue #5), verification of end-to-end CLI flag wiring (synthesis open issue #6).
+**Mode transitions applied**: D24.2 DIAGNOSIS_COMPLETE (fix spec complete) → F25.1 Fix; R24.1 WARNING (selective Phase 17 implementation needed) → F25.2 Fix; V24.1 NOT_VALIDATED (KarenSig prerequisites) → F25.3 Fix; synthesis issues #4-6 → R25.1, R25.2, V25.1.
+
+---
+
+### F25.1: Implement D24.2 fix — add `request_text` capture to `masonry-subagent-tracker.js` and ground-truth-aware scoring to `score_routing.py`
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: D24.2 DIAGNOSIS_COMPLETE — `score_routing.py` awards 70pts by checking `agent in AGENT_CATEGORIES` (trivially true for any dispatched agent), not by comparing against a ground-truth target. D24.2 fix spec: (A) add `request_text` field to routing log entries in `masonry-subagent-tracker.js`; (B) replace the circular 70-point award in `score_routing.py` with 35pts partial credit when no ground-truth label exists, reserving 70pts for confirmed matches. This unblocks the routing training signal from producing meaningful optimization data.
+**Hypothesis**: Adding `request_text` capture (from SubagentStart hook input) to routing log entries enables retrospective labelling. The scoring change (35pts partial credit vs 70pts confirmed) immediately makes routing records usable for training — 35 points is above the `min_training_score` threshold for routing records (65pts with 30pts downstream_success), providing a realistic lower bound on training quality while preserving the full 70pts incentive for future confirmed dispatch events.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `masonry-subagent-tracker.js` — add `request_text: input.request || input.prompt || ""` to the routing log entry JSON. (2) Read `score_routing.py` and locate the `correct_agent_dispatched` scoring block (line ~112). (3) Replace the trivial check with: if `target_agent` field exists in the raw record AND matches `dispatched_agent`, award 70pts; else award 35pts (no ground truth). (4) Re-run `score_routing.py` on current `routing_log.jsonl` and confirm records now show `correct_agent_dispatched: 35` (partial credit) and include `request_text` in the enriched record. (5) Verify the syntax check passes for the JS change: `node --check masonry-subagent-tracker.js`. Verdict: FIX_APPLIED if both changes are implemented and routing records show partial credit scoring; PARTIAL if only one of the two changes is applied; FAILURE if the changes break existing routing log parsing.
+
+---
+
+### F25.2: Implement Phase 17 change #1 only — replace `len(evidence) > 100` with content signals in `build_metric()`
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Motivated by**: R24.1 WARNING — of the four planned Phase 17 metric changes, only content signal replacement (change #1) provides genuine gradient improvement. Severity validation adds noise (91.1% pass rate, partly redundant with verdict). Verdict-conditioned confidence actively penalizes 39.2% of findings (FAILURE class, mean conf=0.958). Score < 0.4 filter removes 17% of training data without proportional gain. The selective implementation strategy: ship change #1, drop the other three.
+**Hypothesis**: Replacing `len(evidence) > 100` with `len(evidence) > 300 AND (has_numbers OR has_threshold_language)` in `build_metric()` will improve gradient signal for ~30% of records where the old binary check was satisfied by verbose filler (>100 chars but no quantitative content). The 16.9% of qualitative findings penalized by the new check represent genuinely weaker evidence; their reduced weight is a feature, not a bug. Net effect: the metric better distinguishes substantive findings from padding, improving MIPROv2's optimization trajectory.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `masonry/src/dspy_pipeline/optimizer.py:build_metric()` (lines 23-68). (2) Locate the `evidence_quality` scoring block — currently `1.0 if len(example.evidence) > 100 else 0.5`. (3) Replace with: `score = 0.5; evidence = example.evidence or ""; if len(evidence) > 300 and (bool(re.search(r"\d+\.?\d*", evidence)) or any(w in evidence.lower() for w in ["threshold", "baseline", "%", "ms", "pts", "seconds"])): score = 1.0`. (4) Ensure `import re` is present at module top. (5) Run the metric on a sample of 5 known findings (2 with quantitative evidence, 2 without, 1 borderline) and report the score change per finding. Verdict: FIX_APPLIED if the content signal check is implemented and at least 1 finding changes score vs the old threshold; FAILURE if syntax error or the metric function raises an exception on the sample findings.
+
+---
+
+### F25.3: Define `KarenSig` in `signatures.py` and add karen-specific data loader to `training_extractor.py`
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Motivated by**: V24.1 NOT_VALIDATED — karen's 191 training records use ops-domain fields (`commit_subject`, `doc_files_written`, `reverted`, `files_changed`) with zero overlap to `ResearchAgentSig`'s (`verdict`, `severity`, `confidence`, `evidence`, `mitigation`). Attempting optimization with the wrong signature would produce a degenerate prompt. V24.1 identified 5 prerequisite steps; this question implements the first two (signature + data loader) as a precondition for the eventual karen optimization run.
+**Hypothesis**: `KarenSig(dspy.Signature)` with input fields `commit_subject: str, files_changed: list[str], doc_context: str` and output fields `action: str, doc_updates: list[str], changelog_entry: str, quality_score: float` captures karen's actual task: given a commit, produce documentation updates and a changelog entry. The ops scorer already grades on `doc_files_written` and `reverted` — `quality_score` maps to `score / max_score` from the ops rubric. A karen-specific data loader reads `scored_all.jsonl` records where `agent == "karen"` and maps `commit_subject → input.commit_subject`, `score → output.quality_score`.
+**Method**: fix-implementer
+**Success criterion**: (1) Read `masonry/src/dspy_pipeline/signatures.py` in full — confirm `ResearchAgentSig` structure and add `KarenSig` class below it. (2) Read `masonry/scripts/run_optimization.py:load_training_data_from_scored_all()` (lines ~32-65) — understand the data loading pattern. (3) Add `load_karen_training_data(scored_all_path)` function that filters for `agent == "karen"` and returns `dspy.Example` objects with `commit_subject`, `files_changed`, `doc_context` as inputs and `quality_score` as output (computed as `score / 100.0`). (4) Verify at least 50 examples are returned from the 191 karen records (many should have `commit_subject` populated from ops scorer). (5) Add `KarenSig` import to `run_optimization.py` and add a `--signature karen` CLI option that routes to `KarenSig` and `load_karen_training_data()`. Verdict: FIX_APPLIED if `KarenSig` is defined with correct fields, the data loader returns ≥50 examples, and the CLI option is wired; PARTIAL if signature is defined but loader or CLI option is missing; FAILURE if the signature definition causes an import error.
+
+---
+
+### R25.1: Does re-running MIPROv2 for `quantitative-analyst` with D24.1-enriched training data improve verdict accuracy from the Wave 23 ~35-40% baseline?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: HIGH
+**Motivated by**: synthesis_wave24.md open issue #4 — "The D24.1 attribution fix restores question_text to training records. Re-run MIPROv2 with the enriched dataset to measure whether verdict accuracy improves from the ~35-40% baseline." D24.1 added `_AGENT_RE` extraction so finding files' `**Agent**:` field is now the primary attribution source. If enriched records also carry richer `question_text`, the demo bootstrapping in MIPROv2 should produce more contextually relevant few-shot examples, improving verdict prediction on novel questions.
+**Hypothesis**: Before D24.1, quantitative-analyst training records had sparse question_text (derived only from qid_map markdown headers, not the full question body). After D24.1, if `extract_finding()` additionally captures `**Hypothesis**:` or `**Success criterion**:` from the finding file, records would carry richer context. A re-run using `--num-trials 3 --valset-size 20` (F24.1 CLI flags) would take ~15-30 minutes and produce a new `best_score` comparable to the Wave 23 baseline of 68.3%. If verdict accuracy (the sub-component driving the ceiling) improves by ≥3 points, it validates the enrichment hypothesis.
+**Method**: research-analyst
+**Success criterion**: (1) Read `masonry/src/dspy_pipeline/training_extractor.py:extract_finding()` — confirm what fields are now captured post-D24.1 compared to pre-D24.1. (2) Check whether question_text in training records has become richer (longer, more context) for masonry findings after D24.1. (3) Inspect `scored_all.jsonl` for 5 quantitative-analyst records — compare `question_text` field length pre- and post-D24.1 fix. (4) If question_text is not enriched by D24.1 (only agent attribution was restored), note that the re-run hypothesis may be premature — the enrichment benefit requires a separate change to capture question body text. Verdict: HEALTHY if question_text is measurably richer post-D24.1 and a short re-run is advisable; WARNING if D24.1 only fixed agent attribution without enriching question_text (re-run expected to produce similar scores); FAILURE if training records are still empty or malformed after D24.1.
+
+---
+
+### R25.2: Which Masonry agent (excluding `quantitative-analyst` and `karen`) has the most viable `scored_all.jsonl` records for the next `ResearchAgentSig` optimization run?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Priority**: MEDIUM
+**Motivated by**: synthesis_wave24.md open issue #5 — "Identify which agent (after quantitative-analyst) has the most scored_all.jsonl records with populated verdict/evidence/confidence fields for the next optimization run." With quantitative-analyst already optimized (Wave 23) and karen requiring KarenSig (V24.1), the next target should be the ResearchAgentSig-compatible agent with the strongest training corpus. The ROADMAP targets `research-analyst`, `diagnose-analyst`, and `fix-implementer` as secondary candidates.
+**Hypothesis**: `research-analyst` has 28+ findings from this campaign and `diagnose-analyst` has 34+ findings. Both produce BL 2.0-format findings with `**Verdict**:`, `**Severity**:`, `**Confidence**:`, and `**Evidence**:` fields. The `fix-implementer` has 43+ findings but uses `FIX_APPLIED`/`FIX_FAILED` verdicts which may not match the `HEALTHY/FAILURE/WARNING/INCONCLUSIVE` vocabulary in `ResearchAgentSig`. The optimal next candidate is whichever agent has ≥5 records in `scored_all.jsonl` with all required ResearchAgentSig output fields populated and non-empty.
+**Method**: research-analyst
+**Success criterion**: (1) Read `masonry/training_data/scored_all.jsonl` — count records per agent excluding `quantitative-analyst` and `karen`. (2) For the top 3 agents by record count, sample 5 records each and check: are `verdict`, `evidence`, `confidence` fields populated and non-empty? (3) For `fix-implementer` specifically: do `FIX_APPLIED`/`FIX_FAILED` verdicts cause issues in `ResearchAgentSig`, or does the signature accept any string for the `verdict` field? (4) Rank candidates: agent name, total records, records with all 3 fields populated, and verdict vocabulary used. (5) Recommend the strongest candidate with a rationale. Verdict: HEALTHY if a clear next candidate is identified with ≥20 viable records; WARNING if top candidates have <20 records or verdict vocabulary mismatch requires schema changes; INCONCLUSIVE if `scored_all.jsonl` lacks records for any non-karen agent.
+
+---
+
+### V25.1: Are F24.1 CLI flags and D24.1 attribution fix correctly end-to-end for a fresh overnight MIPROv2 run on `quantitative-analyst`?
+
+**Status**: PENDING
+**Operational Mode**: validate
+**Priority**: LOW
+**Motivated by**: synthesis_wave24.md open issue #6 — "With F24.1 CLI flags and D24.1 attribution fix both applied, schedule a fresh MIPROv2 run with --num-trials 10 to measure the compound effect on the metric ceiling." Before scheduling an 8-hour overnight run, validate that the two fixes are correctly wired end-to-end (no regressions, no TypeError on CLI flags, training data loads correctly with enriched attribution).
+**Hypothesis**: F24.1 added `--num-trials` and `--valset-size` to `run_optimization.py` and wired them into `optimize_agent()`. D24.1 added `_AGENT_RE` extraction to `training_extractor.py`. A dry-run invocation (`python masonry/scripts/run_optimization.py quantitative-analyst --backend ollama --num-trials 1 --valset-size 5`) should complete the CLI parsing, load training data, instantiate MIPROv2 with the specified parameters, and either complete one trial or fail with a recoverable error. This is the minimal end-to-end gate before committing to a full overnight run.
+**Method**: research-analyst
+**Success criterion**: (1) Read `masonry/scripts/run_optimization.py` in full (post-F24.1) — confirm `--num-trials` and `--valset-size` are in argparse and forwarded to `optimize_agent()`. (2) Read `masonry/src/dspy_pipeline/optimizer.py:optimize_agent()` — confirm `num_trials` is passed to `MIPROv2(num_trials=...)` constructor or `compile()`. (3) Read `masonry/src/dspy_pipeline/training_extractor.py:build_dataset()` — confirm D24.1 `_AGENT_RE` regex is present and agent attribution is extracted from `**Agent**:` field. (4) Count quantitative-analyst records in `scored_all.jsonl` — confirm ≥50 records (sufficient for a valset of 5-20). (5) Verify that `configure_dspy(backend="ollama")` resolves to `qwen3:14b` (F23.1 fix). Verdict: HEALTHY if all five components are correctly wired and the dry-run prerequisites are satisfied; WARNING if one component has a gap that would cause a runtime error; FAILURE if multiple gaps exist that would abort the overnight run before Trial 1 completes.

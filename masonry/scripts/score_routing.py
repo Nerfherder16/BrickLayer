@@ -108,9 +108,18 @@ def _score_session(
         start_event.get("agent", "unknown")
     )
 
-    # correct_agent_dispatched: agent is in the known registry
+    # correct_agent_dispatched (D24.2 fix — ground-truth-aware scoring):
+    # - 70pts if target_agent exists in start_event AND matches dispatched agent (ground truth confirmed)
+    # - 35pts partial credit if agent is known but no ground-truth label available
+    # - 0pts if agent is unknown / not in registry
+    target_agent = ""
+    if isinstance(start_event.get("target_agent"), str):
+        target_agent = start_event["target_agent"].strip()
     if agent and agent != "unknown" and agent in AGENT_CATEGORIES:
-        correct_pts = 70
+        if target_agent and target_agent == agent:
+            correct_pts = 70  # ground-truth confirmed correct dispatch
+        else:
+            correct_pts = 35  # partial credit — no ground-truth label
     else:
         correct_pts = 0
 
@@ -201,11 +210,13 @@ def _match_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "source": "routing_log",
                 "session_id": session_id[:20] if session_id else "",
                 "dispatched_agent": agent,
+                "target_agent": ev.get("target_agent", ""),  # ground-truth label if present (D24.2)
                 "score": scored["score"],
                 "score_breakdown": scored["score_breakdown"],
                 "input": {
                     "agent_dispatched": agent,
                     "parent_session": parent_session[:20] if parent_session else "",
+                    "request_text": ev.get("request_text", ""),  # captured by tracker (F25.1)
                 },
                 "output": {
                     "finding_verdict": scored["finding_verdict"],

@@ -187,12 +187,16 @@ async function main() {
   atomicWrite(stateFile, state);
 
   // Append to routing_log.jsonl for DSPy training signal (Phase 16)
+  // request_text captures the prompt/description that caused the dispatch (F25.1)
+  // Capped at 500 chars to keep log files manageable.
+  const requestText = (input.prompt || input.description || '').slice(0, 500);
   const routingEntry = JSON.stringify({
     timestamp: new Date().toISOString(),
     event: 'start',
     agent: agentEntry.name,
     session_id: agentEntry.sessionId || agentEntry.id,
     parent_session: input.session_id || '',
+    request_text: requestText,
   });
   try {
     // Resolve masonry/ dir — cwd might be the masonry dir itself (self-research sessions)
