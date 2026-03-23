@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `4521e08` feat: overseer agent + trigger mechanism (task 4/4) (2026-03-23)
 - `298de66` chore: update overseer entry in agent_registry.yml (2026-03-23)
 - `38f255c` feat: overseer invocation counter in observe/stop-guard hooks (2026-03-23)
 - `6a14291` feat: add TaskCreate/TaskUpdate panel integration to masonry-build skill (2026-03-23)
