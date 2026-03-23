@@ -253,6 +253,9 @@ def optimize_agent(
             max_labeled_demos=3,
             num_trials=num_trials,
             minibatch_size=_minibatch_size,
+            # data_aware_proposer does re.search on bootstrap predictions which
+            # can be None when Ollama omits a field — disable to avoid TypeError.
+            data_aware_proposer=False,
         )
     except Exception as exc:
         print(f"[optimizer] MIPROv2 failed for {agent_name}: {exc}", file=sys.stderr)
