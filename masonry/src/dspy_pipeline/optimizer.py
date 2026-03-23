@@ -232,15 +232,16 @@ def optimize_agent(
 
     # Configure optimizer.
     # DSPy 3.x: auto=None requires num_candidates in the constructor.
-    # minibatch_size must not exceed len(valset) — cap it defensively.
-    _minibatch_size = min(35, len(valset))
     optimizer = dspy.MIPROv2(
         metric=metric,
         num_threads=1,
         auto=None,
         num_candidates=num_trials,
-        minibatch_size=_minibatch_size,
     )
+
+    # minibatch_size goes to compile(), not the constructor.
+    # Cap it to len(valset) — MIPROv2 raises if it exceeds valset size.
+    _minibatch_size = min(35, len(valset))
 
     # Run optimization
     try:
@@ -251,6 +252,7 @@ def optimize_agent(
             max_bootstrapped_demos=3,
             max_labeled_demos=3,
             num_trials=num_trials,
+            minibatch_size=_minibatch_size,
         )
     except Exception as exc:
         print(f"[optimizer] MIPROv2 failed for {agent_name}: {exc}", file=sys.stderr)
