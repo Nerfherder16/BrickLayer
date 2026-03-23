@@ -1,0 +1,8 @@
+{
+  "masonry": {
+    "type": "stdio",
+    "command": "node",
+    "args": ["C:/Users/trg16/Dev/Bricklayer2.0/masonry/bin/masonry-mcp.js"],
+    "serverInstructions": "BrickLayer 2.0 campaign tools: run questions, check campaign status, route agents, manage findings, fleet health, DSPy optimization. Use for research campaigns, question banks, agent routing, synthesis."
+  }
+}

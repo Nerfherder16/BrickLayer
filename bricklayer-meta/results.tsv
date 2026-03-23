@@ -19,3 +19,10 @@ Q5.1	HEALTHY	BrickLayer already portable to any codebase; 4-step setup (~5-6h); 
 Q5.2	HEALTHY	Research/business portability inherent — evidence collection replaces simulation; bricklayer-meta itself is this use case		2026-03-16T04:22:49Z
 Q5.3	WARNING	Creative domain partially portable — works for constraint-based auditing; fails for aesthetic quality; SUBJECTIVE verdict needed		2026-03-16T04:22:49Z
 Q5.4	HEALTHY	85% universal already; 4 changes (SUBJECTIVE verdict, runner contract, evaluate.py interface, diagnosis/deployment split) complete the framework; ~9 days		2026-03-16T04:22:49Z
+Q6.1	WARNING	Four recalibrations interact destructively at 4-wave baseline; compromise model works: cliff at 0.75, floor at spec=0.15	calibration	2026-03-21T16:34:10Z
+Q6.3	HEALTHY	DEPLOYMENT_BLOCKED mechanism: 3-consecutive-FAILURE trigger, git diff detection, 5th status value, ~12-14 slots freed in Recall campaign		2026-03-21T16:45:00Z
+Q6.2	HEALTHY	J-curve piecewise model achieves RMSE=0.077 (6.6x better than decay); Model B validated; recommended replacement for _wave_uniqueness()	calibration	2026-03-21T16:37:34Z
+Q6.4	WARNING	HHI sentinel fires wave 1 (write-path monopoly), not wave 8-16; retrieval+decay cluster invisible at wave granularity; coverage gain ~7 (below 10 threshold)	COVERAGE_COLLAPSE	2026-03-21T16:50:00Z
+Q6.5	WARNING	Root cause B (session context): peer review absent in Session A which pre-dated program.md peer-review instruction; two sessions ran campaign; no auto-disable code exists	VERDICT_DRIFT	2026-03-21T16:52:00Z
+Q6.6	HEALTHY	PENDING_EXTERNAL 5th status value; 4 metadata fields; N=3 escalation threshold; 10 wave slots recovered from GC/cron chains	FIX_LOOP_DIVERGENCE	2026-03-21T16:48:00Z
+Q6.7	HEALTHY	3/4 roadmap changes exceed +0.03 yield threshold; SUBJECTIVE degrades by -0.053 at 20%; combined delta +0.142 (Gaussian variance model)		2026-03-21T17:00:00Z

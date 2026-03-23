@@ -336,6 +336,14 @@ def run_heal_loop(
         f"Self-healing exhausted {last_cycle} cycle(s) — human intervention required. "
         f"Review the heal cycle notes above for root cause history.",
     )
+    # F-mid.1: write HEAL_EXHAUSTED to results.tsv for the original question so
+    # synthesizer/crucible/agent_db see the correct final state, not the pre-heal FAILURE.
+    update_results_tsv(
+        original_qid,
+        "HEAL_EXHAUSTED",
+        f"Self-healing exhausted {last_cycle} cycle(s) — human intervention required.",
+        None,
+    )
     print(
         f"[heal-loop] {original_qid} exhausted {last_cycle} cycle(s) — still unresolved",
         file=sys.stderr,

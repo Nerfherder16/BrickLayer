@@ -43,7 +43,15 @@ def _build_findings_corpus(findings_dir: Path, results_tsv: Path) -> str:
     # F11.3: severity-aware truncation — drop COMPLIANT/FIXED findings before FAILURE/NON_COMPLIANT
     # Sort: high-severity (FAILURE, NON_COMPLIANT) first, low-severity (COMPLIANT, FIXED) last
     _HIGH_SEVERITY = frozenset(
-        {"FAILURE", "NON_COMPLIANT", "WARNING", "REGRESSION", "ALERT"}
+        {
+            "FAILURE",
+            "NON_COMPLIANT",
+            "WARNING",
+            "REGRESSION",
+            "ALERT",
+            "DIAGNOSIS_COMPLETE",
+            "FIX_FAILED",
+        }
     )
 
     def _finding_priority(section: str) -> int:
@@ -143,6 +151,76 @@ def parse_recommendation(synthesis_text: str) -> str:
     return "CONTINUE"
 
 
+def _run_retrospective(project_dir: Path) -> None:
+    """
+    Invoke the retrospective agent via claude CLI after synthesis completes.
+    Non-blocking — logs on failure and returns. Never raises.
+
+    Looks for retrospective.md in:
+      {project_dir}/.claude/agents/retrospective.md
+    """
+    agent_file = project_dir / ".claude" / "agents" / "retrospective.md"
+    if not agent_file.exists():
+        return
+
+    # Count questions for richer context prompt
+    questions_md = project_dir / "questions.md"
+    done_count = 0
+    total_count = 0
+    if questions_md.exists():
+        text = questions_md.read_text(encoding="utf-8")
+        total_count = text.count("**Status**:")
+        done_count = text.count("**Status**: DONE")
+
+    project_name = project_dir.name
+    brief = project_dir / "project-brief.md"
+    if brief.exists():
+        first_line = (
+            brief.read_text(encoding="utf-8").splitlines()[0].strip("# ").strip()
+        )
+        if first_line:
+            project_name = first_line
+
+    prompt = (
+        f"Act as the retrospective agent defined in {agent_file}. "
+        f"Project: {project_name}. "
+        f"Project directory: {project_dir}. "
+        f"Campaign stats: {total_count} questions total, {done_count} DONE. "
+        "Complete all three parts: (1) process scoring, (2) content integrity analysis "
+        "(verdict distribution, threshold reachability, finding consistency, simulation "
+        "output integrity, question-finding alignment, confidence calibration), "
+        "(3) LLM self-report. "
+        "Write retrospective.md to the project root. "
+        "If any CRITICAL issues are found, also write retro-actions.md and print "
+        "[RETROSPECTIVE] CRITICAL: {title} to stderr."
+    )
+
+    claude_bin = shutil.which("claude") or "claude"
+    try:
+        result = subprocess.run(
+            [claude_bin, "-p", prompt, "--output-format", "text"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=300,  # extended: content integrity analysis reads more files
+            cwd=str(project_dir),
+        )
+        # Surface CRITICAL escalations immediately — these indicate potential model bugs
+        if result.stderr:
+            for line in result.stderr.splitlines():
+                if "[RETROSPECTIVE] CRITICAL" in line:
+                    print(line, file=sys.stderr)
+        print("[synthesizer] Retrospective complete.", file=sys.stderr)
+        retro_actions = project_dir / "retro-actions.md"
+        if retro_actions.exists():
+            print(
+                "[synthesizer] retro-actions.md written — run /retro-apply to generate a fix spec.",
+                file=sys.stderr,
+            )
+    except Exception as e:
+        print(f"[synthesizer] Retrospective skipped: {e}", file=sys.stderr)
+
+
 def synthesize(
     project_dir: Path,
     wave: int | None = None,
@@ -225,4 +303,8 @@ Then one paragraph of specific reasoning for the recommendation."""
 
     synthesis_path = project_dir / "synthesis.md"
     synthesis_path.write_text(output, encoding="utf-8")
+
+    # Trigger post-synthesis retrospective scoring
+    _run_retrospective(project_dir)
+
     return synthesis_path

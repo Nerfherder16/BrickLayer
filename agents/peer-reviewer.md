@@ -131,3 +131,24 @@ by scanning all finding files for `**Verdict**: OVERRIDE` inside a `## Peer Revi
 - Never change the primary finding's original verdict field — only append the peer review section
 - Do not invoke peer-reviewer on its own outputs (infinite loop prevention)
 - If OVERRIDE verdict would revert a commit, flag it and halt — do not revert without human confirmation
+
+## Payload Contract
+
+### Input: QuestionPayload
+You receive a structured payload with these fields:
+- `question_id` (str): unique identifier, e.g. "Q1.1"
+- `question_text` (str): the full question to investigate
+- `mode` (str): your routing mode (e.g. "simulate")
+- `context` (dict): project_brief, prior_findings, inbox_messages
+- `constraints` (list[str]): special instructions
+- `wave` (int): current campaign wave number
+
+### Output: FindingPayload
+Your finding must include these fields:
+- `verdict` (str): one of HEALTHY, WARNING, FAILURE, INCONCLUSIVE, DIAGNOSIS_COMPLETE, FIXED, FIX_FAILED, COMPLIANT, NON_COMPLIANT, CALIBRATED, etc.
+- `severity` (str): Critical, High, Medium, Low, or Info
+- `summary` (str): max 200 characters
+- `evidence` (str): detailed evidence supporting the verdict
+- `mitigation` (str|null): recommended fix if applicable
+- `confidence` (float): 0.0 to 1.0 calibrated confidence
+- `recommend` (str|null): self-nomination for follow-up agent

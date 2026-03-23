@@ -1,0 +1,29 @@
+[server]
+port = 8200
+host = "0.0.0.0"
+
+[storage]
+data_dir = "/data/recall2"
+
+[embedding]
+model = "BGESmallENV15"
+batch_size = 32
+
+[hnsw]
+ef_construction = 200
+m = 16
+ef_search = 50
+
+[dedup]
+simhash_hamming_threshold = 6
+hnsw_cosine_threshold = 0.92
+
+[scoring]
+cosine_weight = 0.6
+co_retrieved_weight = 0.2
+importance_weight = 0.2
+
+[graph]
+flush_interval_secs = 900
+learning_rate = 0.1
+kmeans_k = 200

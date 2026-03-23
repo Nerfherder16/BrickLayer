@@ -1361,3 +1361,1052 @@ Status is tracked in results.tsv — do not edit manually.
 **Verdict threshold**:
 - COMPLIANT: Both fixes verified; sub-questions include operational_mode; bracket tag uses operational mode
 - NON_COMPLIANT: Any issue remains or BL 1.x behavior regressed
+
+<!-- Wave 14 -->
+
+---
+
+## Wave 14 — Unaudited modules: goal.py, synthesizer.py, skill_forge.py, quality.py
+
+**Generated from findings**: Wave 13 complete (V13.1 COMPLIANT). Wave 14 targets four source modules not previously audited — goal.py, synthesizer.py, skill_forge.py, quality.py — plus a residual check of healloop.py post all Wave 1-13 fixes.
+**Mode transitions applied**: Clean slate from Wave 13 -> new Diagnose questions against unaudited modules. Two bugs confirmed in goal.py (QG-only ID scope, BL 1.x domain focus strings), two confirmed in synthesizer.py (wrong output path, incomplete severity frozenset), one clean bill for healloop.py.
+
+---
+
+## D14.1 [DIAGNOSE] goal.py wave-index collision — QG-only scan misses BL 2.0 numeric wave IDs
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Hypothesis**: `_get_next_wave_index()` in `bl/goal.py` line 220 scans `questions.md` with the regex `r"## QG(\d+)\.\d+"` — it only finds existing QG-prefixed question headers. In a BL 2.0 campaign where all waves are numbered D1, F2, A3, V4, M5 (no QG headers present), `_get_next_wave_index()` returns 1 every time. Every goal-directed batch is therefore labelled `QG1.x`, colliding with any previous goal campaign. The `"## QG"` guard in `_parse_goal_questions()` lines 236 and 242 compounds this: the LLM cannot produce BL 2.0-style IDs because any block without `## QG` is silently dropped.
+**Test**: Trace `_get_next_wave_index(text)` where `text` is a BL 2.0 `questions.md` containing only `## D1.1`, `## F2.1`, `## A3.1` headers (no `## QG` headers). Confirm it returns 1. Then read `_parse_goal_questions()` lines 236 and 242 — confirm both guards use the string literal `"## QG"` and would discard any block with a `## D14.1`-style header.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: `_get_next_wave_index()` returns 1 on a BL 2.0 questions.md with no QG headers; `_parse_goal_questions()` drops non-QG blocks; fix requires expanding the wave-index regex to also count BL 2.0 numeric waves and relaxing the QG-only guard in the block filter
+- HEALTHY: wave-index regex already covers BL 2.0 IDs and the block filter is prefix-agnostic
+
+---
+
+## D14.2 [DIAGNOSE] goal.py focus default uses BL 1.x domain codes D1-D6, forcing wrong bracket tags from LLM
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Hypothesis**: `_build_prompt()` in `bl/goal.py` line 128 sets `focus_str = "all domains (D1-D6)"` when no focus is specified in goal.md. The string "D1-D6" is the BL 1.x domain taxonomy (D1=volume, D2=regulatory, D3=competitive, D4=unit economics, D5=operational, D6=cohort). BL 2.0 has no domain taxonomy — it uses operational modes (DIAGNOSE, FIX, AUDIT, VALIDATE, MONITOR, FRONTIER). The LLM interprets the D1-D6 hint as an instruction to emit `[D1]` / `[D2]` bracket tags in generated question headers (the prompt template on lines 158 and 170 shows `[D1]` and `[D4]` as examples). When parsed by `parse_questions()`, a `[D1]` bracket tag does not map to any BL 2.0 operational mode, producing wrong question_type routing.
+**Test**: Read `_build_prompt()` line 128 — confirm the focus default is `"all domains (D1-D6)"`. Read the prompt template lines 155-181 — confirm header examples show `[D1]` and `[D4]` bracket tags. Then check `bl/questions.py` `_CODE_AUDIT_TAGS` and `_BEHAVIORAL_TAGS` constants — confirm `d1` through `d6` do not map to any BL 2.0 code_audit or operational mode tag, and that `question_type` for a `[D1]` bracket defaults to "behavioral".
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: Default focus is "D1-D6"; prompt template uses `[D1]`/`[D4]` examples; LLM output uses BL 1.x bracket tags that misroute in BL 2.0; fix requires replacing focus default and prompt examples with BL 2.0 operational mode terminology (DIAGNOSE, FIX, AUDIT, VALIDATE, MONITOR)
+- HEALTHY: Focus default and prompt template already use BL 2.0 operational modes
+
+---
+
+## D14.3 [DIAGNOSE] synthesizer.py writes synthesis.md to project root — callers expect findings/synthesis.md
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Hypothesis**: `synthesize()` in `bl/synthesizer.py` line 226 writes to `project_dir / "synthesis.md"` (project root). The campaign loop, the dashboard backend, and the CLAUDE.md documentation all reference `findings/synthesis.md`. The `_build_findings_corpus()` reads from `project_dir / "findings"` via `findings_dir.glob("*.md")` — so a `synthesis.md` at project root is never included in the next synthesis corpus. Any caller that opens `project_dir / "findings" / "synthesis.md"` gets a FileNotFoundError or silently uses a stale file while the real synthesis sits one level up.
+**Test**: Read `bl/synthesizer.py` line 226 — confirm output path is `project_dir / "synthesis.md"`. Read CLAUDE.md and any runner or loop code that reads synthesis output — confirm they reference `findings/synthesis.md`. Confirm `_build_findings_corpus()` line 34 uses `findings_dir.glob("*.md")` which excludes a root-level file.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: Output path is project root not findings/; callers reference findings/synthesis.md; fix is changing line 226 to `project_dir / "findings" / "synthesis.md"` and ensuring the directory exists before writing
+- HEALTHY: Output path already writes to findings/synthesis.md, or all callers consistently use project root
+
+---
+
+## A14.1 [AUDIT] synthesizer.py severity frozenset excludes all BL 2.0 high-signal verdicts — DIAGNOSIS_COMPLETE dropped under budget pressure
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Operational Mode**: audit
+**Status**: NON_COMPLIANT
+**Hypothesis**: `_build_findings_corpus()` in `bl/synthesizer.py` lines 44-54 defines `_HIGH_SEVERITY = frozenset({"FAILURE", "NON_COMPLIANT", "WARNING", "REGRESSION", "ALERT"})` and uses it to prioritize findings when the corpus exceeds the 12000-char budget. BL 2.0 adds verdict strings absent from this set: `DIAGNOSIS_COMPLETE` (confirmed bug with fix spec — highest actionable signal), `FIX_FAILED` (failed fix attempt — high signal), `BLOCKED` (frontier blocked), `PROMISING` (frontier viable), `IMMINENT` and `PROBABLE` (cascade prediction). Under budget pressure, a `DIAGNOSIS_COMPLETE` finding is assigned priority=1 (low severity) and dropped before a `COMPLIANT` or `FIXED` finding — the opposite of correct behavior. The synthesizer corpus will systematically exclude the most actionable BL 2.0 findings in long campaigns.
+**Test**: Read `_HIGH_SEVERITY` frozenset at lines 44-45 — list its members exactly. Confirm `DIAGNOSIS_COMPLETE`, `FIX_FAILED`, `BLOCKED`, `PROMISING`, `IMMINENT`, `PROBABLE` are absent. Trace `_finding_priority()` for a finding string containing `**Verdict**: DIAGNOSIS_COMPLETE` — confirm it returns 1 (low priority). Trace it for a finding containing `**Verdict**: COMPLIANT` — confirm it also returns 1. Confirm both are dropped in tail-first order under budget pressure, meaning late-wave DIAGNOSIS_COMPLETE findings are the first to be truncated.
+**Verdict threshold**:
+- NON_COMPLIANT: DIAGNOSIS_COMPLETE, FIX_FAILED, and other BL 2.0 verdicts are absent from `_HIGH_SEVERITY`; these findings are treated as droppable under corpus budget pressure; fix requires adding all BL 2.0 high-signal verdicts to the frozenset
+- COMPLIANT: All BL 2.0 high-severity verdicts are present in `_HIGH_SEVERITY` or an equivalent priority mechanism covers them
+
+---
+
+## V14.1 [VALIDATE] skill_forge.py and quality.py are structurally clean — no BL 1.x verdict strings or ID patterns
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Operational Mode**: validate
+**Status**: COMPLIANT
+**Motivated by**: Wave 14 pre-flight — these modules not yet audited
+**Hypothesis**: `bl/skill_forge.py` and `bl/quality.py` contain no verdict string comparisons, no question ID regex patterns, and no mode dispatch logic. They are pure utility modules (skill file I/O and amnesty feasibility math respectively). Neither references BL 1.x-only verdict lists, Q-prefix ID patterns, or domain codes D1-D6. Both are structurally clean for BL 2.0 use.
+**Test**: Read `bl/skill_forge.py` in full — verify: (1) no verdict string comparisons against hardcoded lists, (2) no regex patterns matching question IDs, (3) no mode string dispatch tables. Read `bl/quality.py` in full — verify: (1) `action_type` parameter is a free-form string with no hardcoded BL 1.x action type enumeration beyond "amnesty", (2) no references to Q-prefix IDs or D1-D6 domain codes. Note any unexpected imports or hidden BL-version-specific dependencies.
+**Verdict threshold**:
+- COMPLIANT: Both files contain no BL 1.x verdict strings, no Q-prefix ID regexes, no domain code references; structurally safe for BL 2.0 campaigns
+- NON_COMPLIANT: Either file contains hardcoded BL 1.x verdict strings, Q-prefix ID patterns, or other BL-version-specific logic that would fail silently in BL 2.0 campaigns
+
+<!-- Wave 14 Fixes -->
+
+## F14.1 [FIX] Fix goal.py wave-index and prompt template for BL 2.0 compatibility
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: FIXED
+**Motivated by**: D14.1 + D14.2
+**Fix**: In `bl/goal.py`: (1) Line 220: expand `_get_next_wave_index()` to scan both `## QG(\d+)` and `## [DFAV](\d+)` headers, taking max across both sets. (2) Line 128: replace `"all domains (D1–D6)"` with `"all operational modes (DIAGNOSE, FIX, AUDIT, VALIDATE)"`. (3) Lines 158/170: replace `[D1]`/`[D4]` bracket tag examples with `[DIAGNOSE]`/`[AUDIT]` and add `**Operational Mode**: diagnose`/`audit` field to each example block.
+**Verdict threshold**:
+- FIXED: wave-index counts BL 2.0 headers; prompt uses BL 2.0 tags; [D1]/[D4] eliminated
+- FIX_FAILED: any BL 1.x domain code remains in defaults or examples
+
+---
+
+## F14.2 [FIX] Fix synthesizer.py output path and _HIGH_SEVERITY frozenset
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: FIXED
+**Motivated by**: D14.3 + A14.1
+**Fix**: In `bl/synthesizer.py`: (1) Line 226: change `project_dir / "synthesis.md"` to `project_dir / "findings" / "synthesis.md"`. (2) Lines 45-47: add `DIAGNOSIS_COMPLETE` and `FIX_FAILED` to `_HIGH_SEVERITY` frozenset.
+**Verdict threshold**:
+- FIXED: synthesis written to findings/synthesis.md; DIAGNOSIS_COMPLETE and FIX_FAILED in _HIGH_SEVERITY
+- FIX_FAILED: path still wrong or frozenset still missing BL 2.0 verdicts
+
+---
+
+## V14.2 [VALIDATE] goal.py and synthesizer.py fixes correct after F14.1-F14.2
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Operational Mode**: validate
+**Status**: COMPLIANT
+**Motivated by**: F14.1 + F14.2
+**Hypothesis**: After F14.1, goal.py correctly counts BL 2.0 wave indices and uses BL 2.0 bracket tags. After F14.2, synthesizer.py writes to findings/synthesis.md and retains DIAGNOSIS_COMPLETE/FIX_FAILED findings under budget pressure.
+**Verdict threshold**:
+- COMPLIANT: all fixes verified; no regressions
+- NON_COMPLIANT: any check fails
+
+<!-- Wave 15 -->
+
+---
+
+## Wave 15
+
+**Generated from findings**: Wave 14 DIAGNOSIS_COMPLETE verdicts (D14.1, D14.2, D14.3, A14.1) resolved via F14.1, F14.2, V14.2; new audit of questions.py, crucible.py, agent_db.py
+**Mode transitions applied**: fresh audit of three unaudited modules → 3 DIAGNOSIS_COMPLETE → D15.1, D15.2, D15.3 Diagnose; 1 DIAGNOSIS_COMPLETE → D15.4 Diagnose; 1 DIAGNOSIS_COMPLETE → A15.1 Audit
+
+---
+
+## D15.1 [DIAGNOSE] questions.py sync_status_from_results() uses "\n## Q" sentinel — truncates BL 2.0 block boundaries at end-of-file
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Hypothesis**: `sync_status_from_results()` in `bl/questions.py` line 225 locates the end of a question block with `text.find("\n## Q", block_start + 1)`. The sentinel string `"\n## Q"` only matches BL 1.x question headers (e.g., `## Q5.2`). In a BL 2.0 questions.md containing only headers like `## D1.1`, `## F2.1`, `## A14.1`, the sentinel will never match, so `next_block` is always -1 and `block_end` is always `len(text)`. This means the `block` variable spans from the current question header to the very end of the file. When `str.replace()` is called on this oversized block, it replaces only the first occurrence of `**Status**: PENDING` — which is correct for the current question — but the replacement target and the replacement text are then written back as `text[:block_start] + new_block + text[block_end:]`, where `text[block_end:]` is empty. Each call to `sync_status_from_results()` for a non-last question correctly patches only one status line, but any subsequent question whose update runs while the prior iteration's oversized `block` is still in scope will operate on stale string indices. The actual bug: if two questions have `**Status**: PENDING` in the same "block" (which now spans to EOF), the second replace call on the already-modified `text` string will use indices derived from the pre-modification string — producing a corrupted or double-patched questions.md.
+**Test**: Read `bl/questions.py` lines 219-233. Confirm the sentinel on line 225 is the literal string `"\n## Q"`. Construct a two-question BL 2.0 questions.md with headers `## D15.1` and `## D15.2` both `PENDING`. Trace `sync_status_from_results()` with `done_ids = {"D15.1": "DONE", "D15.2": "DONE"}` — confirm that on the first iteration `block_end = len(text)` (spanning both blocks), and on the second iteration the string indices derived from the original `text` are now misaligned with the modified string, producing either a double-replace or a missing replace.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: sentinel is `"\n## Q"` (confirmed BL 1.x-only); `next_block` resolves to -1 for all BL 2.0 headers; the index-based replacement is applied to a stale string reference when multiple questions are updated in one pass; fix requires replacing the sentinel with a generic next-header pattern such as `re.search(r"\n## \w", text[block_start+1:])` or iterating over pre-computed block boundaries
+- HEALTHY: sentinel already covers BL 2.0 headers, or the string replacement is re-parsed after each update making indices non-stale
+
+---
+
+## D15.2 [DIAGNOSE] crucible.py _score_question_designer() domains_covered check is hardwired to BL 1.x D1-D6 domain codes — always scores 0 in BL 2.0 campaigns
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Hypothesis**: `_score_question_designer()` in `bl/crucible.py` lines 246-260 defines `domain_keywords` as a dict mapping `"D1"` through `"D6"` to lists of BL 1.x domain-specific keywords (`"performance"`, `"legal"`, `"regulatory"`, `"market"`, `"benchmark"`, `"security"`, etc.). It then scans `wave1_text` for any of these keywords and scores `domains_covered = len(domain_hits) / 6.0`. In a BL 2.0 campaign, there are no D1-D6 domain codes — the six BL 1.x domains do not exist. The question-designer in BL 2.0 uses operational modes (DIAGNOSE, FIX, AUDIT, VALIDATE, MONITOR, FRONTIER). None of the BL 1.x domain keywords are guaranteed to appear in BL 2.0 questions, so `domain_hits` will be empty or near-empty and `domains_covered` scores 0.0. Since `domains_covered` carries a 0.35 weight (line 270), the question-designer's overall Crucible score is structurally suppressed by at least 0.35 in every BL 2.0 campaign, regardless of actual output quality. This will flag the question-designer as underperforming and trigger unnecessary overseer intervention.
+**Test**: Read `bl/crucible.py` lines 246-287. Confirm `domain_keywords` keys are `"D1"` through `"D6"`. Confirm the `domains_covered` weight in `weights` dict is 0.35. Then read a real BL 2.0 Wave 1 question block from `questions.md` — confirm it contains none of the BL 1.x domain keywords associated with D1-D6 (e.g., "regulatory", "benchmark", "cohort"), making `domain_hits` empty and `domains_covered = 0.0`. Calculate the maximum achievable score for question-designer in a BL 2.0 campaign (should be 0.65 if all other checks pass — below the 0.80 promote threshold and approaching the 0.50 flag threshold).
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: `domain_keywords` keys are `"D1"` through `"D6"`; `domains_covered` weight is 0.35; BL 2.0 questions produce near-zero domain coverage; maximum achievable question-designer score in BL 2.0 is ≤ 0.65; fix requires replacing the BL 1.x domain coverage check with a BL 2.0 operational mode coverage check (DIAGNOSE, FIX, AUDIT, VALIDATE, MONITOR, FRONTIER)
+- HEALTHY: domain keywords already include BL 2.0 operational mode terms, or the domains_covered check has been replaced with a mode-coverage check
+
+---
+
+## D15.3 [DIAGNOSE] crucible.py _score_synthesizer() and _score_quantitative_analyst() use BL 1.x-only file globs and ID regexes — both score 0 in BL 2.0 campaigns
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Hypothesis**: Two rubric functions in `bl/crucible.py` contain BL 1.x-only patterns that produce structural zero scores in BL 2.0 campaigns. First, `_score_synthesizer()` at line 302 checks `has_finding_refs` with `re.search(r"Q\d+\.\d+", text)` — this only matches BL 1.x finding IDs (`Q5.2`, `Q12.1`). BL 2.0 synthesis files reference findings as `D14.1`, `F2.1`, `A10.1` — none matching `Q\d+\.\d+`. `has_finding_refs` carries weight 0.30, so every BL 2.0 synthesis loses 0.30 from its score structurally, independent of quality. Second, `_score_quantitative_analyst()` at line 328 globs `findings_dir.glob("Q*.md")` — only finding files whose names begin with `Q` are examined. In BL 2.0, all finding files are named by BL 2.0 IDs (`D1.md`, `A10.1.md`, `F14.1.md`, etc.). The glob returns an empty list, the function returns `AgentScore(..., 0.0, {}, "No performance/D1/D5 findings found")`, and quantitative-analyst's Crucible score is permanently 0.0 regardless of its actual performance.
+**Test**: Read `bl/crucible.py` line 302 — confirm `has_finding_refs` regex is `r"Q\d+\.\d+"`. Confirm weight is 0.30 in `checks_raw`. Read line 328 — confirm glob pattern is `"Q*.md"`. List actual finding files in a BL 2.0 project's findings/ directory — confirm all are named with BL 2.0 prefixes (D, F, A, V, M) and none match `Q*.md`. Confirm the function returns score=0.0 with the "No performance/D1/D5 findings found" message.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: `has_finding_refs` uses `Q\d+\.\d+` regex (BL 1.x only); `_score_quantitative_analyst()` globs `Q*.md` (returns empty in BL 2.0); both produce structural zero scores; fix requires: (1) expanding the synthesis finding-refs regex to `[A-Z]\d+\.\d+` or `[DFAVM]\d+`, (2) changing the quantitative-analyst glob to `"*.md"` with a filter for performance-relevant content
+- HEALTHY: both patterns already cover BL 2.0 IDs
+
+---
+
+## A15.1 [AUDIT] crucible.py _KNOWN_AGENTS excludes all BL 2.0 operational agents — diagnose-analyst, fix-implementer, compliance-auditor, design-reviewer are never benchmarked
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Operational Mode**: audit
+**Status**: NON_COMPLIANT
+**Hypothesis**: `_KNOWN_AGENTS` in `bl/crucible.py` lines 31-36 is a fixed list: `["hypothesis-generator", "question-designer", "synthesizer", "quantitative-analyst"]`. These are the four BL 1.x specialist agents. BL 2.0 introduced four new operational agents: `diagnose-analyst`, `fix-implementer`, `compliance-auditor`, and `design-reviewer`. None of these appear in `_KNOWN_AGENTS`. The consequences: (1) `get_all_statuses()` at line 401 only returns statuses for the four BL 1.x agents — the BL 2.0 fleet is invisible to Crucible's status tracking; (2) `print_report()` only prints rows for the four listed agents — the campaign operator never sees Crucible benchmarks for the agents doing the majority of BL 2.0 work; (3) `run_all_benchmarks()` only runs the four BL 1.x scorers — even if a BL 2.0 scorer were added to `_SCORERS`, it would be unreachable via `get_all_statuses()` because `_KNOWN_AGENTS` controls which agents appear in the status table. The BL 2.0 operational agent fleet is permanently invisible to the Crucible benchmarking system.
+**Test**: Read `bl/crucible.py` lines 31-36 — list the exact contents of `_KNOWN_AGENTS`. Confirm `diagnose-analyst`, `fix-implementer`, `compliance-auditor`, and `design-reviewer` are absent. Read `get_all_statuses()` at line 401 — confirm it iterates only `_KNOWN_AGENTS`. Read `print_report()` at line 416 — confirm it iterates only `_KNOWN_AGENTS`. Check whether any BL 2.0 agent scorer exists in `_SCORERS` — confirm it would be unreachable via the current status/reporting path even if added.
+**Verdict threshold**:
+- NON_COMPLIANT: `_KNOWN_AGENTS` contains only BL 1.x agents; `diagnose-analyst`, `fix-implementer`, `compliance-auditor`, `design-reviewer` are absent; status tracking and reporting are blind to the BL 2.0 agent fleet; fix requires adding BL 2.0 agents to `_KNOWN_AGENTS` and adding corresponding rubric scorers to `_SCORERS`
+- COMPLIANT: `_KNOWN_AGENTS` already includes BL 2.0 operational agents
+
+---
+
+## D15.4 [DIAGNOSE] agent_db.py unclassified verdict silently counts as failure — no warning emitted and no escape hatch for future BL 2.0 verdicts
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: HEALTHY
+**Hypothesis**: `_compute_score()` in `bl/agent_db.py` lines 113-121 calculates agent score by summing verdict counts from `_SUCCESS_VERDICTS` and `_PARTIAL_VERDICTS` frozensets. Any verdict string that is not a member of either frozenset contributes 0 to the numerator but 1 to the denominator (via `rec["runs"]`, which is incremented unconditionally in `record_run()` line 151). An unclassified verdict is therefore treated identically to a full failure (`_FAILURE_VERDICTS` member), but silently — no log line, no warning, and no way for an operator to distinguish "agent produced FAILURE" from "agent produced an unknown verdict string". As BL 2.0 gains new verdicts (e.g., `BLOCKED` is in `_PARTIAL_VERDICTS` but a future `STALLED` or `DEGRADED_PARTIAL` would not be), the silent zero-credit treatment will depress agent scores without any observable signal. The three frozensets together cover 29 verdict strings, but `constants.py` defines a larger set — any verdict present in `constants.py` but absent from all three frozensets in `agent_db.py` will be silently misclassified.
+**Test**: Read `bl/agent_db.py` lines 27-73 — list all verdicts in `_SUCCESS_VERDICTS`, `_PARTIAL_VERDICTS`, and `_FAILURE_VERDICTS`. Read `bl/constants.py` (or equivalent) — list all defined verdict strings. Compute the set difference: verdicts in constants.py not present in any of the three agent_db frozensets. Confirm that `_compute_score()` assigns 0 credit to any verdict in that difference set without logging a warning. Confirm `record_run()` line 151 increments `runs` before any verdict classification check.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: at least one verdict defined in constants.py is absent from all three agent_db frozensets; absent verdicts receive 0 credit silently; `record_run()` increments `runs` before classification; no warning is emitted for unclassified verdicts; fix requires either (1) an exhaustive check that logs a warning when an unclassified verdict is recorded, or (2) an "unknown → partial" fallback with a warning log
+- HEALTHY: the union of the three frozensets exactly covers all verdict strings defined in constants.py, or an explicit unknown-verdict handler already exists with a warning log
+
+<!-- Wave 15 Fixes -->
+
+## F15.1 [FIX] Fix questions.py sync_status sentinel for BL 2.0 block boundaries
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: FIXED
+**Motivated by**: D15.1
+**Fix**: In `bl/questions.py` line 225: change `text.find("\n## Q", block_start + 1)` to `text.find("\n## ", block_start + 1)`.
+**Verdict threshold**:
+- FIXED: sentinel changed to generic `"\n## "`; BL 2.0 block boundaries found correctly
+- FIX_FAILED: Q-prefix sentinel remains
+
+---
+
+## F15.2 [FIX] Fix crucible.py BL 1.x patterns — domains_covered, ID regexes, Q-glob, and _KNOWN_AGENTS
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: FIXED
+**Motivated by**: D15.2 + D15.3 + A15.1
+**Fix**: In `bl/crucible.py`:
+(1) Lines 245-260: Replace `domain_keywords` D1-D6 dict with prefix-detection via `re.findall(r'^## ([A-Z])\d+\.\d+', wave1_text, re.MULTILINE)`; score = `len(unique_prefixes) / 5.0`
+(2) Line 300: Change `r'Q\d+\.\d+'` to `r'\b[A-Z]\d+\.\d+'`
+(3) Line 328: Change `findings_dir.glob('Q*.md')` to `(f for f in findings_dir.glob('*.md') if f.name != 'synthesis.md')`
+(4) Lines 31-36: Add `"diagnose-analyst"`, `"fix-implementer"`, `"compliance-auditor"`, `"design-reviewer"` to `_KNOWN_AGENTS`
+**Verdict threshold**:
+- FIXED: all four changes applied; BL 2.0 agents visible to Crucible
+- FIX_FAILED: any change missing
+
+---
+
+## V15.1 [VALIDATE] questions.py and crucible.py fixes correct after F15.1-F15.2
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Operational Mode**: validate
+**Status**: COMPLIANT
+**Motivated by**: F15.1 + F15.2
+**Hypothesis**: After F15.1, sync_status uses generic `"\n## "` sentinel. After F15.2, crucible.py uses BL 2.0-aware patterns and includes all operational agents.
+**Verdict threshold**:
+- COMPLIANT: all fixes verified; no regressions
+- NON_COMPLIANT: any check fails
+
+<!-- Wave 16 -->
+
+---
+
+## D16.1 [DIAGNOSE] healloop.py exhausted-loop leaves results.tsv with stale FAILURE verdict — final state is never written back when max cycles expire
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Motivated by**: healloop.py deep audit — Wave 16 hypothesis generation
+**Hypothesis**: `run_heal_loop()` in `bl/healloop.py` updates `results.tsv` for intermediate heal findings (lines 228-233 and 284-286) and writes a FIXED row for the original question only on the FIXED path (lines 296-300). On the exhausted path — when the for-loop in `range(1, max_cycles + 1)` exits without returning — no `update_results_tsv()` call is made for the original `original_qid`. The original question row therefore permanently retains the pre-heal verdict (FAILURE or DIAGNOSIS_COMPLETE) in results.tsv, even though the heal loop appended an EXHAUSTED note to the finding file and ran multiple additional diagnose/fix sub-cycles. The synthesizer, crucible, and agent_db all treat results.tsv as the authoritative verdict store — they will read the original FAILURE and score the question as a clean failure, potentially triggering redundant followup questions and incorrect agent performance penalties.
+**Test**: Read `bl/healloop.py` lines 288-343. Trace the code path when `fix_verdict != "FIXED"` and the loop exhausts all cycles. Confirm `update_results_tsv(original_qid, ...)` is never called after the for-loop ends. Read `bl/campaign.py` lines 129-140 — confirm the caller only propagates the `healed_result` dict but does not re-call `update_results_tsv` for the original `qid` after `run_heal_loop` returns with an exhausted result. Confirm that `findings.py`'s `update_results_tsv()` is the sole mechanism for writing verdict state to results.tsv.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: the exhausted-loop path calls no `update_results_tsv` for `original_qid`; results.tsv retains the pre-heal FAILURE verdict; the campaign.py caller does not compensate; fix requires calling `update_results_tsv(original_qid, "HEAL_EXHAUSTED", ...)` after the loop exits without FIXED, and adding `"HEAL_EXHAUSTED"` to the appropriate frozenset in agent_db.py
+- HEALTHY: `update_results_tsv` is called for `original_qid` on the exhausted path, or the campaign.py caller compensates
+
+---
+
+## D16.2 [DIAGNOSE] campaign.py peer-reviewer spawned unconditionally for code_audit questions — produces vacuous verdicts that inject spurious re-exam questions
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Motivated by**: campaign.py deep audit — Wave 16 hypothesis generation
+**Hypothesis**: `run_campaign()` in `bl/campaign.py` calls `_spawn_agent_background("peer-reviewer", ...)` at lines 593-601 after every question with no guard on `question["mode"]`. The peer-reviewer prompt instructs it to "re-run the original test for {question['id']}" and append a Peer Review section with verdict CONFIRMED, CONCERNS, or OVERRIDE. For `code_audit` mode questions (all BL 2.0 diagnose, fix, audit, validate questions), there is no runnable test command — the "test" field contains prose instructions such as "Read bl/crucible.py lines 31-36 and confirm...". The peer-reviewer will be unable to find or execute a test and will likely emit CONCERNS or OVERRIDE as a safe default. Any OVERRIDE verdict causes `_inject_override_questions()` (lines 391-437) to append a `{qid}.R` re-exam block to questions.md with status PENDING. This means every code_audit question that the peer-reviewer cannot verify produces a spurious re-exam question, growing the question bank with items that cannot be resolved by re-running a non-existent test command.
+**Test**: Read `bl/campaign.py` lines 579-601. Confirm `_spawn_agent_background("peer-reviewer", ...)` is inside the for-loop over `pending` with no `if question["mode"] != "code_audit"` guard. Read `_inject_override_questions()` lines 391-437 — confirm it scans ALL finding files for the OVERRIDE pattern regardless of mode. Inspect the peer-reviewer context string at lines 596-601 — confirm "re-run the original test" is present with no mode-conditional branch. Read the peer-reviewer agent file at `{agents_dir}/peer-reviewer.md` if it exists — confirm whether it contains any special handling for code_audit questions.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: peer-reviewer is spawned for all modes without a guard; the peer-reviewer prompt lacks code_audit awareness; OVERRIDE verdicts from code_audit questions feed `_inject_override_questions()`; fix requires either (a) guarding `_spawn_agent_background("peer-reviewer", ...)` with `if question["mode"] not in ("code_audit",)` or (b) injecting `question_mode` into the peer-reviewer context so it skips the test re-run for non-executable question types
+- HEALTHY: the peer-reviewer prompt already handles code_audit mode gracefully without emitting OVERRIDE, or the spawn call is already guarded by mode
+
+---
+
+## D16.3 [DIAGNOSE] runners/agent.py _parse_text_output() has no fallback for BL 2.0 agents — plain-text output from any agent not in the BL 1.x name list returns empty dict and forces INCONCLUSIVE
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Motivated by**: runners/agent.py audit — Wave 16 hypothesis generation
+**Hypothesis**: `_parse_text_output()` in `bl/runners/agent.py` lines 138-198 dispatches on `agent_name` with `if/elif` branches for `security-hardener`, `test-writer`, `type-strictener`, and `perf-optimizer`. There is no `else` clause. For any agent name outside these four — including all BL 2.0 agents (`diagnose-analyst`, `fix-implementer`, `compliance-auditor`, `design-reviewer`) — the function returns an empty dict `{}`. This empty dict is passed to `_verdict_from_agent_output()`, which enters the `else` branch (line 122), reads `output.get("verdict", "")` from the empty dict, gets `""`, which is not in `_ALL_VERDICTS`, falls through the legacy heuristic check (`changes_committed` also missing), and returns `"INCONCLUSIVE"`. The consequence: any BL 2.0 agent that emits plain text instead of a JSON block — whether due to a prompt compliance failure, a claude CLI version difference, or a transient formatting issue — will always produce INCONCLUSIVE regardless of what verdict text appears in the plain-text output. A BL 1.x agent in the same situation would at least have its specific heuristic metrics extracted, giving a non-INCONCLUSIVE result.
+**Test**: Read `bl/runners/agent.py` lines 138-198. Confirm `_parse_text_output()` has no `else` clause and returns `out` (which equals `{}`) for any unrecognized agent name. Trace `run_agent()` lines 398-401: confirm `_parse_text_output(agent_name, agent_text)` is called when `not agent_output and agent_text`, meaning the JSON block extraction at line 391-396 failed. Trace `_verdict_from_agent_output("diagnose-analyst", {})` through the `else` branch — confirm it returns `"INCONCLUSIVE"`. Confirm that a plain-text response containing the literal string `"verdict: DIAGNOSIS_COMPLETE"` from a diagnose-analyst would produce INCONCLUSIVE rather than DIAGNOSIS_COMPLETE via the text-output fallback path.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: `_parse_text_output()` has no `else` clause; BL 2.0 agent plain-text output returns `{}`; `_verdict_from_agent_output` returns INCONCLUSIVE for all BL 2.0 agents on the text-fallback path; fix requires adding an `else` clause to `_parse_text_output()` that searches for `verdict:\s*(\w+)` and `summary:\s*(.+)` in the plain text as a universal BL 2.0 fallback
+- HEALTHY: an `else` clause already extracts `verdict` and `summary` from plain text, or the text-fallback path is unreachable for BL 2.0 agents
+
+---
+
+## V16.1 [VALIDATE] Minimum viable scorer design for the four new BL 2.0 agents in crucible.py _SCORERS — validate architecture is correct before implementation
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Operational Mode**: validate
+**Status**: COMPLIANT
+**Motivated by**: V15.1 informational gap — _SCORERS has no rubric functions for BL 2.0 agents
+**Hypothesis**: After F15.2, `_KNOWN_AGENTS` includes the four BL 2.0 operational agents but `_SCORERS` (lines 378-383) maps only the four BL 1.x agents to scorer functions. A minimum viable scorer for each BL 2.0 agent should evaluate quality from existing finding files without subprocess calls: (1) `_score_diagnose_analyst` — DIAGNOSIS_COMPLETE rate from results.tsv, fix-specification completeness (4 required fields: target file, target location, concrete edit, verification command) detected via regex in finding markdown; (2) `_score_fix_implementer` — FIXED rate, FIX_FAILED rate, presence of a verification command output block in the finding; (3) `_score_compliance_auditor` — NON_COMPLIANT/COMPLIANT/PARTIAL distribution, whether NON_COMPLIANT findings include a Fix Specification section; (4) `_score_design_reviewer` — COMPLIANT/NON_COMPLIANT distribution, whether findings reference specific line numbers. All scorers must follow the static-file pattern of `_score_synthesizer()`: read files from `findings/`, extract text metrics, return `AgentScore(name, score, checks_raw, notes)`. Validate that this design is compatible with the existing `run_all_benchmarks()` loop and `AgentScore` dataclass with no structural changes required.
+**Test**: Read `bl/crucible.py` lines 370-440. Confirm `_SCORERS` is a plain dict mapping agent name strings to scorer callables. Confirm `run_all_benchmarks()` iterates `_KNOWN_AGENTS`, looks up each in `_SCORERS`, and calls the scorer — no hardwired logic beyond the dict lookup. Confirm `AgentScore` has fields sufficient to express: a float score (0.0-1.0), a dict of named check results (checks_raw), and a notes string. Read `_score_synthesizer()` as the canonical static-file scorer pattern — confirm it makes no subprocess calls, reads only from `findings/` and the project root, and returns `AgentScore`. Confirm that adding `"diagnose-analyst": _score_diagnose_analyst` to `_SCORERS` is the only change required to make the new scorer callable from `run_all_benchmarks()`.
+**Verdict threshold**:
+- COMPLIANT: `_SCORERS` is a plain dict requiring only a new key-value entry; `AgentScore` fields cover rate, completeness, and notes; the `_score_synthesizer()` static-file pattern is directly reusable; `run_all_benchmarks()` requires no structural changes; a concrete scorer stub for `diagnose-analyst` reading DIAGNOSIS_COMPLETE verdicts from `findings/*.md` is architecturally sound
+- NON_COMPLIANT: `run_all_benchmarks()` has hardwired logic beyond dict lookup that blocks new scorer addition, or `AgentScore` is missing a field needed for BL 2.0 scorer output; document exactly what structural change is required before implementation
+
+---
+
+## A16.1 [AUDIT] campaign.py run_campaign() pending-list refresh inside the loop is dead code for execution — injected questions are silently skipped in the current run
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Operational Mode**: audit
+**Status**: NON_COMPLIANT
+**Motivated by**: campaign.py deep audit — Wave 16 hypothesis generation
+**Hypothesis**: `run_campaign()` in `bl/campaign.py` lines 563-601 iterates `for i, question in enumerate(pending, 1)` where `pending` is constructed before the loop. Inside the loop at lines 582-584, when `questions_done > 0`, the code re-parses questions.md and rebinds the local name `pending`: `pending = [q for q in refreshed if q["status"] == "PENDING"]`. This rebind does not affect the `enumerate` iterator already in progress — `question` continues to be drawn from the original pre-loop list. The refreshed `pending` is only used for `len(pending)` on line 587 (the progress display denominator). Consequently: (1) questions injected mid-run by `generate_followup()` or `_inject_override_questions()` are never executed in the current invocation; (2) the progress display `[{i}/{len(pending)}]` shows a stale or inflated denominator after any injection; (3) the refresh on lines 582-584 creates a false impression that the campaign dynamically picks up new questions, when in fact it does not. This is likely a BL 1.x artifact — the refresh was originally meaningful when the loop could receive external question additions — but in BL 2.0 it is misleading dead code for the execution path.
+**Test**: Read `bl/campaign.py` lines 563-601. Confirm `enumerate(pending, 1)` creates an iterator over the pre-loop `pending` list reference. Confirm the rebind `pending = [...]` inside the loop does not alter this iterator. Confirm `question` in the loop body always comes from the original list. Determine whether any question injected by `generate_followup()` (line 109) or `_inject_override_questions()` (called in `check_sentinels()` line 580) during a run is ever visited by the for-loop iterator in the same invocation. Document whether the discrepancy between the displayed denominator and actual remaining work is visible to the operator.
+**Verdict threshold**:
+- NON_COMPLIANT: `enumerate` iterator is bound to original `pending` before the refresh; refreshed `pending` is used only for display; injected questions are not executed in the current run; the progress display denominator diverges after injection; the refresh is misleading dead code for the execution path — document the exact behavior and whether the non-execution of injected questions is intentional campaign design or an oversight
+- COMPLIANT: the refresh is used correctly and injected questions are processed within the same run, or the non-execution is explicitly documented as intentional
+
+
+<!-- Wave 16 follow-ups from D16.1 and D16.2 -->
+
+---
+
+## D16.1.F1 [DIAGNOSE] agent_db.py terminal-verdict frozensets missing HEAL_EXHAUSTED — exhausted heal loops re-trigger on next campaign run
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: HEALTHY
+**Motivated by**: D16.1 follow-up — HEAL_EXHAUSTED verdict must be in terminal frozensets to prevent re-queueing
+**Hypothesis**: `agent_db.py` contains frozensets of terminal verdicts that determine whether a question is re-queued (e.g., `_TERMINAL_VERDICTS` or similar). Because `HEAL_EXHAUSTED` is a new verdict not currently in any frozenset, a question with `HEAL_EXHAUSTED` status in results.tsv will be treated as non-terminal and re-added to the pending list on the next campaign run, re-triggering the heal loop indefinitely.
+**Test**: Read `bl/agent_db.py` — identify all frozensets of terminal or parked verdicts. Confirm whether `HEAL_EXHAUSTED` is present or absent. Read `bl/questions.py _PARKED_STATUSES` — confirm whether `HEAL_EXHAUSTED` is present. Read `bl/findings.py _PRESERVE_AS_IS` — confirm presence/absence.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: `HEAL_EXHAUSTED` is absent from at least one frozenset that would cause re-queueing; fix requires adding it to `_PARKED_STATUSES`, `_PRESERVE_AS_IS`, and the agent_db terminal frozenset
+- HEALTHY: `HEAL_EXHAUSTED` is already present in all relevant frozensets, or the verdict string is already handled by a wildcard/prefix match
+
+---
+
+## D16.2.F1 [DIAGNOSE] _inject_override_questions() has no mode filter — re-exam questions injected for code_audit findings have prose-only test commands that cannot be resolved
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: DIAGNOSIS_COMPLETE
+**Motivated by**: D16.2 follow-up — secondary injection path via _inject_override_questions also needs a mode filter
+**Hypothesis**: Even after guarding the peer-reviewer spawn in `run_campaign()`, the `_inject_override_questions()` function at lines 398-437 has no mode filter on the findings it scans. If a code_audit finding somehow acquires an OVERRIDE Peer Review section (e.g., from a prior unguarded run), `_inject_override_questions()` will inject a `.R` re-exam question with `**Mode**: agent` and a prose test command. This re-exam question will be picked up by the campaign and routed to the agent runner, which will fail because the test command is not executable. A secondary fix is needed in `_inject_override_questions()` to skip findings from code_audit questions.
+**Test**: Read `bl/campaign.py` `_inject_override_questions()` lines 385-437. Confirm no mode filter exists on `finding_file` before generating the `reexam_block`. Check whether the injected `reexam_block` hard-codes `**Mode**: agent` or inherits the original question's mode. Confirm that a `.R` re-exam question with `**Mode**: agent` and a prose test command would be routed to `run_agent()` and would fail silently.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: `_inject_override_questions()` has no mode filter; injected re-exam questions hard-code `mode: agent`; a code_audit-derived re-exam would fail in the agent runner; fix requires reading the original question's mode from questions.md and either skipping code_audit OVERRIDE findings or injecting with the correct mode
+- HEALTHY: `_inject_override_questions()` already reads the original question mode and handles code_audit correctly, or the function is unreachable for code_audit findings
+
+---
+
+## Wave-mid
+
+**Generated from findings**: D16.1, D16.2, D16.3, A16.1
+**Mode transitions applied**: D16.1 DIAGNOSIS_COMPLETE → F-mid.1 Fix; D16.2 DIAGNOSIS_COMPLETE → F-mid.2 Fix; D16.3 DIAGNOSIS_COMPLETE → F-mid.3 Fix + D-mid.4 narrowing Diagnose; A16.1 NON_COMPLIANT → F-mid.5 Fix
+
+---
+
+### F-mid.1: Implement the fix specified in D16.1 — write HEAL_EXHAUSTED to results.tsv on exhausted-loop exit in healloop.py, and add HEAL_EXHAUSTED to all downstream frozensets
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: D16.1 DIAGNOSIS_COMPLETE — the exhausted-loop path in `run_heal_loop()` never calls `update_results_tsv(original_qid, ...)`, leaving the original question with a stale pre-heal verdict in results.tsv; synthesizer, crucible, and agent_db all misread this as a clean FAILURE; additionally D16.1.F1 (PENDING) already confirmed that `HEAL_EXHAUSTED` is absent from every downstream frozenset
+**Hypothesis**: Adding `update_results_tsv(original_qid, "HEAL_EXHAUSTED", f"Self-healing exhausted {last_cycle} cycle(s) — human intervention required.", None)` after `_append_heal_note` on the exhausted path, and adding `"HEAL_EXHAUSTED"` to `_PARKED_STATUSES` in questions.py, `_PRESERVE_AS_IS` in findings.py, and the appropriate terminal-verdict frozenset(s) in agent_db.py, will close the stale-verdict loop and prevent indefinite re-queueing
+**Method**: Three-file edit: (1) `bl/healloop.py` lines 332-343 — add `update_results_tsv(original_qid, "HEAL_EXHAUSTED", ...)` after `_append_heal_note`; (2) `bl/questions.py` `_PARKED_STATUSES` — add `"HEAL_EXHAUSTED"`; (3) `bl/findings.py` `_PRESERVE_AS_IS` — add `"HEAL_EXHAUSTED"`; (4) `bl/agent_db.py` terminal/parked frozenset — add `"HEAL_EXHAUSTED"` (location confirmed by D16.1.F1 diagnose)
+**Success criterion**: `grep -n "HEAL_EXHAUSTED" bl/healloop.py bl/questions.py bl/findings.py bl/agent_db.py` — each file shows at least one reference; `update_results_tsv` call appears on the exhausted path in healloop.py before `return current_result`
+
+---
+
+### F-mid.2: Implement the fix specified in D16.2 — add mode guard to peer-reviewer spawn in campaign.py run_campaign() to skip code_audit questions
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: D16.2 DIAGNOSIS_COMPLETE — `_spawn_agent_background("peer-reviewer", ...)` at campaign.py lines 593-601 fires unconditionally for all question modes including `code_audit`; peer-reviewer cannot execute prose test commands and emits CONCERNS/OVERRIDE, causing `_inject_override_questions()` to inject unresolvable `.R` re-exam questions that grow the question bank indefinitely
+**Hypothesis**: Wrapping the `_spawn_agent_background("peer-reviewer", ...)` call with `if question.get("mode") not in ("code_audit",):` will prevent spurious OVERRIDE verdicts and stop the `.R` question injection cascade for all current and future code_audit questions
+**Method**: Edit `bl/campaign.py` lines 593-601 — add `if question.get("mode") not in ("code_audit",):` guard before `_spawn_agent_background("peer-reviewer", ...)`. Verify the guard does not suppress peer-reviewer for `mode == "agent"` questions (BL 1.x behavioral/simulation questions), which do have executable test commands
+**Success criterion**: `grep -n "peer-reviewer\|code_audit" bl/campaign.py` — confirms the spawn is inside `if question.get("mode") not in ("code_audit",)`; no existing `.R` re-exam questions in questions.md that reference code_audit-sourced prose test commands
+
+---
+
+### F-mid.3: Implement the fix specified in D16.3 — add else-clause to _parse_text_output() in runners/agent.py for universal BL 2.0 plain-text verdict extraction
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: D16.3 DIAGNOSIS_COMPLETE — `_parse_text_output()` has no `else` clause; all BL 2.0 agents (diagnose-analyst, fix-implementer, compliance-auditor, design-reviewer) return `{}` on the text-fallback path, causing `_verdict_from_agent_output()` to always return INCONCLUSIVE regardless of what verdict text appears in the plain-text output; any transient JSON formatting failure silently discards a correct DIAGNOSIS_COMPLETE
+**Hypothesis**: Adding an `else` clause after the `elif agent_name == "perf-optimizer":` block that extracts `verdict` and `summary` via `re.search(r"^verdict:\s*(\w+)", text, re.IGNORECASE | re.MULTILINE)` and `re.search(r"^summary:\s*(.+)", text, re.IGNORECASE | re.MULTILINE)` will recover correct verdicts from plain-text BL 2.0 agent output on the fallback path
+**Method**: Edit `bl/runners/agent.py` lines 188-198 — insert the `else` clause as specified in D16.3 Fix Specification before `return out`
+**Success criterion**: `grep -n "else:" bl/runners/agent.py | grep -A5 "perf-optimizer"` — confirms an `else` clause follows the `perf-optimizer` branch and contains `re.search(r"^verdict:"` extraction logic
+
+---
+
+### D-mid.4: Does _summary_from_agent_output() have the same BL 2.0 gap as _parse_text_output() — no else-clause for non-BL-1.x agents, producing generic fallback summaries for all BL 2.0 agents on the text-fallback path?
+
+**Status**: FIXED
+**Operational Mode**: diagnose
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Priority**: MEDIUM
+**Motivated by**: D16.3 DIAGNOSIS_COMPLETE — the finding explicitly flags `_summary_from_agent_output()` as a likely companion gap: "Does `_summary_from_agent_output()` also have the same BL 2.0 gap — no `else` clause for non-BL-1.x agents — resulting in generic 'no structured output produced' summaries for all BL 2.0 agents on the text-fallback path?"
+**Hypothesis**: `_summary_from_agent_output()` in `bl/runners/agent.py` dispatches on `agent_name` with `if/elif` branches for the same four BL 1.x agents; for any other agent name the function falls through to a generic summary string ("no structured output produced" or similar); all BL 2.0 agent summaries on the text-fallback path are therefore generic, making the session-context.md and findings corpus less informative than they should be
+**Method**: Read `bl/runners/agent.py` — locate `_summary_from_agent_output()`. Verify: (1) does it dispatch on `agent_name` with `if/elif` branches? (2) is there an `else` clause that extracts `summary:` from plain text? (3) what string is returned for `"diagnose-analyst"` when output is `{}`?
+**Success criterion**: Either HEALTHY (else-clause already extracts summary from plain text) or DIAGNOSIS_COMPLETE with a Fix Specification for adding the same `re.search(r"^summary:")` extraction as F-mid.3 adds to `_parse_text_output()`
+
+---
+
+### F-mid.5: Implement the fix specified in A16.1 — document the intentional non-execution of mid-run injected questions and remove or clearly annotate the misleading pending-list refresh in campaign.py
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Priority**: LOW
+**Motivated by**: A16.1 NON_COMPLIANT — `run_campaign()` rebinds `pending` inside the `enumerate` loop (lines 582-584) but the rebind has no effect on the active iterator; injected questions are silently skipped in the current run; the progress display denominator diverges after injection; the refresh code creates a false impression of dynamic pickup that does not exist
+**Hypothesis**: The non-execution of mid-run injected questions is either (a) intentional design — next-run pickup is acceptable — or (b) a latent bug. Either way, a code comment at lines 582-584 explaining "this rebind affects only the progress display denominator, not the active iterator; injected questions execute on the next campaign invocation" eliminates the misleading appearance. If the intent was dynamic pickup, a structural fix (rebuilding the iterator, or switching to a while-loop with a deque) is needed instead.
+**Method**: (1) Determine intent by reading surrounding comments and git history for lines 582-584. (2) If intentional: add a comment `# NOTE: rebind affects len() display only — enumerate iterator is already bound to original pending list; injected questions run next invocation`. (3) If unintentional: replace `enumerate(pending, 1)` with a deque-based while loop that re-checks the question bank after each iteration.
+**Success criterion**: `grep -n "rebind\|next invocation\|display only" bl/campaign.py` — confirms an explanatory comment exists at the refresh site, OR the loop structure is changed to actually process injected questions within the same run
+
+---
+
+## D16.2.F1.F1 [AUDIT] Existing .R re-exam questions in questions.md with prose-only test fields from code_audit parents — identify and remove or convert
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Operational Mode**: audit
+**Status**: COMPLIANT
+**Motivated by**: D16.2.F1 follow-up — unresolvable .R re-exam questions may already exist in questions.md
+**Hypothesis**: If the peer-reviewer was spawned for code_audit questions before D16.2 is fixed, some `.R` re-exam questions may already have been injected into questions.md. These questions have `**Mode**: agent` and `**Test**: Re-run the original test command from {qid}` where the test command is prose. They cannot be resolved. Audit questions.md for any `.R` questions where the referenced original question has `**Mode**: code_audit`, and classify them for removal or conversion.
+**Test**: Search questions.md for all `## \w+\.R ` sections. For each, look up the parent question ID (strip `.R`) in questions.md. Check if the parent has `**Mode**: code_audit`. If so, flag the `.R` question as unresolvable.
+**Verdict threshold**:
+- NON_COMPLIANT: at least one `.R` re-exam question exists with a code_audit parent — document which ones and recommend removal or conversion to code_audit mode
+- COMPLIANT: no `.R` questions exist, or all existing `.R` questions have executable test commands from non-code_audit parents
+
+<!-- Wave 17 -->
+
+---
+
+## Wave 17
+
+**Generated from findings**: F-mid.1, F-mid.2, F-mid.3, D-mid.4, F-mid.5, D16.2.F1.fix, D16.2.F1.F1, D16.1.F1
+**Mode transitions applied**: 5x FIXED (F-mid.1, F-mid.2, F-mid.3, D-mid.4, F-mid.5) → V17.1 consolidated validate; D16.2 DIAGNOSIS_COMPLETE follow-up → D17.1 diagnose (unconditional background-agent spawns); D16.3 DIAGNOSIS_COMPLETE → D17.2 diagnose (_ALL_VERDICTS completeness); V16.1 COMPLIANT (scorer design validated) → F17.1 fix (implement BL 2.0 Crucible scorers); D16.2.F1 FIXED → A17.1 audit (O(N) parse_questions inside per-finding loop)
+
+---
+
+## V17.1 [VALIDATE] Wave-mid fixes correct — HEAL_EXHAUSTED propagation, mode guards, and text-fallback extraction all verified with no regressions
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Operational Mode**: validate
+**Status**: COMPLIANT
+**Motivated by**: F-mid.1 (FIXED) + F-mid.2 (FIXED) + F-mid.3 (FIXED) + D-mid.4 (FIXED) + F-mid.5 (FIXED) — five fixes applied across bl/healloop.py, bl/questions.py, bl/findings.py, bl/agent_db.py, bl/runners/agent.py, and bl/campaign.py
+**Hypothesis**: After F-mid.1: update_results_tsv(original_qid, "HEAL_EXHAUSTED", ...) is present in healloop.py exhausted path and "HEAL_EXHAUSTED" appears in all four downstream frozensets (_PARKED_STATUSES, _TERMINAL_VERDICTS, _PRESERVE_AS_IS, agent_db._PARTIAL_VERDICTS). After F-mid.2: peer-reviewer spawn is inside `if question.get("mode") not in ("code_audit",):`. After F-mid.3 and D-mid.4: _parse_text_output() has an else clause with re.search(r"^verdict:") extraction, and _summary_from_agent_output() has an early `if output.get("summary"): return str(output["summary"])` check. After F-mid.5: an explanatory comment at the pending-list refresh site in run_campaign(). No BL 1.x agent regressions introduced.
+**Test**: (1) `grep -n "HEAL_EXHAUSTED" bl/healloop.py bl/questions.py bl/findings.py bl/agent_db.py` — confirm presence in all four files including update_results_tsv call in healloop.py before return current_result. (2) `grep -n "code_audit" bl/campaign.py` — confirm peer-reviewer guard uses `not in ("code_audit",)`. (3) `grep -n "else:" bl/runners/agent.py` — confirm else-clause after perf-optimizer branch contains re.search for verdict extraction. (4) `grep -n "output.get" bl/runners/agent.py` — confirm early summary check in _summary_from_agent_output(). (5) `grep -n "rebind\|next invocation\|display only\|pre-loop snapshot" bl/campaign.py` — confirm explanatory comment at refresh site.
+**Verdict threshold**:
+- COMPLIANT: all five checks pass; the four BL 1.x agent-name branches in _parse_text_output() are unmodified (no regressions for security-hardener, test-writer, type-strictener, perf-optimizer)
+- NON_COMPLIANT: any check fails — document which fix is incomplete or introduced a regression
+
+---
+
+## D17.1 [DIAGNOSE] campaign.py background-agent spawns other than peer-reviewer are mode-unconditional — forge-check and other spawns may misfire for code_audit questions
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: HEALTHY
+**Motivated by**: D16.2 (DIAGNOSIS_COMPLETE) — suggested follow-up: "Are there other background agent spawns in run_campaign() that are also mode-unconditional and should be guarded similarly (e.g., forge-check, hypothesis-generator)?"
+**Hypothesis**: run_campaign() in bl/campaign.py contains multiple _spawn_agent_background(...) call sites. The D16.2 fix (F-mid.2) guarded only the peer-reviewer spawn. Other spawns — specifically forge-check and/or hypothesis-generator, if they exist inside the per-question loop — may also fire unconditionally for all question modes including code_audit. A forge-check agent attempting to re-run a prose code-read test command would fail silently or produce a spurious verdict. A hypothesis-generator spawned per-question rather than per-wave would produce redundant follow-up waves that collide on wave numbering.
+**Test**: Read bl/campaign.py in full — locate all _spawn_agent_background(...) call sites inside run_campaign(). For each: (1) identify the agent name, (2) check whether a mode guard of the form `if question.get("mode") not in (...)` wraps the call, (3) determine whether the agent behaviour is mode-sensitive (would it fail or produce incorrect output for code_audit questions with prose-only test fields). List all unconditional spawns that are mode-sensitive.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: at least one background-agent spawn other than peer-reviewer is unconditional AND mode-sensitive for code_audit questions; fix requires adding mode guards to those spawns using the same pattern as F-mid.2
+- HEALTHY: all remaining background-agent spawns are either already guarded by mode or are mode-insensitive (their behavior is correct for both agent and code_audit question types regardless of mode)
+
+---
+
+## D17.2 [DIAGNOSE] _ALL_VERDICTS in runners/agent.py may be missing BL 2.0 verdict strings — F-mid.3 regex extraction succeeds but extracted verdict is discarded if not in _ALL_VERDICTS
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Operational Mode**: diagnose
+**Status**: HEALTHY
+**Motivated by**: D16.3 (DIAGNOSIS_COMPLETE) + F-mid.3 (FIXED) — F-mid.3 adds re.search(r"^verdict:\s*(\w+)") extraction to _parse_text_output(), storing the result in out["verdict"]. In _verdict_from_agent_output() the else-branch reads output.get("verdict", "").upper() and checks `if self_verdict_early in _ALL_VERDICTS`. If _ALL_VERDICTS does not contain DIAGNOSIS_COMPLETE or other BL 2.0 verdicts, the extracted verdict is silently discarded and the function returns INCONCLUSIVE — nullifying the F-mid.3 fix entirely for those verdicts.
+**Hypothesis**: _ALL_VERDICTS in bl/runners/agent.py was defined in the BL 1.x era and may contain only the original four verdicts (HEALTHY, WARNING, FAILURE, INCONCLUSIVE) or a partial expansion. If BL 2.0 verdicts (DIAGNOSIS_COMPLETE, FIX_FAILED, FIXED, NON_COMPLIANT, COMPLIANT, BLOCKED, PROMISING, CALIBRATED, REGRESSION, ALERT, DEGRADED, IMMINENT, PROBABLE) are absent, the F-mid.3 text-fallback path is a no-op for those verdicts: regex extraction succeeds, but the _ALL_VERDICTS guard immediately discards the result.
+**Test**: `grep -n "_ALL_VERDICTS" bl/runners/agent.py` — locate the definition and list all verdict strings it contains. Compare against the full verdict list in constants.py. Specifically confirm whether DIAGNOSIS_COMPLETE is present. Trace _verdict_from_agent_output("diagnose-analyst", {"verdict": "DIAGNOSIS_COMPLETE", "summary": "..."}) through the else-branch — confirm whether "DIAGNOSIS_COMPLETE" in _ALL_VERDICTS evaluates to True or False.
+**Verdict threshold**:
+- DIAGNOSIS_COMPLETE: _ALL_VERDICTS is missing one or more BL 2.0 verdict strings; DIAGNOSIS_COMPLETE (or any other BL 2.0 verdict) absent from _ALL_VERDICTS causes F-mid.3 extraction to be silently discarded; fix requires adding all BL 2.0 verdicts to _ALL_VERDICTS or replacing the guard with a reference to the canonical set in constants.py
+- HEALTHY: _ALL_VERDICTS already contains all BL 2.0 verdict strings including DIAGNOSIS_COMPLETE; F-mid.3 extraction is fully functional end-to-end
+
+---
+
+## F17.1 [FIX] Implement BL 2.0 Crucible scorer stubs for diagnose-analyst, fix-implementer, compliance-auditor, and design-reviewer
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Operational Mode**: fix
+**Status**: FIXED
+**Motivated by**: V16.1 (COMPLIANT) — design validated: _SCORERS is a plain dict; AgentScore fields cover rate + completeness + notes; _score_synthesizer() static-file pattern is directly reusable; adding "diagnose-analyst": _score_diagnose_analyst to _SCORERS is the only structural change required. The four BL 2.0 agents were added to _KNOWN_AGENTS by F15.2 but have no scorer entries in _SCORERS — run_all_benchmarks() will KeyError or return 0.0 for them.
+**Hypothesis**: Adding four scorer functions to bl/crucible.py and registering them in _SCORERS will make the BL 2.0 operational agents visible to Crucible benchmarking. Rubric design per V16.1: (1) _score_diagnose_analyst — DIAGNOSIS_COMPLETE rate from results.tsv for diagnose-analyst runs; fix-spec completeness fraction (findings containing all four fields: Target file, Target location, Concrete edit, Verification command). (2) _score_fix_implementer — FIXED rate, FIX_FAILED rate, presence of a Verification or Fix Applied section in each FIXED finding. (3) _score_compliance_auditor — NON_COMPLIANT + COMPLIANT rate (fraction answered definitively vs INCONCLUSIVE), NON_COMPLIANT findings that include a Fix Specification section. (4) _score_design_reviewer — COMPLIANT rate, presence of specific line-number references in findings. All four follow the _score_synthesizer() static-file pattern: read findings/*.md, extract text metrics, return AgentScore(name, score, checks_raw, notes).
+**Test**: After fix: `python -c "from bl.crucible import run_all_benchmarks, CrucibleConfig; import pathlib; cfg = CrucibleConfig(pathlib.Path('.')); s = run_all_benchmarks(cfg); names = {a.name for a in s}; assert names >= {'diagnose-analyst','fix-implementer','compliance-auditor','design-reviewer','hypothesis-generator'}; print('PASS')"` — all four BL 2.0 agents return AgentScore without KeyError; BL 1.x scorers unaffected.
+**Verdict threshold**:
+- FIXED: all four scorer functions implemented; all four registered in _SCORERS; run_all_benchmarks() returns scores for all eight agents (4 BL 1.x + 4 BL 2.0) without raising KeyError; BL 1.x scorer outputs unchanged
+- FIX_FAILED: any scorer raises an exception, returns wrong type, or _SCORERS registration is missing for any of the four agents
+
+---
+
+## A17.1 [AUDIT] D16.2.F1.fix calls parse_questions() inside per-finding loop — O(N) parse overhead per _inject_override_questions() invocation
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Operational Mode**: audit
+**Status**: NON_COMPLIANT
+**Motivated by**: D16.2.F1 (DIAGNOSIS_COMPLETE) → D16.2.F1.fix (FIXED) — the fix calls get_question_by_id(parse_questions(), qid) inside the `for finding_file in sorted(cfg.findings_dir.glob("*.md")):` loop, re-parsing all of questions.md on every iteration
+**Hypothesis**: The D16.2.F1 fix is functionally correct but introduces an O(N) parse overhead: parse_questions() reads and parses the entire questions.md file once per finding file in the loop. In a campaign with 50 finding files, _inject_override_questions() performs 50 full parses of questions.md per invocation. At BL 2.0 campaign scale (current: ~60 questions, ~50 findings, questions.md ~1800 lines), this is measurable. The fix is correct (question mode is set at creation and never modified, ruling out staleness risk), but parse_questions() should be hoisted above the loop and the cached result passed to get_question_by_id() inside it.
+**Test**: Read bl/campaign.py _inject_override_questions() — confirm whether parse_questions() is called (a) once before the for-finding_file loop, or (b) inside the loop on each iteration. Count the number of parse_questions() calls that would occur for a campaign with 50 finding files under the current implementation. Confirm that question["mode"] is immutable (never modified after initial write) so hoisting introduces no staleness risk.
+**Verdict threshold**:
+- NON_COMPLIANT: parse_questions() is called inside the per-finding loop (once per finding, not hoisted); at 50 findings this performs 50 full parses of questions.md; fix requires hoisting `all_questions = parse_questions()` above the loop and passing it into get_question_by_id() on each iteration
+- COMPLIANT: parse_questions() is already hoisted above the per-finding loop (called once per _inject_override_questions() invocation), or the per-call cost is negligible and the staleness risk is confirmed absent
+
+
+<!-- Wave 18 -->
+
+---
+
+## Wave 18
+
+**Generated from findings**: F17.1, A17.1, V17.1
+**Mode transitions applied**: F17.1 FIXED -> V18.1 Validate (dc_rate scope correctness); F17.1 FIXED -> V18.2 Validate (fix_spec_completeness false-positive scan); A17.1 NON_COMPLIANT+in-session fix -> A18.1 Audit (hoist correctness confirmation); V17.1 COMPLIANT (HEAL_EXHAUSTED in frozensets) -> D18.1 Diagnose (HEAL_EXHAUSTED write-back to questions.md); F17.1 FIXED -> D18.2 Diagnose (FIX_FAILED scope — no agent-name filter)
+
+---
+
+### V18.1: Does _score_diagnose_analyst in crucible.py correctly scope dc_rate to diagnose-analyst rows, or does it count verdicts from all agents in results.tsv?
+
+**Status**: NON_COMPLIANT → Fix applied (F19.1)
+**Operational Mode**: validate
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Priority**: HIGH
+**Motivated by**: F17.1 (FIXED) — dc_rate numerator counts rows where verdict is DIAGNOSIS_COMPLETE or HEALTHY; denominator counts rows where verdict is any of DIAGNOSIS_COMPLETE|HEALTHY|FAILURE|INCONCLUSIVE. results.tsv has no agent-name column (columns: question_id, verdict, failure_type, summary, timestamp), so both lists are unfiltered across all agents. HEALTHY verdicts from fix-implementer, compliance-auditor, and design-reviewer questions all enter the denominator and numerator, making dc_rate a campaign-wide health metric rather than a diagnose-analyst performance metric.
+**Hypothesis**: _score_diagnose_analyst lines 385-393 in bl/crucible.py compute dc_rate without filtering results.tsv rows by question_id prefix or agent name. In the BL 2.0 campaign, diagnose-analyst ran on D-prefix questions; fix-implementer on F-prefix; compliance-auditor on A-prefix; design-reviewer on V-prefix. Any HEALTHY verdict on an F/A/V-prefix row contributes to both diag_rows and all_diag, skewing the score. The metric needs either a question_id prefix filter (keep only D-prefix rows) or an explicit acknowledgement in details that it measures campaign-wide health.
+**Method**: Read bl/crucible.py lines 381-393. Confirm: (1) diag_rows and all_diag are built from all lines with no prefix filter. (2) Open projects/bl2/results.tsv — count rows with verdict HEALTHY split by question_id prefix (D vs F/A/V). (3) Recalculate dc_rate with and without prefix filtering to determine the magnitude of distortion.
+**Success criterion**: DIAGNOSIS_COMPLETE with a Fix Specification adding a question_id prefix filter (e.g., keep only rows where question_id starts with D) if non-D-prefix rows materially distort dc_rate; COMPLIANT only if the details string is updated to explicitly state 'campaign-wide metric, not agent-specific' — the current label 'DIAGNOSIS_COMPLETE rate' is misleading if it counts other agents' verdicts.
+
+---
+
+### V18.2: Does _score_diagnose_analyst fix_spec_completeness include FIXED findings from fix-implementer that also contain 'Fix Specification' and all four spec_fields?
+
+**Status**: NON_COMPLIANT → Fix applied (F19.2)
+**Operational Mode**: validate
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Priority**: MEDIUM
+**Motivated by**: F17.1 (FIXED) — the fix_spec_completeness scan at bl/crucible.py lines 402-414 includes any finding that contains 'DIAGNOSIS_COMPLETE' or 'Fix Specification' in its text. FIXED findings produced by fix-implementer (e.g., F17.1.md) contain a Fix Applied section with all four spec_fields ('Target file', 'Target location', 'Concrete edit', 'Verification command'), and the string 'Fix Specification' appears in A17.1.md (the source finding that motivated the fix). These findings will be scored as complete fix specs and included in spec_scores, crediting diagnose-analyst for fix-implementer work.
+**Hypothesis**: F-prefix findings in projects/bl2/findings/ contain 'Fix Specification' (they describe the fix that was applied) and all four spec_fields. The inclusion guard 'DIAGNOSIS_COMPLETE' not in content AND 'Fix Specification' not in content is a substring match — it includes a finding if either string appears anywhere, including in headings like '## Fix Specification' inside a FIXED finding. Removing F-prefix findings from spec_scores would lower spec_completeness from its current value.
+**Method**: Read bl/crucible.py lines 402-414. Then check: (1) Does F17.1.md contain the string 'Fix Specification'? Does it contain all four spec_fields? (2) Does A17.1.md (NON_COMPLIANT with a fix specification block) contain all four spec_fields? (3) Count how many non-D-prefix findings in projects/bl2/findings/ pass the inclusion guard and contribute to spec_scores. (4) Recalculate spec_completeness excluding those findings.
+**Success criterion**: DIAGNOSIS_COMPLETE with a Fix Specification if non-D-prefix findings materially inflate spec_completeness; the correct guard is a match on '**Verdict**: DIAGNOSIS_COMPLETE' (exact status-line) rather than 'DIAGNOSIS_COMPLETE' anywhere in content. COMPLIANT if the guard already excludes F-prefix findings in practice.
+
+---
+
+### A18.1: Is the A17.1 parse_questions() hoist correctly applied — all_questions assigned before the loop and consumed by get_question_by_id() inside it, with no residual inner call?
+
+**Status**: COMPLIANT
+**Operational Mode**: audit
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Priority**: HIGH
+**Motivated by**: A17.1 (NON_COMPLIANT, fix applied in-session) — grep confirmed all_questions = (parse_questions()) at lines 396-398 above the loop and get_question_by_id(all_questions, qid) at line 414 inside it. However the parenthesized multi-line assignment form is unusual, and the fix was applied in-session without a standalone verification run. A residual parse_questions() call inside the loop body or an incorrect variable name would preserve the O(N) behavior.
+**Hypothesis**: The hoist is syntactically correct (all_questions = (parse_questions()) is valid Python) but the audit must confirm: (1) parse_questions() is called exactly once in _inject_override_questions() — the hoisted call — and zero times inside the for-finding_file loop body. (2) The variable passed to get_question_by_id at line 414 is all_questions, not a new parse_questions() call. (3) No other call site within _inject_override_questions() re-invokes parse_questions() after the loop starts.
+**Method**: Run: grep -n 'parse_questions' bl/campaign.py — list all call sites with line numbers. Identify which are inside _inject_override_questions() and which are in other functions. Confirm the only call inside _inject_override_questions() is at the pre-loop hoist site (lines 396-398). Then read lines 400-445 to confirm get_question_by_id uses all_questions.
+**Success criterion**: COMPLIANT if parse_questions() appears exactly once in _inject_override_questions() (the pre-loop hoist) and all_questions is passed to get_question_by_id() inside the loop. NON_COMPLIANT if a second parse_questions() call remains inside the loop body, or if all_questions is assigned but not used.
+
+---
+
+### D18.1: Does update_question_status() write 'HEAL_EXHAUSTED' to questions.md, or does HEAL_EXHAUSTED fail the _TERMINAL_VERDICTS guard and leave the question at PENDING?
+
+**Status**: HEALTHY
+**Operational Mode**: diagnose
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Priority**: HIGH
+**Motivated by**: V17.1 (COMPLIANT) — confirmed HEAL_EXHAUSTED is in _PARKED_STATUSES, _TERMINAL_VERDICTS inline tuple, _PRESERVE_AS_IS, and agent_db._PARTIAL_VERDICTS. However V17.1 verified frozenset membership only. The write-back path in update_question_status() populates done_ids[qid] only when verdict is in _TERMINAL_VERDICTS. questions.py has two distinct frozensets: _PARKED_STATUSES (lines 100-113) and the _TERMINAL_VERDICTS check at line 197. These are separate sets; membership in one does not guarantee membership in the other.
+**Hypothesis**: F-mid.1 added HEAL_EXHAUSTED to the inner ternary tuple at line 214 (the preserve-raw-verdict list). If HEAL_EXHAUSTED is also present in the outer _TERMINAL_VERDICTS frozenset (lines 100-113), the full path produces done_ids[qid] = 'HEAL_EXHAUSTED' and update_question_status() writes '**Status**: HEAL_EXHAUSTED' to questions.md. If HEAL_EXHAUSTED is only in the inner ternary but absent from _TERMINAL_VERDICTS, the outer guard at line 197 blocks entry entirely — done_ids is never populated and the question stays PENDING indefinitely after heal exhaustion, causing the campaign loop to re-attempt it.
+**Method**: Read bl/questions.py lines 95-240 in full. Confirm: (1) _TERMINAL_VERDICTS frozenset definition at lines 100-113 includes HEAL_EXHAUSTED. (2) Trace the path for verdict='HEAL_EXHAUSTED': outer guard at line 197 passes -> done_ids[qid] entered -> inner ternary at lines 209-216 assigns raw verdict -> update_question_status() writes '**Status**: HEAL_EXHAUSTED'. (3) If the path is broken, identify the exact guard that excludes HEAL_EXHAUSTED.
+**Success criterion**: HEALTHY if HEAL_EXHAUSTED is in _TERMINAL_VERDICTS and the full write-back path produces '**Status**: HEAL_EXHAUSTED' in questions.md. DIAGNOSIS_COMPLETE if HEAL_EXHAUSTED is absent from _TERMINAL_VERDICTS — the question stays PENDING after heal exhaustion, making it invisible as exhausted and causing the campaign to re-attempt it.
+
+---
+
+### D18.2: Does _score_fix_implementer in crucible.py scope fix_rows to F-prefix questions only, or do verdicts from other agents inflate or deflate the FIXED/FIX_FAILED ratio?
+
+**Status**: HEALTHY
+**Operational Mode**: diagnose
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Priority**: MEDIUM
+**Motivated by**: F17.1 (FIXED) — _score_fix_implementer computes fix_rows as all results.tsv rows matching verdict FIXED or FIX_FAILED, with no question_id prefix filter. This is the same root issue as V18.1 (no agent-name column in results.tsv) but applied to the fix-implementer scorer. If any non-F-prefix question produces a FIXED or FIX_FAILED verdict (e.g., via text-fallback extracting a stray string from a code block), that row enters fix_rows and skews the fixed_rate and fix_failed_rate metrics.
+**Hypothesis**: In the current BL 2.0 campaign results.tsv, all FIXED and FIX_FAILED verdicts appear on F-prefix question IDs, so the scorer is functionally correct for this campaign. However the scorer has no structural guard — it is fragile to any campaign where FIXED appears on a non-fix question. The question is whether the distortion is active (affects the current 0.9573 score) or latent (zero distortion today, fragile tomorrow).
+**Method**: Read bl/crucible.py lines 425-475. Confirm fix_rows filter is verdict-only. Open projects/bl2/results.tsv — list all rows where verdict is FIXED or FIX_FAILED and identify their question_id prefixes. Determine if any non-F-prefix row is present in fix_rows. If distortion is active, recalculate fixed_rate excluding non-F-prefix rows.
+**Success criterion**: DIAGNOSIS_COMPLETE with a Fix Specification adding a question_id prefix filter if non-F-prefix rows exist in fix_rows; HEALTHY if all FIXED/FIX_FAILED rows are F-prefix and the current score is accurate — document the latent fragility in the finding regardless so a future campaign does not inherit a silent metric error.
+
+---
+
+## Wave 19 — Fix Implementation
+
+**Generated from findings**: V18.1, V18.2
+**Mode transitions applied**: V18.1 NON_COMPLIANT -> F19.1 Fix (dc_rate BL 2.0 scope); V18.2 NON_COMPLIANT -> F19.2 Fix (fix_spec_completeness exact-verdict guard)
+
+---
+
+### F19.1: Apply V18.1 fix — scope _score_diagnose_analyst dc_rate to BL 2.0 D-prefix rows only, excluding BL 1.x FAILURE rows from the denominator
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: V18.1 (NON_COMPLIANT) — dc_rate denominator counts all FAILURE/INCONCLUSIVE rows including 22+ BL 1.x old-format rows. These inflate all_diag from ~23 to ~45, dragging dc_rate from ~0.85 to ~0.51. Fix: add _is_bl2_diag_row() helper filtering to new-format rows (col[0]=="N/A") with D-prefix question IDs.
+**Fix Specification**:
+- Target file: bl/crucible.py
+- Target location: _score_diagnose_analyst() lines 381-403
+- Concrete edit: Added nested _is_bl2_diag_row() that checks parts[0]=="N/A" and parts[1].startswith("D"); both diag_rows and all_diag filtered through it
+- Verification command: run_all_benchmarks() — diagnose-analyst dc_rate should rise from ~0.51 to ~0.85+
+
+---
+
+### F19.2: Apply V18.2 fix — replace fix_spec_completeness guard with exact **Verdict**: DIAGNOSIS_COMPLETE match
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Mode**: code_audit
+**Agent**: fix-implementer
+**Priority**: MEDIUM
+**Motivated by**: V18.2 (NON_COMPLIANT) — fix_spec_completeness guard passes FIXED findings that contain "Fix Specification" with all 4 spec fields, inflating the metric. Fix: replace two-condition substring guard with exact `"**Verdict**: DIAGNOSIS_COMPLETE" not in content` check.
+**Fix Specification**:
+- Target file: bl/crucible.py
+- Target location: _score_diagnose_analyst() line 410 guard condition
+- Concrete edit: Changed from `if "DIAGNOSIS_COMPLETE" not in content and "Fix Specification" not in content: continue` to `if "**Verdict**: DIAGNOSIS_COMPLETE" not in content: continue`
+- Verification command: Check that only D-prefix DIAGNOSIS_COMPLETE findings enter spec_scores — F-prefix FIXED findings excluded
+
+---
+
+## Wave 20 — Post-Fix Validation and Dashboard Audit
+
+**Generated from findings**: F19.1, F19.2, D18.1, D18.2
+**Mode transitions applied**: F19.1 FIXED -> V20.1 Validate (_is_bl2_diag_row edge-case coverage); F19.2 FIXED -> V20.2 Validate (exact verdict line match — variant format gap); D18.1 HEALTHY (HEAL_EXHAUSTED write-back confirmed) -> A20.1 Audit (HEAL_EXHAUSTED display in dashboard QuestionQueue); D18.2 HEALTHY (D-prefix FIXED contamination latent) -> A20.2 Audit (fix_rows prefix guard — should it be hardened now); F19.1 FIXED -> D20.1 Diagnose (run_all_benchmarks() post-fix score verification)
+
+---
+
+### V20.1: Does _is_bl2_diag_row() in crucible.py correctly handle edge cases — empty lines, lines with fewer than 3 tab-separated columns, and rows where parts[2] contains a trailing newline or whitespace?
+
+**Status**: COMPLIANT
+**Operational Mode**: validate
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Priority**: HIGH
+**Motivated by**: F19.1 (FIXED) — _is_bl2_diag_row() was added as a nested helper to scope dc_rate to BL 2.0 D-prefix rows. The implementation checks `parts[0] == "N/A"` and `parts[1].startswith("D")` and matches `parts[2]` against a regex. However results.tsv rows produced by update_results_tsv() may have trailing newlines (splitlines() strips them, but other read paths may not), and lines with only whitespace or with a BOM at the start of the file would cause parts[0] to be non-"N/A" silently. An empty string from a trailing newline after splitlines() would produce parts=[""] with len < 3, falling to return False — but this must be confirmed. If parts[2] contains a space or tab suffix (e.g., "DIAGNOSIS_COMPLETE\n"), the regex r"^(DIAGNOSIS_COMPLETE|...)$" would correctly reject it, but the failure mode is silent: valid BL 2.0 rows are excluded from all_diag, producing an understated dc_rate with no error.
+**Hypothesis**: The splitlines() call at results_tsv.read_text().splitlines() strips newlines before the list comprehension, so parts[2] will not have trailing newline characters. Empty lines from splitlines() would produce a one-element list [""] with len(parts) < 3, so the `len(parts) >= 3` guard correctly returns False. The function is edge-case correct for the current read path. However, if a future call site passes lines without splitlines() (e.g., from a generator or line-by-line reader), the guard could fail silently on valid rows.
+**Method**: Read bl/crucible.py lines 383-403 in full. Confirm: (1) The read path that feeds lines into _is_bl2_diag_row() uses splitlines() (stripping newlines). (2) The `len(parts) >= 3` guard at line 385 handles short rows. (3) The regex `r"^(DIAGNOSIS_COMPLETE|HEALTHY|FAILURE|INCONCLUSIVE)$"` is anchored with ^ and $ — confirm this correctly rejects rows where parts[2] has trailing whitespace or content after the verdict token. (4) Check whether any other call site in crucible.py reads results.tsv lines without splitlines().
+**Success criterion**: COMPLIANT if splitlines() strips newlines before the helper runs and all three guards (len check, parts[0] equality, parts[1] prefix, parts[2] regex) are collectively sufficient to handle empty lines, short rows, and whitespace edge cases. NON_COMPLIANT with Fix Specification if any valid BL 2.0 D-prefix row can be silently excluded by an edge condition in the helper.
+
+---
+
+### V20.2: Does the exact `**Verdict**: DIAGNOSIS_COMPLETE` match in fix_spec_completeness miss any legitimate diagnosis findings that use variant verdict formats — such as bold-italic, different spacing, or verdict inside a code block?
+
+**Status**: COMPLIANT
+**Operational Mode**: validate
+**Mode**: code_audit
+**Agent**: design-reviewer
+**Priority**: MEDIUM
+**Motivated by**: F19.2 (FIXED) — fix_spec_completeness guard was tightened to `"**Verdict**: DIAGNOSIS_COMPLETE" not in content` (exact bold-markdown pattern). This correctly excludes FIXED findings. However, the agent prompt template for diagnose-analyst may produce variant verdict formats in edge cases: e.g., `**Verdict:** DIAGNOSIS_COMPLETE` (space before colon vs. colon-space), `***Verdict***: DIAGNOSIS_COMPLETE` (bold-italic), or a verdict rendered inside a markdown code block (backtick-quoted). Any such variant would cause a genuine DIAGNOSIS_COMPLETE finding to be excluded from spec_scores, producing an understated fix_spec_completeness metric.
+**Hypothesis**: The diagnose-analyst agent prompt specifies the exact output format `**Verdict**: DIAGNOSIS_COMPLETE` (double-asterisk bold, colon, space, then verdict). All existing DIAGNOSIS_COMPLETE findings in projects/bl2/findings/ use this exact format consistently. There are no variant formats in the current campaign. The risk is low for the current campaign but becomes relevant when the agent prompt changes or new campaigns start.
+**Method**: Run: `grep -rn "DIAGNOSIS_COMPLETE" projects/bl2/findings/*.md | grep -v "synthesis"` — list all occurrences of "DIAGNOSIS_COMPLETE" across all finding files. For each occurrence, check whether it uses the exact `**Verdict**: DIAGNOSIS_COMPLETE` pattern or a variant (colon-space vs. space-colon, bold-italic, code-block, etc.). Confirm that every finding with a DIAGNOSIS_COMPLETE verdict in the file appears with exactly the expected pattern. Count how many findings have the exact pattern vs. how many findings in results.tsv have verdict DIAGNOSIS_COMPLETE.
+**Success criterion**: COMPLIANT if all DIAGNOSIS_COMPLETE findings use the exact `**Verdict**: DIAGNOSIS_COMPLETE` format with no variants. NON_COMPLIANT with Fix Specification if any legitimate DIAGNOSIS_COMPLETE finding uses a variant format that the exact match would miss — the fix would be to normalize the pattern (e.g., strip surrounding whitespace from the match string, or use a regex).
+
+---
+
+### A20.1: Does the dashboard QuestionQueue component display HEAL_EXHAUSTED questions with a distinct visual status — or does it render them with the default fallback styling, making exhausted questions visually indistinguishable from unknown statuses?
+
+**Status**: NON_COMPLIANT
+**Operational Mode**: audit
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Priority**: HIGH
+**Motivated by**: D18.1 (HEALTHY) — HEAL_EXHAUSTED write-back to questions.md is confirmed correct end-to-end. However, HEAL_EXHAUSTED questions requiring human intervention must be visually prominent in the dashboard so an operator can identify them without scanning raw questions.md. The QuestionQueue component in dashboard/frontend/src/components/QuestionQueue.tsx defines STATUS_COLORS with only four entries: PENDING, DONE, INCONCLUSIVE, IN_PROGRESS. HEAL_EXHAUSTED is not in the map, so questions.status === "HEAL_EXHAUSTED" renders with the default fallback `bg-[#374151] text-[#9ca3af]` (same as PENDING gray). Additionally, the status filter dropdown has options only for PENDING, DONE, INCONCLUSIVE, and IN_PROGRESS — there is no HEAL_EXHAUSTED option, so operators cannot filter to show only exhausted questions. Both omissions reduce the operational visibility of a status that represents a campaign stall requiring human action.
+**Hypothesis**: STATUS_COLORS in QuestionQueue.tsx line 9-14 is missing HEAL_EXHAUSTED. The filter dropdown at lines 152-156 is missing a HEAL_EXHAUSTED option. Both omissions are present in the current source. The dashboard would currently show HEAL_EXHAUSTED questions in plain gray with no filter accessibility.
+**Method**: Read dashboard/frontend/src/components/QuestionQueue.tsx lines 1-30 (STATUS_COLORS map) and lines 148-160 (filter dropdown options). Confirm: (1) HEAL_EXHAUSTED is absent from STATUS_COLORS. (2) No filter option for HEAL_EXHAUSTED exists in the dropdown. (3) Other BL 2.0 terminal statuses — NON_COMPLIANT, FIXED, FIX_FAILED, DIAGNOSIS_COMPLETE, COMPLIANT, PROMISING, BLOCKED — are also checked for coverage in STATUS_COLORS. Document any missing entries.
+**Success criterion**: NON_COMPLIANT with Fix Specification (covering STATUS_COLORS entry + filter dropdown option for HEAL_EXHAUSTED at minimum) if HEAL_EXHAUSTED is absent from both maps. COMPLIANT only if HEAL_EXHAUSTED renders with a visually distinct amber/red color and is selectable via the filter dropdown.
+
+---
+
+### A20.2: Does _score_fix_implementer in crucible.py require a structural question_id prefix guard now that D-prefix FIXED rows are a confirmed historical edge case, or is the latent fragility acceptable given BL 2.0 campaign design constraints?
+
+**Status**: NON_COMPLIANT
+**Operational Mode**: audit
+**Mode**: code_audit
+**Agent**: compliance-auditor
+**Priority**: LOW
+**Motivated by**: D18.2 (HEALTHY) — fix_rows is de facto scoped to fix questions in the current campaign because only F-prefix questions produce FIXED/FIX_FAILED verdicts. However D18.2 documented a confirmed edge case: D-mid.4 had verdict FIXED written to results.tsv (a diagnose question that self-fixed). This edge case is already in the historical results.tsv and is therefore already being counted in fix_rows. The fragility is not purely theoretical — it has already occurred once. The question is whether the project-brief or campaign design rules explicitly prohibit D-prefix questions from producing FIXED verdicts going forward, or whether a structural guard should be added to _score_fix_implementer to exclude non-F-prefix rows from fix_rows.
+**Hypothesis**: The project-brief specifies that FIXED is a fix-implementer verdict (F-prefix questions). A D-prefix question producing FIXED is a campaign design violation, not a supported pattern. Therefore _score_fix_implementer should add a question_id prefix guard (keep only rows where qid starts with "F" or campaign-specific fix-question prefixes) to prevent future D-prefix FIXED rows from silently contaminating the metric. The D-mid.4 edge case is a known historical artifact that should be excluded from fix_rows going forward.
+**Method**: Read bl/crucible.py lines 425-475 (_score_fix_implementer). Confirm the fix_rows filter is verdict-only with no prefix guard. Read project-brief.md — check whether FIXED is listed as an exclusive fix-implementer verdict. Count how many rows in results.tsv have verdict FIXED with a non-F-prefix question ID (D-mid.4 confirmed; check for others). Determine whether adding a prefix guard would change the current fixed_rate score (if D-mid.4 is the only non-F FIXED row, the impact is one row out of ~40).
+**Success criterion**: NON_COMPLIANT with Fix Specification (add F-prefix filter to fix_rows) if the project-brief designates FIXED as an exclusive fix-implementer verdict AND the D-mid.4 historical row is distorting the current fixed_rate. COMPLIANT if the project-brief permits diagnose questions to produce FIXED in dual-mode scenarios — document the exception explicitly in the finding so future campaigns do not treat it as a defect.
+
+---
+
+### D20.1: Does run_all_benchmarks() produce a materially higher diagnose-analyst dc_rate after the F19.1 _is_bl2_diag_row() fix — specifically, does dc_rate rise from ~0.51 to ~0.85 as predicted, confirming the filter is functioning correctly?
+
+**Status**: HEALTHY
+**Operational Mode**: diagnose
+**Mode**: code_audit
+**Agent**: diagnose-analyst
+**Priority**: HIGH
+**Motivated by**: F19.1 (FIXED) — the fix was applied and verified by code inspection (correct logic confirmed), but run_all_benchmarks() was not executed post-fix to produce an actual score delta. The F19.1 finding states "Expected Outcome: dc_rate should rise from ~0.51 to ~0.85+". Without an actual benchmark run, the fix is code-verified but not score-verified. If dc_rate does not rise as expected, it would indicate that the _is_bl2_diag_row() helper is silently excluding valid BL 2.0 D-prefix rows — either because the column format check (parts[0]=="N/A") is wrong for some rows, or because D-prefix questions in this campaign produced HEALTHY/DIAGNOSIS_COMPLETE verdicts in old-format rows that the filter now excludes.
+**Hypothesis**: Running run_all_benchmarks() against projects/bl2/results.tsv after the F19.1 fix will show diagnose-analyst dc_rate rising from ~0.51 to ~0.85+. The BL 2.0 D-prefix questions in Wave 15-19 all used new-format TSV rows (col[0]="N/A"), so the filter includes them. The ~22 excluded BL 1.x rows are old-format (qid in col[0]), so they are correctly excluded. The predicted score increase is structurally sound.
+**Method**: Run: `python -c "from bl.crucible import run_all_benchmarks; import json; r = run_all_benchmarks('projects/bl2'); print(json.dumps(r, indent=2))"` from the Bricklayer2.0 root directory. Record the diagnose-analyst dc_rate value in the output. Compare against the pre-fix baseline of ~0.51. If dc_rate is between 0.80 and 0.95, the fix is functioning as expected. If dc_rate is below 0.70, run a diagnostic count: `grep -c "^N/A.*\tD.*\tDIAGNOSIS_COMPLETE\t" projects/bl2/results.tsv` vs `grep -c "^N/A.*\tD.*\t" projects/bl2/results.tsv` to verify all_diag row count.
+**Success criterion**: HEALTHY if dc_rate is >= 0.80 after the fix (consistent with ~85% BL 2.0 diagnose-analyst success rate). DIAGNOSIS_COMPLETE with root cause if dc_rate remains at or near the pre-fix ~0.51 baseline — this would indicate the filter is not working as intended and requires a follow-up Fix question.
+
+---
+
+## Wave 21 — Dashboard Status Coverage + crucible.py Fix Guard
+
+**Generated from findings**: A20.1, A20.2, D20.1
+**Mode transitions applied**: A20.1 NON_COMPLIANT → F21.1 Fix (add BL 2.0 statuses to STATUS_COLORS and filter dropdown in QuestionQueue.tsx); A20.2 NON_COMPLIANT → F21.2 Fix (add _is_fix_row() F-prefix guard to _score_fix_implementer in crucible.py); D20.1 HEALTHY (fix_spec_completeness=0.29 noted as separate quality gap) → D21.1 Diagnose (identify which DIAGNOSIS_COMPLETE findings are missing Fix Specification fields and why)
+
+---
+
+### F21.1: Implement the A20.1 fix — add HEAL_EXHAUSTED and all BL 2.0 terminal statuses to STATUS_COLORS and the filter dropdown in QuestionQueue.tsx
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: A20.1 (NON_COMPLIANT) — HEAL_EXHAUSTED renders with the same gray fallback as PENDING; BL 2.0 statuses FIXED, FIX_FAILED, DIAGNOSIS_COMPLETE, COMPLIANT, NON_COMPLIANT, BLOCKED are absent from STATUS_COLORS and the filter dropdown entirely
+**Hypothesis**: Adding the entries from the A20.1 Fix Specification will make HEAL_EXHAUSTED visually distinct (amber-red) and filterable, and will give all BL 2.0 terminal statuses correct color treatment in the dashboard
+**Method**: fix-implementer
+**Fix Specification**:
+- Target file: `dashboard/frontend/src/components/QuestionQueue.tsx`
+- Target location: Lines 9-14 (STATUS_COLORS map) and lines 152-156 (filter dropdown `<option>` elements)
+- Concrete edit: Extend STATUS_COLORS with the following entries (colors from A20.1 Fix Specification):
+  - `HEAL_EXHAUSTED: "bg-[#7c2d12] text-[#f97316]"` (amber-red — requires human action)
+  - `FIXED: "bg-[#064e3b] text-[#34d399]"` (green — success, same as DONE)
+  - `FIX_FAILED: "bg-[#4c0519] text-[#f43f5e]"` (rose-red — active failure)
+  - `DIAGNOSIS_COMPLETE: "bg-[#1e3a5f] text-[#38bdf8]"` (blue — ready for fix)
+  - `COMPLIANT: "bg-[#064e3b] text-[#34d399]"` (green — pass)
+  - `NON_COMPLIANT: "bg-[#451a03] text-[#f59e0b]"` (amber — needs fix)
+  - `BLOCKED: "bg-[#4a1d96] text-[#c4b5fd]"` (purple — blocked)
+  Add corresponding `<option>` elements for each status in the filter dropdown, with HEAL_EXHAUSTED placed first after the existing four options (highest-priority operator signal)
+- Verification command: Open dashboard at http://localhost:3100 — confirm a HEAL_EXHAUSTED question renders in amber-red (not gray), and the filter dropdown lists all newly added statuses as selectable options
+**Success criterion**: FIXED if STATUS_COLORS contains all seven new entries and the filter dropdown contains matching `<option>` elements for each, with no TypeScript compile errors
+
+---
+
+### F21.2: Implement the A20.2 fix — add _is_fix_row() F-prefix guard to _score_fix_implementer in crucible.py to exclude non-F-prefix FIXED/FIX_FAILED rows from fix_rows
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Priority**: LOW
+**Motivated by**: A20.2 (NON_COMPLIANT) — fix_rows is currently a verdict-only filter with no question_id prefix check; D-mid.4 (a D-prefix question with FIXED verdict) is already in fix_rows and confirmed by A20.2; project-brief.md designates FIXED/FIX_FAILED as exclusive Fix-mode verdicts; structural guard is warranted to prevent future D-prefix contamination
+**Hypothesis**: Adding _is_fix_row() as a nested helper mirroring _is_bl2_diag_row() will exclude the D-mid.4 row from fix_rows for new-format rows (col[0]="N/A") while preserving old-format BL 1.x rows via the fallback path — net effect is fix_rows shrinks by exactly 1 (the D-mid.4 row)
+**Method**: fix-implementer
+**Fix Specification**:
+- Target file: `bl/crucible.py`
+- Target location: `_score_fix_implementer()` — the `fix_rows` list comprehension at line 447 (verdict-only filter)
+- Concrete edit: Replace the single-line list comprehension with a nested `_is_fix_row(ln)` helper, as specified in A20.2 Fix Specification:
+  ```python
+  def _is_fix_row(ln: str) -> bool:
+      parts = ln.split("\t")
+      if len(parts) >= 3 and parts[0] == "N/A":
+          return parts[1].startswith("F") and bool(
+              re.search(r"^(FIXED|FIX_FAILED)$", parts[2])
+          )
+      return bool(re.search(r"\t(FIXED|FIX_FAILED)\t", ln))
+  fix_rows = [ln for ln in lines if _is_fix_row(ln)]
+  ```
+- Verification command: Run `python -c "from bl.crucible import run_all_benchmarks; import json; r = run_all_benchmarks('projects/bl2'); print(json.dumps(r, indent=2))"` — confirm fix-implementer fix_rows count drops by 1 (from ~40 to ~39 new-format rows) and fixed_rate is unchanged or marginally adjusted
+**Success criterion**: FIXED if fix_rows excludes D-mid.4 for the BL 2.0 new-format path and the fix-implementer benchmark score remains within 0.01 of the pre-fix value (D-mid.4 was FIXED, so fixed_rate numerator and denominator both drop by 1 — net rate impact near zero)
+
+---
+
+### D21.1: Why is fix_spec_completeness=0.29 in run_all_benchmarks() — which DIAGNOSIS_COMPLETE findings are missing the four required Fix Specification fields, and is the gap caused by findings that omit the spec intentionally (e.g., "no fix needed" subtypes) or by diagnose-analyst agents failing to populate the template?
+
+**Status**: DIAGNOSIS_COMPLETE
+**Operational Mode**: diagnose
+**Priority**: MEDIUM
+**Motivated by**: D20.1 (HEALTHY) — run_all_benchmarks() post-fix shows diagnose-analyst score=0.7158 with dc_rate=1.00 but fix_spec_completeness=0.29; at 1.00 dc_rate every DIAGNOSIS_COMPLETE finding should include all four Fix Specification fields (target file, target location, concrete edit, verification command), but only 29% do; this is a separate quality gap from the dc_rate measurement error fixed in F19.1 and represents either findings that predate the Fix Specification template requirement or agent failures to populate it
+**Hypothesis**: The low fix_spec_completeness is primarily caused by early-wave DIAGNOSIS_COMPLETE findings (Waves 1-14) that were written before the BL 2.0 Fix Specification template was standardized; later waves (15-20) should have higher completeness. A secondary cause may be DIAGNOSIS_COMPLETE findings for "no code change needed" conclusions (e.g., design decisions, architecture confirmations) where a Fix Specification is not applicable — these inflate the denominator without being genuine agent failures.
+**Method**: Run `grep -rn "Verdict.*DIAGNOSIS_COMPLETE" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/findings/*.md | grep -v synthesis` to list all DIAGNOSIS_COMPLETE findings. For each, check whether the finding contains all four Fix Specification fields: "Target file", "Target location", "Concrete edit", "Verification command". Group findings by wave number. Calculate per-wave completeness to determine whether the gap is concentrated in early waves or distributed across all waves. For findings missing the spec, check whether the finding conclusion is "no fix needed" (intentional omission) or a genuine fix recommendation without the structured spec (agent failure).
+**Success criterion**: DIAGNOSIS_COMPLETE with Fix Specification if the gap is caused by agent failures on fixable findings — fix is to add a validation step to the diagnose-analyst prompt requiring Fix Specification population for all DIAGNOSIS_COMPLETE findings that recommend a code change. HEALTHY if the gap is entirely explained by early-wave pre-template findings and "no fix needed" subtypes — document as a known historical artifact requiring no code change.
+
+---
+
+## Wave 22 — Fix D21.1 + Validate F21.1 + Validate F21.2
+
+**Generated from findings**: F21.1, F21.2, D21.1
+**Mode transitions applied**: F21.1 FIXED → V22.2 Validate (confirm HEAL_EXHAUSTED amber-red badge renders and is not using gray fallback); F21.2 FIXED → V22.1 Validate (confirm fix_rows count reduced by 1 and fixed_rate is net-zero); D21.1 DIAGNOSIS_COMPLETE → F22.1 Fix (apply frontmatter-position guard to fix_spec_completeness in _score_diagnose_analyst)
+
+---
+
+### F22.1: Apply the D21.1 fix — replace the F19.2 full-text guard in _score_diagnose_analyst() with a frontmatter-position check restricted to the first 6 lines of each finding file
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: D21.1 (DIAGNOSIS_COMPLETE) — the current guard `"**Verdict**: DIAGNOSIS_COMPLETE" not in content` still admits V16.1, V18.2, F19.2, and V20.2 as false positives because those non-diagnosis findings quote the pattern in their body text; the correct guard checks only the frontmatter header (first 6 lines) where genuine diagnosis findings exclusively place their verdict declaration
+**Hypothesis**: Replacing the substring guard with a first-6-lines position check will exclude the four false-positive findings (V16.1, V18.2, F19.2, V20.2) from spec_scores, leaving only the 16 genuine DIAGNOSIS_COMPLETE findings; spec_completeness will drop from ~0.29 to ~0.25 (4 complete / 16 genuine = 0.25), which is the accurate metric
+**Method**: fix-implementer
+**Fix Specification**:
+- Target file: `bl/crucible.py`
+- Target location: `_score_diagnose_analyst()` — fix_spec_completeness guard (line 421 post-F19.2, the `if "**Verdict**: DIAGNOSIS_COMPLETE" not in content: continue` line)
+- Concrete edit:
+  ```python
+  # Before (F19.2 guard — still too broad, admits body-quoted occurrences):
+  if "**Verdict**: DIAGNOSIS_COMPLETE" not in content:
+      continue
+
+  # After (frontmatter-position guard — exact standalone line in first 6 lines only):
+  first_lines = content.split("\n")[:6]
+  if not any(line.strip() == "**Verdict**: DIAGNOSIS_COMPLETE" for line in first_lines):
+      continue
+  ```
+- Verification command: `python -c "from bl.crucible import run_all_benchmarks; import json; r = run_all_benchmarks('projects/bl2'); import pprint; pprint.pprint(r)"` — confirm spec_completeness is approximately 0.25 (4 complete / 16 genuine findings) and that V16.1, V18.2, F19.2, V20.2 are no longer counted in the spec_scores denominator
+**Success criterion**: FIXED if re-running run_all_benchmarks() shows spec_completeness between 0.20 and 0.30 with exactly 16 findings in the denominator (not 20), and the four false-positive findings are absent from the spec_scores scan
+
+---
+
+### V22.1: Post-F21.2 validate — does run_all_benchmarks() show fix-implementer score unchanged after the _is_fix_row() guard excludes D-mid.4 from fix_rows?
+
+**Status**: COMPLIANT
+**Operational Mode**: validate
+**Priority**: LOW
+**Motivated by**: F21.2 (FIXED) — _is_fix_row() was added and D-mid.4 (D-prefix, FIXED verdict, new-format row) is now structurally excluded from fix_rows; the F21.2 finding states the expected impact is "net-zero for fixed_rate" because D-mid.4 was a 1:1 entry in both FIXED count and total, but this has not been confirmed by an actual benchmark run
+**Hypothesis**: Running run_all_benchmarks() against projects/bl2/results.tsv will show fix-implementer fixed_rate within 0.01 of the pre-fix baseline (~0.96); fix_rows count will be exactly 1 lower than the pre-F21.2 count; all old-format BL 1.x fix rows (F2.1-F2.6) will still be present via the fallback path and are unaffected by the guard
+**Method**: Run `python -c "from bl.crucible import run_all_benchmarks; import json; r = run_all_benchmarks('projects/bl2'); print(json.dumps(r, indent=2))"` from the Bricklayer2.0 root directory. Record fix-implementer fixed_rate. Also run `grep -c "^N/A.*\tF.*\tFIXED\t" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/results.tsv` to get the post-fix F-prefix FIXED row count and confirm it is exactly 1 fewer than the total FIXED row count (which previously included D-mid.4)
+**Success criterion**: HEALTHY if fix-implementer fixed_rate is within 0.01 of ~0.96 and the F-prefix FIXED row count is exactly 1 fewer than total FIXED rows (confirming D-mid.4 exclusion). DIAGNOSIS_COMPLETE with root cause if fixed_rate changed by more than 0.01 — this would indicate either multiple D-prefix FIXED rows exist (wider contamination than detected) or the fallback path is incorrectly filtering old-format rows
+
+---
+
+### V22.2: Post-F21.1 validate — does STATUS_COLORS in QuestionQueue.tsx now include HEAL_EXHAUSTED with amber-red styling, and is the badge render fallback correctly bypassed for HEAL_EXHAUSTED questions?
+
+**Status**: COMPLIANT
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Motivated by**: F21.1 (FIXED) — STATUS_COLORS was updated with HEAL_EXHAUSTED and seven other BL 2.0 statuses via code inspection and agent report; the F21.1 finding confirms the edit but no runtime screenshot or compiled output was captured to verify the badge renders correctly rather than falling through to the gray fallback (which would happen if the TypeScript key lookup fails at compile time or if the status string passed at runtime uses a different casing)
+**Hypothesis**: The STATUS_COLORS entry for HEAL_EXHAUSTED uses key `"HEAL_EXHAUSTED"` (uppercase, underscore) which matches the status string produced by the BL 2.0 heal loop; the badge render path does a direct map lookup, so the amber-red classes `bg-[#7c2d12] text-[#f97316]` will be applied rather than the gray fallback; no TypeScript compile errors were introduced because the key is a plain string constant
+**Method**: Read `dashboard/frontend/src/components/QuestionQueue.tsx` and verify: (1) STATUS_COLORS contains `HEAL_EXHAUSTED: "bg-[#7c2d12] text-[#f97316]"` as a top-level key, (2) the badge render expression uses a lookup pattern that will resolve to this entry for status value `"HEAL_EXHAUSTED"`, (3) the filter dropdown `<option>` element for HEAL_EXHAUSTED uses the exact same string as the STATUS_COLORS key. If the dashboard is running, also open http://localhost:3100 and filter by HEAL_EXHAUSTED to confirm the badge renders amber-red
+**Success criterion**: HEALTHY if STATUS_COLORS contains the HEAL_EXHAUSTED entry with correct amber-red Tailwind classes, the badge render path would resolve the key at runtime, and the filter dropdown option string matches exactly. DIAGNOSIS_COMPLETE with Fix Specification if the key is present but the render path uses a different lookup expression that would still fall through to the gray fallback for HEAL_EXHAUSTED questions
+
+---
+
+## Wave 23 — Scorer Accuracy + Field Name Alignment
+
+**Generated from findings**: F22.1 (FIXED), V22.1 (COMPLIANT), V22.2 (COMPLIANT)
+**Mode transitions applied**: Wave 22 all COMPLIANT/FIXED → adjacent gap questions. V22.1 COMPLIANT + synthesizer=0.0 → V23.1 Validate (is synthesis.md absent by design or oversight?); hypothesis-generator has_derived_from=0.00 → D23.1 Diagnose (field name mismatch between scorer expectation and BL 2.0 format); fix_spec_completeness=0.29 pre-template gap → D23.2 Diagnose (characterize the 12 pre-template findings); compliance-auditor fix_spec_rate full-text scan → A23.1 Audit (does it suffer the same frontmatter gap as the now-fixed _score_diagnose_analyst?)
+
+---
+
+### V23.1: Is synthesizer score=0.0 because findings/synthesis.md does not exist in this campaign, or because the synthesizer agent was never run — and is running the synthesizer expected at this stage of the campaign?
+
+**Status**: COMPLIANT
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Motivated by**: V22.1 (COMPLIANT) — run_all_benchmarks() shows synthesizer=0.0 with message "findings/synthesis.md not found"; _score_synthesizer in crucible.py returns 0.0 immediately if `project_dir / "findings" / "synthesis.md"` does not exist; the question is whether this is expected (the synthesizer is designed to be run manually at session end per CLAUDE.md, not automatically mid-campaign) or whether an operator oversight has left the file absent when it should exist
+**Hypothesis**: findings/synthesis.md is absent because the synthesizer agent has not been run for this campaign yet — this is the expected state for an active mid-campaign. CLAUDE.md instructs: "Run the synthesizer at session end before analyze.py." The campaign is mid-wave (Wave 22 findings present, Wave 23 just generated), so the synthesizer has not been triggered. The synthesizer score=0.0 is a structural false negative in the benchmark, not an agent failure.
+**Method**: Check whether `C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/findings/synthesis.md` exists: `ls C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/findings/synthesis.md`. If absent, confirm this is the expected mid-campaign state by reading CLAUDE.md section "Generating the End-of-Session Report" — verify the synthesizer is explicitly described as a session-end operation. If present but empty or malformed, that is a separate issue.
+**Success criterion**: COMPLIANT if synthesis.md is absent and CLAUDE.md confirms the synthesizer is a session-end operation — score=0.0 is the correct mid-campaign benchmark reading and requires no remediation. DIAGNOSIS_COMPLETE with Fix Specification if synthesis.md should exist at this stage (e.g., per-wave synthesis is a BL 2.0 requirement) but the agent has not been run — fix is to add a synthesizer invocation step to the Wave N completion checklist.
+
+---
+
+### D23.1: Why is hypothesis-generator has_derived_from=0.00 — does _score_hypothesis_generator check for "Derived from" while BL 2.0 questions use "Motivated by" as the field name?
+
+**Status**: DIAGNOSIS_COMPLETE
+**Operational Mode**: diagnose
+**Priority**: HIGH
+**Motivated by**: V22.1 (COMPLIANT) — run_all_benchmarks() shows hypothesis-generator score=0.1511 with has_derived_from=0.00 across all scored Wave 2+ questions; the benchmark description context identifies this as a potential field-name mismatch between the scorer and the BL 2.0 question format
+**Hypothesis**: `_score_hypothesis_generator` at line 191 of bl/crucible.py checks `"Derived from" in b` for the has_derived_from metric. BL 1.x questions used `**Derived from**: {finding_id}` as the lineage field. BL 2.0 questions (Waves 15+) use `**Motivated by**: {source finding ID}` instead. Since no Wave 2+ question in this campaign contains the string "Derived from" (they all use "Motivated by"), the has_derived_from rate is 0.00 for every scored question block, and this single metric (weight=0.35) suppresses the overall score from its true value of ~0.42 to 0.1511.
+**Method**: Read `bl/crucible.py` lines 159-205 (_score_hypothesis_generator). Confirm line 191 checks for `"Derived from"`. Then check a sample of Wave 15-22 question blocks in `questions.md` — grep for the lineage field: `grep -n "Derived from\|Motivated by" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/questions.md | head -20`. Count how many questions use each field name. If "Motivated by" is used exclusively from Wave 15 onward, the scorer is measuring a BL 1.x field that does not exist in BL 2.0 question format.
+**Success criterion**: DIAGNOSIS_COMPLETE with Fix Specification if the scorer checks "Derived from" while all BL 2.0 questions use "Motivated by" — fix is to update the has_derived_from check in _score_hypothesis_generator to accept both field names (or "Motivated by" exclusively for BL 2.0 format, with the BL 1.x fallback). HEALTHY if "Derived from" is found in a material fraction of Wave 2+ questions — the 0.00 score would then indicate a genuine quality gap in question lineage documentation.
+
+---
+
+### D23.2: Are the 12 pre-template DIAGNOSIS_COMPLETE findings (Waves 1-14) missing Fix Specification fields because diagnose-analyst was not prompted with the spec template at that stage, or because those findings had non-fixable verdicts such as "no code change needed" or partial diagnosis conclusions?
+
+**Status**: HEALTHY
+**Operational Mode**: diagnose
+**Priority**: LOW
+**Motivated by**: D21.1 (DIAGNOSIS_COMPLETE) — D21.1 found fix_spec_completeness=0.29 and diagnosed that early-wave findings (pre-template) are the primary cause; the D21.1 finding states the gap is "primarily caused by early-wave DIAGNOSIS_COMPLETE findings written before the BL 2.0 Fix Specification template was standardized"; this question validates that characterization by examining the 12 pre-template findings individually
+**Hypothesis**: The 12 pre-template DIAGNOSIS_COMPLETE findings (D4.1, D5.1, D6.1, D7.1, D12.1, D12.2, D13.1, D13.2, D14.1, D15.1, D15.2, D15.3) all predate the Fix Specification template introduction (F16.x wave). Each finding ends with a fix recommendation expressed as prose (not structured fields). The agent was not presented with the four-field template ("Target file", "Target location", "Concrete edit", "Verification command") at generation time. Retroactively adding the structured spec fields to these findings would improve fix_spec_completeness from 0.25 to 1.00, but this is a cosmetic change to historical findings — it does not improve any running code and may not be worth the effort.
+**Method**: For each of the following findings, read the first 30 lines: D4.1.md, D5.1.md, D6.1.md, D7.1.md, D12.1.md, D12.2.md, D13.1.md, D13.2.md, D14.1.md, D15.1.md, D15.2.md, D15.3.md (in `C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/findings/`). For each: (1) confirm the verdict is DIAGNOSIS_COMPLETE, (2) check whether the finding contains any of: "Target file", "Target location", "Concrete edit", "Verification command", "Fix Specification", (3) classify the fix recommendation as: prose-only, partial-spec, no-fix-needed, or already-fixed-by-later-wave. Report the breakdown across all 12 findings.
+**Success criterion**: DIAGNOSIS_COMPLETE with Fix Specification (retroactive spec addition is warranted) if the majority of the 12 findings have clear fixable code changes documented in prose with no structural barrier to adding the four template fields. HEALTHY (no action needed) if the majority are either already addressed by later Fix questions, are "no code change needed" conclusions, or have partial diagnoses that would require a new investigation to complete the spec.
+
+---
+
+### A23.1: Does _score_compliance_auditor in crucible.py use a full-text scan for "NON_COMPLIANT" when building the fix_spec_scores denominator — the same structural gap that caused false positives in _score_diagnose_analyst before F22.1?
+
+**Status**: NON_COMPLIANT
+**Operational Mode**: audit
+**Priority**: MEDIUM
+**Motivated by**: F22.1 (FIXED) — F22.1 replaced the full-text DIAGNOSIS_COMPLETE guard in _score_diagnose_analyst with a frontmatter-position check (first 6 lines only) to exclude findings that quote the verdict in their body text; the compliance-auditor scorer uses an analogous pattern at bl/crucible.py line 527: `if "NON_COMPLIANT" not in content: continue` — this full-text scan would include any finding that mentions "NON_COMPLIANT" anywhere in its text (e.g., in the question motivation field, a hypothesis describing expected outcomes, or a code block), inflating the fix_spec_scores denominator the same way
+**Hypothesis**: Line 527 of bl/crucible.py scans the full file content for "NON_COMPLIANT" without restricting to the frontmatter verdict line. Finding files for questions that describe NON_COMPLIANT as an expected outcome (e.g., V-prefix or D-prefix findings whose success criterion says "NON_COMPLIANT if...") will be included in fix_spec_scores even though they are not genuine compliance-auditor findings. This inflates the denominator, suppressing fix_spec_rate below its true value. The same structural fix applied in F22.1 (restrict to first 6 lines) should be applied here.
+**Method**: Read `bl/crucible.py` lines 519-533 (_score_compliance_auditor fix_spec_scores loop). Confirm line 527 uses a full-text `"NON_COMPLIANT" not in content` scan with no frontmatter position restriction. Then run: `grep -rln "NON_COMPLIANT" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/findings/*.md | grep -v synthesis` to list all finding files containing the string. Subtract the count of A-prefix findings (genuine audit findings) from the total — the remainder are non-audit findings that are being incorrectly included in the denominator. If the remainder is greater than zero, the false-positive inflation is confirmed.
+**Success criterion**: DIAGNOSIS_COMPLETE with Fix Specification (apply frontmatter-position guard parallel to F22.1) if any non-A-prefix finding files contain "NON_COMPLIANT" and would be incorrectly included in fix_spec_scores. HEALTHY if the string "NON_COMPLIANT" appears exclusively in A-prefix finding files — in that case the full-text scan is incidentally correct for this campaign even without a structural guard.
+
+---
+
+## Wave 24 — Fix D23.1 + Fix A23.1 + Validate + Audit Adjacent Scorers
+
+**Generated from findings**: D23.1 (DIAGNOSIS_COMPLETE), A23.1 (NON_COMPLIANT), V23.1 (COMPLIANT), D23.2 (HEALTHY)
+**Mode transitions applied**: D23.1 DIAGNOSIS_COMPLETE → F24.1 Fix; A23.1 NON_COMPLIANT → F24.2 Fix; V23.1 COMPLIANT → V24.1 Validate (confirm F24.1 effect on has_derived_from score); D23.2 HEALTHY → no follow-up; structural pattern of full-text verdict scans in crucible.py → A24.1 Audit (check remaining scorers for same gap)
+
+---
+
+### F24.1: Apply the D23.1 fix — update _score_hypothesis_generator check_block to accept both "Derived from" (BL 1.x) and "Motivated by" (BL 2.0) as valid lineage field names
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: D23.1 (DIAGNOSIS_COMPLETE) — `check_block()` in `_score_hypothesis_generator` at `bl/crucible.py` line 191 checks `"Derived from" in b` exclusively; all BL 2.0 Wave 2+ questions use `**Motivated by**` as the lineage field; has_derived_from rate is 0.00 across every scored BL 2.0 question block, and the 0.35 weight contributes nothing to the overall score, suppressing it from ~0.42 to ~0.15
+**Hypothesis**: Changing the check to `("Derived from" in b or "Motivated by" in b)` will cause has_derived_from to return 1.00 for every BL 2.0 Wave 2+ question that contains the `**Motivated by**` field, raising the overall hypothesis-generator score from ~0.15 to ~0.45+
+**Method**: Edit `bl/crucible.py`: in `_score_hypothesis_generator()` → `check_block()`, change line 191 from `"has_derived_from": 1.0 if "Derived from" in b else 0.0,` to `"has_derived_from": 1.0 if ("Derived from" in b or "Motivated by" in b) else 0.0,`. Then re-run benchmarks for the bl2 project and confirm has_derived_from rate and overall hypothesis-generator score.
+**Success criterion**: FIXED if `has_derived_from` rate rises from 0.00 to near 1.00 for BL 2.0 campaigns and overall hypothesis-generator score rises above 0.40. FIX_FAILED if the rate remains 0.00 or the score does not improve.
+
+---
+
+### F24.2: Apply the A23.1 fix — replace bare "NON_COMPLIANT" full-text scan in _score_compliance_auditor with a frontmatter-position guard (first 6 lines only), mirroring the F22.1 fix pattern
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Motivated by**: A23.1 (NON_COMPLIANT) — `_score_compliance_auditor()` at `bl/crucible.py` line 527 uses `if "NON_COMPLIANT" not in content: continue`, a bare substring match with no restriction to the verdict frontmatter; this admits any finding that mentions "NON_COMPLIANT" in body text (e.g., Fix findings that describe what they fixed, Diagnose findings whose success criteria mention the verdict) into the fix_spec_scores denominator, inflating it and suppressing fix_spec_rate; the identical structural gap in `_score_diagnose_analyst` was fixed in F22.1 using a first-6-lines frontmatter check
+**Hypothesis**: Replacing the full-text scan with a frontmatter-position check (`first_lines = content.split("\n")[:6]; if not any(line.strip() == "**Verdict**: NON_COMPLIANT" for line in first_lines): continue`) will exclude non-audit findings that mention "NON_COMPLIANT" in body text, giving fix_spec_scores a denominator of only genuine compliance-auditor findings
+**Method**: Edit `bl/crucible.py` `_score_compliance_auditor()` NON_COMPLIANT guard (line 527): replace `if "NON_COMPLIANT" not in content: continue` with a first-6-lines check that matches `**Verdict**: NON_COMPLIANT` exactly. Re-run benchmarks; confirm F21.1.md (a FIXED finding that mentions NON_COMPLIANT in its body) is excluded from fix_spec_scores.
+**Success criterion**: FIXED if F21.1.md and any other non-A-prefix finding files mentioning "NON_COMPLIANT" are excluded from fix_spec_scores after the change, and only genuine `**Verdict**: NON_COMPLIANT` findings remain in the denominator. FIX_FAILED if F21.1.md is still included or if genuine NON_COMPLIANT findings are erroneously excluded.
+
+---
+
+### V24.1: Confirm F24.1 took effect — verify has_derived_from rate and overall hypothesis-generator benchmark score improved from the pre-fix baseline of 0.1511
+
+**Status**: COMPLIANT
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Motivated by**: D23.1 (DIAGNOSIS_COMPLETE) — D23.1 established the pre-fix baseline: has_derived_from=0.00 across all BL 2.0 Wave 2+ questions, overall hypothesis-generator score=0.1511; F24.1 applies the fix; this question validates the fix had the predicted effect
+**Hypothesis**: After F24.1 is applied and benchmarks are re-run, `has_derived_from` will be 1.00 for every question block containing `**Motivated by**` (all Wave 2+ questions in bl2), and the overall hypothesis-generator score will rise to approximately 0.45–0.50 (the 0.35 weight now contributing in full, offset by any blocks still missing other fields)
+**Method**: Run `python -c "from bl.crucible import run_all_benchmarks; import json; r = run_all_benchmarks('C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2'); print(json.dumps(r, indent=2))"` (or equivalent benchmark invocation). Read the hypothesis-generator section: check `has_derived_from` rate and overall score. Compare to the D23.1 baseline (score=0.1511, has_derived_from=0.00).
+**Success criterion**: COMPLIANT if hypothesis-generator score is measurably above 0.40 and has_derived_from rate is above 0.90. DIAGNOSIS_COMPLETE with Fix Specification if the score did not improve (F24.1 may not have been applied, or the field name used in questions.md differs from what was assumed).
+
+---
+
+### A24.1: Do other crucible.py scorers (_score_monitor_agent, _score_predict_agent, _score_frontier_agent, _score_evolve_agent) use bare full-text verdict substring scans analogous to the pre-fix guards in _score_diagnose_analyst and _score_compliance_auditor?
+
+**Status**: NON_COMPLIANT
+**Operational Mode**: audit
+**Priority**: LOW
+**Motivated by**: A23.1 (NON_COMPLIANT) — A23.1 identified `_score_compliance_auditor` as having the same structural gap (full-text verdict scan) as `_score_diagnose_analyst` before F22.1; F22.1 and F24.2 fix two scorers; the pattern may be present in other scorer functions that filter findings by verdict string before computing fix_spec_rate or equivalent metrics; an audit of all remaining scorer functions will determine whether the fix needs to propagate further
+**Hypothesis**: The pattern `if "{VERDICT_STRING}" not in content: continue` (or equivalent bare substring check) exists in at least one other scorer beyond `_score_diagnose_analyst` and `_score_compliance_auditor`. Scorers for Monitor (CALIBRATED), Predict (PROBABLE/IMMINENT), Frontier (PROMISING/BLOCKED), and Evolve (IMPROVEMENT) that compute fix_spec or quality rates over finding files are the most likely candidates.
+**Method**: Read `bl/crucible.py` in full for all `_score_*` functions beyond `_score_diagnose_analyst` and `_score_compliance_auditor`. For each scorer, identify any line that checks for a verdict string in `content` without restricting to the first N lines. List: scorer name, line number, verdict string checked, whether a frontmatter-position guard is present. Report all bare full-text scans as NON_COMPLIANT; report frontmatter-guarded checks as COMPLIANT.
+**Success criterion**: COMPLIANT if all remaining scorers either use frontmatter-position guards or do not perform verdict-based filtering at all. NON_COMPLIANT with Fix Specification (one fix per affected scorer) if any bare full-text verdict scan is found in a scorer not yet covered by F22.1 or F24.2.
+
+---
+
+## Wave 25 — Fix A24.1 Scorers + Validate + Diagnose Remaining Field Gaps
+
+**Generated from findings**: F24.1 (FIXED), F24.2 (FIXED), V24.1 (COMPLIANT), A24.1 (NON_COMPLIANT)
+**Mode transitions applied**: A24.1 NON_COMPLIANT → F25.1 Fix (_score_design_reviewer bare regex → frontmatter-position guard); A24.1 NON_COMPLIANT → F25.2 Fix (_score_fix_implementer full-text prefix scan → frontmatter-position guard); F25.1 + F25.2 → V25.1 Validate (confirm both fixes took effect, no regression); V24.1 COMPLIANT (has_test=0.00, has_hypothesis=0.00 pre-existing BL 1.x/2.0 mismatches documented) → D25.1 Diagnose (identify exact field name mismatches and compute expected score impact if fixed)
+
+---
+
+### F25.1: Apply the A24.1 Fix 1 — replace bare regex in _score_design_reviewer with a frontmatter-position guard that checks for COMPLIANT, NON_COMPLIANT, or PARTIAL in the first 6 lines
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Motivated by**: A24.1 (NON_COMPLIANT) — `_score_design_reviewer()` at `bl/crucible.py` line 582 uses `re.search(r"\b(COMPLIANT|NON_COMPLIANT|VALIDATE|VALIDATE)\b", content)` — a bare full-text regex that matches any occurrence of those strings anywhere in the file, including question hypothesis text, success criteria, evidence blocks, or code snippets; A24.1 Fix Specification 1 provides the exact replacement
+**Hypothesis**: Replacing the bare regex with a first-6-lines frontmatter check will restrict the scorer to genuine design-reviewer findings whose frontmatter verdict is one of the three design-reviewer verdicts (COMPLIANT, NON_COMPLIANT, PARTIAL) and exclude findings of other modes that mention those strings in body text
+**Method**: fix-implementer agent. Edit `bl/crucible.py` `_score_design_reviewer()`: replace line 582 bare regex guard with the frontmatter-position guard from A24.1 Fix Specification 1 — `first_lines_dr = content.split("\n")[:6]; if not any(line.strip() in ("**Verdict**: COMPLIANT", "**Verdict**: NON_COMPLIANT", "**Verdict**: PARTIAL") for line in first_lines_dr): continue`. Re-run `run_all_benchmarks()` for the bl2 project and confirm design-reviewer score is stable or improved.
+**Success criterion**: FIXED if the bare regex on line 582 is replaced with the first-6-lines frontmatter check and benchmarks complete without error, with design-reviewer score not regressing below its pre-fix value. FIX_FAILED if the fix causes a Python error, excludes genuine COMPLIANT/NON_COMPLIANT DR findings from scoring, or the bare regex remains in place.
+
+---
+
+### F25.2: Apply the A24.1 Fix 2 — replace full-text "**Verdict**: FIXED" prefix scan in _score_fix_implementer with a frontmatter-position guard (first 6 lines only)
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Priority**: LOW
+**Motivated by**: A24.1 (NON_COMPLIANT) — `_score_fix_implementer()` at `bl/crucible.py` line 478 uses a two-condition guard: `"**Verdict**: FIXED" not in content and "\nVerdict: FIXED" not in content`; the `**Verdict**:` prefix is better than bare substring but is not positionally restricted — a Fix finding that quotes `"**Verdict**: FIXED"` in an evidence block would pass; the `\nVerdict: FIXED` fallback is weaker still (no bold prefix, admits any body line); A24.1 Fix Specification 2 provides the exact replacement
+**Hypothesis**: Replacing both conditions with a single first-6-lines check will restrict the scorer to findings whose frontmatter verdict is exactly `FIXED`, eliminating false positives from quoted verdicts in evidence sections; the `\nVerdict: FIXED` fallback is intentionally dropped as it admits body-text occurrences without the bold prefix; all genuine F-prefix campaign findings have `**Verdict**: FIXED` in frontmatter position and will remain counted
+**Method**: fix-implementer agent. Edit `bl/crucible.py` `_score_fix_implementer()`: replace line 478 two-condition guard with the frontmatter-position guard from A24.1 Fix Specification 2 — `first_lines_fi = content.split("\n")[:6]; if not any(line.strip() == "**Verdict**: FIXED" for line in first_lines_fi): continue`. Re-run `run_all_benchmarks()` for the bl2 project. Confirm fix-implementer score is stable or improved and that all genuine FIXED findings (F-prefix, frontmatter `**Verdict**: FIXED`) are still counted.
+**Success criterion**: FIXED if the full-text guards on line 478 are replaced with the first-6-lines check and benchmarks complete without error, with fix-implementer score not regressing and no genuine FIXED findings dropped from scoring. FIX_FAILED if the fix causes a Python error, the score regresses due to genuine FIXED findings being excluded, or if either original guard remains in place.
+
+---
+
+### V25.1: Verify F25.1 and F25.2 both took effect — confirm design-reviewer and fix-implementer benchmark scores are stable or improved with no regression after the frontmatter-position guard changes
+
+**Status**: COMPLIANT
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Motivated by**: A24.1 (NON_COMPLIANT) — A24.1 identified two scorers with partial or bare verdict guards; F25.1 and F25.2 apply the fixes; this question validates both fixes are in effect and that no genuine findings were accidentally excluded by the stricter position-restricted checks
+**Hypothesis**: After F25.1 and F25.2 are applied: (1) `_score_design_reviewer` will admit only findings whose frontmatter contains one of the three DR verdicts — for bl2 which has no DR-prefix findings the score will be 0.0 by correct arithmetic, not by a guard error; (2) `_score_fix_implementer` will admit only findings whose frontmatter contains `**Verdict**: FIXED` exactly — all current F-prefix findings in this campaign have this in frontmatter position, so the score should not decrease relative to the V24.1 baseline
+**Method**: Run `run_all_benchmarks()` for the bl2 project after F25.1 and F25.2 are applied. Record design-reviewer and fix-implementer score values. Confirm: (1) no Python errors or scorer crashes, (2) fix-implementer scored finding count matches the number of F-prefix findings in the campaign whose frontmatter contains `**Verdict**: FIXED`, (3) design-reviewer score is 0.0 only because no genuine DR-prefix findings exist in bl2, not because the guard is rejecting valid files.
+**Success criterion**: COMPLIANT if fix-implementer score is unchanged or improved relative to the V24.1 benchmark run and design-reviewer score is 0.0 only because no genuine DR-prefix findings exist in bl2. DIAGNOSIS_COMPLETE with Fix Specification if fix-implementer score regressed (genuine FIXED findings excluded by the stricter guard) or if the benchmarks raise an exception.
+
+---
+
+### D25.1: Why are has_test=0.00 and has_hypothesis=0.00 in the hypothesis-generator benchmark — do _score_hypothesis_generator check_block fields use BL 1.x field names that do not match the BL 2.0 question format?
+
+**Status**: DIAGNOSIS_COMPLETE
+**Operational Mode**: diagnose
+**Priority**: LOW
+**Motivated by**: V24.1 (COMPLIANT) — V24.1 confirmed the post-F24.1 benchmark shows `has_test=0.00` and `has_hypothesis=0.00` across all 88 scored Wave 2+ questions; V24.1 notes these are pre-existing BL 1.x vs BL 2.0 field name mismatches — `has_test` likely checks for bare `"Test:"` while BL 2.0 questions use `"**Method**:"`, and `has_hypothesis` likely checks for bare `"Hypothesis:"` while BL 2.0 questions use `"**Hypothesis**:"` (bold); combined weight of these two checks is 0.20 + 0.10 = 0.30, meaning the hypothesis-generator score is capped at approximately 0.37 even after F24.1 fixed has_derived_from
+**Hypothesis**: `check_block()` in `_score_hypothesis_generator` uses bare BL 1.x string checks: `has_test` checks for `"Test:"` (unbolded) and `has_hypothesis` checks for `"Hypothesis:"` (unbolded). BL 2.0 questions use bold markdown field headers: `"**Hypothesis**:"` and `"**Method**:"`. Neither BL 2.0 field name contains the bare string the scorer checks, so both rates are 0.00 for every BL 2.0 question. Updating each check to accept both formats would restore the 0.30 combined weight contribution and raise the overall score from approximately 0.37 to approximately 0.67.
+**Method**: diagnose-analyst agent. Read `bl/crucible.py` `_score_hypothesis_generator()` → `check_block()` (lines approximately 185–210). Record the exact string each `has_*` check tests against. Then grep a sample of Wave 15–24 question blocks in `questions.md` for actual field headers: `grep -n "Hypothesis\|Method\|Test\|Success criterion\|Motivated by" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/questions.md | head -40`. For each of `has_test` and `has_hypothesis`, confirm whether the scorer expected string is present in any BL 2.0 question block or systematically misses all of them. Record the exact string mismatch.
+**Success criterion**: DIAGNOSIS_COMPLETE with Fix Specification if both `has_test` and `has_hypothesis` check for bare BL 1.x strings not present in any BL 2.0 question block — fix is to update each check to accept both the BL 1.x bare string and the BL 2.0 bold-markdown format. HEALTHY if the checks already accept the bold format and the 0.00 rate reflects a genuine authoring quality gap in BL 2.0 questions.
+
+---
+
+## Wave 26 — Fix D25.1 Field Mismatches + Validate + Audit _score_question_designer
+
+**Generated from findings**: D25.1 (DIAGNOSIS_COMPLETE), V25.1 (COMPLIANT), F25.1 (FIXED), F25.2 (FIXED)
+**Mode transitions applied**: D25.1 DIAGNOSIS_COMPLETE → F26.1 Fix (update has_test and has_hypothesis in check_block to accept BL 2.0 bold field names); F26.1 Fix → V26.1 Validate (confirm score rise toward ~0.55–0.67); V25.1 COMPLIANT (adjacent gap: _score_question_designer uses same bare Hypothesis: check on Wave 1 blocks) → A26.1 Audit (_score_question_designer field name mismatches); D25.1 secondary gap noted (has_verdict_threshold weight=0.25, rate=0.20) → A26.2 Audit (is has_verdict_threshold also BL 1.x-specific, should it accept "**Success criterion**:" and "**Verdict threshold**:")
+
+---
+
+### F26.1: Apply the D25.1 fix — update has_test and has_hypothesis in check_block() to accept BL 2.0 bold field names "**Method**:" and "**Hypothesis**:"
+
+**Status**: FIXED
+**Operational Mode**: fix
+**Priority**: MEDIUM
+**Motivated by**: D25.1 (DIAGNOSIS_COMPLETE) — `check_block()` in `_score_hypothesis_generator` at `bl/crucible.py` lines 194 and 198 use bare BL 1.x strings: `has_test` checks `re.search(r"Test:|pytest|Simulation path", b)` and `has_hypothesis` checks `"Hypothesis:" in b`; all BL 2.0 Wave 2+ questions use `**Method**:` and `**Hypothesis**:` (bold markdown); neither BL 2.0 field name contains the bare substring, so both rates are 0.00 across all 88 scored Wave 2+ question blocks; combined weight is 0.30, suppressing the overall score from its potential ~0.67 to the observed ~0.37
+**Hypothesis**: Updating `has_test` to `re.search(r"Test:|pytest|Simulation path|\*\*Method\*\*:", b)` and `has_hypothesis` to `("Hypothesis:" in b or "**Hypothesis**:" in b)` will cause both checks to return 1.00 for every BL 2.0 question block containing the respective bold field, raising has_test from ~0.01 to ~0.67 and has_hypothesis from ~0.01 to ~1.00, pushing the overall score from ~0.37 to approximately 0.55–0.67.
+**Method**: fix-implementer agent. Edit `bl/crucible.py` `_score_hypothesis_generator()` inside `check_block()`: (1) change line 194 from `re.search(r"Test:|pytest|Simulation path", b)` to `re.search(r"Test:|pytest|Simulation path|\*\*Method\*\*:", b)`; (2) change line 198 from `"Hypothesis:" in b` to `("Hypothesis:" in b or "**Hypothesis**:" in b)`. Re-run `run_all_benchmarks()` for the bl2 project. Record has_test rate, has_hypothesis rate, and overall hypothesis-generator score.
+**Success criterion**: FIXED if has_test rises from ~0.01 to above 0.50, has_hypothesis rises from ~0.01 to above 0.90, and the overall hypothesis-generator score rises above 0.50. FIX_FAILED if either rate does not improve, if the edit introduces a Python syntax error, or if the overall score does not rise above 0.45.
+
+---
+
+### V26.1: Verify F26.1 took effect — confirm has_test, has_hypothesis, and overall hypothesis-generator score improved from the D25.1 baseline of ~0.3733
+
+**Status**: DIAGNOSIS_COMPLETE
+**Operational Mode**: validate
+**Priority**: MEDIUM
+**Motivated by**: D25.1 (DIAGNOSIS_COMPLETE) — D25.1 established the post-F24.1 benchmark baseline: has_test=0.01, has_hypothesis=0.01, overall hypothesis-generator score=0.3733; F26.1 applies the fix; this question validates the fix had the predicted effect and that no other scorer regressed
+**Hypothesis**: After F26.1 is applied, has_test will be above 0.50, has_hypothesis will be above 0.90, and the overall hypothesis-generator score will rise from 0.3733 to approximately 0.55–0.67. All other scorer scores will be stable (no regression).
+**Method**: Run `run_all_benchmarks()` for the bl2 project after F26.1 is applied. Read the hypothesis-generator section: record has_test rate, has_hypothesis rate, and overall score. Compare against the D25.1 baseline (has_test=0.01, has_hypothesis=0.01, score=0.3733). Also record all other scorer scores to confirm no regression.
+**Success criterion**: COMPLIANT if hypothesis-generator score is above 0.50 and has_test is above 0.50 and has_hypothesis is above 0.90 and no other scorer score decreased. DIAGNOSIS_COMPLETE with Fix Specification if the score did not rise above 0.45 despite F26.1 being applied (indicates a secondary mismatch not covered by D25.1).
+
+---
+
+### A26.1: Does _score_question_designer use the same bare "Hypothesis:" check as _score_hypothesis_generator, and does has_thresholds accept only BL 1.x "FAILURE:"/"HEALTHY:" labels — failing BL 2.0 Wave 1 questions that use "**Verdict threshold**:"?
+
+**Status**: NON_COMPLIANT
+**Operational Mode**: audit
+**Priority**: LOW
+**Motivated by**: V25.1 (COMPLIANT) — the adjacent gap is _score_question_designer, which scores Wave 1 blocks and contains two checks that mirror the BL 1.x field name mismatch being fixed in F26.1: (1) line 261 `"Hypothesis:" in b` — the identical bare check corrected in _score_hypothesis_generator — and (2) lines 257–259 `"FAILURE:" in b and "HEALTHY:" in b` for has_thresholds, which likely fails all Wave 1 questions using BL 2.0 `**Verdict threshold**:` format (114 occurrences in questions.md) rather than BL 1.x FAILURE:/HEALTHY: labels; combined weight of these two checks is 0.20 + 0.30 = 0.50
+**Hypothesis**: `_score_question_designer()` at `bl/crucible.py` lines 257–261 contains two BL 1.x-only checks: (1) `has_hypothesis` uses `"Hypothesis:" in b` (bare), failing all Wave 1 BL 2.0 blocks that use `**Hypothesis**:` (bold); (2) `has_thresholds` uses `"FAILURE:" in b and "HEALTHY:" in b`, which passes BL 1.x questions with explicit FAILURE/HEALTHY labels but fails BL 2.0 Wave 1 questions that use `**Verdict threshold**:` with narrative descriptions. Up to 0.50 of the question-designer score weight is suppressed for this campaign.
+**Method**: Read `bl/crucible.py` lines 256–275 (_score_question_designer per-question checks). For each check record the exact string or regex. Run the current question-designer benchmark score for bl2 to record the pre-fix baseline. Then run: `grep -c "**Hypothesis**:\|Hypothesis:" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/questions.md` and `grep -c "**Verdict threshold**:\|FAILURE:\|HEALTHY:" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/questions.md` on the Wave 1 blocks specifically. Confirm whether has_hypothesis and has_thresholds rates are suppressed below 0.50 for BL 2.0 Wave 1 questions.
+**Success criterion**: NON_COMPLIANT with Fix Specification (parallel to F26.1 pattern — update has_hypothesis to accept bold format; update has_thresholds to also accept "**Verdict threshold**:" as a valid threshold indicator) if either check is a bare BL 1.x string and the corresponding rate is suppressed below 0.50 for bl2 Wave 1 questions. COMPLIANT if both checks already accept BL 2.0 bold format equivalents or if the Wave 1 bl2 questions genuinely contain the BL 1.x labels.
+
+---
+
+### A26.2: Does has_verdict_threshold in _score_hypothesis_generator need to also accept "**Success criterion**:" and "**Verdict threshold**:" as BL 2.0 structural equivalents — and what score gain would result?
+
+**Status**: NON_COMPLIANT
+**Operational Mode**: audit
+**Priority**: LOW
+**Motivated by**: D25.1 (DIAGNOSIS_COMPLETE) — D25.1 notes has_verdict_threshold (weight=0.25, current rate=0.20) as a secondary gap: the check `"FAILURE:" in b and "HEALTHY:" in b` fires on ~20% of BL 2.0 questions that happen to use FAILURE:/HEALTHY: labels, but the remaining ~80% use `**Success criterion**:` (34 occurrences) or `**Verdict threshold**:` (114 occurrences) with narrative thresholds; this is the largest remaining scored weight gap in _score_hypothesis_generator after F26.1 fixes has_test and has_hypothesis; fixing it could raise the score from the expected post-F26.1 ~0.55–0.67 toward ~0.75+
+**Hypothesis**: The `has_verdict_threshold` check in `check_block()` lines 195–197 passes only when a question block contains both "FAILURE:" and "HEALTHY:" as explicit labels. BL 2.0 Wave 2+ questions use two formats: (A) `**Verdict threshold**:` with FAILURE:/HEALTHY: sub-labels (~20% of Wave 2+ questions, rate ~0.20) and (B) `**Success criterion**:` with a narrative description of pass/fail conditions (~80% of questions, rate 0.00 for this check). Accepting `"**Verdict threshold**:" in b or "**Success criterion**:" in b` as an alternative would raise has_verdict_threshold from ~0.20 toward ~1.00, adding approximately 0.20 to the overall score.
+**Method**: Read `bl/crucible.py` lines 195–197 (has_verdict_threshold check). Run: `grep -c "\*\*Verdict threshold\*\*:" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/questions.md` and `grep -c "\*\*Success criterion\*\*:" C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/questions.md` to confirm counts for Wave 2+ blocks. Record the current has_verdict_threshold rate from the most recent benchmark run (expected ~0.20). Determine whether the check should be broadened to accept the two BL 2.0 structural field names as evidence that a verdict threshold was provided, and compute the expected score delta if both alternatives are added.
+**Success criterion**: NON_COMPLIANT with Fix Specification if `**Success criterion**:` and `**Verdict threshold**:` appear in the majority of Wave 2+ BL 2.0 question blocks and the current has_verdict_threshold rate is below 0.50; the fix specification should update the check to accept both BL 2.0 structural field names in addition to the existing FAILURE:/HEALTHY: dual-label check. COMPLIANT if has_verdict_threshold rate is already above 0.70, indicating the check is capturing the intended signal for this campaign.

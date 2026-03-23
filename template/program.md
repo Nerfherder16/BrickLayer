@@ -99,7 +99,7 @@ This keeps high-severity threads alive while they are hot.
 
 ### Every 5 completed questions
 
-Invoke `hypothesis-generator` with the 3 most recent findings as context. It will scan
+Invoke `hypothesis-generator-bl2` with the 3 most recent findings as context. It will scan
 for gaps and add new questions to `questions.md` as a mid-loop wave. This catches
 patterns that only become visible after several findings accumulate — things no initial
 question bank anticipates.
@@ -111,10 +111,10 @@ interactions, or cross-domain risks they imply that are not covered by remaining
 questions. Add up to 5 new PENDING questions to questions.md. Label them Wave-mid.
 ```
 
-Do not invoke hypothesis-generator on every question — only every 5. The overhead
+Do not invoke hypothesis-generator-bl2 on every question — only every 5. The overhead
 of running it too frequently outweighs the benefit.
 
-**Immediately after** hypothesis-generator completes, spawn forge-check and (if N is a
+**Immediately after** hypothesis-generator-bl2 completes, spawn forge-check and (if N is a
 multiple of 10) agent-auditor as **background agents** — do NOT wait for them:
 
 ```
@@ -190,21 +190,23 @@ grep "^verdict:\|^primary_metric:\|^failure_reason:" run.log
 
 Tab-separated, NOT comma-separated. Header:
 ```
-commit	question_id	verdict	primary_metric	key_finding	scenario_name
+question_id	verdict	agent_name	timestamp	summary
 ```
 
-Use `N/A` for primary_metric on research questions (no sim run).
+Append one row per completed question in this exact column order.
+Use `N/A` for agent_name on manual runs if no agent was invoked.
 
 ---
 
 ## Finding Format
 
-Write each finding to `findings/<question_id>.md`:
+Write each finding to `findings/<question_id>.md` (flat directory, no wave subdirectories):
 
 ```markdown
 # Finding: <question_id> — <short title>
 
 **Question**: [copy from questions.md]
+**Agent**: [name of specialist agent that produced this finding, e.g. quantitative-analyst]
 **Verdict**: FAILURE | WARNING | HEALTHY | INCONCLUSIVE
 **Severity**: Critical | High | Medium | Low | Info
 
@@ -248,7 +250,7 @@ consistent tag. Use these tags to retrieve an agent's prior work without re-runn
 | `competitive-analyst` | `agent:competitive-analyst` | Market analogues, fee/participation benchmarks |
 | `benchmark-engineer` | `agent:benchmark-engineer` | Baselines, regression reports |
 | `synthesizer` | `agent:synthesizer` | Dependency map, minimum viable change set |
-| `hypothesis-generator` | `agent:hypothesis-generator` | Wave N summaries |
+| `hypothesis-generator-bl2` | `agent:hypothesis-generator-bl2` | Wave N summaries |
 
 **All agents use `domain="{project}-autoresearch"`** — replace `{project}` with the actual
 project name (e.g., `adbp-autoresearch`, `recall-autoresearch`).
@@ -262,6 +264,36 @@ To retrieve everything stored this session across all agents:
 ```
 recall_search(query="[topic]", domain="{project}-autoresearch", tags=["autoresearch"])
 ```
+
+---
+
+## Wave-End Shutdown (question bank exhausted)
+
+When all questions are DONE or INCONCLUSIVE and no new ones remain, run the final audit
+**before stopping** — do NOT skip these even if the loop ends naturally:
+
+```
+Invoke agent-auditor (foreground):
+  "Act as agent-auditor per .claude/agents/agent-auditor.md.
+   Inputs: agents_dir=.claude/agents/, findings_dir=findings/, results_tsv=results.tsv.
+   Write the final audit report to .claude/agents/AUDIT_REPORT.md."
+
+Invoke forge-check (foreground):
+  "Act as forge-check per .claude/agents/forge-check.md.
+   Inputs: agents_dir=.claude/agents/, findings_dir=findings/, questions_md=questions.md."
+
+Invoke skill-forge (foreground, if .claude/agents/skill-forge.md exists):
+  "Act as skill-forge per .claude/agents/skill-forge.md.
+   Distill reusable patterns from this campaign's findings into ~/.claude/skills/."
+
+Invoke synthesizer-bl2 (foreground):
+  "Act as synthesizer-bl2 per .claude/agents/synthesizer-bl2.md.
+   Read all findings in findings/. Write synthesis.md and update CHANGELOG.md,
+   ARCHITECTURE.md, ROADMAP.md."
+```
+
+Then stop. This is the only valid stopping condition — question bank exhausted AND
+final audit complete.
 
 ---
 

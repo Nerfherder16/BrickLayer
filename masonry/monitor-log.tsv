@@ -1,0 +1,2 @@
+timestamp	metric_name	measured_value	verdict	delta_from_baseline
+2026-03-23T00:00:00Z	ollama_backend_reachable	exit_code=28 (timeout)	ALERT	N/A

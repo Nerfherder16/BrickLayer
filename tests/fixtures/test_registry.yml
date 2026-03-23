@@ -1,0 +1,42 @@
+version: 1
+agents:
+  - name: quantitative-analyst
+    file: agents/quantitative-analyst.md
+    model: sonnet
+    description: "Runs simulations, parameter sweeps, and boundary-finding for BL2.0 campaigns"
+    modes:
+      - simulate
+    capabilities:
+      - simulation
+      - parameter-sweep
+      - boundary-finding
+      - sensitivity-analysis
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: trusted
+
+  - name: fix-agent
+    file: agents/fix-agent.md
+    model: sonnet
+    description: "Implements targeted fixes after diagnosis"
+    modes:
+      - fix
+    capabilities:
+      - code-fix
+      - patch-generation
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: candidate
+
+  - name: peer-reviewer
+    file: agents/peer-reviewer.md
+    model: haiku
+    description: "Reviews agent findings for quality and consistency"
+    modes:
+      - audit
+    capabilities:
+      - review
+      - quality-check
+    input_schema: QuestionPayload
+    output_schema: FindingPayload
+    tier: draft

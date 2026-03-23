@@ -17,7 +17,6 @@ the system, and why.
 ```
 autosearch/
   template/           — Copy this to start a new project
-  dashboard/          — Web UI for monitoring (FastAPI + React)
   QUICKSTART.md       — Full reference (read this if unsure)
   FRAMEWORK.md        — System architecture details
   adbp/               — ADBP project (active)
@@ -29,15 +28,122 @@ Each project folder contains:
 simulate.py           — The simulation (agent edits SCENARIO PARAMETERS only)
 constants.py          — Immutable rules (never edit)
 program.md            — Loop instructions (never edit)
-questions.md          — Question bank (agent + human via dashboard)
+questions.md          — Question bank (agent + human via Kiln)
 results.tsv           — Tab-separated run log
 findings/             — Per-question findings (*.md)
-findings/synthesis.md — End-of-session synthesis
+synthesis.md          — End-of-session synthesis (written to project root)
 docs/                 — Supporting documents (human authority)
 project-brief.md      — Ground truth (highest authority, human only)
 .claude/agents/       — Specialist agents
 reports/              — Generated PDF reports (python analyze.py)
+masonry/src/schemas/  — Pydantic v2 payload models (QuestionPayload, FindingPayload, etc.)
+masonry/src/routing/  — Four-layer routing engine (deterministic → semantic → LLM → fallback)
+masonry/src/dspy_pipeline/ — DSPy optimization pipeline (signatures, optimizer, drift detector)
+masonry/optimized_prompts/ — Per-agent optimized prompt JSON files
+masonry/agent_registry.yml — Declarative agent registry (modes, capabilities, tier)
 ```
+
+---
+
+## Masonry Orchestration Architecture
+
+### Typed Payload System
+All agent-to-agent communication uses structured Pydantic v2 models. Key schemas:
+- `QuestionPayload` — question routed to a specialist (question_id, mode, context, priority, wave)
+- `FindingPayload` — specialist output (verdict, severity, summary ≤200 chars, evidence, confidence 0-1)
+- `RoutingDecision` — routing layer output (target_agent, layer, confidence, reason)
+- `DiagnosePayload` / `DiagnosisPayload` — diagnose/fix cycle contracts
+- `AgentRegistryEntry` — agent metadata (modes, capabilities, tier, DSPy status)
+
+Source: `masonry/src/schemas/payloads.py`
+
+### Four-Layer Routing
+Mortar dispatches requests through four layers in priority order:
+1. **Deterministic** (0 LLM calls): slash commands, autopilot state files, `**Mode**:` field
+2. **Semantic** (0 LLM calls): Ollama cosine similarity at http://192.168.50.62:11434 (threshold 0.75)
+3. **Structured LLM** (1 Haiku call): JSON-constrained routing for ambiguous requests
+4. **Fallback**: returns target_agent="user" — asks for clarification
+
+Use `masonry_route` MCP tool or `masonry/src/routing/router.py` directly.
+
+### DSPy Prompt Optimization
+Agents can be optimized via MIPROv2 using training data from existing findings:
+- Training data extracted by `masonry/src/dspy_pipeline/training_extractor.py`
+- Optimization run via `masonry/src/dspy_pipeline/optimizer.py`
+- Drift detection via `masonry/src/dspy_pipeline/drift_detector.py`
+- Optimized prompts stored in `masonry/optimized_prompts/{agent}.json`
+- After each MIPROv2 run, `run_optimization.py` writes the optimized `signature.instructions` back into the agent `.md` file under a `## DSPy Optimized Instructions` delimited section (write-back mechanism)
+- Agents receive these instructions in their system prompt on every spawn — code-enforced, no runtime lookup required
+
+Trigger from Kiln UI "OPTIMIZE" button or via `masonry_optimize_agent` MCP tool.
+
+### Running an Optimization
+
+Use this runbook to trigger MIPROv2 optimization runs manually from the command line.
+
+**Precondition checks:**
+
+```bash
+# 1. Verify Ollama is reachable (required for semantic routing layer)
+curl -s http://192.168.50.62:11434/api/tags | python -c "import sys,json; d=json.load(sys.stdin); print('Ollama OK —', len(d.get('models',[])), 'models')"
+
+# 2. Verify Anthropic API key is set
+python -c "import os; k=os.environ.get('ANTHROPIC_API_KEY',''); print('ANTHROPIC_API_KEY set' if k.startswith('sk-ant-') else 'ERROR: ANTHROPIC_API_KEY missing or wrong prefix')"
+```
+
+**Optimize research-analyst** (corpus: ~57 records — use `--valset-size 27` to leave 30 training examples):
+
+```bash
+cd C:/Users/trg16/Dev/Bricklayer2.0
+python masonry/scripts/run_optimization.py research-analyst \
+  --backend anthropic \
+  --num-trials 10 \
+  --valset-size 27 \  # 57 total - 27 valset = 30 training examples (DSPy minimum)
+  --signature research \
+  --api-key sk-ant-...
+```
+
+**Optimize karen** (corpus: ~301 records — `--valset-size 25` is sufficient):
+
+```bash
+cd C:/Users/trg16/Dev/Bricklayer2.0
+python masonry/scripts/run_optimization.py karen \
+  --backend anthropic \
+  --num-trials 10 \
+  --valset-size 25 \
+  --signature karen \
+  --api-key sk-ant-...
+```
+
+**Post-run verification (run all three):**
+
+```bash
+# 1. Confirm optimized prompt JSON was written
+ls -lh masonry/optimized_prompts/research-analyst.json masonry/optimized_prompts/karen.json
+
+# 2. Confirm write-back block exists in each agent .md file
+grep -l "DSPy Optimized Instructions" .claude/agents/research-analyst.md .claude/agents/karen.md
+
+# 3. Confirm registry reflects updated optimization status
+python -c "
+import yaml
+reg = yaml.safe_load(open('masonry/agent_registry.yml'))
+for a in reg.get('agents', []):
+    if a['name'] in ('research-analyst', 'karen'):
+        print(a['name'], '—', a.get('dspy_status','unknown'))
+"
+```
+
+> **Warning (R33.1/R33.3):** The research-analyst corpus is ~57 records. Never set `--valset-size` above 57 or MIPROv2 will error on insufficient validation examples. The default (100) exceeds this limit. Use `--valset-size 27` for research-analyst — this leaves 30 training examples (57 - 27 = 30), which meets the DSPy minimum of ~30 required for reliable optimization. Using 50 would leave only 7 bootstrap training examples.
+
+### Agent Onboarding (Zero Manual Steps)
+When a new `.md` file is written to `agents/` or `~/.claude/agents/`:
+1. `masonry-agent-onboard.js` hook detects the Write/Edit event
+2. `masonry/scripts/onboard_agent.py` extracts frontmatter metadata
+3. New `AgentRegistryEntry` appended to `masonry/agent_registry.yml` with `tier: "draft"`
+4. DSPy signature stub generated in `masonry/src/dspy_pipeline/generated/`
+5. Kiln shows new agent on next refresh as "draft / Not optimized"
+6. Run a campaign wave to generate training data, then optimize from Kiln UI
 
 ---
 
@@ -54,66 +160,51 @@ cd C:/Users/trg16/Dev/Bricklayer2.0/{project}/
 4. Edit `simulate.py` — replace stub revenue model with actual model
 5. Verify baseline: `python simulate.py` → should print `verdict: HEALTHY`
 6. Copy agents: `cp -r ../template/.claude/agents/ .claude/agents/`
-7. Generate questions (tell Claude):
+7. Generate questions (BL 2.0 workflow):
    ```
-   Act as the question-designer agent in .claude/agents/question-designer.md.
-   Read project-brief.md, all files in docs/, constants.py, and simulate.py.
+   # Step 7a — run planner (recommended for complex projects)
+   Act as the planner agent in .claude/agents/planner.md.
+   Inputs: project_brief=project-brief.md, docs_dir=docs/, constants_file=constants.py, simulate_file=simulate.py, prior_campaign=none
+
+   # Step 7b — generate question bank
+   Act as the question-designer-bl2 agent in .claude/agents/question-designer-bl2.md.
+   Read project-brief.md, all files in docs/, constants.py, simulate.py, and CAMPAIGN_PLAN.md (if it exists).
    Generate the initial question bank in questions.md.
    ```
 8. Init git and start the loop (see below)
 
 ---
 
-## Starting the Dashboard
+## Monitoring Campaigns
 
-In a separate terminal (use Git Bash or WSL — not PowerShell):
-```bash
-bash C:/Users/trg16/Dev/Bricklayer2.0/dashboard/start.sh C:/Users/trg16/Dev/Bricklayer2.0/{project}
-```
-
-Or manually in two PowerShell terminals:
-
-**Backend:**
-```powershell
-cd C:\Users\trg16\Dev\Bricklayer2.0\dashboard\backend
-$env:AUTOSEARCH_PROJECT="C:/Users/trg16/Dev/Bricklayer2.0/{project}"; uvicorn main:app --host 0.0.0.0 --port 8100 --reload
-```
-
-**Frontend:**
-```powershell
-cd C:\Users\trg16\Dev\Bricklayer2.0\dashboard\frontend
-npm run dev
-```
-
-Open: http://localhost:3100
+Use **Kiln** (BrickLayerHub) to monitor campaigns, view findings, and manage the question queue.
+The web dashboard has been retired — all UI goes through Kiln.
 
 ---
 
 ## Starting the Research Loop
 
-> **IMPORTANT — always set `DISABLE_OMC=1` before launching BrickLayer.**
-> BrickLayer runs in its own isolated `claude` subprocess. Without this, OMC hooks in the
-> parent session will intercept agent spawns and replace BrickLayer's domain-specific agents
-> (benchmark-engineer, quantitative-analyst, etc.) with OMC's generic agents, breaking the loop.
+> **Note:** Masonry hooks automatically detect BrickLayer research projects (via `program.md` +
+> `questions.md`) and stay silent inside BL subprocesses. No env var needed.
 
 **New project — after question bank is ready:**
 ```bash
 cd C:/Users/trg16/Dev/Bricklayer2.0/{project}
 git init && git add . && git commit -m "chore: init {project} autoresearch"
 git checkout -b {project}/$(date +%b%d | tr '[:upper:]' '[:lower:]')
-DISABLE_OMC=1 claude --dangerously-skip-permissions "Read program.md and questions.md. Begin the research loop from the first PENDING question. If any file edit fails, follow the self-recovery steps in program.md immediately — do not pause. NEVER STOP."
+claude --dangerously-skip-permissions "Read program.md and questions.md. Begin the research loop from the first PENDING question. If any file edit fails, follow the self-recovery steps in program.md immediately — do not pause. NEVER STOP."
 ```
 
 **Resuming an existing project:**
 ```bash
 cd C:/Users/trg16/Dev/Bricklayer2.0/{project}
 git checkout -b {project}/$(date +%b%d | tr '[:upper:]' '[:lower:]')
-DISABLE_OMC=1 claude --dangerously-skip-permissions "Read program.md, questions.md, and findings/synthesis.md. Resume the research loop from the first PENDING question. If any file edit fails, follow the self-recovery steps in program.md immediately — do not pause. NEVER STOP."
+claude --dangerously-skip-permissions "Read program.md, questions.md, and findings/synthesis.md. Resume the research loop from the first PENDING question. If any file edit fails, follow the self-recovery steps in program.md immediately — do not pause. NEVER STOP."
 ```
 
 **PowerShell equivalent (Windows):**
 ```powershell
-$env:DISABLE_OMC=1; claude --dangerously-skip-permissions "Read program.md and questions.md. Begin the research loop from the first PENDING question. NEVER STOP."
+claude --dangerously-skip-permissions "Read program.md and questions.md. Begin the research loop from the first PENDING question. NEVER STOP."
 ```
 
 **Starting Wave 2 (question bank exhausted):**
@@ -149,7 +240,9 @@ python analyze.py
 
 | Agent | File | When to invoke |
 |-------|------|----------------|
-| `question-designer` | `.claude/agents/question-designer.md` | Once at init — generates questions.md |
+| `planner` | `.claude/agents/planner.md` | Once at init (before question-designer) — ranks domains, writes CAMPAIGN_PLAN.md |
+| `question-designer-bl2` | `.claude/agents/question-designer-bl2.md` | Once at init (after planner) — generates questions.md with BL 2.0 modes |
+| `question-designer` | `.claude/agents/question-designer.md` | BL 1.x only |
 | `quantitative-analyst` | `.claude/agents/quantitative-analyst.md` | D1/D5 simulation questions |
 | `regulatory-researcher` | `.claude/agents/regulatory-researcher.md` | D2 legal/compliance questions |
 | `competitive-analyst` | `.claude/agents/competitive-analyst.md` | D3 market/analogues questions |
@@ -188,6 +281,30 @@ If Tier 1 and Tier 3 conflict, Tier 1 wins. Write a `CONFLICTS.md` if contradict
 
 ---
 
+## Global Git Post-Commit Hook
+
+A global post-commit hook lives at `~/.git-hooks/post-commit`. It is activated globally via:
+
+```bash
+git config --global core.hooksPath ~/.git-hooks
+```
+
+The hook auto-detects BL projects (via `simulate.py`, `questions.md`, or `.claude/agents/` sentinel)
+and appends commit entries to the appropriate `CHANGELOG.md`. For non-BL repos it exits silently.
+
+**CHANGELOG target logic:**
+- Root is a BL project -> `{repo_root}/CHANGELOG.md`
+- Changed files touch exactly one BL subdirectory -> `{project}/CHANGELOG.md`
+- Changed files touch multiple BL subdirectories -> `{repo_root}/CHANGELOG.md`
+- Non-BL repo -> no CHANGELOG written (exit 0)
+
+**One-time setup** (already active on this machine):
+```bash
+git config --global core.hooksPath ~/.git-hooks
+```
+
+---
+
 ## Common Issues
 
 **`./start.sh` not recognized in PowerShell**: Use `bash start.sh ...` or run manually (see above).
@@ -200,5 +317,4 @@ If Tier 1 and Tier 3 conflict, Tier 1 wins. Write a `CONFLICTS.md` if contradict
 
 **Edit to simulate.py keeps failing**: Run `git reset --hard HEAD` and retry. See loop self-recovery above.
 
-**Dashboard not loading**: Make sure both backend (port 8100) and frontend (port 3100) are running.
-Frontend must be built first: `cd dashboard/frontend && npm run build`.
+**Campaign not visible in Kiln**: Restart the Kiln (BrickLayerHub) desktop app. The web dashboard (ports 3100/8100) has been retired — all monitoring goes through Kiln.

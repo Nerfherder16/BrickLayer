@@ -108,6 +108,7 @@ _PARKED_STATUSES = frozenset(
         "NON_COMPLIANT",
         "CALIBRATED",
         "BLOCKED",
+        "HEAL_EXHAUSTED",  # F-mid.1: exhausted heal loop — human intervention required
     )
 )
 
@@ -190,6 +191,7 @@ def sync_status_from_results() -> int:
                     "UNKNOWN",
                     "SUBJECTIVE",
                     "DEGRADED_TRENDING",
+                    "HEAL_EXHAUSTED",  # F-mid.1: exhausted heal loop — preserve status
                 }
             )
             if verdict in _TERMINAL_VERDICTS:
@@ -209,6 +211,7 @@ def sync_status_from_results() -> int:
                         "WARNING",
                         "REGRESSION",
                         "ALERT",
+                        "HEAL_EXHAUSTED",  # F-mid.1: preserve exhausted-heal status
                     )
                     else "DONE"
                 )
@@ -222,7 +225,7 @@ def sync_status_from_results() -> int:
             block_start = text.find(f"## {qid}\n")
         if block_start == -1:
             continue
-        next_block = text.find("\n## Q", block_start + 1)
+        next_block = text.find("\n## ", block_start + 1)
         block_end = next_block if next_block != -1 else len(text)
         block = text[block_start:block_end]
         if "**Status**: PENDING" in block:
