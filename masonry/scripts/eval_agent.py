@@ -186,14 +186,26 @@ def run_eval(
         inp = record.get("input", {})
         commit_subject = inp.get("commit_subject", "") if isinstance(inp, dict) else ""
 
-        prompt = f"{agent_prompt}\n\nInput:\n{json.dumps(inp)}"
+        json_instruction = _KAREN_JSON_INSTRUCTION if signature == "karen" else (
+            "\n\nRespond ONLY with a valid JSON object matching the expected output schema."
+        )
+        prompt = f"{agent_prompt}{json_instruction}\n\nInput:\n{json.dumps(inp)}"
         proc = subprocess.run(
-            _CLAUDE_CMD + ["-p", prompt, "--model", model],
+            _CLAUDE_CMD + ["-p", prompt, "--model", model, "--output-format", "json", "--bare"],
             capture_output=True,
             text=True,
         )
 
-        score, predicted = _score_example(record, proc.stdout, metric_fn)
+        # --output-format json wraps the response: {"type":"result","result":"...","is_error":...}
+        raw_output = proc.stdout
+        try:
+            envelope = json.loads(raw_output)
+            if isinstance(envelope, dict) and "result" in envelope:
+                raw_output = envelope["result"]
+        except (json.JSONDecodeError, ValueError):
+            pass  # not a JSON envelope — use stdout as-is
+
+        score, predicted = _score_example(record, raw_output, metric_fn)
         passes = score >= 0.5
 
         if passes:
