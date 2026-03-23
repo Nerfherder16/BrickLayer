@@ -13,8 +13,71 @@ import json
 import re
 import sys
 from collections import defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+# ---------------------------------------------------------------------------
+# agent_db.json run history
+# ---------------------------------------------------------------------------
+
+_MAX_RUNS = 50
+
+
+def write_agent_db_record(
+    agent_name: str,
+    record: dict[str, Any],
+    db_path: Path,
+) -> None:
+    """Append a run entry to agent_db.json for the given agent.
+
+    Loads the existing agent record (if any), appends a new entry to the
+    ``runs`` array, trims to the most recent ``_MAX_RUNS`` entries, then
+    writes the full record back preserving all existing top-level fields.
+
+    Args:
+        agent_name: Key to use in the agent_db.json dict.
+        record: The current scoring record with at minimum ``score`` and
+            ``overall`` keys.
+        db_path: Absolute path to agent_db.json (created if absent).
+    """
+    # Load existing db
+    existing_db: dict[str, Any] = {}
+    if db_path.exists():
+        try:
+            existing_db = json.loads(db_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            existing_db = {}
+
+    # Start from existing agent record or the new record
+    agent_rec: dict[str, Any] = dict(existing_db.get(agent_name, record))
+    # Always update top-level fields from the new record
+    for key, value in record.items():
+        agent_rec[key] = value
+
+    # Build new run entry
+    run_entry: dict[str, Any] = {
+        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+        "verdict": record.get("overall", "UNKNOWN"),
+        "score": record.get("score"),
+        "duration_ms": None,
+        "quality_score": None,
+    }
+
+    # Append and trim
+    runs: list[dict[str, Any]] = list(agent_rec.get("runs", []))
+    runs.append(run_entry)
+    if len(runs) > _MAX_RUNS:
+        runs = runs[-_MAX_RUNS:]
+    agent_rec["runs"] = runs
+
+    existing_db[agent_name] = agent_rec
+
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    db_path.write_text(
+        json.dumps(existing_db, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
 
 # ---------------------------------------------------------------------------
 # Lazy imports for each scorer — warn and skip if unavailable
