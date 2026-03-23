@@ -16,12 +16,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import platform
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+
+# On Windows, npm CLIs are installed as .cmd files and require shell=True
+# (or explicit .cmd extension) to be found by subprocess.
+_CLAUDE_CMD = ["claude.cmd" if platform.system() == "Windows" else "claude"]
 
 _SCRIPT_ROOT = Path(__file__).resolve().parent.parent.parent  # blRoot
 if str(_SCRIPT_ROOT) not in sys.path:
@@ -174,7 +179,7 @@ def run_eval(
 
         prompt = f"{agent_prompt}\n\nInput:\n{json.dumps(inp)}"
         proc = subprocess.run(
-            ["claude", "-p", prompt, "--model", model],
+            _CLAUDE_CMD + ["-p", prompt, "--model", model],
             capture_output=True,
             text=True,
         )
