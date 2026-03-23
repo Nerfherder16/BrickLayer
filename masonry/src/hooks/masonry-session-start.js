@@ -106,6 +106,22 @@ async function main() {
     lines.push(`[Masonry] Campaign active — ${campaign.project || path.basename(cwd)}: wave ${campaign.wave || 0}, Q${campaign.q_current || 0}/${campaign.q_total || 0}, mode: ${campaign.mode}.`);
   }
 
+  // --- Karen doc maintenance flag ---
+  try {
+    const karenFlagPath = path.join(cwd, ".autopilot", "karen-needed.json");
+    if (fs.existsSync(karenFlagPath)) {
+      const flag = JSON.parse(fs.readFileSync(karenFlagPath, "utf8"));
+      const staleList = (flag.stale_files || []).join(", ");
+      lines.push(
+        `[Masonry] Doc maintenance needed: ${staleList} are stale after code changes. Dispatch karen to update and commit these files.`
+      );
+      // Clean up flag after pickup
+      try { fs.unlinkSync(karenFlagPath); } catch (_) {}
+    }
+  } catch (_) {
+    // Malformed flag file or read error — skip silently
+  }
+
   // --- BL project detection (auto bl-run) ---
   // If cwd looks like a BL project with pending questions and no active campaign,
   // inject the run commands so the user doesn't have to invoke /bl-run manually.
