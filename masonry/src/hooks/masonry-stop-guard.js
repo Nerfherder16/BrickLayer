@@ -300,6 +300,7 @@ async function main() {
     for (const file of sessionUntracked) output += `  ?  ${file}\n`;
     output += `Commit before stopping.\n`;
 
+    checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
     process.stderr.write(output);
     process.exit(2);
   } catch {
