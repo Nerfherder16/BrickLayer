@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `104bae8` fix(dspy): null-safe field extraction in karen and research training data loaders (2026-03-23)
 - `77c1a2c` chore: update GITHUB_HANDOFF.md after PR #4 creation (2026-03-23)
 - `bfb463b` chore(dspy): writeback optimized instructions to research-analyst agent files (2026-03-23)
 - `efc35d9` fix(dspy): move minibatch_size from constructor to compile() call (2026-03-23)
