@@ -1995,7 +1995,8 @@
 
 ### R27.2: Can masonry-subagent-tracker.js be modified to populate request_text for autonomous research loop agent spawns?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/R27.2.md
 **Operational Mode**: research
 **Priority**: LOW
 **Motivated by**: D26.1 WARNING -- routing labelling is blocked because autonomous research loop agent spawns produce empty request_text. The hook reads input.prompt || input.description, but these are empty for programmatic Agent tool calls.
