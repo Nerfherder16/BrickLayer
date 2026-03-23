@@ -2028,7 +2028,8 @@
 
 ### F28.2: Execute the research-analyst MIPROv2 optimization run and record the resulting score
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/F28.2.md
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: V27.1 HEALTHY -- all pipeline components validated (37 records, PERFECT field alignment, metric_fn=None confirmed, CLI routing correct). The run has been deferred pending F28.1 scored_all.jsonl regeneration. This fix executes the actual optimization and stores the resulting prompt JSON.
