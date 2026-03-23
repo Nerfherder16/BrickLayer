@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `2360f0e` feat(dspy): add optimize_claude.py — subscription-native few-shot selector (2026-03-23)
 - `b94c8e9` fix(dspy): remove broken claude/ litellm fallback, require API key for anthropic backend (2026-03-23)
 - `ffe0d7b` feat(dspy): add --optimizer flag with bootstrap default + Claude Max support (2026-03-23)
 - `6c23955` fix: root tests/__init__.py shim + karen MIPROv2 write-back sync (2026-03-23)
