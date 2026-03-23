@@ -213,7 +213,11 @@ def run(
     _model_label = "qwen3:14b (Ollama)" if backend == "ollama" else "claude-sonnet-4-6 (Anthropic)"
     print(f"[dspy] Configuring DSPy with {_model_label} ...")
     try:
-        from masonry.src.dspy_pipeline.optimizer import configure_dspy, optimize_agent
+        from masonry.src.dspy_pipeline.optimizer import (
+            build_karen_metric,
+            configure_dspy,
+            optimize_agent,
+        )
         from masonry.src.dspy_pipeline.signatures import KarenSig, ResearchAgentSig
         configure_dspy(backend=backend)
         print(f"[dspy] DSPy configured.")
@@ -235,6 +239,7 @@ def run(
     print(f"[optimize] This may take several minutes ...")
 
     signature_cls = KarenSig if signature == "karen" else ResearchAgentSig
+    metric_fn = build_karen_metric() if signature == "karen" else None
     try:
         result = optimize_agent(
             agent_name=agent_name,
@@ -244,6 +249,7 @@ def run(
             backend=backend,
             num_trials=num_trials,
             valset_size=valset_size,
+            metric_fn=metric_fn,
         )
     except Exception as exc:
         print(f"[error] Optimization failed: {exc}")

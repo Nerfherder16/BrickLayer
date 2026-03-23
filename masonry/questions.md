@@ -1825,7 +1825,8 @@
 
 ### R25.1: Does re-running MIPROv2 for `quantitative-analyst` with D24.1-enriched training data improve verdict accuracy from the Wave 23 ~35-40% baseline?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: [R25.1](findings/R25.1.md) — WARNING
 **Operational Mode**: research
 **Priority**: HIGH
 **Motivated by**: synthesis_wave24.md open issue #4 — "The D24.1 attribution fix restores question_text to training records. Re-run MIPROv2 with the enriched dataset to measure whether verdict accuracy improves from the ~35-40% baseline." D24.1 added `_AGENT_RE` extraction so finding files' `**Agent**:` field is now the primary attribution source. If enriched records also carry richer `question_text`, the demo bootstrapping in MIPROv2 should produce more contextually relevant few-shot examples, improving verdict prediction on novel questions.
