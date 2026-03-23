@@ -229,6 +229,7 @@ Fire when `global_count` crosses a multiple of the interval:
 | Every 5 (global) | Spawn forge-check in background: `agents_dir=.claude/agents/, findings_dir=findings/, questions_md=questions.md` |
 | Every 10 (global) | Spawn agent-auditor in background: `agents_dir=.claude/agents/, findings_dir=findings/, results_tsv=results.tsv` — then check its output (see Overseer Escalation) |
 | Every 10 (global) | Invoke synthesizer-bl2 in **lightweight mode**: `mode=mid-session, findings_dir=findings/, project_name={project}` — does not commit, just refreshes synthesis.md. Read updated synthesis before routing the next question. |
+| Every 10 (global) | Refresh `campaign-context.md`: re-read the top 5 findings and PENDING hypotheses from .bl-weights.json, rewrite the file in-place using the same format as wave start (Header + ## Project + ## Top Findings + ## Open Hypotheses). |
 | After every finding | Spawn peer-reviewer in background: `primary_finding=findings/{id}.md, target_git=., agents_dir=.claude/agents/` |
 | At campaign close | Force-fire forge-check, agent-auditor, AND skill-forge before/after calling synthesizer; then spawn git-nerd (task=wave-end) |
 
