@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `0cc61ba` chore(masonry): Wave 30 partial build — mas.js core + .gitignore + TDD enforcer patch (2026-03-23)
 - `4b145fb` research(masonry): Wave 30 -- injection path absent, slot CWD fixed, corpus validated (2026-03-23)
 - `63fd62e` chore(masonry): finalize Wave 30 question bank in questions.md (2026-03-23)
 - `9ee03ae` chore(masonry): Wave 29 synthesis + Wave 30 question bank (2026-03-23)
