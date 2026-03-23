@@ -18,6 +18,7 @@
 "use strict";
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -49,18 +50,9 @@ async function main() {
     return;
   }
 
-  // Resolve masonry dir
-  const cwd = process.cwd();
-  const masonryDir = path.basename(cwd) === "masonry" && fs.existsSync(cwd)
-    ? cwd
-    : path.join(cwd, "masonry");
-
-  if (!fs.existsSync(masonryDir)) {
-    process.exit(0);
-    return;
-  }
-
-  const pendingDir = path.join(masonryDir, ".masonry", "pending_agent_prompts");
+  // Use a fixed home-dir path so this matches masonry-subagent-tracker.js exactly,
+  // regardless of whether CWD is the repo root, masonry/, or a project subdir.
+  const pendingDir = path.join(os.homedir(), ".masonry", "pending_agent_prompts");
   ensureDir(pendingDir);
 
   const record = {
