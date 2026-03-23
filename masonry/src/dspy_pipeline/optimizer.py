@@ -220,25 +220,27 @@ def optimize_agent(
     module = dspy.ChainOfThought(signature_cls)
     metric = metric_fn if metric_fn is not None else build_metric(signature_cls)
 
-    # Configure optimizer with low-cost settings.
+    # Convert dataset dicts to DSPy Examples first so we know actual sizes.
+    input_keys = list(signature_cls.input_fields.keys())  # type: ignore[attr-defined]
+    all_examples = [dspy.Example(**ex).with_inputs(*input_keys) for ex in dataset]
+
+    # Split into train / val — DSPy 3.x takes valset as an explicit list.
+    # Cap valset at 25% of dataset to keep enough training examples.
+    actual_valset_size = min(valset_size, max(1, len(all_examples) // 4))
+    trainset = all_examples[:-actual_valset_size] if actual_valset_size < len(all_examples) else all_examples
+    valset = all_examples[-actual_valset_size:]
+
+    # Configure optimizer.
     # DSPy 3.x: auto=None requires num_candidates in the constructor.
-    # num_trials (passed to compile) controls Bayesian search steps;
-    # num_candidates controls how many instruction variants are generated.
+    # minibatch_size must not exceed len(valset) — cap it defensively.
+    _minibatch_size = min(35, len(valset))
     optimizer = dspy.MIPROv2(
         metric=metric,
         num_threads=1,
         auto=None,
         num_candidates=num_trials,
+        minibatch_size=_minibatch_size,
     )
-
-    # Convert dataset dicts to DSPy Examples
-    input_keys = list(signature_cls.input_fields.keys())  # type: ignore[attr-defined]
-    all_examples = [dspy.Example(**ex).with_inputs(*input_keys) for ex in dataset]
-
-    # Split into train / val — DSPy 3.x takes valset as an explicit list
-    actual_valset_size = min(valset_size, max(1, len(all_examples) // 4))
-    trainset = all_examples[:-actual_valset_size] if actual_valset_size < len(all_examples) else all_examples
-    valset = all_examples[-actual_valset_size:]
 
     # Run optimization
     try:
