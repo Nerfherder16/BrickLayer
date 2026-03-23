@@ -220,10 +220,13 @@ def optimize_agent(
     module = dspy.ChainOfThought(signature_cls)
     metric = metric_fn if metric_fn is not None else build_metric(signature_cls)
 
-    # Configure optimizer with low-cost settings
+    # Configure optimizer with low-cost settings.
+    # auto=None is required when passing num_trials to compile() — DSPy 3.x
+    # raises if both auto and num_trials are set simultaneously.
     optimizer = dspy.MIPROv2(
         metric=metric,
         num_threads=1,
+        auto=None,
     )
 
     # Convert dataset dicts to DSPy Examples
