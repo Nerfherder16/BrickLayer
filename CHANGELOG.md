@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `038d128` chore(masonry): Wave 25 — mark all 5 questions DONE in questions.md (2026-03-23)
 - `b7e80f7` chore(masonry): commit session artifact — questions.md update (2026-03-23)
 - `1ab58c3` chore(masonry): commit session artifacts — optimizer + questions update (2026-03-23)
 - `fb13980` chore(masonry): Wave 25 — karen optimizer metric + --signature CLI flag (F25.3) (2026-03-23)
