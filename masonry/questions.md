@@ -1851,7 +1851,8 @@
 
 ### V25.1: Are F24.1 CLI flags and D24.1 attribution fix correctly end-to-end for a fresh overnight MIPROv2 run on `quantitative-analyst`?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: [V25.1](findings/V25.1.md) — HEALTHY
 **Operational Mode**: validate
 **Priority**: LOW
 **Motivated by**: synthesis_wave24.md open issue #6 — "With F24.1 CLI flags and D24.1 attribution fix both applied, schedule a fresh MIPROv2 run with --num-trials 10 to measure the compound effect on the metric ceiling." Before scheduling an 8-hour overnight run, validate that the two fixes are correctly wired end-to-end (no regressions, no TypeError on CLI flags, training data loads correctly with enriched attribution).
