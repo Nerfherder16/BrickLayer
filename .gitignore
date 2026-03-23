@@ -49,6 +49,7 @@ masonry/routing_log.jsonl
 masonry/agent_db.json
 masonry/optimized_prompts/
 masonry-activity-*.ndjson
-masonry/training_data/
+masonry/training_data/*.jsonl
+!masonry/training_data/scored_synthetic.jsonl
 masonry/vigil/
 masonry/src/dspy_pipeline/generated/
