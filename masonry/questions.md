@@ -2015,7 +2015,8 @@
 
 ### F28.1: Regenerate scored_all.jsonl by running score_all.py so research-analyst MIPROv2 uses enriched question_text from F26.1
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/F28.1.md
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: R27.1 HEALTHY -- F26.1 enrichment adds median +408 chars to research-analyst question_text, but existing scored_all.jsonl still has short pre-enrichment values. R27.1 recommends re-running score_all.py before the MIPROv2 run. Without this, 81% of research-analyst records will have truncated question_text and MIPROv2 demo selection will be degraded.
@@ -2052,7 +2053,8 @@
 
 ### F28.3: Implement masonry-preagent-tracker.js PreToolUse:Agent hook to capture request_text for Agent tool spawns
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/F28.3.md
 **Operational Mode**: fix
 **Priority**: MEDIUM
 **Motivated by**: R27.2 WARNING -- SubagentStart event does not expose the Agent tool's prompt parameter. All 66 start entries have empty request_text, blocking routing label extraction. R27.2 confirmed PreToolUse:Agent is the correct fix (new hook script + settings.json registration) and that it is not a 1-3 line change.

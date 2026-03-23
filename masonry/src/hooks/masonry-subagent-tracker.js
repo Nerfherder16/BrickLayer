@@ -187,9 +187,24 @@ async function main() {
   atomicWrite(stateFile, state);
 
   // Append to routing_log.jsonl for DSPy training signal (Phase 16)
-  // request_text captures the prompt/description that caused the dispatch (F25.1)
-  // Capped at 500 chars to keep log files manageable.
-  const requestText = (input.prompt || input.description || '').slice(0, 500);
+  // request_text: try SubagentStart input fields first (usually empty for programmatic spawns),
+  // then fall back to pending slot written by masonry-preagent-tracker.js PreToolUse:Agent hook (F28.3).
+  let requestText = (input.prompt || input.description || '').slice(0, 500);
+  if (!requestText) {
+    try {
+      const subagentType = (input.subagent_type || agentEntry.name || '').toLowerCase().trim();
+      const pendingDir = path.join(cwd, '.masonry', 'pending_agent_prompts');
+      const slotPath = path.join(pendingDir, `${subagentType}_latest.json`);
+      if (fs.existsSync(slotPath)) {
+        const slot = JSON.parse(fs.readFileSync(slotPath, 'utf8'));
+        // Use if written within the last 10 seconds (fresh PreToolUse event)
+        if (slot.request_text && Date.now() - new Date(slot.timestamp).getTime() < 10_000) {
+          requestText = slot.request_text;
+          fs.unlinkSync(slotPath); // consume the slot
+        }
+      }
+    } catch (_) { /* non-fatal */ }
+  }
   const routingEntry = JSON.stringify({
     timestamp: new Date().toISOString(),
     event: 'start',
