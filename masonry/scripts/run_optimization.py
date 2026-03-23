@@ -432,7 +432,7 @@ def _main() -> None:
         "--backend",
         default="anthropic",
         choices=["anthropic", "ollama"],
-        help='LM backend: "anthropic" (default) or "ollama" (uses http://192.168.50.62:11434)',
+        help='LM backend: "anthropic" (default) or "ollama" (uses http://100.70.195.84:11434)',
     )
     parser.add_argument(
         "--num-trials",
