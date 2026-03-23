@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `65761d1` fix(dspy): add missing `import os` to optimizer.py (2026-03-23)
 - `68a2221` fix(masonry): replace hardcoded LAN IP with Tailscale IP for Ollama (2026-03-23)
 - `c832cfb` chore(masonry): Wave 36 questions — pre-optimization gate checks + Ollama diagnosis (2026-03-23)
 - `57bed78` feat(masonry): Wave 35 — score_findings.py pipeline fixed, corpus grows 57→77 (2026-03-23)
