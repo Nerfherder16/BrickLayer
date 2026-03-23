@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `c3455f2` fix(stop-guard): truncate long file lists + add human-review threshold (2026-03-23)
 - `76583b0` fix(dspy): strip meta demos from research-analyst optimized prompt (2026-03-23)
 - `7feab91` chore(dspy): research-analyst write-back + karen sync across all projects (2026-03-23)
 - `64f1e80` chore: gitignore runtime files in agent_snapshots/ (2026-03-23)
