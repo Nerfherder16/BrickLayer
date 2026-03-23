@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `0c37f19` chore(masonry): Wave 25 fixes — routing scorer, karen DSPy sig, evidence quality metric (2026-03-23)
 - `771e155` chore(masonry): commit session artifacts — Wave 24 questions + routing scorer + subagent tracker (2026-03-23)
 - `04c517c` docs(masonry): Wave 24 synthesis -- training attribution fixed, metric ceiling revised (2026-03-22)
 - `3139076` docs: Wave 24 — update ROADMAP + monitor targets (M24.1) (2026-03-22)
