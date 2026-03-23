@@ -2158,12 +2158,12 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ## Wave 30
 
-**Generated from findings**: F29.1 FIX_APPLIED, F29.2 FIX_APPLIED, F29.3 BLOCKED, V29.1 WARNING, F29.4 BLOCKED, synthesis_wave29.md
-**Mode transitions applied**: F29.3/F29.4 BLOCKED (MIPROv2 still blocked) → V30.1 validate injection path before running; V29.1 WARNING (slot-miss) → D30.1 diagnose; open issue #6 Wave 25 (optimize_all signature dispatch) → F30.1 fix; synthesis open issue #4 (spec-writer slot-miss) → D30.1; synthesis open issue #5 (post-optimization validation) → V30.2; synthesis open issue #3 (valset_size safety) → R30.1.
+**Generated from findings**: F29.1, F29.2, F29.3, F29.4, V29.1
+**Mode transitions applied**: F29.1 FIX_APPLIED -> V30.1 Validate; F29.2 FIX_APPLIED -> V30.1 Validate (merged with F29.1, same corpus gate); F29.3 BLOCKED (external auth, no code fix needed) -> F30.2 Fix (combined with F29.4, user-action preconditioned); F29.4 BLOCKED (same backend blocker) -> F30.2 Fix (merged); V29.1 WARNING (spec-writer slot-miss ~17%, CWD mismatch) -> F30.1 Fix + R30.1 Research (collision side-finding). Additional questions added from synthesis_wave29.md code audit: V30.5 (Mortar injection path gap), F30.5 (optimize_all signature dispatch).
 
 ---
 
-### V30.1: Does any code in the Masonry routing or hook layer actually read from optimized_prompts/ and inject those instructions when spawning a specialist agent?
+### V30.5: Does any code in the Masonry routing or hook layer actually read from optimized_prompts/ and inject those instructions when spawning a specialist agent?
 
 **Status**: PENDING
 **Operational Mode**: validate
