@@ -25,13 +25,41 @@ if str(_SCRIPT_ROOT) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_ROOT))
 
 
+_PROJECT_BRIEF_MAX_CHARS = 2000
+
+
+def _read_project_brief(base_dir: Path) -> str:
+    """Read project-brief.md from base_dir, returning up to 2000 chars.
+
+    Returns empty string if the file cannot be found or read.
+    """
+    brief_path = base_dir / "project-brief.md"
+    try:
+        text = brief_path.read_text(encoding="utf-8")
+        return text[:_PROJECT_BRIEF_MAX_CHARS]
+    except (OSError, FileNotFoundError):
+        return ""
+
+
 def load_training_data_from_scored_all(
     scored_all_path: Path,
     agent_name: str,
+    base_dir: Path | None = None,
 ) -> list[dict]:
-    """Load training examples for agent_name from scored_all.jsonl."""
+    """Load training examples for agent_name from scored_all.jsonl.
+
+    Args:
+        scored_all_path: Path to scored_all.jsonl.
+        agent_name: Name of the agent to filter records for.
+        base_dir: Optional BrickLayer root directory. When provided and
+            ``project-brief.md`` exists there, its content (up to 2000 chars)
+            is used as ``project_context`` for every example. Falls back to
+            ``""`` when base_dir is None or the file cannot be read.
+    """
     if not scored_all_path.exists():
         return []
+
+    project_context = _read_project_brief(base_dir) if base_dir is not None else ""
 
     examples = []
     for line in scored_all_path.read_text(encoding="utf-8").splitlines():
@@ -49,7 +77,7 @@ def load_training_data_from_scored_all(
         out = rec.get("output", {})
         examples.append({
             "question_text": inp.get("question_text", inp.get("question_id", "")),
-            "project_context": "",
+            "project_context": project_context,
             "constraints": "",
             "verdict": out.get("verdict", ""),
             "severity": out.get("severity", ""),
@@ -263,7 +291,7 @@ def run(
     if signature == "karen":
         examples = load_karen_training_data(scored_all_path)
     else:
-        examples = load_training_data_from_scored_all(scored_all_path, agent_name)
+        examples = load_training_data_from_scored_all(scored_all_path, agent_name, base_dir=base_dir)
 
     # Fallback: try the old build_dataset() approach if scored_all is empty
     if not examples:

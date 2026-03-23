@@ -2543,7 +2543,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F34.1: Fix `load_training_data_from_scored_all()` to populate `project_context` from `project-brief.md` instead of hardcoding `""`
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/F34.1.md
 **Operational Mode**: fix
 **Priority**: MEDIUM
 **Motivated by**: R33.3 WARNING — all 57 research-analyst records in `scored_all.jsonl` have `project_context = ""`. `ResearchAgentSig` defines `project_context` as a named `InputField`. Bootstrapped few-shot demos always show the agent operating with no project context, meaning MIPROv2 cannot learn from context-aware reasoning patterns. The fix is to populate `project_context` using `_load_project_brief()` (already implemented in `build_dataset()` at optimizer.py line ~183) when loading records from `scored_all.jsonl`.
@@ -2555,7 +2556,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### R34.1: How many unscored findings in `findings/` could be processed by `build_dataset()` to grow the research-analyst corpus from 57 to 87+ records?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/R34.1.md
 **Operational Mode**: research
 **Priority**: HIGH
 **Motivated by**: R33.3 WARNING — 57 research-analyst records leaves only 30 bootstrap training examples at the corrected --valset-size 27 (exactly at the DSPy 30-example threshold). Adding 30 more records (to 87 total) would raise the effective bootstrap pool to 60 and move the expected score above the 75% WARNING boundary. The question is whether enough unscored findings exist to reach 87 without running a new campaign.
@@ -2567,7 +2569,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### D34.1: Does `build_metric()` score a "CONCERNS" verdict correctly, or does it always produce 0 on the verdict component when ground truth is "CONCERNS"?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/D34.1.md
 **Operational Mode**: diagnose
 **Priority**: MEDIUM
 **Motivated by**: R33.2 HEALTHY — the finding noted a latent inconsistency: some findings in `findings/` use the verdict "CONCERNS" (non-standard; not in the HEALTHY/WARNING/FAILURE/DIAGNOSIS_COMPLETE/PARTIAL/FIX_APPLIED canonical set). `build_metric()` uses exact string match (`ex_verdict == pred_verdict`). If 3 out of 57 training records have `verdict = "CONCERNS"` and the agent predicts "WARNING" (the semantically equivalent standard verdict), those records score 0.0 on the 0.4-weight verdict component — effectively penalizing correct near-miss predictions and reducing the achievable optimization score ceiling.
@@ -2579,7 +2582,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### V34.1: Validate that the `server.py` `masonry_optimize_agent` MCP tool correctly forwards `api_key` to `configure_dspy()` without breaking existing tool behavior
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/V34.1.md
 **Operational Mode**: validate
 **Priority**: MEDIUM
 **Motivated by**: F33.2 FIX_APPLIED (D33.1 PARTIAL) — F33.2 added `api_key` to the MCP tool inputSchema and threaded it to `configure_dspy()`. The fix was applied with confidence 0.97 but was not validated with a live or mock end-to-end call. The concern is that the MCP inputSchema change could break Kiln's schema introspection if the new optional field is not correctly typed, or that `args.get("api_key")` silently returns `None` in cases where Kiln omits the field, which would regress to the original blocked state.
@@ -2591,7 +2595,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### R34.2: Given the corrected `--valset-size 27` and corpus of 57, should we attempt the research-analyst optimization run now or wait until corpus reaches 87+?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/R34.2.md
 **Operational Mode**: research
 **Priority**: HIGH
 **Motivated by**: F33.3 FIX_APPLIED — the runbook now uses `--valset-size 27`, leaving exactly 30 bootstrap training examples. R33.3 WARNING noted that 30 examples is the DSPy minimum threshold ("substantial value") but the recommended target is 87+ (37 effective bootstrap examples). E33.1 is BLOCKED pending API key. The question is whether to unblock E33.1 immediately (accepting the 30-example floor risk) or wait until R34.1 confirms corpus can grow to 87+ first.
