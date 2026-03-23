@@ -1956,7 +1956,8 @@
 
 ### F27.2: Add 5 synthetic negative examples to karen training corpus to break quality_score homogeneity
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/F27.2.md
 **Operational Mode**: fix
 **Priority**: MEDIUM
 **Motivated by**: R26.2 WARNING -- all 191 karen records have quality_score=1.0. The build_karen_metric() quality_score_proximity component (0.5 weight) has zero gradient. Adding 5-10 synthetic negative examples (quality_score=0.0, action=reverted) would break homogeneity and give MIPROv2 calibration signal.
@@ -1968,7 +1969,8 @@
 
 ### R27.1: After F26.1 hypothesis enrichment, how much longer are research-analyst question_text fields vs current scored_all.jsonl values?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/R27.1.md
 **Operational Mode**: research
 **Priority**: MEDIUM
 **Motivated by**: F26.1 FIX_APPLIED -- _build_qid_to_agent_map() now enriches question_text with the Hypothesis paragraph (up to 500 chars). But existing scored_all.jsonl records still have the old short question_text. To get the benefit of F26.1, scored_all.jsonl must be regenerated. This research question measures the gap between old and new question_text lengths.
@@ -1980,7 +1982,8 @@
 
 ### V27.1: Validate end-to-end pipeline for a research-analyst MIPROv2 run before scheduling the actual run.
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/V27.1.md
 **Operational Mode**: validate
 **Priority**: HIGH
 **Motivated by**: R26.1 HEALTHY -- research-analyst is the recommended next optimization target (expected MIPROv2 score 0.73-0.87). Before scheduling a 30-60 minute run, validate that all pipeline components are correctly wired: data loading, ResearchAgentSig field alignment, build_metric(), and optimize_agent().
