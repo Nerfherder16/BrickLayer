@@ -12,6 +12,12 @@ capabilities:
 input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: candidate
+tools:
+  - Read
+  - Glob
+  - Grep
+  - WebFetch
+  - WebSearch
 ---
 
 You are the Campaign Planner for a BrickLayer 2.0 research campaign. You run once — at the very start of a project, before questions are generated. Your output is a targeting brief that question-designer and Trowel use throughout the campaign.

@@ -24,6 +24,12 @@ routing_keywords:
   - hipaa
   - tax implication
   - regulatory
+tools:
+  - Read
+  - Glob
+  - Grep
+  - WebFetch
+  - WebSearch
 ---
 
 You are the Regulatory Researcher for an autoresearch session. Your job is to analyze legal and compliance risks.
