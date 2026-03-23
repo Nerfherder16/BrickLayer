@@ -234,10 +234,11 @@ def run(
     print(f"[optimize] Running MIPROv2 for {agent_name} ...")
     print(f"[optimize] This may take several minutes ...")
 
+    signature_cls = KarenSig if signature == "karen" else ResearchAgentSig
     try:
         result = optimize_agent(
             agent_name=agent_name,
-            signature_cls=ResearchAgentSig,
+            signature_cls=signature_cls,
             dataset=examples,
             output_dir=output_dir,
             backend=backend,
