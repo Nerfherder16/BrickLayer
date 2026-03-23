@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `52f5f4b` fix: raise context monitor threshold from 150K to 750K tokens (2026-03-23)
 - `859eb8c` feat: session-start picks up karen flag for automatic doc maintenance (task 5/5) (2026-03-23)
 - `4ee13b4` feat: session-aware build guard + karen flag on stale docs (tasks 3-4/5) (2026-03-23)
 - `5230c67` feat: snapshot_agent.py — versioned prompt store with rollback (task 2/4) (2026-03-23)
