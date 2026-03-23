@@ -444,7 +444,7 @@ agents:
   tier: draft
   dspy_status: not_optimized
   drift_status: ok
-  last_score: 75.5
+  last_score: 75.9
   runs_since_optimization: 0
   registrySource: frontmatter
 - name: git-nerd

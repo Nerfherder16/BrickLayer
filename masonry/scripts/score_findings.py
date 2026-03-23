@@ -46,7 +46,7 @@ _CRITICAL_VERDICTS = frozenset({
 _RE_VERDICT = re.compile(r"\*\*Verdict\*\*\s*:\s*([A-Z_]+)", re.IGNORECASE)
 _RE_SEVERITY = re.compile(r"\*\*Severity\*\*\s*:\s*(Critical|High|Medium|Low|Info)", re.IGNORECASE)
 _RE_CONFIDENCE = re.compile(r"\*\*Confidence\*\*\s*:\s*([0-9.]+)", re.IGNORECASE)
-_RE_AGENT = re.compile(r"\*\*Agent\*\*\s*:\s*([^\n]+)", re.IGNORECASE)
+_RE_AGENT = re.compile(r"\*\*Agent\*\*\s*:\s*([\w-]+)", re.IGNORECASE)
 _RE_QUESTION = re.compile(r"\*\*Question\*\*\s*:\s*([^\n]+)", re.IGNORECASE)
 _RE_HEADER_ID = re.compile(r"^#\s+Finding\s*:\s*([^\s—–-][^\s]*)", re.IGNORECASE | re.MULTILINE)
 _RE_NUMBERS = re.compile(r"\b\d+\.?\d*\b")
@@ -135,8 +135,13 @@ def extract_finding_fields(
             if enriched and len(enriched) > len(question_text):
                 question_text = enriched[:500]
 
-    # evidence: content of ## Evidence section
-    evidence = _extract_section(text, "Evidence")
+    # evidence: content of ## Evidence section, with fallbacks for non-standard
+    # section names used in Waves 11-13 findings (F35.1)
+    evidence = ""
+    for _section_name in ("Evidence", "Analysis", "Verification Results", "Code Trace"):
+        evidence = _extract_section(text, _section_name)
+        if evidence:
+            break
 
     # summary: first non-empty line after the header block (simplified)
     summary = _build_summary(text, verdict, severity)
