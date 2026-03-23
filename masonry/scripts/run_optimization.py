@@ -214,7 +214,7 @@ def run(
     print(f"[dspy] Configuring DSPy with {_model_label} ...")
     try:
         from masonry.src.dspy_pipeline.optimizer import configure_dspy, optimize_agent
-        from masonry.src.dspy_pipeline.signatures import ResearchAgentSig
+        from masonry.src.dspy_pipeline.signatures import KarenSig, ResearchAgentSig
         configure_dspy(backend=backend)
         print(f"[dspy] DSPy configured.")
     except ImportError as exc:
