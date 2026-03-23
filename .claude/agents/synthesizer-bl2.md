@@ -246,6 +246,129 @@ this wave immediately have training data available for DSPy optimization via Kil
 
 ---
 
+## Step 5.6: Update .mas/ integration files (non-fatal)
+
+If `.mas/` does not exist at `{project_root}/.mas/`, skip this entire step silently.
+
+Run this Python block. Each sub-step is independent — if one fails, log to stderr and continue.
+
+```python
+import json, os, datetime, pathlib
+
+mas_dir = pathlib.Path("{project_root}") / ".mas"
+now = datetime.datetime.utcnow().isoformat() + "Z"
+
+if not mas_dir.exists():
+    print("[synthesizer-bl2] No .mas/ dir — skipping integration writes")
+else:
+    # --- wave_log.jsonl: append one entry for this wave ---
+    try:
+        entry = {
+            "wave": {wave_number},
+            "questions_total": {total},
+            "verdict_summary": {verdict_counts_dict},  # e.g. {"HEALTHY":3,"FAILURE":1}
+            "recommendation": "{CONTINUE|PIVOT|STOP}",  # from synthesis Step 2
+            "synthesis_path": "findings/synthesis.md",
+            "timestamp": now,
+        }
+        with open(mas_dir / "wave_log.jsonl", "a") as f:
+            f.write(json.dumps(entry) + "\n")
+        print(f"[synthesizer-bl2] Appended wave {wave_number} to wave_log.jsonl")
+    except Exception as e:
+        print(f"[synthesizer-bl2] wave_log.jsonl write failed: {e}", file=__import__('sys').stderr)
+
+    # --- context.md: rewrite the campaign brain from this wave's synthesis ---
+    try:
+        context_lines = [
+            f"# Campaign Context — {{project_name}}",
+            "",
+            f"**Last Wave**: {wave_number}",
+            f"**Recommendation**: {{recommendation}}",
+            f"**Updated**: {now[:10]}",
+            "",
+            "## Active Focus",
+            "",
+            "{{1-2 sentences from synthesis Recommendation section — what to investigate next}}",
+            "",
+            "## Critical Open Items",
+            "",
+            "{{list from synthesis Critical Findings section — one line per item}}",
+            "",
+            "## Confirmed Working",
+            "",
+            "{{brief list from synthesis Healthy / Verified section}}",
+            "",
+            "## Next Wave Hypotheses",
+            "",
+            "{{list from synthesis Next Wave Hypotheses section}}",
+        ]
+        (mas_dir / "context.md").write_text("\n".join(context_lines))
+        print("[synthesizer-bl2] Rewrote context.md")
+    except Exception as e:
+        print(f"[synthesizer-bl2] context.md write failed: {e}", file=__import__('sys').stderr)
+
+    # --- open_issues.json: rebuild from FAILURE/WARNING/NON_COMPLIANT findings ---
+    try:
+        oi_path = mas_dir / "open_issues.json"
+        # Preserve existing statuses for findings already tracked
+        existing_statuses = {}
+        existing_opened = {}
+        if oi_path.exists():
+            old = json.loads(oi_path.read_text())
+            for iss in old.get("issues", []):
+                existing_statuses[iss["finding_id"]] = iss.get("status", "open")
+                existing_opened[iss["finding_id"]] = iss.get("opened_at", now)
+
+        open_verdicts = {"FAILURE", "NON_COMPLIANT", "WARNING", "PARTIAL"}
+        severity_map = {"FAILURE": "Critical", "NON_COMPLIANT": "High",
+                        "WARNING": "Medium", "PARTIAL": "Low"}
+
+        issues = []
+        for finding in all_findings:  # iterate the finding objects read in Step 1
+            if finding.verdict.upper() in open_verdicts:
+                issues.append({
+                    "finding_id": finding.id,
+                    "verdict": finding.verdict.upper(),
+                    "severity": severity_map.get(finding.verdict.upper(), "Medium"),
+                    "summary": finding.summary[:200] if hasattr(finding, "summary") else "",
+                    "wave": finding.wave,
+                    "status": existing_statuses.get(finding.id, "open"),
+                    "opened_at": existing_opened.get(finding.id, now),
+                    "updated_at": now,
+                })
+
+        oi_path.write_text(json.dumps({
+            "issues": issues,
+            "last_wave": {wave_number},
+            "updated_at": now,
+        }, indent=2))
+        print(f"[synthesizer-bl2] Updated open_issues.json ({len(issues)} issues)")
+    except Exception as e:
+        print(f"[synthesizer-bl2] open_issues.json write failed: {e}", file=__import__('sys').stderr)
+
+    # --- contributions.json: increment recall_memories (Step 7 will store one) ---
+    try:
+        contrib_path = mas_dir / "contributions.json"
+        if contrib_path.exists():
+            data = json.loads(contrib_path.read_text())
+        else:
+            data = {"recall_memories": 0, "skills_forged": 0,
+                    "fixes_applied": 0, "agents_improved": 0}
+        data["recall_memories"] = data.get("recall_memories", 0) + 1
+        data["updated_at"] = now
+        contrib_path.write_text(json.dumps(data, indent=2))
+        print("[synthesizer-bl2] Updated contributions.json")
+    except Exception as e:
+        print(f"[synthesizer-bl2] contributions.json write failed: {e}", file=__import__('sys').stderr)
+```
+
+> **Note on `context.md` template syntax**: replace `{{...}}` placeholders with actual content
+> extracted from synthesis.md (Step 2). The double-braces are literal in the agent instructions —
+> substitute real text when writing the file. `{wave_number}` and `{project_name}` are resolved
+> from your invocation inputs.
+
+---
+
 ## Step 6: Commit Documentation
 
 Stage and commit all updated files:
