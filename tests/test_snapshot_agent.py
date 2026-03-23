@@ -368,3 +368,161 @@ class TestRollbackNoPreviousVersion:
         assert agent_name in str(exc_info.value), (
             f"ValueError message must mention agent name '{agent_name}'"
         )
+
+
+# ---------------------------------------------------------------------------
+# Test 5: snapshot_writes_sidecar_json
+# ---------------------------------------------------------------------------
+
+
+class TestSnapshotWritesSidecarJson:
+    """snapshot_agent writes a sidecar .json file alongside each .md snapshot."""
+
+    REQUIRED_SIDECAR_FIELDS = {
+        "agent",
+        "version",
+        "score",
+        "eval_size",
+        "snapshot_file",
+        "recorded_at",
+    }
+
+    def test_sidecar_written_alongside_md(self, tmp_path: Path) -> None:
+        agent_name = "karen"
+        _make_agent_md(tmp_path, agent_name, "# karen prompt")
+
+        snapshot_path = snapshot_agent(
+            agent_name=agent_name,
+            base_dir=tmp_path,
+            score=0.84,
+            eval_size=20,
+        )
+
+        # Sidecar must exist next to the .md file with same stem
+        sidecar_path = snapshot_path.with_suffix(".json")
+        assert sidecar_path.exists(), (
+            f"Sidecar JSON must be written at {sidecar_path!r}"
+        )
+
+    def test_sidecar_contains_all_required_fields(self, tmp_path: Path) -> None:
+        agent_name = "karen"
+        _make_agent_md(tmp_path, agent_name, "# karen prompt")
+
+        snapshot_path = snapshot_agent(
+            agent_name=agent_name,
+            base_dir=tmp_path,
+            score=0.84,
+            eval_size=20,
+        )
+
+        sidecar_path = snapshot_path.with_suffix(".json")
+        sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+
+        for field in self.REQUIRED_SIDECAR_FIELDS:
+            assert field in sidecar, (
+                f"Required sidecar field '{field}' missing"
+            )
+
+    def test_sidecar_field_values_match_snapshot(self, tmp_path: Path) -> None:
+        agent_name = "karen"
+        _make_agent_md(tmp_path, agent_name, "# karen prompt")
+
+        snapshot_path = snapshot_agent(
+            agent_name=agent_name,
+            base_dir=tmp_path,
+            score=0.84,
+            eval_size=20,
+        )
+
+        sidecar_path = snapshot_path.with_suffix(".json")
+        sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+
+        assert sidecar["agent"] == agent_name
+        assert sidecar["score"] == 0.84
+        assert sidecar["eval_size"] == 20
+        assert sidecar["version"] == snapshot_path.stem
+        assert sidecar["snapshot_file"].endswith(".md")
+        assert len(sidecar["recorded_at"]) >= 10
+
+
+# ---------------------------------------------------------------------------
+# Test 6: rollback_restores_score_from_sidecar
+# ---------------------------------------------------------------------------
+
+
+class TestRollbackRestoresScoreFromSidecar:
+    """rollback_agent restores score, eval_size, and recorded_at from the sidecar."""
+
+    def test_rollback_restores_score_from_sidecar(self, tmp_path: Path) -> None:
+        agent_name = "karen"
+        md_file = _make_agent_md(tmp_path, agent_name, "prompt A")
+
+        # First snapshot with score 0.75
+        snapshot_agent(
+            agent_name=agent_name,
+            base_dir=tmp_path,
+            score=0.75,
+            eval_size=15,
+        )
+
+        # Second snapshot with score 0.88
+        md_file.write_text("prompt B", encoding="utf-8")
+        snapshot_agent(
+            agent_name=agent_name,
+            base_dir=tmp_path,
+            score=0.88,
+            eval_size=20,
+        )
+
+        # Rollback to v1
+        rollback_agent(agent_name=agent_name, base_dir=tmp_path)
+
+        # baseline.json must now have the v1 score and eval_size
+        payload = json.loads(
+            _baseline_path(tmp_path, agent_name).read_text(encoding="utf-8")
+        )
+
+        assert payload["score"] == 0.75, (
+            f"After rollback, baseline score must be 0.75 (v1's score), got {payload['score']!r}"
+        )
+        assert payload["eval_size"] == 15, (
+            f"After rollback, baseline eval_size must be 15 (v1's eval_size), got {payload['eval_size']!r}"
+        )
+
+    def test_rollback_without_sidecar_clears_score(self, tmp_path: Path) -> None:
+        """When the sidecar is missing, rollback sets score to None."""
+        agent_name = "karen"
+        md_file = _make_agent_md(tmp_path, agent_name, "prompt A")
+
+        # First snapshot (will have a sidecar)
+        first_snap = snapshot_agent(
+            agent_name=agent_name,
+            base_dir=tmp_path,
+            score=0.75,
+            eval_size=15,
+        )
+
+        # Remove the v1 sidecar to simulate missing sidecar scenario
+        first_sidecar = first_snap.with_suffix(".json")
+        first_sidecar.unlink()
+
+        # Second snapshot
+        md_file.write_text("prompt B", encoding="utf-8")
+        snapshot_agent(
+            agent_name=agent_name,
+            base_dir=tmp_path,
+            score=0.88,
+            eval_size=20,
+        )
+
+        # Rollback — no sidecar for v1
+        rollback_agent(agent_name=agent_name, base_dir=tmp_path)
+
+        payload = json.loads(
+            _baseline_path(tmp_path, agent_name).read_text(encoding="utf-8")
+        )
+
+        # score must be None (cleared) when sidecar is missing
+        assert payload["score"] is None, (
+            f"Without a sidecar, rollback must set score=None, got {payload['score']!r}"
+        )
