@@ -69,7 +69,16 @@ def _next_version_number(snap_dir: Path) -> int:
         match = re.match(r"^v(\d+)_", p.name)
         if match:
             numbers.append(int(match.group(1)))
-    return max(numbers) + 1 if numbers else 1
+    if not numbers:
+        # Directory has .md files but none match the expected naming pattern —
+        # possible corruption; warn and start from version 1.
+        print(
+            f"WARNING: {snap_dir} contains .md files but none match v<n>_* pattern. "
+            "Starting version numbering from 1.",
+            file=sys.stderr,
+        )
+        return 1
+    return max(numbers) + 1
 
 
 def _build_version_string(n: int, score: float) -> str:
@@ -109,8 +118,20 @@ def snapshot_agent(
     snapshot_file = snap_dir / f"{version}.md"
     snapshot_file.write_text(current_content, encoding="utf-8")
 
-    # Write baseline.json
+    # Write sidecar JSON alongside the snapshot
     recorded_at = datetime.now(timezone.utc).isoformat()
+    sidecar = {
+        "agent": agent_name,
+        "version": version,
+        "score": score,
+        "eval_size": eval_size,
+        "snapshot_file": str(snapshot_file),
+        "recorded_at": recorded_at,
+    }
+    sidecar_file = snapshot_file.with_suffix(".json")
+    sidecar_file.write_text(json.dumps(sidecar, indent=2), encoding="utf-8")
+
+    # Write baseline.json
     baseline = {
         "agent": agent_name,
         "current_version": version,
@@ -177,9 +198,25 @@ def rollback_agent(
     for md_path in md_files:
         md_path.write_text(previous_content, encoding="utf-8")
 
-    # Update baseline.json to point to the previous version
-    baseline["current_version"] = previous_version
-    baseline["snapshot_file"] = str(previous_snapshot)
+    # Update baseline.json — restore all fields from the sidecar if available
+    sidecar_path = previous_snapshot.with_suffix(".json")
+    if sidecar_path.exists():
+        sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+        baseline.update({
+            "current_version": sidecar["version"],
+            "score": sidecar["score"],
+            "eval_size": sidecar["eval_size"],
+            "snapshot_file": sidecar["snapshot_file"],
+            "recorded_at": sidecar["recorded_at"],
+        })
+        previous_version = sidecar["version"]
+    else:
+        # No sidecar — clear score to force re-evaluation before next optimization
+        baseline.update({
+            "current_version": previous_version,
+            "score": None,
+            "snapshot_file": str(previous_snapshot),
+        })
     baseline_file.write_text(json.dumps(baseline, indent=2), encoding="utf-8")
 
     return previous_version
