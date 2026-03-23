@@ -2206,7 +2206,8 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F30.2: Execute both research-analyst and karen MIPROv2 optimization runs once an LLM backend becomes available
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/F30.2.md
 **Operational Mode**: fix
 **Priority**: MEDIUM
 **Motivated by**: F29.3 BLOCKED (research-analyst MIPROv2 -- ANTHROPIC_API_KEY not set, Ollama offline at 192.168.50.62:11434) and F29.4 BLOCKED (karen MIPROv2 -- identical backend blocker). Both runs share the same external dependency blocker and all data preconditions are confirmed met: research-analyst has 56 records with median question_text 500 chars; karen has 299 records + 5 synthetic negatives with score range 1.0. This question is user-action-gated and must not be executed until a backend check passes.
