@@ -228,6 +228,7 @@ Fire when `global_count` crosses a multiple of the interval:
 | Interval | Action |
 |----------|--------|
 | Every 5 (global) | Spawn forge-check in background: `agents_dir=.claude/agents/, findings_dir=findings/, questions_md=questions.md` |
+| Every 8 (global) | Invoke pointer in **foreground**: produces mid-wave checkpoint — see Pointer Checkpoint section |
 | Every 10 (global) | Spawn agent-auditor in background: `agents_dir=.claude/agents/, findings_dir=findings/, results_tsv=results.tsv` — then check its output (see Overseer Escalation) |
 | Every 10 (global) | Invoke synthesizer-bl2 in **lightweight mode**: `mode=mid-session, findings_dir=findings/, project_name={project}` — does not commit, just refreshes synthesis.md. Read updated synthesis before routing the next question. |
 | Every 10 (global) | Refresh `campaign-context.md`: re-read the top 5 findings and PENDING hypotheses from .bl-weights.json, rewrite the file in-place using the same format as wave start (Header + ## Project + ## Top Findings + ## Open Hypotheses). |
@@ -252,6 +253,25 @@ Mode: background — do not wait for completion.
 Log: `[TROWEL] Sentinel: forge-check spawned (5-question interval)`
 
 After forge-check writes `FORGE_NEEDED.md`, the overseer consumes it on its next run. Trowel does NOT act on `FORGE_NEEDED.md` directly.
+
+### Pointer Checkpoint (every 8 questions)
+
+When `global_count % 8 == 0`, invoke Pointer in the **foreground** (wait for completion — its output biases routing for the next 8 questions):
+
+```
+Act as the pointer agent in .claude/agents/pointer.md.
+findings_dir={project_dir}/findings/
+checkpoint_dir={project_dir}/findings/checkpoints/
+wave_number={current_wave}
+question_count={global_count}
+scratch_path={project_dir}/scratch.md
+results_tsv={project_dir}/results.tsv
+project_name={project_name}
+```
+
+After Pointer writes its checkpoint file, read it. Use its **priority biasing** section to reorder remaining PENDING questions in questions.md (highest-priority threads first).
+
+Log: `[TROWEL] Pointer: checkpoint written (q{global_count})`
 
 ## Overseer Escalation
 
