@@ -20,3 +20,4 @@ Q4.3	HEALTHY	Keep simulate.py. Add optional evaluate.py stub for evidence-based 
 Q5.1	PROMISING	Multi-agent BrickLayer: question ID namespacing prevents mode conflicts. synthesis.md race condition has 3 solutions.	NONE	2026-03-16T00:00:00Z
 Q5.2	PROMISING	BrickLayer dashboard: Project Command Center layout. Left sidebar + lifecycle bar + findings panel + activity feed.	NONE	2026-03-16T00:00:00Z
 E1.1	IMPROVEMENT	Added DEGRADED_TRENDING verdict to monitor.md: trend detection before threshold crossing, +33% scenario coverage	NONE	2026-03-24T00:00:00Z
+E1.2	IMPROVEMENT	Added FAILURE routing section to validate.md: new-system→Research, deployed→Diagnose, self-contained now	NONE	2026-03-24T00:00:00Z
