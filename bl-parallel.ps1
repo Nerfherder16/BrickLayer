@@ -161,9 +161,9 @@ for ($i = 1; $i -le $Workers; $i++) {
     $label = "BL-$Project-W$i"
 
     if ($i -eq 1) {
-        $wtParts += "new-tab --title `"$label`" -p `"Git Bash`" -- bash `"$scriptFile`""
+        $wtParts += "new-tab --title `"$label`" -p `"Git Bash`" -- bash --login `"$scriptFile`""
     } else {
-        $wtParts += "; split-pane --title `"$label`" -p `"Git Bash`" -- bash `"$scriptFile`""
+        $wtParts += "; split-pane --title `"$label`" -p `"Git Bash`" -- bash --login `"$scriptFile`""
     }
 }
 
