@@ -1,0 +1,70 @@
+# Changelog -- bricklayer-v2
+
+All notable campaign findings and fixes documented here.
+Maintained by BrickLayer synthesizer at each wave end.
+
+---
+
+## [Unreleased]
+
+---
+
+## [Wave 13] -- 2026-03-24
+
+10 questions: calibration cleanup, routing baseline, fleet gap audit. 4 DONE, 2 WARNING, 2 PENDING, 1 PENDING_EXTERNAL, 1 BLOCKED.
+
+### Fixed
+- `E13.1` -- FAILURE-to-WARNING re-labeling for E12.1-live-5 and E12.1-live-16; dataset now 19 clean records (`scored_all.jsonl`)
+- `E13.2` -- Replaced stochastic prose producer E12.1-live-14 with clean count-check record; avg 0.887 across 3 runs (`scored_all.jsonl`)
+
+### Found (open)
+- `E13.7` [WARNING] -- 4 deterministic routing gaps cause unnecessary LLM fallback; eval/improve-agent pattern missing entirely
+- `E13.8` [BLOCKED] -- peer-reviewer, agent-auditor, retrospective have no .md instruction files; cannot generate baselines
+- `E13.9` [WARNING] -- 9 agents with training data have never been evaluated; karen (379 records) is highest-value target
+- `E13.10` [PENDING_EXTERNAL] -- improve_agent.py convergence run awaits E13.2 (now complete); predicted plateau 0.60-0.70
+- `E13.3` [PENDING] -- research-analyst optimize_with_claude after dataset cleanup
+- `E13.5` [PENDING] -- synthesizer-bl2 optimization after live calibration
+
+### Healthy
+- E13.6: Deterministic routing at 75% exceeds 60% target
+- E13.1, E13.2: Dataset calibration corrected, 19 clean records
+- 4 agents remain AT TARGET: karen (1.00), quantitative-analyst (0.90), regulatory-researcher (1.00), competitive-analyst (~0.92)
+
+---
+
+## [Wave 12] -- 2026-03-24
+
+Live eval calibration: research-analyst 0.84 (near 0.85 target), synthesizer-bl2 0.62 (meets 0.60 target).
+
+### Added
+- `masonry/scripts/generate_live_records.py` -- live-calibrated training record generator for research-analyst
+- `masonry/scripts/generate_synth_records.py` -- live-calibrated generator for synthesizer-bl2
+- `masonry/scripts/merge_live_records.py` -- merge live records into scored_all.jsonl
+
+### Changed
+- research-analyst eval: tool-free 0.44-0.61 to live eval 0.84 (+39pts)
+- synthesizer-bl2 eval: tool-free 0.45-0.55 to live eval 0.62 (+12pts, breaks ceiling)
+
+### Found (open)
+- E12.1: 2 FAILURE-expected records produce WARNING on re-run (fixed in Wave 13)
+- E12.2: 4 old records miscalibrated for tool-enabled agents
+- E12.3: 40% prose rate in synthesizer-bl2 generation
+
+### Healthy
+- Live eval harness proven reliable across both agents
+- 4 agents AT TARGET: karen, quantitative-analyst, regulatory-researcher, competitive-analyst
+
+---
+
+## [Waves 1-11] -- 2026-03-16 to 2026-03-24
+
+46 questions across architecture (diagnose), mode validation, per-project application, template evolution, frontier exploration, and 11 evolve waves covering eval pipeline, agent optimization, and data quality.
+
+### Key milestones
+- Wave 1: 20 initial questions, 5 DIAGNOSIS_COMPLETE, 8 HEALTHY
+- Wave 2: Karen pipeline bugs fixed (parent commit files, bot labels, encoding), eval 0.30->1.00
+- Waves 3-5: Eval pipeline coverage expansion, quantitative-analyst 0.10->0.90
+- Waves 6-8: synthesizer-bl2 baseline, 2-stage eval, masonry-guard.js false positive fix
+- Wave 9: Verdict prerequisite gate in build_metric(), calibration inversion fix
+- Wave 10: synthesizer-bl2 false-pass exposure, floor 0.20->0.40
+- Wave 11: Live eval prototype breaks tool-free ceiling (0.84 vs 0.45)
