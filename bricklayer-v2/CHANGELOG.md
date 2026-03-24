@@ -29,8 +29,7 @@ Maintained by BrickLayer synthesizer at each wave end.
 - `E13.8` [BLOCKED] -- peer-reviewer/agent-auditor/retrospective have no .md instruction files
 - `E13.7` [WARNING] -- 4 deterministic routing coverage gaps
 - `E13.9` [WARNING] -- 9 agents with training data have no eval baseline
-- `E13.3` [PENDING] -- research-analyst prompt optimization
-- `E13.5` [PENDING] -- synthesizer-bl2 prompt optimization
+- `E13.5` [WARNING] -- synthesizer-bl2 re-labeling regression (0.62→0.41); optimization blocked by approval flow
 - `E13.10` [PENDING_EXTERNAL] -- improve_agent.py convergence run
 
 ### Healthy
@@ -40,25 +39,29 @@ Maintained by BrickLayer synthesizer at each wave end.
 
 ---
 
-## [Wave 13] -- 2026-03-24
+## [Wave 13] -- 2026-03-25
 
-10 questions: calibration cleanup, routing baseline, fleet gap audit. 4 DONE, 2 WARNING, 2 PENDING, 1 PENDING_EXTERNAL, 1 BLOCKED.
+10 questions: calibration cleanup, routing baseline, fleet gap audit, first confirmed optimization gain. 3 IMPROVEMENT, 1 HEALTHY, 3 WARNING, 1 BLOCKED, 1 PENDING_EXTERNAL, 1 WARNING (synthesizer regression).
 
-### Fixed
-- `E13.1` -- FAILURE-to-WARNING re-labeling for E12.1-live-5 and E12.1-live-16; dataset now 19 clean records (`scored_all.jsonl`)
-- `E13.2` -- Replaced stochastic prose producer E12.1-live-14 with clean count-check record; avg 0.887 across 3 runs (`scored_all.jsonl`)
+### Improved
+- `E13.3` -- research-analyst live eval 0.84→0.91 (+0.07) after loop 1 optimize_with_claude.py; 7 DSPy rules injected; loop 2 reverted (tool-free eval ±0.10 noise) (`research-analyst.md`)
+- `E13.1` -- FAILURE-to-WARNING re-labeling for E12.1-live-5 and E12.1-live-16; 3 stochastic records removed; dataset cleaned to 17 stable records (`scored_all.jsonl`)
+- `E13.2` -- Replaced stochastic prose producer E12.1-live-14 with clean count-check record; 0.75 avg across 3 runs (`scored_all.jsonl`)
+
+### Added
+- `masonry/scripts/score_routing.py` -- routing accuracy baseline script; 20-query test suite for four-layer router (E13.6)
 
 ### Found (open)
 - `E13.7` [WARNING] -- 4 deterministic routing gaps cause unnecessary LLM fallback; eval/improve-agent pattern missing entirely
 - `E13.8` [BLOCKED] -- peer-reviewer, agent-auditor, retrospective have no .md instruction files; cannot generate baselines
 - `E13.9` [WARNING] -- 9 agents with training data have never been evaluated; karen (379 records) is highest-value target
-- `E13.10` [PENDING_EXTERNAL] -- improve_agent.py convergence run awaits E13.2 (now complete); predicted plateau 0.60-0.70
-- `E13.3` [PENDING] -- research-analyst optimize_with_claude after dataset cleanup
-- `E13.5` [PENDING] -- synthesizer-bl2 optimization after live calibration
+- `E13.10` [PENDING_EXTERNAL] -- improve_agent.py 3-loop convergence run; static prediction plateau 0.60-0.70
+- `E13.5` [WARNING] -- synthesizer-bl2 re-labeling caused regression 0.62→0.41; optimization subprocess blocked by approval flow
 
 ### Healthy
-- E13.6: Deterministic routing at 75% exceeds 60% target
-- E13.1, E13.2: Dataset calibration corrected, 19 clean records
+- E13.6: Deterministic routing at 75% exceeds 60% target; routing baseline established
+- E13.3: optimize_with_claude.py loop confirmed effective for tool-dependent agents (+0.07 gain)
+- E13.4: eval_agent_live.py generalized with --agent flag
 - 4 agents remain AT TARGET: karen (1.00), quantitative-analyst (0.90), regulatory-researcher (1.00), competitive-analyst (~0.92)
 
 ---
