@@ -81,6 +81,15 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ---
 
+## Wave 4 — Evolve (E4): Eval Instruction Fix + Optimizer Guard
+
+| ID | Mode | Status | Question |
+|----|------|--------|---------|
+| E4.1 | evolve | DONE | Adding `_RESEARCH_JSON_INSTRUCTION` with explicit field list to `eval_agent.py` should raise quantitative-analyst eval score from 0.10 to >0.50 by eliminating wrong-schema predictions (routing decisions, question payloads). |
+| E4.2 | evolve | DONE | Adding `target_paths` optional parameter to `writeback_optimized_instructions()` and defaulting to [source_md_path] in `optimize_with_claude.py` should prevent cross-file contamination without breaking sync when explicitly requested. |
+
+---
+
 ## Domain 5 — Frontier: BrickLayer's next evolution beyond 2.0
 
 | ID | Mode | Status | Question |
