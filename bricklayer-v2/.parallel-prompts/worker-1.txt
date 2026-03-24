@@ -2,11 +2,11 @@
 
 Your environment:
   BL_WORKER_ID = 1
-  Project path = C:\Users\trg16\Dev\Bricklayer2.0\bricklayer-v2
-  Claims tool  = python C:\Users\trg16\Dev\Bricklayer2.0\bl\claim.py
+  Project path = C:/Users/trg16/Dev/Bricklayer2.0/bricklayer-v2
+  Claims tool  = python C:/Users/trg16/Dev/Bricklayer2.0/bl/claim.py
 
 Begin the parallel research loop from program-parallel.md immediately.
-The first thing you do is: python C:\Users\trg16\Dev\Bricklayer2.0\bl\claim.py pending C:\Users\trg16\Dev\Bricklayer2.0\bricklayer-v2
+The first thing you do is: python C:/Users/trg16/Dev/Bricklayer2.0/bl/claim.py pending C:/Users/trg16/Dev/Bricklayer2.0/bricklayer-v2
 Claim the first available question and start working.
 
-NEVER STOP until python C:\Users\trg16\Dev\Bricklayer2.0\bl\claim.py pending C:\Users\trg16\Dev\Bricklayer2.0\bricklayer-v2 returns empty AND all your claimed questions are complete.
+NEVER STOP until python C:/Users/trg16/Dev/Bricklayer2.0/bl/claim.py pending C:/Users/trg16/Dev/Bricklayer2.0/bricklayer-v2 returns empty AND all your claimed questions are complete.
