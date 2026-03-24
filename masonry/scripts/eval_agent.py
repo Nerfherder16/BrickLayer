@@ -187,12 +187,16 @@ def run_eval(
         commit_subject = inp.get("commit_subject", "") if isinstance(inp, dict) else ""
 
         json_instruction = _KAREN_JSON_INSTRUCTION if signature == "karen" else (
-            "\n\nRespond ONLY with a valid JSON object matching the expected output schema."
+            "Respond ONLY with a valid JSON object matching the expected output schema."
         )
-        prompt = f"{agent_prompt}{json_instruction}\n\nInput:\n{json.dumps(inp)}"
+        # Use --system-prompt for agent instructions so Claude treats them as the
+        # system context, not as user input. The -p user message contains only the
+        # JSON output instruction + input payload.
+        user_msg = f"{json_instruction.strip()}\n\nInput:\n{json.dumps(inp)}"
         proc = subprocess.run(
             _CLAUDE_CMD + [
-                "-p", prompt, "--model", model,
+                "-p", user_msg, "--model", model,
+                "--system-prompt", agent_prompt,
                 "--output-format", "json",
                 # skip all settings (disables hooks) and don't resume previous sessions
                 "--setting-sources", "",
