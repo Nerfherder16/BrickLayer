@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `80ce504` chore: auto-commit 1 session file on stop (2026-03-24)
 - `795d94d` feat(bl2/evolve): Wave 9 — research-analyst structural ceiling + metrics fix (2026-03-24)
 - `c619418` feat(bl2-evolve): Wave 8 — 2-stage eval + record scale-up + masonry-guard fix (E8.1-E8.4) (2026-03-24)
 - `17fa445` feat(bl2-evolve): Wave 7 — synthesizer-bl2 record fix + research-analyst pilot (E7.1, E7.2) (2026-03-24)
