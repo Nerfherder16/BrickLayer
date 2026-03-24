@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `c619418` feat(bl2-evolve): Wave 8 — 2-stage eval + record scale-up + masonry-guard fix (E8.1-E8.4) (2026-03-24)
 - `17fa445` feat(bl2-evolve): Wave 7 — synthesizer-bl2 record fix + research-analyst pilot (E7.1, E7.2) (2026-03-24)
 - `1b55f15` feat(evolve): Wave 6 — synthesizer-bl2/competitive-analyst baselines + research-analyst strategy (2026-03-24)
 - `8e1405d` evolve(bl2): Wave 5 — PROMISING verdict + new agent baselines (2026-03-24)
