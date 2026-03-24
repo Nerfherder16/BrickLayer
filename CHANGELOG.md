@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `3470044` chore: auto-commit 1 session file on stop (2026-03-24)
 - `c488838` chore: auto-commit 3 session files on stop (2026-03-24)
 - `55a648c` finding(Q5.1-Q5.2): frontier domain — multi-agent BL and dashboard both PROMISING [worker-1] (2026-03-24)
 - `78141d1` chore: auto-commit 2 session files on stop (2026-03-24)
