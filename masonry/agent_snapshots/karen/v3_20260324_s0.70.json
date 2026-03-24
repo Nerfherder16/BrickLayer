@@ -1,6 +1,6 @@
 {
   "agent": "karen",
-  "current_version": "v3_20260324_s0.70",
+  "version": "v3_20260324_s0.70",
   "score": 0.7,
   "eval_size": 20,
   "snapshot_file": "C:\\Users\\trg16\\Dev\\Bricklayer2.0\\masonry\\agent_snapshots\\karen\\v3_20260324_s0.70.md",
