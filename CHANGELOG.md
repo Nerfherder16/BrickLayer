@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `dc36c9d` chore: multi-session checkpoint — evolve wave 2 + masonry campaign updates (2026-03-24)
 - `c808992` chore(recall-arch-frontier): organize findings into mode subfolders (2026-03-24)
 - `226fc24` feat(trowel): wire Pointer into campaign loop + fix bl-run to invoke Trowel (2026-03-24)
 - `c1a9008` chore(recall): organize findings into mode subfolders (2026-03-24)
