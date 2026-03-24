@@ -191,12 +191,19 @@ def run_eval(
         )
         prompt = f"{agent_prompt}{json_instruction}\n\nInput:\n{json.dumps(inp)}"
         proc = subprocess.run(
-            _CLAUDE_CMD + ["-p", prompt, "--model", model, "--output-format", "json", "--bare"],
+            _CLAUDE_CMD + [
+                "-p", prompt, "--model", model,
+                "--output-format", "json",
+                # skip user settings (and their hooks) but keep project/local settings
+                # so that keychain auth still works
+                "--setting-sources", "project,local",
+            ],
             capture_output=True,
             text=True,
         )
 
         # --output-format json wraps the response: {"type":"result","result":"...","is_error":...}
+        # Extract result text, then strip any markdown code fences Claude adds.
         raw_output = proc.stdout
         try:
             envelope = json.loads(raw_output)
@@ -204,6 +211,14 @@ def run_eval(
                 raw_output = envelope["result"]
         except (json.JSONDecodeError, ValueError):
             pass  # not a JSON envelope — use stdout as-is
+
+        # Strip markdown code fences (```json ... ``` or ``` ... ```)
+        raw_output = raw_output.strip()
+        if raw_output.startswith("```"):
+            raw_output = raw_output.split("\n", 1)[-1]  # drop opening fence line
+            if raw_output.endswith("```"):
+                raw_output = raw_output[: raw_output.rfind("```")]
+            raw_output = raw_output.strip()
 
         score, predicted = _score_example(record, raw_output, metric_fn)
         passes = score >= 0.5
