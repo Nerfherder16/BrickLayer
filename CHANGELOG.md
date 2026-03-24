@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `d172de6` chore: auto-commit 1 session file on stop (2026-03-24)
 - `d94ff0b` finding(Q1.1): no bl/campaign.py exists — mode dispatch is 2 small changes to run_campaign.py + agent.py [worker-2] (2026-03-24)
 - `e169750` chore: auto-commit 3 session files on stop (2026-03-24)
 - `75b3c2f` finding(Q1.3): all 9 verdict groups already implemented in findings.py [worker-1] (2026-03-24)
