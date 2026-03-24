@@ -199,11 +199,15 @@
   "F-mid.1": {
     "worker": "worker-1",
     "claimed_at": "2026-03-24T14:48:27.519869+00:00",
-    "status": "IN_PROGRESS"
+    "status": "DONE",
+    "verdict": "FIXED",
+    "completed_at": "2026-03-24T14:52:50.547365+00:00"
   },
   "F-mid.2": {
     "worker": "worker-1",
     "claimed_at": "2026-03-24T14:50:06.537205+00:00",
-    "status": "IN_PROGRESS"
+    "status": "DONE",
+    "verdict": "FIXED",
+    "completed_at": "2026-03-24T14:52:50.628144+00:00"
   }
 }
