@@ -18,10 +18,10 @@ BrickLayer   (research loop, campaigns, simulations, agent fleet, findings)
 
 Masonry is not a subprocess of Claude Code — it is a parallel layer that carries messages between Claude Code and the BrickLayer research machinery. It is implemented as:
 
-- A Node.js MCP server (`mcp_server/`) exposing tools like `masonry_route`, `masonry_onboard`, `masonry_optimize_agent`, `masonry_drift_check`
+- A Node.js MCP server (`mcp_server/`) exposing tools like `masonry_route`, `masonry_onboard`, `masonry_drift_check`
 - A set of Claude Code hook scripts (`src/hooks/`) that intercept session events (SessionStart, PreToolUse, PostToolUse, Stop)
 - A Python routing engine (`src/routing/`) implementing four routing layers in priority order
-- A DSPy optimization pipeline (`src/dspy_pipeline/`) for improving agent prompts via MIPROv2
+- An agent prompt optimization pipeline (`scripts/improve_agent.py`) using an eval → optimize → compare loop via `claude -p`
 - A declarative agent registry (`agent_registry.yml`) listing all known agents with their modes, capabilities, and tier status
 
 ---

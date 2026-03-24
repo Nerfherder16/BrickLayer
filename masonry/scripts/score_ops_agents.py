@@ -191,17 +191,45 @@ _RE_KAREN_COMMIT = re.compile(
 )
 
 
+_RE_BOT_COMMIT = re.compile(r"^chore:\s+update\s+CHANGELOG\s+for\s+[0-9a-f]{7,}", re.IGNORECASE)
+
+
 def _score_karen(base_dir: Path, all_commits: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Score karen from CHANGELOG/ARCHITECTURE/ROADMAP file modifications."""
+    """Score karen from CHANGELOG/ARCHITECTURE/ROADMAP file modifications.
+
+    Training record structure (fixed):
+    - input.commit_subject: the PARENT commit subject (the commit that triggered karen)
+    - input.files_modified: the PARENT commit's non-doc source files
+    - output.doc_files_written: how many doc files karen wrote in the current commit
+    - output.reverted: whether the current commit was later reverted
+
+    This gives karen the correct context: "given this source change, should you document it?"
+    Previously the current commit's doc files were used, causing the model to infer
+    "docs already written → skip" for all training examples.
+    """
     records: list[dict[str, Any]] = []
 
-    for commit in all_commits:
+    for idx, commit in enumerate(all_commits):
         files = commit.get("files", [])
         subject = commit.get("subject", "")
 
         # Match either by subject or by files touched
         karen_files = [f for f in files if Path(f).name in _KAREN_FILES]
         if not karen_files and not _RE_KAREN_COMMIT.search(subject):
+            continue
+
+        # Find parent commit (all_commits is newest-first, so parent = idx+1)
+        parent = all_commits[idx + 1] if idx + 1 < len(all_commits) else None
+        if parent is None:
+            continue  # No parent — skip first commit in history
+
+        # Use parent's non-doc source files as the trigger context for karen
+        parent_subject = parent.get("subject", "")
+        parent_files = parent.get("files", [])
+        source_files = [f for f in parent_files if Path(f).name not in _KAREN_FILES]
+
+        # Skip if parent is itself a bot commit — those don't represent real trigger context
+        if _RE_BOT_COMMIT.search(parent_subject):
             continue
 
         commit_date = _parse_iso(commit.get("date_iso", ""))
@@ -223,7 +251,10 @@ def _score_karen(base_dir: Path, all_commits: list[dict[str, Any]]) -> list[dict
                     "operation_succeeded": op_succeeded,
                     "human_accepted": human_accepted,
                 },
-                "input": {"commit_subject": subject[:200], "files_modified": karen_files},
+                "input": {
+                    "commit_subject": parent_subject[:200],
+                    "files_modified": source_files,
+                },
                 "output": {"doc_files_written": len(karen_files), "reverted": reverted},
             })
 

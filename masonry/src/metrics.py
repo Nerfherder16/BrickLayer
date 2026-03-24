@@ -54,6 +54,11 @@ def build_metric(signature_cls: type = object) -> Any:
     return metric
 
 
+_RE_BOT_COMMIT_SUBJECT = re.compile(
+    r"^chore:\s+update\s+CHANGELOG\s+for\s+[0-9a-f]{7,}", re.IGNORECASE
+)
+
+
 def build_karen_metric() -> Any:
     """Heuristic scoring metric for the karen ops-domain agent.
 
@@ -64,6 +69,11 @@ def build_karen_metric() -> Any:
     """
 
     def _derive_expected(example: Any) -> tuple[float, str]:
+        # If the commit subject is an automated bot commit, expected is always "skipped"
+        commit_subject = str(getattr(example, "commit_subject", "") or "")
+        if _RE_BOT_COMMIT_SUBJECT.search(commit_subject):
+            return 0.0, "skipped"
+
         ex_reverted = getattr(example, "reverted", None)
         if ex_reverted is not None:
             if ex_reverted:

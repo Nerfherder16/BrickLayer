@@ -40,12 +40,6 @@ masonry/
     schemas/
       payloads.py         Pydantic v2 payload contracts (QuestionPayload, FindingPayload, etc.)
       registry_loader.py  YAML registry parser + mode/name lookup helpers
-    dspy_pipeline/
-      signatures.py       DSPy Signature classes (ResearchAgentSig, DiagnoseAgentSig, etc.)
-      optimizer.py        MIPROv2 optimization runner (heuristic metric, no LLM judge)
-      training_extractor.py  Extracts training examples from BL2 finding .md files
-      drift_detector.py   Agent quality drift detection (verdict scoring + DriftReport)
-      generated/          Auto-generated DSPy signature stubs per agent
     scoring/
       rubrics.py          Canonical scoring rubrics per agent category (hardcoded invariants)
   scripts/
@@ -68,7 +62,7 @@ masonry/
   agent_registry.yml      Declarative agent registry (46 agents, YAML, Pydantic-validated)
   hooks.json              Hook manifest (consumed by masonry-setup.js installer)
   package.json            Node.js package (name: masonry-mcp, version: 0.1.0, no runtime deps)
-  requirements.txt        Python dependencies (pydantic, httpx, PyYAML, dspy)
+  requirements.txt        Python dependencies (pydantic, httpx, PyYAML)
 ```
 
 ---
@@ -143,34 +137,34 @@ The `hooks.json` manifest defines registration order. Within a single event, hoo
 
 ---
 
-## DSPy Optimization Pipeline
+## Agent Prompt Optimization
 
-The pipeline improves agent prompt quality using campaign findings as training data. No LLM judge is required — quality is assessed by a heuristic metric.
+Agent prompts are improved via an eval → optimize → compare loop using `claude -p`. No DSPy, Ollama, or external API key is required.
 
 ### Flow
 
 ```
 BL2 findings/*.md
        |
-  training_extractor.py   -- extract verdict, severity, evidence, mitigation per finding
-       |                  -- quality-weight by agent score: gold >= 0.8, silver >= 0.5, exclude < 0.5
+  score_findings.py / score_all_agents.py
+       |  -- heuristic scoring: verdict_match + evidence_quality + confidence_calibration
+       |  -- appends scored records to scored_all.jsonl
        |
-  optimizer.py            -- MIPROv2(num_threads=1, max_bootstrapped_demos=3, max_labeled_demos=3)
-       |                  -- heuristic metric: verdict_match(0.4) + evidence_quality(0.4) + confidence_calibration(0.2)
-       |                  -- requires >= 5 training examples per agent; skips agents below threshold
-       |                  -- falls back to unoptimized module on MIPROv2 failure
+  improve_agent.py   -- eval → optimize_with_claude → compare loop
+       |  -- eval_agent.py: runs agent prompt via `claude -p`, scores against held-out jsonl
+       |  -- optimize_with_claude.py: generates improved instructions from high/low examples
+       |  -- reverts if score regresses; saves history to agent_snapshots/{agent}/history/
        |
-  optimized_prompts/{agent}.json  -- saved optimized DSPy module + score + timestamp
+  writeback.py   -- injects instructions into ## DSPy Optimized Instructions section
+                 -- updates all copies of agent .md (project-level + ~/.claude/agents/)
+                 -- updates agent_registry.yml last_score
 ```
 
-Optimized prompts are injected by Mortar when invoking specialist agents. Kiln provides an OPTIMIZE button trigger; `masonry_optimize_agent` MCP tool provides the programmatic trigger.
+Run `python masonry/scripts/improve_agent.py {agent-name}` from the repo root.
 
 ### Drift Detection
 
-`drift_detector.py` computes agent quality drift against stored baselines:
-- Verdicts mapped to scores: OK-class = 1.0, PARTIAL-class = 0.5, all others = 0.0
-- Alert levels: drift < 10% = ok, 10–25% = warning, > 25% = critical
-- `masonry_drift_check` MCP tool exposes this to Kiln
+`masonry_drift_check` MCP tool runs drift detection against stored baselines. Requires a `drift_detector` module to be available (not currently installed).
 
 ---
 
@@ -214,7 +208,6 @@ When any `agents/*.md` file is written or edited:
 2. `onboard_agent.py` reads YAML frontmatter (no body inference)
 3. Calls `upsert_registry_entry` (idempotent — same result run twice)
 4. Writes runtime state fields for new entries only (preserves existing scores on update)
-5. Calls `generate_dspy_signature_stub` — writes `src/dspy_pipeline/generated/{name}.py`
 
 The `masonry_onboard` MCP tool exposes this pipeline for on-demand invocation from Kiln.
 
@@ -241,7 +234,6 @@ Primary: MCP Python SDK (`mcp` package, stdio transport). If `mcp` is not instal
 | `masonry_fleet` | List fleet agents + performance scores from registry.json + agent_db.json |
 | `masonry_recall_search` | Search Recall for memories relevant to a query |
 | `masonry_route` | Route request through four-layer engine, return RoutingDecision |
-| `masonry_optimization_status` | DSPy optimization scores from optimized_prompts/*.json |
 | `masonry_onboard` | Detect and register new agent .md files not yet in registry |
 | `masonry_drift_check` | Drift detection for all registry agents with verdict history |
 | `masonry_registry_list` | List agents from agent_registry.yml with optional tier/mode filter |
@@ -302,7 +294,7 @@ User types in Claude Code
 |---------|-----|---------|
 | Recall (System-Recall) | http://100.70.195.84:8200 | recall.js, masonry-observe.js, skill-surface.js, masonry-stop.js |
 | Ollama | http://192.168.50.62:11434 | semantic.py (qwen3-embedding:0.6b), config.js (qwen3:14b for summaries) |
-| Claude API (Anthropic) | via claude subprocess | llm_router.py (haiku), optimizer.py (sonnet via DSPy) |
+| Claude API (Anthropic) | via claude subprocess | llm_router.py (haiku), improve_agent.py (eval + optimize loop) |
 
 All external service calls are wrapped with timeouts (2–15s) and fail gracefully. Masonry remains functional if any service is unavailable.
 
@@ -323,10 +315,6 @@ masonry/
     schemas/
       __init__.py    (re-exports AgentRegistryEntry, all payloads)
       payloads.py, registry_loader.py
-    dspy_pipeline/
-      __init__.py
-      signatures.py, optimizer.py, training_extractor.py, drift_detector.py
-      generated/     (auto-generated stubs)
     scoring/
       __init__.py
       rubrics.py
