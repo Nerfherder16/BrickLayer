@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+import re
 import subprocess
 import sys
 import tempfile
@@ -122,16 +123,44 @@ def _load_agent_prompt(base_dir: Path, agent_name: str) -> str:
 
 # ── Scoring ───────────────────────────────────────────────────────────────────
 
+_PROSE_THRESHOLD_KEYWORDS = ("threshold", "baseline", "%", "ms", "pts", "seconds")
+
+
+def _score_prose_evidence(raw_text: str) -> float:
+    """Score evidence quality from a prose (non-JSON) response.
+
+    Used in 2-stage eval (Stage 1) when the agent produces research prose instead
+    of structured JSON. Awards evidence quality points only — no verdict match or
+    confidence calibration possible. Maximum: 0.4 (mirrors evidence_quality weight
+    in build_metric).
+    """
+    text = raw_text.strip()
+    has_numbers = bool(re.search(r"\d+\.?\d*", text))
+    has_threshold_language = any(kw in text.lower() for kw in _PROSE_THRESHOLD_KEYWORDS)
+    if len(text) > 300 and (has_numbers or has_threshold_language):
+        return 0.4
+    return 0.2
+
 
 def _score_example(
     record: dict,
     predicted_raw: str,
     metric_fn: Any,
+    prose_scoring: bool = False,
 ) -> tuple[float, dict]:
-    """Score one example. Returns (score, predicted_dict)."""
+    """Score one example. Returns (score, predicted_dict).
+
+    2-stage eval:
+    - Stage 1 (prose): JSON parse fails + prose_scoring=True → score evidence quality
+      from raw text. Gives 0.2-0.4 instead of 0.0 for agents that produce research
+      prose but forget JSON formatting.
+    - Stage 2 (JSON): normal metric_fn scoring (verdict_match + evidence + confidence).
+    """
     try:
         predicted = json.loads(predicted_raw)
     except (json.JSONDecodeError, ValueError):
+        if prose_scoring:
+            return _score_prose_evidence(predicted_raw), {}
         return 0.0, {}
 
     expected = record.get("expected", record.get("output", {}))
@@ -264,7 +293,10 @@ def run_eval(
                 raw_output = raw_output[: raw_output.rfind("```")]
             raw_output = raw_output.strip()
 
-        score, predicted = _score_example(record, raw_output, metric_fn)
+        # Enable 2-stage eval for research-domain agents: prose responses score
+        # on evidence quality (0.2-0.4) rather than failing with 0.00.
+        prose_scoring = signature != "karen"
+        score, predicted = _score_example(record, raw_output, metric_fn, prose_scoring=prose_scoring)
         passes = score >= 0.5
 
         if passes:
