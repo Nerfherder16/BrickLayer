@@ -31,3 +31,5 @@ E3.3	WARNING	research-analyst baseline 0.20 (1/5). Agentic agent ignores JSON in
 E3.4	WARNING	Optimizer write-back scope risk. writeback_optimized_instructions() writes to ALL copies with no guard. Proposed: target_paths scope limit.	NONE	2026-03-24T08:45:00Z
 E4.1	IMPROVEMENT	quantitative-analyst eval 0.10->0.70 after adding explicit JSON field instruction to eval harness	eval_agent.py	2026-03-24T09:00:00Z
 E4.2	IMPROVEMENT	Optimizer write-back scope guard: target_paths param prevents cross-file contamination	writeback.py optimize_with_claude.py	2026-03-24T09:15:00Z
+E5.1	IMPROVEMENT	quantitative-analyst eval 0.70->0.90 (AT TARGET) by adding PROMISING verdict. Also fixed wrong-signature karen regression check bug.	eval_agent.py	2026-03-24T10:00:00Z
+E5.2	IMPROVEMENT	regulatory-researcher baseline 1.00 (10/10) — eval infrastructure works correctly for this agent	NONE	2026-03-24T10:15:00Z

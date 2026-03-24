@@ -275,6 +275,31 @@ quantitative-analyst past 0.85.
 
 ---
 
+## Evolve Wave 5 (2026-03-24)
+
+**Questions**: E5.1 (IMPROVEMENT), E5.2 (IMPROVEMENT)
+
+### E5.1 — quantitative-analyst 0.70→0.90 (AT TARGET), wrong-signature bug fixed
+Adding `PROMISING` to `_RESEARCH_JSON_INSTRUCTION` allowed the model to match 42%
+of quant-analyst training records that had `PROMISING` expected verdict. Score
+stable at 0.90 (18/20) across multiple runs. Incidental discovery: `eval_agent.py`
+defaulted to `--signature research` for karen, causing false regression reports in
+Waves 3-4. Fixed with auto-detect: `if agent == "karen": signature = "karen"`.
+Karen remains 1.00 (20/20) with correct signature.
+
+### E5.2 — regulatory-researcher baseline 1.00 (10/10)
+Established first baseline for regulatory-researcher. Eval infrastructure works
+correctly — no eval-design-mismatch. Training data has 12 clean records with
+HEALTHY/INCONCLUSIVE verdicts and good evidence quality. Agent responds to the eval
+instruction rather than launching full agentic research.
+
+**Wave 5 conclusions**: Three agents now AT TARGET (karen, quantitative-analyst,
+regulatory-researcher). The PROMISING fix was the last high-ROI structural change
+for quant-analyst. Remaining gap: research-analyst (0.20) needs 20+ diverse training
+records and a different eval strategy suited to agentic researchers.
+
+---
+
 ## Cumulative Evolve Campaign Summary
 
 | Wave | Focus | Key Outcomes |
@@ -283,9 +308,11 @@ quantitative-analyst past 0.85.
 | W2 | Karen training data | 0.30→1.00 — fixed 3 pipeline bugs (self-reference, bot labels, Windows cp1252) |
 | W3 | Eval coverage + audits | 5→10 eval-able agents; quantitative-analyst/research-analyst baselines established |
 | W4 | Eval instruction + scope guard | quant-analyst 0.10→0.70; optimizer overwrite risk fixed |
+| W5 | PROMISING verdict + new baselines | quant-analyst 0.70→0.90 (AT TARGET); regulatory-researcher 1.00 baseline; karen wrong-signature bug fixed |
 
 **Current agent eval scores**:
-- karen: **1.00** (20/20) — AT TARGET (0.85)
-- quantitative-analyst: **0.70** (7/10) — below target, training data cleanup remains
+- karen: **1.00** (20/20 with --signature karen) — AT TARGET (0.85)
+- quantitative-analyst: **0.90** (18/20) — AT TARGET (0.85)
+- regulatory-researcher: **1.00** (10/10) — AT TARGET
 - research-analyst: 0.20 (1/5) — eval design mismatch, needs more training data + instruction work
 - All others: no meaningful baseline yet

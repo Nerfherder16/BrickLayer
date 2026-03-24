@@ -90,6 +90,15 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ---
 
+## Wave 5 — Evolve (E5): PROMISING Verdict + Regulatory Baseline
+
+| ID | Mode | Status | Question |
+|----|------|--------|---------|
+| E5.1 | evolve | DONE | Adding `PROMISING` to the allowed verdict set in `_RESEARCH_JSON_INSTRUCTION` should allow quantitative-analyst to match 26/61 training records (42%) that have PROMISING expected output — currently forced to mismatch. Does this push eval score from 0.70 to ≥0.85? |
+| E5.2 | evolve | DONE | After E5.1 eval run, establish baseline for regulatory-researcher (12 records, avg=60). Does the eval infrastructure work for this agent, or does it exhibit the same eval-design-mismatch as research-analyst? |
+
+---
+
 ## Domain 5 — Frontier: BrickLayer's next evolution beyond 2.0
 
 | ID | Mode | Status | Question |

@@ -59,7 +59,7 @@ _RESEARCH_JSON_INSTRUCTION = (
     "Based ONLY on your knowledge and the provided context, assess whether the claim holds. "
     "Respond ONLY with a valid JSON object and no other text. "
     "The JSON must have exactly these keys: "
-    '"verdict" (one of: "HEALTHY", "WARNING", "FAILURE", "INCONCLUSIVE"), '
+    '"verdict" (one of: "HEALTHY", "WARNING", "FAILURE", "INCONCLUSIVE", "PROMISING"), '
     '"summary" (1-2 sentence summary of your assessment), '
     '"evidence" (detailed evidence string, minimum 300 characters, include specific numbers or thresholds), '
     '"confidence" (decimal string 0.0-1.0 reflecting your certainty).'
@@ -350,11 +350,17 @@ def _main() -> None:
 
     snapshot_dir = base_dir / "masonry" / "agent_snapshots"
 
+    # Auto-detect signature from agent name if not explicitly overridden
+    _KAREN_AGENTS = {"karen"}
+    signature = args.signature
+    if signature == "research" and args.agent_name in _KAREN_AGENTS:
+        signature = "karen"
+
     run_eval(
         agent=args.agent_name,
         data_file=data_file,
         snapshot_dir=snapshot_dir,
-        signature=args.signature,
+        signature=signature,
         eval_size=args.eval_size,
         model=args.model,
         base_dir=base_dir,
