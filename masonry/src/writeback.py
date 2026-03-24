@@ -22,10 +22,13 @@ def writeback_optimized_instructions(
     agent_name: str,
     instructions: str,
     optimized_at: str,
+    target_paths: "list[Path] | None" = None,
 ) -> list[Path]:
-    """Inject optimized instructions into all copies of an agent .md file.
+    """Inject optimized instructions into agent .md file(s).
 
-    Searches:
+    If target_paths is provided, only those files are updated (scope guard —
+    prevents unintended cross-file contamination when variants exist).
+    Otherwise, searches all copies:
       - base_dir/.claude/agents/{agent}.md
       - base_dir/{project}/.claude/agents/{agent}.md  (one level deep)
       - ~/.claude/agents/{agent}.md
@@ -39,15 +42,19 @@ def writeback_optimized_instructions(
         f"{_SECTION_END}\n"
     )
 
-    candidates: list[Path] = [
-        base_dir / ".claude" / "agents" / f"{agent_name}.md",
-    ]
-    for child in base_dir.iterdir():
-        if child.is_dir() and not child.name.startswith("."):
-            p = child / ".claude" / "agents" / f"{agent_name}.md"
-            if p.exists():
-                candidates.append(p)
-    candidates.append(Path.home() / ".claude" / "agents" / f"{agent_name}.md")
+    if target_paths is not None:
+        # Scope guard: only write to the explicitly specified files
+        candidates = list(target_paths)
+    else:
+        candidates = [
+            base_dir / ".claude" / "agents" / f"{agent_name}.md",
+        ]
+        for child in base_dir.iterdir():
+            if child.is_dir() and not child.name.startswith("."):
+                p = child / ".claude" / "agents" / f"{agent_name}.md"
+                if p.exists():
+                    candidates.append(p)
+        candidates.append(Path.home() / ".claude" / "agents" / f"{agent_name}.md")
 
     seen: set[Path] = set()
     unique: list[Path] = []

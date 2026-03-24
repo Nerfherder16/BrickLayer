@@ -250,3 +250,42 @@ Proposed fix: `target_paths` parameter to limit writeback to the file that was r
 **Wave 3 conclusions**: Eval infrastructure is now wider (10 agents covered) but deeper work
 needed on non-karen agents. The main gaps are training data quality and eval instruction specificity.
 Karen at 1.00 is the only agent with a meaningful baseline.
+
+---
+
+## Evolve Wave 4 (2026-03-24)
+
+**Questions**: E4.1 (IMPROVEMENT), E4.2 (IMPROVEMENT)
+
+### E4.1 — Eval instruction fix: quantitative-analyst 0.10→0.70
+Added `_RESEARCH_JSON_INSTRUCTION` to `eval_agent.py` with explicit field specification
+(verdict/summary/evidence/confidence). This replaced the generic "Respond ONLY with JSON" instruction
+that allowed agentic agents to return routing decisions and question payloads instead of findings.
+quantitative-analyst: 1/10 → 7/10 passed (+600%). Karen regression: 1.00 unchanged.
+
+### E4.2 — Optimizer write-back scope guard
+Added `target_paths` parameter to `writeback_optimized_instructions()`. `optimize_with_claude.py`
+now defaults to `target_paths=[md_path]` — only the source file is modified. This eliminates the
+cross-file contamination risk confirmed in E3.4 (Wave 2 karen overwrite root cause).
+
+**Wave 4 conclusions**: The eval infrastructure is now meaningfully functional for research-domain
+agents. quantitative-analyst at 0.70 is the new second baseline (after karen at 1.00). The optimizer
+write-back risk is now mitigated. Remaining work: filter heterogeneous training records to push
+quantitative-analyst past 0.85.
+
+---
+
+## Cumulative Evolve Campaign Summary
+
+| Wave | Focus | Key Outcomes |
+|------|-------|-------------|
+| W1 | Mode spec improvements | 3x IMPROVEMENT — monitor DEGRADED_TRENDING, validate FAILURE routing, karen prompt fix |
+| W2 | Karen training data | 0.30→1.00 — fixed 3 pipeline bugs (self-reference, bot labels, Windows cp1252) |
+| W3 | Eval coverage + audits | 5→10 eval-able agents; quantitative-analyst/research-analyst baselines established |
+| W4 | Eval instruction + scope guard | quant-analyst 0.10→0.70; optimizer overwrite risk fixed |
+
+**Current agent eval scores**:
+- karen: **1.00** (20/20) — AT TARGET (0.85)
+- quantitative-analyst: **0.70** (7/10) — below target, training data cleanup remains
+- research-analyst: 0.20 (1/5) — eval design mismatch, needs more training data + instruction work
+- All others: no meaningful baseline yet

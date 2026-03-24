@@ -53,6 +53,18 @@ _KAREN_JSON_INSTRUCTION = (
     '"quality_score" (decimal string 0.0-1.0).'
 )
 
+_RESEARCH_JSON_INSTRUCTION = (
+    "\n\nYou are being evaluated on a research assessment task. "
+    "You are given a question_text describing a hypothesis or claim to stress-test. "
+    "Based ONLY on your knowledge and the provided context, assess whether the claim holds. "
+    "Respond ONLY with a valid JSON object and no other text. "
+    "The JSON must have exactly these keys: "
+    '"verdict" (one of: "HEALTHY", "WARNING", "FAILURE", "INCONCLUSIVE"), '
+    '"summary" (1-2 sentence summary of your assessment), '
+    '"evidence" (detailed evidence string, minimum 300 characters, include specific numbers or thresholds), '
+    '"confidence" (decimal string 0.0-1.0 reflecting your certainty).'
+)
+
 
 # ── Data loading ──────────────────────────────────────────────────────────────
 
@@ -194,9 +206,7 @@ def run_eval(
         inp = record.get("input", {})
         commit_subject = inp.get("commit_subject", "") if isinstance(inp, dict) else ""
 
-        json_instruction = _KAREN_JSON_INSTRUCTION if signature == "karen" else (
-            "Respond ONLY with a valid JSON object matching the expected output schema."
-        )
+        json_instruction = _KAREN_JSON_INSTRUCTION if signature == "karen" else _RESEARCH_JSON_INSTRUCTION
         # Use --system-prompt for agent instructions so Claude treats them as the
         # system context, not as user input. The -p user message contains only the
         # JSON output instruction + input payload.
