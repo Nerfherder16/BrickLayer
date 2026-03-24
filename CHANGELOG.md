@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `0c83293` chore: auto-commit 1 session file on stop (2026-03-24)
 - `ef994a7` finding(E13.1): claims housekeeping — Q1.2 DIAGNOSIS_COMPLETE, E13.1 IMPROVEMENT already in HEAD [worker-3] (2026-03-24)
 - `c01be30` chore: auto-commit 1 session file on stop (2026-03-24)
 - `0a3880a` chore: auto-commit 1 session file on stop (2026-03-24)
