@@ -161,8 +161,7 @@ Write-Host "Launching Windows Terminal with $Workers worker panes + claims monit
 Write-Host ""
 
 # Launch
-$wtCmd = "wt.exe $wtArgString"
-Invoke-Expression $wtCmd
+Start-Process "wt.exe" -ArgumentList $wtArgString
 
 Write-Host "Workers launched. Monitor claims at:"
 Write-Host "  python $ClaimPy status $ProjectPath"
