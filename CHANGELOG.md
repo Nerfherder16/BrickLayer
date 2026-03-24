@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `539d822` chore: update CHANGELOG for 99b5ed8 (2026-03-24)
 - `99b5ed8` chore: update CHANGELOG for 801cf17 (2026-03-24)
 - `801cf17` chore(masonry): update karen agent optimized instructions across templates (2026-03-24)
 - `149bfd5` refactor(masonry): remove DSPy MIPROv2 MCP tools and clean up onboard/drift APIs (2026-03-24)
