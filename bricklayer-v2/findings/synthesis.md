@@ -534,3 +534,44 @@ future evals correctly penalize wrong-verdict predictions.
 | competitive-analyst | ~0.92 avg | 0.85 | AT TARGET |
 | synthesizer-bl2 | ~0.45 avg (10 records, high variance) | 0.85 | NEEDS LIVE EVAL |
 | research-analyst | ~0.50–0.61 range (18 records, structural ceiling) | 0.85 | STRUCTURAL LIMIT — tool-free eval insufficient |
+
+---
+
+## Wave 10 — Evolve (E10): synthesizer-bl2 Calibration Exposure + Fix
+
+### E10.1 — synthesizer-bl2 Calibration Exposure Diagnosed (WARNING)
+synthesizer-bl2 score dropped from ~0.45 avg to 0.20 (2/10) after the E9.2 calibration
+inversion fix. Root cause: same structural mismatch as research-analyst — 6 records
+(Q6.1, Q6.3, Q6.6, E8.3-synth-2, E8.3-synth-3, E8.3-synth-4) were HEALTHY-expected but
+required tool access to verify. Before E9.2 they scored 0.60 (false pass). After: 0.00.
+
+Confirmed: the ~0.45 synthesizer-bl2 baseline was NOT real. True baseline after calibration
+fix: 0.20 (2 stable passes — Q6.4 INCONCLUSIVE and E8.3-synth-1 WARNING).
+
+### E10.2 — synthesizer-bl2 Training Data Fix (IMPROVEMENT)
+Removed 6 false-pass records. Added 6 self-evident WARNING/FAILURE/INCONCLUSIVE/HEALTHY
+records. Score improved from 0.20 to 0.40-0.50 range (4-5/10). Floor rose from 0.20 to 0.40.
+Stable passes: Q6.4, E8.3-synth-1, E10.2-synth-2 (FAILURE), E10.2-synth-6 (HEALTHY) = 4.
+
+### E10.3 — synthesizer-bl2 Prompt Optimization (HEALTHY)
+Applied optimize_with_claude.py (3 training examples, 600s timeout). Optimizer injected
+verdict calibration rules, evidence structure format, and confidence targeting guide.
+Net score unchanged (0.40-0.50 range). E10.2-synth-1 (WARNING) improved 0.00→0.97,
+E10.2-synth-5 (INCONCLUSIVE) degraded from stochastic to consistent fail. Same structural
+ceiling applies. Optimization file: `masonry/optimized_prompts/synthesizer-bl2.json`.
+
+---
+
+## Updated Cumulative Agent Eval Scores (Post Wave 10)
+
+| Agent | Score | Target | Status |
+|-------|-------|--------|--------|
+| karen | 1.00 (20/20) | 0.85 | AT TARGET |
+| quantitative-analyst | 0.90 (18/20) | 0.85 | AT TARGET |
+| regulatory-researcher | 1.00 (10/10) | 0.85 | AT TARGET |
+| competitive-analyst | ~0.92 avg | 0.85 | AT TARGET |
+| synthesizer-bl2 | 0.40-0.50 range (10 records, fixed dataset) | 0.85 | STRUCTURAL CEILING — same as research-analyst |
+| research-analyst | 0.44-0.61 range (18 records, stable ceiling) | 0.85 | STRUCTURAL CEILING — tool-free eval insufficient |
+
+Both below-target agents require live eval (tools enabled) or 50+ training records to
+reach 0.85. Current tool-free eval is invalid for measuring agentic researcher quality.

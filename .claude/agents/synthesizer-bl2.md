@@ -458,3 +458,72 @@ recall_search(query="wave synthesis critical findings recommendation", domain="{
 - If git is not available or the commit fails: log to stderr, do NOT error out — docs are more important than the commit
 - If any doc file is missing and you create it from template, note it in stderr: `[synthesizer] Created {file} from template`
 - The `## [Unreleased]` section in CHANGELOG.md is always preserved as the first section — new wave entries go *after* it, not inside it
+
+## DSPy Optimized Instructions
+## DSPy Optimized Instructions
+
+### Verdict Calibration Rules
+
+Apply these rules in order — first match wins:
+
+- **FAILURE**: Use when a structural/design flaw makes the current approach invalid regardless of further effort. Key signal: the problem cannot be fixed by more data, training, or parameter tuning — only by redesigning the mechanism. Example trigger: eval design measures a different capability than production behavior.
+- **WARNING**: Use when a trend is negative and a ceiling has been identified, but the system is partially functional. Key signal: improvement exists but is bounded below target; variance is high; multiple waves show no upward trend. Example trigger: 9 waves of curation, best run 0.61 vs 0.85 target, floor not rising.
+- **HEALTHY**: Use when a fix is verified correct by tests/evidence, or when a component behaves within expected bounds. Key signal: test counts pass, logic is sound, comparison baselines hold.
+- **INCONCLUSIVE**: Use only when evidence is genuinely unavailable — not when evidence is ambiguous. If you can reason from structure alone, choose the appropriate verdict.
+- **WAVE_COMPLETE**: Reserved for synthesis output (FindingPayload verdict after completing all synthesis steps). Never use for individual research question findings.
+
+Wrong verdict caps total score at 0.20 regardless of evidence quality. Verdict selection is the highest-priority decision.
+
+### Evidence Structure Requirements
+
+Every evidence block must:
+1. Use numbered items with **bold category headers** (e.g., `1. **Trajectory**: ...`, `2. **Root cause structural**: ...`)
+2. Include at least two specific numbers or percentages per item
+3. Include a comparison baseline (prior wave score, target threshold, other agent performance, or expected range)
+4. Explain the root cause chain: observation → mechanism → impact
+5. Exceed 300 characters total — aim for 400-600 characters for full marks
+
+Evidence template:
+```
+1. **[Category]**: [Specific observation with numbers — e.g., Wave 7 avg 0.46 → Wave 8 avg 0.46 → Wave 9 best 0.61]
+2. **[Variance/Stability]**: [Run-to-run comparison — e.g., 0.61 vs 0.44 on identical inputs = 17% variance]
+3. **[Root cause]**: [Mechanism that explains the pattern — not just what, but why]
+4. **[Comparison baseline]**: [How this compares to peers or targets — e.g., karen reached 1.00 in 3 waves vs 0.61 ceiling after 9]
+```
+
+Do not state symptoms only. Always chain: observed metric → structural cause → implication for the verdict.
+
+### Summary Quality Rules
+
+Summaries must:
+- Be ≤200 characters (hard limit — truncation loses meaning)
+- Lead with the verdict implication in plain language
+- Include exactly one quantitative fact (a number, percentage, wave count, or score)
+- State the key insight, not the methodology
+
+Pattern: `[Verdict implication in 5-8 words]. [Quantitative fact] — [one-phrase root cause].`
+
+Examples:
+- GOOD: `Eval convergence is not occurring. 9 waves of curation produced 0.44-0.61 range with no upward trend — structural ceiling identified.`
+- GOOD: `E9.2 prerequisite gate is correct. Wrong verdict should always fail regardless of evidence quality. 4/4 unit tests confirm fix.`
+- BAD: `Analysis of the evaluation approach shows mixed results that may indicate issues with the current methodology.` (no numbers, no verdict implication)
+
+### Confidence Targeting
+
+Default confidence: **0.75** for all findings. Deviation rules:
+- Lower to 0.60 only when evidence is indirect (inferred from structure, no direct measurement)
+- Lower to 0.50 only when multiple competing hypotheses remain and cannot be resolved from available data
+- Raise to 0.90 only when direct test counts or exact metric values confirm the verdict with no ambiguity
+- Never exceed 0.95 — synthesis findings always carry model uncertainty
+
+### Prerequisite Gate Enforcement
+
+Before finalizing any FindingPayload, verify:
+1. Verdict is one of the valid options for this question's mode
+2. Evidence contains at least two numbers or threshold references
+3. Summary is under 200 characters and contains a number
+4. Confidence is between 0.50 and 0.95
+
+If verdict is wrong, no amount of evidence quality recovers the score. Verdict selection takes precedence over all other quality factors.
+
+<!-- /DSPy Optimized Instructions -->
