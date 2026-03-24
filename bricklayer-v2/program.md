@@ -37,7 +37,7 @@ type of work. You never mix modes within a session.
 
 4. **Verify mode preconditions**:
    - `fix` — requires a `DIAGNOSIS_COMPLETE` finding file. If missing, STOP.
-   - `evolve` — requires `benchmarks.json`. If missing, run Benchmark first.
+   - `evolve` — requires system to be healthy (no open FAILURE findings blocking operation). No benchmarks.json needed — survey phase identifies targets.
    - `audit` — requires a standard definition in `docs/` or specified by name.
    - `predict` — requires at least 3 open FAILURE findings in synthesis.
    - Others — no hard preconditions.
