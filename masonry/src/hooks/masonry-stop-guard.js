@@ -13,7 +13,7 @@
  * Exit code 2 blocks the stop when session files are uncommitted.
  */
 
-const { execSync } = require("child_process");
+const { execSync, execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
@@ -297,12 +297,10 @@ async function main() {
     // Auto-commit session files rather than blocking — avoids token-expensive Claude intervention.
     try {
       const allSessionFiles = [...sessionModified, ...sessionUntracked];
-      // Stage session files only (not the entire working tree)
-      execSync(`git add -- ${allSessionFiles.map(f => `"${f}"`).join(' ')}`, {
-        encoding: 'utf8', timeout: 10000, cwd,
-      });
+      // Use execFileSync (array args) to avoid shell quoting issues with dotfiles
+      execFileSync('git', ['add', '--', ...allSessionFiles], { encoding: 'utf8', timeout: 10000, cwd });
       const msg = `chore: auto-commit ${allSessionFiles.length} session file${allSessionFiles.length !== 1 ? 's' : ''} on stop`;
-      execSync(`git commit -m "${msg}"`, { encoding: 'utf8', timeout: 10000, cwd });
+      execFileSync('git', ['commit', '-m', msg], { encoding: 'utf8', timeout: 10000, cwd });
       process.stderr.write(`[Masonry] Auto-committed ${allSessionFiles.length} session file${allSessionFiles.length !== 1 ? 's' : ''}.\n`);
     } catch (commitErr) {
       // Auto-commit failed — fall back to blocking so user knows
