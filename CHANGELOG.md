@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `1b55f15` feat(evolve): Wave 6 — synthesizer-bl2/competitive-analyst baselines + research-analyst strategy (2026-03-24)
 - `8e1405d` evolve(bl2): Wave 5 — PROMISING verdict + new agent baselines (2026-03-24)
 - `1b3f704` evolve(bl2): Wave 4 — eval instruction fix + optimizer scope guard (2026-03-24)
 - `27c8e2a` chore: auto-commit 1 session file on stop (2026-03-24)
