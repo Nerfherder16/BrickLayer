@@ -30,7 +30,7 @@ if str(_SCRIPT_ROOT) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_ROOT))
 
 # Re-use write-back and registry helpers from the existing script
-from masonry.scripts.run_optimization import (
+from masonry.src.writeback import (
     update_registry_dspy_status,
     writeback_optimized_instructions,
 )
