@@ -99,6 +99,16 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ---
 
+## Wave 6 — Evolve (E6): Remaining Agent Baselines + Research-Analyst Strategy
+
+| ID | Mode | Status | Question |
+|----|------|--------|---------|
+| E6.1 | evolve | DONE | Establish synthesizer-bl2 eval baseline (6 records, standard research schema, HEALTHY/INCONCLUSIVE/WARNING verdicts). Does the eval infrastructure work correctly, similar to regulatory-researcher? |
+| E6.2 | evolve | DONE | Establish competitive-analyst eval baseline (6 records, mostly INCONCLUSIVE). Does the model correctly output INCONCLUSIVE for these records? |
+| E6.3 | evolve | DONE | Design a training data generation plan for research-analyst that produces 20+ diverse records with varied verdicts. What questions would generate WARNING/FAILURE/INCONCLUSIVE records? How should the eval be restructured for an agentic researcher? |
+
+---
+
 ## Domain 5 — Frontier: BrickLayer's next evolution beyond 2.0
 
 | ID | Mode | Status | Question |

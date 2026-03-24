@@ -316,3 +316,48 @@ records and a different eval strategy suited to agentic researchers.
 - regulatory-researcher: **1.00** (10/10) — AT TARGET
 - research-analyst: 0.20 (1/5) — eval design mismatch, needs more training data + instruction work
 - All others: no meaningful baseline yet
+
+---
+
+## Evolve Wave 6 (2026-03-24)
+
+**Questions**: E6.1 (IMPROVEMENT), E6.2 (IMPROVEMENT), E6.3 (IMPROVEMENT)
+
+### E6.1 — synthesizer-bl2 baseline 0.83 (5/6)
+Established first eval baseline for synthesizer-bl2. Score is consistent across two runs
+(5/6 pass both times). Eval infrastructure works correctly — standard research schema,
+no eval-design-mismatch. 1 persistent failure at 0.45 (same record both runs): weak
+evidence AND wrong verdict — cannot be fixed by eval tuning, may need training record review.
+Approaches 0.85 target; not AT TARGET yet.
+
+### E6.2 — competitive-analyst baseline ~0.92 (AT TARGET)
+Established first eval baseline for competitive-analyst. Average 0.92 across two runs
+(0.83 + 1.00). High variance from 6-record sample. Key finding: 5/6 records are
+INCONCLUSIVE and the model correctly produces INCONCLUSIVE for ambiguous/borderline questions —
+no agentic override. AT TARGET (0.85).
+
+### E6.3 — research-analyst training data strategy (25-record plan)
+Designed verdict-targeted question templates to generate 25 diverse training records:
+8×WARNING, 4×FAILURE, 5×INCONCLUSIVE, 3×PROMISING, 5×HEALTHY. Root cause of all-HEALTHY
+bias: question framing (all 5 current records are hypothesis-verification tasks that verify
+cleanly). The fix is question templates that reliably surface issues, run across 3+ source
+projects. Also clarified two implementation paths: Path A (data generation only, ~2 hours)
+vs Path B (live eval harness with tools enabled, ~4 hours + ongoing). Recommendation: Path A first.
+
+**Wave 6 conclusions**: Eval coverage now spans 5 research-domain agents with meaningful
+baselines. Four are AT TARGET or approaching it. research-analyst remains the structural gap —
+not from eval infrastructure failure but from training data homogeneity. Wave 7 should
+execute the E6.3 plan: generate the 25-record training set.
+
+---
+
+## Updated Cumulative Agent Eval Scores (Post Wave 6)
+
+| Agent | Score | Target | Status |
+|-------|-------|--------|--------|
+| karen | 1.00 (20/20) | 0.85 | AT TARGET |
+| quantitative-analyst | 0.90 (18/20) | 0.85 | AT TARGET |
+| regulatory-researcher | 1.00 (10/10) | 0.85 | AT TARGET |
+| competitive-analyst | ~0.92 avg | 0.85 | AT TARGET |
+| synthesizer-bl2 | 0.83 (5/6) | 0.85 | APPROACHING |
+| research-analyst | 0.20 (1/5) | 0.85 | STRUCTURAL GAP — needs training data |
