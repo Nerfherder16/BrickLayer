@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `75b3c2f` finding(Q1.3): all 9 verdict groups already implemented in findings.py [worker-1] (2026-03-24)
 - `835f0da` chore: auto-commit 3 session files on stop (2026-03-24)
 
 ## [Wave 12 — Evolve] — 2026-03-24
