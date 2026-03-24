@@ -102,58 +102,78 @@ if ($currentBranch -ne $BranchName) {
     }
 }
 
-# --- Write per-worker prompt files (avoids shell escaping nightmares) ---
+# --- Write per-worker prompt + launcher scripts ---
+# Using .sh files per worker avoids PowerShell -> wt.exe -> bash escaping issues
 $promptDir = Join-Path $ProjectPath ".parallel-prompts"
 New-Item -ItemType Directory -Force -Path $promptDir | Out-Null
 
+$projectPathFwd = $ProjectPath -replace '\\', '/'
+$claimPyFwd     = $ClaimPy     -replace '\\', '/'
+
 for ($i = 1; $i -le $Workers; $i++) {
-    $promptFile = Join-Path $promptDir "worker-$i.txt"
+    $promptFile  = (Join-Path $promptDir "worker-$i.txt")  -replace '\\', '/'
+    $scriptFile  = (Join-Path $promptDir "worker-$i.sh")   -replace '\\', '/'
+
+    # Write the prompt text file
     $prompt = @"
 Read program-parallel.md and questions.md. You are BL worker $i of $Workers on project $Project.
 
 Your environment:
   BL_WORKER_ID = $i
-  Project path = $ProjectPath
-  Claims tool  = python $ClaimPy
+  Project path = $projectPathFwd
+  Claims tool  = python $claimPyFwd
 
 Begin the parallel research loop from program-parallel.md immediately.
-The first thing you do is: python $ClaimPy pending $ProjectPath
+The first thing you do is: python $claimPyFwd pending $projectPathFwd
 Claim the first available question and start working.
 
-NEVER STOP until python $ClaimPy pending $ProjectPath returns empty AND all your claimed questions are complete.
+NEVER STOP until python $claimPyFwd pending $projectPathFwd returns empty AND all your claimed questions are complete.
 "@
-    $prompt | Out-File -FilePath $promptFile -Encoding utf8 -NoNewline
+    $prompt | Out-File -FilePath ($promptFile -replace '/', '\') -Encoding utf8 -NoNewline
+
+    # Write the launcher .sh script — no inline escaping needed
+    $script = @"
+#!/bin/bash
+cd '$projectPathFwd'
+export BL_WORKER_ID=$i
+git checkout $BranchName 2>/dev/null || true
+claude --dangerously-skip-permissions "\$(cat '$promptFile')"
+echo ''
+echo 'Worker $i finished. Press Enter to close.'
+read
+"@
+    $script | Out-File -FilePath ($scriptFile -replace '/', '\') -Encoding utf8 -NoNewline
 }
 
-Write-Host "Worker prompts written to $promptDir"
+Write-Host "Worker scripts written to $promptDir"
 Write-Host ""
 
 # --- Build Windows Terminal command ---
-# Strategy: open first worker in new tab, add others as split panes
-# Each bash command: cd to project, set env vars, run claude with prompt from file
+# Each pane just runs: bash /path/to/worker-N.sh
+# No inline command escaping -- the .sh file handles everything
 
 $wtParts = @()
 
 for ($i = 1; $i -le $Workers; $i++) {
-    $promptFile = (Join-Path $promptDir "worker-$i.txt") -replace '\\', '/'
-    $projectPathFwd = $ProjectPath -replace '\\', '/'
-
-    # Bash command for this worker
-    # Uses process substitution to pass prompt file to claude
-    $bashCmd = "cd '$projectPathFwd' && export BL_WORKER_ID=$i && export DISABLE_OMC=1 && git checkout $BranchName 2>/dev/null; DISABLE_OMC=1 claude --dangerously-skip-permissions `"`$(cat '$promptFile')`"; echo ''; echo 'Worker `$i finished. Press Enter to close.'; read"
-
+    $scriptFile = (Join-Path $promptDir "worker-$i.sh") -replace '\\', '/'
     $label = "BL-$Project-W$i"
 
     if ($i -eq 1) {
-        $wtParts += "new-tab --title `"$label`" -p `"Git Bash`" -- bash -c `"$bashCmd`""
+        $wtParts += "new-tab --title `"$label`" -p `"Git Bash`" -- bash `"$scriptFile`""
     } else {
-        $wtParts += "; split-pane --title `"$label`" -p `"Git Bash`" -- bash -c `"$bashCmd`""
+        $wtParts += "; split-pane --title `"$label`" -p `"Git Bash`" -- bash `"$scriptFile`""
     }
 }
 
-# Add a status monitor pane
-$monitorCmd = "cd '$($ProjectPath -replace '\\','/')' && watch -n 10 python '$($ClaimPy -replace '\\','/') status .'"
-$wtParts += "; split-pane --size 0.2 --title `"BL-Claims`" -p `"Git Bash`" -- bash -c `"$monitorCmd`""
+# Status monitor pane
+$monitorScript = (Join-Path $promptDir "monitor.sh") -replace '\\', '/'
+$monitorScriptContent = @"
+#!/bin/bash
+cd '$projectPathFwd'
+watch -n 10 python '$claimPyFwd' status .
+"@
+$monitorScriptContent | Out-File -FilePath ($monitorScript -replace '/', '\') -Encoding utf8 -NoNewline
+$wtParts += "; split-pane --size 0.2 --title `"BL-Claims`" -p `"Git Bash`" -- bash `"$monitorScript`""
 
 $wtArgString = $wtParts -join " "
 
