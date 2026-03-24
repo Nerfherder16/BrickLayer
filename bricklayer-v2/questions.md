@@ -140,6 +140,16 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ---
 
+## Wave 10 — Evolve (E10): synthesizer-bl2 Calibration Exposure + Data Fix
+
+| ID | Mode | Status | Question |
+|----|------|--------|---------|
+| E10.1 | evolve | DONE | synthesizer-bl2 score dropped from ~0.45 to 0.20 after the E9.2 calibration inversion fix. Which specific records now fail, and is this the same structural mismatch (HEALTHY verdicts requiring tool access) as research-analyst? Diagnose per-record with predicted vs expected verdicts. |
+| E10.2 | evolve | DONE | synthesizer-bl2 has 5 HEALTHY-expected records that score 0.00 (Q6.1, Q6.3, Q6.6, E8.3-synth-2, E8.3-synth-4). Remove or replace these records with WARNING/FAILURE records that have clear evidence the tool-free agent can reason about. Does score reach ≥0.50 with fixed dataset? |
+| E10.3 | evolve | DONE | After the synthesizer-bl2 training data fix in E10.2, apply optimize_with_claude.py to synthesizer-bl2. Does the prompt optimization produce measurably better instructions, and does the eval score improve vs E10.2 baseline? |
+
+---
+
 ## Domain 5 — Frontier: BrickLayer's next evolution beyond 2.0
 
 | ID | Mode | Status | Question |
