@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `dcd8090` chore: auto-commit 1 session file on stop (2026-03-24)
 - `7bdc00b` chore: auto-commit 2 session files on stop (2026-03-24)
 - `f3d7520` chore(karen): save optimization run history from 2026-03-24 (2026-03-24)
 - `dc36c9d` chore: multi-session checkpoint — evolve wave 2 + masonry campaign updates (2026-03-24)
