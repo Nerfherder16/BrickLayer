@@ -75,6 +75,8 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `c1a9008` chore(recall): organize findings into mode subfolders (2026-03-24)
+- `d7f7a8b` chore: update CHANGELOG for 06a08cf (2026-03-24)
 - `06a08cf` chore: update CHANGELOG for a90af3c (2026-03-24)
 - `a90af3c` chore: update CHANGELOG for b967c1c (2026-03-24)
 - `b967c1c` chore: update CHANGELOG for 27f666f (2026-03-24)
