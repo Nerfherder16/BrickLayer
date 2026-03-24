@@ -118,6 +118,17 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ---
 
+## Wave 8 — Evolve (E8): 2-Stage Eval + Research-Analyst Scale-Up
+
+| ID | Mode | Status | Question |
+|----|------|--------|---------|
+| E8.1 | evolve | DONE | Implement a 2-stage eval in `eval_agent.py` for research-analyst: Stage 1 scores evidence quality for prose responses (currently 0.00 due to JSON parse failure), Stage 2 scores verdict match for clean JSON. Does this raise research-analyst score from ~0.45 to >0.65? |
+| E8.2 | evolve | DONE | Generate 8 more reasoning-style research-analyst training records targeting diverse topics: program.md design soundness, campaign yield rates, agent routing decision quality, synthesis completeness. Produce 4×HEALTHY + 2×WARNING + 1×PROMISING + 1×INCONCLUSIVE. Does the score reach 0.65+ with 18 total records? |
+| E8.3 | evolve | DONE | Add 5 synthesizer-bl2 training records extracted from recall, masonry, and bricklayer-meta campaign sessions (different project contexts, diverse verdict types). Does the synthesizer-bl2 score stabilize at ≥0.90 with 10 total records? |
+| E8.4 | evolve | DONE | Fix `masonry-guard.js` `hasErrorSignal()` to scope error signal detection to `newString` content only (not the entire `JSON.stringify(response)` which includes `oldString`). Does the false-positive rate drop to 0? Verify with a test edit that would previously trigger a false warning. |
+
+---
+
 ## Domain 5 — Frontier: BrickLayer's next evolution beyond 2.0
 
 | ID | Mode | Status | Question |
