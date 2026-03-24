@@ -9,6 +9,37 @@ Maintained by BrickLayer synthesizer at each wave end.
 
 ---
 
+## [Wave 14] -- 2026-03-24
+
+5 wave-mid questions: 2 FIXED, 2 CALIBRATED, 1 PENDING_EXTERNAL. Mode dispatch and status normalization implemented in CI runner.
+
+### Fixed
+- `F-mid.1` -- Mode dispatch implemented in `bl/ci/run_campaign.py`: `_load_mode_context()` added, `_dispatch()` injects mode_context, `_parse_questions_table()` updated for 4-column BL 2.0 format (`bl/ci/run_campaign.py`, `bl/runners/agent.py`)
+- `F-mid.2` -- BL 2.0 status normalization: PENDING_EXTERNAL/DIAGNOSIS_COMPLETE/BLOCKED no longer silently converted to PENDING; `_TABLE_ROW_4COL_RE` added; `_TERMINAL_STATUSES` frozenset defined with 15 status values (`bl/ci/run_campaign.py`)
+
+### Added
+- `monitor-targets.md` -- new file with Fix and Predict mode monitoring metrics
+
+### Changed
+- `fix_preflight_rejection_rate` metric defined (WARNING >=0.20, FAILURE >=0.40) for Q2.2 scope-creep tracking
+- `predict_subjectivity_rate` metric defined (WARNING >=0.30, FAILURE >=0.60) for Q2.4 subjectivity tracking
+
+### Found (open)
+- `E-mid.1` [PENDING_EXTERNAL] -- improve_agent.py karen optimization needs manual Git Bash run
+- `E13.8` [BLOCKED] -- peer-reviewer/agent-auditor/retrospective have no .md instruction files
+- `E13.7` [WARNING] -- 4 deterministic routing coverage gaps
+- `E13.9` [WARNING] -- 9 agents with training data have no eval baseline
+- `E13.3` [PENDING] -- research-analyst prompt optimization
+- `E13.5` [PENDING] -- synthesizer-bl2 prompt optimization
+- `E13.10` [PENDING_EXTERNAL] -- improve_agent.py convergence run
+
+### Healthy
+- F-mid.1, F-mid.2: Q1.1 and Q1.5 diagnoses fully resolved
+- M-mid.1, M-mid.2: Monitor metrics calibrated for Q2.2 and Q2.4
+- 4 agents remain AT TARGET: karen (1.00), quantitative-analyst (0.90), regulatory-researcher (1.00), competitive-analyst (~0.92)
+
+---
+
 ## [Wave 13] -- 2026-03-24
 
 10 questions: calibration cleanup, routing baseline, fleet gap audit. 4 DONE, 2 WARNING, 2 PENDING, 1 PENDING_EXTERNAL, 1 BLOCKED.

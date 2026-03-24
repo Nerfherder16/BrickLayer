@@ -34,15 +34,15 @@ bricklayer-v2/
 | D5 -- Frontier | Q5.1-Q5.2 | COMPLETE |
 | Wave 1-12 Evolve | E1.1-E12.3 | COMPLETE |
 | Wave 13 Evolve | E13.1-E13.10 | MIXED (4 DONE, 2 WARNING, 2 PENDING, 1 PENDING_EXT, 1 BLOCKED) |
-| Wave-mid | F-mid.1, F-mid.2, M-mid.1, M-mid.2, E-mid.1 | PENDING |
+| Wave 14 (wave-mid) | F-mid.1, F-mid.2, M-mid.1, M-mid.2, E-mid.1 | MIXED (2 FIXED, 2 CALIBRATED, 1 PENDING_EXT) |
 
 ---
 
 ## Key Findings
 
+- **F-mid.1** [FIXED] Wave 14: Mode dispatch implemented in CI runner -- agents now receive operational mode program text; Q1.1 diagnosis fully resolved.
+- **F-mid.2** [FIXED] Wave 14: BL 2.0 status normalization -- 15 status values parsed correctly, PENDING_EXTERNAL no longer re-queued; Q1.5 diagnosis resolved.
 - **E13.8** [BLOCKED] Wave 13: 3 candidate agents lack .md instruction files; eval pipeline cannot generate baselines without them.
-- **E13.9** [WARNING] Wave 13: 9 agents have training data but no recorded eval baselines; karen (379 records) and quantitative-analyst (76) are top targets.
-- **E13.7** [WARNING] Wave 13: 4 deterministic routing gaps identified; adding 14 lines raises coverage from 75% to ~90%.
 
 ---
 
