@@ -1,0 +1,62 @@
+[
+  {
+    "question_id": "mock-mortar-001",
+    "question_text": "Route this request: 'I want to add a dark mode toggle to the settings page of the dashboard'",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Clear UI/frontend task → should route to uiux-master. Mortar should correctly identify this as a UI task and dispatch appropriately."
+  },
+  {
+    "question_id": "mock-mortar-002",
+    "question_text": "Route this request: 'Run a stress test on the ADBP token discount model to find where the 50% purchasing power amplification breaks'",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Campaign/simulation stress test → should route to Trowel (campaign conductor). Mortar should detect the BrickLayer research campaign intent."
+  },
+  {
+    "question_id": "mock-mortar-003",
+    "question_text": "Route this request: 'The masonry/src/routing/router.py file has a bug where layer 3 never fires when layer 2 returns confidence below 0.8 instead of 0.75'",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Bug fix with known root cause → diagnose-analyst then fix-implementer. Or directly to developer if the fix is trivial. Mortar should route to diagnose-analyst or developer."
+  },
+  {
+    "question_id": "mock-mortar-004",
+    "question_text": "Route this request: 'Commit the current changes and push to the feature branch'",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Git operations → git-nerd. Mortar should deterministically route git hygiene tasks."
+  },
+  {
+    "question_id": "mock-mortar-005",
+    "question_text": "Route this request: 'What are the legal requirements for issuing employee utility tokens in the US, specifically around securities law and employment compensation rules?'",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Legal/compliance research → regulatory-researcher. Mortar should identify the regulatory domain and route correctly."
+  },
+  {
+    "question_id": "mock-mortar-006",
+    "question_text": "Route this request: 'Audit the Solana program for reentrancy vulnerabilities and unsafe account access patterns'",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Security audit of Solana code → solana-specialist + security agent. Mortar should combine domain expertise with security review."
+  },
+  {
+    "question_id": "mock-mortar-007",
+    "question_text": "Route this request: 'Refactor the four-layer routing engine to reduce code duplication between the semantic and LLM layers'",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Refactoring task → refactorer agent. Mortar should distinguish 'refactor' (structure only, no behavior change) from 'fix' or 'feature' work."
+  },
+  {
+    "question_id": "mock-mortar-008",
+    "question_text": "Route this request: 'something is broken in masonry and i dont know what'",
+    "expected_verdict": "WARNING",
+    "rationale": "Vague unknown failure → diagnose-analyst. However, the extreme vagueness may cause Mortar to ask for clarification (fallback layer) rather than routing confidently. Either diagnose-analyst or user-clarification is acceptable."
+  },
+  {
+    "question_id": "mock-mortar-009",
+    "question_text": "Route this request: 'Update the ROADMAP.md and ARCHITECTURE.md to reflect the removal of the DSPy pipeline and the addition of the claude -p based optimizer'",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Documentation update → karen agent. Mortar should route roadmap/architecture doc updates to karen."
+  },
+  {
+    "question_id": "mock-mortar-010",
+    "question_text": "Route this request: 'Build the full spec and implementation for a new MCP tool called masonry_sweep that runs eval on all agents and reports which ones need optimization'",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Spec + build task → spec-writer then developer pipeline via /plan + /build workflow. Mortar should route new feature implementations to the autopilot pipeline."
+  }
+]

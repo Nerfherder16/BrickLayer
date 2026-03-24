@@ -1,0 +1,92 @@
+[
+  {
+    "question_id": "mock-sec-001",
+    "question_text": "A FastAPI endpoint receives a user-supplied filename and reads it from disk: `open(f'/app/uploads/{filename}')`. Is this vulnerable to path traversal?",
+    "expected_verdict": "FAILURE",
+    "rationale": "Classic path traversal: filename='../../etc/passwd' reads arbitrary files. Fix: use pathlib to resolve the path and assert it's within the uploads directory. This is a critical OWASP A01 vulnerability."
+  },
+  {
+    "question_id": "mock-sec-002",
+    "question_text": "A web app stores JWTs in localStorage. The tokens contain the user's role and are used for API authorization. Is this secure?",
+    "expected_verdict": "WARNING",
+    "rationale": "localStorage is accessible to JavaScript, making JWTs vulnerable to XSS attacks. HttpOnly cookies are more secure for auth tokens. Additionally, storing role claims in the token without server-side validation is a secondary risk. Not an outright failure if XSS mitigations are strong, but a security anti-pattern."
+  },
+  {
+    "question_id": "mock-sec-003",
+    "question_text": "A Python API uses `subprocess.run(f'ffmpeg -i {user_input}', shell=True)` to process user-uploaded video files. Is this secure?",
+    "expected_verdict": "FAILURE",
+    "rationale": "shell=True + unsanitized user input = command injection. user_input='; rm -rf /;' executes arbitrary commands as the API process. Fix: use list form subprocess.run(['ffmpeg', '-i', user_input], shell=False) and validate the input file path."
+  },
+  {
+    "question_id": "mock-sec-004",
+    "question_text": "An API rate-limits login attempts to 5 per minute per IP address. Is this sufficient protection against credential stuffing attacks?",
+    "expected_verdict": "WARNING",
+    "rationale": "IP-based rate limiting is bypassable via distributed botnets (each IP makes 4 requests/minute). Better: rate limit per username AND per IP, add CAPTCHA after failed attempts, implement leaked credential checking (HaveIBeenPwned), alert on unusual login patterns. IP-only is insufficient but not a complete failure."
+  },
+  {
+    "question_id": "mock-sec-005",
+    "question_text": "A GraphQL API exposes a query that allows fetching any user by ID: `query { user(id: 42) { email, role, paymentInfo } }`. There is no authentication on this query. Is this a critical vulnerability?",
+    "expected_verdict": "FAILURE",
+    "rationale": "Unauthenticated access to PII (email) and sensitive data (role, paymentInfo) by sequential ID enumeration is a critical IDOR (Insecure Direct Object Reference) vulnerability — OWASP A01. All user data queries must require authentication and authorization checks."
+  },
+  {
+    "question_id": "mock-sec-006",
+    "question_text": "A React app renders user-generated content using `dangerouslySetInnerHTML={{ __html: userPost }}`. The content is not sanitized. Is this a security vulnerability?",
+    "expected_verdict": "FAILURE",
+    "rationale": "Direct XSS vulnerability. User-supplied HTML can contain <script> tags or event handlers (onerror, onload) that execute JavaScript in other users' browsers. Fix: use DOMPurify.sanitize() before rendering, or prefer React's default text rendering which auto-escapes."
+  },
+  {
+    "question_id": "mock-sec-007",
+    "question_text": "An API uses bcrypt with a cost factor of 12 to hash passwords. Password reset tokens are 32-byte random hex strings stored as SHA-256 hashes in the database. Is this a secure authentication implementation?",
+    "expected_verdict": "HEALTHY",
+    "rationale": "bcrypt cost factor 12 is the current recommended minimum. 32-byte random tokens provide 256 bits of entropy (unguessable). SHA-256 of reset tokens prevents token exposure if DB is compromised. This is a well-implemented auth pattern."
+  },
+  {
+    "question_id": "mock-sec-008",
+    "question_text": "A CI/CD pipeline stores AWS credentials as plaintext environment variables in a .env file committed to the git repository. The repo is private. Is this a security risk?",
+    "expected_verdict": "FAILURE",
+    "rationale": "Private repos get compromised (insider threat, token theft, repo misconfiguration). Credentials in git history persist even after deletion. AWS credentials should use IAM roles (IRSA for K8s, instance profiles for EC2) or secrets managers (Vault, AWS Secrets Manager). Never commit credentials."
+  },
+  {
+    "question_id": "mock-sec-009",
+    "question_text": "A REST API returns different HTTP status codes for valid vs. invalid usernames during login (404 for unknown user, 401 for wrong password). Is this a security issue?",
+    "expected_verdict": "FAILURE",
+    "rationale": "Username enumeration vulnerability — attackers can determine valid usernames by comparing response codes. Always return the same status code (401) and timing for both cases. Identical responses prevent username harvesting for credential stuffing."
+  },
+  {
+    "question_id": "mock-sec-010",
+    "question_text": "A Node.js API uses `eval(userInput)` to allow users to run custom filter expressions against their own data. Is this safe if the user can only access their own data?",
+    "expected_verdict": "FAILURE",
+    "rationale": "eval() executes arbitrary JavaScript regardless of data scope. Malicious expressions can: exfiltrate environment variables (process.env), spawn child processes, access the filesystem, or crash the server. There is no safe way to use eval() with user input. Use a sandboxed expression evaluator (vm2, expr-eval)."
+  },
+  {
+    "question_id": "mock-sec-011",
+    "question_text": "An API endpoint for uploading profile pictures accepts any file MIME type without validation, storing files at user-specified paths under /app/public/uploads/. What are the security implications?",
+    "expected_verdict": "FAILURE",
+    "rationale": "Two critical vulnerabilities: (1) Unrestricted file upload allows uploading .php/.py webshells if server executes files in the upload directory. (2) User-controlled path enables path traversal. Fix: whitelist MIME types (image/jpeg, image/png), generate server-side UUIDs for filenames, store outside webroot."
+  },
+  {
+    "question_id": "mock-sec-012",
+    "question_text": "A Solana smart contract checks that the signer of a transaction is the owner of an account, but does not verify that the account is owned by the program itself. What attack does this enable?",
+    "expected_verdict": "FAILURE",
+    "rationale": "Account substitution attack: an attacker can pass an account they control that has the right owner pubkey but is not the legitimate program-owned account. Solana programs must always check `account.owner == program_id` in addition to signer checks. This is a critical Anchor security vulnerability."
+  },
+  {
+    "question_id": "mock-sec-013",
+    "question_text": "An application uses HTTPS for all traffic, has HSTS enabled with a 1-year max-age, and includes subdomains in the HSTS policy. Is the TLS configuration secure?",
+    "expected_verdict": "HEALTHY",
+    "rationale": "HTTPS everywhere + HSTS with 1-year max-age + includeSubDomains is a strong TLS configuration. Prevents protocol downgrade attacks and cookie theft via MITM. Additional hardening (HSTS preload, OCSP stapling) is optional but this baseline is solid."
+  },
+  {
+    "question_id": "mock-sec-014",
+    "question_text": "A multi-tenant API uses the following SQL query to fetch user data: `SELECT * FROM records WHERE tenant_id = ? AND user_id = ?` with parameterized inputs. Is this secure against SQL injection and tenant data leakage?",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Parameterized queries prevent SQL injection. Double-keying on both tenant_id and user_id prevents cross-tenant access even if user_id is guessed. This is the correct multi-tenant query pattern."
+  },
+  {
+    "question_id": "mock-sec-015",
+    "question_text": "An API logs all request payloads including request bodies for debugging purposes. User passwords are sent in request bodies during the login endpoint. Is this a security concern?",
+    "expected_verdict": "FAILURE",
+    "rationale": "Logging request bodies captures plaintext passwords in log files. Log files are often written to disk, shipped to log aggregators (Splunk, Datadog), and retained long-term — all places where passwords should never appear. Login endpoints must be excluded from body logging."
+  }
+]

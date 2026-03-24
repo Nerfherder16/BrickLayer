@@ -1,0 +1,92 @@
+[
+  {
+    "question_id": "mock-qa-001",
+    "question_text": "If monthly churn is 15% and average contract value is $1,200/year, can a SaaS business sustain itself with 200 customers and zero new acquisition?",
+    "expected_verdict": "FAILURE",
+    "rationale": "15% monthly churn means ~83% annual churn — 200 customers would shrink to ~34 in 12 months, destroying revenue."
+  },
+  {
+    "question_id": "mock-qa-002",
+    "question_text": "A marketplace charges 8% take rate on $500K monthly GMV. Monthly fixed costs are $25K and variable costs are 2% of GMV. Is the unit economics model viable?",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Revenue = $40K, variable costs = $10K, fixed = $25K, net = $5K positive. Viable baseline with growth headroom."
+  },
+  {
+    "question_id": "mock-qa-003",
+    "question_text": "A subscription product has 3% monthly churn, $50 ARPU, and costs $120 to acquire each customer (CAC). What is the LTV:CAC ratio and is it healthy?",
+    "expected_verdict": "HEALTHY",
+    "rationale": "LTV = $50 / 0.03 = $1,667. LTV:CAC = 13.9x — well above the 3:1 threshold."
+  },
+  {
+    "question_id": "mock-qa-004",
+    "question_text": "A B2B SaaS has 40% gross margins, $2M ARR, and is burning $300K/month. At current burn, when does the company run out of runway assuming $1.8M in the bank?",
+    "expected_verdict": "FAILURE",
+    "rationale": "Runway = $1.8M / $300K = 6 months. With 40% gross margins on $2M ARR ($167K/month revenue), monthly loss is $133K after COGS — still burning fast."
+  },
+  {
+    "question_id": "mock-qa-005",
+    "question_text": "A token economy issues 1B tokens total. 30% are reserved for team with 4-year vesting. 20% are sold in presale at $0.01 each. Is there sufficient float for a liquid secondary market at launch?",
+    "expected_verdict": "WARNING",
+    "rationale": "50% of supply is locked (team + treasury). Only 20% sold = 200M liquid tokens. Thin float can cause extreme volatility but not an outright failure."
+  },
+  {
+    "question_id": "mock-qa-006",
+    "question_text": "A DTC brand spends $80 on ads to acquire a customer with $120 AOV and 35% gross margin. Repeat purchase rate is 20% annually. Is the economics sustainable?",
+    "expected_verdict": "FAILURE",
+    "rationale": "First order margin = $42. CAC = $80. First-order LTV is negative (-$38). Repeat rate too low to recover — need 2+ repeat purchases at 20%/year to break even."
+  },
+  {
+    "question_id": "mock-qa-007",
+    "question_text": "A marketplace has $10M GMV/month, 5% take rate, and 25 staff costing an average of $120K/year. Is the headcount cost justified by current revenue?",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Revenue = $500K/month. Annual staff cost = $3M. Revenue = $6M/year. 2:1 revenue-to-headcount ratio is healthy for marketplace stage."
+  },
+  {
+    "question_id": "mock-qa-008",
+    "question_text": "A crypto staking protocol offers 120% APY. Token inflation is 80% annually. What is the real yield and is it sustainable?",
+    "expected_verdict": "FAILURE",
+    "rationale": "Real yield = 120% - 80% = 40% — but only if token price holds. Inflation at 80% creates constant sell pressure. Emissions-funded yield without protocol revenue is a ponzi dynamic."
+  },
+  {
+    "question_id": "mock-qa-009",
+    "question_text": "A SaaS product has NRR (net revenue retention) of 118% across its customer base. Gross churn is 8% annually. Is this retention profile a competitive moat?",
+    "expected_verdict": "HEALTHY",
+    "rationale": "NRR > 100% means existing customers expand faster than they churn. 118% NRR is excellent — top quartile for B2B SaaS. Indicates strong product-market fit and expansion motion."
+  },
+  {
+    "question_id": "mock-qa-010",
+    "question_text": "An infrastructure startup has $500K MRR but 90% of revenue comes from a single enterprise customer. The customer's contract expires in 6 months. What is the risk verdict?",
+    "expected_verdict": "FAILURE",
+    "rationale": "90% customer concentration means losing this one contract wipes $450K MRR. Existential risk — single point of failure regardless of absolute revenue size."
+  },
+  {
+    "question_id": "mock-qa-011",
+    "question_text": "A SaaS product's simulation shows HEALTHY verdicts at 5% monthly churn but FAILURE at 8%. Current measured churn is 6.2%. Is the business in the safe zone?",
+    "expected_verdict": "WARNING",
+    "rationale": "6.2% is between the HEALTHY threshold (5%) and FAILURE threshold (8%). The business is in a yellow zone — not failing yet but approaching the danger boundary with limited margin."
+  },
+  {
+    "question_id": "mock-qa-012",
+    "question_text": "A mobile game earns $2.50 ARPDAU from the top 5% of spenders. The other 95% generate nothing. D30 retention is 8%. Is the monetization model robust?",
+    "expected_verdict": "WARNING",
+    "rationale": "High concentration in top spenders is normal for F2P but 8% D30 retention is below industry average (~15-20%). Revenue base is fragile — losing top spenders with no mid-tier monetization is dangerous."
+  },
+  {
+    "question_id": "mock-qa-013",
+    "question_text": "A subscription API charges $0.001 per call. Fixed costs are $50K/month. At what call volume does the service break even, and is that volume realistic for a developer tool?",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Break-even = 50M calls/month. For a widely-adopted developer tool, 50M API calls/month is achievable. The math works if distribution is solid."
+  },
+  {
+    "question_id": "mock-qa-014",
+    "question_text": "A two-sided marketplace has 10,000 buyers and 500 sellers. Average transaction frequency is 2x/month per buyer. Seller capacity is 40 transactions/month each. Is supply sufficient?",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Demand = 20,000 tx/month. Supply capacity = 500 * 40 = 20,000 tx/month. Perfectly balanced — no supply constraint at current scale."
+  },
+  {
+    "question_id": "mock-qa-015",
+    "question_text": "A fintech lends at 24% APR with 6% default rate and 4% cost of funds. What is the net interest margin and is the lending model profitable?",
+    "expected_verdict": "HEALTHY",
+    "rationale": "NIM = 24% - 6% (defaults) - 4% (CoF) = 14%. Healthy NIM for consumer lending. Industry average is 8-12%, so 14% provides buffer for operating costs."
+  }
+]
