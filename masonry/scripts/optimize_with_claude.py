@@ -216,16 +216,12 @@ def run(
 
     try:
         result = subprocess.run(
-            [
-                claude_bin, "-p",
-                "--setting-sources", "",   # disable hooks — avoid parent session interference
-                "--no-session-persistence",
-            ],
+            [claude_bin, "-p", "--no-session-persistence"],
             input=prompt,
             capture_output=True,
             text=True,
             encoding="utf-8",
-            timeout=180,
+            timeout=300,
         )
     except subprocess.TimeoutExpired:
         print("[error] claude -p timed out after 180 seconds.")
