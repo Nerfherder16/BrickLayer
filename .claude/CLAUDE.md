@@ -38,7 +38,7 @@ project-brief.md      — Ground truth (highest authority, human only)
 reports/              — Generated PDF reports (python analyze.py)
 masonry/src/schemas/  — Pydantic v2 payload models (QuestionPayload, FindingPayload, etc.)
 masonry/src/routing/  — Four-layer routing engine (deterministic → semantic → LLM → fallback)
-masonry/src/dspy_pipeline/ — DSPy optimization pipeline (signatures, optimizer, drift detector)
+masonry/src/scoring/ — Heuristic scoring rubrics (verdict match, evidence quality, confidence calibration)
 masonry/optimized_prompts/ — Per-agent optimized prompt JSON files
 masonry/agent_registry.yml — Declarative agent registry (modes, capabilities, tier)
 ```

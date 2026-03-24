@@ -419,7 +419,8 @@ def _tool_masonry_onboard(args: dict) -> dict:
     try:
         from masonry.scripts.onboard_agent import onboard  # noqa: PLC0415
 
-        result = onboard(agents_dirs, registry_path)
+        # dspy_output_dir is a legacy param (dspy_pipeline was removed); pass a no-op path
+        result = onboard(agents_dirs, registry_path, Path(os.devnull))
         # Return names of newly-added agents under the "onboarded" key for
         # backwards compatibility with callers that expect a list of names.
         names = result.get("names", [])
