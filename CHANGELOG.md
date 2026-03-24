@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `737c3bb` chore: auto-commit 12 session files on stop (2026-03-24)
 - `8a424b3` chore: auto-commit 1 session file on stop (2026-03-24)
 - `2833acc` feat(bl2/evolve): Wave 11 — live eval prototype + synthesizer-bl2 data quality fix (2026-03-24)
 - `20ccdc5` chore: auto-commit 3 session files on stop (2026-03-24)
