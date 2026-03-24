@@ -216,7 +216,7 @@ def run(
 
     try:
         result = subprocess.run(
-            [claude_bin, "-p", "--verbose"],
+            [claude_bin, "-p"],
             input=prompt,
             capture_output=True,
             text=True,

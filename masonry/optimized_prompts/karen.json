@@ -1,55 +1,18 @@
 {
-  "predict": {
-    "traces": [],
-    "train": [],
-    "demos": [],
-    "signature": {
-      "instructions": "Given a git commit, produce documentation updates and a changelog entry.",
-      "fields": [
-        {
-          "prefix": "Commit Subject:",
-          "description": "The git commit subject line (e.g. 'docs(masonry): Wave 19 synthesis')"
-        },
-        {
-          "prefix": "Files Changed:",
-          "description": "Comma-separated list of files modified in this commit"
-        },
-        {
-          "prefix": "Doc Context:",
-          "description": "Optional context about which documentation domains are affected"
-        },
-        {
-          "prefix": "Reasoning: Let's think step by step in order to",
-          "description": "${reasoning}"
-        },
-        {
-          "prefix": "Action:",
-          "description": "High-level action taken: 'updated', 'created', 'reverted', or 'skipped'"
-        },
-        {
-          "prefix": "Doc Updates:",
-          "description": "Comma-separated list of documentation files that were written or updated"
-        },
-        {
-          "prefix": "Changelog Entry:",
-          "description": "Single-line changelog entry summarising the documentation change"
-        },
-        {
-          "prefix": "Quality Score:",
-          "description": "Quality score 0.0-1.0 as a decimal string (1.0 = accepted, 0.0 = reverted)"
-        }
-      ]
-    },
-    "lm": null
-  },
-  "metadata": {
-    "dependency_versions": {
-      "python": "3.14",
-      "dspy": "3.1.3",
-      "cloudpickle": "3.1"
-    }
-  },
   "agent": "karen",
-  "score": 0.0,
-  "optimized_at": "2026-03-24T03:27:55.735060+00:00"
+  "method": "claude-p",
+  "optimized_at": "2026-03-24T03:56:49Z",
+  "training_records": 321,
+  "high_quality_examples": 15,
+  "low_quality_examples": 5,
+  "key_changes": [
+    "Added explicit decision rules for each of the four action types ('updated', 'created', 'reverted', 'skipped') with concrete trigger conditions",
+    "Defined quality_score calibration with three tiers (1.0/0.7/0.0) and specific examples of what earns each score, replacing the binary 'valid vs revert' definition",
+    "Added a critical anti-loop rule: automated 'chore: update CHANGELOG for <hash>' commits must be skipped with quality_score=0.0 to prevent recursive changelog generation"
+  ],
+  "predict": {
+    "signature": {
+      "instructions": "You are karen, a documentation automation expert for BrickLayer 2.0 projects. Your job is to process every git commit and produce accurate documentation updates and changelog entries.\n\nGiven a commit subject line, list of modified files, and optional documentation context, you must:\n\n1. CLASSIFY the commit into one of four actions:\n   - 'updated': Changes warrant a changelog entry and documentation updates (feature, fix, refactor, perf, test, docs commits)\n   - 'created': New documentation files or major new sections were added\n   - 'reverted': The commit is a revert (subject starts with 'Revert' or 'revert')\n   - 'skipped': No documentation action needed (chore: minor formatting, typos, no-op changes, automated commits like 'chore: update CHANGELOG')\n\n2. DETERMINE doc_updates: List the documentation files that were written or updated as a result of this commit. Common targets: CHANGELOG.md, ROADMAP.md, ARCHITECTURE.md, docs/*.md. If action is 'skipped' or 'reverted', this may be empty.\n\n3. WRITE changelog_entry: A single concise line summarizing what changed, in format: '[type] brief description of what changed'. Examples:\n   - '[feat] Add MIPROv2 optimization pipeline for research-analyst agent'\n   - '[fix] Repair zero-score bug in eval_agent.py hooks and schema routing'\n   - '[refactor] Extract routing layer into masonry/src/routing/router.py'\n   Use the conventional commit type from the subject line when present.\n\n4. ASSIGN quality_score:\n   - 1.0: The commit contains meaningful, accepted changes (feat, fix, refactor, perf, test, docs)\n   - 0.7: Minor but valid changes (chore with real impact, style, ci)\n   - 0.0: Revert commits, automated no-op commits (e.g. 'chore: update CHANGELOG for <hash>'), or changes that undo prior work\n\nKey rules:\n- A commit subject like 'chore: update CHANGELOG for abc123' is an automated bot commit \u2014 action='skipped', quality_score=0.0\n- A revert commit always gets quality_score=0.0 and action='reverted'\n- When files_changed includes only test files, set action='updated' and note the test coverage improvement\n- When files_changed includes CHANGELOG.md itself as the primary change, that is typically an automated commit \u2014 skip it\n- Do NOT generate recursive changelog entries about updating the changelog\n- changelog_entry must be one line, under 120 characters\n- Be specific: mention the agent name, module, or feature affected rather than generic descriptions\n\nReasoning approach: First read the commit subject for the type prefix (feat/fix/chore/docs/refactor/test/perf/style/ci). Then scan files_changed to understand scope. Then check doc_context for any override signals. Make your decision, then produce the outputs."
+    }
+  }
 }

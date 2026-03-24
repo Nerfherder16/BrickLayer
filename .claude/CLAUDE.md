@@ -79,6 +79,29 @@ Trigger from Kiln UI "OPTIMIZE" button or via `masonry_optimize_agent` MCP tool.
 
 ### Running an Optimization
 
+**Preferred method — `optimize_with_claude.py` (no API key required):**
+
+Uses `claude -p` via the Claude Max subscription. No API key, no Ollama, no DSPy needed.
+
+```bash
+cd C:/Users/trg16/Dev/Bricklayer2.0
+
+# Optimize any agent
+python masonry/scripts/optimize_with_claude.py research-analyst
+python masonry/scripts/optimize_with_claude.py karen
+python masonry/scripts/optimize_with_claude.py quantitative-analyst
+
+# Options
+python masonry/scripts/optimize_with_claude.py <agent> --num-examples 20  # default: 15
+python masonry/scripts/optimize_with_claude.py <agent> --dry-run           # preview prompt only
+```
+
+Requires: `claude` binary in PATH (installed via `npm install -g @anthropic-ai/claude-code`).
+
+---
+
+**Legacy method — `run_optimization.py` (DSPy/MIPROv2, requires API key):**
+
 Use this runbook to trigger MIPROv2 optimization runs manually from the command line.
 
 **Precondition checks:**
