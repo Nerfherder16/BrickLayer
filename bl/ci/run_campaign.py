@@ -99,6 +99,7 @@ def _parse_questions_bl2(text: str) -> list[dict]:
             {
                 "id": qid,
                 "mode": mode,
+                "operational_mode": bracket_mode,  # bracket tag is always the operational mode
                 "title": title,
                 "status": status,
                 "target": fields.get("target", ""),
