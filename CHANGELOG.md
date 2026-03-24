@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `c566044` chore(bricklayer-v2): organize findings into mode subfolders (2026-03-24)
 - `8c4c458` chore(bricklayer-meta): organize findings into mode subfolders (2026-03-24)
 - `08d97d7` chore(bl-audit): organize findings into mode subfolders (2026-03-24)
 - `61c3613` fix(agents): remove stale MIPROv2 auto-generated comment from DSPy sections (2026-03-24)
