@@ -59,15 +59,17 @@ _LIVE_PREAMBLE = (
 )
 
 
-def _load_research_analyst_records(eval_size: int, seed: int, id_prefix: str | None = None) -> list[dict]:
-    """Load research-analyst records from scored_all.jsonl. Optional id_prefix filter."""
+def _load_agent_records(
+    agent_name: str, eval_size: int, seed: int, id_prefix: str | None = None
+) -> list[dict]:
+    """Load records for a given agent from scored_all.jsonl. Optional id_prefix filter."""
     import random
     records = []
     with open(_DATA_FILE, encoding="utf-8") as f:
         for line in f:
             if line.strip():
                 r = json.loads(line)
-                if r.get("agent") == "research-analyst":
+                if r.get("agent") == agent_name:
                     if id_prefix is None or r.get("question_id", "").startswith(id_prefix):
                         records.append(r)
     rng = random.Random(seed)
@@ -135,13 +137,18 @@ def _score_example(record: dict, raw_output: str) -> tuple[float, Any]:
     return score, pred
 
 
-def run_live_eval(eval_size: int = 5, seed: int = 42, id_prefix: str | None = None) -> None:
+def run_live_eval(
+    eval_size: int = 5,
+    seed: int = 42,
+    id_prefix: str | None = None,
+    agent_name: str = "research-analyst",
+) -> None:
     sys.stdout.reconfigure(encoding="utf-8")
 
-    records = _load_research_analyst_records(eval_size, seed, id_prefix=id_prefix)
-    agent_instructions = _read_agent_instructions("research-analyst")
+    records = _load_agent_records(agent_name, eval_size, seed, id_prefix=id_prefix)
+    agent_instructions = _read_agent_instructions(agent_name)
 
-    print(f"[live-eval] research-analyst | {len(records)} records | tools ENABLED")
+    print(f"[live-eval] {agent_name} | {len(records)} records | tools ENABLED")
     print(f"[live-eval] Model: {_DEFAULT_MODEL}")
     print(f"[live-eval] Working directory: {_SCRIPT_ROOT}")
     print()
@@ -221,12 +228,13 @@ def run_live_eval(eval_size: int = 5, seed: int = 42, id_prefix: str | None = No
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Live eval harness for research-analyst")
+    parser = argparse.ArgumentParser(description="Live eval harness for BL 2.0 agents")
+    parser.add_argument("--agent", type=str, default="research-analyst", help="Agent name to evaluate")
     parser.add_argument("--eval-size", type=int, default=5, help="Number of records to eval")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for record selection")
     parser.add_argument("--id-prefix", type=str, default=None, help="Filter records by question_id prefix")
     args = parser.parse_args()
-    run_live_eval(eval_size=args.eval_size, seed=args.seed, id_prefix=args.id_prefix)
+    run_live_eval(eval_size=args.eval_size, seed=args.seed, id_prefix=args.id_prefix, agent_name=args.agent)
 
 
 if __name__ == "__main__":
