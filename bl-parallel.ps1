@@ -97,7 +97,7 @@ if ($currentBranch -ne $BranchName) {
     if ($branchExists) {
         Write-Host "  Branch exists, workers will checkout: $BranchName"
     } else {
-        git -C $BLRoot checkout -b $BranchName 2>&1 | Out-Null
+        $null = git -C $BLRoot checkout -b $BranchName 2>&1
         Write-Host "  Created branch: $BranchName"
     }
 }
