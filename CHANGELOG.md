@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `78141d1` chore: auto-commit 2 session files on stop (2026-03-24)
 - `f11597b` chore: auto-commit 1 session file on stop (2026-03-24)
 - `ead8c16` finding(Q3.1): Fix-1 IMMINENT — amnesty expired 2026-03-21, corpus likely redegraded; priority: Fix-1 → reconcile → amnesty-2 [worker-2] (2026-03-24)
 - `2dcda7e` finding(Q3.2-Q4.3): research/frontier/audit/evolve domains — ADBP HEALTHY, Uncreated PROMISING, Legal INCONCLUSIVE, template HEALTHY [worker-1] (2026-03-24)
