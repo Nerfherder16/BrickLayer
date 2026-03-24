@@ -1,7 +1,7 @@
 """Tests for masonry/src/dspy_pipeline/optimizer.py — signature dispatch logic.
 
 Focuses on the per-agent dispatch table in optimize_all() (F30.5 fix).
-These tests are unit-level and do NOT invoke DSPy/MIPROv2 or any LLM.
+These tests are unit-level and do NOT invoke DSPy or any LLM.
 """
 
 from __future__ import annotations
