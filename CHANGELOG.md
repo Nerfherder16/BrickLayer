@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `57e0857` fix(dspy): eval_agent add --no-session-persistence to subprocess calls (2026-03-23)
 - `c73c7dc` fix(dspy): eval_agent set --setting-sources to empty string to disable all hooks (2026-03-23)
 - `73091c0` fix(dspy): eval_agent skip user hooks + strip markdown fences from output (2026-03-23)
 - `576f54a` findings: add R-dspy-agent-improvement-strategy research finding (2026-03-23)
