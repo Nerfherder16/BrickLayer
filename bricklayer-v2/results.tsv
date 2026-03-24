@@ -25,3 +25,7 @@ E1.3	IMPROVEMENT	Karen 0.55→~0.90: root cause=prompt ambiguity+data labeling. 
 E2.1	WARNING	Karen eval 0.55→0.30: sampling shift + prompt fix ineffective. Root cause: files_modified=karen output files not trigger source files. E2.2 fix required.	NONE	2026-03-24T05:00:00Z
 E2.2	IMPROVEMENT	Fixed 3 pipeline bugs: parent commit source files, bot commit labels, Windows cp1252 encoding in eval harness	score_ops_agents.py metrics.py eval_agent.py karen.md	2026-03-24T07:00:00Z
 E2.3	IMPROVEMENT	Karen eval score 0.30->1.00 (20/20 passed) after fixing training pipeline and eval harness	NONE	2026-03-24T07:30:00Z
+E3.1	IMPROVEMENT	Merged 38 unique records from wave13 into scored_all.jsonl. 444->482 total, 5->10 eval-able agents	NONE	2026-03-24T08:00:00Z
+E3.2	WARNING	quantitative-analyst baseline 0.10 (1/10). Heterogeneous training records (routing+findings mixed). Eval instruction too generic.	NONE	2026-03-24T08:15:00Z
+E3.3	WARNING	research-analyst baseline 0.20 (1/5). Agentic agent ignores JSON instruction. Only 5 records all HEALTHY. Eval design mismatch.	NONE	2026-03-24T08:30:00Z
+E3.4	WARNING	Optimizer write-back scope risk. writeback_optimized_instructions() writes to ALL copies with no guard. Proposed: target_paths scope limit.	NONE	2026-03-24T08:45:00Z

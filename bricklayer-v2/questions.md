@@ -70,6 +70,17 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ---
 
+## Wave 3 — Evolve (E3): Eval Pipeline Coverage + Optimizer Audit
+
+| ID | Mode | Status | Question |
+|----|------|--------|---------|
+| E3.1 | evolve | DONE | Merging `scored_all_wave13.jsonl` into `scored_all.jsonl` (with dedup) should make research-analyst, synthesizer-bl2, and 4 other agents eval-able for the first time. Execute the merge and verify record counts per agent. |
+| E3.2 | evolve | DONE | After the wave13 merge, run eval on `quantitative-analyst` (80 records). What is the baseline score? If score <0.50, the metric signature or training labels are wrong. |
+| E3.3 | evolve | DONE | After the wave13 merge, run eval on `research-analyst` (5 records, all HEALTHY). What is the baseline score? Are the 5 records sufficient for a meaningful eval or is the score artificially high? |
+| E3.4 | evolve | DONE | Audit the `optimizer.py` write-back mechanism that overwrote `karen.md` in Wave 2. Does it have a guard to prevent overwriting non-optimizer content? Is the overwrite scope limited to the DSPy section only? |
+
+---
+
 ## Domain 5 — Frontier: BrickLayer's next evolution beyond 2.0
 
 | ID | Mode | Status | Question |
