@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `e1a94ff` chore: auto-commit 1 session file on stop (2026-03-24)
 - `fbf5ab4` chore: auto-commit 1 session file on stop (2026-03-24)
 - `9cef8f5` finding(E-mid.1): PENDING_EXTERNAL — improve_agent.py karen blocked by subprocess timeout (2026-03-24)
 - `7bfda10` chore: auto-commit 2 session files on stop (2026-03-24)
