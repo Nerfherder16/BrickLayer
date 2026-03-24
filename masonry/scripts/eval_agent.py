@@ -200,15 +200,18 @@ def run_eval(
         # system context, not as user input. The -p user message contains only the
         # JSON output instruction + input payload.
         user_msg = f"{json_instruction.strip()}\n\nInput:\n{json.dumps(inp)}"
+        # Pass user_msg via stdin (--print mode) instead of -p argument to avoid
+        # Windows cp1252 argument encoding issues with special chars in JSON strings.
         proc = subprocess.run(
             _CLAUDE_CMD + [
-                "-p", user_msg, "--model", model,
+                "--print", "--model", model,
                 "--system-prompt", agent_prompt,
                 "--output-format", "json",
                 # skip all settings (disables hooks) and don't resume previous sessions
                 "--setting-sources", "",
                 "--no-session-persistence",
             ],
+            input=user_msg,
             capture_output=True,
             text=True,
         )
