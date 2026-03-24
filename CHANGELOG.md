@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `6e831f3` chore: auto-commit 2 session files on stop (2026-03-24)
 - `d68fab2` chore: auto-commit 2 session files on stop (2026-03-24)
 
 ## [Wave 13 — bricklayer-v2 Evolve] — 2026-03-24
