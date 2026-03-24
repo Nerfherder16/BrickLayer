@@ -8,7 +8,8 @@
       "Bash(python -m pytest tests/test_mcp_new_tools.py -k \"drift\" -q)",
       "Bash(python -m mypy masonry/src/dspy_pipeline/drift_detector.py masonry/src/drift_detector.py --ignore-missing-imports)",
       "Bash(python -m pytest tests/test_snapshot_agent.py -q)",
-      "Bash(python -m pytest masonry/tests/ -q)"
+      "Bash(python -m pytest masonry/tests/ -q)",
+      "Bash(python -m pytest tests/test_drift_detector.py tests/test_mcp_new_tools.py::TestMasonryDriftCheck -v)"
     ]
   }
 }
