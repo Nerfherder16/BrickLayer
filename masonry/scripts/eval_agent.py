@@ -40,16 +40,16 @@ _KAREN_JSON_INSTRUCTION = (
     "\n\nYou are being evaluated on a classification task. "
     "You are given a commit_subject and files_modified from a real git commit. "
     "Based ONLY on these fields, decide what documentation action is needed. "
-    "Do NOT say 'no changes detected' — the commit happened and the files listed were changed. "
-    "Apply your decision rules: feat/fix/refactor/docs/perf/test commits → action='updated'; "
-    "revert commits → action='reverted'; chore-bot commits → action='skipped'. "
+    "Do NOT say 'no changes detected' - the commit happened and the files listed were changed. "
+    "Apply your decision rules: feat/fix/refactor/docs/perf/test commits -> action='updated'; "
+    "revert commits -> action='reverted'; chore-bot commits -> action='skipped'. "
     "Write a realistic changelog_entry for what this commit did, based on the commit subject. "
     "Respond ONLY with a valid JSON object and no other text. "
     "The JSON must have exactly these keys: "
     '"action" (one of: "updated", "created", "reverted", "skipped"), '
     '"doc_updates" (comma-separated doc file paths or empty string), '
     '"changelog_entry" (single-line summary string), '
-    '"quality_score" (decimal string 0.0–1.0).'
+    '"quality_score" (decimal string 0.0-1.0).'
 )
 
 
