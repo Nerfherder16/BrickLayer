@@ -16,6 +16,34 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
+---
+- `835f0da` chore: auto-commit 3 session files on stop (2026-03-24)
+
+## [Wave 12 — Evolve] — 2026-03-24
+
+Live eval calibration breaks through tool-free ceiling: research-analyst 0.84 (near 0.85 target), synthesizer-bl2 0.62 (meets 0.60 target).
+
+### Added
+- `masonry/scripts/generate_live_records.py` — live-calibrated training record generator for research-analyst (20 records, 0 timeouts)
+- `masonry/scripts/generate_synth_records.py` — live-calibrated training record generator for synthesizer-bl2 (10 records)
+- `masonry/scripts/merge_live_records.py` — merge live-calibrated records into scored_all.jsonl
+
+### Changed
+- `masonry/training_data/scored_all.jsonl` — +30 live-calibrated records (20 research-analyst + 10 synthesizer-bl2)
+- research-analyst eval: tool-free 0.44-0.61 to live eval **0.84** (+39pts absolute)
+- synthesizer-bl2 eval: tool-free 0.45-0.55 to live eval **0.62** (+12pts, breaks ceiling)
+
+### Found (open)
+- `E12.1` [IMPROVEMENT] — 2 FAILURE-expected records produce WARNING on re-run (severity disagreement, not wrong verdict); re-labeling gives 0.95
+- `E12.2` [IMPROVEMENT] — 4 old records miscalibrated (tool-free INCONCLUSIVE labels invalid for tool-enabled agents)
+- `E12.3` [IMPROVEMENT] — synthesizer-bl2 has 40% prose rate in generation (prompt JSON compliance gap)
+
+### Healthy
+- Live eval harness (`eval_agent_live.py`) proven reliable across both agents
+- 4 agents remain AT TARGET: karen (1.00), quantitative-analyst (0.90), regulatory-researcher (1.00), competitive-analyst (~0.92)
+
+---
+
 ### Added
 - `bl/agent_db.py` — agent performance tracking. Score 0.0–1.0 per agent, verdict history, underperformer detection (threshold 0.40, min 3 runs)
 - `bl/skill_forge.py` — skill registry. Tracks campaign-created skills in `skill_registry.json`, provides `write_skill()` / `list_project_skills()` API
