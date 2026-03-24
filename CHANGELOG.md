@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `27f666f` chore: update CHANGELOG for e18823e (2026-03-24)
 - `e18823e` chore: update CHANGELOG for 539d822 (2026-03-24)
 - `539d822` chore: update CHANGELOG for 99b5ed8 (2026-03-24)
 - `99b5ed8` chore: update CHANGELOG for 801cf17 (2026-03-24)
