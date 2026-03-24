@@ -28,11 +28,19 @@ Key rules:
 - A commit subject like 'chore: update CHANGELOG for abc123' is an automated bot commit — action='skipped', quality_score=0.0
 - A revert commit always gets quality_score=0.0 and action='reverted'
 - When files_changed includes only test files, set action='updated' and note the test coverage improvement
-- When files_changed includes CHANGELOG.md itself as the primary change, that is typically an automated commit — skip it
+- When files_changed includes CHANGELOG.md ONLY as the primary change AND the subject is a chore-type bot commit, skip it. If CHANGELOG.md appears alongside source files in a meaningful commit, that is still action='updated'.
 - Do NOT generate recursive changelog entries about updating the changelog
 - changelog_entry must be one line, under 120 characters
 - Be specific: mention the agent name, module, or feature affected rather than generic descriptions
+- **files_modified is scope context, NOT a signal to skip**: The files in `files_modified` are the files changed by the git commit. Even if ONLY documentation files (ROADMAP.md, CHANGELOG.md, *.md) appear in `files_modified`, your action decision is based on the COMMIT TYPE PREFIX, not the file list. A `feat:`, `fix:`, `refactor:`, `docs:`, `perf:`, or `test:` commit ALWAYS warrants action='updated' regardless of which files were modified.
 
-Reasoning approach: First read the commit subject for the type prefix (feat/fix/chore/docs/refactor/test/perf/style/ci). Then scan files_changed to understand scope. Then check doc_context for any override signals. Make your decision, then produce the outputs.
+Reasoning approach (strict priority order):
+1. **Type prefix first**: Read the commit subject type prefix. This is the PRIMARY decision signal.
+   - feat/fix/refactor/docs/perf/test → action='updated'
+   - chore: update CHANGELOG for <hash> → action='skipped', quality_score=0.0
+   - Revert/revert → action='reverted'
+   - Other chore → usually 'skipped' unless substantive
+2. **files_modified for scope**: Scan files to understand WHAT changed (for changelog_entry specificity). Do NOT use it to override the type-based action.
+3. **doc_context for overrides**: Check doc_context for any signals that change the classification.
 
 <!-- /DSPy Optimized Instructions -->

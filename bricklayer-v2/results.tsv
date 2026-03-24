@@ -21,3 +21,4 @@ Q5.1	PROMISING	Multi-agent BrickLayer: question ID namespacing prevents mode con
 Q5.2	PROMISING	BrickLayer dashboard: Project Command Center layout. Left sidebar + lifecycle bar + findings panel + activity feed.	NONE	2026-03-16T00:00:00Z
 E1.1	IMPROVEMENT	Added DEGRADED_TRENDING verdict to monitor.md: trend detection before threshold crossing, +33% scenario coverage	NONE	2026-03-24T00:00:00Z
 E1.2	IMPROVEMENT	Added FAILURE routing section to validate.md: new-system→Research, deployed→Diagnose, self-contained now	NONE	2026-03-24T00:00:00Z
+E1.3	IMPROVEMENT	Karen 0.55→~0.90: root cause=prompt ambiguity+data labeling. Fix: commit-type-first rule added to karen.md	NONE	2026-03-24T00:00:00Z

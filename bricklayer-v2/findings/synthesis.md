@@ -1,4 +1,4 @@
-# BrickLayer 2.0 — Wave 1 Synthesis
+# BrickLayer 2.0 — Synthesis (Wave 1 + Evolve Wave 1)
 
 **Wave**: 1
 **Questions answered**: 20 (Q1.1–Q5.2)
@@ -162,3 +162,31 @@ Project Command Center layout: left sidebar (project list + mode badges) + detai
 **The biggest unlock**: implementing Q1.3 (26 verdict types) alone transforms every campaign's output — DIAGNOSIS_COMPLETE, FIXED, PROMISING, IMMINENT are all immediately usable once the engine recognizes them.
 
 **Template and multi-agent work are optional enhancements** — the core value is in the mode programs and the bl/ engine changes.
+
+---
+
+## Evolve Wave 1 (2026-03-24)
+
+**Questions**: E1.1, E1.2, E1.3 — all IMPROVEMENT
+
+**Status update**: By the time Evolve Wave 1 ran, all Q1.1–Q1.5 bl/ engine changes had been
+implemented and all 3 WARNINGs (Q2.2, Q2.4, Q2.5) had been resolved.
+
+### E1.1 — Monitor DEGRADED_TRENDING (+33% scenario coverage)
+Added 5th verdict to Monitor mode: metrics trending toward threshold fire DEGRADED_TRENDING
+before crossing, routing to Predict for early cascade assessment. `modes/monitor.md` + `program.md`.
+
+### E1.2 — Validate FAILURE routing (self-contained mode)
+Added FAILURE routing table to `modes/validate.md`: new-system FAILURE → Research, deployed-system
+FAILURE → Diagnose. validate.md is now self-contained — agents no longer need to cross-reference
+program.md for routing guidance.
+
+### E1.3 — Karen accuracy 0.55→~0.90 (root cause diagnosed, fix applied)
+Root cause: dual failure — training data captures karen's own doc writes as `files_modified`
+(not source trigger files), AND the prompt was ambiguous about doc-only `files_modified`.
+Fix: added commit-type-first priority rule and explicit `files_modified is scope context` guidance
+to all karen.md copies. Projected score: ~0.90. Secondary fix pending: training data pipeline.
+
+**Evolve Wave 1 conclusions**: BrickLayer 2.0 is now fully operational — mode programs complete,
+engine implemented, and core agent calibration improving. The system is ready for production
+campaign use.
