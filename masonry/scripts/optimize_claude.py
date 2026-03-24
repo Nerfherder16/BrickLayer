@@ -271,7 +271,7 @@ def _writeback(
 def run(
     agent_name: str,
     base_dir: Path,
-    signature: str = "research",
+    signature: str | None = None,
     num_demos: int = _DEFAULT_NUM_DEMOS,
 ) -> int:
     print(f"[init] Agent: {agent_name}")
@@ -297,8 +297,12 @@ def run(
     print(f"[data] Score range: {min(scores):.0f} – {max(scores):.0f}")
     print(f"[data] Score > 0: {sum(1 for s in scores if s > 0)}  |  Score = 0: {sum(1 for s in scores if s == 0)}")
 
+    # Auto-detect signature from agent name if not explicitly provided
+    resolved_sig = signature or ("karen" if agent_name == "karen" else "research")
+    print(f"[init] Resolved signature: {resolved_sig}")
+
     # Select diverse demos
-    if signature == "karen":
+    if resolved_sig == "karen":
         selected = _select_diverse_karen(records, num_demos)
     else:
         selected = _select_diverse_research(records, num_demos)
@@ -310,7 +314,7 @@ def run(
 
     # Build section text
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    section_text = _build_section(selected, signature, generated_at)
+    section_text = _build_section(selected, resolved_sig, generated_at)
 
     # Write back to agent .md files
     updated = _writeback(base_dir, agent_name, section_text)
