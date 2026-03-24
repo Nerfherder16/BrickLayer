@@ -35,16 +35,39 @@
   "Q2.3": {
     "worker": "worker-1",
     "claimed_at": "2026-03-24T14:30:57.117980+00:00",
-    "status": "IN_PROGRESS"
+    "status": "DONE",
+    "verdict": "HEALTHY",
+    "completed_at": "2026-03-24T14:31:21.731209+00:00"
   },
   "Q2.4": {
     "worker": "worker-1",
     "claimed_at": "2026-03-24T14:30:57.232253+00:00",
-    "status": "IN_PROGRESS"
+    "status": "DONE",
+    "verdict": "WARNING",
+    "completed_at": "2026-03-24T14:31:21.816501+00:00"
   },
   "Q2.5": {
     "worker": "worker-1",
     "claimed_at": "2026-03-24T14:30:57.315657+00:00",
+    "status": "DONE",
+    "verdict": "WARNING",
+    "completed_at": "2026-03-24T14:31:21.900674+00:00"
+  },
+  "Q3.1": {
+    "worker": "worker-2",
+    "claimed_at": "2026-03-24T14:31:18.129324+00:00",
     "status": "IN_PROGRESS"
+  },
+  "Q2.1": {
+    "worker": "unknown",
+    "status": "DONE",
+    "verdict": "HEALTHY",
+    "completed_at": "2026-03-24T14:31:21.473993+00:00"
+  },
+  "Q2.2": {
+    "worker": "unknown",
+    "status": "DONE",
+    "verdict": "WARNING",
+    "completed_at": "2026-03-24T14:31:21.560243+00:00"
   }
 }
