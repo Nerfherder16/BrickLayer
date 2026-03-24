@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `0683036` fix(optimize): add --setting-sources and --no-session-persistence to claude -p (2026-03-24)
 - `43a615d` chore(bl2): record E1.2 evolve result in results.tsv (2026-03-24)
 - `d61da9b` chore(bl2): record E1.1 evolve result in results.tsv (2026-03-24)
 - `25b75f8` feat(bl2): add DEGRADED_TRENDING verdict to monitor mode (2026-03-24)
