@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `c94de5a` evolve(bl2): Wave 1 — 3 IMPROVEMENTs: monitor DEGRADED_TRENDING, validate routing, karen +35pts (2026-03-24)
 - `b10b239` fix(approver): detect active campaign via findings/ writes, not just questions.md (2026-03-24)
 - `c0bd411` docs(evolve): add Wave 1 evolve report — 3× IMPROVEMENT findings (2026-03-24)
 - `7c30512` feat(agents): update karen instructions via improve_agent loop (2026-03-24) (2026-03-24)
