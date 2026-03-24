@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `ae8ea1a` feat(bl2): rewrite Evolve mode — survey-driven, multi-signal ROI ranking (2026-03-24)
 - `827f64f` feat(optimize): run claude-p optimizer on research-analyst and karen (2026-03-23)
 - `e99b387` feat(dspy): add optimize_with_claude.py — claude-p based prompt optimizer (2026-03-23)
 - `11578d0` chore(dspy): update karen optimized prompt (2026-03-23)
