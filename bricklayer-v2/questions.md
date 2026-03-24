@@ -150,6 +150,25 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ---
 
+## Wave 11 — Evolve (E11): Live Eval Prototype + Final Data Quality
+
+| ID | Mode | Status | Question |
+|----|------|--------|---------|
+| E11.1 | evolve | DONE | Design and prototype a live eval harness (Path B) for research-analyst: run eval with tools enabled so the agent can read files, search code, and produce evidence-backed verdicts. Does a tool-enabled agent score ≥0.85 on the existing 18 test questions? What infrastructure changes are required? |
+| E11.2 | evolve | DONE | Fix 3 remaining synthesizer-bl2 data quality issues: (1) change E8.3-synth-5 expected verdict from PROMISING to INCONCLUSIVE (agent consistently predicts INCONCLUSIVE), (2) replace Q6.5 prose-producer with a self-evident WARNING record, (3) add 2 records targeting the stochastic INCONCLUSIVE/WARNING edge. Does synthesizer-bl2 score reach ≥0.60? |
+
+---
+
+## Wave 12 — Evolve (E12): Live Eval Recalibration
+
+| ID | Mode | Status | Question |
+|----|------|--------|---------|
+| E12.1 | evolve | PENDING | Generate 20 live-eval-calibrated training records for research-analyst: questions where the current codebase has a clear answer a tool-enabled agent will find. Run each through eval_agent_live.py to bootstrap expected verdicts from tool-enabled agent outputs. What is the new live eval score with 20 calibrated records? |
+| E12.2 | evolve | PENDING | After E12.1, identify which of the existing 18 research-analyst tool-free records have INCONCLUSIVE expected verdicts that re-classify to WARNING/FAILURE with tool access (calibration gap records). How many records need re-labeling, and what is the corrected live eval score after re-labeling? |
+| E12.3 | evolve | PENDING | Apply the same live eval recalibration approach to synthesizer-bl2: generate 10 live-calibrated records (questions about campaign synthesis quality, finding completeness, multi-project synthesis). Does synthesizer-bl2 reach ≥0.60 on live-calibrated data? |
+
+---
+
 ## Domain 5 — Frontier: BrickLayer's next evolution beyond 2.0
 
 | ID | Mode | Status | Question |
