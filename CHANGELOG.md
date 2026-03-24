@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `e227a21` fix(hooks): tighten stop-guard and context-monitor messages (2026-03-24)
 - `40e3254` fix(optimize): remove --setting-sources flag, increase timeout to 300s (2026-03-24)
 - `c94de5a` evolve(bl2): Wave 1 — 3 IMPROVEMENTs: monitor DEGRADED_TRENDING, validate routing, karen +35pts (2026-03-24)
 - `b10b239` fix(approver): detect active campaign via findings/ writes, not just questions.md (2026-03-24)
