@@ -2,43 +2,9 @@
   "predict": {
     "traces": [],
     "train": [],
-    "demos": [
-      {
-        "augmented": true,
-        "commit_subject": "docs(masonry): Wave 24 synthesis -- training attribution fixed, metric ceiling revised",
-        "files_changed": "masonry/ARCHITECTURE.md, masonry/CHANGELOG.md, masonry/ROADMAP.md, masonry/findings/synthesis_wave24.md",
-        "doc_context": "masonry campaign wave-end synthesis covering DSPy optimization pipeline, routing metrics, and corpus growth",
-        "reasoning": "The commit subject is 'docs(masonry): Wave 24 synthesis' — a docs-type commit that explicitly updated ARCHITECTURE.md, CHANGELOG.md, and ROADMAP.md alongside the synthesis finding. All three are documentation files that record architectural decisions (ARCHITECTURE.md: routing pipeline changes), progress (CHANGELOG.md: wave entries), and roadmap updates (ROADMAP.md: Phase 17 metric ceiling revision). A changelog entry should capture the key documentation domains updated and the wave number for traceability.",
-        "action": "updated",
-        "doc_updates": "masonry/ARCHITECTURE.md, masonry/CHANGELOG.md, masonry/ROADMAP.md",
-        "changelog_entry": "docs(masonry): Wave 24 synthesis — ARCHITECTURE.md routing updates, ROADMAP.md Phase 17 ceiling revised, CHANGELOG.md entries added",
-        "quality_score": "1.0"
-      },
-      {
-        "augmented": true,
-        "commit_subject": "fix: root tests/__init__.py shim + karen MIPROv2 write-back sync",
-        "files_changed": "bl-audit/.claude/agents/karen.md, template-frontier/.claude/agents/karen.md, template/.claude/agents/karen.md, tests/__init__.py",
-        "doc_context": "",
-        "reasoning": "The commit touches .claude/agents/karen.md files (agent definition updates with DSPy write-back block) and tests/__init__.py (a shim file). None of these are documentation files — they are agent configuration files and a pytest namespace shim. The CHANGELOG.md was not modified. This is a code/config fix commit, not a documentation change. No changelog entry or doc update is required.",
-        "action": "skipped",
-        "doc_updates": "",
-        "changelog_entry": "",
-        "quality_score": "1.0"
-      },
-      {
-        "augmented": true,
-        "commit_subject": "revert(approver): remove session ID ownership lock — caused deadlocks",
-        "files_changed": "masonry/skills/masonry-plan.md, masonry/src/hooks/masonry-approver.js",
-        "doc_context": "masonry hooks and skills — reverting a prior change that introduced deadlocks in the approval workflow",
-        "reasoning": "The commit is a revert — it rolls back a previously applied change to masonry-approver.js and masonry-plan.md. Reverts indicate that the prior change was incorrect or harmful. While masonry-plan.md is a skills/documentation file that was touched, the overall commit undoes work that should not have been merged. Revert commits receive a quality score of 0.0 and action 'reverted' because they represent negative documentation value — they document an error rather than a meaningful change.",
-        "action": "reverted",
-        "doc_updates": "masonry/skills/masonry-plan.md",
-        "changelog_entry": "revert(approver): remove session ID ownership lock — caused deadlocks in approval workflow",
-        "quality_score": "0.0"
-      }
-    ],
+    "demos": [],
     "signature": {
-      "instructions": "You are a documentation automation expert responsible for ensuring all changes are properly recorded in the project's documentation and changelog. Analyze the git commit subject, list of modified files, and any provided documentation context. Determine if documentation updates are required by verifying if relevant files (like CHANGELOG.md) were modified. If so, generate a concise changelog entry, list the affected documentation files, and assign a quality score (1.0 for valid updates, 0.0 for reverts or invalid changes). Explain your reasoning step by step, and specify the action taken (updated, skipped, etc.).",
+      "instructions": "Given a git commit, produce documentation updates and a changelog entry.",
       "fields": [
         {
           "prefix": "Commit Subject:",
@@ -84,6 +50,6 @@
     }
   },
   "agent": "karen",
-  "score": 91.6,
-  "optimized_at": "2026-03-23T23:34:32.506939+00:00"
+  "score": 0.0,
+  "optimized_at": "2026-03-24T03:27:55.735060+00:00"
 }
