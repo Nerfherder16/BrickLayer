@@ -32,7 +32,7 @@ _SCRIPT_ROOT = Path(__file__).resolve().parent.parent.parent  # blRoot
 if str(_SCRIPT_ROOT) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_ROOT))
 
-from masonry.src.dspy_pipeline.optimizer import build_karen_metric, build_metric  # noqa: E402
+from masonry.src.metrics import build_karen_metric, build_metric  # noqa: E402
 
 _DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 
