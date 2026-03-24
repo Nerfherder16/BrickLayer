@@ -8,7 +8,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 | ID | Mode | Status | Question |
 |----|------|--------|---------|
-| Q1.1 | diagnose | PENDING | What is the minimal change to `bl/campaign.py` to support mode dispatch — reading `mode:` from each question and loading the corresponding `modes/{mode}.md` as loop context? |
+| Q1.1 | diagnose | DONE | What is the minimal change to `bl/campaign.py` to support mode dispatch — reading `mode:` from each question and loading the corresponding `modes/{mode}.md` as loop context? |
 | Q1.2 | diagnose | PENDING | How should `questions.md` represent the new `mode:` field (operational mode) without breaking the existing `mode:` field (which currently means runner type)? What rename is required? |
 | Q1.3 | diagnose | DONE | What new verdict types need to be added to `bl/findings.py` and `bl/quality.py` — specifically DIAGNOSIS_COMPLETE, PENDING_EXTERNAL, FIXED, PROMISING, WEAK, BLOCKED, COMPLIANT, NON_COMPLIANT, CALIBRATED? |
 | Q1.4 | diagnose | PENDING | How should DIAGNOSIS_COMPLETE suppression work in `bl/questions.py`? What is the mechanism to park a question and re-activate it when code changes? |
