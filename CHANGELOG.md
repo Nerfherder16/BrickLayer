@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `98a7792` finding(Q1.5): bl/questions.py already handles PENDING_EXTERNAL — only CI runner needs 1-line fix [worker-2] (2026-03-24)
 - `8d4836e` chore: auto-commit 4 session files on stop (2026-03-24)
 - `39146e5` finding(Q1.4): DIAGNOSIS_COMPLETE suppression via status tracking + git diff re-activation [worker-1] (2026-03-24)
 - `d172de6` chore: auto-commit 1 session file on stop (2026-03-24)
