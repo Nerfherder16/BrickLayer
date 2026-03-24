@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `2a2ad9a` chore: auto-commit 2 session files on stop (2026-03-24)
 - `d1d8ed2` chore: auto-commit 1 session file on stop (2026-03-24)
 - `7085f4a` chore: auto-commit 2 session files on stop (2026-03-24)
 - `500d571` finding(E13.9): 9 trained agents have no eval baseline — karen(379) and quantitative-analyst(76) are top optimization targets [worker-1] (2026-03-24)
