@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `28e34af` feat(evolve): E13.5 — PROSE re-label + optimize attempt — score 0.41 (below 0.62 baseline) (2026-03-24)
 - `c9b63f1` chore: auto-commit 3 session files on stop (2026-03-24)
 - `659e84f` chore: auto-commit 4 session files on stop (2026-03-24)
 - `43c4b20` fix(F-mid.3): create frontier-analyst.md, unblock FR-prefix mode transitions (2026-03-24)
