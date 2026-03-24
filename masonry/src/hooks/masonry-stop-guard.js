@@ -294,12 +294,25 @@ async function main() {
       process.exit(0);
     }
 
-    const sessionCount = sessionModified.length + sessionUntracked.length;
-    const output = `\nStop blocked — ${sessionCount} uncommitted session file${sessionCount !== 1 ? "s" : ""} (git status). Commit before stopping.\n`;
+    // Auto-commit session files rather than blocking — avoids token-expensive Claude intervention.
+    try {
+      const allSessionFiles = [...sessionModified, ...sessionUntracked];
+      // Stage session files only (not the entire working tree)
+      execSync(`git add -- ${allSessionFiles.map(f => `"${f}"`).join(' ')}`, {
+        encoding: 'utf8', timeout: 10000, cwd,
+      });
+      const msg = `chore: auto-commit ${allSessionFiles.length} session file${allSessionFiles.length !== 1 ? 's' : ''} on stop`;
+      execSync(`git commit -m "${msg}"`, { encoding: 'utf8', timeout: 10000, cwd });
+      process.stderr.write(`[Masonry] Auto-committed ${allSessionFiles.length} session file${allSessionFiles.length !== 1 ? 's' : ''}.\n`);
+    } catch (commitErr) {
+      // Auto-commit failed — fall back to blocking so user knows
+      const sessionCount = sessionModified.length + sessionUntracked.length;
+      process.stderr.write(`\nStop blocked — ${sessionCount} uncommitted session file${sessionCount !== 1 ? 's' : ''} (git status). Commit before stopping.\n`);
+      checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
+      process.exit(2);
+    }
 
     checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
-    process.stderr.write(output);
-    process.exit(2);
   } catch {
     // Not a git repo or git unavailable — allow stop
   }
