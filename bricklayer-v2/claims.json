@@ -180,6 +180,8 @@
   "E13.10": {
     "worker": "worker-1",
     "claimed_at": "2026-03-24T14:40:34.105368+00:00",
-    "status": "IN_PROGRESS"
+    "status": "DONE",
+    "verdict": "PENDING_EXTERNAL",
+    "completed_at": "2026-03-24T14:43:11.605515+00:00"
   }
 }
