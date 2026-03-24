@@ -2,7 +2,9 @@
   "Q1.1": {
     "worker": "worker-2",
     "claimed_at": "2026-03-24T14:25:59.023395+00:00",
-    "status": "IN_PROGRESS"
+    "status": "DONE",
+    "verdict": "DIAGNOSIS_COMPLETE",
+    "completed_at": "2026-03-24T14:29:08.610552+00:00"
   },
   "Q1.2": {
     "worker": "worker-3",
