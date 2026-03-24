@@ -74,7 +74,7 @@ def _format_example(rec: dict) -> str:
     score = rec.get("score", "?")
     q = inp.get("question_text") or inp.get("question_id") or "?"
     verdict = out.get("verdict") or "?"
-    evidence = (out.get("evidence") or "")[:400]
+    evidence = (out.get("evidence") or "")[:800]  # 800 chars captures full numbered structure
     summary = (out.get("summary") or "")[:200]
     return (
         f"Score: {score}/100\n"
@@ -123,37 +123,53 @@ def _build_prompt(
 
     return f"""You are a prompt engineer optimizing the instructions for a BrickLayer research agent called **{agent_name}**.
 
+## Scoring Rubric (what the eval measures)
+
+The agent is scored on three axes, 0–1 each:
+- **Verdict match (40%)**: exact string match against the expected verdict (HEALTHY, WARNING, FAILURE, INCONCLUSIVE, etc.)
+- **Evidence quality (40%)**: evidence text > 300 chars AND contains numbers or threshold language (%, ms, pts, baseline, threshold, seconds) = full marks; otherwise half marks. **Prerequisite gate**: wrong verdict caps total at 0.20 regardless of evidence quality.
+- **Confidence calibration (20%)**: 1 - |predicted_confidence - 0.75|. Closer to 0.75 = higher score.
+
 ## Current Agent Instructions
 
 {current_instructions}
 
 ## High-Quality Outputs (score >= 75/100)
 
-These are examples where the agent performed well:
-
 {high_block}
 
 ## Low-Quality Outputs (score < 50/100)
-
-These are examples where the agent underperformed:
 
 {low_block}
 
 ## Your Task
 
-Analyze the patterns that distinguish high-quality from low-quality outputs.
-Write an improved set of agent instructions that will help {agent_name} produce
-outputs more like the high-quality examples and avoid the patterns in the low-quality ones.
+Write quality-guidance instructions to be injected into the agent's `## DSPy Optimized Instructions` section.
+These instructions **supplement** the procedural steps already in the agent file — they do NOT replace them.
 
-Focus on:
-- What makes evidence strong vs weak
-- What verdict calibration patterns work
-- Any structural or content improvements
+Focus your improvements on:
+
+1. **Verdict calibration**: What patterns distinguish correct verdicts? When is WARNING vs FAILURE vs HEALTHY correct? Ground rules in the scoring rubric above.
+2. **Evidence structure**: The eval requires >300 chars with quantitative data. What format consistently produces high-scoring evidence? (Numbered bold-header items with specific numbers score highest.)
+3. **Summary quality**: Summaries must be ≤200 chars, include a quantitative fact, and state the verdict + key insight.
+4. **Confidence targeting**: Optimal confidence is ~0.75. When to deviate.
+5. **Root cause chains**: High-scoring outputs explain root cause → mechanism → impact. Low-scoring outputs state symptoms only.
+
+DO NOT:
+- Rewrite the procedural steps (Steps 1–7 in the synthesizer, or equivalent in other agents)
+- Remove or restructure output format templates
+- Add meta-commentary about the optimization process
+- Include instructions about infrastructure tasks (git, CHANGELOG, etc.) in quality guidance
+
+DO:
+- Write concrete quality standards, evidence format rules, and verdict calibration guides
+- Include pattern examples derived from the training data above
+- Keep instructions imperative and direct (not suggestions)
 
 Respond with ONLY a JSON object, no markdown fences, no commentary:
 
 {{
-  "improved_instructions": "<full improved instructions text>",
+  "improved_instructions": "<quality-guidance text to inject — not a full rewrite>",
   "key_changes": ["change 1", "change 2", "change 3"]
 }}"""
 
@@ -221,10 +237,10 @@ def run(
             capture_output=True,
             text=True,
             encoding="utf-8",
-            timeout=300,
+            timeout=600,
         )
     except subprocess.TimeoutExpired:
-        print("[error] claude -p timed out after 180 seconds.")
+        print("[error] claude -p timed out after 600 seconds.")
         return 1
 
     if result.returncode != 0:
