@@ -216,7 +216,11 @@ def run(
 
     try:
         result = subprocess.run(
-            [claude_bin, "-p"],
+            [
+                claude_bin, "-p",
+                "--setting-sources", "",   # disable hooks — avoid parent session interference
+                "--no-session-persistence",
+            ],
             input=prompt,
             capture_output=True,
             text=True,
