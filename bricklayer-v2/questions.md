@@ -44,9 +44,9 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 | ID | Mode | Status | Question |
 |----|------|--------|---------|
-| Q4.1 | evolve | PENDING | What changes are required to `template/` to support BrickLayer 2.0's mode system? Should `template/` become `template-diagnose/` with sibling templates for each domain (template-research/, template-frontier/, etc.)? |
-| Q4.2 | evolve | PENDING | What should the new project bootstrap sequence look like? Currently: copy template, edit project-brief, run question-designer. With modes: what's the right first question to ask? |
-| Q4.3 | evolve | PENDING | Should `simulate.py` be renamed `evaluate.py` in the new template, or kept as-is for backward compatibility? What does the new template's evaluate.py stub look like? |
+| Q4.1 | evolve | DONE | What changes are required to `template/` to support BrickLayer 2.0's mode system? Should `template/` become `template-diagnose/` with sibling templates for each domain (template-research/, template-frontier/, etc.)? |
+| Q4.2 | evolve | DONE | What should the new project bootstrap sequence look like? Currently: copy template, edit project-brief, run question-designer. With modes: what's the right first question to ask? |
+| Q4.3 | evolve | DONE | Should `simulate.py` be renamed `evaluate.py` in the new template, or kept as-is for backward compatibility? What does the new template's evaluate.py stub look like? |
 
 ---
 
