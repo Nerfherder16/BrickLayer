@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `607b4e2` chore: auto-commit 1 session file on stop (2026-03-24)
 - `75e098c` chore: remove DSPy references, fix onboard legacy param (2026-03-24)
 - `dcd8090` chore: auto-commit 1 session file on stop (2026-03-24)
 - `7bdc00b` chore: auto-commit 2 session files on stop (2026-03-24)
