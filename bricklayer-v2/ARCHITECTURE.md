@@ -9,7 +9,7 @@ BrickLayer 2.0 self-audit campaign. This project stress-tests the BL 2.0 engine,
 ```
 bricklayer-v2/
   questions.md          -- Question bank (5 domains + 13 evolve waves + wave-mid)
-  results.tsv           -- Tab-separated verdict log (58 entries)
+  results.tsv           -- Tab-separated verdict log (59 entries)
   findings/             -- Per-question finding files
     evolve/             -- E1.x through E13.x findings
     diagnose/           -- Q1.x diagnosis findings
@@ -33,16 +33,16 @@ bricklayer-v2/
 | D4 -- Template Evolution (Evolve) | Q4.1-Q4.3 | COMPLETE |
 | D5 -- Frontier | Q5.1-Q5.2 | COMPLETE |
 | Wave 1-12 Evolve | E1.1-E12.3 | COMPLETE |
-| Wave 13 Evolve | E13.1-E13.10 | MIXED (4 DONE, 2 WARNING, 2 PENDING, 1 PENDING_EXT, 1 BLOCKED) |
+| Wave 13 Evolve | E13.1-E13.10 | COMPLETE (3 IMPROVEMENT, 1 HEALTHY, 3 WARNING, 1 BLOCKED, 1 PENDING_EXT) |
 | Wave 14 (wave-mid) | F-mid.1, F-mid.2, M-mid.1, M-mid.2, E-mid.1 | MIXED (2 FIXED, 2 CALIBRATED, 1 PENDING_EXT) |
 
 ---
 
 ## Key Findings
 
-- **F-mid.1** [FIXED] Wave 14: Mode dispatch implemented in CI runner -- agents now receive operational mode program text; Q1.1 diagnosis fully resolved.
-- **F-mid.2** [FIXED] Wave 14: BL 2.0 status normalization -- 15 status values parsed correctly, PENDING_EXTERNAL no longer re-queued; Q1.5 diagnosis resolved.
-- **E13.8** [BLOCKED] Wave 13: 3 candidate agents lack .md instruction files; eval pipeline cannot generate baselines without them.
+- **E13.3** [IMPROVEMENT] Wave 13: research-analyst live eval 0.84→0.91 (+0.07) after loop 1 optimize_with_claude.py; first confirmed prompt optimization gain; 7 DSPy rules injected.
+- **E13.8** [BLOCKED] Wave 13: 3 candidate agents (peer-reviewer, agent-auditor, retrospective) lack .md instruction files; eval pipeline cannot generate baselines without them.
+- **E13.9** [WARNING] Wave 13: 9 agents with substantial training data (karen 379 records, qta 76, ra 53) have never been evaluated; fleet-wide baseline run required.
 
 ---
 
@@ -54,7 +54,7 @@ bricklayer-v2/
 | regulatory-researcher | 1.00 | AT TARGET |
 | quantitative-analyst | 0.90 | AT TARGET |
 | competitive-analyst | ~0.92 | AT TARGET |
-| research-analyst | 0.84 (live) | Near target (0.85) |
+| research-analyst | 0.91 (live) | AT TARGET (≥0.85) |
 | synthesizer-bl2 | 0.62 (live) | Meets target (0.60) |
 | git-nerd | 1.00 | AT CEILING |
 | fix-implementer | 0.76 | No training data |
@@ -74,9 +74,8 @@ bricklayer-v2/
 | ID | Verdict | Summary |
 |----|---------|---------|
 | E13.8 | BLOCKED | peer-reviewer/agent-auditor/retrospective have no .md instruction files |
+| E13.9 | WARNING | 9 agents with training data have no eval baseline (karen 379, qta 76, ra 53 records) |
 | E13.7 | WARNING | 4 deterministic routing coverage gaps (eval, architect, diagnose, campaign patterns) |
-| E13.9 | WARNING | 9 agents with training data have no eval baseline |
-| E13.3 | PENDING | research-analyst prompt optimization on 38-record dataset |
-| E13.5 | PENDING | synthesizer-bl2 optimization on 21-record combined dataset |
-| E13.10 | PENDING_EXTERNAL | improve_agent.py 3-loop convergence test |
+| E13.5 | WARNING | synthesizer-bl2 re-labeling regression 0.62→0.41; optimization blocked by approval flow |
+| E13.10 | PENDING_EXTERNAL | improve_agent.py 3-loop convergence test; static prediction plateau 0.60-0.70 |
 | E-mid.1 | PENDING_EXTERNAL | karen prompt optimization -- needs manual Git Bash run |

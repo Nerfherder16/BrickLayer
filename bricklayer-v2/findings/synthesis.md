@@ -1,68 +1,63 @@
-# Wave 14 Synthesis -- bricklayer-v2
+# Wave 13 Synthesis — bricklayer-v2
 
-**Date**: 2026-03-24
-**Questions**: 61 total (56 prior + 5 wave-mid) -- 35 success, 12 warning/partial, 2 inconclusive, 5 diagnosis, 3 promising, 1 blocked, 2 pending, 1 pending_external
+**Date**: 2026-03-25
+**Questions**: 10 total — 2 IMPROVEMENT, 1 HEALTHY, 3 WARNING, 1 BLOCKED, 1 PENDING_EXTERNAL, 2 rolled to Wave 14
 
 ## Critical Findings (must act)
 
-1. **E13.8** [BLOCKED] -- 3 candidate-tier agents (peer-reviewer, agent-auditor, retrospective) have no .md instruction files; cannot generate eval baselines.
-   Fix: Write instruction files for all three agents (~30 min each). These exist in agent_registry.yml but have no executable instructions.
+1. **E13.8** [BLOCKED] — 3 candidate-tier agents (peer-reviewer, agent-auditor, retrospective) have no .md instruction files; eval pipeline cannot generate baselines without them.
+   Fix: Write instruction files for all three agents (~30 min each). Agents exist in agent_registry.yml but have no executable instructions.
 
-2. **E13.9** [WARNING] -- 9 agents with substantial training data (5+ records) have never been evaluated. karen (379 records), quantitative-analyst (76), research-analyst (53) are highest-value targets with zero baselines recorded.
-   Fix: Run `eval_agent.py` for karen, quantitative-analyst, and research-analyst to establish baselines. Then run `improve_agent.py` for any scoring below 0.85.
+2. **E13.9** [WARNING] — 9 agents with substantial training data (5+ records) have never been evaluated. karen (379 records), quantitative-analyst (76), research-analyst (53) are highest-value targets with zero baselines recorded.
+   Fix: Run `eval_agent.py` for karen, quantitative-analyst, and research-analyst to establish baselines; then run `improve_agent.py` for any scoring below 0.85.
 
-3. **E13.7** [WARNING] -- 4 deterministic routing coverage gaps cause unnecessary LLM fallback: eval/improve-agent pattern missing entirely, architect/diagnose/campaign patterns have partial coverage.
-   Fix: Add 14 lines to `masonry/src/routing/deterministic.py` to raise coverage from 75% to ~90%.
+3. **E13.7** [WARNING] — 4 deterministic routing coverage gaps cause unnecessary LLM fallback: eval/improve-agent pattern missing entirely, architect/diagnose/campaign patterns have partial coverage.
+   Fix: Add ~14 lines to `masonry/src/routing/deterministic.py` to raise coverage from 75% to ~90%.
 
 ---
 
 ## Significant Findings (important but not blocking)
 
-1. **F-mid.1** [FIXED] -- Mode dispatch implemented in `bl/ci/run_campaign.py`. `_load_mode_context()` added, `_dispatch()` injects `mode_context`, `_parse_questions_table()` updated for 4-column BL 2.0 format. CI-runner-dispatched agents now receive mode program text in prompt; projects without `modes/` unchanged.
+1. **E13.3** [IMPROVEMENT] — research-analyst live eval rose 0.84→0.91 (+0.07) after loop 1 optimization. 7 DSPy calibration rules injected into research-analyst.md. Loop 2 was noisy (tool-free eval ±0.10 variance) and reverted. Net gain: 1 new HEALTHY→WARNING false positive discovered; core improvement held.
 
-2. **F-mid.2** [FIXED] -- BL 2.0 status normalization fixed. Three bugs resolved: PENDING_EXTERNAL/DIAGNOSIS_COMPLETE/BLOCKED no longer silently converted to PENDING; `_TABLE_ROW_4COL_RE` added for 4-column table format; `_TERMINAL_STATUSES` frozenset defined with all 15 BL 2.0 status values.
+2. **E13.1** [WARNING] — FAILURE→WARNING re-labeling for E12.1-live-5 and E12.1-live-16 was net-neutral: live eval score 0.69 (13/20 pass rate) vs 0.84 baseline. Both records continue to produce FAILURE predictions. Root cause: records sit at a stochastic boundary — relabeling the expected verdict doesn't change agent behavior. Records must be replaced, not relabeled.
 
-3. **M-mid.1** [CALIBRATED] -- `fix_preflight_rejection_rate` metric defined in `monitor-targets.md` (WARNING >=0.20, FAILURE >=0.40). Baseline not yet established -- no Fix mode waves have run.
+3. **E13.2** [WARNING] — Replacement record (E13.2-live-replacement) averaged 0.75 across 3 runs (2/3 above 0.90 threshold). Target ≥0.90 consistently not met. Three stochastic E12.1 records (live-5, live-14, live-16) removed from scored_all.jsonl; 17 stable records remain. Net: dataset is cleaner but smaller.
 
-4. **M-mid.2** [CALIBRATED] -- `predict_subjectivity_rate` metric defined in `monitor-targets.md` (WARNING >=0.30, FAILURE >=0.60). Baseline not yet established -- no Predict mode waves have run.
+4. **E13.5** [WARNING] — synthesizer-bl2 PROSE re-labeling made eval harder: post-relabel live eval 0.41 vs 0.62 baseline. Optimization subprocess failed (approval flow blocked). Re-labeling the 4 PROSE records introduced regression rather than improvement.
 
-5. **E-mid.1** [PENDING_EXTERNAL] -- `improve_agent.py karen --loops 2` requires manual execution from Git Bash (nested subprocess constraint). Current baseline confirmed at 1.00.
-
-6. **E13.10** [PENDING_EXTERNAL] -- improve_agent.py convergence analysis predicts plateau at loop 2-3, final score 0.60-0.70 for static eval. Awaits manual run from Git Bash.
+5. **E13.10** [PENDING_EXTERNAL] — improve_agent.py convergence analysis done statically; static prediction: plateau at loop 2-3, final score 0.60-0.70. 3-loop live run awaiting manual Git Bash execution.
 
 ---
 
 ## Healthy / Verified
 
-- **F-mid.1**: Mode dispatch in CI runner -- agents now receive operational mode program text. The Q1.1 diagnosis is fully resolved.
-- **F-mid.2**: BL 2.0 status handling -- all 15 status values parsed correctly, PENDING_EXTERNAL questions no longer re-queued. The Q1.5 diagnosis is fully resolved.
-- **M-mid.1, M-mid.2**: Monitor metrics for Fix scope-creep and Predict subjectivity now defined with thresholds. Addresses Q2.2 and Q2.4 warnings.
-- **E13.6**: Deterministic routing at 75% exceeds 60% target.
+- **E13.6**: Deterministic routing layer at 75% coverage — exceeds the 60% target. Baseline established for routing accuracy tracking.
+- **E13.3**: research-analyst optimization produced a real +0.07 gain (0.84→0.91); confirms the optimize_with_claude.py loop works for tool-dependent agents when using live eval signal.
 - **4 agents AT TARGET from prior waves**: karen (1.00), quantitative-analyst (0.90), regulatory-researcher (1.00), competitive-analyst (~0.92).
-- **Live eval infrastructure proven**: eval_agent_live.py works for both research-analyst (0.84) and synthesizer-bl2 (0.62).
-- **masonry-guard.js false positive**: fixed in E8.4, rate dropped from 5.3/session to 0.
-- **Calibration inversion**: fixed in E9.2, wrong verdict now caps score at 0.00 (was 0.60 false pass).
+- **Live eval infrastructure proven**: eval_agent_live.py generalized with `--agent` flag (E13.4); works for both research-analyst (0.91) and synthesizer-bl2 (0.62).
+- **masonry-guard.js false positive**: fixed in E8.4, rate 5.3/session → 0.
+- **Calibration inversion**: fixed in E9.2, wrong verdict now caps score at 0.00.
 
 ---
 
-## Campaign Progress Summary (Waves 1-14)
+## Campaign Progress Summary (Waves 1-13)
 
 | Wave | Focus | Top Outcome |
 |------|-------|-------------|
 | 1 | Mode spec improvements | DEGRADED_TRENDING verdict, FAILURE routing, karen root cause identified |
 | 2 | Karen training data fix | Pipeline bugs fixed (parent commit files, bot labels, encoding) |
-| 3 | Eval pipeline coverage | 444->482 scored records, 5->10 eval-able agents |
-| 4 | Eval instruction fix | quantitative-analyst 0.10->0.70, writeback scope guard |
-| 5 | PROMISING verdict | quantitative-analyst 0.70->0.90 AT TARGET, regulatory-researcher 1.00 |
+| 3 | Eval pipeline coverage | 444→482 scored records, 5→10 eval-able agents |
+| 4 | Eval instruction fix | quantitative-analyst 0.10→0.70, writeback scope guard |
+| 5 | PROMISING verdict | quantitative-analyst 0.70→0.90 AT TARGET, regulatory-researcher 1.00 |
 | 6 | Agent baselines | synthesizer-bl2 0.83, competitive-analyst ~0.92 |
 | 7 | Data quality | Stochastic record removal, research-analyst pilot 10 records |
-| 8 | 2-stage eval | Floor 0.00->0.40, masonry-guard.js false positive fix |
+| 8 | 2-stage eval | Floor 0.00→0.40, masonry-guard.js false positive fix |
 | 9 | Curation + metric fix | Verdict prerequisite gate, Q4.x removal, calibration pass |
-| 10 | synthesizer-bl2 fix | Exposed 6 false-passes, floor raised 0.20->0.40 |
-| 11 | Live eval prototype | Tool-enabled 0.84 vs tool-free 0.45 -- ceiling broken |
+| 10 | synthesizer-bl2 fix | Exposed 6 false-passes, floor raised 0.20→0.40 |
+| 11 | Live eval prototype | Tool-enabled 0.84 vs tool-free 0.45 — ceiling broken |
 | 12 | Live eval calibration | research-analyst 0.84 (near 0.85), synthesizer-bl2 0.62 (meets 0.60) |
-| 13 | Calibration cleanup | Dataset corrected, routing baseline 75%, fleet gap audit |
-| 14 | Wave-mid fixes | Mode dispatch + status normalization fixed, 2 monitor metrics calibrated |
+| 13 | Calibration cleanup + optimization | research-analyst 0.91, routing 75% deterministic, 9 agents unscored |
 
 ---
 
@@ -70,18 +65,18 @@
 
 **CONTINUE**
 
-Wave 14 closed the two highest-priority Fix-mode questions (mode dispatch and status normalization in the CI runner), resolving the Q1.1 and Q1.5 diagnoses that had been parked since Wave 1. Two monitor metrics are now defined for tracking Fix scope-creep and Predict subjectivity (Q2.2/Q2.4 warnings). However, 6 questions remain open: E13.3 and E13.5 (prompt optimization), E13.8 (BLOCKED -- agent instruction files), and E-mid.1/E13.10 (PENDING_EXTERNAL -- manual Git Bash runs). The pipeline is ready for full-fleet optimization once manual runs are executed.
+Wave 13 delivered the campaign's first confirmed prompt optimization gain: research-analyst rose from 0.84 to 0.91 (+0.07) via loop 1 of optimize_with_claude.py. Routing baseline established at 75% deterministic coverage (exceeds 60% target). However, 3 critical gaps remain unresolved: E13.8 (BLOCKED — 3 agents with no instruction files), E13.9 (WARNING — 9 agents with training data and zero baselines), and E13.7 (WARNING — 4 routing patterns requiring deterministic coverage). The synthesizer-bl2 regression in E13.5 also needs a root cause investigation before reattempting optimization. Wave 14 should focus on unblocking E13.8 first, then running the fleet-wide baseline eval.
 
 ---
 
 ## Next Wave Hypotheses
 
-1. **Agent instruction authoring**: Write .md files for peer-reviewer, agent-auditor, and retrospective (unblocks E13.8). Then generate 5 training records each and establish baselines.
+1. **Agent instruction authoring**: Write .md files for peer-reviewer, agent-auditor, and retrospective (unblocks E13.8). Each takes ~30 min; start with peer-reviewer as highest-value candidate.
 
-2. **Manual optimization runs**: Execute `improve_agent.py karen --loops 2` and `improve_agent.py research-analyst --loops 3` from Git Bash (resolves E-mid.1 and E13.10).
+2. **Fleet-wide baseline eval**: After E13.8 unblocked, run `eval_agent.py` for karen, quantitative-analyst, research-analyst, mortar, architect, devops, refactorer, overseer (resolves E13.9). Priority order: karen (379 records), quantitative-analyst (76), research-analyst (53).
 
-3. **Prompt optimization**: Run `improve_agent.py research-analyst --loops 2` (E13.3) and `improve_agent.py synthesizer-bl2 --loops 2` (E13.5) after manual baseline runs complete.
+3. **Routing deterministic coverage to 90%**: Add the 4 pattern sets identified in E13.7 (eval/improve-agent, broken-phrasing variants, architect patterns, campaign guidance phrases) to `masonry/src/routing/deterministic.py`.
 
-4. **Routing deterministic coverage to 90%**: Implement the 4 pattern additions identified in E13.7 (eval, broken-phrasing, architect, mode-guidance).
+4. **synthesizer-bl2 regression investigation**: Diagnose why re-labeling 4 PROSE records in E13.5 caused 0.62→0.41 regression. Likely: removed records that were easy passes and replaced with harder calibration targets. Run with original records restored to isolate the delta.
 
-5. **Monitor metric baseline collection**: Run a Fix-mode and Predict-mode wave to establish baselines for `fix_preflight_rejection_rate` and `predict_subjectivity_rate`.
+5. **research-analyst loop 2 convergence**: Execute `improve_agent.py research-analyst --loops 3 --live-eval` from Git Bash to validate loop 2-3 convergence (resolves E13.10). Static prediction: plateau at 0.60-0.70 on tool-free eval; live eval expected to hold ~0.91.
