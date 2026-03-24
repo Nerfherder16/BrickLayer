@@ -6,11 +6,11 @@ Workers call this before starting each question to prevent duplicate work
 when multiple Claude processes run against the same questions.md.
 
 Usage:
-  python claim.py claim   <project_path> <question_id> <worker_id>  → CLAIMED | TAKEN
-  python claim.py release <project_path> <question_id>               → OK
-  python claim.py complete <project_path> <question_id> <verdict>    → OK
-  python claim.py status  <project_path>                             → table
-  python claim.py pending <project_path>                             → list of unclaimed IDs
+  python claim.py claim   <project_path> <question_id> <worker_id>  -> CLAIMED | TAKEN
+  python claim.py release <project_path> <question_id>               -> OK
+  python claim.py complete <project_path> <question_id> <verdict>    -> OK
+  python claim.py status  <project_path>                             -> table
+  python claim.py pending <project_path>                             -> list of unclaimed IDs
 """
 
 import json
