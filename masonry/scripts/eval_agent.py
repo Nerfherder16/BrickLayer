@@ -203,19 +203,38 @@ def run_eval(
         user_msg = f"{json_instruction.strip()}\n\nInput:\n{json.dumps(inp)}"
         # Pass user_msg via stdin (--print mode) instead of -p argument to avoid
         # Windows cp1252 argument encoding issues with special chars in JSON strings.
-        proc = subprocess.run(
-            _CLAUDE_CMD + [
-                "--print", "--model", model,
-                "--system-prompt", agent_prompt,
-                "--output-format", "json",
-                # skip all settings (disables hooks) and don't resume previous sessions
-                "--setting-sources", "",
-                "--no-session-persistence",
-            ],
-            input=user_msg,
-            capture_output=True,
-            text=True,
-        )
+        # For long system prompts (>8KB), use --system-prompt-file to avoid Windows
+        # "command line too long" errors (32KB cmd.exe limit).
+        _WIN_SYSPROMPT_THRESHOLD = 8192
+        if platform.system() == "Windows" and len(agent_prompt.encode("utf-8")) > _WIN_SYSPROMPT_THRESHOLD:
+            sp_file = tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", suffix=".txt", delete=False
+            )
+            sp_file.write(agent_prompt)
+            sp_file.flush()
+            sp_file.close()
+            sysprompt_args = ["--system-prompt-file", sp_file.name]
+        else:
+            sp_file = None
+            sysprompt_args = ["--system-prompt", agent_prompt]
+
+        try:
+            proc = subprocess.run(
+                _CLAUDE_CMD + [
+                    "--print", "--model", model,
+                    *sysprompt_args,
+                    "--output-format", "json",
+                    # skip all settings (disables hooks) and don't resume previous sessions
+                    "--setting-sources", "",
+                    "--no-session-persistence",
+                ],
+                input=user_msg,
+                capture_output=True,
+                text=True,
+            )
+        finally:
+            if sp_file is not None:
+                Path(sp_file.name).unlink(missing_ok=True)
 
         # --output-format json wraps the response: {"type":"result","result":"...","is_error":...}
         # Extract result text, then strip any markdown code fences Claude adds.
