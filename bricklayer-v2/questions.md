@@ -109,6 +109,15 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ---
 
+## Wave 7 — Evolve (E7): synthesizer-bl2 Fix + Research-Analyst Pilot Data
+
+| ID | Mode | Status | Question |
+|----|------|--------|---------|
+| E7.1 | evolve | DONE | synthesizer-bl2 Record 4 (Q6.7 / empty evidence) is a data quality defect that causes persistent eval failure at 0.45. Remove this record from scored_all.jsonl and re-run eval. Does the score reach 1.00 (5/5)? |
+| E7.2 | evolve | DONE | Execute the E6.3 pilot: generate 10 research-analyst training records using WARNING and INCONCLUSIVE question templates from E6.3, targeting bricklayer-v2 and masonry/scripts. What verdicts does the agent produce? Does the pilot validate the question-framing approach? |
+
+---
+
 ## Domain 5 — Frontier: BrickLayer's next evolution beyond 2.0
 
 | ID | Mode | Status | Question |
