@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `43c4b20` fix(F-mid.3): create frontier-analyst.md, unblock FR-prefix mode transitions (2026-03-24)
 - `80b7ecd` chore: auto-commit 1 session file on stop (2026-03-24)
 - `a1aa934` chore: auto-commit 2 session files on stop (2026-03-24)
 - `e868ec4` chore: auto-commit 2 session files on stop (2026-03-24)
