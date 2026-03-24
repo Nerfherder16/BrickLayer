@@ -296,11 +296,18 @@ async function main() {
     // Auto-commit session files rather than blocking — avoids token-expensive Claude intervention.
     try {
       const allSessionFiles = [...sessionModified, ...sessionUntracked];
-      // Use execFileSync (array args) to avoid shell quoting issues with dotfiles
-      execFileSync('git', ['add', '--', ...allSessionFiles], { encoding: 'utf8', timeout: 10000, cwd });
-      const msg = `chore: auto-commit ${allSessionFiles.length} session file${allSessionFiles.length !== 1 ? 's' : ''} on stop`;
+      // Add files individually — one bad path won't abort the whole batch
+      let staged = 0;
+      for (const f of allSessionFiles) {
+        try {
+          execFileSync('git', ['add', '--', f], { encoding: 'utf8', timeout: 5000, cwd });
+          staged++;
+        } catch (_) { /* skip files with corrupt/missing paths */ }
+      }
+      if (staged === 0) throw new Error('nothing staged');
+      const msg = `chore: auto-commit ${staged} session file${staged !== 1 ? 's' : ''} on stop`;
       execFileSync('git', ['commit', '-m', msg], { encoding: 'utf8', timeout: 10000, cwd });
-      process.stderr.write(`[Masonry] Auto-committed ${allSessionFiles.length} session file${allSessionFiles.length !== 1 ? 's' : ''}.\n`);
+      process.stderr.write(`[Masonry] Auto-committed ${staged} session file${staged !== 1 ? 's' : ''}.\n`);
     } catch (commitErr) {
       // Auto-commit failed — fall back to blocking so user knows
       const sessionCount = sessionModified.length + sessionUntracked.length;
