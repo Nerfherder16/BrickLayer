@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `d10a349` chore: auto-commit 2 session files on stop (2026-03-24)
 - `e264310` finding(E13.6): deterministic routing layer at 75% (>60% target), 30 patterns + 6 slash cmds [worker-1] (2026-03-24)
 - `3470044` chore: auto-commit 1 session file on stop (2026-03-24)
 - `c488838` chore: auto-commit 3 session files on stop (2026-03-24)
