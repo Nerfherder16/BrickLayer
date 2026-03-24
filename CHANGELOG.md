@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `0a3880a` chore: auto-commit 1 session file on stop (2026-03-24)
 - `0f17c3e` finding(E13.10): PENDING_EXTERNAL — awaiting E13.2; analysis predicts convergence at loop 2-3, plateau at 0.60-0.70 [worker-1] (2026-03-24)
 - `861e55b` chore: auto-commit 1 session file on stop (2026-03-24)
 - `5725642` chore: auto-commit 1 session file on stop (2026-03-24)
