@@ -59,8 +59,8 @@ _LIVE_PREAMBLE = (
 )
 
 
-def _load_research_analyst_records(eval_size: int, seed: int) -> list[dict]:
-    """Load research-analyst records from scored_all.jsonl."""
+def _load_research_analyst_records(eval_size: int, seed: int, id_prefix: str | None = None) -> list[dict]:
+    """Load research-analyst records from scored_all.jsonl. Optional id_prefix filter."""
     import random
     records = []
     with open(_DATA_FILE, encoding="utf-8") as f:
@@ -68,7 +68,8 @@ def _load_research_analyst_records(eval_size: int, seed: int) -> list[dict]:
             if line.strip():
                 r = json.loads(line)
                 if r.get("agent") == "research-analyst":
-                    records.append(r)
+                    if id_prefix is None or r.get("question_id", "").startswith(id_prefix):
+                        records.append(r)
     rng = random.Random(seed)
     rng.shuffle(records)
     return records[:eval_size]
@@ -134,10 +135,10 @@ def _score_example(record: dict, raw_output: str) -> tuple[float, Any]:
     return score, pred
 
 
-def run_live_eval(eval_size: int = 5, seed: int = 42) -> None:
+def run_live_eval(eval_size: int = 5, seed: int = 42, id_prefix: str | None = None) -> None:
     sys.stdout.reconfigure(encoding="utf-8")
 
-    records = _load_research_analyst_records(eval_size, seed)
+    records = _load_research_analyst_records(eval_size, seed, id_prefix=id_prefix)
     agent_instructions = _read_agent_instructions("research-analyst")
 
     print(f"[live-eval] research-analyst | {len(records)} records | tools ENABLED")
@@ -180,6 +181,7 @@ def run_live_eval(eval_size: int = 5, seed: int = 42) -> None:
                 input=user_msg,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 cwd=str(_SCRIPT_ROOT),
                 timeout=180,
             )
@@ -222,8 +224,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Live eval harness for research-analyst")
     parser.add_argument("--eval-size", type=int, default=5, help="Number of records to eval")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for record selection")
+    parser.add_argument("--id-prefix", type=str, default=None, help="Filter records by question_id prefix")
     args = parser.parse_args()
-    run_live_eval(eval_size=args.eval_size, seed=args.seed)
+    run_live_eval(eval_size=args.eval_size, seed=args.seed, id_prefix=args.id_prefix)
 
 
 if __name__ == "__main__":
