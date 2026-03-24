@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `39146e5` finding(Q1.4): DIAGNOSIS_COMPLETE suppression via status tracking + git diff re-activation [worker-1] (2026-03-24)
 - `d172de6` chore: auto-commit 1 session file on stop (2026-03-24)
 - `d94ff0b` finding(Q1.1): no bl/campaign.py exists — mode dispatch is 2 small changes to run_campaign.py + agent.py [worker-2] (2026-03-24)
 - `e169750` chore: auto-commit 3 session files on stop (2026-03-24)
