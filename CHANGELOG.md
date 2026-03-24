@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `61c3613` fix(agents): remove stale MIPROv2 auto-generated comment from DSPy sections (2026-03-24)
 - `c5cdf58` refactor(writeback): remove auto-generated comment from injected section (2026-03-24)
 - `e227a21` fix(hooks): tighten stop-guard and context-monitor messages (2026-03-24)
 - `40e3254` fix(optimize): remove --setting-sources flag, increase timeout to 300s (2026-03-24)
