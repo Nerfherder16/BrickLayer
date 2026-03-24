@@ -194,9 +194,8 @@ def run_eval(
             _CLAUDE_CMD + [
                 "-p", prompt, "--model", model,
                 "--output-format", "json",
-                # skip user settings (and their hooks) but keep project/local settings
-                # so that keychain auth still works
-                "--setting-sources", "project,local",
+                # skip all settings sources (disables hooks) while keychain auth still works
+                "--setting-sources", "",
             ],
             capture_output=True,
             text=True,
