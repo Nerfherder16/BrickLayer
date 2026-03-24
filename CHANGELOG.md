@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `2c73819` chore: auto-commit 1 session file on stop (2026-03-24)
 - `a29f96c` chore: convert wave-mid questions to table format for claim.py (2026-03-24)
 - `7cc54fe` chore: auto-commit 1 session file on stop (2026-03-24)
 - `4a0f527` chore: auto-commit 1 session file on stop (2026-03-24)
