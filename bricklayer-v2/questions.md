@@ -32,7 +32,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 | ID | Mode | Status | Question |
 |----|------|--------|---------|
-| Q3.1 | research | PENDING | For Recall: which of the 5 open deployment blockers should be addressed via Fix mode first? Run Predict mode logic on the current open findings to produce the priority order. |
+| Q3.1 | research | DONE | For Recall: which of the 5 open deployment blockers should be addressed via Fix mode first? Run Predict mode logic on the current open findings to produce the priority order. |
 | Q3.2 | research | DONE | For ADBP: what mode should ADBP start in? Read `adbp/project-brief.md` and `adbp/findings/synthesis.md` to determine current stage and most valuable next mode. |
 | Q3.3 | frontier | DONE | For the Uncreated App: what is it? Run 3 Frontier questions to generate candidate concepts based on Tim's skills, infrastructure, and gaps in his current tool stack. |
 | Q3.4 | research | INCONCLUSIVE | For Legal: what regulatory domain is this? What is the realistic research landscape for whatever legal project is being contemplated? |
