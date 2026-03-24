@@ -705,7 +705,8 @@ TOOLS = {
         "fn": _tool_masonry_drift_check,
         "description": (
             "Run drift detection for all registry agents with verdict history. "
-            "Returns DriftReport per agent with alert_level (ok/warning/critical) and recommendation."
+            "Returns DriftReport per agent with alert_level (ok/warning/critical) and recommendation. "
+            "Set auto_trigger=true to automatically spawn improve_agent.py for drifted agents."
         ),
         "inputSchema": {
             "type": "object",
@@ -717,6 +718,15 @@ TOOLS = {
                 "registry_path": {
                     "type": "string",
                     "description": "Path to agent_registry.yml. Defaults to masonry/agent_registry.yml.",
+                },
+                "auto_trigger": {
+                    "type": "boolean",
+                    "description": "If true, automatically spawns improve_agent.py for each agent at or above trigger_level. Defaults to false.",
+                },
+                "trigger_level": {
+                    "type": "string",
+                    "enum": ["critical", "warning"],
+                    "description": "Minimum alert level to auto-trigger optimization. 'critical' (>=25% drift) or 'warning' (>=10%). Defaults to 'critical'.",
                 },
             },
         },
