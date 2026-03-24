@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `5725642` chore: auto-commit 1 session file on stop (2026-03-24)
 - `acbbafd` chore: auto-commit 1 session file on stop (2026-03-24)
 - `9ee16af` chore: add security eval training records (mock-sec-005, mock-sec-006) (2026-03-24)
 - `2a2ad9a` chore: auto-commit 2 session files on stop (2026-03-24)
