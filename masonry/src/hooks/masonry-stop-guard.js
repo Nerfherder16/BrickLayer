@@ -295,15 +295,7 @@ async function main() {
     }
 
     const sessionCount = sessionModified.length + sessionUntracked.length;
-    let output = `\nStop blocked — ${sessionCount} uncommitted session file${sessionCount !== 1 ? "s" : ""}:\n`;
-    const displayFiles = [
-      ...sessionModified.map(f => `  M  ${f}`),
-      ...sessionUntracked.map(f => `  ?  ${f}`),
-    ];
-    const MAX_SHOW = 3;
-    displayFiles.slice(0, MAX_SHOW).forEach(l => output += l + "\n");
-    if (displayFiles.length > MAX_SHOW) output += `  … and ${displayFiles.length - MAX_SHOW} more (git status for full list)\n`;
-    output += `Commit before stopping.\n`;
+    const output = `\nStop blocked — ${sessionCount} uncommitted session file${sessionCount !== 1 ? "s" : ""} (git status). Commit before stopping.\n`;
 
     checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
     process.stderr.write(output);

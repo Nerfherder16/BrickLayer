@@ -37,7 +37,7 @@ async function main() {
     if (estimatedTokens > 750000) {
       process.stdout.write(JSON.stringify({
         decision: "block",
-        reason: `Context is ~${Math.round(estimatedTokens / 1000)}K tokens (>750K). Consider committing work and starting a fresh session to avoid context degradation.`,
+        reason: `~${Math.round(estimatedTokens / 1000)}K tokens (>750K) — commit + new session.`,
       }));
     }
   } catch {}
