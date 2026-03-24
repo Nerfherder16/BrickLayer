@@ -3,7 +3,9 @@
     "allow": [
       "mcp__recall__recall_store",
       "mcp__context7__resolve-library-id",
-      "mcp__context7__query-docs"
+      "mcp__context7__query-docs",
+      "Read(//c/Users/trg16/Dev/Bricklayer2.0/**)",
+      "Bash(python -m pytest tests/test_mcp_new_tools.py -k \"drift\" -q)"
     ]
   }
 }
