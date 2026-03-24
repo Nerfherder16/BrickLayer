@@ -36,3 +36,5 @@ E5.2	IMPROVEMENT	regulatory-researcher baseline 1.00 (10/10) — eval infrastruc
 E6.1	IMPROVEMENT	synthesizer-bl2 baseline 0.83 (5/6) — stable, eval works correctly, 1 persistent failure at 0.45	NONE	2026-03-24T11:00:00Z
 E6.2	IMPROVEMENT	competitive-analyst baseline ~0.92 avg (0.83+1.00) — AT TARGET, model correctly handles INCONCLUSIVE	NONE	2026-03-24T11:15:00Z
 E6.3	IMPROVEMENT	research-analyst: 25-record generation plan with verdict-targeted templates. Path A (data) vs Path B (live eval) options.	NONE	2026-03-24T11:30:00Z
+E7.1	WARNING	synthesizer-bl2 Record 4 removed (empty evidence). Post-removal scores 1.00/0.40/0.60 — high variance (Q6.5 WARNING record causes non-JSON output). Needs 10+ records.	NONE	2026-03-24T12:00:00Z
+E7.2	IMPROVEMENT	research-analyst 0.20→~0.45 avg (10 records). Discovery: code-inspect Qs→non-JSON (0.00); reasoning Qs→0.97. Pilot validates E6.3 approach.	NONE	2026-03-24T12:30:00Z

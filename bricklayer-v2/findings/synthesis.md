@@ -361,3 +361,53 @@ execute the E6.3 plan: generate the 25-record training set.
 | competitive-analyst | ~0.92 avg | 0.85 | AT TARGET |
 | synthesizer-bl2 | 0.83 (5/6) | 0.85 | APPROACHING |
 | research-analyst | 0.20 (1/5) | 0.85 | STRUCTURAL GAP — needs training data |
+
+---
+
+## Evolve Wave 7 (2026-03-24)
+
+**Questions**: E7.1 (WARNING), E7.2 (IMPROVEMENT)
+
+### E7.1 — synthesizer-bl2 variance exposed after Q6.7 removal (WARNING)
+The Q6.7 record (empty `evidence: ""` field) was correctly removed as a data quality defect.
+However, post-removal scores degraded: 1.00, 0.40, 0.60 across 3 runs (avg ~0.67, down from 0.83).
+Root cause: the Q6.5 WARNING record ("mypy errors 0→0") causes stochastic non-JSON output in 2/3
+runs, producing score=0.00 via the `eval_agent.py:131-135` JSON parse failure shortcut. Pre-removal,
+one consistently-failing record paradoxically produced more stable averages than the stochastic case.
+**5 records insufficient for reliable baseline — synthesizer-bl2 needs 10+.**
+
+### E7.2 — research-analyst pilot 0.20→~0.45 avg, critical question-type discovery (IMPROVEMENT)
+Executed the E6.3 pilot: generated 5 new records (WARNING, HEALTHY, HEALTHY, FAILURE, PROMISING)
+using verdict-targeted question templates. Combined with 5 existing HEALTHY records: 10 total.
+Score improved from 0.20 → ~0.45 avg (0.60 + 0.30 across 2 runs).
+
+**Critical discovery**: Question type determines JSON compliance, not verdict target.
+- Code-inspection questions (read file X, verify implementation Y) → trigger agentic behavior →
+  model reads files, writes prose findings, sometimes forgets JSON → score=0.00 stochastic
+- Knowledge/reasoning questions (would approach X improve Y? is design Z sound?) → in-context
+  reasoning only → reliable JSON output → score=0.97 consistent
+
+This invalidates the original E6.3 assumption that all question types would perform equally.
+The remaining 15 records must use reasoning-style templates only.
+
+**2-stage eval identified as PROMISING fix**: Stage 1 scores evidence quality for prose responses
+(currently 0.00 due to JSON parse failure). Stage 2 scores verdict match only for clean JSON.
+Addresses both flaws in current metric without changing training data.
+
+**Wave 7 conclusions**: synthesizer-bl2 needs more records before optimization. research-analyst
+is making measurable progress (+125% score gain) but the JSON compliance gap remains the binding
+constraint. The question-framing discovery changes the data generation strategy for Wave 8:
+favor reasoning questions and consider implementing 2-stage eval.
+
+---
+
+## Updated Cumulative Agent Eval Scores (Post Wave 7)
+
+| Agent | Score | Target | Status |
+|-------|-------|--------|--------|
+| karen | 1.00 (20/20) | 0.85 | AT TARGET |
+| quantitative-analyst | 0.90 (18/20) | 0.85 | AT TARGET |
+| regulatory-researcher | 1.00 (10/10) | 0.85 | AT TARGET |
+| competitive-analyst | ~0.92 avg | 0.85 | AT TARGET |
+| synthesizer-bl2 | ~0.67 avg (5 records, unstable) | 0.85 | UNSTABLE — needs 10+ records |
+| research-analyst | ~0.45 avg (10 records) | 0.85 | IN PROGRESS — reasoning Qs→0.97, code-inspect Qs→0.00 |
