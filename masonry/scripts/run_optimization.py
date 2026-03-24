@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -408,6 +409,13 @@ def run(
             )
         except Exception as exc:
             print(f"[warn] Could not read optimized instructions from JSON: {exc}")
+
+    if instructions_text:
+        # MIPROv2 sometimes prepends "prompt A\n\n" or similar artifacts — strip them
+        instructions_text = re.sub(r"^prompt\s+[A-Z]\s*\n+", "", instructions_text).strip()
+        if not instructions_text:
+            print("[writeback] Skipping — instructions were empty after stripping DSPy prefix artifact.")
+            instructions_text = None
 
     if instructions_text:
         try:
