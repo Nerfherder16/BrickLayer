@@ -436,30 +436,69 @@ def _tool_masonry_onboard(args: dict) -> dict:
 
 
 def _tool_masonry_drift_check(args: dict) -> dict:
-    """Run drift detection for all registry agents that have verdict history."""
+    """Run drift detection for all registry agents that have verdict history.
+
+    When auto_trigger=True, spawns improve_agent.py for every critical agent
+    as a background subprocess and returns the triggered agent list.
+    """
+    import subprocess  # noqa: PLC0415
+    import platform    # noqa: PLC0415
+
     agent_db_path_str = args.get(
         "agent_db_path", str(_REPO_ROOT / "agent_db.json")
     )
     registry_path_str = args.get(
         "registry_path", str(_REPO_ROOT / "masonry" / "agent_registry.yml")
     )
+    auto_trigger: bool = args.get("auto_trigger", False)
+    trigger_level: str = args.get("trigger_level", "critical")  # "critical" | "warning"
 
     agent_db_path = Path(agent_db_path_str)
     registry_path = Path(registry_path_str)
 
     try:
         from masonry.src.schemas.registry_loader import load_registry  # noqa: PLC0415
-
-        # drift_detector was part of the removed dspy_pipeline.
-        # Import it if a replacement is available in the future.
-        from masonry.src.drift_detector import run_drift_check  # noqa: PLC0415
+        from masonry.src.drift_detector import run_drift_check          # noqa: PLC0415
 
         registry = load_registry(registry_path)
         reports = run_drift_check(agent_db_path, registry)
-        return {
+
+        triggered: list[str] = []
+        trigger_errors: list[str] = []
+
+        if auto_trigger:
+            levels_to_trigger = {"critical"} if trigger_level == "critical" else {"critical", "warning"}
+            for report in reports:
+                if report.alert_level not in levels_to_trigger:
+                    continue
+                try:
+                    python = "python" if platform.system() == "Windows" else "python3"
+                    proc = subprocess.Popen(
+                        [python, "masonry/scripts/improve_agent.py", report.agent_name],
+                        cwd=str(_REPO_ROOT),
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    triggered.append(f"{report.agent_name} (pid={proc.pid})")
+                except Exception as exc:
+                    trigger_errors.append(f"{report.agent_name}: {exc}")
+
+        result = {
             "reports": [r.model_dump() for r in reports],
             "count": len(reports),
+            "summary": {
+                "critical": sum(1 for r in reports if r.alert_level == "critical"),
+                "warning": sum(1 for r in reports if r.alert_level == "warning"),
+                "ok": sum(1 for r in reports if r.alert_level == "ok"),
+            },
         }
+        if auto_trigger:
+            result["triggered"] = triggered
+            if trigger_errors:
+                result["trigger_errors"] = trigger_errors
+
+        return result
+
     except ImportError:
         return {"error": "drift_detector module not available", "reports": []}
     except Exception as exc:
