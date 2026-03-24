@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `1ef9e00` chore: auto-commit 2 session files on stop (2026-03-24)
 - `9e0d602` finding(Q1.2): mode: field rename — **Runner** separates runner type from operational mode [worker-3] (2026-03-24)
 - `f0e0dae` chore: auto-commit 1 session file on stop (2026-03-24)
 - `2a467f6` finding(Q2.1-Q2.5): validate domain — frontier HEALTHY, fix/predict/handoffs WARNING, monitor HEALTHY [worker-1] (2026-03-24)
