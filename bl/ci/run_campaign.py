@@ -36,7 +36,12 @@ _BL2_FIELD_RE = re.compile(
     re.MULTILINE | re.DOTALL,
 )
 
-# Legacy table format: | ID | Status | Question |
+# BL 2.0 table format: | ID | Mode | Status | Question |
+_TABLE_ROW_4COL_RE = re.compile(
+    r"^\|\s*([\w.-]+)\s*\|\s*([\w_-]+)\s*\|\s*([\w_]+)\s*\|(.+?)\|?\s*$",
+    re.MULTILINE,
+)
+# Legacy 3-column table format: | ID | Status | Question |
 _TABLE_ROW_RE = re.compile(
     r"^\|\s*([\w.]+)\s*\|\s*(PENDING|IN_PROGRESS|DONE|INCONCLUSIVE)\s*\|(.+?)\|?\s*$",
     re.MULTILINE,
@@ -63,8 +68,28 @@ def _parse_questions_bl2(text: str) -> list[dict]:
             fields[key] = fm.group(2).strip()
 
         # Explicit **Status** in body takes priority; fall back to PENDING
+        # All BL 2.0 status values are preserved — only truly unknown values
+        # default to PENDING.
         status = fields.get("status", "PENDING").upper()
-        if status not in ("PENDING", "IN_PROGRESS", "DONE", "INCONCLUSIVE"):
+        _KNOWN_STATUSES = (
+            "PENDING",
+            "IN_PROGRESS",
+            "DONE",
+            "INCONCLUSIVE",
+            # BL 2.0 parked statuses
+            "DIAGNOSIS_COMPLETE",
+            "PENDING_EXTERNAL",
+            "FIXED",
+            "FIX_FAILED",
+            "COMPLIANT",
+            "NON_COMPLIANT",
+            "CALIBRATED",
+            "BLOCKED",
+            "WARNING",
+            "FAILURE",
+            "HEALTHY",
+        )
+        if status not in _KNOWN_STATUSES:
             status = "PENDING"
 
         # Explicit **Mode** in body overrides the bracket tag
@@ -87,9 +112,73 @@ def _parse_questions_bl2(text: str) -> list[dict]:
     return questions
 
 
+_TERMINAL_STATUSES: frozenset[str] = frozenset(
+    {
+        # BL 1.x
+        "DONE",
+        "INCONCLUSIVE",
+        # BL 2.0 terminal verdicts that park a question
+        "DIAGNOSIS_COMPLETE",
+        "PENDING_EXTERNAL",
+        "FIXED",
+        "FIX_FAILED",
+        "COMPLIANT",
+        "NON_COMPLIANT",
+        "CALIBRATED",
+        "BLOCKED",
+        "WARNING",
+        "FAILURE",
+        "HEALTHY",
+    }
+)
+
+
 def _parse_questions_table(text: str) -> list[dict]:
-    """Parse legacy table-format questions.md (| ID | Status | Question |)."""
+    """Parse table-format questions.md.
+
+    Supports both:
+    - BL 2.0 four-column: | ID | Mode | Status | Question |
+    - Legacy three-column: | ID | Status | Question |
+
+    Four-column format is tried first. All BL 2.0 status values are preserved
+    (not normalised to PENDING), so parked questions (PENDING_EXTERNAL,
+    DIAGNOSIS_COMPLETE, BLOCKED, etc.) are not accidentally re-queued.
+    """
     questions = []
+
+    # Try 4-column BL 2.0 format first
+    for m in _TABLE_ROW_4COL_RE.finditer(text):
+        qid = m.group(1).strip()
+        # Skip header separator rows (|----|-----|...)
+        if re.match(r"^[-|: ]+$", qid):
+            continue
+        op_mode = m.group(2).strip().lower()
+        status = m.group(3).strip().upper()
+        title = m.group(4).strip()
+
+        # Skip header rows (id/mode/status column names)
+        if qid.lower() in ("id", "qid", "#"):
+            continue
+
+        questions.append(
+            {
+                "id": qid,
+                "mode": "agent",  # BL 2.0 table questions use the agent runner
+                "operational_mode": op_mode,
+                "title": title,
+                "status": status,
+                "target": "",
+                "hypothesis": "",
+                "test": "",
+                "verdict_threshold": "",
+                "agent_name": "",
+            }
+        )
+
+    if questions:
+        return questions
+
+    # Fall back to legacy 3-column format
     for m in _TABLE_ROW_RE.finditer(text):
         qid = m.group(1).strip()
         status = m.group(2).strip().upper()
@@ -98,6 +187,7 @@ def _parse_questions_table(text: str) -> list[dict]:
             {
                 "id": qid,
                 "mode": "simulate",  # default for legacy projects
+                "operational_mode": "",
                 "title": title,
                 "status": status,
                 "target": "",
@@ -137,14 +227,35 @@ def parse_questions(project_path: Path) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
-def _dispatch(question: dict) -> dict:
+def _load_mode_context(project_path: Path, operational_mode: str) -> str:
+    """Load modes/{operational_mode}.md as loop context. Returns empty string if not found."""
+    if not operational_mode:
+        return ""
+    mode_file = project_path / "modes" / f"{operational_mode}.md"
+    if mode_file.exists():
+        return mode_file.read_text(encoding="utf-8")
+    return ""
+
+
+def _dispatch(question: dict, project_path: Path | None = None) -> dict:
     """
     Run a question using the registered BrickLayer runner for its mode.
+
+    Injects mode_context from modes/{operational_mode}.md when an operational_mode
+    is set on the question, so agents receive mode program instructions.
 
     Returns a verdict envelope:
         {verdict, summary, data, details, question_id, mode}
     """
     from bl.runners import run_question  # type: ignore[import]
+
+    # Inject mode context if operational_mode is set and not already present
+    op_mode = question.get("operational_mode", "")
+    if op_mode and not question.get("mode_context") and project_path is not None:
+        ctx = _load_mode_context(project_path, op_mode)
+        if ctx:
+            question = dict(question)  # don't mutate the original
+            question["mode_context"] = ctx
 
     try:
         return run_question(question)
@@ -331,7 +442,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"[bl-ci] Running {qid} [{q['mode']}]: {q['title'][:60]}", file=sys.stderr
         )
-        result = _dispatch(q)
+        result = _dispatch(q, project_path=project_path)
         results.append(result)
         verdict = result.get("verdict", "?")
         summary = result.get("summary", "")[:80]
