@@ -10,7 +10,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 |----|------|--------|---------|
 | Q1.1 | diagnose | PENDING | What is the minimal change to `bl/campaign.py` to support mode dispatch — reading `mode:` from each question and loading the corresponding `modes/{mode}.md` as loop context? |
 | Q1.2 | diagnose | PENDING | How should `questions.md` represent the new `mode:` field (operational mode) without breaking the existing `mode:` field (which currently means runner type)? What rename is required? |
-| Q1.3 | diagnose | PENDING | What new verdict types need to be added to `bl/findings.py` and `bl/quality.py` — specifically DIAGNOSIS_COMPLETE, PENDING_EXTERNAL, FIXED, PROMISING, WEAK, BLOCKED, COMPLIANT, NON_COMPLIANT, CALIBRATED? |
+| Q1.3 | diagnose | DONE | What new verdict types need to be added to `bl/findings.py` and `bl/quality.py` — specifically DIAGNOSIS_COMPLETE, PENDING_EXTERNAL, FIXED, PROMISING, WEAK, BLOCKED, COMPLIANT, NON_COMPLIANT, CALIBRATED? |
 | Q1.4 | diagnose | PENDING | How should DIAGNOSIS_COMPLETE suppression work in `bl/questions.py`? What is the mechanism to park a question and re-activate it when code changes? |
 | Q1.5 | diagnose | PENDING | How should PENDING_EXTERNAL + `resume_after:` work in the campaign loop? Does it require changes to `bl/campaign.py` or only to `bl/questions.py`? |
 
@@ -164,8 +164,28 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 | ID | Mode | Status | Question |
 |----|------|--------|---------|
 | E12.1 | evolve | DONE | Generate 20 live-eval-calibrated training records for research-analyst: questions where the current codebase has a clear answer a tool-enabled agent will find. Run each through eval_agent_live.py to bootstrap expected verdicts from tool-enabled agent outputs. What is the new live eval score with 20 calibrated records? |
-| E12.2 | evolve | PENDING | After E12.1, identify which of the existing 18 research-analyst tool-free records have INCONCLUSIVE expected verdicts that re-classify to WARNING/FAILURE with tool access (calibration gap records). How many records need re-labeling, and what is the corrected live eval score after re-labeling? |
-| E12.3 | evolve | PENDING | Apply the same live eval recalibration approach to synthesizer-bl2: generate 10 live-calibrated records (questions about campaign synthesis quality, finding completeness, multi-project synthesis). Does synthesizer-bl2 reach ≥0.60 on live-calibrated data? |
+| E12.2 | evolve | DONE | After E12.1, identify which of the existing 18 research-analyst tool-free records have INCONCLUSIVE expected verdicts that re-classify to WARNING/FAILURE with tool access (calibration gap records). How many records need re-labeling, and what is the corrected live eval score after re-labeling? |
+| E12.3 | evolve | DONE | Apply the same live eval recalibration approach to synthesizer-bl2: generate 10 live-calibrated records (questions about campaign synthesis quality, finding completeness, multi-project synthesis). Does synthesizer-bl2 reach ≥0.60 on live-calibrated data? |
+
+---
+
+## Wave 13 — Evolve (E13): Calibration Cleanup + Optimization
+
+**Generated from**: E12.1, E11.2, E11.1
+**Mode transitions**: E12.1 IMPROVEMENT (path forward: severity re-labels + prose record fix + optimize on 38-record dataset) → E13.1/E13.2/E13.3; eval_agent_live.py agent-hardcoding gap → E13.4; E11.2 INCONCLUSIVE ceiling → E13.5 post-E12.3 followup; no routing baseline in 12 prior waves → E13.6/E13.7; candidate agents last_score=null → E13.8/E13.9; improve_agent.py convergence unknown → E13.10
+
+| ID | Mode | Status | Question |
+|----|------|--------|---------|
+| E13.1 | evolve | PENDING | E12.1 identified 2 FAILURE→WARNING severity disagreements (E12.1-live-5 and E12.1-live-16) where WARNING is the defensible verdict. Re-label both records' expected verdicts from FAILURE to WARNING in scored_all.jsonl. Does live eval score rise from 0.84 to ≥0.90 (17/20 → 19/20 pass rate)? |
+| E13.2 | evolve | PENDING | E12.1-live-14 is a stochastic prose producer (synthesis.md accuracy check) that scores ~0.40 partial across runs. Replace this record with a cleaner verification question targeting a specific measurable property of synthesis.md (e.g., verdict count by type, section completeness). Does the replacement record score ≥0.90 consistently across 3 runs? |
+| E13.3 | evolve | PENDING | After E13.1+E13.2 fixes, run `improve_agent.py research-analyst --loops 2` on the 38-record dataset. Does prompt optimization produce measurably better instructions, and does live eval score exceed 0.84 baseline? What is the new live eval score? |
+| E13.4 | evolve | DONE | `eval_agent_live.py` hardcodes `research-analyst` in its record loader — it cannot evaluate any other agent, blocking E12.3 synthesizer-bl2 live recalibration. Generalize: add `--agent` CLI flag (default `research-analyst`), rename the loader function, update record filter to `r.get("agent") == agent_name`. Verify with `--agent synthesizer-bl2 --eval-size 5`. |
+| E13.5 | evolve | PENDING | After E12.3 produces 10 live-calibrated synthesizer-bl2 records (4 with PROSE gold labels), re-label the 4 PROSE records from their re-run verdicts (WARNING/FAILURE), then run `improve_agent.py synthesizer-bl2 --loops 2` on the combined 21-record dataset. Does live eval score exceed the E12.3 baseline of 0.62? |
+| E13.6 | evolve | PENDING | Establish a routing accuracy baseline for the Masonry four-layer router: create `masonry/scripts/score_routing.py` that runs 20 routing queries through `masonry/src/routing/router.py` and scores deterministic vs semantic vs LLM layer hit rates. What is the current deterministic layer coverage (target ≥60%)? |
+| E13.7 | evolve | PENDING | Audit the deterministic routing layer keyword coverage in `masonry/src/routing/router.py`: list all registered slash-command patterns and mode-keyword patterns. Are there any commonly-used BrickLayer commands missing from the deterministic layer that require LLM fallback unnecessarily? |
+| E13.8 | evolve | PENDING | Three candidate-tier agents — peer-reviewer, agent-auditor, and retrospective — have `last_score: null` in agent_registry.yml and no records in scored_all.jsonl. Generate 5 training records each (15 total) using the live record generation approach validated in E12.1. What baseline eval scores do these agents achieve on first run? |
+| E13.9 | evolve | PENDING | Audit optimization-ready agents in `masonry/agent_registry.yml`: which agents have a non-null `last_score` but have not been optimized since their last score was recorded? For each, what is the estimated gain from running `improve_agent.py`? |
+| E13.10 | evolve | PENDING | Run `improve_agent.py research-analyst --loops 3` on the cleaned 38-record dataset (after E13.1+E13.2). Does the optimization converge (score plateaus) or oscillate (score varies across loops)? What is the final score after 3 loops vs 1 loop? |
 
 ---
 
@@ -175,23 +195,3 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 |----|------|--------|---------|
 | Q5.1 | frontier | PENDING | If BrickLayer 2.0 had a multi-agent variant — where multiple modes run in parallel on the same project — what would the coordination mechanism look like? What prevents mode conflicts? |
 | Q5.2 | frontier | PENDING | What would a visual BrickLayer dashboard look like that shows all projects, their current mode, open findings, and the lifecycle stage progress? What is the most useful single-screen view? |
-
----
-
-## Wave 13 — Evolve (E13): Performance Push + Routing Coverage + Agent Quality Gaps
-
-**Generated from**: E12.1, E11.2, E11.1
-**Mode transitions**: E12.1 IMPROVEMENT (path forward: severity re-labels + prose record fix + optimize on 38-record dataset) → E13.1/E13.2/E13.3; eval_agent_live.py agent-hardcoding gap → E13.4; E11.2 INCONCLUSIVE ceiling → E13.5 post-E12.3 followup; no routing baseline in 12 prior waves → E13.6/E13.7; candidate agents last_score=null → E13.8/E13.9; improve_agent.py convergence unknown → E13.10
-
-| ID | Mode | Status | Question |
-|----|------|--------|---------|
-| E13.1 | evolve | PENDING | E12.1 identified 2 FAILURE→WARNING severity disagreements (E12.1-live-5 and E12.1-live-16) where WARNING is the defensible verdict. Re-label both records' expected verdicts from FAILURE to WARNING in scored_all.jsonl. Does live eval score rise from 0.84 to ≥0.90 (17/20 → 19/20 pass rate)? |
-| E13.2 | evolve | PENDING | E12.1-live-14 is a stochastic prose producer (synthesis.md accuracy check) that scores ~0.40 partial across runs. Replace this record with a cleaner verification question targeting a specific measurable property of synthesis.md (e.g., verdict count by type, section completeness). Does the replacement record score ≥0.90 consistently across 3 runs? |
-| E13.3 | evolve | PENDING | After E13.1 and E13.2 data fixes, run `improve_agent.py research-analyst --loops 2` using the combined 38-record dataset (18 tool-free + 20 live-calibrated). Does the optimized prompt raise live eval score above 0.90? Report before/after scores for both the live eval and tool-free eval sets. |
-| E13.4 | evolve | PENDING | `eval_agent_live.py` hardcodes `research-analyst` in its record loader — it cannot evaluate any other agent, blocking E12.3 synthesizer-bl2 live recalibration. Generalize: add `--agent` CLI flag (default `research-analyst`), rename the loader function, update record filter to `r.get("agent") == agent_name`. Verify with `--agent synthesizer-bl2 --eval-size 5`. |
-| E13.5 | evolve | PENDING | After E12.3 produces 10 live-calibrated synthesizer-bl2 records, run `improve_agent.py synthesizer-bl2 --loops 2` on the combined dataset (11 tool-free + 10 live-calibrated). Does prompt optimization improve synthesizer-bl2 live eval score beyond the E10.3 baseline (last_score=69.3 in registry)? What is the new live eval score? |
-| E13.6 | evolve | PENDING | Establish a routing accuracy baseline by running `masonry/scripts/score_routing.py`. Does `masonry/routing_log.jsonl` exist with ≥10 sessions? What are the current mortar and trowel routing scores — do they meet the 65-point minimum training inclusion threshold? If the log is empty or missing, document the correct method to generate it. |
-| E13.7 | evolve | PENDING | The routing deterministic layer is designed to handle 60%+ of decisions with 0 LLM calls. Audit `masonry/src/routing/` to determine whether the deterministic layer's keyword/pattern list covers the actual request distribution seen in production. Are there common routing patterns falling through to semantic/LLM layers that should be deterministic? |
-| E13.8 | evolve | PENDING | Three candidate-tier agents — peer-reviewer, agent-auditor, and retrospective — have `last_score: null` in agent_registry.yml and no records in scored_all.jsonl. Generate 5 training records each (15 total) using the live record generation approach validated in E12.1. What baseline eval scores do these agents achieve on first run? Do any fall below 0.50, indicating schema or prompt mismatch? |
-| E13.9 | evolve | PENDING | Audit which agents in agent_registry.yml have `dspy_status: not_optimized` AND ≥10 records in scored_all.jsonl (optimization-ready). Run `improve_agent.py {agent} --dry-run` for each to establish current baseline scores. Which agent has the largest gap to the 0.85 target and the best ROI for a full optimization run? |
-| E13.10 | evolve | PENDING | Does `improve_agent.py --loops 3` for research-analyst produce monotonically non-decreasing live eval scores, or does it oscillate? Run 3 loops after E13.3 data fixes and record the per-loop score sequence. If oscillation occurs, is the cause seed variance in eval sampling or genuine instruction quality regression? |
