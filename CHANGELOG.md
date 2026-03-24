@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `25b75f8` feat(bl2): add DEGRADED_TRENDING verdict to monitor mode (2026-03-24)
 - `7cf833c` refactor(optimize): replace DSPy pipeline with claude-p eval→optimize→compare loop (2026-03-24)
 - `17f55c8` fix(bl2): update evolve precondition in program.md — no benchmarks.json required (2026-03-24)
 - `7d0e9e9` feat(agents): re-optimize research-analyst via claude-p (2026-03-24) (2026-03-24)
