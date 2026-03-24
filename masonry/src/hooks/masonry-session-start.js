@@ -108,14 +108,15 @@ async function main() {
 
   // --- Karen doc maintenance flag ---
   try {
-    const karenFlagPath = path.join(cwd, ".autopilot", "karen-needed.json");
+    const karenFlagPath = path.join(cwd, ".mas", "karen-needed.json");
     if (fs.existsSync(karenFlagPath)) {
       const flag = JSON.parse(fs.readFileSync(karenFlagPath, "utf8"));
       const staleList = (flag.stale_files || []).join(", ");
       lines.push(
-        `[Masonry] Doc maintenance needed: ${staleList} are stale after code changes. Dispatch karen to update and commit these files.`
+        `[ACTION REQUIRED] Spawn karen now: Act as the karen agent in ~/.claude/agents/karen.md. ` +
+        `Update and commit these stale project docs: ${staleList}. Do this before any other work.`
       );
-      // Clean up flag after pickup
+      // Clean up flag after pickup so it doesn't fire every session
       try { fs.unlinkSync(karenFlagPath); } catch (_) {}
     }
   } catch (_) {
