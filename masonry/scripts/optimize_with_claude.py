@@ -273,6 +273,9 @@ def run(
             print(f"  - {change}")
 
     # ── Write-back ────────────────────────────────────────────────────────────
+    # Scope guard: only write back to the file that was read for optimization.
+    # This prevents contaminating copies that may be different variants of the
+    # same agent (e.g., commit-classifier karen vs project-org karen).
     optimized_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         updated_files = writeback_optimized_instructions(
@@ -280,6 +283,7 @@ def run(
             agent_name=agent_name,
             instructions=instructions,
             optimized_at=optimized_at,
+            target_paths=[md_path],  # scope guard: source file only
         )
         if updated_files:
             for f in updated_files:
