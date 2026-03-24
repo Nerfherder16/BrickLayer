@@ -69,5 +69,33 @@
     "status": "DONE",
     "verdict": "WARNING",
     "completed_at": "2026-03-24T14:31:21.560243+00:00"
+  },
+  "Q3.2": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:31:59.826930+00:00",
+    "status": "DONE",
+    "verdict": "HEALTHY",
+    "completed_at": "2026-03-24T14:32:33.839939+00:00"
+  },
+  "Q3.3": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:31:59.928758+00:00",
+    "status": "DONE",
+    "verdict": "PROMISING",
+    "completed_at": "2026-03-24T14:32:33.925720+00:00"
+  },
+  "Q3.4": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:32:00.026208+00:00",
+    "status": "DONE",
+    "verdict": "INCONCLUSIVE",
+    "completed_at": "2026-03-24T14:32:34.008856+00:00"
+  },
+  "Q3.5": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:32:00.161549+00:00",
+    "status": "DONE",
+    "verdict": "HEALTHY",
+    "completed_at": "2026-03-24T14:32:34.096183+00:00"
   }
 }
