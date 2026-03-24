@@ -182,6 +182,7 @@ def run(
     num_examples: int = 15,
     dry_run: bool = False,
 ) -> int:
+    sys.stdout.reconfigure(encoding="utf-8")
     print(f"[init] Starting claude-p optimization for: {agent_name}")
     print(f"[init] Base directory: {base_dir}")
 
