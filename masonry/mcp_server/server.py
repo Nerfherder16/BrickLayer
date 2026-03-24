@@ -400,91 +400,11 @@ def _tool_masonry_route(args: dict) -> dict:
         }
 
 
-def _tool_masonry_optimization_status(args: dict) -> dict:
-    """Return DSPy optimization scores for all agents in the optimized_prompts directory."""
-    optimized_dir = Path(
-        args.get("optimized_dir", str(_REPO_ROOT / "masonry" / "optimized_prompts"))
-    )
-
-    agents: list[dict] = []
-
-    if not optimized_dir.is_dir():
-        return {"agents": [], "count": 0}
-
-    for json_file in sorted(optimized_dir.glob("*.json")):
-        try:
-            data = json.loads(json_file.read_text(encoding="utf-8"))
-            if "agent" in data:
-                agents.append(
-                    {
-                        "agent": data["agent"],
-                        "score": data.get("score", 0.0),
-                        "optimized_at": data.get("optimized_at"),
-                    }
-                )
-        except Exception:
-            pass
-
-    return {"agents": agents, "count": len(agents)}
-
-
-def _tool_masonry_optimize_agent(args: dict) -> dict:
-    """Trigger MIPROv2 prompt optimization for a single agent."""
-    agent_name = args.get("agent_name", "")
-    if not agent_name:
-        return {"error": "agent_name is required"}
-
-    projects_dir = Path(args.get("projects_dir", str(_REPO_ROOT)))
-    agent_db_path = Path(
-        args.get("agent_db_path", str(_REPO_ROOT / "agent_db.json"))
-    )
-    questions_md_path_str = args.get("questions_md_path")
-    questions_md_path = Path(questions_md_path_str) if questions_md_path_str else None
-    output_dir = Path(
-        args.get("output_dir", str(_REPO_ROOT / "masonry" / "optimized_prompts"))
-    )
-    model = args.get("model", "claude-sonnet-4-6")
-    backend = args.get("backend", "anthropic")
-    api_key = args.get("api_key")
-
-    try:
-        from masonry.src.dspy_pipeline.training_extractor import build_dataset  # noqa: PLC0415
-        from masonry.src.dspy_pipeline.optimizer import configure_dspy, optimize_agent  # noqa: PLC0415
-        from masonry.src.dspy_pipeline.signatures import ResearchAgentSig  # noqa: PLC0415
-    except ImportError as exc:
-        return {"error": f"DSPy pipeline import failed: {exc}"}
-
-    datasets = build_dataset(projects_dir, agent_db_path, questions_md_path=questions_md_path)
-    agent_dataset = datasets.get(agent_name, [])
-
-    if len(agent_dataset) < 5:
-        return {
-            "error": f"Insufficient training data for {agent_name}: {len(agent_dataset)} examples (need >= 5)",
-            "example_count": len(agent_dataset),
-        }
-
-    try:
-        configure_dspy(model=model, backend=backend, api_key=api_key)
-    except Exception as exc:
-        return {"error": f"DSPy configuration failed: {exc}"}
-
-    try:
-        result = optimize_agent(agent_name, ResearchAgentSig, agent_dataset, output_dir, backend=backend)
-        result["example_count"] = len(agent_dataset)
-        return result
-    except Exception as exc:
-        return {"error": f"Optimization failed: {exc}", "agent": agent_name}
-
-
 def _tool_masonry_onboard(args: dict) -> dict:
     """Detect and register new agent .md files not yet in the registry."""
     agents_dirs_raw = args.get("agents_dirs", [])
     registry_path_str = args.get(
         "registry_path", str(_REPO_ROOT / "masonry" / "agent_registry.yml")
-    )
-    dspy_output_dir_str = args.get(
-        "dspy_output_dir",
-        str(_REPO_ROOT / "masonry" / "src" / "dspy_pipeline" / "generated"),
     )
 
     if isinstance(agents_dirs_raw, str):
@@ -495,12 +415,11 @@ def _tool_masonry_onboard(args: dict) -> dict:
         Path("agents"),
     ]
     registry_path = Path(registry_path_str)
-    dspy_output_dir = Path(dspy_output_dir_str)
 
     try:
         from masonry.scripts.onboard_agent import onboard  # noqa: PLC0415
 
-        result = onboard(agents_dirs, registry_path, dspy_output_dir)
+        result = onboard(agents_dirs, registry_path)
         # Return names of newly-added agents under the "onboarded" key for
         # backwards compatibility with callers that expect a list of names.
         names = result.get("names", [])
@@ -528,8 +447,11 @@ def _tool_masonry_drift_check(args: dict) -> dict:
     registry_path = Path(registry_path_str)
 
     try:
-        from masonry.src.dspy_pipeline.drift_detector import run_drift_check  # noqa: PLC0415
         from masonry.src.schemas.registry_loader import load_registry  # noqa: PLC0415
+
+        # drift_detector was part of the removed dspy_pipeline.
+        # Import it if a replacement is available in the future.
+        from masonry.src.drift_detector import run_drift_check  # noqa: PLC0415
 
         registry = load_registry(registry_path)
         reports = run_drift_check(agent_db_path, registry)
@@ -537,6 +459,8 @@ def _tool_masonry_drift_check(args: dict) -> dict:
             "reports": [r.model_dump() for r in reports],
             "count": len(reports),
         }
+    except ImportError:
+        return {"error": "drift_detector module not available", "reports": []}
     except Exception as exc:
         return {"error": str(exc), "reports": []}
 
@@ -716,70 +640,11 @@ TOOLS = {
             },
         },
     },
-    "masonry_optimization_status": {
-        "fn": _tool_masonry_optimization_status,
-        "description": (
-            "Return DSPy prompt optimization scores for all agents. "
-            "Reads from the optimized_prompts directory (JSON files saved by MIPROv2)."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "optimized_dir": {
-                    "type": "string",
-                    "description": "Directory containing optimized agent JSON files. "
-                    "Defaults to masonry/optimized_prompts/.",
-                },
-            },
-        },
-    },
-    "masonry_optimize_agent": {
-        "fn": _tool_masonry_optimize_agent,
-        "description": (
-            "Trigger MIPROv2 prompt optimization for a specific agent using campaign findings as training data. "
-            "Requires ANTHROPIC_API_KEY. Saves optimized module to masonry/optimized_prompts/{agent}.json."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "required": ["agent_name"],
-            "properties": {
-                "agent_name": {
-                    "type": "string",
-                    "description": "Name of the agent to optimize, e.g. 'research-analyst'.",
-                },
-                "projects_dir": {
-                    "type": "string",
-                    "description": "Root directory to scan for findings. Defaults to repository root.",
-                },
-                "agent_db_path": {
-                    "type": "string",
-                    "description": "Path to agent_db.json. Defaults to agent_db.json at repository root.",
-                },
-                "questions_md_path": {
-                    "type": "string",
-                    "description": "Path to questions.md for agent attribution. Auto-discovered if omitted.",
-                },
-                "output_dir": {
-                    "type": "string",
-                    "description": "Directory to save optimized prompt JSON. Defaults to masonry/optimized_prompts/.",
-                },
-                "model": {
-                    "type": "string",
-                    "description": "Anthropic model for optimization. Defaults to claude-sonnet-4-6.",
-                    "default": "claude-sonnet-4-6",
-                },
-                "api_key": {
-                    "type": "string",
-                    "description": "Anthropic API key. Falls back to ANTHROPIC_API_KEY env var.",
-                },
-            },
-        },
-    },
     "masonry_onboard": {
         "fn": _tool_masonry_onboard,
         "description": (
             "Detect new agent .md files not yet in the registry and onboard them: "
-            "register in agent_registry.yml and generate DSPy signature stubs."
+            "register in agent_registry.yml."
         ),
         "inputSchema": {
             "type": "object",
@@ -792,10 +657,6 @@ TOOLS = {
                 "registry_path": {
                     "type": "string",
                     "description": "Path to agent_registry.yml. Defaults to masonry/agent_registry.yml.",
-                },
-                "dspy_output_dir": {
-                    "type": "string",
-                    "description": "Output dir for DSPy stubs. Defaults to masonry/src/dspy_pipeline/generated/.",
                 },
             },
         },
