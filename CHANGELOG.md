@@ -17,6 +17,26 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `d68fab2` chore: auto-commit 2 session files on stop (2026-03-24)
+
+## [Wave 13 — bricklayer-v2 Evolve] — 2026-03-24
+
+Calibration cleanup, routing baseline (75% deterministic), fleet gap audit. 10 questions: 4 DONE, 2 WARNING, 2 PENDING, 1 PENDING_EXTERNAL, 1 BLOCKED.
+
+### Changed
+- `masonry/training_data/scored_all.jsonl` — E12.1-live-5 and E12.1-live-16 re-labeled FAILURE->WARNING; E12.1-live-14 replaced with clean count-check record
+- Routing baseline established: deterministic layer 75% (15/20 queries), 30 keyword patterns + 6 slash commands
+
+### Found (open)
+- `E13.7` [WARNING] — 4 deterministic routing gaps; eval/improve-agent pattern missing, architect/diagnose/campaign partial
+- `E13.8` [BLOCKED] — peer-reviewer, agent-auditor, retrospective have no .md instruction files
+- `E13.9` [WARNING] — 9 agents with training data have no eval baseline; karen (379 records) is top target
+
+### Healthy
+- E13.6: Deterministic routing at 75% exceeds 60% target
+- 4 agents AT TARGET: karen (1.00), quantitative-analyst (0.90), regulatory-researcher (1.00), competitive-analyst (~0.92)
+
+---
 - `1c67d10` chore: auto-commit 1 session file on stop (2026-03-24)
 - `19d9033` chore: auto-commit 1 session file on stop (2026-03-24)
 - `e267946` chore: auto-commit 1 session file on stop (2026-03-24)
