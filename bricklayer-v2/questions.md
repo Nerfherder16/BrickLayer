@@ -201,6 +201,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 | M-mid.1 | monitor | CALIBRATED | Add Fix mode scope-creep metric to `monitor-targets.md`: `fix_preflight_rejection_rate` with WARNING threshold ≥0.20 and FAILURE ≥0.40. Measurement: Fix findings with verdict=FIX_FAILED at pre-flight gate / total Fix questions per wave. |
 | M-mid.2 | monitor | CALIBRATED | Add Predict mode subjectivity metric to `monitor-targets.md`: `predict_subjectivity_rate` with WARNING threshold ≥0.30 and FAILURE ≥0.60. Measurement: Predict findings with SUBJECTIVE qualifier / total Predict outputs per wave. |
 | E-mid.1 | evolve | PENDING_EXTERNAL | Run `improve_agent.py karen --loops 2` now that E2.3 confirmed 1.00 eval score on clean data. Verify final score ≥0.85 post-optimization; confirm `masonry/agent_snapshots/karen/history/` contains the run record. |
+| F-mid.3 | fix | PENDING | Create `frontier-analyst.md` in `bricklayer-v2/.claude/agents/`. The agent-auditor (AUDIT_REPORT.md) found no .md file for frontier-analyst in either bricklayer-v2/.claude/agents/ or ~/.claude/agents/ — blocking FR-prefix mode-transition rules (3 of 11 transitions in hypothesis-generator-bl2). Base the instruction file on `modes/frontier.md` and the CLAUDE.md description: "Activate when the user wants to explore what a system could become — mapping the possibility space, finding analogous system ceilings, or blue-sky exploration. Exploration mode, not falsification." |
 
 ---
 
