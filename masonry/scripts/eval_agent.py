@@ -194,8 +194,9 @@ def run_eval(
             _CLAUDE_CMD + [
                 "-p", prompt, "--model", model,
                 "--output-format", "json",
-                # skip all settings sources (disables hooks) while keychain auth still works
+                # skip all settings (disables hooks) and don't resume previous sessions
                 "--setting-sources", "",
+                "--no-session-persistence",
             ],
             capture_output=True,
             text=True,
