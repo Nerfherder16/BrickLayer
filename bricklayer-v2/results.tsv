@@ -29,3 +29,5 @@ E3.1	IMPROVEMENT	Merged 38 unique records from wave13 into scored_all.jsonl. 444
 E3.2	WARNING	quantitative-analyst baseline 0.10 (1/10). Heterogeneous training records (routing+findings mixed). Eval instruction too generic.	NONE	2026-03-24T08:15:00Z
 E3.3	WARNING	research-analyst baseline 0.20 (1/5). Agentic agent ignores JSON instruction. Only 5 records all HEALTHY. Eval design mismatch.	NONE	2026-03-24T08:30:00Z
 E3.4	WARNING	Optimizer write-back scope risk. writeback_optimized_instructions() writes to ALL copies with no guard. Proposed: target_paths scope limit.	NONE	2026-03-24T08:45:00Z
+E4.1	IMPROVEMENT	quantitative-analyst eval 0.10->0.70 after adding explicit JSON field instruction to eval harness	eval_agent.py	2026-03-24T09:00:00Z
+E4.2	IMPROVEMENT	Optimizer write-back scope guard: target_paths param prevents cross-file contamination	writeback.py optimize_with_claude.py	2026-03-24T09:15:00Z
