@@ -192,65 +192,15 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 ## Wave-mid
 
 **Generated from findings**: Q1.1, Q1.5, Q2.2, Q2.4, E2.3
-**Mode transitions applied**: Q1.1 DIAGNOSIS_COMPLETE → F-mid.1 Fix (mode dispatch in CI runner); Q1.5 DIAGNOSIS_COMPLETE → F-mid.2 Fix (PENDING_EXTERNAL normalization); Q2.2 WARNING → M-mid.1 Monitor (Fix mode scope-creep rate); Q2.4 WARNING → M-mid.2 Monitor (Predict subjectivity rate); E2.3 IMPROVEMENT → E-mid.1 Evolve (karen prompt optimization now unblocked)
+**Mode transitions**: Q1.1 DIAGNOSIS_COMPLETE → F-mid.1 Fix; Q1.5 DIAGNOSIS_COMPLETE → F-mid.2 Fix; Q2.2 WARNING → M-mid.1 Monitor; Q2.4 WARNING → M-mid.2 Monitor; E2.3 IMPROVEMENT → E-mid.1 Evolve
 
-### F-mid.1: Implement mode dispatch in `bl/ci/run_campaign.py` and `bl/runners/agent.py` as specified in Q1.1
-
-**Status**: PENDING
-**Operational Mode**: Fix
-**Priority**: HIGH
-**Motivated by**: Q1.1 — DIAGNOSIS_COMPLETE with a complete fix specification (~20 lines across 2 files); no mode context is injected into CI runner agent calls today
-**Hypothesis**: Adding `_load_mode_context()` to `_dispatch()` and consuming `mode_context` in `run_agent()` will make CI-runner-dispatched agents mode-aware with zero regression to projects without `modes/` directories
-**Method**: fix-implementer
-**Success criterion**: `python -m bl.ci.run_campaign --project bricklayer-v2 --max-questions 1 --output /tmp/test.json` produces a result whose agent prompt contains the mode program text; existing projects without `modes/` produce identical output to pre-change
-
----
-
-### F-mid.2: Fix `bl/ci/run_campaign.py` to handle `PENDING_EXTERNAL` and all BL 2.0 terminal statuses as specified in Q1.5
-
-**Status**: PENDING
-**Operational Mode**: Fix
-**Priority**: HIGH
-**Motivated by**: Q1.5 — DIAGNOSIS_COMPLETE; current normalization at line 67-68 silently converts `PENDING_EXTERNAL` → `PENDING`, causing parked questions to be re-run; also `_parse_questions_table()` regex silently drops rows with BL 2.0 status values
-**Hypothesis**: Expanding `_TERMINAL_STATUSES` frozenset and fixing `_parse_questions_table()` regex will prevent parked questions from re-running and will correctly parse all BL 2.0 status values without data loss
-**Method**: fix-implementer
-**Success criterion**: A `questions.md` containing a `PENDING_EXTERNAL` question with a future `resume_after` is parsed by the CI runner without that question appearing in the pending list; all BL 2.0 status values (`DIAGNOSIS_COMPLETE`, `FIXED`, `FIX_FAILED`, `COMPLIANT`, `NON_COMPLIANT`, `CALIBRATED`) are preserved after parsing
-
----
-
-### M-mid.1: Add Fix mode scope-creep risk to `monitor-targets.md` — track pre-flight checklist failure rate across Fix mode runs
-
-**Status**: PENDING
-**Operational Mode**: Monitor
-**Priority**: MEDIUM
-**Motivated by**: Q2.2 — WARNING; Fix mode pre-flight checklist was judged insufficient to catch underspecified DIAGNOSIS_COMPLETE findings; scope creep in Fix mode is a recurring risk that needs a surveillance metric
-**Hypothesis**: Defining a monitor target for "Fix question rejected at pre-flight" rate will surface Fix mode quality issues before they cause wasted agent work; the appropriate WARNING threshold is ≥0.20 and FAILURE threshold is ≥0.40
-**Method**: quantitative-analyst
-**Success criterion**: `monitor-targets.md` gains a `fix_preflight_rejection_rate` entry with WARNING and FAILURE thresholds defined, plus measurement method: "count Fix findings with verdict=FIX_FAILED at pre-flight gate divided by total Fix questions run per wave"
-
----
-
-### M-mid.2: Add Predict mode subjectivity rate to `monitor-targets.md` — track SUBJECTIVE verdicts as a fraction of total Predict outputs
-
-**Status**: PENDING
-**Operational Mode**: Monitor
-**Priority**: MEDIUM
-**Motivated by**: Q2.4 — WARNING; Predict mode verdict assignment (IMMINENT/PROBABLE/POSSIBLE/UNLIKELY) was found to be inherently SUBJECTIVE without a probability calibration protocol; unchecked subjectivity degrades campaign signal quality
-**Hypothesis**: Tracking the fraction of Predict mode outputs that receive a SUBJECTIVE qualifier (vs a concrete tier assignment) will reveal whether the Predict mode program produces actionable verdicts or defaults to hedge language; WARNING threshold at ≥0.30
-**Method**: quantitative-analyst
-**Success criterion**: `monitor-targets.md` gains a `predict_subjectivity_rate` entry with WARNING threshold ≥0.30 and FAILURE threshold ≥0.60, with measurement method defined as counting Predict findings where agent marks verdict reasoning as SUBJECTIVE per wave
-
----
-
-### E-mid.1: After karen reaching 1.00 eval score (E2.3), run `improve_agent.py karen` to optimize the prompt and verify it holds at ≥0.85 post-optimization
-
-**Status**: PENDING
-**Operational Mode**: evolve
-**Priority**: MEDIUM
-**Motivated by**: E2.3 — IMPROVEMENT (karen eval 1.00); optimization was blocked by training data bugs through Wave 2; now that the signal is clean, prompt optimization may produce more robust instructions that generalize beyond the 20-record eval set
-**Hypothesis**: Running `improve_agent.py karen --loops 2` on the 379-record clean dataset will either improve or maintain ≥0.85 eval score; if score regresses, the optimizer auto-reverts and confirms 1.00 is the natural ceiling without further tuning
-**Method**: quantitative-analyst (script execution + score comparison)
-**Success criterion**: `improve_agent.py karen --loops 2` completes without regression; final eval score on held-out set is ≥0.85; `masonry/agent_snapshots/karen/history/` contains a run record showing the optimization trajectory
+| ID | Mode | Status | Question |
+|----|------|--------|---------|
+| F-mid.1 | fix | PENDING | Implement mode dispatch in `bl/ci/run_campaign.py` and `bl/runners/agent.py` as specified in Q1.1. Add `_load_mode_context()` to `_dispatch()` and consume `mode_context` in `run_agent()`. Success: CI-runner-dispatched agents receive mode program text in prompt; projects without `modes/` unchanged. |
+| F-mid.2 | fix | PENDING | Fix `bl/ci/run_campaign.py` to handle `PENDING_EXTERNAL` and all BL 2.0 terminal statuses as specified in Q1.5. Expand `_TERMINAL_STATUSES` frozenset and fix `_parse_questions_table()` regex. Success: PENDING_EXTERNAL questions not re-queued; all BL 2.0 status values parsed correctly. |
+| M-mid.1 | monitor | PENDING | Add Fix mode scope-creep metric to `monitor-targets.md`: `fix_preflight_rejection_rate` with WARNING threshold ≥0.20 and FAILURE ≥0.40. Measurement: Fix findings with verdict=FIX_FAILED at pre-flight gate / total Fix questions per wave. |
+| M-mid.2 | monitor | PENDING | Add Predict mode subjectivity metric to `monitor-targets.md`: `predict_subjectivity_rate` with WARNING threshold ≥0.30 and FAILURE ≥0.60. Measurement: Predict findings with SUBJECTIVE qualifier / total Predict outputs per wave. |
+| E-mid.1 | evolve | PENDING | Run `improve_agent.py karen --loops 2` now that E2.3 confirmed 1.00 eval score on clean data. Verify final score ≥0.85 post-optimization; confirm `masonry/agent_snapshots/karen/history/` contains the run record. |
 
 ---
 
