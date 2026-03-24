@@ -395,7 +395,7 @@ agents:
   - scenario-modeling
   input_schema: QuestionPayload
   output_schema: FindingPayload
-  tier: draft
+  tier: candidate
 - name: frontier-analyst
   file: .claude/agents/frontier-analyst.md
   model: sonnet
