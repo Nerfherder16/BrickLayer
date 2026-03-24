@@ -132,12 +132,14 @@ NEVER STOP until python $claimPyFwd pending $projectPathFwd returns empty AND al
     $prompt | Out-File -FilePath ($promptFile -replace '/', '\') -Encoding utf8 -NoNewline
 
     # Write the launcher .sh script — no inline escaping needed
+    # Note: backtick-$ (`$) escapes PowerShell expansion, producing literal $ in the .sh file
     $script = @"
 #!/bin/bash
 cd '$projectPathFwd'
 export BL_WORKER_ID=$i
 git checkout $BranchName 2>/dev/null || true
-claude --dangerously-skip-permissions "\$(cat '$promptFile')"
+PROMPT=`$(cat '$promptFile')
+claude --dangerously-skip-permissions "`$PROMPT"
 echo ''
 echo 'Worker $i finished. Press Enter to close.'
 read
