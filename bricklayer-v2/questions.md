@@ -198,8 +198,8 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 |----|------|--------|---------|
 | F-mid.1 | fix | FIXED | Implement mode dispatch in `bl/ci/run_campaign.py` and `bl/runners/agent.py` as specified in Q1.1. Add `_load_mode_context()` to `_dispatch()` and consume `mode_context` in `run_agent()`. Success: CI-runner-dispatched agents receive mode program text in prompt; projects without `modes/` unchanged. |
 | F-mid.2 | fix | FIXED | Fix `bl/ci/run_campaign.py` to handle `PENDING_EXTERNAL` and all BL 2.0 terminal statuses as specified in Q1.5. Expand `_TERMINAL_STATUSES` frozenset and fix `_parse_questions_table()` regex. Success: PENDING_EXTERNAL questions not re-queued; all BL 2.0 status values parsed correctly. |
-| M-mid.1 | monitor | PENDING | Add Fix mode scope-creep metric to `monitor-targets.md`: `fix_preflight_rejection_rate` with WARNING threshold ≥0.20 and FAILURE ≥0.40. Measurement: Fix findings with verdict=FIX_FAILED at pre-flight gate / total Fix questions per wave. |
-| M-mid.2 | monitor | PENDING | Add Predict mode subjectivity metric to `monitor-targets.md`: `predict_subjectivity_rate` with WARNING threshold ≥0.30 and FAILURE ≥0.60. Measurement: Predict findings with SUBJECTIVE qualifier / total Predict outputs per wave. |
+| M-mid.1 | monitor | CALIBRATED | Add Fix mode scope-creep metric to `monitor-targets.md`: `fix_preflight_rejection_rate` with WARNING threshold ≥0.20 and FAILURE ≥0.40. Measurement: Fix findings with verdict=FIX_FAILED at pre-flight gate / total Fix questions per wave. |
+| M-mid.2 | monitor | CALIBRATED | Add Predict mode subjectivity metric to `monitor-targets.md`: `predict_subjectivity_rate` with WARNING threshold ≥0.30 and FAILURE ≥0.60. Measurement: Predict findings with SUBJECTIVE qualifier / total Predict outputs per wave. |
 | E-mid.1 | evolve | PENDING | Run `improve_agent.py karen --loops 2` now that E2.3 confirmed 1.00 eval score on clean data. Verify final score ≥0.85 post-optimization; confirm `masonry/agent_snapshots/karen/history/` contains the run record. |
 
 ---

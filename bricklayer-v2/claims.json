@@ -209,5 +209,19 @@
     "status": "DONE",
     "verdict": "FIXED",
     "completed_at": "2026-03-24T14:52:50.628144+00:00"
+  },
+  "M-mid.1": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:53:13.469548+00:00",
+    "status": "DONE",
+    "verdict": "CALIBRATED",
+    "completed_at": "2026-03-24T14:54:46.413596+00:00"
+  },
+  "M-mid.2": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:53:30.986592+00:00",
+    "status": "DONE",
+    "verdict": "CALIBRATED",
+    "completed_at": "2026-03-24T14:54:46.494179+00:00"
   }
 }
