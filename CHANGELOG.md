@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `3925947` chore: update training data from research assessment (2026-03-24)
 - `04cd7e7` finding(E13.7): 4 deterministic routing gaps — eval/improve-agent pattern missing, architect/diagnose/campaign partial [worker-1] (2026-03-24)
 - `d10a349` chore: auto-commit 2 session files on stop (2026-03-24)
 - `e264310` finding(E13.6): deterministic routing layer at 75% (>60% target), 30 patterns + 6 slash cmds [worker-1] (2026-03-24)
