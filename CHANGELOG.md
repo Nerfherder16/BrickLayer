@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `b83983c` monitor(M-mid.1,M-mid.2): create monitor-targets.md with 2 campaign health metrics (2026-03-24)
 - `c3591ab` chore: increment agent invocation count for live eval session (2026-03-24)
 - `5362cfb` fix(F-mid.1,F-mid.2): mode dispatch + BL 2.0 status normalization in CI runner (2026-03-24)
 - `6e831f3` chore: auto-commit 2 session files on stop (2026-03-24)
