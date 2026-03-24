@@ -9,7 +9,7 @@ BrickLayer 2.0 self-audit campaign. This project stress-tests the BL 2.0 engine,
 ```
 bricklayer-v2/
   questions.md          -- Question bank (5 domains + 13 evolve waves + wave-mid)
-  results.tsv           -- Tab-separated verdict log (56 entries)
+  results.tsv           -- Tab-separated verdict log (58 entries)
   findings/             -- Per-question finding files
     evolve/             -- E1.x through E13.x findings
     diagnose/           -- Q1.x diagnosis findings
@@ -79,6 +79,4 @@ bricklayer-v2/
 | E13.3 | PENDING | research-analyst prompt optimization on 38-record dataset |
 | E13.5 | PENDING | synthesizer-bl2 optimization on 21-record combined dataset |
 | E13.10 | PENDING_EXTERNAL | improve_agent.py 3-loop convergence test |
-| F-mid.1 | PENDING | Mode dispatch in CI runner (Q1.1 fix spec ready) |
-| F-mid.2 | PENDING | PENDING_EXTERNAL handling in CI runner (Q1.5 fix spec ready) |
-| E-mid.1 | PENDING | karen prompt optimization (unblocked by E2.3) |
+| E-mid.1 | PENDING_EXTERNAL | karen prompt optimization -- needs manual Git Bash run |
