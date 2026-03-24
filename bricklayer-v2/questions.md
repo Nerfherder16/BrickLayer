@@ -185,7 +185,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 | E13.7 | evolve | WARNING | Audit the deterministic routing layer keyword coverage in `masonry/src/routing/router.py`: list all registered slash-command patterns and mode-keyword patterns. Are there any commonly-used BrickLayer commands missing from the deterministic layer that require LLM fallback unnecessarily? |
 | E13.8 | evolve | PENDING | Three candidate-tier agents — peer-reviewer, agent-auditor, and retrospective — have `last_score: null` in agent_registry.yml and no records in scored_all.jsonl. Generate 5 training records each (15 total) using the live record generation approach validated in E12.1. What baseline eval scores do these agents achieve on first run? |
 | E13.9 | evolve | WARNING | Audit optimization-ready agents in `masonry/agent_registry.yml`: which agents have a non-null `last_score` but have not been optimized since their last score was recorded? For each, what is the estimated gain from running `improve_agent.py`? |
-| E13.10 | evolve | PENDING | Run `improve_agent.py research-analyst --loops 3` on the cleaned 38-record dataset (after E13.1+E13.2). Does the optimization converge (score plateaus) or oscillate (score varies across loops)? What is the final score after 3 loops vs 1 loop? |
+| E13.10 | evolve | PENDING_EXTERNAL | Run `improve_agent.py research-analyst --loops 3` on the cleaned 38-record dataset (after E13.1+E13.2). Does the optimization converge (score plateaus) or oscillate (score varies across loops)? What is the final score after 3 loops vs 1 loop? |
 
 ---
 
