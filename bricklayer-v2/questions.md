@@ -129,6 +129,17 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ---
 
+## Wave 9 — Evolve (E9): research-analyst Curation + Metric Fix
+
+| ID | Mode | Status | Question |
+|----|------|--------|---------|
+| E9.1 | evolve | DONE | Remove 3 code-inspection records from research-analyst training data (E7.2-pilot-2, E7.2-pilot-3, E7.2-pilot-4) that always produce prose output (0.40 max score, below 0.50 threshold). Replace with 3 pure reasoning records targeting HEALTHY/WARNING/FAILURE verdicts. Does eval score stabilize at ≥0.65 with 18 clean reasoning records? |
+| E9.2 | evolve | DONE | Add a verdict_match prerequisite gate to `build_metric()` in `eval_agent.py`: if `verdict_match == 0.0`, cap total score at 0.2 regardless of evidence quality. This prevents the calibration inversion (wrong verdict + good evidence = 0.60 false pass). Does this correctly reject wrong-verdict predictions while keeping correct-verdict scores unchanged? |
+| E9.3 | evolve | DONE | Remove 4 misaligned Q4.x records (Q4.2/4.3/4.5/4.6) from research-analyst training data — they are task descriptions producing INCONCLUSIVE instead of the expected HEALTHY. Replace with 4 reasoning records where HEALTHY is the natural agent output (confirmed system designs, validated patterns). Does eval score rise above 0.50 with the Q4.x records removed? |
+| E9.4 | evolve | DONE | After E9.3 curation, add 5 records covering the remaining failing patterns: PROMISING (E7.2-pilot-5 replacement), WARNING off-by-one (rec-6 fix), and context-rich HEALTHY records where the question text justifies the verdict without historical outcome context. Does eval reach ≥0.65 with the cleaned dataset? |
+
+---
+
 ## Domain 5 — Frontier: BrickLayer's next evolution beyond 2.0
 
 | ID | Mode | Status | Question |

@@ -22,14 +22,21 @@ def build_metric(signature_cls: type = object) -> Any:
 
     def metric(example: Any, prediction: Any, trace: Any = None) -> float:
         score = 0.0
+        verdict_matched = False
 
         try:
             ex_verdict = str(getattr(example, "verdict", "") or "").strip()
             pred_verdict = str(getattr(prediction, "verdict", "") or "").strip()
             if ex_verdict and pred_verdict and ex_verdict == pred_verdict:
                 score += 0.4
+                verdict_matched = True
         except Exception:
             pass
+
+        # Prerequisite gate: if verdict is wrong, cap score at 0.2 to prevent
+        # calibration inversion (wrong verdict + good evidence = 0.60 false pass).
+        if not verdict_matched:
+            return min(score, 0.2)
 
         try:
             evidence = str(getattr(prediction, "evidence", "") or "")
