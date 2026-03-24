@@ -2660,3 +2660,94 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 **Mode transitions applied**: V35.1 HEALTHY (corpus unblocked, 77 records) → V36.1 Validate (writeback target structure); V35.1 HEALTHY (corpus unblocked) → V36.2 Validate (karen corpus readiness at 321 records); M35.1 DONE with escalation recommendation → D36.1 Diagnose (Ollama host vs. container unreachable — 3 consecutive OFFLINE checks); V35.1 HEALTHY + E33.1 BLOCKED → V36.3 Validate (--api-key CLI arg wiring before run); V35.1 HEALTHY → R36.1 Research (project_context fill rate in 77-record corpus)
 
 ---
+
+## Wave 37 — Predict Mode (cascade-analyst)
+
+**Generated from findings**: M32.1/M33.1/M35.1 (Ollama persistent OFFLINE), E33.1 BLOCKED (MIPROv2 never run), V36.2 (karen corpus score concentration), R30.1 WARNING (slot collision dormant), D3.2 WARNING (interrupted-build resume broken), F12.1 deferred (drift metric confusion), V36.1/V36.3 HEALTHY (write-back structure confirmed)
+**Mode**: predict
+**Agent**: cascade-analyst
+**Purpose**: Map downstream failure cascades from unresolved open issues — what breaks next and when if these issues are not addressed?
+
+---
+
+### P1: If Ollama remains OFFLINE beyond 7 consecutive campaign days, what is the downstream cascade on routing quality and DSPy optimization costs?
+
+**Status**: PENDING
+**Operational Mode**: predict
+**Agent**: cascade-analyst
+**Priority**: HIGH
+**Motivated by**: M32.1/M33.1/M35.1 — Ollama at `192.168.50.62:11434` has been OFFLINE for all 3 health checks on 2026-03-23, crossing into WARNING range. The 7-day FAILURE threshold in `monitor-targets.md` has not been crossed yet.
+**Hypothesis**: If Ollama is not restored within 7 campaign days, two cascades will materialize: (1) Layer 2 (semantic routing) will be permanently non-functional — every request will fall through to Layer 3 (one LLM call per route), increasing latency by ~200ms and API cost by ~0.001 USD/route. At campaign loop velocity (~50 routes/wave), this compounds to ~$0.05/wave in unnecessary cost. (2) The zero-credential DSPy optimization path (`--backend ollama`) becomes permanently unavailable — all MIPROv2 runs will require a live Anthropic API key, eliminating the fallback for credential-free optimization. The cascade terminates when Ollama is restored or the infrastructure is formally decommissioned.
+**Success criterion**: (1) Probe `http://192.168.50.62:11434/api/tags` — record exit code and timestamp. (2) Query `masonry/monitor-targets.md` for consecutive OFFLINE day count. (3) If count >= 7: classify as FAILURE cascade — quantify wave-level API cost delta between L2-functional and L2-degraded routing (extract from routing log hit rates). (4) Project when the API cost delta exceeds the cost of a single MIPROv2 optimization run (~$2-5). (5) Confirm whether `--backend ollama` is documented in the CLAUDE.md runbook as the only zero-cost path. Verdict: CASCADE_IMMINENT if OFFLINE count is 5-6 days (2 days before threshold); CASCADE_ACTIVE if 7+ days (cost accumulation confirmed); DORMANT if OFFLINE count < 5 days (threshold not yet in sight).
+
+---
+
+### P2: If E33.1 (MIPROv2 execution) remains BLOCKED indefinitely, what is the compounding quality debt on agent outputs over subsequent campaign waves?
+
+**Status**: PENDING
+**Operational Mode**: predict
+**Agent**: cascade-analyst
+**Priority**: HIGH
+**Motivated by**: E33.1 BLOCKED — all code-side blockers were resolved by Wave 32 (F32.2 api_key parameter, F31.1 write-back, V36.3 HEALTHY wiring confirmed). The optimization run has never executed. Agents are running on unoptimized instructions since the campaign began.
+**Hypothesis**: Each wave run by an unoptimized research-analyst or karen produces findings scored at the pre-optimization baseline (68.3% — Trial 3, Wave 23, quantitative-analyst analog). The projected post-optimization score is 70-80% (R32.1 +8 to +12 pts). Every wave executed without optimization represents a compounding quality debt: findings that would pass a 75% quality gate instead produce at 68%, creating a false floor in the training corpus. By Wave 40, if E33.1 remains BLOCKED, the 77-record corpus will contain approximately 20-25 Wave 36-40 findings scored at the pre-optimization ceiling, potentially anchoring the next MIPROv2 run to a degraded baseline rather than improving from it.
+**Success criterion**: (1) Count the number of research-analyst findings generated in Waves 33-36 that are present in `scored_all.jsonl` with scores below 75%. (2) Project the corpus composition at Wave 40 if E33.1 remains BLOCKED (estimate net-new records per wave). (3) Determine whether sub-75% records are excluded from MIPROv2 training or included — if included, they dilute the signal; if excluded by a score gate, the corpus may shrink. (4) Estimate the "score floor anchoring" risk: will a MIPROv2 run at Wave 40 produce a lower score than Wave 37 because the training corpus degraded? Verdict: CASCADE_ACTIVE if sub-75% records are being included in the training corpus and diluting signal; CASCADE_IMMINENT if the corpus is shrinking due to exclusion; DORMANT if training corpus quality is stable regardless of E33.1 status.
+
+---
+
+### P3: If the karen corpus score concentration (98.4% records scoring 90-100) is not corrected before the first MIPROv2 karen run, what optimization failure cascade results?
+
+**Status**: PENDING
+**Operational Mode**: predict
+**Agent**: cascade-analyst
+**Priority**: MEDIUM
+**Motivated by**: V36.2 HEALTHY — karen corpus contains 321 records with mean 98.44 and median 100.0. Only 5 records score below 60. This near-zero variance is structurally problematic for MIPROv2 because the optimizer cannot distinguish good examples from mediocre ones when all scores are 90-100.
+**Hypothesis**: MIPROv2 requires score variance to identify which prompt instructions produce better outputs. If 98.4% of the 321 karen records score 90-100, the optimizer's bootstrap phase will treat nearly all examples as equally high-quality and will be unable to identify which few-shot examples actually improve performance. The result is one of two failure modes: (1) MIPROv2 produces an "optimized" karen that scores the same or lower than baseline because the training signal has insufficient variance; (2) The optimization run succeeds superficially but the resulting instructions overfit to the degenerate scoring distribution, producing a prompt that is confidently wrong in novel situations. The cascade terminus is that the karen optimization run produces a regression, and `writeback_optimized_instructions()` writes degraded instructions into `karen.md`, silently lowering karen's performance on every subsequent spawn.
+**Success criterion**: (1) Read `masonry/src/metrics.py` — confirm whether the karen scoring function uses a different quality rubric than research-analyst (if karen scoring is trivially easy to pass, the 98.4% concentration is a scorer defect, not a corpus defect). (2) Check MIPROv2 bootstrap minimum variance requirements — does DSPy require a minimum score spread to produce meaningful optimization? (3) Identify how many records would be labeled "negative examples" (score < 70) under the current scoring — if only 5 of 321, the bootstrap phase cannot construct meaningful contrastive pairs. (4) Estimate the probability of optimization regression given the current score distribution. Verdict: CASCADE_ACTIVE if scorer confirms karen rubric is trivially easy (structural corpus defect); CASCADE_IMMINENT if DSPy bootstrap minimums require score spread that the current corpus cannot provide; DORMANT if MIPROv2 can extract useful signal from a high-concentration corpus.
+
+---
+
+### P4: If the one-slot-per-type collision in masonry-preagent-tracker.js triggers during a parallel campaign wave, what training signal corruption cascade results?
+
+**Status**: PENDING
+**Operational Mode**: predict
+**Agent**: cascade-analyst
+**Priority**: MEDIUM
+**Motivated by**: R30.1 WARNING — code confirms one-slot-per-type overwrite strategy; 0% collision rate post-activation in Waves 30-36 because the campaign loop dispatches agents sequentially. The risk is dormant but the code defect is live.
+**Hypothesis**: If two agents of the same type (e.g., two `research-analyst` spawns) are dispatched within the 10-second TTL window, the second agent's prompt will overwrite the first agent's slot. The first agent's training record will then be attributed with the wrong `question_text` (the second question instead of the first). Over multiple collision events, the training corpus accumulates mislabeled examples: findings from Question A are paired with the question_text from Question B. MIPROv2 trains on these corrupted pairs, learning an instruction set that is optimized for question-finding mismatch — the resulting optimized prompt may produce correct verdicts for wrong reasons (coincidental alignment) or systematically wrong verdicts when the mismatch pattern reverses. The cascade is silent: no error is raised, the collision is not logged, and the corpus appears valid.
+**Success criterion**: (1) Confirm the collision window: read `masonry-preagent-tracker.js` TTL value — if still 10 seconds, confirm whether parallel `/ultrawork` or multi-agent dispatches could realistically fire within this window. (2) Estimate the blast radius: how many records in the current 77-record research-analyst corpus could be corrupted if 5% of spawns collided? (3) Determine whether any existing detection mechanism (e.g., question_id cross-reference in scorer) would surface the corruption. (4) Model the MIPROv2 score impact of 5 corrupted records in an 77-record corpus (6.5% contamination rate). Verdict: CASCADE_ACTIVE if parallel dispatch is used and the TTL makes collisions near-certain; CASCADE_IMMINENT if parallel dispatch is used occasionally and the TTL creates a race window; DORMANT if dispatch is strictly sequential and no mechanism produces parallel same-type spawns.
+
+---
+
+### P5: If the D3.2 WARNING (session-start interrupted-build resume silently broken) is not fixed before the next /build campaign, what failure cascade results when a build is interrupted mid-task?
+
+**Status**: PENDING
+**Operational Mode**: predict
+**Agent**: cascade-analyst
+**Priority**: MEDIUM
+**Motivated by**: D3.2 WARNING — the session-start hook's interrupted-build resume logic is broken: when a build is interrupted mid-task, the next session start silently fails to resume it. The user sees no error but the in-progress task is abandoned without a BLOCKED or PAUSED status.
+**Hypothesis**: If a `/build` campaign is interrupted (context overflow, session stop, network drop) and the user starts a new session, the masonry-session-start hook attempts to detect and resume the interrupted build. D3.2 confirms this detection is broken. The cascade: (1) The interrupted build's `.autopilot/progress.json` retains status `IN_PROGRESS` for the abandoned task. (2) The next session start does not surface this state. (3) The user runs a new `/build` or `/plan` without knowing a prior build was interrupted. (4) If the new run creates a conflicting spec or overwrites `progress.json`, the interrupted build's task history is permanently lost. (5) Any code changes from the partial task are now uncommitted orphans — present in the working tree but never verified or committed. This cascade is invisible until the user notices unexpected working-tree changes or duplicate task work.
+**Success criterion**: (1) Read `masonry/src/hooks/masonry-session-start.js` — identify the exact detection mechanism for interrupted builds (does it read `.autopilot/mode` or `progress.json`?). (2) Reproduce the failure: manually set `.autopilot/mode = "build"` and `progress.json` task to `IN_PROGRESS`, then simulate a session start — confirm whether the hook surfaces the state or silently skips. (3) Determine whether `masonry-stop-guard.js` provides a partial mitigation (blocks Stop on uncommitted changes), which would surface the abandoned partial task indirectly. (4) Assess the probability that an in-progress build task leaves uncommitted code in the working tree. Verdict: CASCADE_ACTIVE if the broken resume creates silent orphan code changes that are never committed or surfaced; CASCADE_IMMINENT if the broken resume causes task deduplication or spec overwrite; DORMANT if the stop-guard hook provides sufficient mitigation by catching uncommitted changes before session end.
+
+---
+
+### P6: If the drift scoring metric (F12.1 deferred — FAILURE treated as bad agent performance) is never corrected, what quality signal inversion cascade accumulates in agent_db.json over future campaign waves?
+
+**Status**: PENDING
+**Operational Mode**: predict
+**Agent**: cascade-analyst
+**Priority**: LOW
+**Motivated by**: F12.1 deferred from Wave 12 — verdict-based drift scoring treats FAILURE verdict as evidence of bad agent performance, but for research agents FAILURE means "correctly found a problem." The confidence-based metric replacement was proposed but not implemented.
+**Hypothesis**: As the campaign continues, agents that correctly identify failures (the campaign's primary purpose) will accumulate negative drift scores in `agent_db.json`. Research agents with high TRUE-FAILURE detection rates will appear as "drifting" or "degraded" while agents that return only HEALTHY or FIX_APPLIED will appear "stable." This inversion means: (1) Kiln's fleet health view will flag the most accurate research agents as underperforming; (2) Any auto-retirement logic triggered by drift score thresholds would preferentially retire the most useful agents; (3) MIPROv2 training data constructed from "high drift" agents (actually high-accuracy agents) would be deprioritized or excluded; (4) The campaign may reflexively generate "fix" questions to "restore" high-FAILURE agents that are actually working correctly. The cascade compounds silently across waves until a human audits `agent_db.json` verdict distributions.
+**Success criterion**: (1) Read `masonry/src/dspy_pipeline/drift_detector.py` — confirm the current scoring logic: does a FAILURE verdict decrease an agent's drift score? (2) Count research-analyst FAILURE verdicts in `agent_db.json` — if the count is high (>10), compute the implied drift score and compare to the FAILURE threshold. (3) Determine whether any auto-retirement threshold in the registry or Kiln would trigger on the current research-analyst drift score. (4) Verify whether the `sync_verdicts_to_agent_db.py` integration (F11.3) currently runs with the broken metric or the correct one. Verdict: CASCADE_ACTIVE if research-analyst drift score is at or near the auto-retirement threshold; CASCADE_IMMINENT if any downstream system acts on drift scores (Kiln display, training data filtering, auto-retirement); DORMANT if drift scores are computed but nothing consumes them yet.
+
+---
+
+### P7: If the `AgentRegistryEntry.optimized_prompt` schema field remains an unpopulated placeholder, what downstream cascade affects any system that reads it to determine optimization status?
+
+**Status**: PENDING
+**Operational Mode**: predict
+**Agent**: cascade-analyst
+**Priority**: LOW
+**Motivated by**: V30.5 investigation — `AgentRegistryEntry.optimized_prompt` was identified as a schema field that is "never populated or read by code." The field exists in `masonry/src/schemas/payloads.py` but write-back via `run_optimization.py` does not update the registry entry.
+**Hypothesis**: If MIPROv2 optimization runs succeed (E33.1 eventually executes) and `writeback_optimized_instructions()` writes optimized text into agent `.md` files, the `AgentRegistryEntry.optimized_prompt` field in `agent_registry.yml` will still be empty/null. Any code that reads this field to determine whether an agent has been optimized will incorrectly report all agents as unoptimized — even after successful optimization. Cascades: (1) Kiln's "Not optimized" badge will persist for agents that actually have optimized instructions in their `.md` files, causing false-negative displays; (2) Any routing logic that checks `optimized_prompt` before selecting between base and optimized agent behavior will always fall back to unoptimized behavior; (3) The `masonry_drift_check` MCP tool, if it reads `optimized_prompt` to assess optimization coverage, will report 0% coverage indefinitely. The cascade is cosmetic unless code begins acting on the field.
+**Success criterion**: (1) Read `masonry/src/schemas/payloads.py` — confirm the `AgentRegistryEntry` schema definition for `optimized_prompt` (type, default, required). (2) Grep the entire codebase for reads of `optimized_prompt` from registry entries — confirm whether any code path currently consumes this field. (3) Check Kiln source (`masonry/kiln/` or `BrickLayerHub/`) for any UI component that reads `optimized_prompt` to render the "Not optimized" badge. (4) Determine whether `writeback_optimized_instructions()` in `run_optimization.py` updates `agent_registry.yml` after writing to `.md` files. Verdict: CASCADE_ACTIVE if any executed code path reads `optimized_prompt` and makes decisions based on it; CASCADE_IMMINENT if Kiln reads the field for display (false-negative badge is user-visible); DORMANT if the field is defined but truly unread by any current code path.
