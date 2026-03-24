@@ -5,6 +5,7 @@ Parses questions.md and reads/writes question status via results.tsv.
 """
 
 import re
+from pathlib import Path
 
 from bl.config import cfg
 
@@ -67,6 +68,82 @@ def parse_questions() -> list[dict]:
                 ),  # F5.1: body **Mode** field takes priority over bracket tag
                 "title": title,
                 "status": status,
+                "question_type": question_type,
+                "target": fields.get("target", ""),
+                "hypothesis": fields.get("hypothesis", ""),
+                "test": fields.get("test", ""),
+                "verdict_threshold": fields.get("verdict_threshold", ""),
+                "agent_name": fields.get("agent", "").strip(),
+                "finding": fields.get("finding", "").strip(),
+                "source": fields.get("source", "").strip(),
+                "operational_mode": fields.get("operational_mode", "diagnose"),
+                "resume_after": fields.get("resume_after", "").strip(),
+            }
+        )
+
+    return questions
+
+
+def load_questions(path: str) -> list[dict]:
+    """Parse questions.md from an arbitrary path, using results.tsv in the same directory."""
+    questions_path = Path(path)
+    results_path = questions_path.parent / "results.tsv"
+    text = questions_path.read_text(encoding="utf-8")
+
+    block_pattern = re.compile(
+        r"^## ([\w][\w.-]*) \[(\w+)\] (.+?)$",
+        re.MULTILINE,
+    )
+    field_pattern = re.compile(
+        r"^\*\*(Mode|Target|Hypothesis|Test|Verdict threshold|Agent|Finding|Source|Operational Mode|Resume After)\*\*:\s*(.+?)(?=\n\*\*|\Z)",
+        re.MULTILINE | re.DOTALL,
+    )
+
+    def _status(qid: str) -> str:
+        if not results_path.exists():
+            return "PENDING"
+        for line in results_path.read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines():
+            parts = line.split("\t")
+            if parts and parts[0] == qid:
+                return parts[1].strip() if len(parts) > 1 else "PENDING"
+        return "PENDING"
+
+    matches = list(block_pattern.finditer(text))
+    questions = []
+
+    for i, m in enumerate(matches):
+        qid = m.group(1)
+        tag_raw = m.group(2)
+        mode_raw = tag_raw.lower()
+        title = m.group(3).strip()
+
+        start = m.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        body = text[start:end]
+
+        fields = {}
+        for fm in field_pattern.finditer(body):
+            fields[fm.group(1).lower().replace(" ", "_")] = fm.group(2).strip()
+
+        tag_lower = tag_raw.lower()
+        explicit_type = fields.get("type", "").lower()
+        if explicit_type in ("behavioral", "code_audit"):
+            question_type = explicit_type
+        elif tag_lower in _CODE_AUDIT_TAGS:
+            question_type = "code_audit"
+        elif tag_lower in _BEHAVIORAL_TAGS:
+            question_type = "behavioral"
+        else:
+            question_type = "behavioral"
+
+        questions.append(
+            {
+                "id": qid,
+                "mode": fields.get("mode", mode_raw),
+                "title": title,
+                "status": _status(qid),
                 "question_type": question_type,
                 "target": fields.get("target", ""),
                 "hypothesis": fields.get("hypothesis", ""),
