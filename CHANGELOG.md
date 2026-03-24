@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `ad7ce3f` chore: auto-commit 1 session file on stop (2026-03-24)
 - `9fdc724` chore: auto-commit 2 session files on stop (2026-03-24)
 - `144ab77` chore: auto-commit 1 session file on stop (2026-03-24)
 - `410a37f` chore: auto-commit 1 session file on stop (2026-03-24)
