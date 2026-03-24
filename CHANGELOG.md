@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `cb16346` chore: auto-commit 1 session file on stop (2026-03-24)
 - `3889b99` chore: auto-commit 1 session file on stop (2026-03-24)
 - `174ab14` evolve(bl2): Wave 2 — karen eval 0.30->1.00 via training data + eval harness fix (2026-03-24)
 - `efaccd3` feat(eval): karen score 0.40 → 0.70 — eval instruction fix (2026-03-24)
