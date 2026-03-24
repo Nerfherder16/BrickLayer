@@ -258,5 +258,5 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 | ID | Mode | Status | Question |
 |----|------|--------|---------|
-| Q5.1 | frontier | PENDING | If BrickLayer 2.0 had a multi-agent variant — where multiple modes run in parallel on the same project — what would the coordination mechanism look like? What prevents mode conflicts? |
-| Q5.2 | frontier | PENDING | What would a visual BrickLayer dashboard look like that shows all projects, their current mode, open findings, and the lifecycle stage progress? What is the most useful single-screen view? |
+| Q5.1 | frontier | DONE | If BrickLayer 2.0 had a multi-agent variant — where multiple modes run in parallel on the same project — what would the coordination mechanism look like? What prevents mode conflicts? |
+| Q5.2 | frontier | DONE | What would a visual BrickLayer dashboard look like that shows all projects, their current mode, open findings, and the lifecycle stage progress? What is the most useful single-screen view? |
