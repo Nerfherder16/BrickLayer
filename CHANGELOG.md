@@ -75,6 +75,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - 3 bare `except Exception: pass` → logged stderr warnings across the codebase
 
 ---
+- `11578d0` chore(dspy): update karen optimized prompt (2026-03-23)
 - `e494d78` fix(eval): repair eval_agent.py zero-score bug — hooks, schema, prompt routing (2026-03-23)
 - `10c586b` fix(dspy): optimize_claude.py auto-detect signature from agent name (2026-03-23)
 - `9c9b267` feat(dspy): inject karen few-shot examples via optimize_claude.py (2026-03-23)
