@@ -36,6 +36,7 @@ from masonry.scripts.optimize_with_claude import run as run_optimize
 from masonry.src.writeback import strip_optimized_instructions
 
 _DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+MIN_IMPROVEMENT = 0.02  # Minimum score delta required to keep new instructions
 
 
 def _snapshot_instructions(base_dir: Path, agent_name: str) -> str | None:
@@ -145,21 +146,21 @@ def run_loop(
         after_score = after_result["score"]
         delta = after_score - before_score
         print(f"[{loop_i}] After score:  {after_score:.3f} ({after_result['passed']}/{after_result['eval_size']})")
-        print(f"[{loop_i}] Delta:         {delta:+.3f}")
+        print(f"[{loop_i}] Delta:         {delta:+.4f} (threshold: {MIN_IMPROVEMENT})")
 
         # ── Step 4: Keep or revert ────────────────────────────────────────────
-        if after_score > before_score:
-            print(f"\n[{loop_i}] IMPROVED (+{delta:.3f}) — keeping new instructions.")
+        if after_score >= before_score + MIN_IMPROVEMENT:
+            print(f"\n[{loop_i}] IMPROVED (+{delta:.4f} >= threshold {MIN_IMPROVEMENT}) — keeping new instructions.")
             best_score = after_score
             best_snapshot = _snapshot_instructions(base_dir, agent_name)
             verdict = "improved"
-        elif after_score == before_score:
-            print(f"\n[{loop_i}] NO CHANGE — reverting (keeping existing instructions).")
+        elif after_score >= before_score:
+            print(f"\n[{loop_i}] BELOW THRESHOLD (+{delta:.4f} < threshold {MIN_IMPROVEMENT}) — reverting (improvement insufficient).")
             if before_snapshot:
                 _restore_instructions(base_dir, agent_name, before_snapshot)
             verdict = "no_change"
         else:
-            print(f"\n[{loop_i}] REGRESSION ({delta:.3f}) — reverting to previous instructions.")
+            print(f"\n[{loop_i}] REGRESSION ({delta:.4f}) — reverting to previous instructions.")
             if before_snapshot:
                 _restore_instructions(base_dir, agent_name, before_snapshot)
             verdict = "reverted"
@@ -218,8 +219,8 @@ def _main() -> None:
     parser.add_argument(
         "--eval-size",
         type=int,
-        default=20,
-        help="Held-out examples per eval run (default: 20)",
+        default=50,
+        help="Held-out examples per eval run (default: 50)",
     )
     parser.add_argument(
         "--num-examples",
