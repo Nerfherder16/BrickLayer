@@ -1038,3 +1038,20 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
+- name: e2e
+  file: C:/Users/trg16/.claude/agents/e2e.md
+  model: sonnet
+  description: "BrickLayer end-to-end verifier. Runs the full pytest suite for each\
+    \ component, then does live wiring checks \u2014 hooks syntax, MCP server, routing\
+    \ pipeline, session lock, agent registry, training data. Returns a PASS/FAIL table.\
+    \ Invoke after any infrastructure change to confirm nothing is broken."
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
