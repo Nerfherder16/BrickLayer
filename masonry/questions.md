@@ -2956,7 +2956,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F-w41.1: Enforce train/eval split in scored_all.jsonl to close P-w40.1 convergence trap
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Agent**: fix-implementer
 **Priority**: HIGH
@@ -2968,7 +2968,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F-w41.2: Increase eval size to N=50 and add minimum improvement threshold to revert gate
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Agent**: fix-implementer
 **Priority**: HIGH
@@ -2980,7 +2980,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F-w41.3: Sanitize DSPy delimiters in writeback to prevent E3 corruption
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Agent**: fix-implementer
 **Priority**: MEDIUM
@@ -2992,7 +2992,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F-w41.4: Fix karen corpus — add synthetic_negative to exclusions + generate organic low-quality records
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Agent**: fix-implementer
 **Priority**: HIGH
@@ -3004,7 +3004,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### V-w41.1: Verify F-w40.1 circuit breaker — does semantic.py fall through to Layer 3 when OPEN?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: validate
 **Agent**: design-reviewer
 **Priority**: MEDIUM
