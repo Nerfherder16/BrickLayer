@@ -201,7 +201,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 | M-mid.1 | monitor | CALIBRATED | Add Fix mode scope-creep metric to `monitor-targets.md`: `fix_preflight_rejection_rate` with WARNING threshold ≥0.20 and FAILURE ≥0.40. Measurement: Fix findings with verdict=FIX_FAILED at pre-flight gate / total Fix questions per wave. |
 | M-mid.2 | monitor | CALIBRATED | Add Predict mode subjectivity metric to `monitor-targets.md`: `predict_subjectivity_rate` with WARNING threshold ≥0.30 and FAILURE ≥0.60. Measurement: Predict findings with SUBJECTIVE qualifier / total Predict outputs per wave. |
 | E-mid.1 | evolve | PENDING_EXTERNAL | Run `improve_agent.py karen --loops 2` now that E2.3 confirmed 1.00 eval score on clean data. Verify final score ≥0.85 post-optimization; confirm `masonry/agent_snapshots/karen/history/` contains the run record. |
-| F-mid.3 | fix | PENDING | Create `frontier-analyst.md` in `bricklayer-v2/.claude/agents/`. The agent-auditor (AUDIT_REPORT.md) found no .md file for frontier-analyst in either bricklayer-v2/.claude/agents/ or ~/.claude/agents/ — blocking FR-prefix mode-transition rules (3 of 11 transitions in hypothesis-generator-bl2). Base the instruction file on `modes/frontier.md` and the CLAUDE.md description: "Activate when the user wants to explore what a system could become — mapping the possibility space, finding analogous system ceilings, or blue-sky exploration. Exploration mode, not falsification." |
+| F-mid.3 | fix | DONE | Create `frontier-analyst.md` in `bricklayer-v2/.claude/agents/`. The agent-auditor (AUDIT_REPORT.md) found no .md file for frontier-analyst in either bricklayer-v2/.claude/agents/ or ~/.claude/agents/ — blocking FR-prefix mode-transition rules (3 of 11 transitions in hypothesis-generator-bl2). Base the instruction file on `modes/frontier.md` and the CLAUDE.md description: "Activate when the user wants to explore what a system could become — mapping the possibility space, finding analogous system ceilings, or blue-sky exploration. Exploration mode, not falsification." |
 
 ---
 
@@ -236,7 +236,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E14.3: Write instruction file for peer-reviewer agent (unblocks E13.8 baseline eval)
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: evolve
 **Priority**: HIGH
 **Motivated by**: E13.8 BLOCKED — peer-reviewer has no .md instruction file in either bricklayer-v2/.claude/agents/ or ~/.claude/agents/; eval pipeline cannot invoke the agent. CLAUDE.md description: "Re-runs tests from completed findings, verifies fix code, appends peer review sections to findings."
@@ -248,7 +248,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E14.4: Write instruction files for agent-auditor and retrospective agents (unblocks E13.8 for remaining 2 agents)
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: evolve
 **Priority**: HIGH
 **Motivated by**: E13.8 BLOCKED — agent-auditor and retrospective share the same blocking condition as peer-reviewer (no .md files). agent-auditor description: "Audits active fleet, scores against finding history, identifies underperformers, writes AUDIT_REPORT.md." retrospective: "Post-campaign quality analyst — scores process efficiency, audits content integrity, identifies agent tooling gaps."
@@ -260,7 +260,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E14.5: Create frontier-analyst.md instruction file in bricklayer-v2/.claude/agents/ (resolves F-mid.3)
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: F-mid.3 PENDING — frontier-analyst.md missing from both agent directories; blocks 3 of 11 mode-transition rules in hypothesis-generator-bl2 (FR-prefix transitions). modes/frontier.md contains the full mode program; CLAUDE.md describes the agent as "blue-sky exploration, possibility space, ceiling estimation."
