@@ -137,15 +137,14 @@ Makes verdicts trustworthy at scale. Phase 6 items.
 
 ---
 
-### T3.2 — needs_human flag not set (6.01b)
-**Problem:** Low-confidence findings (< 0.35) proceed without flagging for human review.
-**Files:** `bl/findings.py`, finding frontmatter schema, Kiln
-**Fix:**
-- [ ] Add `needs_human: bool` to finding frontmatter schema
-- [ ] Auto-set when `confidence < 0.35` at finding write time
-- [ ] Kiln: render "needs review" badge on affected finding cards
-- [ ] Dashboard filter for `needs_human: true`
-**Status:** `[ ]`
+### T3.2 — needs_human flag not set (6.01b) ✅ ALREADY IMPLEMENTED
+**Was reported as:** Low-confidence findings not flagged.
+**Code audit shows:** Already fully implemented:
+- `bl/findings.py:421` — `needs_human = confidence_float < 0.35` (threshold correct)
+- `bl/findings.py:432` — writes `**Needs Human**: True/False` to finding file
+- `BrickLayerHub/src/main/projectScanner.ts:251` — parses the flag
+- `BrickLayerHub/src/renderer/src/pages/Campaigns.tsx:295` — renders yellow ⚑ badge ("Needs human review" tooltip)
+**Status:** `[x]` DONE (pre-existing, ROADMAP item was stale)
 
 ---
 
