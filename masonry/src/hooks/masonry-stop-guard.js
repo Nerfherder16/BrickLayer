@@ -199,6 +199,14 @@ function checkOverseerTrigger(snapshotsDir, stderrFn) {
 
 module.exports.checkOverseerTrigger = checkOverseerTrigger;
 
+function tryRead(p) {
+  try { return fs.readFileSync(p, "utf8").trim(); } catch { return null; }
+}
+
+function tryJSON(p) {
+  try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; }
+}
+
 async function main() {
   // Auto-detect BrickLayer research project — hooks are silent inside BL subprocesses
   if (isResearchProject(process.cwd())) process.exit(0);
