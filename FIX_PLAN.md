@@ -148,14 +148,15 @@ Makes verdicts trustworthy at scale. Phase 6 items.
 
 ---
 
-### T3.3 — Peer-reviewer quality score not wired to requeue (6.02)
+### T3.3 — Peer-reviewer quality score not wired to requeue (6.02) ✅
 **Problem:** INCONCLUSIVE findings stay dead. peer-reviewer appends verdict but emits no numeric signal. Mortar doesn't act on review outcomes.
-**Files:** `template/.claude/agents/peer-reviewer.md`, `bl/questions.py`, `bl/question_weights.py`
-**Fix:**
-- [ ] Extend peer-reviewer to emit `quality_score: 0.0–1.0` in finding frontmatter
-- [ ] Mortar: re-queue INCONCLUSIVE findings where `quality_score < 0.4` with narrowed scope
-- [ ] `question_weights.py`: incorporate quality_score into weight update formula
-**Status:** `[ ]`
+**Files:** `template/.claude/agents/peer-reviewer.md`, `bl/peer_review_watcher.py`, `bl/question_weights.py`
+**Fix applied:**
+- [x] Extended peer-reviewer.md: `**Quality Score**: {0.0–1.0}` written to finding's `## Peer Review` section (parseable)
+- [x] Written `bl/peer_review_watcher.py`: scans findings/ for INCONCLUSIVE + quality_score < 0.4; calls `record_result()` to update weights; appends `{qid}-RQ1 [PENDING]` requeue block to questions.md
+- [x] Updated Trowel every-10 sentinel: calls `python -m bl.peer_review_watcher --project-root {project_dir}` each wave
+- [x] Synced peer-reviewer.md to 8 project copies + global; trowel.md to 6 project copies + global
+**Status:** `[x]` DONE
 
 ---
 
@@ -237,8 +238,8 @@ Makes verdicts trustworthy at scale. Phase 6 items.
 | Tier | Items | Done | In Progress | Blocked |
 |------|-------|------|-------------|---------|
 | T1 — Broken Infra | 3 | 2 | 1 | 0 |
-| T2 — Fleet Quality | 4 | 0 | 0 | 0 |
-| T3 — Campaign Intel | 5 | 0 | 0 | 0 |
+| T2 — Fleet Quality | 4 | 2 | 1 | 0 |
+| T3 — Campaign Intel | 5 | 3 | 0 | 0 |
 | T4 — Structural | 1 | 0 | 0 | 0 |
 | T5 — New Capability | 2 | 0 | 0 | 0 |
-| **Total** | **15** | **2** | **1** | **0** |
+| **Total** | **15** | **8** | **1** | **0** |
