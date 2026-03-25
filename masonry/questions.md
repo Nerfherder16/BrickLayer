@@ -2949,3 +2949,65 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 **Motivated by**: R-next.1 (HEALTHY) confirmed before_score=0.5333 and the optimization pipeline is unblocked. The cascades that previously corrupted optimization (P2 corpus, P3 rubric, P6 drift) are resolved. However, the optimization loop introduces its own risks: LLM-generated instruction changes may degrade agent behavior in ways not captured by the eval metric, the revert gate may have edge cases, and the write-back mechanism may overwrite content beyond the DSPy section boundaries.
 **Hypothesis**: The optimization loop has at least three residual risks now that it's unblocked: (1) The held-out eval metric only measures verdict/evidence/confidence quality — it cannot detect degradation in agent reasoning style, context handling, or edge-case behavior. (2) The revert gate (compare before_score vs. after_score) has a ±0.05 noise band — small degradations below this band will not trigger a revert. (3) `writeback_optimized_instructions()` uses delimiter-based replacement that could corrupt agent instructions if the delimiter appears in the generated content.
 **Success criterion**: Identify the specific failure modes that remain possible after the three cascades are resolved, with evidence from code inspection of `improve_agent.py`, `optimize_with_claude.py`, and `writeback.py`. Assess severity and probability. Predict which agents are at highest risk for silent degradation after optimization. Verdict: CONFIRMED if failure modes are real and code-evidenced; INCONCLUSIVE if risks are theoretical without code support.
+
+---
+
+## Wave 41 — Optimization Safety Gates + Karen Corpus Unblock
+
+### F-w41.1: Enforce train/eval split in scored_all.jsonl to close P-w40.1 convergence trap
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: P-w40.1 (CONFIRMED/IMMINENT) — E5 convergence trap: `eval_agent.py` uses `records[-eval_size:]` and `_tier_examples()` uses all records sorted by score — these overlap when corpus is small, causing the optimizer to see its own eval examples.
+**Hypothesis**: Add a `held_out_ids` exclusion: mark the last N record IDs as held-out in `eval_agent.py`, pass those IDs to `optimize_with_claude.py` so `_tier_examples()` excludes them from the optimization pool. Add guard: if remaining records after exclusion < 10 per tier, warn and skip optimization.
+**Success criterion**: (1) Read `eval_agent.py` — how held-out records are selected. (2) Read `_tier_examples()` — confirm overlap possible. (3) Implement held-out exclusion. (4) Add low-record guard. Verdict: FIX_APPLIED if split enforced + guard present; PARTIAL if split enforced but no guard.
+
+---
+
+### F-w41.2: Increase eval size to N=50 and add minimum improvement threshold to revert gate
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: P-w40.1 (CONFIRMED/IMMINENT) — E1 revert gate dead zone: N=20 minimum delta 0.05, stochasticity ~11% stddev. Sub-5% real regressions pass silently.
+**Hypothesis**: Change default `--eval-size` from 20 to 50. Add `MIN_IMPROVEMENT = 0.02` constant and update gate from `after_score > before_score` to `after_score >= before_score + MIN_IMPROVEMENT`. Ties and marginal changes revert rather than lock in.
+**Success criterion**: (1) Read `improve_agent.py` — find eval_size default and revert gate line (~151). (2) Change default to 50. (3) Add MIN_IMPROVEMENT=0.02 and update gate condition. (4) Report logs the threshold. Verdict: FIX_APPLIED if both changes applied; PARTIAL if only one.
+
+---
+
+### F-w41.3: Sanitize DSPy delimiters in writeback to prevent E3 corruption
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: MEDIUM
+**Motivated by**: P-w40.1 (CONFIRMED/POSSIBLE) — E3 delimiter corruption: `writeback.py` uses delimiter strings as regex anchors with no sanitization. If LLM-generated instructions contain the delimiter, the section replacement breaks.
+**Hypothesis**: Before writing instructions, check if content contains `_SECTION_HEADER` or `_SECTION_END` strings — if found, strip or escape them. After writeback, validate by re-parsing the DSPy section and confirming it matches what was written.
+**Success criterion**: (1) Read `masonry/src/writeback.py` — find delimiter constants and regex replacement. (2) Add pre-write sanitization. (3) Add post-write validation. Verdict: FIX_APPLIED if both present; PARTIAL if only sanitization added.
+
+---
+
+### F-w41.4: Fix karen corpus — add synthetic_negative to exclusions + generate organic low-quality records
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: V-w40.1 (FAIL, High) — Karen corpus bimodal cliff: 5 synthetic_negative records at score=0 not in `_EXCLUDED_SOURCES`. Karen optimization blocked until fixed.
+**Hypothesis**: (1) Add `"synthetic_negative"` to `_EXCLUDED_SOURCES` in `optimize_with_claude.py`. (2) Add guard when low tier is empty — warn and exit rather than optimize with no contrast. (3) Generate 5-10 synthetic organic karen records with genuine low scores (ambiguous commit types, no doc targets), score with `build_karen_metric`, add as `"source": "organic_low"` to `scored_all.jsonl`.
+**Success criterion**: (1) `"synthetic_negative"` in `_EXCLUDED_SOURCES`. (2) Empty-low-tier guard present. (3) ≥ 5 new organic_low records with score < 50. (4) `_tier_examples()` for karen produces valid high + low tiers. Verdict: FIX_APPLIED if all four; PARTIAL if exclusion added but no organic records.
+
+---
+
+### V-w41.1: Verify F-w40.1 circuit breaker — does semantic.py fall through to Layer 3 when OPEN?
+
+**Status**: PENDING
+**Operational Mode**: validate
+**Agent**: design-reviewer
+**Priority**: MEDIUM
+**Motivated by**: F-w40.1 (FIX_APPLIED) — circuit breaker added to `semantic.py`. Validates the fall-through contract: OPEN → None → router activates Layer 3.
+**Hypothesis**: `route_semantic()` returns None when OPEN (not raises). `router.py` treats None from Layer 2 as a miss and falls through to Layer 3. Timeout is on the HTTP call parameter. Circuit state is module-level.
+**Success criterion**: (1) semantic.py OPEN path returns None. (2) router.py handles None from Layer 2 → Layer 3. (3) Timeout on HTTP call not a sleep/thread. (4) `_cb_failures`, `_cb_opened_at` are module-level. Verdict: PASS if all four; PARTIAL if OPEN returns None but router doesn't handle it.
