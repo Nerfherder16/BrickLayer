@@ -233,7 +233,7 @@ def run(
 
     try:
         result = subprocess.run(
-            [claude_bin, "-p", "--no-session-persistence"],
+            [claude_bin, "-p", "--no-session-persistence", "--dangerously-skip-permissions"],
             input=prompt,
             capture_output=True,
             text=True,

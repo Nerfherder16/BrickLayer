@@ -224,7 +224,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E14.2: Fix optimize_with_claude.py subprocess to prevent Write-tool use that blocks the approval flow
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: evolve
 **Priority**: HIGH
 **Motivated by**: E13.5 — optimization for synthesizer-bl2 failed because `claude -p` subprocess used the Write tool instead of returning JSON to stdout; masonry-approver.js intercepted the write and emitted approval text, breaking JSON parse. Fix scope identified: add a system constraint to the prompt at line 236 in `optimize_with_claude.py`.
