@@ -170,8 +170,33 @@ python masonry/scripts/improve_agent.py karen --signature karen --dry-run  # ver
 ~~4. Can the P-w40.1 convergence trap be closed before research-analyst optimization runs?~~ ANSWERED: F-w41.1, F-w41.2, F-w41.3 (CLOSED)
 ~~5. Can karen optimization be unblocked?~~ ANSWERED: F-w41.4 (UNBLOCKED)
 
-**Wave 42 open questions:**
-6. Does research-analyst actually improve after 3 optimization loops? (after_score > before_score + 0.02 consistently?)
-7. Is karen's before_score interpretable with the current corpus? (dry-run before first loop)
-8. Does the `_record_id()` exclusion hold under corpus growth? (stress-test with synthetic corpus expansion)
-9. Is P-w40.1 E2 (metric blind spots) still open? (metric measures format proxies — is reasoning quality actually degrading in optimization output?)
+~~6. Does research-analyst actually improve after 3 optimization loops?~~ BLOCKED (R-w42.1 WARNING — corpus too small for eval_size=50)
+~~7. Is karen's before_score interpretable with the current corpus?~~ ANSWERED: R-w42.2 (WARNING — 0.90 interpretable but optimizer gets 0 low-tier examples)
+~~8. Does the _record_id() exclusion hold under corpus growth?~~ ANSWERED: V-w42.1 (WARNING — wired correctly but 2 latent risks)
+~~9. Is P-w40.1 E2 (metric blind spots) still open?~~ ANSWERED: R-w42.3 (WARNING — 2/3 components format proxies, residual blind spot)
+
+## Wave 42 Additions (2026-03-25)
+
+21. **R-w42.1** [WARNING, High] -- Research-analyst corpus (36 records) cannot support eval_size=50 — all records become held-out, leaving 0 for training, triggering `_MIN_TIER_RECORDS` hard block. `run_loop()` internal default still 20 (line 69) while CLI is 50 — divergence. Safe eval_size is ≤ 31. N=50 path was never exercised post-Wave-41. Two fixes needed: cap eval_size to `len(records) - MIN_TIER_RECORDS`, and sync `run_loop()` default.
+
+22. **R-w42.2** [WARNING, High] -- Karen before_score=0.90 (27/30) is interpretable and gate satisfiable (+1 record = +0.0333 > MIN_IMPROVEMENT). Critical structural problem: all 5 organic_low records are the last 5 entries in scored_all.jsonl → all fall inside `records[-eval_size:]` held-out window → excluded from training pool → optimizer gets 0 low-tier examples. Karen optimization will run but converge on positive-only pattern. Fix: reshuffle scored_all.jsonl or switch eval selection to random sampling.
+
+23. **V-w42.1** [WARNING, Medium] -- Train/eval split chain correctly wired through `improve_agent.py`. Two latent risks: (1) `eval_agent._record_id(record, index)` dead `index` parameter — direct single-argument callers get TypeError; (2) `optimize_with_claude.py` CLI has no `--excluded-ids`, silently bypasses train/eval split for any caller not using `improve_agent.py`. Both require fixes.
+
+24. **R-w42.3** [WARNING, Medium] -- Metric blind spots partially closed: prerequisite gate (lines 36-39) prevents calibration inversion (wrong-verdict predictions cap at 0.2). But 2/3 active scoring components are format proxies: `evidence_quality` checks length+numbers only (no semantic validation), `confidence_calibration` rewards 0.75 unconditionally. Residual blind spot: label-correct + fabricated-evidence findings score same as correct reasoning. No component validates that cited evidence matches actual code.
+
+25. **F-w42.1** [FIXED, Low] -- P4 slot collision eliminated. `masonry-preagent-tracker.js`: `crypto.randomUUID()` suffix on slot filename. `masonry-subagent-tracker.js`: glob-and-oldest-first read with legacy `_latest.json` fallback. Node.js verification confirmed no collision, backwards-compatible. `routing_log.jsonl` `request_text` corruption rate drops to zero for all new spawns. R-w40.2 WARNING/Low CLOSED.
+
+---
+
+## Wave 43 Targets
+
+**Three fixes needed before either optimization run is safe:**
+- F-w43.1: Fix `run_loop()` eval_size default + add corpus-size auto-cap (R-w42.1)
+- F-w43.2: Fix organic_low record position — reshuffle or switch to random eval sampling (R-w42.2)
+- F-w43.3: Remove dead `index` param from `eval_agent._record_id()` + add CLI bypass warning to `optimize_with_claude.py` (V-w42.1)
+
+**Wave 43 open questions:**
+10. After F-w43.x fixes: can research-analyst optimization run end-to-end without aborting?
+11. After F-w43.x fixes: does karen optimizer receive at least 1 low-tier example?
+12. Is the metric E2 blind spot (format proxies) worth fixing now or after first optimization run?
