@@ -196,5 +196,7 @@ class AgentRegistryEntry(BaseModel):
     input_schema: str = "QuestionPayload"
     output_schema: str = "FindingPayload"
     tier: Literal["draft", "candidate", "trusted", "retired"] = "draft"
-    optimized_prompt: str | None = None
+    # Optimization status is tracked via `dspy_status`/`last_optimized` in agent_registry.yml
+    # and by the presence of masonry/optimized_prompts/{agent}.json. Do not add an inline
+    # optimized_prompt field here — it is never written by any optimization script.
     routing_keywords: list[str] = Field(default_factory=list)
