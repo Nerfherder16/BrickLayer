@@ -411,7 +411,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E16.1: Fix eval_agent_live.py to accept question_text key as fallback (unblocks quantitative-analyst live eval)
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: E15.6 INCONCLUSIVE — `eval_agent_live.py._load_agent_records()` reads `input.question` but quantitative-analyst's 45 records in `scored_findings.jsonl` use `input.question_text`. The eval harness returns 0 records for this agent. E15.6 identified the exact fix: add `question_text` as a fallback key in the question-field lookup.
