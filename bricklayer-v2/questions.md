@@ -284,7 +284,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E14.7: Add 4 missing deterministic routing patterns to masonry/src/routing/deterministic.py (raises coverage 75% → ≥90%)
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: evolve
 **Priority**: MEDIUM
 **Motivated by**: E13.7 WARNING — 4 coverage gaps identified: (1) eval/improve-agent operations missing entirely → evolve-optimizer, (2) "what is/what's broken" phrasing missing from _DIAGNOSE_PATTERN, (3) "architect a X / design a X / how should I design" missing from _ARCHITECT_PATTERN, (4) mode-guidance queries ("what mode should I use") missing entirely → mortar. All 4 have exact regex patterns specified in E13.7.
