@@ -125,6 +125,7 @@ def run_loop(
             agent_name=agent_name,
             base_dir=base_dir,
             num_examples=num_examples,
+            signature=signature,
         )
         if opt_rc != 0:
             print(f"[{loop_i}] Optimization failed (exit code {opt_rc}) — skipping compare.")
