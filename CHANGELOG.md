@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `dc7075c` fix(findings): correct E14.6 karen result and E14.8 crash details (2026-03-24)
 - `6af3655` docs(bricklayer-v2): Wave 14 synthesis -- fleet gaps closed, full-corpus eval exposed generalization gap (2026-03-24)
 - `837b2ad` feat(wave-41): close P-w40.1 convergence trap + unblock karen optimization (2026-03-24)
 - `ebd298d` evolve(bl2): Wave 14 complete — E14.1/E14.6/E14.8/E14.9 findings (2026-03-24)
