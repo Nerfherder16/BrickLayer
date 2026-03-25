@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `4693fc5` chore: auto-commit 1 session file on stop (2026-03-24)
 - `4ba12ef` chore: auto-commit 1 session file on stop (2026-03-24)
 - `66bdcc5` fix(bl2): E14.2 — add --dangerously-skip-permissions to optimize_with_claude.py subprocess (2026-03-24)
 - `ca53029` feat(campaign): complete P-wave — 7 predict-mode cascade findings (P1-P7) (2026-03-24)
