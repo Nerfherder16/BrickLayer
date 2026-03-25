@@ -334,7 +334,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E15.1: Fix improve_agent.py UnicodeDecodeError — add encoding='utf-8' to subprocess reader thread
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Priority**: HIGH
 **Motivated by**: E14.8 WARNING — improve_agent.py crashed mid-loop with `UnicodeDecodeError: 'charmap' codec can't decode byte 0x8f` in the subprocess reader thread. The fix was already applied to optimize_with_claude.py (same pattern) but not improve_agent.py. Loop 1 instructions were committed (33deee6) but the post-optimization eval never completed, leaving convergence behavior (E13.10) unresolved.
@@ -346,7 +346,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E15.2: Fix INCONCLUSIVE handling in research-analyst instructions — prevent over-firing WARNING on unresolvable questions
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: evolve
 **Priority**: HIGH
 **Motivated by**: E14.9 WARNING — 3 INCONCLUSIVE records (E8.2-rec-2, E8.2-rec-6, E9.4-rec-1) predicted as WARNING or FAILURE. The agent defaults to a concrete verdict when it should recognize that genuinely unresolvable questions deserve INCONCLUSIVE. The current instructions lack an explicit "when to use INCONCLUSIVE" rule — the agent over-fires WARNING on questions where evidence is absent or insufficient.
@@ -358,7 +358,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E15.3: Flag eval-incompatible records (E9.4/E9.4b/E7.2-pilot timeouts) in scored_all.jsonl
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: evolve
 **Priority**: HIGH
 **Motivated by**: E14.9 WARNING — 4 records (E9.4-rec-1, E9.4-rec-2, E9.4b-rec-1, E7.2-pilot-5) consistently timeout at 120s during live eval, contributing 4 guaranteed failures to the full-corpus score. These records represent computationally intensive questions (simulation runs, complex code analysis) that exceed the eval harness's default timeout. Excluding them would raise the reported full-corpus score from 0.58 to ~0.67 (20/30) and eliminate 4 guaranteed timeouts from future eval runs.
@@ -370,7 +370,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E15.4: Add explicit calibration example for E12.1-live-15 cosmetic print-message pattern (HEALTHY, not WARNING)
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: evolve
 **Priority**: HIGH
 **Motivated by**: E14.9 WARNING, E14.1 WARNING — E12.1-live-15 is the single persistent failure across all instruction versions (E13.3, E14.1, E14.8). The question involves a mismatched print message (`'>120s'` when actual timeout is 180s) which the agent consistently classifies as WARNING. The synthesis diagnosis: the fix needs to name the cosmetic/print-message pattern explicitly rather than relying on abstract calibration rules. All prior attempts to address this via Rule 4 modifications have failed or caused regressions.
