@@ -546,7 +546,7 @@ agents:
 - name: overseer
   file: ~/.claude/agents/overseer.md
   model: sonnet
-  description: Agent health monitor — evaluates, improves, and rolls back agents
+  description: "Agent health monitor \u2014 evaluates, improves, and rolls back agents"
   modes:
   - agent
   - audit
@@ -1016,6 +1016,24 @@ agents:
   - context overhead
   - duplicate logic
   - YAGNI
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: bl-verifier
+  file: C:/Users/trg16/.claude/agents/bl-verifier.md
+  model: sonnet
+  description: "BrickLayer installation verifier. Checks that all system components\
+    \ are properly wired and working \u2014 hooks syntax + registration, MCP server\
+    \ tools, routing pipeline, session lock, agent registry file coverage, and training\
+    \ data. Returns a PASS/FAIL table. Invoke after any major change to the BL infrastructure\
+    \ or to diagnose mysterious failures."
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
