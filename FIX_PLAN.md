@@ -1,0 +1,245 @@
+# BrickLayer Fix Plan — Road to 100%
+
+Status legend: `[ ]` pending · `[~]` in progress · `[x]` done · `[!]` blocked
+
+Last updated: 2026-03-24 (T1.2 and T1.3 re-assessed after code audit)
+
+---
+
+## Pre-Flight Findings (code audit before fixing)
+
+- **T1.2 (MCP bl.* imports):** Path bootstrap already exists in `server.py` lines 35-38. `_REPO_ROOT = Path(__file__).resolve().parent.parent.parent` — correctly resolves to BL root. MCP tools are live in the session (appearing in deferred tool list). **Status: already fixed, ROADMAP item stale.**
+- **T1.3 (LLM router Windows):** Already fixed — uses `["cmd", "/c", "claude", ...]` list-form subprocess, no `shlex.quote`, no `shell=True`. Timeout is 20s on Windows. **Status: Windows quoting issue already fixed. Remaining gaps: hardcoded model ID, no retry — low priority.**
+- **T1.1 (hooks.json):** `plugin.json` references `"hooks": "../hooks/hooks.json"` which resolves to `masonry/hooks/hooks.json` — that file contains `"hooks": {}` (empty). The `masonry/hooks.json` at the root (4 stale hooks) is NOT what the installer reads. Fresh installs get **zero hooks**. Current setup works only because hooks were manually added to `~/.claude/settings.json`. **This is the only real T1 blocker.**
+
+---
+
+## Tier 1 — Broken Infrastructure (fix first)
+
+These are items where the system actively lies about working.
+
+### T1.1 — hooks.json manifest is stale ✅
+**Problem:** `plugin.json` references `"hooks": "../hooks/hooks.json"` → `masonry/hooks/hooks.json` which contained `"hooks": {}` (empty). Fresh installs get **zero hooks**. The `masonry/hooks.json` at root (4 stale hooks) is not what the installer reads.
+**Files:** `masonry/hooks/hooks.json`
+**Fix applied:** Populated `masonry/hooks/hooks.json` with all 12 hooks across 9 event types using portable `${CLAUDE_PLUGIN_ROOT}/...` paths. Matches current `~/.claude/settings.json` (minus Recall hooks which are separate).
+- [x] Audited all `.js` files in `masonry/src/hooks/` (24 files)
+- [x] Compared against `hooks.json` — was empty
+- [x] Rewrote `masonry/hooks/hooks.json` with full hook manifest
+- [x] Covers: SessionStart, UserPromptSubmit, PreToolUse (3 matchers), PostToolUse, PostToolUseFailure, SubagentStart, SessionEnd, PreCompact, Stop + statusLine
+- [x] **Installer safety:** `masonry-setup.js` reads settings.json first (`readJson`), only touches `enabledPlugins` + `statusLine`, surgically removes only prior masonry hook injections — Recall hooks and other user hooks are preserved. Safe.
+**Status:** `[x]` DONE
+
+---
+
+### T1.2 — MCP tools silently fail (bl.* import path) ✅ ALREADY FIXED
+**Problem:** Was reported in ROADMAP, but code audit shows it's already resolved.
+**Resolution:** `mcp_server/server.py` lines 35-38 already bootstrap the path:
+```python
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+```
+This correctly resolves to `C:/Users/trg16/Dev/Bricklayer2.0/` regardless of cwd. MCP tools confirmed live in session (appearing in deferred tool list). ROADMAP item is stale — mark as resolved there.
+- [x] Path bootstrap confirmed in server.py
+- [x] MCP tools live and returning data in current session
+**Status:** `[x]` DONE (pre-existing fix, ROADMAP was stale)
+
+---
+
+### T1.3 — LLM router fragile on Windows ⚠️ PARTIALLY FIXED
+**Problem:** Was `shlex.quote` + `shell=True`. Code audit shows Windows-specific fix is already in place.
+**Already fixed:** `llm_router.py` uses `["cmd", "/c", "claude", "--model", ...]` list-form on Windows (lines 49-52). No `shell=True`. Timeout is 20s on Windows vs 10s elsewhere.
+**Remaining minor gaps:**
+- Model ID `claude-haiku-4-5-20251001` is still hardcoded (should read from config)
+- No retry on timeout — falls through to None/fallback immediately
+- No pre-flight check that `claude` CLI is available
+**Files:** `masonry/src/routing/llm_router.py`
+**Fix needed (low priority):**
+- [ ] Move `_LLM_MODEL` to read from `~/.masonry/config.json` or env var `MASONRY_LLM_MODEL`, fallback to hardcoded
+- [ ] Add 1 retry with 2s backoff on TimeoutExpired before returning None
+- [ ] Add pre-flight: `shutil.which("claude")` check, warn once on missing CLI
+**Status:** `[~]` Windows fix done; config/retry gaps remain (low priority)
+
+---
+
+## Tier 2 — Fleet Quality Gaps
+
+These limit the system's ability to self-improve.
+
+### T2.1 — KarenSig / karen optimization pipeline ✅ ALREADY EXISTS
+**Was reported as:** KarenSig missing, optimize_all() hardcodes ResearchAgentSig.
+**Code audit shows:** Already built. Not DSPy-based — uses `claude -p` eval loop.
+- `build_karen_metric()` exists in `masonry/src/metrics.py:69` — scores on action match, quality_score proximity, changelog quality
+- `eval_agent.py` already has `_KAREN_JSON_INSTRUCTION` block for karen eval
+- Run command: `python masonry/scripts/improve_agent.py karen --signature karen`
+
+**What karen actually needs to improve:**
+- [ ] Generate fresh training data: `python masonry/scripts/score_ops_agents.py` — pulls from git history (doc-modifying commits)
+- [ ] Run the loop outside a Claude session: `python masonry/scripts/improve_agent.py karen --signature karen --loops 2`
+- [ ] Check resulting score in `masonry/agent_snapshots/karen/eval_latest.json`
+**Status:** `[x]` infrastructure exists · `[ ]` training data refresh + loop run needed
+
+---
+
+### T2.2 — Synthesizer-bl2 regression undiagnosed
+**Problem:** Score dropped 0.62 → 0.41 after PROSE re-labeling. Every wave synthesis is running at degraded quality. Root cause unknown.
+**Files:** `masonry/src/dspy_pipeline/`, `bricklayer-v2/` findings, `masonry/agent_registry.yml`
+**Fix:**
+- [ ] Run `eval_agent.py synthesizer-bl2 --dry-run` to get current score
+- [ ] Pull 5 low-scoring examples, inspect what's failing (verdict mismatch? evidence format? summary length?)
+- [ ] Check if PROSE re-labeling changed expected output format in training data
+- [ ] Fix either the training data labels or the prompt, whichever is wrong
+- [ ] Re-run eval, confirm score >= 0.62 restored
+**Status:** `[ ]`
+
+---
+
+### T2.3 — 9 agents have no baseline eval score
+**Problem:** Agents are dispatched with zero performance signal. Overseer can't make rewrite decisions.
+**Files:** `masonry/agent_registry.yml`, `masonry/scripts/eval_agent.py`
+**Fix:**
+- [ ] Identify the 9 unscored agents from `agent_registry.yml` (look for `last_score: null` or missing)
+- [ ] Run `eval_agent.py {agent} --dry-run` for each to check if training data exists
+- [ ] For agents with data: run baseline eval, record score in registry
+- [ ] For agents without data: document in registry as `needs_data: true`
+- [ ] Update Kiln view if score display is affected
+**Status:** `[ ]`
+
+---
+
+### T2.4 — Scoring pipeline requires manual invocation
+**Problem:** No hook, trigger, or schedule. Scores go stale between runs. Overseer and agent-auditor fly blind.
+**Files:** `masonry/src/hooks/`, `masonry/scripts/score_all_agents.py`, `masonry/agent_registry.yml`
+**Fix:**
+- [ ] Identify the right hook event to trigger scoring (Stop hook, or PostToolUse on finding writes)
+- [ ] Create `masonry-score-trigger.js` hook that runs `score_all_agents.py` async on Stop
+- [ ] Add hook to `hooks.json` and `settings.json`
+- [ ] Add rate-limit: only re-score if last score > 24h old (check `last_score_timestamp` in registry)
+- [ ] Test: write a finding, stop session, confirm registry scores update
+**Status:** `[ ]`
+
+---
+
+## Tier 3 — Campaign Intelligence
+
+Makes verdicts trustworthy at scale. Phase 6 items.
+
+### T3.1 — campaign-context.md not written at wave start (6.04)
+**Problem:** Every agent starts cold, re-reading the same findings directory. Expensive and produces inconsistent agent state within a wave.
+**Files:** `template/.claude/agents/mortar.md` (or trowel), `bl/campaign.py`
+**Fix:**
+- [ ] Decide: Mortar or Trowel writes `campaign-context.md`?
+- [ ] Write `bl/campaign_context.py` — reads project summary + top 5 findings + open hypotheses
+- [ ] Wire into wave-start sequence
+- [ ] All agent spawn prompts prepend campaign-context.md content
+- [ ] Auto-refresh every 10 findings
+**Status:** `[ ]`
+
+---
+
+### T3.2 — needs_human flag not set (6.01b)
+**Problem:** Low-confidence findings (< 0.35) proceed without flagging for human review.
+**Files:** `bl/findings.py`, finding frontmatter schema, Kiln
+**Fix:**
+- [ ] Add `needs_human: bool` to finding frontmatter schema
+- [ ] Auto-set when `confidence < 0.35` at finding write time
+- [ ] Kiln: render "needs review" badge on affected finding cards
+- [ ] Dashboard filter for `needs_human: true`
+**Status:** `[ ]`
+
+---
+
+### T3.3 — Peer-reviewer quality score not wired to requeue (6.02)
+**Problem:** INCONCLUSIVE findings stay dead. peer-reviewer appends verdict but emits no numeric signal. Mortar doesn't act on review outcomes.
+**Files:** `template/.claude/agents/peer-reviewer.md`, `bl/questions.py`, `bl/question_weights.py`
+**Fix:**
+- [ ] Extend peer-reviewer to emit `quality_score: 0.0–1.0` in finding frontmatter
+- [ ] Mortar: re-queue INCONCLUSIVE findings where `quality_score < 0.4` with narrowed scope
+- [ ] `question_weights.py`: incorporate quality_score into weight update formula
+**Status:** `[ ]`
+
+---
+
+### T3.4 — Agent performance time-series missing (6.05)
+**Problem:** `agent_db.json` has static scores only. Overseer can't detect drift or improvement trends.
+**Files:** `masonry/agent_db.json`, `masonry/scripts/score_all_agents.py`, Kiln
+**Fix:**
+- [ ] Extend `agent_db.json` schema: `runs: [{timestamp, verdict, duration_ms, quality_score}]`
+- [ ] Update scoring scripts to append to `runs[]` instead of overwriting `last_score`
+- [ ] Kiln: verdict accuracy sparkline per agent (last 20 runs)
+- [ ] `agent-auditor`: flag agents with declining accuracy (last 5 vs prior 5)
+**Status:** `[ ]`
+
+---
+
+### T3.5 — Deterministic routing at 75%, target 90% (3.5)
+**Problem:** 15% of requests hit Layer 3 (fragile LLM router). 4 more deterministic patterns needed.
+**Files:** `masonry/src/routing/deterministic.py` (or equivalent)
+**Fix:**
+- [ ] Audit recent routing decisions — what's falling through to LLM?
+- [ ] Identify 4 highest-frequency miss patterns
+- [ ] Add deterministic rules for each
+- [ ] Re-run routing test suite, confirm coverage improvement
+- [ ] Target: < 10% hitting LLM router
+**Status:** `[ ]`
+
+---
+
+## Tier 4 — Structural Debt
+
+### T4.1 — No hard solution for parallel session conflicts
+**Problem:** Rules are documented but behavioral. `masonry-state.json`, `.autopilot/progress.json`, `questions.md` — any modified by the wrong session causes silent corruption.
+**Files:** `masonry/mcp_server/server.py`, `masonry/src/hooks/masonry-guard.js`, relevant state files
+**Fix options:**
+- (A) File locking via `fcntl`/`msvcrt` + lock files (`.masonry.lock`)
+- (B) Session ownership tokens written to state files — read-then-verify before write
+- (C) Masonry MCP server acts as single write coordinator (all writes go through MCP, not direct file)
+**Recommendation:** Option B is lightweight and doesn't require infrastructure changes.
+- [ ] Design token format: `{session_id, pid, started_at}` written to state files on session start
+- [ ] Add ownership check to `masonry-guard.js` before allowing writes to protected files
+- [ ] Graceful conflict message: "File owned by session {id} started at {time}"
+- [ ] Test: two concurrent sessions, confirm second session is blocked on protected files
+**Status:** `[ ]`
+
+---
+
+## Tier 5 — New Capability
+
+### T5.1 — FastMCP Python server (Phase 10)
+**Problem:** The Node.js MCP server is a maintenance burden in a Python-first project. New tools need Python-native testing.
+**Files:** `masonry/src/mcp_python/server.py` (new)
+**Fix:**
+- [ ] `pip install fastmcp>=3.1.0`
+- [ ] Scaffold `masonry/src/mcp_python/server.py`
+- [ ] Port `masonry_karen` tool
+- [ ] Port `masonry_retrospective` tool
+- [ ] Port `masonry_registry` tool
+- [ ] Register in `~/.claude.json` alongside existing masonry-mcp.js
+- [ ] In-process tests via FastMCP test transport
+**Status:** `[ ]`
+
+---
+
+### T5.2 — ADBP Rust Monte Carlo Engine (Phase 11)
+**Problem:** ADBP uses deterministic point-estimate simulation. Needs probability distributions and Pareto frontier analysis.
+**Files:** `adbp/mc/` (new Rust crate)
+**Fix:** (tracked separately — full spec in ROADMAP.md Phase 11)
+- [ ] Classify `adbp_constants.py` into Tier 1/2/3
+- [ ] Scaffold Rust crate with maturin + PyO3
+- [ ] Port ADBP economic model to Rust
+- [ ] Implement MC runner (10K samples, rayon parallel)
+- [ ] Multi-objective scoring + Pareto frontier
+**Status:** `[ ]`
+
+---
+
+## Progress Summary
+
+| Tier | Items | Done | In Progress | Blocked |
+|------|-------|------|-------------|---------|
+| T1 — Broken Infra | 3 | 2 | 1 | 0 |
+| T2 — Fleet Quality | 4 | 0 | 0 | 0 |
+| T3 — Campaign Intel | 5 | 0 | 0 | 0 |
+| T4 — Structural | 1 | 0 | 0 | 0 |
+| T5 — New Capability | 2 | 0 | 0 | 0 |
+| **Total** | **15** | **2** | **1** | **0** |
