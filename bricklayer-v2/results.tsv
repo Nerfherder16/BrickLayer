@@ -73,3 +73,4 @@ E15.3	IMPROVEMENT	5 eval-incompatible records flagged in scored_all.jsonl (E9.4/
 E15.4	IMPROVEMENT	Cosmetic print-message calibration example added to Rule 4 (applied in E15.2). E12.1-live-15 pattern explicitly named as HEALTHY.	NONE	2026-03-24T00:00:00Z
 E15.5	IMPROVEMENT	Live eval 0.93 (16/17 passed). E12.1-live-15 passes for first time. E14.1 regression recovered. E14.8 instructions confirmed sound.	NONE	2026-03-24T00:00:00Z
 E15.6	INCONCLUSIVE	records in scored_findings.jsonl not scored_all.jsonl; schema mismatch (question_text vs question). Data migration required.	DATA_GAP	2026-03-24T00:00:00Z
+E16.1	IMPROVEMENT	eval_agent_live.py falls back to scored_findings.jsonl for agents missing from scored_all.jsonl. question_text normalized to question. quantitative-analyst loads 45 records (was 0).	NONE	2026-03-25T00:00:00Z
