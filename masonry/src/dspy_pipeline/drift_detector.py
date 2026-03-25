@@ -51,10 +51,13 @@ class DriftReport(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _score_verdicts(verdicts: list[str]) -> float:
-    """Convert a list of verdict strings to a mean numeric score."""
+def _score_verdicts(verdicts: list[str], confidences: list[float] | None = None) -> float:
+    """Score an agent by mean confidence, not by verdict category."""
     if not verdicts:
         return 1.0  # no data — assume healthy (no evidence of regression)
+    if confidences and len(confidences) == len(verdicts):
+        return sum(confidences) / len(confidences)
+    # Fallback: category scoring for agents without confidence data
     scores = [_VERDICT_SCORE.get(v, _DEFAULT_VERDICT_SCORE) for v in verdicts]
     return sum(scores) / len(scores)
 
@@ -87,6 +90,7 @@ def detect_drift(
     agent_name: str,
     baseline_score: float,
     recent_verdicts: list[str],
+    confidences: list[float] | None = None,
 ) -> DriftReport:
     """Compute a DriftReport for a single agent.
 
@@ -94,11 +98,14 @@ def detect_drift(
         agent_name: Identifier for the agent.
         baseline_score: Score recorded at last optimization (0.0–1.0).
         recent_verdicts: List of verdict strings from recent campaign runs.
+        confidences: Optional per-run confidence scores (0.0–1.0). When
+            provided, used as the primary scoring metric instead of verdict
+            categories, yielding a more accurate performance signal.
 
     Returns:
         DriftReport with drift_pct, alert_level, and recommendation.
     """
-    current_score = _score_verdicts(recent_verdicts)
+    current_score = _score_verdicts(recent_verdicts, confidences)
     if baseline_score > 0.0:
         drift_pct = (baseline_score - current_score) / baseline_score * 100.0
     else:
@@ -152,6 +159,7 @@ def run_drift_check(
         if not verdicts:
             continue
         baseline_score: float = float(entry.get("score", 0.0))
-        reports.append(detect_drift(agent_name, baseline_score, verdicts))
+        confidences: list[float] = entry.get("confidences", [])
+        reports.append(detect_drift(agent_name, baseline_score, verdicts, confidences or None))
 
     return reports
