@@ -462,64 +462,79 @@ recall_search(query="wave synthesis critical findings recommendation", domain="{
 ## DSPy Optimized Instructions
 ## DSPy Optimized Instructions
 
-### Verdict Calibration
+### Verdict Calibration Rules
 
-Apply verdicts by evidence state, not by sentiment:
+Apply these rules in order — first match wins:
 
-- **HEALTHY**: Confirmed by direct file verification — specific line numbers, exact counts, content matches expected. Use when you CAN verify and the system IS correct.
-- **WARNING**: System functions but has a measurable gap — missing sections, incomplete labeling, structural ceiling, systematic bias. Requires a quantified defect (e.g., '2 of 4 findings lack verdict labels', 'no dedicated cross-wave section').
-- **FAILURE**: File missing, section absent, count is zero when nonzero expected, or verification produces opposite conclusion to the claim. Use when the stated artifact does not exist or contradicts reality.
-- **INCONCLUSIVE**: Only when you cannot read the required files or the question is unanswerable without tool access. Avoid — prefer a specific verdict with evidence of the limitation.
+**HEALTHY**: The questioned artifact (synthesis.md section, doc update, finding record) is present AND accurate. Accuracy means: correct verdicts documented, correct scores cited, correct file paths named. A synthesis that accurately mirrors finding files earns HEALTHY even if the underlying system has issues.
 
-Do NOT use WARNING when FAILURE is correct (missing artifact = FAILURE, not WARNING). Do NOT use HEALTHY when you found a gap but framed it charitably.
+**WARNING**: The artifact exists but has structural gaps, incomplete coverage, or systematic bias that does not make it wrong — just incomplete. Use WARNING when: (a) verdict distribution is correct but labeling is inconsistent across entries, (b) a path-forward section exists but lacks specific agent names/scores/thresholds, (c) a known issue is documented but not yet fixed, (d) structural ceiling exists with no convergence trend.
 
-### Evidence Format
+**FAILURE**: The artifact is absent, fundamentally invalid, or documents something that is the opposite of true. Use FAILURE when: (a) a required file does not exist, (b) eval design is structurally invalid (measures different capability than production), (c) documented verdicts contradict the source finding files.
 
-Evidence MUST exceed 300 characters and contain at least two numeric facts. Use this structure:
+**INCONCLUSIVE**: Only when you genuinely cannot determine correctness — file is unreadable, findings directory is empty, or the question contains a false premise that makes evaluation impossible. Do not use INCONCLUSIVE as a hedge when evidence points clearly in one direction.
 
+**Prerequisite gate**: If your verdict is wrong, your total is capped at 0.20 regardless of evidence length. When uncertain between WARNING and FAILURE, reread the question — FAILURE is for absence or invalidity, WARNING is for presence with defects.
+
+---
+
+### Evidence Format — Required Structure
+
+Every evidence field must:
+1. Exceed 300 characters
+2. Contain at least one number, percentage, score, or threshold reference
+3. Use numbered bold-header items: `1. **Topic Label**: specific detail`
+
+**Pattern for verification questions** (does X contain Y?):
 ```
-1. **Claim label**: Specific file location (file.md lines N–M) + exact quoted content + numeric count or score.
-2. **Comparison or delta**: Before/after values, wave-to-wave score change, record count change.
-3. **Corroboration**: Cross-reference a second file or finding that confirms or contradicts.
-4. **Discrepancy note** (if any): Exact wording mismatch, section missing, count off by N.
+1. **[Artifact] location**: Found at line N of [file]. [One sentence on what it contains.]
+2. **[Finding A] accuracy**: [Cite specific line range, exact scores, finding ID, delta values]
+3. **[Finding B] accuracy**: [Same — exact numbers from source files]
+4. **Cross-reference confirmation**: [Compared against [source finding file] — [N] items match, [M] discrepancy if any]
 ```
 
-Always include:
-- File path + line number for every claim about file content
-- Exact numeric values (not ranges unless the source uses ranges)
-- A count of matching vs. total items when assessing completeness (e.g., '3 of 4 findings correctly labeled')
+**Pattern for structural/design questions** (is X valid? does X converge?):
+```
+1. **[Root cause]**: [Mechanism — one sentence naming the specific defect]
+2. **[Impact quantified]**: [N false positives per session / score range / variance %]
+3. **[Evidence trajectory]**: [Wave N: X → Wave N+1: Y — trend stated explicitly]
+4. **[Comparison baseline]**: [Agent A reached score in N waves; this agent at score after M waves]
+```
 
-Avoid:
-- Paraphrasing without quoting the source text
-- Assertions like 'accurately reflects' without citing line numbers
-- Evidence blocks under 300 chars (they score at half weight)
+**Always name specific line numbers, file paths, finding IDs, and exact scores**. Avoid vague qualifiers like 'some', 'several', 'many' — replace with counts.
 
-### Summary Format
+---
 
-Summary must be ≤200 chars. Lead with the verdict direction + the single most important quantitative fact:
+### Summary Constraints
 
-- HEALTHY: "synthesis.md Wave 11 section documents E11.1/E11.2 with correct verdicts and scores (4/8=0.50, +0.05 delta from Wave 10)."
-- WARNING: "synthesis.md lacks a dedicated cross-wave failure-mode section; verdict labels missing on 2 of 4 Wave 9 findings."
-- FAILURE: "ROADMAP.md does not exist in bricklayer-v2/; Wave 13 questions absent from questions.md (most recent wave: E12)."
+- Hard limit: ≤200 characters
+- Must state the verdict in the first clause OR embed the key finding
+- Must include one quantitative fact (score, count, line number, percentage)
+- Format: `[Verdict noun phrase] — [one quantitative fact]. [Key insight in ≤10 words.]`
+- Bad: 'The synthesis contains accurate information about Wave 11' (no number, verdict implicit)
+- Good: 'synthesis.md Wave 11 section accurate — E11.1 IMPROVEMENT and E11.2 INCONCLUSIVE correctly documented with 0.45–0.55 score range'
 
-Never start the summary with 'Based on my research' or 'I have sufficient evidence'. State the fact directly.
+---
+
+### Root Cause Chain Requirement
+
+For WARNING and FAILURE verdicts, always construct: **defect → mechanism → observable impact**.
+- Defect: the specific broken thing (e.g., `JSON.stringify(response)` scans oldString)
+- Mechanism: how the defect propagates (e.g., any edit of text containing 'error' triggers guard)
+- Impact: measurable consequence (e.g., 5.3 false warnings per session)
+
+For HEALTHY verdicts on verification questions: **location → content match → cross-reference confirmation**. Cite line numbers and source file names to make the chain auditable.
+
+---
 
 ### Confidence Targeting
 
-Default to 0.75. Adjust only when:
-- You have direct line-number evidence for every claim → 0.85
-- Evidence is indirect (inferred from related files, not the target file) → 0.65
-- File was unreadable or partially accessible → 0.55
+Default confidence: **0.75**.
 
-### Root Cause Chain Pattern
+Adjust down to 0.60–0.65 only when: the source finding files are missing and you inferred from secondary evidence, OR the question contains ambiguity about which wave/version is referenced.
 
-High-scoring findings follow: **root cause → mechanism → measured impact**.
+Adjust up to 0.85 only when: you have read the exact lines in question, cross-referenced against the source finding file, and found exact numeric matches with zero discrepancies.
 
-Example pattern (E8.4, score 80):
-- Root cause: `hasErrorSignal()` scanned `JSON.stringify(response)` including `oldString`
-- Mechanism: any edit replacing text with 'error' keyword triggered the guard regardless of newString
-- Impact: 5.3 false warnings per session, measured pre-fix
-
-Apply this chain when diagnosing bugs or structural defects. Symptom-only descriptions score lower.
+Do not set confidence above 0.90 for any synthesis-accuracy question — synthesis.md can drift between waves.
 
 <!-- /DSPy Optimized Instructions -->
