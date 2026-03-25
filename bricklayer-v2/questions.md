@@ -401,3 +401,80 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 **Hypothesis**: quantitative-analyst live eval (tools enabled) will score ≥0.70, consistent with the historical 0.90 score reported in E5.1 (which was likely measured with tools). If the live score is ≥0.85, no optimization is needed. If 0.60–0.85, the agent is a candidate for improve_agent.py. If <0.60, the training data or metric has a structural issue requiring investigation.
 **Method**: evolve-optimizer (runs `eval_agent_live.py --agent quantitative-analyst --eval-size 20`; records per-record results and pass rate; updates agent_registry.yml last_score field with live eval result; compares to static baseline of 0.40; documents verdict as IMPROVEMENT vs static baseline if ≥0.70, WARNING if 0.50–0.70, FAILURE if <0.50)
 **Success criterion**: Live eval score reported for quantitative-analyst; agent_registry.yml last_score updated; result compared to static 0.40 baseline; optimization recommendation made (optimize / hold / investigate data quality).
+
+---
+
+## Wave 16
+
+**Generated from findings**: E15.1, E15.2, E15.3, E15.4, E15.5, E15.6, E13.10
+**Mode transitions applied**: E15.6 INCONCLUSIVE (quantitative-analyst blocked by schema gap) → E16.1 Fix + E16.2 Evolve; E15.2 IMPROVEMENT (INCONCLUSIVE misfire confirmation deferred) → E16.4 Evolve; E15.3 IMPROVEMENT (0.65 baseline analytical only) → E16.3 Evolve; E15.5 IMPROVEMENT (research-analyst 0.93) → E16.5 Monitor; E13.10 PENDING_EXTERNAL (crash resolved by E15.1) → E16.6 Evolve
+
+### E16.1: Fix eval_agent_live.py to accept question_text key as fallback (unblocks quantitative-analyst live eval)
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: E15.6 INCONCLUSIVE — `eval_agent_live.py._load_agent_records()` reads `input.question` but quantitative-analyst's 45 records in `scored_findings.jsonl` use `input.question_text`. The eval harness returns 0 records for this agent. E15.6 identified the exact fix: add `question_text` as a fallback key in the question-field lookup.
+**Hypothesis**: Adding `record.get("input", {}).get("question") or record.get("input", {}).get("question_text", "")` as the question-field lookup in `_load_agent_records()` will load quantitative-analyst records correctly without affecting existing records that use the `question` key.
+**Method**: fix-implementer (reads E15.6 finding for exact line references; locates the `record.get("input", {}).get("question", "")` expression in `eval_agent_live.py._load_agent_records()`; replaces with two-key fallback; verifies with `eval_agent_live.py --agent quantitative-analyst --eval-size 5` — should return ≥5 records loaded with non-empty question content; re-runs a karen eval to confirm no regression)
+**Success criterion**: `eval_agent_live.py --agent quantitative-analyst --eval-size 5` returns ≥5 records loaded (not 0); agent receives non-empty question text; existing karen live eval unaffected (backward-compatible).
+
+---
+
+### E16.2: Run quantitative-analyst live eval — establish authoritative baseline (resolves E15.6 after E16.1)
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: HIGH
+**Motivated by**: E15.6 INCONCLUSIVE — E14.6 found static eval 0.40 is unreliable (tool-dependent). E5.1 historical 0.90 was likely measured with tools. True live baseline is unknown. Depends on E16.1.
+**Hypothesis**: quantitative-analyst live eval will score ≥0.70, consistent with the research-analyst 0.35-static vs 0.91-live gap. If ≥0.85, no optimization needed. If 0.60–0.85, run `improve_agent.py`. If <0.60, training data structure is the root cause.
+**Method**: evolve-optimizer (confirms E16.1 complete; runs `eval_agent_live.py --agent quantitative-analyst --eval-size 20`; records per-record pass/fail; updates agent_registry.yml last_score with live result; states optimization recommendation: hold / optimize / investigate data quality)
+**Success criterion**: Live eval score reported for quantitative-analyst across ≥15 records; agent_registry.yml last_score updated; optimization recommendation documented; E15.6 linked finding marked resolved.
+
+---
+
+### E16.3: Run full-corpus live eval with corrected corpus — confirm 0.65 baseline (post E15.2 and E15.3 changes)
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: MEDIUM
+**Motivated by**: E15.3 IMPROVEMENT — corrected full-corpus baseline of 0.65 (20/31 compatible records) was calculated analytically only. E15.2 added Rule 4(d) which may fix 2 INCONCLUSIVE misfires (E8.2-rec-2, E8.2-rec-6). An empirical run is needed to confirm the estimate and measure E15.2's impact on older record families.
+**Hypothesis**: Full-corpus live eval (excluding 5 flagged incompatible records) will score 0.65–0.74. Rule 4(d) should fix E8.2-rec-2 and E8.2-rec-6 (+2 passes). WARNING under-fire records (E9.1-rec-2, E9.3-rec-3, E8.2-rec-5) may still fail if they require out-of-date context. Net expected: 22–23/31 ≈ 0.71–0.74.
+**Method**: evolve-optimizer (runs `eval_agent_live.py --agent research-analyst --eval-size 40` without `--include-incompatible`; records per-family breakdown vs E14.9 baseline; identifies which records still fail post-E15.2; reports score vs E14.9 baseline 0.58 and E15.3 estimate 0.65)
+**Success criterion**: Full-corpus score reported with per-family breakdown; improvement over E14.9 baseline (0.58) confirmed; remaining failure patterns identified; score compared to E15.3 analytical estimate (0.65).
+
+---
+
+### E16.4: Confirm INCONCLUSIVE misfire fix — live eval E8.2-rec-2 and E8.2-rec-6 after E15.2 Rule 4(d) patch
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: HIGH
+**Motivated by**: E15.2 IMPROVEMENT — Rule 4(d) added for production/runtime questions. E15.5 only tested the E12.1-live- family; the INCONCLUSIVE misfires (E8.2-rec-2, E8.2-rec-6) were not directly confirmed. Both are canonical examples of the Rule 4(d) production-soundness trigger.
+**Hypothesis**: Both E8.2-rec-2 and E8.2-rec-6 will score ≥0.50 with INCONCLUSIVE correctly predicted after the Rule 4(d) patch. E9.4-rec-1 is excluded (eval_compatible=false, malformed input schema).
+**Method**: evolve-optimizer (runs `eval_agent_live.py --agent research-analyst --eval-size 5 --id-prefix E8.2-rec-`; isolates E8.2-rec-2 and E8.2-rec-6 from results; records predicted verdicts; verdict IMPROVEMENT if both ≥0.50, WARNING if one passes, FAILURE if both still predict WARNING/FAILURE)
+**Success criterion**: E8.2-rec-2 and E8.2-rec-6 both score ≥0.50 with INCONCLUSIVE predicted; E15.2 instruction change confirmed effective; findings note "Rule 4(d) CONFIRMED on canonical production-soundness question pair."
+
+---
+
+### E16.5: Add research-analyst live eval score to monitor-targets.md
+
+**Status**: PENDING
+**Operational Mode**: monitor
+**Priority**: LOW
+**Motivated by**: E15.5 IMPROVEMENT — research-analyst E12.1-live- family at 0.93 is the campaign high-water mark. The E14.1 regression (0.91→0.75) went undetected until E15.5 confirmed recovery. Without a monitor target, future instruction changes lack a formal regression gate.
+**Hypothesis**: Adding `research_analyst_live_eval_score` to `monitor-targets.md` with WARNING threshold <0.88 and FAILURE threshold <0.80 will catch future regressions. The 0.88 WARNING threshold provides a 5-point buffer from the 0.93 current score, accounting for stochastic variance (±0.06).
+**Method**: health-monitor (reads monitor-targets.md current format and metric definition block pattern; appends `research_analyst_live_eval_score` row to the metrics table; writes definition block consistent with existing entries; measurement method: "Run eval_agent_live.py --agent research-analyst --eval-size 20 --id-prefix E12.1-live- after each instruction change or optimization loop"; finding ref: E15.5)
+**Success criterion**: `research_analyst_live_eval_score` row in metrics table with WARNING=<0.88, FAILURE=<0.80, measurement method, and E15.5 finding ref; definition block written; existing entries unchanged.
+
+---
+
+### E16.6: Run improve_agent.py research-analyst --loops 3 --eval-size 30 (completes E13.10 convergence test)
+
+**Status**: PENDING_EXTERNAL
+**Operational Mode**: evolve
+**Priority**: MEDIUM
+**Motivated by**: E13.10 PENDING_EXTERNAL — 3-loop convergence test was blocked by UnicodeDecodeError crash in E14.8. E15.1 confirmed the encoding='utf-8' fix is committed (76f31e6). E15.5 confirmed current instructions achieve 0.93 on E12.1-live- family. Convergence behavior (plateau / oscillate / improve) is unknown and needed for fleet-wide optimization planning.
+**Hypothesis**: With eval-size=30, tool-free variance narrows to ±0.06, making loop outcomes signal vs noise distinguishable. The current instruction state is likely near the ceiling — loop 1 may detect no improvement and revert. Loops 2-3 expected to plateau. Final live eval ≥0.91 after loops.
+**Method**: Run `improve_agent.py research-analyst --loops 3 --eval-size 30` from Git Bash (not inside Claude session). Record per-loop tool-free scores and keep/revert decisions. After loops complete, run `eval_agent_live.py --agent research-analyst --eval-size 20 --id-prefix E12.1-live-` to confirm live score vs E15.5 baseline (0.93).
+**Success criterion**: 3 loops complete without crash; per-loop tool-free scores and keep/revert decisions recorded; live eval score ≥0.91 post-optimization; convergence behavior documented (plateau / oscillate / improve); E13.10 formally resolved.
