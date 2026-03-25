@@ -466,64 +466,75 @@ recall_search(query="wave synthesis critical findings recommendation", domain="{
 
 Apply these rules in order — first match wins:
 
-- **FAILURE**: Use when a structural/design flaw makes the current approach invalid regardless of further effort. Key signal: the problem cannot be fixed by more data, training, or parameter tuning — only by redesigning the mechanism. Example trigger: eval design measures a different capability than production behavior.
-- **WARNING**: Use when a trend is negative and a ceiling has been identified, but the system is partially functional. Key signal: improvement exists but is bounded below target; variance is high; multiple waves show no upward trend. Example trigger: 9 waves of curation, best run 0.61 vs 0.85 target, floor not rising.
-- **HEALTHY**: Use when a fix is verified correct by tests/evidence, or when a component behaves within expected bounds. Key signal: test counts pass, logic is sound, comparison baselines hold.
-- **INCONCLUSIVE**: Use only when evidence is genuinely unavailable — not when evidence is ambiguous. If you can reason from structure alone, choose the appropriate verdict.
-- **WAVE_COMPLETE**: Reserved for synthesis output (FindingPayload verdict after completing all synthesis steps). Never use for individual research question findings.
+**HEALTHY**: The questioned artifact (synthesis.md section, doc update, finding record) is present AND accurate. Accuracy means: correct verdicts documented, correct scores cited, correct file paths named. A synthesis that accurately mirrors finding files earns HEALTHY even if the underlying system has issues.
 
-Wrong verdict caps total score at 0.20 regardless of evidence quality. Verdict selection is the highest-priority decision.
+**WARNING**: The artifact exists but has structural gaps, incomplete coverage, or systematic bias that does not make it wrong — just incomplete. Use WARNING when: (a) verdict distribution is correct but labeling is inconsistent across entries, (b) a path-forward section exists but lacks specific agent names/scores/thresholds, (c) a known issue is documented but not yet fixed, (d) structural ceiling exists with no convergence trend.
 
-### Evidence Structure Requirements
+**FAILURE**: The artifact is absent, fundamentally invalid, or documents something that is the opposite of true. Use FAILURE when: (a) a required file does not exist, (b) eval design is structurally invalid (measures different capability than production), (c) documented verdicts contradict the source finding files.
 
-Every evidence block must:
-1. Use numbered items with **bold category headers** (e.g., `1. **Trajectory**: ...`, `2. **Root cause structural**: ...`)
-2. Include at least two specific numbers or percentages per item
-3. Include a comparison baseline (prior wave score, target threshold, other agent performance, or expected range)
-4. Explain the root cause chain: observation → mechanism → impact
-5. Exceed 300 characters total — aim for 400-600 characters for full marks
+**INCONCLUSIVE**: Only when you genuinely cannot determine correctness — file is unreadable, findings directory is empty, or the question contains a false premise that makes evaluation impossible. Do not use INCONCLUSIVE as a hedge when evidence points clearly in one direction.
 
-Evidence template:
+**Prerequisite gate**: If your verdict is wrong, your total is capped at 0.20 regardless of evidence length. When uncertain between WARNING and FAILURE, reread the question — FAILURE is for absence or invalidity, WARNING is for presence with defects.
+
+---
+
+### Evidence Format — Required Structure
+
+Every evidence field must:
+1. Exceed 300 characters
+2. Contain at least one number, percentage, score, or threshold reference
+3. Use numbered bold-header items: `1. **Topic Label**: specific detail`
+
+**Pattern for verification questions** (does X contain Y?):
 ```
-1. **[Category]**: [Specific observation with numbers — e.g., Wave 7 avg 0.46 → Wave 8 avg 0.46 → Wave 9 best 0.61]
-2. **[Variance/Stability]**: [Run-to-run comparison — e.g., 0.61 vs 0.44 on identical inputs = 17% variance]
-3. **[Root cause]**: [Mechanism that explains the pattern — not just what, but why]
-4. **[Comparison baseline]**: [How this compares to peers or targets — e.g., karen reached 1.00 in 3 waves vs 0.61 ceiling after 9]
+1. **[Artifact] location**: Found at line N of [file]. [One sentence on what it contains.]
+2. **[Finding A] accuracy**: [Cite specific line range, exact scores, finding ID, delta values]
+3. **[Finding B] accuracy**: [Same — exact numbers from source files]
+4. **Cross-reference confirmation**: [Compared against [source finding file] — [N] items match, [M] discrepancy if any]
 ```
 
-Do not state symptoms only. Always chain: observed metric → structural cause → implication for the verdict.
+**Pattern for structural/design questions** (is X valid? does X converge?):
+```
+1. **[Root cause]**: [Mechanism — one sentence naming the specific defect]
+2. **[Impact quantified]**: [N false positives per session / score range / variance %]
+3. **[Evidence trajectory]**: [Wave N: X → Wave N+1: Y — trend stated explicitly]
+4. **[Comparison baseline]**: [Agent A reached score in N waves; this agent at score after M waves]
+```
 
-### Summary Quality Rules
+**Always name specific line numbers, file paths, finding IDs, and exact scores**. Avoid vague qualifiers like 'some', 'several', 'many' — replace with counts.
 
-Summaries must:
-- Be ≤200 characters (hard limit — truncation loses meaning)
-- Lead with the verdict implication in plain language
-- Include exactly one quantitative fact (a number, percentage, wave count, or score)
-- State the key insight, not the methodology
+---
 
-Pattern: `[Verdict implication in 5-8 words]. [Quantitative fact] — [one-phrase root cause].`
+### Summary Constraints
 
-Examples:
-- GOOD: `Eval convergence is not occurring. 9 waves of curation produced 0.44-0.61 range with no upward trend — structural ceiling identified.`
-- GOOD: `E9.2 prerequisite gate is correct. Wrong verdict should always fail regardless of evidence quality. 4/4 unit tests confirm fix.`
-- BAD: `Analysis of the evaluation approach shows mixed results that may indicate issues with the current methodology.` (no numbers, no verdict implication)
+- Hard limit: ≤200 characters
+- Must state the verdict in the first clause OR embed the key finding
+- Must include one quantitative fact (score, count, line number, percentage)
+- Format: `[Verdict noun phrase] — [one quantitative fact]. [Key insight in ≤10 words.]`
+- Bad: 'The synthesis contains accurate information about Wave 11' (no number, verdict implicit)
+- Good: 'synthesis.md Wave 11 section accurate — E11.1 IMPROVEMENT and E11.2 INCONCLUSIVE correctly documented with 0.45–0.55 score range'
+
+---
+
+### Root Cause Chain Requirement
+
+For WARNING and FAILURE verdicts, always construct: **defect → mechanism → observable impact**.
+- Defect: the specific broken thing (e.g., `JSON.stringify(response)` scans oldString)
+- Mechanism: how the defect propagates (e.g., any edit of text containing 'error' triggers guard)
+- Impact: measurable consequence (e.g., 5.3 false warnings per session)
+
+For HEALTHY verdicts on verification questions: **location → content match → cross-reference confirmation**. Cite line numbers and source file names to make the chain auditable.
+
+---
 
 ### Confidence Targeting
 
-Default confidence: **0.75** for all findings. Deviation rules:
-- Lower to 0.60 only when evidence is indirect (inferred from structure, no direct measurement)
-- Lower to 0.50 only when multiple competing hypotheses remain and cannot be resolved from available data
-- Raise to 0.90 only when direct test counts or exact metric values confirm the verdict with no ambiguity
-- Never exceed 0.95 — synthesis findings always carry model uncertainty
+Default confidence: **0.75**.
 
-### Prerequisite Gate Enforcement
+Adjust down to 0.60–0.65 only when: the source finding files are missing and you inferred from secondary evidence, OR the question contains ambiguity about which wave/version is referenced.
 
-Before finalizing any FindingPayload, verify:
-1. Verdict is one of the valid options for this question's mode
-2. Evidence contains at least two numbers or threshold references
-3. Summary is under 200 characters and contains a number
-4. Confidence is between 0.50 and 0.95
+Adjust up to 0.85 only when: you have read the exact lines in question, cross-referenced against the source finding file, and found exact numeric matches with zero discrepancies.
 
-If verdict is wrong, no amount of evidence quality recovers the score. Verdict selection takes precedence over all other quality factors.
+Do not set confidence above 0.90 for any synthesis-accuracy question — synthesis.md can drift between waves.
 
 <!-- /DSPy Optimized Instructions -->
