@@ -435,11 +435,18 @@ def _tool_masonry_onboard(args: dict) -> dict:
         return {"error": str(exc), "onboarded": [], "count": 0}
 
 
+MIN_VERDICTS_FOR_AUTO_OPTIMIZE = 10
+
+
 def _tool_masonry_drift_check(args: dict) -> dict:
     """Run drift detection for all registry agents that have verdict history.
 
     When auto_trigger=True, spawns improve_agent.py for every critical agent
     as a background subprocess and returns the triggered agent list.
+
+    Agents with fewer than MIN_VERDICTS_FOR_AUTO_OPTIMIZE verdicts are skipped
+    by the auto_trigger spawning loop — insufficient sample size for reliable
+    drift scoring.
     """
     import subprocess  # noqa: PLC0415
     import platform    # noqa: PLC0415
@@ -468,8 +475,22 @@ def _tool_masonry_drift_check(args: dict) -> dict:
 
         if auto_trigger:
             levels_to_trigger = {"critical"} if trigger_level == "critical" else {"critical", "warning"}
+            # Load agent_db once for verdict count checks
+            agent_db: dict = {}
+            if agent_db_path.exists():
+                try:
+                    agent_db = json.loads(agent_db_path.read_text(encoding="utf-8"))
+                except Exception:
+                    agent_db = {}
             for report in reports:
                 if report.alert_level not in levels_to_trigger:
+                    continue
+                # Skip agents with insufficient verdict history — drift score is
+                # statistically unreliable below MIN_VERDICTS_FOR_AUTO_OPTIMIZE.
+                agent_verdict_count = len(
+                    agent_db.get(report.agent_name, {}).get("verdicts", [])
+                )
+                if agent_verdict_count < MIN_VERDICTS_FOR_AUTO_OPTIMIZE:
                     continue
                 try:
                     python = "python" if platform.system() == "Windows" else "python3"
