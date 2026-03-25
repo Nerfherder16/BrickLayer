@@ -42,6 +42,7 @@ if str(_SCRIPT_ROOT) not in sys.path:
 from masonry.src.metrics import build_metric  # noqa: E402
 
 _DATA_FILE = _SCRIPT_ROOT / "masonry/training_data/scored_all.jsonl"
+_DATA_FILE_FINDINGS = _SCRIPT_ROOT / "masonry/training_data/scored_findings.jsonl"
 _AGENTS_DIR = _SCRIPT_ROOT / ".claude/agents"
 _DEFAULT_MODEL = "claude-sonnet-4-6"
 
@@ -67,20 +68,48 @@ def _load_agent_records(
 
     Records with eval_compatible=False are skipped by default (they timeout or have
     malformed input). Pass include_incompatible=True to include them anyway.
+
+    If no records are found in scored_all.jsonl for the agent, falls back to
+    scored_findings.jsonl (which uses input.question_text instead of input.question).
+    The fallback normalizes question_text -> question for downstream compatibility.
     """
     import random
-    records = []
-    skipped = 0
-    with open(_DATA_FILE, encoding="utf-8") as f:
-        for line in f:
-            if line.strip():
-                r = json.loads(line)
-                if r.get("agent") == agent_name:
-                    if id_prefix is None or r.get("question_id", "").startswith(id_prefix):
-                        if not include_incompatible and r.get("eval_compatible") is False:
-                            skipped += 1
-                            continue
-                        records.append(r)
+
+    def _read_from_file(data_file: Path, normalize_question_key: bool = False) -> tuple[list[dict], int]:
+        """Read matching records from a JSONL file. Returns (records, skipped_count)."""
+        found: list[dict] = []
+        skipped = 0
+        if not data_file.exists():
+            return found, skipped
+        with open(data_file, encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    r = json.loads(line)
+                    if r.get("agent") == agent_name:
+                        qid = r.get("question_id") or r.get("input", {}).get("question_id", "")
+                        if id_prefix is None or str(qid).startswith(id_prefix):
+                            if not include_incompatible and r.get("eval_compatible") is False:
+                                skipped += 1
+                                continue
+                            if normalize_question_key:
+                                # Normalize scored_findings.jsonl schema: question_text -> question
+                                inp = r.get("input", {})
+                                if "question_text" in inp and "question" not in inp:
+                                    inp = dict(inp)
+                                    inp["question"] = inp["question_text"]
+                                    r = dict(r, input=inp)
+                            found.append(r)
+        return found, skipped
+
+    records, skipped = _read_from_file(_DATA_FILE)
+
+    if not records:
+        # Primary data file has no records for this agent — try scored_findings.jsonl
+        records, skipped_fb = _read_from_file(_DATA_FILE_FINDINGS, normalize_question_key=True)
+        skipped += skipped_fb
+        if records:
+            print(f"[live-eval] Loaded {len(records)} records from scored_findings.jsonl (fallback) for {agent_name}")
+
     if skipped:
         print(f"[live-eval] Skipped {skipped} eval-incompatible records (pass --include-incompatible to include)")
     rng = random.Random(seed)
