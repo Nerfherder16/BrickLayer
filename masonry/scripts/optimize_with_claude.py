@@ -41,8 +41,15 @@ _DSPY_SECTION_END = "<!-- /DSPy Optimized Instructions -->"
 
 # ── Training data helpers ────────────────────────────────────────────────────
 
+_EXCLUDED_SOURCES = {"mock_campaign", "test_campaign"}
+
+
 def _load_records(scored_all_path: Path, agent_name: str) -> list[dict]:
-    """Load all scored records for agent_name from scored_all.jsonl."""
+    """Load all scored records for agent_name from scored_all.jsonl.
+
+    Records with source in _EXCLUDED_SOURCES are silently skipped to prevent
+    synthetic/test data from degrading optimization quality metrics.
+    """
     if not scored_all_path.exists():
         return []
     records = []
@@ -53,6 +60,8 @@ def _load_records(scored_all_path: Path, agent_name: str) -> list[dict]:
         try:
             rec = json.loads(line)
         except json.JSONDecodeError:
+            continue
+        if rec.get("source") in _EXCLUDED_SOURCES:
             continue
         if rec.get("agent") == agent_name:
             records.append(rec)
