@@ -124,16 +124,16 @@ These limit the system's ability to self-improve.
 
 Makes verdicts trustworthy at scale. Phase 6 items.
 
-### T3.1 — campaign-context.md not written at wave start (6.04)
-**Problem:** Every agent starts cold, re-reading the same findings directory. Expensive and produces inconsistent agent state within a wave.
-**Files:** `template/.claude/agents/mortar.md` (or trowel), `bl/campaign.py`
-**Fix:**
-- [ ] Decide: Mortar or Trowel writes `campaign-context.md`?
-- [ ] Write `bl/campaign_context.py` — reads project summary + top 5 findings + open hypotheses
-- [ ] Wire into wave-start sequence
-- [ ] All agent spawn prompts prepend campaign-context.md content
-- [ ] Auto-refresh every 10 findings
-**Status:** `[ ]`
+### T3.1 — campaign-context.md not written at wave start (6.04) ✅
+**Problem:** Every agent starts cold, re-reading the same findings directory.
+**Fix applied:**
+- [x] Decision: Trowel generates it (owns the campaign loop)
+- [x] Wrote `bl/campaign_context.py` — `generate()` reads project-brief.md, top 5 findings by severity, high-weight PENDING hypotheses from `.bl-weights.json`; CLI: `python -m bl.campaign_context --project-root {dir}`
+- [x] Updated Trowel: wave-start now calls `python -m bl.campaign_context` instead of writing inline
+- [x] Every-10-finding sentinel updated to call same script
+- [x] Agent spawn prepend already in Trowel: `"Read campaign-context.md before proceeding."`
+- [x] Synced trowel.md to 6 project copies
+**Status:** `[x]` DONE
 
 ---
 
