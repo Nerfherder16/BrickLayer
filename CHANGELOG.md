@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `71b0b08` chore: auto-commit 1 session file on stop (2026-03-24)
 - `ed83f10` chore: update agent invocation counts and forge needs (2026-03-24)
 - `60f9f8b` evolve(bl2): E14.1 partial — Rule 4 tuning (3-criteria WARNING gate + HEALTHY decision test) (2026-03-24)
 - `2537a99` chore: auto-commit 2 session files on stop (2026-03-24)
