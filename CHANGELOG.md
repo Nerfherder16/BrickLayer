@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `d1642a8` feat(trowel): add Recall health check at campaign start (Wave 1 only) (2026-03-25)
 - `1fa0ba1` feat(trowel): add Recall health check at Wave 1 cold-start (2026-03-25)
 - `261823c` fix: untrack runtime files + README improvements (2026-03-25)
 - `75aee98` docs: rewrite README to accurately reflect BrickLayer 2.0 current state (2026-03-25)
