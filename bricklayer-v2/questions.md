@@ -272,7 +272,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E14.6: Run fleet-wide baseline eval for top-priority unscored agents (karen, quantitative-analyst, research-analyst static)
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: evolve
 **Priority**: HIGH
 **Motivated by**: E13.9 WARNING — 9 agents with substantial training data have last_score: null. karen (379 records), quantitative-analyst (76 records), and research-analyst (53 records) are the three highest-value targets. Without baselines, the optimization pipeline has no convergence signal for 80%+ of fleet training data.
@@ -296,7 +296,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E14.8: Run improve_agent.py research-analyst --loops 3 --eval-size 30 to test convergence (resolves E13.10)
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: evolve
 **Priority**: MEDIUM
 **Motivated by**: E13.10 PENDING_EXTERNAL — 3-loop convergence test was predicted statically (plateau at loop 2-3, final 0.60-0.70 tool-free, ~0.91 live). E13.3 confirmed loop 1 improved (+0.10 tool-free, +0.07 live) and loop 2 regressed. A larger eval-size (30 vs 20) will reduce the ±0.10 variance that caused loop 2 to appear as regression. Need live run from Git Bash to resolve.
@@ -308,7 +308,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E14.9: Run full-corpus live eval for research-analyst (all 51 records, not just E12.1-live- prefix)
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: evolve
 **Priority**: LOW
 **Motivated by**: E13.3 path forward — post-optimization live eval only tested 17 E12.1-live- records. The full scored_all.jsonl has 51 research-analyst records (including E7.2-pilot-, E8.2-, E9.x- prefixes). A full-corpus live eval will expose whether the 0.91 score holds across question types or is narrow to the E12.1 calibration set.
