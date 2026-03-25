@@ -324,3 +324,80 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 |----|------|--------|---------|
 | Q5.1 | frontier | DONE | If BrickLayer 2.0 had a multi-agent variant — where multiple modes run in parallel on the same project — what would the coordination mechanism look like? What prevents mode conflicts? |
 | Q5.2 | frontier | DONE | What would a visual BrickLayer dashboard look like that shows all projects, their current mode, open findings, and the lifecycle stage progress? What is the most useful single-screen view? |
+
+---
+
+## Wave 15
+
+**Generated from findings**: E14.8, E14.9, E14.6, E14.1
+**Mode transitions applied**: E14.8 WARNING (UnicodeDecodeError crash in improve_agent.py subprocess reader) → E15.1 Fix; E14.9 WARNING (INCONCLUSIVE over-fires as WARNING on 3+ records) → E15.2 Evolve (instruction patch); E14.9 WARNING (4 timeout records skew eval corpus) → E15.3 Evolve (flag eval-incompatible records); E14.9 WARNING (E12.1-live-15 cosmetic print-message persists) → E15.4 Evolve (explicit calibration example); E14.8 WARNING (loop 1 instructions live but post-eval never confirmed) → E15.5 Evolve (live eval confirmation); E14.6 WARNING (quantitative-analyst static eval 0.40 unreliable) → E15.6 Evolve (live eval baseline)
+
+### E15.1: Fix improve_agent.py UnicodeDecodeError — add encoding='utf-8' to subprocess reader thread
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: E14.8 WARNING — improve_agent.py crashed mid-loop with `UnicodeDecodeError: 'charmap' codec can't decode byte 0x8f` in the subprocess reader thread. The fix was already applied to optimize_with_claude.py (same pattern) but not improve_agent.py. Loop 1 instructions were committed (33deee6) but the post-optimization eval never completed, leaving convergence behavior (E13.10) unresolved.
+**Hypothesis**: Adding `encoding='utf-8'` to the subprocess reader thread in `improve_agent.py` (same as the fix applied to `optimize_with_claude.py` in E14.2) will allow the post-eval to complete without crashing. After the fix, re-running `--loops 3` will complete the convergence test and produce per-loop scores and a keep/revert decision for loops 2-3.
+**Method**: fix-implementer (reads E14.8 finding and the existing fix in optimize_with_claude.py for the exact pattern; locates the subprocess reader thread in improve_agent.py; applies `encoding='utf-8'`; runs `improve_agent.py research-analyst --loops 1 --eval-size 10 --dry-run` to confirm subprocess completes without UnicodeDecodeError; then runs `--loops 3 --eval-size 30` to complete E13.10 convergence test)
+**Success criterion**: improve_agent.py subprocess reader thread has `encoding='utf-8'`; a `--loops 3` run completes without UnicodeDecodeError; per-loop scores recorded; E13.10 convergence behavior documented (plateau / improve / oscillate).
+
+---
+
+### E15.2: Fix INCONCLUSIVE handling in research-analyst instructions — prevent over-firing WARNING on unresolvable questions
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: HIGH
+**Motivated by**: E14.9 WARNING — 3 INCONCLUSIVE records (E8.2-rec-2, E8.2-rec-6, E9.4-rec-1) predicted as WARNING or FAILURE. The agent defaults to a concrete verdict when it should recognize that genuinely unresolvable questions deserve INCONCLUSIVE. The current instructions lack an explicit "when to use INCONCLUSIVE" rule — the agent over-fires WARNING on questions where evidence is absent or insufficient.
+**Hypothesis**: Adding an explicit INCONCLUSIVE calibration rule to research-analyst instructions — "If the question cannot be resolved by reading available files and no authoritative evidence exists, verdict is INCONCLUSIVE, not WARNING" — plus one concrete example will reduce INCONCLUSIVE→WARNING/FAILURE misfires. The E12.1-live- family (which already scores 94%) should be unaffected because those records have clear evidence.
+**Method**: evolve-optimizer (reads E14.9 finding for the 3 failing INCONCLUSIVE records and their question texts; reads current research-analyst.md DSPy section; proposes a new INCONCLUSIVE calibration clause with a concrete example; patches research-analyst.md; runs `eval_agent_live.py --agent research-analyst --eval-size 20 --id-prefix E12.1-live-` to verify no regression on the E12.1-live- family; then runs full-corpus eval on the 3 INCONCLUSIVE records to confirm they now score ≥0.50)
+**Success criterion**: All 3 INCONCLUSIVE records (E8.2-rec-2, E8.2-rec-6, E9.4-rec-1) score ≥0.50 after the instruction patch; E12.1-live- family score ≥0.91 (no regression); new INCONCLUSIVE rule committed to research-analyst.md.
+
+---
+
+### E15.3: Flag eval-incompatible records (E9.4/E9.4b/E7.2-pilot timeouts) in scored_all.jsonl
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: HIGH
+**Motivated by**: E14.9 WARNING — 4 records (E9.4-rec-1, E9.4-rec-2, E9.4b-rec-1, E7.2-pilot-5) consistently timeout at 120s during live eval, contributing 4 guaranteed failures to the full-corpus score. These records represent computationally intensive questions (simulation runs, complex code analysis) that exceed the eval harness's default timeout. Excluding them would raise the reported full-corpus score from 0.58 to ~0.67 (20/30) and eliminate 4 guaranteed timeouts from future eval runs.
+**Hypothesis**: Adding an `"eval_compatible": false` field (or equivalent marker) to the 4 timeout records in scored_all.jsonl, and updating eval_agent_live.py to skip records with this flag by default (with an `--include-incompatible` override), will eliminate guaranteed timeout failures without losing the records from the dataset. Alternatively, extending the per-record timeout to 300s for these records resolves the issue without flagging.
+**Method**: evolve-optimizer (reads E14.9 per-record table to identify the 4 timeout records; reads scored_all.jsonl to find their exact entries; proposes a marking strategy — either `"eval_compatible": false` field or `"timeout_seconds": 300` override field; patches scored_all.jsonl and eval_agent_live.py; re-runs full-corpus eval to confirm timeout records are skipped or pass with extended timeout; reports new full-corpus score without the 4 timeout records)
+**Success criterion**: 4 timeout records marked or timeout extended; full-corpus eval runs without >120s stalls on these records; reported full-corpus score recalculated with explanation of excluded records; no change to pass/fail counts for non-timeout records.
+
+---
+
+### E15.4: Add explicit calibration example for E12.1-live-15 cosmetic print-message pattern (HEALTHY, not WARNING)
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: HIGH
+**Motivated by**: E14.9 WARNING, E14.1 WARNING — E12.1-live-15 is the single persistent failure across all instruction versions (E13.3, E14.1, E14.8). The question involves a mismatched print message (`'>120s'` when actual timeout is 180s) which the agent consistently classifies as WARNING. The synthesis diagnosis: the fix needs to name the cosmetic/print-message pattern explicitly rather than relying on abstract calibration rules. All prior attempts to address this via Rule 4 modifications have failed or caused regressions.
+**Hypothesis**: Adding a concrete named example directly to the research-analyst calibration rules — "Example HEALTHY (NOT WARNING): a `print('>120s')` when actual timeout is 180s is a documentation-only inconsistency with no behavioral impact. Do NOT fire WARNING on cosmetic message mismatches." — will fix E12.1-live-15 without triggering the parse-failure regressions seen in E14.1 (which added complex three-criteria gates). A single concrete example is less disruptive than an abstract rule rewrite.
+**Method**: evolve-optimizer (reads E14.9 and E14.1 findings for the exact cosmetic pattern; reads current research-analyst.md DSPy section after E14.8 commit 33deee6; adds one concrete HEALTHY example to the calibration section without modifying the broader WARNING definition; runs `eval_agent_live.py --agent research-analyst --eval-size 20 --id-prefix E12.1-live-` to test E12.1-live-15 specifically; verifies no regressions on currently-passing records)
+**Success criterion**: E12.1-live-15 scores ≥0.50 (HEALTHY predicted correctly); E12.1-live- family score ≥0.91 overall (no regression); example committed to research-analyst.md DSPy section.
+
+---
+
+### E15.5: Live eval on E14.8 instructions (33deee6) to confirm E12.1-live- family score ≥0.91
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: HIGH
+**Motivated by**: E14.8 WARNING — loop 1 instructions committed (33deee6, 3-criteria gate removed, cleaner calibration rules) but the post-optimization eval crashed before completing. E14.9 full-corpus eval ran on the new instructions and confirmed E12.1-live- family at 94% (15/16 pass), but that is with E12.1-live-15 still failing. Synthesis item 5 specifically calls for running a clean E12.1-live- family eval to confirm the E14.1 regression (0.75) has been recovered by E14.8 instructions.
+**Hypothesis**: The E14.8 instructions (33deee6 — 3-criteria gate removed, simpler WARNING definition) restored the E12.1-live- family score to ≥0.91 (16/17 pass), recovering from E14.1's 0.75. E14.9 already suggests 94% (15/16) on this family. A clean `--id-prefix E12.1-live-` run will confirm the recovery and provide the authoritative post-E14.8 baseline.
+**Method**: evolve-optimizer (runs `eval_agent_live.py --agent research-analyst --eval-size 20 --id-prefix E12.1-live-`; records per-record results; compares to E13.3 baseline (0.91) and E14.1 result (0.75); confirms whether E14.8 instructions recover or further degrade; documents verdict as IMPROVEMENT if ≥0.91, WARNING if 0.75–0.90, REGRESSION if <0.75)
+**Success criterion**: Live eval score on E12.1-live- family reported; recovery from E14.1 regression confirmed or denied; result compared to all prior baselines (E13.3: 0.91, E14.1: 0.75, E14.9 implied: 0.94).
+
+---
+
+### E15.6: Live eval for quantitative-analyst — establish authoritative baseline
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: MEDIUM
+**Motivated by**: E14.6 WARNING — quantitative-analyst static eval scored 0.40 (tool-free), which is unreliable due to tool dependence (same 0.35 static vs 0.91 live gap documented for research-analyst). E14.6 synthesis explicitly called for a live eval to establish the authoritative baseline before concluding this agent needs optimization. Without a live eval, the fleet registry shows an inaccurate picture of quantitative-analyst's actual capability.
+**Hypothesis**: quantitative-analyst live eval (tools enabled) will score ≥0.70, consistent with the historical 0.90 score reported in E5.1 (which was likely measured with tools). If the live score is ≥0.85, no optimization is needed. If 0.60–0.85, the agent is a candidate for improve_agent.py. If <0.60, the training data or metric has a structural issue requiring investigation.
+**Method**: evolve-optimizer (runs `eval_agent_live.py --agent quantitative-analyst --eval-size 20`; records per-record results and pass rate; updates agent_registry.yml last_score field with live eval result; compares to static baseline of 0.40; documents verdict as IMPROVEMENT vs static baseline if ≥0.70, WARNING if 0.50–0.70, FAILURE if <0.50)
+**Success criterion**: Live eval score reported for quantitative-analyst; agent_registry.yml last_score updated; result compared to static 0.40 baseline; optimization recommendation made (optimize / hold / investigate data quality).
