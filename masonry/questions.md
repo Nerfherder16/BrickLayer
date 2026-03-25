@@ -2882,7 +2882,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### V-w40.1: Verify karen corpus score distribution — is bimodal cliff still present after F-mid.1/F-mid.2?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: validate
 **Agent**: design-reviewer
 **Priority**: HIGH
@@ -2894,7 +2894,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### R-w40.1: Does karen.md DSPy section contain any research-analyst behavioral patterns on this machine?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Agent**: research-analyst
 **Priority**: HIGH
@@ -2906,7 +2906,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F-w40.1: Add circuit breaker to semantic.py for Ollama timeout (P1 residual)
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Agent**: fix-implementer
 **Priority**: MEDIUM
@@ -2918,7 +2918,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### R-w40.2: P4 subagent tracker slot collision — what records are actually lost or corrupted?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: research
 **Agent**: research-analyst
 **Priority**: LOW
@@ -2930,7 +2930,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F-w40.2: Fix dead `optimized_prompt` field in improve_agent.py comparison report (P7)
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Agent**: fix-implementer
 **Priority**: LOW
