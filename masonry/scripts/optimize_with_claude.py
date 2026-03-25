@@ -41,7 +41,7 @@ _DSPY_SECTION_END = "<!-- /DSPy Optimized Instructions -->"
 
 # ── Training data helpers ────────────────────────────────────────────────────
 
-_EXCLUDED_SOURCES = {"mock_campaign", "test_campaign"}
+_EXCLUDED_SOURCES = {"mock_campaign", "test_campaign", "synthetic_negative"}
 
 
 def _load_records(scored_all_path: Path, agent_name: str) -> list[dict]:
@@ -68,8 +68,41 @@ def _load_records(scored_all_path: Path, agent_name: str) -> list[dict]:
     return records
 
 
-def _tier_examples(records: list[dict], n: int) -> tuple[list[dict], list[dict]]:
-    """Split records into high-quality (score>=75) and low-quality (score<50) tiers."""
+def _record_id(record: dict) -> str:
+    """Return a stable identifier for a record — mirrors eval_agent._record_id."""
+    qid = record.get("question_id")
+    if qid is not None:
+        return str(qid)
+    import hashlib
+    import json as _json
+    content = _json.dumps(record, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
+
+
+_MIN_TIER_RECORDS = 5  # minimum records per tier after exclusion before warning
+
+
+def _tier_examples(
+    records: list[dict],
+    n: int,
+    excluded_ids: set[str] | None = None,
+) -> tuple[list[dict], list[dict]]:
+    """Split records into high-quality (score>=75) and low-quality (score<50) tiers.
+
+    Parameters
+    ----------
+    records:
+        Full list of records for this agent (after _load_records filtering).
+    n:
+        Maximum number of examples to include per tier.
+    excluded_ids:
+        IDs of held-out eval records that must not appear in the training pool.
+        When provided, any record whose ID matches is silently dropped before
+        tiering — enforcing the train/eval split.
+    """
+    if excluded_ids:
+        records = [r for r in records if _record_id(r) not in excluded_ids]
+
     sorted_records = sorted(records, key=lambda r: r.get("score", 0), reverse=True)
     high = [r for r in sorted_records if r.get("score", 0) >= 75][:n]
     low = [r for r in sorted_records if r.get("score", 0) < 50][:n]
@@ -237,6 +270,7 @@ def run(
     num_examples: int = 15,
     dry_run: bool = False,
     signature: str = "research",
+    excluded_ids: set[str] | None = None,
 ) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     print(f"[init] Starting claude-p optimization for: {agent_name}")
@@ -256,6 +290,13 @@ def run(
     print(f"[data] Found {len(records)} records.")
     high, low = _tier_examples(records, num_examples)
     print(f"[data] High-quality examples: {len(high)}, Low-quality: {len(low)}")
+
+    if len(low) == 0:
+        print(
+            f"[warning] No low-quality examples available for {agent_name}. "
+            "Skipping optimization — add organic low-quality records first."
+        )
+        return 1
 
     # ── Read agent instructions ───────────────────────────────────────────────
     md_path = _find_agent_md(agent_name, base_dir)
