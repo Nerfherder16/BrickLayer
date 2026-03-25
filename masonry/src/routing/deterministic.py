@@ -55,7 +55,8 @@ _KAREN_PATTERN = re.compile(
 
 _DIAGNOSE_PATTERN = re.compile(
     r"\b(root\s+cause|why\s+is\s+(it\s+)?(broken|failing|not\s+working)|"
-    r"diagnose|trace\s+(the\s+)?error|something\s+is\s+broken|debug\s+this)\b",
+    r"diagnose|trace\s+(the\s+)?error|something\s+is\s+broken|debug\s+this|"
+    r"what\s+is\s+broken|what's\s+broken|it.s\s+broken)\b",
     re.IGNORECASE,
 )
 
@@ -84,7 +85,8 @@ _REFACTOR_PATTERN = re.compile(
 
 _ARCHITECT_PATTERN = re.compile(
     r"\b(system\s+design|architecture\s+(decision|review)|tech\s+stack|"
-    r"scalab(le|ility)|trade.?off|design\s+pattern|microservice|monolith)\b",
+    r"scalab(le|ility)|trade.?off|design\s+pattern|microservice|monolith|"
+    r"architect\s+a|how\s+should\s+I\s+design|design\s+a)\b",
     re.IGNORECASE,
 )
 
@@ -220,6 +222,18 @@ _FRONTIER_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_EVAL_PATTERN = re.compile(
+    r"\b(run\s+eval\b|improve.agent|eval\s+score|optimize\s+\w+\s+agent|"
+    r"eval_agent\.py|baseline\s+eval|improve\s+agent\s+prompt)\b",
+    re.IGNORECASE,
+)
+
+_MODE_GUIDANCE_PATTERN = re.compile(
+    r"\b(what\s+mode|which\s+mode|what\s+bricklayer\s+mode|"
+    r"what\s+stage\s+is|what\s+phase)\b",
+    re.IGNORECASE,
+)
+
 # ── Mode field regex ───────────────────────────────────────────────────────
 
 _MODE_FIELD_RE = re.compile(r"\*\*(?:Operational\s+)?Mode\*\*:\s*(\w+)", re.IGNORECASE)
@@ -350,6 +364,10 @@ def route_deterministic(
         return _decision("synthesizer-bl2", "Synthesis keyword matched")
     if _FRONTIER_PATTERN.search(request_text):
         return _decision("frontier-analyst", "Blue-sky/frontier keyword matched")
+    if _EVAL_PATTERN.search(request_text):
+        return _decision("evolve-optimizer", "Eval/improve-agent keyword matched")
+    if _MODE_GUIDANCE_PATTERN.search(request_text):
+        return _decision("mortar", "Mode guidance keyword matched")
 
     # 2. Autopilot state
     autopilot_mode = _read_file(project_dir / ".autopilot" / "mode")
