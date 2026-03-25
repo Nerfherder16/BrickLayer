@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `b333c5d` feat(wave-15): complete Wave 15 — research-analyst 0.93, E12.1-live-15 fixed (2026-03-24)
 - `23d4095` chore: auto-commit 1 session file on stop (2026-03-24)
 - `9a84754` chore: auto-commit 1 session file on stop (2026-03-24)
 - `d8272b4` chore: auto-commit 1 session file on stop (2026-03-24)
