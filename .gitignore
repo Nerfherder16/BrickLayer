@@ -35,8 +35,10 @@ __pycache__/
 # VS Code workspace
 *.code-workspace
 
-# SQLite runtime databases
+# Runtime databases — not source, will cause merge conflicts
 **/history.db
+agent_db.json
+**/agent_db.json
 
 # Personal / unrelated content
 projects/MarchMadness/
