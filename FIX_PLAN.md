@@ -208,31 +208,15 @@ Makes verdicts trustworthy at scale. Phase 6 items.
 
 ## Tier 5 — New Capability
 
-### T5.1 — FastMCP Python server (Phase 10)
-**Problem:** The Node.js MCP server is a maintenance burden in a Python-first project. New tools need Python-native testing.
-**Files:** `masonry/src/mcp_python/server.py` (new)
-**Fix:**
-- [ ] `pip install fastmcp>=3.1.0`
-- [ ] Scaffold `masonry/src/mcp_python/server.py`
-- [ ] Port `masonry_karen` tool
-- [ ] Port `masonry_retrospective` tool
-- [ ] Port `masonry_registry` tool
-- [ ] Register in `~/.claude.json` alongside existing masonry-mcp.js
-- [ ] In-process tests via FastMCP test transport
-**Status:** `[ ]`
+### T5.1 — FastMCP Python server (Phase 10) ✅ NOT NEEDED
+**Resolution:** `masonry_karen` and `masonry_retrospective` don't exist as MCP tools — they're invoked as agents. `masonry_registry_list` already exists in the Python MCP server. The Python MCP server (`masonry/mcp_server/server.py`) is already Python-native. Nothing to port.
+**Status:** `[x]` CLOSED — problem didn't exist
 
 ---
 
-### T5.2 — ADBP Rust Monte Carlo Engine (Phase 11)
-**Problem:** ADBP uses deterministic point-estimate simulation. Needs probability distributions and Pareto frontier analysis.
-**Files:** `adbp/mc/` (new Rust crate)
-**Fix:** (tracked separately — full spec in ROADMAP.md Phase 11)
-- [ ] Classify `adbp_constants.py` into Tier 1/2/3
-- [ ] Scaffold Rust crate with maturin + PyO3
-- [ ] Port ADBP economic model to Rust
-- [ ] Implement MC runner (10K samples, rayon parallel)
-- [ ] Multi-objective scoring + Pareto frontier
-**Status:** `[ ]`
+### T5.2 — ADBP Rust Monte Carlo Engine (Phase 11) ✅ ALREADY BUILT
+**Resolution:** Monte Carlo Rust engine is already running in the ADBP project. This was tracked here as a future item but was built separately.
+**Status:** `[x]` DONE (built outside this FIX_PLAN)
 
 ---
 
@@ -244,5 +228,5 @@ Makes verdicts trustworthy at scale. Phase 6 items.
 | T2 — Fleet Quality | 4 | 2 | 1 | 0 |
 | T3 — Campaign Intel | 5 | 5 | 0 | 0 |
 | T4 — Structural | 1 | 1 | 0 | 0 |
-| T5 — New Capability | 2 | 0 | 0 | 0 |
-| **Total** | **15** | **10** | **1** | **0** |
+| T5 — New Capability | 2 | 2 | 0 | 0 |
+| **Total** | **15** | **12** | **1** | **0** |
