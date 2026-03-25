@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `5d3a167` chore: auto-commit 1 session file on stop (2026-03-25)
 - `8d9cb60` chore: auto-commit 2 session files on stop (2026-03-25)
 - `99f310f` feat: add bl-verifier agent — BrickLayer installation health checker (2026-03-25)
 - `292672b` test(T1.3): add e2e tests for llm_router — env var, preflight, retry (2026-03-25)
