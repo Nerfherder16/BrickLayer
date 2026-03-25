@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `8005d55` chore: auto-commit 1 session file on stop (2026-03-24)
 - `69374cc` chore: mark E14.3, E14.4, E14.5 DONE in bricklayer-v2 question bank (2026-03-24)
 - `1a70802` research: Q1 assessment complete - SaaS sustainability verdict FAILURE (2026-03-24)
 - `10af4b1` fix: update .gitignore to cover nested masonry/agent_snapshots/ runtime files (2026-03-24)
