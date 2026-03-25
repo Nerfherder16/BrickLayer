@@ -237,7 +237,7 @@ _MODE_GUIDANCE_PATTERN = re.compile(
 )
 
 _DEVELOPER_PATTERN = re.compile(
-    r"\b(scaffold\s+(a\s+)?(new\s+)?(feature|component|service|module)|"
+    r"\b(scaffold\s+(a\s+)?(new\s+)?(feature|component|service|module|endpoint|route|api)|"
     r"add\s+(a\s+)?(new\s+)?(api\s+)?(endpoint|route|field|column|table|migration)|"
     r"implement\s+(a\s+)?(new\s+)?(function|method|feature|class|handler)|"
     r"I\s+need\s+(a\s+)?(new\s+)?(api|endpoint|route|table|field)|"
