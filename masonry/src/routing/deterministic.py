@@ -54,7 +54,9 @@ _KAREN_PATTERN = re.compile(
 )
 
 _DIAGNOSE_PATTERN = re.compile(
-    r"\b(root\s+cause|why\s+is\s+(it\s+)?(broken|failing|not\s+working)|"
+    r"\b(root\s+cause|why\s+is\s+(\w+\s+)?(broken|failing|not\s+working)|"
+    r"why\s+(isn.t|isn.t|doesn.t|won.t)\s+\w+\s+work|"
+    r"how\s+do\s+I\s+fix\s+(this|the)\s+(bug|error|issue|problem)|"
     r"diagnose|trace\s+(the\s+)?error|something\s+is\s+broken|debug\s+this|"
     r"what\s+is\s+broken|what's\s+broken|it.s\s+broken)\b",
     re.IGNORECASE,
@@ -234,6 +236,30 @@ _MODE_GUIDANCE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_DEVELOPER_PATTERN = re.compile(
+    r"\b(scaffold\s+(a\s+)?(new\s+)?(feature|component|service|module)|"
+    r"add\s+(a\s+)?(new\s+)?(api\s+)?(endpoint|route|field|column|table|migration)|"
+    r"implement\s+(a\s+)?(new\s+)?(function|method|feature|class|handler)|"
+    r"I\s+need\s+(a\s+)?(new\s+)?(api|endpoint|route|table|field)|"
+    r"build\s+(a\s+)?(new\s+)?(feature|service|module|integration))\b",
+    re.IGNORECASE,
+)
+
+_TEST_WRITER_PATTERN = re.compile(
+    r"\b(write\s+(unit\s+)?tests?\s+for|add\s+tests?\s+(for|to|covering)|"
+    r"test\s+coverage\s+for|create\s+(unit|integration)\s+tests?|"
+    r"spec\s+out\s+tests?|generate\s+tests?\s+for)\b",
+    re.IGNORECASE,
+)
+
+_EXPLAIN_PATTERN = re.compile(
+    r"\b(explain\s+(this|the|what|how)|what\s+does\s+\w+\s+do|"
+    r"help\s+me\s+understand\s+(this|the|how)|"
+    r"walk\s+me\s+through|how\s+does\s+\w+\s+work|"
+    r"explain\s+(to\s+me\s+)?how)\b",
+    re.IGNORECASE,
+)
+
 # ── Mode field regex ───────────────────────────────────────────────────────
 
 _MODE_FIELD_RE = re.compile(r"\*\*(?:Operational\s+)?Mode\*\*:\s*(\w+)", re.IGNORECASE)
@@ -368,6 +394,12 @@ def route_deterministic(
         return _decision("evolve-optimizer", "Eval/improve-agent keyword matched")
     if _MODE_GUIDANCE_PATTERN.search(request_text):
         return _decision("mortar", "Mode guidance keyword matched")
+    if _DEVELOPER_PATTERN.search(request_text):
+        return _decision("developer", "Feature/endpoint/scaffold keyword matched")
+    if _TEST_WRITER_PATTERN.search(request_text):
+        return _decision("test-writer", "Test writing keyword matched")
+    if _EXPLAIN_PATTERN.search(request_text):
+        return _decision("general-purpose", "Explain/understand keyword matched")
 
     # 2. Autopilot state
     autopilot_mode = _read_file(project_dir / ".autopilot" / "mode")
