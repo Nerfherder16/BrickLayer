@@ -330,14 +330,15 @@ Python package root is the `Bricklayer2.0/` directory. Import as `from masonry.s
 
 ## Key Findings
 
-- **D24.1** [FIX_APPLIED] Wave 24: training_extractor.py Agent field extraction added; 603 cross-project training records now recoverable; primary attribution source is finding file, qid_map is fallback
-- **R24.1** [WARNING] Wave 24: Phase 17 metric ceiling revised to 70-73% (was 75-80%); verdict accuracy ~35-40% is the binding constraint, not evidence quality scoring
-- **V24.1** [NOT_VALIDATED] Wave 24: karen (191 records) structurally incompatible with ResearchAgentSig; KarenSig definition required before multi-agent optimization
+- **V-mid.1** [FAIL] Wave 38: F12.1 confidence-based drift metric NOT implemented; `_score_verdicts()` still scores FAILURE=0.0; research-analyst at 45.2% CRITICAL drift; single remaining blocker before safe MIPROv2 optimization
+- **F-mid.1** [FIX_APPLIED] Wave 38: Karen rubric contamination (P3 cascade) remediated; signature-conditional rubric injection shipped in `optimize_with_claude.py`
+- **F-mid.2** [FIX_APPLIED] Wave 38: Mock campaign corpus (P2) cleaned; 135 records removed; source-exclusion guard prevents recurrence
 
 ## Open Items
 
 | ID | Verdict | Summary |
 |----|---------|---------|
-| D24.2 | DIAGNOSIS_COMPLETE | score_routing.py awards 70pts by checking if dispatched agent is recognized (trivially true); no ground-truth target_agent exists; fix: capture request_text in routing log + ground-truth-aware scoring |
-| R24.1 | WARNING | Phase 17 metric changes yield +1-4pts (69-73%), not +5-8pts (75-80%); verdict accuracy is binding constraint; D24.1 attribution fix is higher leverage than metric weight changes |
-| V24.1 | NOT_VALIDATED | karen 191 training records use ops-domain schema; ResearchAgentSig incompatible; KarenSig + metric + loader needed |
+| V-mid.1 | FAIL | F12.1 NOT implemented; `_score_verdicts()` scores FAILURE=0.0; research-analyst 45.2% CRITICAL drift; confidence data exists in agent_db.json but consumption path missing |
+| V-mid.2 | WARNING | P5 primary trigger closed; residual: build-guard cross-session exits 0 with stderr-only message; stop-guard auto-commits without test/task gate |
+| P1 | CONFIRMED | Ollama offline cascade; 15s blocking per non-deterministic route; circuit breaker needed in semantic.py |
+| P4 | WARNING | Pre-agent tracker one-slot collision at 16.7% rate; downstream impact limited to analytics |
