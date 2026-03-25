@@ -46,12 +46,12 @@ call synthesizer-bl2
 
 Before processing the first question:
 
-**Campaign Context (write at wave start, refresh every 10 findings):**
-Write `campaign-context.md` in the project root with:
-- Header: `# Campaign Context — {project} (Wave {N})`
-- `## Project`: first paragraph of project-brief.md (or "No project brief found" if absent)
-- `## Top Findings`: ID, verdict, one-line summary of the 5 highest-severity findings so far
-- `## Open Hypotheses`: PENDING questions with weight > 1.5 from .bl-weights.json (if it exists)
+**Campaign Context (generate at wave start, refresh every 10 findings):**
+Run the context generator script — do NOT write campaign-context.md manually:
+```bash
+python -m bl.campaign_context --project-root {project_dir}
+```
+This writes `campaign-context.md` with: project summary, top 5 findings by severity, high-weight PENDING hypotheses.
 Prepend `"Read campaign-context.md before proceeding.\n\n"` to every specialist agent spawn prompt.
 
 1. **Placeholder check**: Scan questions.md for any of these strings: `[parameter X]`, `[volume / adoption / usage]`, `[critical dependency]`, `{PROJECT NAME}`. If found:
@@ -231,7 +231,7 @@ Fire when `global_count` crosses a multiple of the interval:
 | Every 8 (global) | Invoke pointer in **foreground**: produces mid-wave checkpoint — see Pointer Checkpoint section |
 | Every 10 (global) | Spawn agent-auditor in background: `agents_dir=.claude/agents/, findings_dir=findings/, results_tsv=results.tsv` — then check its output (see Overseer Escalation) |
 | Every 10 (global) | Invoke synthesizer-bl2 in **lightweight mode**: `mode=mid-session, findings_dir=findings/, project_name={project}` — does not commit, just refreshes synthesis.md. Read updated synthesis before routing the next question. |
-| Every 10 (global) | Refresh `campaign-context.md`: re-read the top 5 findings and PENDING hypotheses from .bl-weights.json, rewrite the file in-place using the same format as wave start (Header + ## Project + ## Top Findings + ## Open Hypotheses). |
+| Every 10 (global) | Refresh `campaign-context.md`: run `python -m bl.campaign_context --project-root {project_dir}` to regenerate in-place. |
 | After every finding | Spawn peer-reviewer in background: `primary_finding=findings/{id}.md, target_git=., agents_dir=.claude/agents/` |
 | At campaign close | Force-fire forge-check, agent-auditor, AND skill-forge before/after calling synthesizer; then spawn git-nerd (task=wave-end) |
 
