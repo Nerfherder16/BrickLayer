@@ -1,6 +1,6 @@
 # synthesizer-bl2-prose-regression: Why synthesizer-bl2 eval score dropped from 0.62 to 0.41 after PROSE re-labeling
 
-**Status**: DIAGNOSIS_COMPLETE
+**Status**: FIXED
 **Date**: 2026-03-24
 **Agent**: diagnose-analyst
 
@@ -100,3 +100,10 @@ The PROSE re-labeling was a red herring -- it changed 3 records from one type of
 ## Recommend
 
 [RECOMMEND: fix-implementer -- DIAGNOSIS_COMPLETE with full Fix Specification ready. Primary fix is re-labeling 7 stale gold labels in scored_all.jsonl to match current synthesis.md state. Secondary fix is unblocking the optimization subprocess in optimize_with_claude.py.]
+
+## Fix Status
+Updated: 2026-03-24 — FIXED by fix-implementer. See synthesizer-bl2-regression_fix.md.
+
+Fix 1: 6 stale synthesizer-bl2 records in `masonry/training_data/scored_all.jsonl` re-labeled from HEALTHY/WARNING to FAILURE (E12.3-synth-1, -2, -3, -7, -8, -10). These referenced Wave 9/10/11 content absent from the current Wave 14 synthesis.md.
+
+Fix 2: `--dangerously-skip-permissions` already present at line 358 of `masonry/scripts/optimize_with_claude.py` — no change needed (applied as E14.2).
