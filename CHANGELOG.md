@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `7e5d649` chore: auto-commit 2 session files on stop (2026-03-24)
 - `276e8d3` chore: auto-commit 1 session file on stop (2026-03-24)
 - `c1ca47c` chore: add Wave 41 questions (F-w41.1-4, V-w41.1) (2026-03-24)
 - `0381660` fix(karen): restore full agent definition lost during optimization (2026-03-24)
