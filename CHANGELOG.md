@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `9edb3ef` chore: add Wave 40 questions (V-w40.1, R-w40.1, F-w40.1, R-w40.2, F-w40.2, P-w40.1) (2026-03-24)
 - `517d715` chore: F-next.3 stop-guard IN_PROGRESS gate + synthesizer-bl2 agent update (2026-03-24)
 - `3e68881` chore: mark wave-next complete; update synthesis for V-next.1/R-next.1/F-next.2/F-next.3 (2026-03-24)
 - `4a33c49` chore: auto-commit 2 session files on stop (2026-03-24)
