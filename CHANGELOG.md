@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `2aa9210` chore: auto-commit 1 session file on stop (2026-03-24)
 - `4f18252` chore: auto-commit 11 session files on stop (2026-03-24)
 - `597fda7` chore: auto-commit 3 session files on stop (2026-03-24)
 - `e0c2782` feat(wave-43): fix pre-optimization safety issues + expose research-analyst corpus gap (2026-03-24)
