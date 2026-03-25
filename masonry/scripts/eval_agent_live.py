@@ -60,18 +60,29 @@ _LIVE_PREAMBLE = (
 
 
 def _load_agent_records(
-    agent_name: str, eval_size: int, seed: int, id_prefix: str | None = None
+    agent_name: str, eval_size: int, seed: int, id_prefix: str | None = None,
+    include_incompatible: bool = False,
 ) -> list[dict]:
-    """Load records for a given agent from scored_all.jsonl. Optional id_prefix filter."""
+    """Load records for a given agent from scored_all.jsonl. Optional id_prefix filter.
+
+    Records with eval_compatible=False are skipped by default (they timeout or have
+    malformed input). Pass include_incompatible=True to include them anyway.
+    """
     import random
     records = []
+    skipped = 0
     with open(_DATA_FILE, encoding="utf-8") as f:
         for line in f:
             if line.strip():
                 r = json.loads(line)
                 if r.get("agent") == agent_name:
                     if id_prefix is None or r.get("question_id", "").startswith(id_prefix):
+                        if not include_incompatible and r.get("eval_compatible") is False:
+                            skipped += 1
+                            continue
                         records.append(r)
+    if skipped:
+        print(f"[live-eval] Skipped {skipped} eval-incompatible records (pass --include-incompatible to include)")
     rng = random.Random(seed)
     rng.shuffle(records)
     return records[:eval_size]
@@ -142,10 +153,14 @@ def run_live_eval(
     seed: int = 42,
     id_prefix: str | None = None,
     agent_name: str = "research-analyst",
+    include_incompatible: bool = False,
 ) -> None:
     sys.stdout.reconfigure(encoding="utf-8")
 
-    records = _load_agent_records(agent_name, eval_size, seed, id_prefix=id_prefix)
+    records = _load_agent_records(
+        agent_name, eval_size, seed, id_prefix=id_prefix,
+        include_incompatible=include_incompatible,
+    )
     agent_instructions = _read_agent_instructions(agent_name)
 
     print(f"[live-eval] {agent_name} | {len(records)} records | tools ENABLED")
@@ -233,8 +248,20 @@ def main() -> None:
     parser.add_argument("--eval-size", type=int, default=5, help="Number of records to eval")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for record selection")
     parser.add_argument("--id-prefix", type=str, default=None, help="Filter records by question_id prefix")
+    parser.add_argument(
+        "--include-incompatible",
+        action="store_true",
+        default=False,
+        help="Include records marked eval_compatible=False (timeout/malformed; excluded by default)",
+    )
     args = parser.parse_args()
-    run_live_eval(eval_size=args.eval_size, seed=args.seed, id_prefix=args.id_prefix, agent_name=args.agent)
+    run_live_eval(
+        eval_size=args.eval_size,
+        seed=args.seed,
+        id_prefix=args.id_prefix,
+        agent_name=args.agent,
+        include_incompatible=args.include_incompatible,
+    )
 
 
 if __name__ == "__main__":

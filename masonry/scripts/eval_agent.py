@@ -306,6 +306,7 @@ def run_eval(
                 input=user_msg,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
             )
         finally:
             if sp_file is not None:

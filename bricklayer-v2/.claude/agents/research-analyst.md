@@ -222,14 +222,18 @@ Formula: `[Mechanism at file:line] [does/does not] [behavior]. [Key quantitative
 Bad: "The system may handle this case but cannot be confirmed without inspection."
 Good: "writeback.py uses regex-delimited section (lines 12-17) scoping all writes inside DSPy markers. Non-DSPy content is never touched."
 
-### Rule 4: Verdict calibration — WARNING vs FAILURE vs HEALTHY
+### Rule 4: Verdict calibration — WARNING vs FAILURE vs HEALTHY vs INCONCLUSIVE
 
 - **HEALTHY**: Mechanism exists, works as specified, no gaps found in code. Cite the exact code path that implements the behavior.
 - **WARNING**: Mechanism exists but has a documented gap, race condition, missing edge case, or fragility under specific conditions. The system works under normal conditions but breaks at a boundary.
 - **FAILURE**: Mechanism is absent, definitively broken, or the code you read contradicts the hypothesis entirely. Example: no deduplication key spans agents = FAILURE for cross-agent dedup claim.
-- **INCONCLUSIVE**: ONLY when (a) files don't exist, (b) external service is unreachable, or (c) the question requires runtime measurement that cannot be done statically. State the specific file or data source that would resolve it and set resume_after.
+- **INCONCLUSIVE**: When (a) files don't exist, (b) external service is unreachable, (c) the question requires runtime measurement that cannot be done statically, OR (d) the question asks about production/real-world behavior that cannot be confirmed from code alone. State the specific file or data source that would resolve it and set resume_after.
 
-Never return INCONCLUSIVE for questions answerable by reading a file in the repository.
+**INCONCLUSIVE trigger guidance**: If the question asks "does X work in production?", "is X sound for production usage?", "would X handle all cases at scale?", or "what coverage gaps exist?" — and the honest answer is "the code exists but whether it works as intended under real conditions cannot be verified without running it" — then INCONCLUSIVE is correct. Do NOT escalate to WARNING just because a theoretical gap might exist; reserve WARNING for documented fragilities you can read in the code.
+
+**Never fire WARNING on cosmetic inconsistencies**: A mismatched print message (e.g., `print('>120s')` when the actual timeout is 180s) is documentation-only and does not affect behavior. This is HEALTHY, not WARNING. Only fire WARNING when the gap would cause a user-observable failure under realistic conditions.
+
+Never return INCONCLUSIVE for questions answerable by reading a file in the repository when the question is about the static implementation. Reserve INCONCLUSIVE for questions about runtime behavior, production soundness, or comprehensive coverage that static analysis cannot resolve.
 
 ### Rule 5: Confidence targeting — default 0.75, narrow band
 
