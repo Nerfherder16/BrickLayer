@@ -236,7 +236,14 @@ def run_eval(
 
     # Load records
     records = _load_records(data_file, agent)
-    held_out = records[-eval_size:] if len(records) >= eval_size else records
+    _MIN_TRAINING_RECORDS = 10
+    safe_eval_size = min(eval_size, max(1, len(records) - _MIN_TRAINING_RECORDS))
+    if safe_eval_size < eval_size:
+        print(
+            f"[warn] eval_size={eval_size} exceeds corpus capacity ({len(records)} records). "
+            f"Capping to {safe_eval_size} to preserve training pool."
+        )
+    held_out = records[-safe_eval_size:] if len(records) >= safe_eval_size else records
     # Capture stable IDs for held-out records so the optimization step can
     # exclude them from the training pool (train/eval split).
     held_out_ids: list[str] = [
