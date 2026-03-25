@@ -2813,3 +2813,65 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 **Motivated by**: P5 (CONFIRMED/High) — session-start interrupted-build cascade. P5 peer review found that F3.1 (empty hooks.json) has already been applied — `hooks/hooks.json` contains `{"hooks": {}}`. V-mid.2 validates this end-to-end: confirms the double-fire path is closed AND that cross-session build-guard gating remains the residual risk.
 **Hypothesis**: With `hooks/hooks.json` empty, SessionStart fires only once (from `~/.claude/settings.json` registration). The interrupted-build fast path in `masonry-session-start.js` lines 67-78 should produce valid single-JSON output that Claude's hook framework can parse. The residual risk is `masonry-build-guard.js` session-ID gating (line 82-97: exits 0 on session mismatch), which remains unaddressed.
 **Success criterion**: (1) Read `hooks/hooks.json` — confirm `{"hooks": {}}` or equivalent empty-hooks structure. (2) Read `~/.claude/settings.json` hook registrations — confirm SessionStart registered once (not twice). (3) Trace `masonry-session-start.js` interrupted-build fast path — confirm single JSON output would be valid. (4) Read `masonry-build-guard.js` lines 82-97 — confirm cross-session gating behavior and whether it surfaces any warning. Verdict: PASS if F3.1 effective and residual risk documented; FAIL if double-fire still possible; PARTIAL if F3.1 applied but stop-guard/build-guard residuals not assessed.
+
+---
+
+## Wave Next — Validation + Optimization Queue (Generated 2026-03-24)
+
+### F-next.1: Implement F12.1 — confidence-based drift metric in drift_detector.py
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: V-mid.1 (FAIL) — F12.1 not implemented; P6 (CONFIRMED/Critical) — drift scoring inversion CASCADE_ACTIVE. V-mid.1 confirmed `_score_verdicts()` has no confidence parameter; research-analyst at 45.2% CRITICAL drift.
+**Hypothesis**: Add `confidences: list[float] | None = None` parameter to `_score_verdicts()` with confidence-weighted mean path; thread through `detect_drift()` and `run_drift_check()` which reads `entry.get("confidences", [])` from `agent_db.json`. Apply to both `masonry/src/drift_detector.py` (canonical) and `masonry/src/dspy_pipeline/drift_detector.py`.
+**Success criterion**: `grep -n "confidences" masonry/src/drift_detector.py` returns 3+ hits; research-analyst drift computes to −7.4% (ok/improvement) from mean confidence 0.9131. Verdict: FIX_APPLIED if all checks pass.
+
+---
+
+### V-next.1: Verify F12.1 end-to-end — masonry_drift_check returns correct alert levels
+
+**Status**: DONE
+**Operational Mode**: validate
+**Agent**: design-reviewer
+**Priority**: HIGH
+**Motivated by**: F-next.1 (FIX_APPLIED) — F12.1 implemented. V-next.1 validates the fix end-to-end by checking that research-analyst and diagnose-analyst flip from CRITICAL to ok/improvement, and that the MIN_VERDICTS guard (F-mid.3) correctly gates benchmark-engineer (2 verdicts).
+**Hypothesis**: With F12.1 live in `masonry/src/drift_detector.py`, calling `run_drift_check()` should compute research-analyst current_score ≈ 0.9131 (mean confidence), drift ≈ −7.4%, alert = ok. Diagnose-analyst and design-reviewer should similarly show ok/WARNING based on their confidence means. Benchmark-engineer (2 verdicts) should be excluded by MIN_VERDICTS guard from auto_trigger path.
+**Success criterion**: (1) Read `masonry/src/drift_detector.py` — confirm `_score_verdicts()` has confidence path (grep for "confidences"). (2) Read `agent_db.json` — get research-analyst confidence mean. (3) Compute expected drift with confidence-weighted score vs. baseline. (4) Verify MIN_VERDICTS guard present in `mcp_server/server.py`. Verdict: PASS if all four agents compute correctly; FAIL if confidence path missing; PARTIAL if path exists but wrong data plumbed.
+
+---
+
+### R-next.1: Does `improve_agent.py --dry-run` show before_score ≥ 0.50 for research-analyst after corpus cleanup?
+
+**Status**: DONE
+**Operational Mode**: research
+**Agent**: research-analyst
+**Priority**: HIGH
+**Motivated by**: F-mid.2 (FIX_APPLIED, 135 mock records removed) + P2 (WARNING/High, before_score degraded 0.35 → 0.25 → 0.15). With the corpus clean and F12.1 active, the eval pipeline should now produce a meaningful before_score that enables improvement detection.
+**Hypothesis**: After removing 135 mock_campaign records from `scored_all.jsonl`, the remaining 527 real records should produce a before_score ≥ 0.45 (P2 cap estimate) or possibly ≥ 0.50 if the contamination was the primary drag. If before_score is still < 0.45, additional corpus issues may exist (sparse low-scoring examples, mislabeled records, or rubric misalignment).
+**Success criterion**: (1) Read `masonry/training_data/scored_all.jsonl` — confirm mock_campaign records absent (grep for "mock_campaign"). (2) Read `masonry/scripts/eval_agent.py` to understand eval sampling. (3) Compute expected before_score from remaining records using `_score_verdicts()` logic. (4) Determine if the eval would produce a score ≥ 0.45 or ≥ 0.50. Verdict: HEALTHY if ≥ 0.50; WARNING if 0.35–0.50; FAILURE if < 0.35 (still degraded despite cleanup).
+
+---
+
+### F-next.2: Fix build-guard cross-session warning visibility (V-mid.2 residual risk 1)
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: MEDIUM
+**Motivated by**: V-mid.2 (WARNING) — `masonry-build-guard.js` exits 0 on session mismatch with stderr-only message not visible in Claude's conversation context. If user dismisses session-start resume directive, there is no Stop-time enforcement.
+**Hypothesis**: Modify `masonry-build-guard.js` lines 86-91: add a `hookSpecificOutput` to the cross-session mismatch path alongside the existing stderr write. The hookSpecificOutput should name the orphaned build's project and task count, making the warning visible in Claude's conversation context at Stop time as a non-blocking second safety net. The `process.exit(0)` should remain — this is a warning, not a block.
+**Success criterion**: (1) Read `masonry-build-guard.js` lines 82-97. (2) Add hookSpecificOutput to the `buildSessionId !== currentSessionId` branch. (3) Verify the exit code remains 0 (non-blocking). (4) Verify the hookSpecificOutput includes project name and orphaned task count. Verdict: FIX_APPLIED if hookSpecificOutput added; PARTIAL if message modified but not surfaced in-conversation.
+
+---
+
+### F-next.3: Add IN_PROGRESS task gate to stop-guard auto-commit (V-mid.2 residual risk 2)
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: MEDIUM
+**Motivated by**: V-mid.2 (WARNING) — `masonry-stop-guard.js` auto-commits all session-touched files unconditionally with no test-pass gate, no IN_PROGRESS task guard, generic commit message. Partial interrupted-build implementations can enter git history without verification.
+**Hypothesis**: Add a guard before the auto-commit block (line 296 in masonry-stop-guard.js): if `.autopilot/mode` is `"build"` or `"fix"` AND `progress.json` has any tasks with `status: "IN_PROGRESS"`, skip the auto-commit and emit a blocking message explaining that mid-task partial code will not be auto-committed. Also add the build task ID to the auto-commit message for traceability.
+**Success criterion**: (1) Read `masonry-stop-guard.js` lines 280-320. (2) Add IN_PROGRESS task check before auto-commit. (3) Verify the check reads `.autopilot/progress.json` and inspects task statuses. (4) Verify the blocking message names the in-progress task. Verdict: FIX_APPLIED if guard present and logic correct; PARTIAL if guard added but message lacks task context.
