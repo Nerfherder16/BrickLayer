@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+import random
 import re
 import subprocess
 import sys
@@ -180,7 +181,7 @@ def _score_example(
 # ── Core eval function ────────────────────────────────────────────────────────
 
 
-def _record_id(record: dict, index: int) -> str:
+def _record_id(record: dict) -> str:
     """Return a stable identifier for a record.
 
     Uses ``question_id`` when present (most records have it).  Falls back to a
@@ -217,7 +218,7 @@ def run_eval(
     signature:
         Metric signature to use — "karen" or "research".
     eval_size:
-        Number of held-out examples (last N records).
+        Number of held-out examples (randomly sampled with seed=42).
     model:
         Claude model to use for inference.
     base_dir:
@@ -236,18 +237,19 @@ def run_eval(
 
     # Load records
     records = _load_records(data_file, agent)
-    _MIN_TRAINING_RECORDS = 10
-    safe_eval_size = min(eval_size, max(1, len(records) - _MIN_TRAINING_RECORDS))
-    if safe_eval_size < eval_size:
-        print(
-            f"[warn] eval_size={eval_size} exceeds corpus capacity ({len(records)} records). "
-            f"Capping to {safe_eval_size} to preserve training pool."
-        )
-    held_out = records[-safe_eval_size:] if len(records) >= safe_eval_size else records
+    # Use deterministic random sampling (seed=42) so the held-out split is
+    # reproducible but spread across the full corpus rather than biased toward
+    # the last-N records.  This ensures records appended in chronological order
+    # (e.g. all organic_low examples added at the end) have ~equal probability
+    # of falling in the training pool vs. the held-out set.
+    random.seed(42)
+    sampled_size = min(eval_size, len(records))
+    held_out_indices = sorted(random.sample(range(len(records)), sampled_size))
+    held_out = [records[i] for i in held_out_indices]
     # Capture stable IDs for held-out records so the optimization step can
     # exclude them from the training pool (train/eval split).
     held_out_ids: list[str] = [
-        _record_id(rec, i) for i, rec in enumerate(held_out)
+        _record_id(rec) for rec in held_out
     ]
 
     # Load agent prompt

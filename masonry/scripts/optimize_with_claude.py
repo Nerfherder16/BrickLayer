@@ -276,6 +276,13 @@ def run(
     print(f"[init] Starting claude-p optimization for: {agent_name}")
     print(f"[init] Base directory: {base_dir}")
 
+    if excluded_ids is None:
+        print(
+            "[warn] excluded_ids=None: train/eval split is not enforced. "
+            "Use improve_agent.py to automatically pass held-out IDs from eval to optimizer.",
+            file=sys.stderr,
+        )
+
     # ── Load training data ────────────────────────────────────────────────────
     td_dir = base_dir / "masonry" / "training_data"
     scored_all_path = td_dir / "scored_all.jsonl"

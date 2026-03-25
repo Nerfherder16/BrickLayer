@@ -245,14 +245,16 @@ class TestWritesEvalJson:
 
 
 # ---------------------------------------------------------------------------
-# Test 4: holdout uses LAST N examples, not first N
+# Test 4: holdout uses deterministic random sampling (seed=42), not last N
 # ---------------------------------------------------------------------------
 
+import random as _random
 
-class TestUsesLastNExamples:
-    """run_eval holds out the last --eval-size records, not the first."""
 
-    def test_uses_last_n_examples(self, tmp_path: Path) -> None:
+class TestUsesRandomSampling:
+    """run_eval holds out a random sample (seed=42), not just the last N records."""
+
+    def test_uses_random_sampling(self, tmp_path: Path) -> None:
         # Create 10 records with distinct, trackable inputs
         all_records = [_make_record(agent="karen", index=i) for i in range(10)]
         data_file = tmp_path / "scored_all.jsonl"
@@ -260,12 +262,14 @@ class TestUsesLastNExamples:
 
         snapshot_dir = tmp_path / "snapshots"
 
+        # Compute expected held-out indices using the same seed the implementation uses
+        _random.seed(42)
+        expected_indices = set(sorted(_random.sample(range(10), 3)))
+
         # Track which inputs claude was actually called with
         called_inputs: list[str] = []
 
         def _capture_subprocess(cmd, **kwargs):
-            # The prompt is passed as the last element of the command list
-            # or via stdin/capture — extract the input from the call args
             full_cmd = " ".join(str(c) for c in cmd)
             called_inputs.append(full_cmd)
             result = MagicMock(spec=subprocess.CompletedProcess)
@@ -283,7 +287,7 @@ class TestUsesLastNExamples:
                 "masonry.scripts.eval_agent.build_metric",
                 return_value=lambda example, pred: 1.0,
              ):
-            result = run_eval(
+            run_eval(
                 agent="karen",
                 signature="karen",
                 eval_size=3,
@@ -291,22 +295,22 @@ class TestUsesLastNExamples:
                 snapshot_dir=snapshot_dir,
             )
 
-        # Exactly 3 subprocess calls must have been made (the last 3 records)
+        # Exactly 3 subprocess calls must have been made
         assert len(called_inputs) == 3, (
-            f"Expected 3 subprocess calls (last 3 records), got {len(called_inputs)}"
+            f"Expected 3 subprocess calls (random 3 records), got {len(called_inputs)}"
         )
 
-        # The examples in the output must correspond to records 7, 8, 9 (indices 7-9)
+        # The examples in the output must correspond to the seed=42 sampled indices
         output_path = snapshot_dir / "karen" / "eval_latest.json"
         payload = json.loads(output_path.read_text(encoding="utf-8"))
-        evaluated_indices = [ex["input"]["index"] for ex in payload["examples"]]
+        evaluated_indices = set(ex["input"]["index"] for ex in payload["examples"])
 
-        # Last 3 of [0..9] are indices 7, 8, 9
-        assert set(evaluated_indices) == {7, 8, 9}, (
-            f"Expected last 3 record indices {{7, 8, 9}}, got {set(evaluated_indices)}"
+        assert evaluated_indices == expected_indices, (
+            f"Expected seed=42 sampled indices {expected_indices}, got {evaluated_indices}"
         )
 
-        # Confirm none of the first 7 records (indices 0-6) were evaluated
-        assert not any(idx in evaluated_indices for idx in range(7)), (
-            f"First-7 record indices must NOT be evaluated; found {evaluated_indices}"
+        # Confirm the last 3 records (indices 7,8,9) are NOT necessarily all selected
+        # (with seed=42 on range(10) choose 3, expected_indices is {0,1,4})
+        assert evaluated_indices != {7, 8, 9}, (
+            "Random sampling must not always select last-N records"
         )
