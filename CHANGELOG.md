@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `75aee98` docs: rewrite README to accurately reflect BrickLayer 2.0 current state (2026-03-25)
 - `ce39f02` chore: auto-onboard e2e agent to masonry registry (2026-03-25)
 - `63f5505` chore: auto-commit 3 session files on stop (2026-03-25)
 - `57ea3d8` chore: append Q179 eval finding to scored_all.jsonl training data (2026-03-25)
