@@ -59,3 +59,6 @@ E13.2	WARNING	Replacement record E13.2-live-replacement scores 0.75 avg (2/3 run
 E13.3	IMPROVEMENT	research-analyst live eval 0.84→0.91 (+0.07) after loop 1 optimization. 7-rule DSPy section injected. Tool-free eval noisy (±0.10); loop 2 reverted. 1 new HEALTHY→WARNING false positive.	research-analyst.md optimize_with_claude.py	2026-03-25T00:30:00Z
 E14.2	IMPROVEMENT	Added --dangerously-skip-permissions to claude -p subprocess in optimize_with_claude.py. Fixes approval-flow intercept by masonry-approver.js that blocked synthesizer-bl2 optimization (E13.5).	optimize_with_claude.py	2026-03-25T01:00:00Z
 E14.7	IMPROVEMENT	Added 4 deterministic routing patterns (eval/improve-agent, what-is-broken, architect-a/design-a, mode-guidance). Coverage 75%->100% on 30-query BL workflow test. 17/17 new pattern tests pass, no regressions.	masonry/src/routing/deterministic.py bricklayer-v2/findings/evolve/E14.7.md	2026-03-25T01:30:00Z
+E14.3	IMPROVEMENT	peer-reviewer.md written to both locations. Unblocks E13.8 baseline eval.	peer-reviewer.md	2026-03-25T01:45:00Z
+E14.4	IMPROVEMENT	agent-auditor.md and retrospective.md written. Unblocks E13.8 baseline eval.	agent-auditor.md retrospective.md	2026-03-25T01:45:00Z
+E14.5	IMPROVEMENT	frontier-analyst.md written, F-mid.3 resolved. FR-prefix mode transitions unblocked.	frontier-analyst.md	2026-03-25T01:45:00Z
