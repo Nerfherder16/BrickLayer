@@ -84,14 +84,28 @@ async function main() {
 
   // Only block the session that owns this build.
   if (buildSessionId && currentSessionId && buildSessionId !== currentSessionId) {
-    process.stderr.write(
-      `\n[Masonry] Build owned by session ${buildSessionId.slice(0, 8)}... — not blocking this session.\n`,
+    const orphanMsg = `[Masonry] Prior session build detected: owned by session ${buildSessionId.slice(0, 8)}...`;
+    process.stderr.write(`\n${orphanMsg}\n`);
+    process.stdout.write(
+      JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "Stop",
+          content: `${orphanMsg}\nAn interrupted build from a prior session may still have uncommitted work. Run \`git status\` and check \`.autopilot/progress.json\` before starting new work.`,
+        },
+      }),
     );
     process.exit(0);
   }
   if (!buildSessionId && currentSessionId) {
-    process.stderr.write(
-      `\n[Masonry] Build has no session owner (legacy) — not blocking this session.\n`,
+    const legacyMsg = `[Masonry] Prior session build detected: no session owner (legacy build).`;
+    process.stderr.write(`\n${legacyMsg}\n`);
+    process.stdout.write(
+      JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "Stop",
+          content: `${legacyMsg}\nAn interrupted build from a prior session may still have uncommitted work. Run \`git status\` and check \`.autopilot/progress.json\` before starting new work.`,
+        },
+      }),
     );
     process.exit(0);
   }
