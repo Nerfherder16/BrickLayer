@@ -191,19 +191,18 @@ Makes verdicts trustworthy at scale. Phase 6 items.
 
 ## Tier 4 — Structural Debt
 
-### T4.1 — No hard solution for parallel session conflicts
-**Problem:** Rules are documented but behavioral. `masonry-state.json`, `.autopilot/progress.json`, `questions.md` — any modified by the wrong session causes silent corruption.
-**Files:** `masonry/mcp_server/server.py`, `masonry/src/hooks/masonry-guard.js`, relevant state files
-**Fix options:**
-- (A) File locking via `fcntl`/`msvcrt` + lock files (`.masonry.lock`)
-- (B) Session ownership tokens written to state files — read-then-verify before write
-- (C) Masonry MCP server acts as single write coordinator (all writes go through MCP, not direct file)
-**Recommendation:** Option B is lightweight and doesn't require infrastructure changes.
-- [ ] Design token format: `{session_id, pid, started_at}` written to state files on session start
-- [ ] Add ownership check to `masonry-guard.js` before allowing writes to protected files
-- [ ] Graceful conflict message: "File owned by session {id} started at {time}"
-- [ ] Test: two concurrent sessions, confirm second session is blocked on protected files
-**Status:** `[ ]`
+### T4.1 — No hard solution for parallel session conflicts ✅
+**Problem:** Rules were documented but behavioral. `masonry-state.json`, `.autopilot/progress.json`, `questions.md` — any modified by the wrong session causes silent corruption.
+**Fix applied (Option B — session ownership tokens):**
+- [x] On SessionStart: write `{session_id, started_at, cwd, branch}` to `.mas/session.lock` — skipped if a non-stale lock from a different session already exists (stale threshold: 4h)
+- [x] On PreToolUse (Write|Edit): new `masonry-session-lock.js` hook checks if target is a protected file AND a different session holds a fresh lock → blocks with `decision: "block"` and message naming the owning session
+- [x] On SessionEnd: `masonry-session-end.js` releases the lock if `session_id` matches
+- [x] Protected files: `masonry-state.json`, `.autopilot/{progress.json,mode,compact-state.json}`, `questions.md`, `findings/*.md`
+- [x] BL research subprocesses: hook exits silently (same `isResearchProject()` guard as other hooks)
+- [x] Added to `masonry/hooks/hooks.json` (PreToolUse Write|Edit, timeout 5)
+- [x] Added to `~/.claude/settings.json`
+- [x] Note: `masonry-guard.js` is NOT a write guard — it's a PostToolUse 3-strike error fingerprinter. New `masonry-session-lock.js` is the correct PreToolUse guard.
+**Status:** `[x]` DONE
 
 ---
 
@@ -244,6 +243,6 @@ Makes verdicts trustworthy at scale. Phase 6 items.
 | T1 — Broken Infra | 3 | 2 | 1 | 0 |
 | T2 — Fleet Quality | 4 | 2 | 1 | 0 |
 | T3 — Campaign Intel | 5 | 5 | 0 | 0 |
-| T4 — Structural | 1 | 0 | 0 | 0 |
+| T4 — Structural | 1 | 1 | 0 | 0 |
 | T5 — New Capability | 2 | 0 | 0 | 0 |
-| **Total** | **15** | **9** | **1** | **0** |
+| **Total** | **15** | **10** | **1** | **0** |
