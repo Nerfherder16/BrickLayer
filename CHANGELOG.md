@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `2f203ae` evolve(bl2): Wave 14 question bank generated (9 E14.x questions) (2026-03-24)
 - `5527ad9` evolve(bl2): Wave 13 synthesis — research-analyst 0.91, routing 75% deterministic, 9 agents unscored (2026-03-24)
 - `3e48908` evolve(bl2): E13.3 IMPROVEMENT — research-analyst live eval 0.84→0.91 (+0.07) (2026-03-24)
 - `a4b8cfa` chore: auto-commit 1 session file on stop (2026-03-24)
