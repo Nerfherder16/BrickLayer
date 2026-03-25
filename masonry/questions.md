@@ -2751,3 +2751,65 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 **Motivated by**: V30.5 investigation — `AgentRegistryEntry.optimized_prompt` was identified as a schema field that is "never populated or read by code." The field exists in `masonry/src/schemas/payloads.py` but write-back via `run_optimization.py` does not update the registry entry.
 **Hypothesis**: If MIPROv2 optimization runs succeed (E33.1 eventually executes) and `writeback_optimized_instructions()` writes optimized text into agent `.md` files, the `AgentRegistryEntry.optimized_prompt` field in `agent_registry.yml` will still be empty/null. Any code that reads this field to determine whether an agent has been optimized will incorrectly report all agents as unoptimized — even after successful optimization. Cascades: (1) Kiln's "Not optimized" badge will persist for agents that actually have optimized instructions in their `.md` files, causing false-negative displays; (2) Any routing logic that checks `optimized_prompt` before selecting between base and optimized agent behavior will always fall back to unoptimized behavior; (3) The `masonry_drift_check` MCP tool, if it reads `optimized_prompt` to assess optimization coverage, will report 0% coverage indefinitely. The cascade is cosmetic unless code begins acting on the field.
 **Success criterion**: (1) Read `masonry/src/schemas/payloads.py` — confirm the `AgentRegistryEntry` schema definition for `optimized_prompt` (type, default, required). (2) Grep the entire codebase for reads of `optimized_prompt` from registry entries — confirm whether any code path currently consumes this field. (3) Check Kiln source (`masonry/kiln/` or `BrickLayerHub/`) for any UI component that reads `optimized_prompt` to render the "Not optimized" badge. (4) Determine whether `writeback_optimized_instructions()` in `run_optimization.py` updates `agent_registry.yml` after writing to `.md` files. Verdict: CASCADE_ACTIVE if any executed code path reads `optimized_prompt` and makes decisions based on it; CASCADE_IMMINENT if Kiln reads the field for display (false-negative badge is user-visible); DORMANT if the field is defined but truly unread by any current code path.
+
+---
+
+## Wave Mid — Fix + Validate Questions (Generated 2026-03-24)
+
+### F-mid.1: Clear contaminated karen.md DSPy section and fix `_build_prompt()` rubric injection
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: P3 (CASCADE_ACTIVE) — karen.md contaminated with research-analyst rubric from `optimize_with_claude.py` `_build_prompt()` hardcoding; `karen.json` `optimized_at: 2026-03-24T23:17:33Z` confirms live contamination. P3 peer review quality score 0.95 — all claims verified.
+**Hypothesis**: Fix requires two changes: (A) strip the contaminated DSPy Optimized Instructions section from `karen.md` (and `~/.claude/agents/karen.md` on all machines) using `strip_optimized_instructions()`; (B) fix `_build_prompt()` in `optimize_with_claude.py` to inject the correct karen rubric when `--signature karen` is passed — weight distribution: `quality_score_proximity 0.5`, `action_match 0.3`, `changelog_quality 0.2`. Without fix (A), every karen invocation runs against research-analyst criteria. Without fix (B), the next optimization run will re-contaminate karen.md.
+**Success criterion**: (1) Grep `karen.md` and `~/.claude/agents/karen.md` for `## DSPy Optimized Instructions` — confirm section absent post-fix. (2) Read `_build_prompt()` in `optimize_with_claude.py` — confirm signature-conditional rubric injection present. (3) Run `improve_agent.py karen --signature karen --dry-run` — confirm `before_score` reflects karen-specific metric, not research-analyst metric. Verdict: FIX_APPLIED if all three checks pass; PARTIAL if only strip is done without `_build_prompt()` fix.
+
+---
+
+### F-mid.2: Remove 15 mock_campaign records from `scored_all.jsonl` and add source-exclusion guard
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: P2 (WARNING/High) — 15 records with `source: mock_campaign` in `scored_all.jsonl` are degrading `before_score` from 0.35 → 0.25 → 0.15 across optimization loops, effectively freezing the loop. P2 peer review CONFIRMED all 7 evidence points.
+**Hypothesis**: Remove all records where `source == "mock_campaign"` from `scored_all.jsonl`. Add a filter in `_load_records()` in `optimize_with_claude.py` (line 44) to exclude records with `source` in a configurable exclusion list (`["mock_campaign", "test_campaign"]`). After cleanup, `before_score` should recover to ≥0.45 on next eval cycle.
+**Success criterion**: (1) Count records in `scored_all.jsonl` before and after — confirm 15 fewer records. (2) Grep `scored_all.jsonl` for `mock_campaign` — confirm zero hits post-fix. (3) Read `_load_records()` in `optimize_with_claude.py` — confirm source-exclusion filter present. (4) Run `improve_agent.py research-analyst --dry-run` — confirm `before_score` ≥ 0.45. Verdict: FIX_APPLIED if all checks pass; PARTIAL if records removed but guard not added.
+
+---
+
+### V-mid.1: Verify F12.1 (confidence-based drift metric) is active end-to-end
+
+**Status**: PENDING
+**Operational Mode**: validate
+**Agent**: design-reviewer
+**Priority**: HIGH
+**Motivated by**: P6 (CONFIRMED/Critical) — drift scoring inversion is cascade-active. Four agents at CRITICAL drift (45–100%) because FAILURE=0.0. P6 mitigation recommends confidence-based `_score_verdicts()` as fix. V-mid.1 checks whether F12.1 was actually implemented. P6 peer review also flagged that `masonry/src/drift_detector.py` may differ from `masonry/src/dspy_pipeline/drift_detector.py`.
+**Hypothesis**: F12.1 was tracked as a queued fix in prior synthesis. If implemented, `drift_detector.py` should contain a `confidences` parameter in `_score_verdicts()` and a confidence-weighted mean path. If NOT implemented, the four CRITICAL agents remain at inversion risk and `masonry_drift_check(auto_trigger=true)` must stay prohibited.
+**Success criterion**: (1) Read `masonry/src/drift_detector.py` AND `masonry/src/dspy_pipeline/drift_detector.py` — determine which is canonical (imported by `mcp_server/server.py`). (2) Check `_score_verdicts()` signature — does it accept a `confidences` parameter? (3) Check whether `run_drift_check()` passes `confidences` from `agent_db.json` entries. (4) If confidence path exists, compute research-analyst's score with actual confidence values — confirm it flips from CRITICAL to ok. Verdict: PASS if F12.1 is fully active; FAIL if not implemented; PARTIAL if code exists but confidence data not plumbed through.
+
+---
+
+### F-mid.3: Add MIN_VERDICTS guard before auto_trigger fires in `masonry_drift_check`
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: MEDIUM
+**Motivated by**: P6 (CONFIRMED/Critical) — benchmark-engineer at 100% drift from only 2 verdicts. A 2-sample statistical basis is insufficient to trigger `improve_agent.py`. P6 mitigation recommends a minimum sample threshold of ≥10 verdicts.
+**Hypothesis**: Add `MIN_VERDICTS_FOR_AUTO_OPTIMIZE = 10` constant and gate the `auto_trigger` spawning block in `mcp_server/server.py` `_tool_masonry_drift_check()` (lines 438-497) — only spawn `improve_agent.py` if `len(agent_db_entry["verdicts"]) >= MIN_VERDICTS_FOR_AUTO_OPTIMIZE`. This prevents benchmark-engineer (2 verdicts) from triggering unnecessary optimization while the statistical basis is too small to be meaningful.
+**Success criterion**: (1) Read `mcp_server/server.py` `_tool_masonry_drift_check()` — confirm MIN_VERDICTS guard present in `auto_trigger` block. (2) Verify benchmark-engineer's 2-verdict entry would be excluded by the guard. (3) Confirm research-analyst (29 verdicts) and diagnose-analyst (34 verdicts) would still pass the guard. Verdict: FIX_APPLIED if guard present and logic correct; PARTIAL if constant added but guard not wired in.
+
+---
+
+### V-mid.2: Verify F3.1 resolves interrupted-build resume output collision end-to-end
+
+**Status**: PENDING
+**Operational Mode**: validate
+**Agent**: design-reviewer
+**Priority**: MEDIUM
+**Motivated by**: P5 (CONFIRMED/High) — session-start interrupted-build cascade. P5 peer review found that F3.1 (empty hooks.json) has already been applied — `hooks/hooks.json` contains `{"hooks": {}}`. V-mid.2 validates this end-to-end: confirms the double-fire path is closed AND that cross-session build-guard gating remains the residual risk.
+**Hypothesis**: With `hooks/hooks.json` empty, SessionStart fires only once (from `~/.claude/settings.json` registration). The interrupted-build fast path in `masonry-session-start.js` lines 67-78 should produce valid single-JSON output that Claude's hook framework can parse. The residual risk is `masonry-build-guard.js` session-ID gating (line 82-97: exits 0 on session mismatch), which remains unaddressed.
+**Success criterion**: (1) Read `hooks/hooks.json` — confirm `{"hooks": {}}` or equivalent empty-hooks structure. (2) Read `~/.claude/settings.json` hook registrations — confirm SessionStart registered once (not twice). (3) Trace `masonry-session-start.js` interrupted-build fast path — confirm single JSON output would be valid. (4) Read `masonry-build-guard.js` lines 82-97 — confirm cross-session gating behavior and whether it surfaces any warning. Verdict: PASS if F3.1 effective and residual risk documented; FAIL if double-fire still possible; PARTIAL if F3.1 applied but stop-guard/build-guard residuals not assessed.
