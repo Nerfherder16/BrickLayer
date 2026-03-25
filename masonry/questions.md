@@ -3011,3 +3011,116 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 **Motivated by**: F-w40.1 (FIX_APPLIED) — circuit breaker added to `semantic.py`. Validates the fall-through contract: OPEN → None → router activates Layer 3.
 **Hypothesis**: `route_semantic()` returns None when OPEN (not raises). `router.py` treats None from Layer 2 as a miss and falls through to Layer 3. Timeout is on the HTTP call parameter. Circuit state is module-level.
 **Success criterion**: (1) semantic.py OPEN path returns None. (2) router.py handles None from Layer 2 → Layer 3. (3) Timeout on HTTP call not a sleep/thread. (4) `_cb_failures`, `_cb_opened_at` are module-level. Verdict: PASS if all four; PARTIAL if OPEN returns None but router doesn't handle it.
+
+---
+
+## Wave 42 — Optimization Pre-Flight + Metric Blind Spots
+
+### R-w42.1: Research-analyst dry-run — does improve_agent.py produce a stable before_score post-Wave-41 changes?
+
+**Status**: DONE
+**Operational Mode**: research
+**Agent**: research-analyst
+**Priority**: HIGH
+**Motivated by**: R-next.1 (HEALTHY, before_score=0.5333 at Wave 39). Wave 41 changed eval_size default (20→50) and added train/eval split exclusion. A new dry-run is needed to confirm before_score is still ≥ 0.50 under the new eval mechanics.
+**Hypothesis**: With eval_size=50 and held_out_ids exclusion, the 36-record corpus may not have enough records to fill both a 50-record held-out set and a meaningful optimization pool. If the corpus is too small, `eval_agent.py` will cap at available records or the exclusion guard will fire. Before_score may differ from 0.5333 due to the larger held-out sample.
+**Success criterion**: (1) Read `masonry/scripts/improve_agent.py` — confirm eval_size default is 50. (2) Read `masonry/agent_snapshots/research-analyst/eval_latest.json` — report before_score and eval_size. (3) Read `masonry/training_data/scored_all.jsonl` — count research-analyst records. (4) Determine whether 36 records can support N=50 eval + meaningful optimization pool. Verdict: HEALTHY if before_score ≥ 0.50 and corpus math works; WARNING if corpus too small for N=50.
+
+---
+
+### R-w42.2: Karen dry-run pre-flight — is karen's before_score interpretable with only 5 organic_low records?
+
+**Status**: DONE
+**Operational Mode**: research
+**Agent**: research-analyst
+**Priority**: HIGH
+**Motivated by**: F-w41.4 (FIXED) — karen corpus unblocked with 5 organic_low records. Before running karen optimization loops, need to verify the before_score is meaningful (not dominated by the 374 high-scoring records producing a near-1.0 score that masks any signal).
+**Hypothesis**: Karen before_score will be ~0.90+ because 374/379 loaded records score 100. The confidence-weighted mean in `_score_verdicts()` will weight high-confidence correct verdicts heavily. This produces a "good" score that provides no gradient — any optimized instructions will also score ~0.90+, making the before/after delta effectively zero regardless of instruction quality.
+**Success criterion**: (1) Read `masonry/agent_snapshots/karen/eval_latest.json` if it exists — report before_score, eval_size, timestamp. (2) Read `masonry/training_data/scored_all.jsonl` — count karen records by source and score distribution. (3) Assess whether a corpus with 98.7% at score=100 can produce a meaningful before_score gradient for optimization. Verdict: HEALTHY if before_score has meaningful variance; WARNING if distribution makes gradient effectively zero.
+
+---
+
+### V-w42.1: Verify F-w41.1 train/eval split — does _tier_examples() actually exclude held_out_ids in practice?
+
+**Status**: DONE
+**Operational Mode**: validate
+**Agent**: design-reviewer
+**Priority**: HIGH
+**Motivated by**: F-w41.1 (FIX_APPLIED) — `excluded_ids` parameter threaded through the call chain. Need to verify the exclusion actually works end-to-end: that `held_out_ids` from `eval_agent.py` reach `_tier_examples()` and that overlap is now zero.
+**Hypothesis**: The exclusion chain (`eval_agent.py` → `improve_agent.py` → `optimize_with_claude.py` → `_tier_examples()`) is correctly wired. Held-out records are excluded from both `high` and `low` tiers. The `_MIN_TIER_RECORDS` guard fires correctly when exclusion empties a tier.
+**Success criterion**: (1) Read `eval_agent.py` — confirm `held_out_ids` is returned in result dict. (2) Read `improve_agent.py` — confirm `before_result["held_out_ids"]` is extracted and passed to `run_optimize()`. (3) Read `optimize_with_claude.py` — confirm `_tier_examples()` receives and applies `excluded_ids`. (4) Trace that `_record_id()` is called consistently in both files. Verdict: PASS if chain is complete; PARTIAL if exclusion exists but `_record_id()` implementations differ between files.
+
+---
+
+### R-w42.3: Metric blind spots (P-w40.1 E2) — does the eval metric measure reasoning quality or only format proxies?
+
+**Status**: DONE
+**Operational Mode**: research
+**Agent**: research-analyst
+**Priority**: MEDIUM
+**Motivated by**: P-w40.1 (CONFIRMED) — E2 identified that `metrics.py` measures evidence length and confidence proximity to 0.75 as proxies for quality. An agent that learns to produce long evidence blocks and calibrated confidence scores will score well regardless of reasoning accuracy.
+**Hypothesis**: The `score_finding()` function in `masonry/src/metrics.py` has no component that measures whether the agent's reasoning is correct — only whether the output format matches expected patterns (verdict present, evidence length ≥ threshold, confidence near 0.75, summary ≤ 200 chars). Over 5-10 optimization cycles, an agent could converge to format compliance while reasoning quality degrades silently.
+**Success criterion**: (1) Read `masonry/src/metrics.py` — enumerate all scoring components in `score_finding()`. (2) For each component, classify as "format proxy" (measures structure) or "reasoning quality" (measures correctness). (3) Determine if any component validates that the verdict matches the actual evidence. (4) Assess whether the current metric can detect a well-formatted but wrong finding. Verdict: WARNING if all components are format proxies; HEALTHY if at least one component measures reasoning correctness.
+
+---
+
+### F-w42.1: Fix P4 slot collision — replace single-slot-per-type with UUID-keyed slots
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: LOW
+**Motivated by**: R-w40.2 (WARNING/Low) — `masonry-preagent-tracker.js` uses one file per `subagent_type`, causing slot collisions when two agents of the same type are dispatched concurrently. Corrupts `routing_log.jsonl` `request_text` for ~1 in 6 routing records.
+**Hypothesis**: Replace `pending_agent_prompts/{subagent_type}.json` with `pending_agent_prompts/{subagent_type}-{uuid}.json`. On SubagentStart, glob for all files matching `{subagent_type}-*.json`, read the oldest one within TTL, consume it. This eliminates collision while preserving TTL and consume-on-read behavior.
+**Success criterion**: (1) Read `masonry-preagent-tracker.js` — find slot write path. (2) Read `masonry-subagent-tracker.js` — find slot read/consume path. (3) Implement UUID suffix on write side. (4) Implement glob-and-oldest-first on read side. (5) Confirm existing stale slots in `~/.masonry/pending_agent_prompts/` are still consumable (backwards-compatible TTL expiry). Verdict: FIX_APPLIED if write+read both updated; PARTIAL if only write side updated.
+
+---
+
+## Wave 43 — Pre-Optimization Safety Fixes
+
+### F-w43.1: Fix eval_size corpus-size cap and run_loop/CLI default sync
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: R-w42.1 (WARNING, High) — 36-record research-analyst corpus cannot support eval_size=50 default. With 36 records and eval_size=50, all records become held-out (eval_agent.py line 239 caps to full corpus), leaving 0 for training and triggering the `_MIN_TIER_RECORDS` hard block in optimize_with_claude.py. Also: `run_loop()` internal default is still 20 (line 69) while CLI default is 50 — divergence.
+**Hypothesis**: Two changes: (1) In `eval_agent.py`, add a corpus-size guard that caps `eval_size` to `max(1, len(records) - MIN_TRAINING_RECORDS)` where `MIN_TRAINING_RECORDS = 10` (leaving at least 10 for the training pool), and logs a warning when capping occurs. (2) In `improve_agent.py`, update `run_loop(eval_size: int = 20)` to match CLI default of 50 OR use a sentinel (None) that defers to the CLI default.
+**Success criterion**: (1) Read `eval_agent.py` line 239 — find the held_out selection. (2) Add corpus-size cap with warning log. (3) Read `improve_agent.py` line 69 — update `run_loop()` default to 50. (4) Verify: with 36-record corpus and eval_size=50, cap fires and reduces eval_size to 26 (36 − 10), leaving 10 for training. Verdict: FIX_APPLIED if both changes present; PARTIAL if only one.
+
+---
+
+### F-w43.2: Fix organic_low record position — switch eval selection from last-N to random sampling
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: R-w42.2 (WARNING, High) — all 5 organic_low karen records are the last 5 entries in scored_all.jsonl. Since `eval_agent.py` uses `records[-eval_size:]` (last N), all organic_low records fall inside the eval held-out window and are excluded from the training pool via `excluded_ids`. Optimizer gets 0 low-tier examples — converges on positive-only pattern.
+**Hypothesis**: Change `eval_agent.py` held-out selection from `records[-eval_size:]` to `random.sample(records, eval_size)` with a fixed seed for reproducibility. This distributes organic_low records between eval and training pools probabilistically. With 5 organic_low records and eval_size=30 across 379 karen records, expected ~0.4 organic_low in eval and ~4.6 in training pool per run. Alternatively: stratified sampling that ensures at least 1 low-tier and 1 high-tier record always remain in the training pool after sampling.
+**Success criterion**: (1) Read `eval_agent.py` — find `records[-eval_size:]` selection. (2) Implement random.sample with seed. (3) Confirm held_out_ids still correctly excludes sampled records from training pool. (4) Verify: with 379 karen records and 5 organic_low, random sampling should leave ~4 organic_low in training pool on average. Verdict: FIX_APPLIED if random sampling implemented with seed; PARTIAL if only shuffled before last-N selection.
+
+---
+
+### F-w43.3: Remove dead index param from eval_agent._record_id() and add CLI bypass warning
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: MEDIUM
+**Motivated by**: V-w42.1 (WARNING, Medium) — two latent risks: (1) `eval_agent._record_id(record, index)` has dead `index` parameter — future callers writing to match optimize-side signature get TypeError; (2) `optimize_with_claude.py` CLI has no `--excluded-ids`, silently bypasses train/eval split with no warning.
+**Hypothesis**: (1) Remove `index: int` from `eval_agent._record_id()`. Update call site: change `[_record_id(rec, i) for i, rec in enumerate(held_out)]` to `[_record_id(rec) for rec in held_out]`. (2) Add a warning at top of `optimize_with_claude.run()` when `excluded_ids` is None: print to stderr that callers should use `improve_agent.py` to enforce the train/eval split.
+**Success criterion**: (1) Read `eval_agent.py` — find `_record_id` definition and call site. (2) Remove `index` parameter and update call. (3) Read `optimize_with_claude.py run()` — add warning when `excluded_ids is None`. (4) Confirm `_record_id()` signatures now match between both files. Verdict: FIX_APPLIED if both changes present; PARTIAL if only one.
+
+---
+
+### V-w43.1: End-to-end dry-run validation — can research-analyst optimization complete after F-w43.x fixes?
+
+**Status**: PENDING
+**Operational Mode**: validate
+**Agent**: design-reviewer
+**Priority**: HIGH
+**Motivated by**: R-w42.1 (WARNING) — corpus-size cap will prevent the hard block, but need to confirm the full loop can complete without aborting: eval → exclude held-out → tier examples → build prompt → compare. Specifically: with 36-record corpus and new corpus-size cap, does the post-cap eval leave enough records for meaningful optimization?
+**Hypothesis**: With corpus-size cap at `len(records) - 10 = 26`, eval uses 26 records as held-out, leaving 10 for training. After `excluded_ids` filter, 10 records remain. `_tier_examples()` picks from these 10: ~8-9 in high tier (score ≥ 75), ~1-2 in low tier (score < 50). Both tiers above `_MIN_TIER_RECORDS=5` threshold? Only if 5+ records in each tier — with 10 training records and ~6 low-scoring research-analyst records, this may still fail the per-tier guard.
+**Success criterion**: (1) Read `masonry/training_data/scored_all.jsonl` — count research-analyst records by score bucket (≥75, 50-74, <50). (2) With 10 training records remaining after cap: how many fall in each tier? (3) Does `_MIN_TIER_RECORDS=5` guard block optimization for either tier? (4) Is the training signal (N=10 examples) sufficient for meaningful optimization? Verdict: PASS if both tiers ≥ 5 records after cap; WARNING if tiers < 5 but combined ≥ 5; FAIL if hard block still fires.
+

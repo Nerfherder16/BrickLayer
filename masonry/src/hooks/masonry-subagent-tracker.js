@@ -196,13 +196,62 @@ async function main() {
       // Use home-dir path to match masonry-preagent-tracker.js exactly — avoids
       // CWD mismatch when PreToolUse fires in masonry/ but SubagentStart fires in repo root.
       const pendingDir = path.join(os.homedir(), '.masonry', 'pending_agent_prompts');
-      const slotPath = path.join(pendingDir, `${subagentType}_latest.json`);
-      if (fs.existsSync(slotPath)) {
-        const slot = JSON.parse(fs.readFileSync(slotPath, 'utf8'));
-        // Use if written within the last 10 seconds (fresh PreToolUse event)
-        if (slot.request_text && Date.now() - new Date(slot.timestamp).getTime() < 10_000) {
-          requestText = slot.request_text;
-          fs.unlinkSync(slotPath); // consume the slot
+      const TTL_MS = 10_000; // 10-second freshness window
+
+      // --- UUID-slot read (F-w42.1) ---
+      // Glob all files matching {subagent_type}-*.json (new UUID-keyed format).
+      // Sort oldest-first by mtime so the slot that was written first (most likely
+      // the correct pairing for this SubagentStart) is consumed first.
+      let consumed = false;
+      try {
+        const allFiles = fs.readdirSync(pendingDir);
+        const prefix = `${subagentType}-`;
+        const candidates = allFiles
+          .filter(f => f.startsWith(prefix) && f.endsWith('.json'))
+          .map(f => {
+            const fullPath = path.join(pendingDir, f);
+            let mtimeMs = 0;
+            try { mtimeMs = fs.statSync(fullPath).mtimeMs; } catch (_) {}
+            return { name: f, fullPath, mtimeMs };
+          })
+          .filter(c => c.mtimeMs > 0)
+          .sort((a, b) => a.mtimeMs - b.mtimeMs); // oldest first
+
+        for (const candidate of candidates) {
+          try {
+            const slot = JSON.parse(fs.readFileSync(candidate.fullPath, 'utf8'));
+            const age = Date.now() - new Date(slot.timestamp).getTime();
+            if (slot.request_text && age < TTL_MS) {
+              requestText = slot.request_text;
+              fs.unlinkSync(candidate.fullPath); // consume the slot
+              consumed = true;
+              break;
+            } else {
+              // Stale slot — delete it to avoid accumulation
+              try { fs.unlinkSync(candidate.fullPath); } catch (_) {}
+            }
+          } catch (_) { /* skip unreadable slot file */ }
+        }
+      } catch (_) { /* readdirSync failed — pendingDir may not exist yet */ }
+
+      // --- Backwards-compat: old _latest.json format (F28.3 era) ---
+      // If UUID glob found nothing, fall back to the old single-slot file.
+      // This handles stale slots written before the UUID migration and ensures
+      // no crash if old-format files exist on disk.
+      if (!consumed) {
+        const legacyPath = path.join(pendingDir, `${subagentType}_latest.json`);
+        if (fs.existsSync(legacyPath)) {
+          try {
+            const slot = JSON.parse(fs.readFileSync(legacyPath, 'utf8'));
+            const age = Date.now() - new Date(slot.timestamp).getTime();
+            if (slot.request_text && age < TTL_MS) {
+              requestText = slot.request_text;
+              fs.unlinkSync(legacyPath); // consume legacy slot
+            } else {
+              // Expired legacy slot — remove it
+              try { fs.unlinkSync(legacyPath); } catch (_) {}
+            }
+          } catch (_) { /* non-fatal */ }
         }
       }
     } catch (_) { /* non-fatal */ }
