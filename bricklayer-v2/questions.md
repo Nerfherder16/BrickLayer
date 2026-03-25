@@ -205,6 +205,119 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ---
 
+## Wave 14
+
+**Generated from findings**: E13.3, E13.5, E13.7, E13.8, E13.9, E13.10, F-mid.3
+**Mode transitions applied**: E13.3 IMPROVEMENT (one unresolved failure E12.1-live-15) → E14.1 Evolve (Rule 4 tuning); E13.5 WARNING (subprocess approval-flow blocker) → E14.2 Fix (optimize_with_claude.py patch); E13.8 BLOCKED (3 agents with no .md files) → E14.3/E14.4/E14.5 Fix (write instruction files); E13.9 WARNING (9 agents unscored) → E14.6 Evolve (fleet-wide baseline eval); E13.7 WARNING (4 routing gaps) → E14.7 Fix (add deterministic patterns); E13.10 PENDING_EXTERNAL (3-loop convergence unrun) → E14.8 Evolve (run with --eval-size 30); F-mid.3 PENDING (frontier-analyst.md missing) → E14.3 incorporates; E13.3 path forward → E14.9 Evolve (full-corpus live eval)
+
+### E14.1: Tune Rule 4 in research-analyst DSPy instructions to fix E12.1-live-15 over-conservative WARNING prediction
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: HIGH
+**Motivated by**: E13.3 — post-optimization live eval 0.91 (16/17); sole failure is E12.1-live-15 where agent predicts WARNING on a HEALTHY record. E13.3 traced root cause to Rule 4 (verdict calibration) and Rule 6 (root cause chain) making the agent over-sensitive to minor gaps.
+**Hypothesis**: Adding a "significance threshold" clause to Rule 4 — e.g., "WARNING requires a gap that produces measurable impact; a trivially addressed configuration gap is HEALTHY" — will prevent over-firing on E12.1-live-15 without regressing the 16 passing records. Expected score: 17/17 (1.00).
+**Method**: research-analyst (reads E13.3 finding + current Rule 4 text in research-analyst.md; proposes revised Rule 4 wording; writes patch; runs `eval_agent_live.py --agent research-analyst --eval-size 20 --id-prefix E12.1-live-` to verify 17/17)
+**Success criterion**: Live eval score ≥ 0.94 (16/17 → 17/17) with no regressions on the 16 currently-passing records; revised Rule 4 committed to research-analyst.md.
+
+---
+
+### E14.2: Fix optimize_with_claude.py subprocess to prevent Write-tool use that blocks the approval flow
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: HIGH
+**Motivated by**: E13.5 — optimization for synthesizer-bl2 failed because `claude -p` subprocess used the Write tool instead of returning JSON to stdout; masonry-approver.js intercepted the write and emitted approval text, breaking JSON parse. Fix scope identified: add a system constraint to the prompt at line 236 in `optimize_with_claude.py`.
+**Hypothesis**: Prepending "You must respond with ONLY a JSON object in your text output. Do not use any file tools. Do not write to any files." to the subprocess prompt will prevent tool use and allow `optimize_with_claude.py` to parse the JSON instructions correctly.
+**Method**: fix-implementer (reads E13.5 finding; patches `masonry/scripts/optimize_with_claude.py` line 236 prompt construction; runs `improve_agent.py synthesizer-bl2 --loops 2 --eval-size 20 --dry-run` to confirm subprocess returns valid JSON without triggering approval hook)
+**Success criterion**: `improve_agent.py synthesizer-bl2 --loops 2` completes without JSON parse error; subprocess output is a valid JSON object; synthesizer-bl2 live eval score after optimization ≥ 0.62 (E12.3 baseline).
+
+---
+
+### E14.3: Write instruction file for peer-reviewer agent (unblocks E13.8 baseline eval)
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: HIGH
+**Motivated by**: E13.8 BLOCKED — peer-reviewer has no .md instruction file in either bricklayer-v2/.claude/agents/ or ~/.claude/agents/; eval pipeline cannot invoke the agent. CLAUDE.md description: "Re-runs tests from completed findings, verifies fix code, appends peer review sections to findings."
+**Hypothesis**: A well-scoped peer-reviewer.md with standard BL 2.0 frontmatter and clear instructions derived from the CLAUDE.md description and peer review sections already present in E13.5/E13.8 findings will produce an invocable agent that achieves an initial live eval score of 0.40–0.65.
+**Method**: fix-implementer (reads CLAUDE.md description, existing peer review sections in finding files for behavioral examples, AUDIT_REPORT.md; writes bricklayer-v2/.claude/agents/peer-reviewer.md; runs `eval_agent_live.py --agent peer-reviewer --n 5` to confirm invocability)
+**Success criterion**: peer-reviewer.md exists in bricklayer-v2/.claude/agents/; agent is invocable via `claude -p`; 5 live eval records generated; initial score reported to scored_all.jsonl.
+
+---
+
+### E14.4: Write instruction files for agent-auditor and retrospective agents (unblocks E13.8 for remaining 2 agents)
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: HIGH
+**Motivated by**: E13.8 BLOCKED — agent-auditor and retrospective share the same blocking condition as peer-reviewer (no .md files). agent-auditor description: "Audits active fleet, scores against finding history, identifies underperformers, writes AUDIT_REPORT.md." retrospective: "Post-campaign quality analyst — scores process efficiency, audits content integrity, identifies agent tooling gaps."
+**Hypothesis**: Writing both instruction files in a single task (shared Fix context) will be more efficient than separate tasks. Both agents have AUDIT_REPORT.md and finding history as behavioral exemplars. Initial scores expected 0.35–0.60 given they are new agents without optimized prompts.
+**Method**: fix-implementer (reads E13.8 finding, CLAUDE.md descriptions, existing AUDIT_REPORT.md for agent-auditor behavioral examples; writes bricklayer-v2/.claude/agents/agent-auditor.md and bricklayer-v2/.claude/agents/retrospective.md; verifies both are invocable)
+**Success criterion**: Both .md files exist and are invocable; 5 live eval records generated per agent; initial scores written to scored_all.jsonl.
+
+---
+
+### E14.5: Create frontier-analyst.md instruction file in bricklayer-v2/.claude/agents/ (resolves F-mid.3)
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Priority**: HIGH
+**Motivated by**: F-mid.3 PENDING — frontier-analyst.md missing from both agent directories; blocks 3 of 11 mode-transition rules in hypothesis-generator-bl2 (FR-prefix transitions). modes/frontier.md contains the full mode program; CLAUDE.md describes the agent as "blue-sky exploration, possibility space, ceiling estimation."
+**Hypothesis**: Creating frontier-analyst.md based on modes/frontier.md (as the loop program) plus the global CLAUDE.md frontier-analyst description will produce an invocable agent that correctly runs Frontier mode questions, producing PROMISING/WEAK/BLOCKED verdicts.
+**Method**: fix-implementer (reads modes/frontier.md, CLAUDE.md frontier-analyst entry, existing frontier findings in bricklayer-v2/findings/frontier/ for behavioral examples; writes bricklayer-v2/.claude/agents/frontier-analyst.md with standard frontmatter; verifies agent is invocable with a test frontier question)
+**Success criterion**: frontier-analyst.md written to bricklayer-v2/.claude/agents/; F-mid.3 status updated to FIXED; agent produces a valid FindingPayload with a Frontier verdict (PROMISING/WEAK/BLOCKED) on a test invocation.
+
+---
+
+### E14.6: Run fleet-wide baseline eval for top-priority unscored agents (karen, quantitative-analyst, research-analyst static)
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: HIGH
+**Motivated by**: E13.9 WARNING — 9 agents with substantial training data have last_score: null. karen (379 records), quantitative-analyst (76 records), and research-analyst (53 records) are the three highest-value targets. Without baselines, the optimization pipeline has no convergence signal for 80%+ of fleet training data.
+**Hypothesis**: Running `eval_agent.py` for all three agents will establish baselines: karen expected ≥0.85 (E2.3 confirmed 1.00 before static eval was formalized), quantitative-analyst expected ~0.70–0.85 (E5.1 showed 0.90 at the time), research-analyst static expected 0.40–0.55 (tool-free variance documented in E13.3). Any agent below 0.85 becomes an immediate `improve_agent.py` candidate.
+**Method**: research-analyst (runs `eval_agent.py karen --eval-size 30`, `eval_agent.py quantitative-analyst --eval-size 20`, `eval_agent.py research-analyst --eval-size 20`; records scores; updates agent_registry.yml last_score fields; identifies which agents fall below 0.85 target)
+**Success criterion**: Baseline scores recorded for karen, quantitative-analyst, and research-analyst; last_score fields populated in agent_registry.yml; agents scoring <0.85 flagged for immediate E14.x optimization follow-up.
+
+---
+
+### E14.7: Add 4 missing deterministic routing patterns to masonry/src/routing/deterministic.py (raises coverage 75% → ≥90%)
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: MEDIUM
+**Motivated by**: E13.7 WARNING — 4 coverage gaps identified: (1) eval/improve-agent operations missing entirely → evolve-optimizer, (2) "what is/what's broken" phrasing missing from _DIAGNOSE_PATTERN, (3) "architect a X / design a X / how should I design" missing from _ARCHITECT_PATTERN, (4) mode-guidance queries ("what mode should I use") missing entirely → mortar. All 4 have exact regex patterns specified in E13.7.
+**Hypothesis**: Adding the 14 lines of pattern extensions specified in E13.7 will raise deterministic layer coverage from 75% (15/20) to ≥90% (18/20) on the same 20-query test set. This eliminates ~25 unnecessary LLM calls per 100 BL workflow operations.
+**Method**: fix-implementer (reads E13.7 finding for exact regex patterns; applies all 4 additions to masonry/src/routing/deterministic.py; re-runs the 20-query deterministic test from E13.6 to measure new coverage; verifies no regressions on the 15 previously-passing queries)
+**Success criterion**: Deterministic coverage ≥90% (18/20) on the same E13.6 test set; all 4 new patterns verified with at least 1 test query each; no regressions on existing patterns.
+
+---
+
+### E14.8: Run improve_agent.py research-analyst --loops 3 --eval-size 30 to test convergence (resolves E13.10)
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: MEDIUM
+**Motivated by**: E13.10 PENDING_EXTERNAL — 3-loop convergence test was predicted statically (plateau at loop 2-3, final 0.60-0.70 tool-free, ~0.91 live). E13.3 confirmed loop 1 improved (+0.10 tool-free, +0.07 live) and loop 2 regressed. A larger eval-size (30 vs 20) will reduce the ±0.10 variance that caused loop 2 to appear as regression. Need live run from Git Bash to resolve.
+**Hypothesis**: With eval-size=30, the ±0.10 tool-free variance will narrow to ±0.06, allowing loop 2 to produce a measurable (vs noise-driven) result. Expected: loop 2 at +0.05 improvement or plateau; loop 3 plateau or slight regression; live eval post-3-loops ≥0.91 (held or improved). If loop 2 genuinely improves with larger eval-size, the revert in E13.3 was premature.
+**Method**: research-analyst (runs `improve_agent.py research-analyst --loops 3 --eval-size 30` from Git Bash; records per-loop tool-free scores and kept/reverted decisions; runs `eval_agent_live.py --agent research-analyst --eval-size 20 --id-prefix E12.1-live-` after loops complete; compares final live score to E13.3 baseline of 0.91)
+**Success criterion**: 3 loops complete without error; per-loop scores recorded; live eval score post-3-loops ≥0.91; convergence behavior documented (plateau / oscillate / improve) for use in planning optimize loops for other agents.
+
+---
+
+### E14.9: Run full-corpus live eval for research-analyst (all 51 records, not just E12.1-live- prefix)
+
+**Status**: PENDING
+**Operational Mode**: evolve
+**Priority**: LOW
+**Motivated by**: E13.3 path forward — post-optimization live eval only tested 17 E12.1-live- records. The full scored_all.jsonl has 51 research-analyst records (including E7.2-pilot-, E8.2-, E9.x- prefixes). A full-corpus live eval will expose whether the 0.91 score holds across question types or is narrow to the E12.1 calibration set.
+**Hypothesis**: The full-corpus live eval score will be lower than 0.91 (perhaps 0.70–0.80) because pre-E12.1 records include task-description questions and code-inspection records that historically scored poorly even with tools. This will reveal whether research-analyst is a narrow specialist (high on calibrated questions) or a broad performer.
+**Method**: research-analyst (runs `eval_agent_live.py --agent research-analyst --eval-size 51` without an id-prefix filter; records per-record scores; groups results by record prefix to identify which record families drive the gap vs the E12.1-live- calibrated set)
+**Success criterion**: Full-corpus live eval score reported; per-prefix breakdown produced; if score <0.80, identifies which record families are below threshold and whether they need re-calibration or are genuine agent weaknesses.
+
+---
+
 ## Domain 5 — Frontier: BrickLayer's next evolution beyond 2.0
 
 | ID | Mode | Status | Question |
