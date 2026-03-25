@@ -6,26 +6,25 @@ This roadmap is derived strictly from the current state of the codebase. Items h
 
 ## Immediate Gaps (stubs and broken wiring)
 
-### MCP tools with unresolved bl.* imports
+### ~~MCP tools with unresolved bl.* imports~~ (resolved 2026-03-24)
 
-Several MCP tools in `mcp_server/server.py` delegate to `bl.*` modules that are not part of the Masonry package:
-
-- `masonry_questions` → `bl.questions.load_questions`
-- `masonry_nl_generate` → `bl.nl_entry.generate_from_description / quick_campaign`
-- `masonry_weights` → `bl.question_weights.weight_report`
-- `masonry_git_hypothesis` → `bl.git_hypothesis.*`
-- `masonry_run_question` → `bl.questions.load_questions`, `bl.runners.get_runner`
-- `masonry_recall_search` → `bl.recall_bridge.search_prior_findings`
-
-These tools return `{"error": str(e)}` when `bl` is not importable. Either the BrickLayer Python package needs to be installed as a sibling package, or these tools need to be reimplemented in Masonry directly. Currently they work only if the server is run from inside the `Bricklayer2.0/` tree with `bl/` on the Python path.
+`mcp_server/server.py` already contains a path bootstrap at lines 35-38:
+```python
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+```
+This resolves to the BL root regardless of cwd. All six tools confirmed working.
 
 ### bin/masonry-mcp.js is a wrapper stub
 
 `bin/masonry-mcp.js` is referenced in package.json as the main entry point and the `masonry-mcp` bin command, but its content is minimal — it should shell out to `mcp_server/server.py`. The Python server already handles its own stdio transport. The JS wrapper needs to verify Python availability and invoke the server correctly as a child process.
 
-### hooks.json vs. settings.json divergence
+### ~~hooks.json vs. settings.json divergence~~ (resolved 2026-03-24)
 
-`hooks.json` registers 4 hooks (masonry-register, masonry-observe, masonry-guard, masonry-agent-onboard, and statusLine). The CLAUDE.md documentation and `src/hooks/` directory contain significantly more hooks (masonry-session-start, masonry-approver, masonry-stop-guard, masonry-build-guard, masonry-context-safety, masonry-lint-check, masonry-design-token-enforcer, masonry-tdd-enforcer, masonry-tool-failure, masonry-subagent-tracker, masonry-context-monitor, masonry-ui-compose-guard, masonry-session-end, masonry-session-summary, masonry-recall-check, masonry-pre-compact). These additional hooks exist in `src/hooks/` and are referenced in settings.json, but are not listed in `hooks.json`. The `masonry-setup.js` installer reads from hooks.json — so newly installed setups would be missing the majority of hooks. The hooks.json manifest needs to be updated to reflect all current hooks.
+`plugin.json` references `"hooks": "../hooks/hooks.json"` → `masonry/hooks/hooks.json`. That file was empty (`"hooks": {}`). Now populated with all 12 hooks across 9 event types using `${CLAUDE_PLUGIN_ROOT}` portable paths. Fresh installs will now receive the complete hook set.
+
+Note: `masonry/hooks.json` at the repo root (the 4-hook stale file) is NOT read by the installer — it can be left as-is or deleted.
 
 ### masonry-ui-compose-guard.js missing
 

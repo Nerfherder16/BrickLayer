@@ -3080,7 +3080,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F-w43.1: Fix eval_size corpus-size cap and run_loop/CLI default sync
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Agent**: fix-implementer
 **Priority**: HIGH
@@ -3092,7 +3092,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F-w43.2: Fix organic_low record position — switch eval selection from last-N to random sampling
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Agent**: fix-implementer
 **Priority**: HIGH
@@ -3104,7 +3104,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F-w43.3: Remove dead index param from eval_agent._record_id() and add CLI bypass warning
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Agent**: fix-implementer
 **Priority**: MEDIUM
@@ -3116,7 +3116,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### V-w43.1: End-to-end dry-run validation — can research-analyst optimization complete after F-w43.x fixes?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: validate
 **Agent**: design-reviewer
 **Priority**: HIGH

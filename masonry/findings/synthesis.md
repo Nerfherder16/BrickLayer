@@ -197,6 +197,33 @@ python masonry/scripts/improve_agent.py karen --signature karen --dry-run  # ver
 - F-w43.3: Remove dead `index` param from `eval_agent._record_id()` + add CLI bypass warning to `optimize_with_claude.py` (V-w42.1)
 
 **Wave 43 open questions:**
-10. After F-w43.x fixes: can research-analyst optimization run end-to-end without aborting?
-11. After F-w43.x fixes: does karen optimizer receive at least 1 low-tier example?
-12. Is the metric E2 blind spot (format proxies) worth fixing now or after first optimization run?
+~~10. After F-w43.x fixes: can research-analyst optimization run end-to-end without aborting?~~ ANSWERED: V-w43.1 (FAILURE with F-w43.1 only; PASS with both F-w43.1+F-w43.2)
+~~11. After F-w43.x fixes: does karen optimizer receive at least 1 low-tier example?~~ ANSWERED: F-w43.2 (random sampling; each organic_low now 7.9% chance of eval; ~4.6 expected in training pool)
+12. Is the metric E2 blind spot (format proxies) worth fixing now or after first optimization run? — DEFERRED to Wave 44
+
+## Wave 43 Additions (2026-03-24)
+
+~~F-w43.1 corpus-size cap needed:~~ FIXED. ~~F-w43.2 random sampling needed:~~ FIXED. ~~F-w43.3 dead param + CLI warning needed:~~ FIXED. **Structural gap discovered**: research-analyst has zero records with score < 50 — low-tier section is permanently empty.
+
+26. **F-w43.1** [FIXED, High] -- Corpus-size cap added to `eval_agent.py`: `safe_eval_size = min(eval_size, max(1, len(records) - 10))` with warning log. `run_loop()` default synced from 20→50 in `improve_agent.py`. With 36-record corpus and eval_size=50, cap fires at 26 and leaves 10 for training. R-w42.1 WARNING RESOLVED.
+
+27. **F-w43.2** [FIXED, High] -- Random sampling (`random.seed(42) + random.sample()`) replaces last-N held-out selection in `eval_agent.py`. Eliminates temporal skew: each of the 5 karen organic_low records now has 7.9% probability of being held-out (was 100%). Expected ~4.6 in training pool per run. Research-analyst training pool now gets ~7-8 high-tier records (combined > `_MIN_TIER_RECORDS=5`). R-w42.2 WARNING RESOLVED.
+
+28. **F-w43.3** [FIXED, Medium] -- Dead `index: int` parameter removed from `eval_agent._record_id()`. Both files' `_record_id()` signatures now match. Stderr warning added to `optimize_with_claude.run()` when `excluded_ids is None`, catching direct CLI callers. V-w42.1 WARNING latent risks CLOSED.
+
+29. **V-w43.1** [FAILURE→conditional PASS, High] -- F-w43.1 alone hard-blocks optimization: last-N selects Wave 9-12 records as eval (75-90 score), leaving only 2 high-tier records in training — combined=2 < `_MIN_TIER_RECORDS=5`. F-w43.2 resolves this: random sampling yields ~7-8 high-tier training records (combined ≥ 5). **Structural gap**: research-analyst has 0 records with score < 50 (all 36 score ≥60); low-tier block permanently renders as "(none)"; optimizer produces one-sided prompts (positive examples only). **Human decision required**: (A) lower low-tier threshold from `score < 50` to `score < 70` in `_tier_examples()` — admits 9 mid-tier (Wave 7-8) records as negatives; or (B) accept one-sided optimization.
+
+---
+
+## Optimization Pipeline Status (post-Wave 43)
+
+**Research-analyst**: CONDITIONALLY READY. F-w43.1 + F-w43.2 applied — hard block resolved. Structural corpus gap: zero records below score 50 means optimizer receives no negative contrast.
+- **Before optimizing**: human decision needed on low-tier threshold (see V-w43.1 Option A vs B above)
+
+**Karen**: READY. Random sampling (F-w43.2) distributes organic_low records into training pool (~4.6 expected per run). All preconditions met.
+
+**Run (karen only — research-analyst blocked pending threshold decision)**:
+```bash
+cd C:/Users/trg16/Dev/Bricklayer2.0
+python masonry/scripts/improve_agent.py karen --signature karen --loops 3
+```
