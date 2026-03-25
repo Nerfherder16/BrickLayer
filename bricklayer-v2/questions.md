@@ -382,7 +382,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E15.5: Live eval on E14.8 instructions (33deee6) to confirm E12.1-live- family score ≥0.91
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: evolve
 **Priority**: HIGH
 **Motivated by**: E14.8 WARNING — loop 1 instructions committed (33deee6, 3-criteria gate removed, cleaner calibration rules) but the post-optimization eval crashed before completing. E14.9 full-corpus eval ran on the new instructions and confirmed E12.1-live- family at 94% (15/16 pass), but that is with E12.1-live-15 still failing. Synthesis item 5 specifically calls for running a clean E12.1-live- family eval to confirm the E14.1 regression (0.75) has been recovered by E14.8 instructions.
@@ -394,7 +394,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E15.6: Live eval for quantitative-analyst — establish authoritative baseline
 
-**Status**: PENDING
+**Status**: INCONCLUSIVE
 **Operational Mode**: evolve
 **Priority**: MEDIUM
 **Motivated by**: E14.6 WARNING — quantitative-analyst static eval scored 0.40 (tool-free), which is unreliable due to tool dependence (same 0.35 static vs 0.91 live gap documented for research-analyst). E14.6 synthesis explicitly called for a live eval to establish the authoritative baseline before concluding this agent needs optimization. Without a live eval, the fleet registry shows an inaccurate picture of quantitative-analyst's actual capability.
