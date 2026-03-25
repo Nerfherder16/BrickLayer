@@ -2875,3 +2875,77 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 **Motivated by**: V-mid.2 (WARNING) — `masonry-stop-guard.js` auto-commits all session-touched files unconditionally with no test-pass gate, no IN_PROGRESS task guard, generic commit message. Partial interrupted-build implementations can enter git history without verification.
 **Hypothesis**: Add a guard before the auto-commit block (line 296 in masonry-stop-guard.js): if `.autopilot/mode` is `"build"` or `"fix"` AND `progress.json` has any tasks with `status: "IN_PROGRESS"`, skip the auto-commit and emit a blocking message explaining that mid-task partial code will not be auto-committed. Also add the build task ID to the auto-commit message for traceability.
 **Success criterion**: (1) Read `masonry-stop-guard.js` lines 280-320. (2) Add IN_PROGRESS task check before auto-commit. (3) Verify the check reads `.autopilot/progress.json` and inspects task statuses. (4) Verify the blocking message names the in-progress task. Verdict: FIX_APPLIED if guard present and logic correct; PARTIAL if guard added but message lacks task context.
+
+---
+
+## Wave 40 — Post-Fix Validation and Open Risk Closure
+
+### V-w40.1: Verify karen corpus score distribution — is bimodal cliff still present after F-mid.1/F-mid.2?
+
+**Status**: PENDING
+**Operational Mode**: validate
+**Agent**: design-reviewer
+**Priority**: HIGH
+**Motivated by**: P3 (CONFIRMED) identified a 98.7%-at-100 bimodal cliff with 5 synthetic_negative records at score=0 using mismatched schema. F-mid.1 fixed the rubric injection but did NOT replace the 5 synthetic negatives or diversify the score distribution. P3 Fix 3 ("replace synthetic negatives with real organic examples") was listed as a precondition but not implemented.
+**Hypothesis**: `scored_all.jsonl` still has the bimodal distribution for karen records: 374 records near score=100, 5 synthetic_negative records at score=0, zero records in the 10-89 range. This means the optimization contrast for karen is still derived from structurally mislabeled negatives, and `_tier_examples()` still selects arbitrary records from an undifferentiated high tier. The F-mid.1 rubric fix improves the *direction* of optimization but not the *gradient quality*.
+**Success criterion**: (1) Count karen records in `scored_all.jsonl` by score band: score=100, 90-99, 50-89, 10-49, 0-9. (2) Check if any `synthetic_negative` records remain. (3) Verify whether `build_karen_metric` produces scores in the 10-89 range for any real records. (4) Assess whether the low-tier records are structurally valid contrast examples. Verdict: HEALTHY if ≥ 10 real records below score 50 with valid schema; WARNING if only synthetic_negative records remain as low tier; FAIL if distribution is still bimodal cliff.
+
+---
+
+### R-w40.1: Does karen.md DSPy section contain any research-analyst behavioral patterns on this machine?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Agent**: research-analyst
+**Priority**: HIGH
+**Motivated by**: P3 (CONFIRMED) identified that `writeback_optimized_instructions()` propagates to ALL karen.md copies including `~/.claude/agents/karen.md`. F-mid.1 cleared the global copy on casaclaude. However: (a) the fix may not have reached proxyclaude's ~/.claude/agents/karen.md, and (b) project-level copies in bricklayer-v2, bl-audit, and template directories were explicitly preserved. The research-analyst behavioral patterns (verdict calibration, evidence length, confidence targeting) may still be active in project-level karen.md copies used by agents spawned from those directories.
+**Hypothesis**: At least one of the project-level karen.md copies (`.claude/agents/karen.md` in bricklayer-v2/, bl-audit/, template/) contains a DSPy Optimized Instructions section with research-analyst behavioral patterns. These are not the global copy but would affect karen agents spawned from those project contexts.
+**Success criterion**: (1) `grep -rn "DSPy Optimized Instructions" C:/Users/trg16/Dev/Bricklayer2.0/` — count hits. (2) For any hits, check if content references "verdict match", "evidence quality", or "confidence calibration" (research-analyst rubric markers). (3) Verify the global `~/.claude/agents/karen.md` is clean. Verdict: HEALTHY if only global copy is present and clean; WARNING if project-level copies contain research-analyst DSPy content; FAIL if global copy was re-contaminated.
+
+---
+
+### F-w40.1: Add circuit breaker to semantic.py for Ollama timeout (P1 residual)
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: MEDIUM
+**Motivated by**: P1 (CONFIRMED) identified that when Ollama is offline, Layer 2 (semantic routing) hangs for the full HTTP timeout before propagating to Layer 3 (LLM fallback). The cascade: Layer 2 timeout → blocking wait → all routes stall → deterministic Layer 1 handles only slash commands; everything else waits. P1 recommended a circuit breaker with configurable timeout and failure tracking.
+**Hypothesis**: `masonry/src/routing/semantic.py` has no circuit breaker — it makes a direct HTTP call to Ollama's embedding endpoint with no per-call timeout guard, no failure counter, and no fast-fail path. Adding a 2-second per-call timeout with a circuit breaker (e.g., after 3 consecutive failures, skip Layer 2 for 60 seconds) would eliminate the cascade.
+**Success criterion**: (1) Read `masonry/src/routing/semantic.py` — identify the Ollama HTTP call. (2) Add a per-call timeout (≤ 2 seconds). (3) Add a circuit breaker state (failure_count, last_failure_time, OPEN/CLOSED state). (4) When OPEN, skip Layer 2 and fall through to Layer 3 immediately. (5) Reset after 60 seconds or on next success. Verdict: FIX_APPLIED if circuit breaker present with correct timeout and state machine; PARTIAL if timeout added but no circuit state.
+
+---
+
+### R-w40.2: P4 subagent tracker slot collision — what records are actually lost or corrupted?
+
+**Status**: PENDING
+**Operational Mode**: research
+**Agent**: research-analyst
+**Priority**: LOW
+**Motivated by**: P4 (peer review: CONCERNS) — the 16.7% near-collision rate in `masonry-subagent-tracker.js` was flagged but the actual downstream impact was unquantified. Each slot overwrites `${subagentType}_latest.json` when two agents of the same type start within the 10-second window. The question is: does this affect any downstream consumer that reads these files, and is the corruption observable in agent_db.json or training data?
+**Hypothesis**: The `${subagentType}_latest.json` files are read by analytics or onboarding scripts that use the data for training record attribution. If a collision overwrites a record, the earlier agent's data may be attributed to the wrong session or lost entirely. However, if the files are only used for in-session tracking with no durable read-back, the 16.7% collision rate is a logging gap with no functional impact.
+**Success criterion**: (1) Read `masonry-subagent-tracker.js` — identify what `${subagentType}_latest.json` contains and who reads it. (2) Search for any script that reads from `agent_snapshots/*/` or `latest.json` files. (3) Determine if lost slots produce missing records in `agent_db.json` or `scored_all.jsonl`. (4) Assess actual vs. theoretical damage. Verdict: HEALTHY if collision has no downstream data impact; WARNING if records are lost but not corrupted; FAIL if agent_db.json attribution errors are traceable to P4 collisions.
+
+---
+
+### F-w40.2: Fix dead `optimized_prompt` field in improve_agent.py comparison report (P7)
+
+**Status**: PENDING
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: LOW
+**Motivated by**: P7 (CONFIRMED/DORMANT) — `improve_agent.py` reads `optimized_prompt` from the optimization output JSON but `optimize_with_claude.py` no longer writes this field (the field was removed in an earlier refactor). The comparison report logs an empty or missing field. This is a cosmetic bug — the optimization loop works correctly — but the before/after report is misleading.
+**Hypothesis**: `improve_agent.py` has a line like `optimized = result.get("optimized_prompt", "")` or similar that reads a field no longer written by `optimize_with_claude.py`. The fix is to either (a) remove the field read and display `instructions_applied: true/false` instead, or (b) restore the field write in `optimize_with_claude.py`. Option (a) is simpler.
+**Success criterion**: (1) Read `masonry/scripts/improve_agent.py` — find all references to `optimized_prompt`. (2) Read `masonry/scripts/optimize_with_claude.py` output schema — confirm `optimized_prompt` is absent. (3) Remove or replace the dead field read in `improve_agent.py`. (4) Verify the before/after comparison report still shows meaningful diff (before_score, after_score, delta, instructions excerpt). Verdict: FIX_APPLIED if dead field removed and report still meaningful; PARTIAL if removed but report loses information.
+
+---
+
+### P-w40.1: If improve_agent.py runs now (all cascades fixed), what new failure modes could the optimization loop introduce?
+
+**Status**: PENDING
+**Operational Mode**: predict
+**Agent**: cascade-analyst
+**Priority**: MEDIUM
+**Motivated by**: R-next.1 (HEALTHY) confirmed before_score=0.5333 and the optimization pipeline is unblocked. The cascades that previously corrupted optimization (P2 corpus, P3 rubric, P6 drift) are resolved. However, the optimization loop introduces its own risks: LLM-generated instruction changes may degrade agent behavior in ways not captured by the eval metric, the revert gate may have edge cases, and the write-back mechanism may overwrite content beyond the DSPy section boundaries.
+**Hypothesis**: The optimization loop has at least three residual risks now that it's unblocked: (1) The held-out eval metric only measures verdict/evidence/confidence quality — it cannot detect degradation in agent reasoning style, context handling, or edge-case behavior. (2) The revert gate (compare before_score vs. after_score) has a ±0.05 noise band — small degradations below this band will not trigger a revert. (3) `writeback_optimized_instructions()` uses delimiter-based replacement that could corrupt agent instructions if the delimiter appears in the generated content.
+**Success criterion**: Identify the specific failure modes that remain possible after the three cascades are resolved, with evidence from code inspection of `improve_agent.py`, `optimize_with_claude.py`, and `writeback.py`. Assess severity and probability. Predict which agents are at highest risk for silent degradation after optimization. Verdict: CONFIRMED if failure modes are real and code-evidenced; INCONCLUSIVE if risks are theoretical without code support.
