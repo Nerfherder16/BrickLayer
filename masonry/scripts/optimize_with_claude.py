@@ -121,23 +121,73 @@ def _read_current_instructions(md_path: Path) -> str:
 
 # ── Prompt builder ───────────────────────────────────────────────────────────
 
+_RUBRIC_RESEARCH = (
+    "The agent is scored on three axes, 0\u20131 each:\n"
+    "- **Verdict match (40%)**: exact string match against the expected verdict"
+    " (HEALTHY, WARNING, FAILURE, INCONCLUSIVE, etc.)\n"
+    "- **Evidence quality (40%)**: evidence text > 300 chars AND contains numbers or threshold language"
+    " (%, ms, pts, baseline, threshold, seconds) = full marks; otherwise half marks."
+    " **Prerequisite gate**: wrong verdict caps total at 0.20 regardless of evidence quality.\n"
+    "- **Confidence calibration (20%)**: 1 - |predicted_confidence - 0.75|."
+    " Closer to 0.75 = higher score."
+)
+
+_RUBRIC_KAREN = (
+    "The agent is scored on three axes, 0\u20131 each:\n"
+    "- **quality_score_proximity (50%)**: primary \u2014 the predicted quality_score correctly maps to the"
+    " example\u2019s actual quality tier (1.0 for meaningful commits, 0.7 for minor-but-valid,"
+    " 0.0 for reverts/no-ops).\n"
+    "- **action_match (30%)**: secondary \u2014 the correct action type is identified"
+    " (updated / created / reverted / skipped).\n"
+    "- **changelog_quality (20%)**: tertiary \u2014 the changelog_entry is one line under 120 chars,"
+    " includes the commit type prefix, and names the specific agent/module/feature affected."
+)
+
+_FOCUS_RESEARCH = (
+    "1. **Verdict calibration**: What patterns distinguish correct verdicts?"
+    " When is WARNING vs FAILURE vs HEALTHY correct? Ground rules in the scoring rubric above.\n"
+    "2. **Evidence structure**: The eval requires >300 chars with quantitative data."
+    " What format consistently produces high-scoring evidence?"
+    " (Numbered bold-header items with specific numbers score highest.)\n"
+    "3. **Summary quality**: Summaries must be \u2264200 chars, include a quantitative fact,"
+    " and state the verdict + key insight.\n"
+    "4. **Confidence targeting**: Optimal confidence is ~0.75. When to deviate.\n"
+    "5. **Root cause chains**: High-scoring outputs explain root cause \u2192 mechanism \u2192 impact."
+    " Low-scoring outputs state symptoms only."
+)
+
+_FOCUS_KAREN = (
+    "1. **quality_score assignment**: What patterns reliably signal a 1.0 vs 0.7 vs 0.0 commit?"
+    " Pay attention to the commit type prefix (feat/fix/refactor = 1.0; minor chore = 0.7;"
+    " bot commits / reverts = 0.0).\n"
+    "2. **action classification**: When is a commit \u2018skipped\u2019 vs \u2018updated\u2019?"
+    " The type prefix is the primary signal \u2014 files_modified is scope context only.\n"
+    "3. **changelog_entry format**: The entry must name the specific agent, module, or feature"
+    " \u2014 not generic descriptions. Format: \u2018[type] brief specific description\u2019.\n"
+    "4. **Revert and bot-commit detection**: chore commits that update CHANGELOG for a hash are"
+    " always skipped/0.0. Revert commits are always reverted/0.0.\n"
+    "5. **Edge cases from training data**: What patterns tripped the agent in the low-quality examples?"
+)
+
+
 def _build_prompt(
     agent_name: str,
     current_instructions: str,
     high_examples: list[dict],
     low_examples: list[dict],
+    signature: str = "research",
 ) -> str:
     high_block = "\n---\n".join(_format_example(r) for r in high_examples) if high_examples else "(none)"
     low_block = "\n---\n".join(_format_example(r) for r in low_examples) if low_examples else "(none)"
 
-    return f"""You are a prompt engineer optimizing the instructions for a BrickLayer research agent called **{agent_name}**.
+    rubric = _RUBRIC_KAREN if signature == "karen" else _RUBRIC_RESEARCH
+    focus = _FOCUS_KAREN if signature == "karen" else _FOCUS_RESEARCH
+
+    return f"""You are a prompt engineer optimizing the instructions for a BrickLayer agent called **{agent_name}**.
 
 ## Scoring Rubric (what the eval measures)
 
-The agent is scored on three axes, 0–1 each:
-- **Verdict match (40%)**: exact string match against the expected verdict (HEALTHY, WARNING, FAILURE, INCONCLUSIVE, etc.)
-- **Evidence quality (40%)**: evidence text > 300 chars AND contains numbers or threshold language (%, ms, pts, baseline, threshold, seconds) = full marks; otherwise half marks. **Prerequisite gate**: wrong verdict caps total at 0.20 regardless of evidence quality.
-- **Confidence calibration (20%)**: 1 - |predicted_confidence - 0.75|. Closer to 0.75 = higher score.
+{rubric}
 
 ## Current Agent Instructions
 
@@ -158,11 +208,7 @@ These instructions **supplement** the procedural steps already in the agent file
 
 Focus your improvements on:
 
-1. **Verdict calibration**: What patterns distinguish correct verdicts? When is WARNING vs FAILURE vs HEALTHY correct? Ground rules in the scoring rubric above.
-2. **Evidence structure**: The eval requires >300 chars with quantitative data. What format consistently produces high-scoring evidence? (Numbered bold-header items with specific numbers score highest.)
-3. **Summary quality**: Summaries must be ≤200 chars, include a quantitative fact, and state the verdict + key insight.
-4. **Confidence targeting**: Optimal confidence is ~0.75. When to deviate.
-5. **Root cause chains**: High-scoring outputs explain root cause → mechanism → impact. Low-scoring outputs state symptoms only.
+{focus}
 
 DO NOT:
 - Rewrite the procedural steps (Steps 1–7 in the synthesizer, or equivalent in other agents)
@@ -190,6 +236,7 @@ def run(
     base_dir: Path,
     num_examples: int = 15,
     dry_run: bool = False,
+    signature: str = "research",
 ) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     print(f"[init] Starting claude-p optimization for: {agent_name}")
@@ -220,7 +267,7 @@ def run(
     current_instructions = _read_current_instructions(md_path)
 
     # ── Build prompt ──────────────────────────────────────────────────────────
-    prompt = _build_prompt(agent_name, current_instructions, high, low)
+    prompt = _build_prompt(agent_name, current_instructions, high, low, signature=signature)
     print(f"[prompt] Prompt size: {len(prompt)} chars")
 
     if dry_run:
@@ -371,6 +418,12 @@ def _main() -> None:
         help="Max examples per quality tier to include (default: 15)",
     )
     parser.add_argument(
+        "--signature",
+        default="research",
+        choices=["research", "karen"],
+        help='Metric signature: "research" (default) or "karen"',
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print the prompt and exit without calling claude",
@@ -381,6 +434,7 @@ def _main() -> None:
         base_dir=args.base_dir.resolve(),
         num_examples=args.num_examples,
         dry_run=args.dry_run,
+        signature=args.signature,
     ))
 
 
