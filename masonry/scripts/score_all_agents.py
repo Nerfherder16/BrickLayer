@@ -399,6 +399,21 @@ def run(
     registry_path = base_dir / "masonry" / "agent_registry.yml"
     updated_agents = _update_registry_last_scores(registry_path, agent_averages)
 
+    # 10. Append eval run to agent_db.json time-series
+    db_path = base_dir / "agent_db.json"
+    for agent_name, avg_score in agent_averages.items():
+        if avg_score >= 0.7:
+            overall = "HEALTHY"
+        elif avg_score >= 0.4:
+            overall = "WARNING"
+        else:
+            overall = "FAILURE"
+        write_agent_db_record(
+            agent_name,
+            {"score": round(avg_score, 4), "overall": overall},
+            db_path,
+        )
+
     _print_summary_table(scorer_summaries, agent_record_counts)
 
     return {
