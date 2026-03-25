@@ -71,10 +71,11 @@ function closeSession(projectDir) {
 
 // Key project docs that must stay current with code changes.
 const PROJECT_DOCS = [
+  "CHANGELOG.md",
+  "ROADMAP.md",
+  "ARCHITECTURE.md",
   "README.md",
   "PROJECT_STATUS.md",
-  "ROADMAP.md",
-  "docs/architecture/ARCHITECTURE.md",
 ];
 
 // Source patterns that count as "real code changes" (not just doc/changelog commits).
@@ -84,6 +85,8 @@ const SOURCE_PATTERNS = [
   /^template\//,
   /^adbp\//,
   /^kiln\//,
+  /^bl\//,
+  /^projects\//,
 ];
 
 /**
