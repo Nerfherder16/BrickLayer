@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `3736711` chore: Wave 40 complete — 6 questions, 2 FIX_APPLIED, 1 FAIL, 1 CONFIRMED (2026-03-24)
 - `373e4e1` chore: auto-commit 4 session files on stop (2026-03-24)
 - `876a15a` chore: auto-commit synthesizer-bl2 instruction updates from improve_agent.py loop (2026-03-24)
 - `9edb3ef` chore: add Wave 40 questions (V-w40.1, R-w40.1, F-w40.1, R-w40.2, F-w40.2, P-w40.1) (2026-03-24)
