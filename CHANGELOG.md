@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `d68dcc4` feat(T1.3): harden LLM router — env var model, retry, preflight check (2026-03-25)
 - `8831cda` chore: close T5.1 and T5.2 — neither needed action (2026-03-25)
 - `fd6f5c5` feat(T4.1): mark session ownership lock system complete in FIX_PLAN (2026-03-24)
 - `efb112a` chore: auto-commit 4 session files on stop (2026-03-24)
