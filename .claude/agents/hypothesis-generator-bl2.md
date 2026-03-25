@@ -14,6 +14,8 @@ output_schema: FindingPayload
 tier: candidate
 tools:
   - Read
+  - Write
+  - Edit
   - Glob
   - Grep
   - WebFetch
