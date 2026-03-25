@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `2638280` fix(masonry): pass signature arg through improve_agent loop to optimize_with_claude (2026-03-24)
 - `cc2af47` chore: auto-commit 1 session file on stop (2026-03-24)
 - `e7f091e` feat(masonry): skip auto-optimize for agents with insufficient verdict history (2026-03-24)
 - `af1a726` fix(masonry): exclude test/mock campaign records from agent optimization training data (2026-03-24)
