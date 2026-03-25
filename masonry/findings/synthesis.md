@@ -1,59 +1,52 @@
-# Wave 37 Synthesis — Masonry Self-Research
+# Wave 38 Synthesis — Masonry Self-Research
 
 **Date**: 2026-03-24
-**Wave**: 37 (Predict Mode -- cascade-analyst)
-**Questions**: 7 total -- 4 CONFIRMED, 3 WARNING, 0 failed
+**Wave**: 38 (Mid-wave fix + validate cycle)
+**Questions**: 5 total -- 3 FIX_APPLIED, 1 FAIL, 1 WARNING
 
 ---
 
 ## Executive Summary
 
-Wave 37 was the first predict-mode wave, deploying the cascade-analyst to answer seven forward-looking questions about unresolved risks identified across waves 1-36. The results reveal that the Masonry optimization loop has three independently active failure cascades that interact destructively, and two more that are imminent or latent. The most urgent finding (P6) shows that drift scoring is already inverted for 4 of 5 agents with verdict histories -- a single `auto_trigger=true` call would launch optimization processes that directionally suppress FAILURE verdicts, starving the fix pipeline of inputs. The second most urgent (P3) confirms that karen optimization has already executed with the wrong scoring rubric, and contaminated instructions are live on all machines. These are not future risks; they are active cascades requiring immediate intervention before any further optimization runs.
+Wave 38 was a targeted fix-and-validate cycle addressing the three interacting cascades identified in the Wave 37 predict-mode synthesis (P6 + P3 + P2). Two of three cascades are now remediated: the karen rubric contamination (P3) has been cleared and the rubric injection mechanism fixed, and the mock_campaign corpus pollution (P2) has been cleaned (135 records removed, not the 15 originally estimated) with a source-exclusion guard added. A secondary P6 mitigation -- MIN_VERDICTS_FOR_AUTO_OPTIMIZE threshold -- is in place, protecting low-sample agents like benchmark-engineer from premature auto-trigger.
 
-The predict-mode wave changes the campaign recommendation from CONTINUE to STOP with conditions. The core research campaign (waves 1-36) successfully built and validated the Masonry orchestration layer. The predict wave reveals that the optimization feedback loop -- the system that is supposed to improve agent quality over time -- has three structural flaws that would compound if left unaddressed. Fixing these flaws is a maintenance task, not a research question.
+The primary P6 defect remains open: `_score_verdicts()` in `drift_detector.py` still treats FAILURE as 0.0, and the confidence-weighted mean fix (F12.1) has not been implemented. Research-analyst remains at 45.2% CRITICAL drift under the current metric. The operational prohibition on `auto_trigger=true` is still in effect. V-mid.1 confirmed that the confidence data infrastructure exists in `agent_db.json` (29-element float array for research-analyst, mean 0.9131) -- only the consumption side is missing. With F12.1 applied, research-analyst drift would flip from 45.2% CRITICAL to -7.4% ok.
+
+Additionally, V-mid.2 confirmed that the P5 double-fire cascade trigger is closed (F3.1 verified end-to-end), with two residual risks identified but independent of the optimization loop.
 
 ---
 
 ## Critical Findings (must act)
 
-1. **P6** [CONFIRMED, Critical] -- Drift scoring treats FAILURE verdicts as 0.0 (bad performance), but research agents return FAILURE to indicate correctly-found defects. 4 agents already at CRITICAL drift (45-100%). Auto-trigger would launch `improve_agent.py` against the campaign's best performers.
-   Fix: Replace `_score_verdicts()` in `drift_detector.py` with confidence-weighted mean (confidence data already present in agent_db.json). Until shipped, `masonry_drift_check` must NOT be called with `auto_trigger=true`. Add minimum sample threshold (>=10 verdicts) before auto-trigger fires.
-
-2. **P3** [CONFIRMED, High] -- Karen optimization already executed with the research-analyst rubric (verdict/evidence/confidence) instead of the karen rubric (quality_score_proximity/action_match/changelog_quality). Contaminated instructions are live in karen.md on all machines since 2026-03-24T23:17:33Z. The revert gate could not detect the regression because the bimodal corpus (98.7% at score=100) produces near-1.0 before/after scores.
-   Fix: (a) Immediately clear the DSPy Optimized Instructions section from karen.md on all machines. (b) Add signature-conditional rubric to `_build_prompt()` in `optimize_with_claude.py`. (c) Replace synthetic_negative records with real organic low-scoring examples.
-
-3. **P1** [CONFIRMED, High] -- Ollama offline cascade is active. Every non-deterministic routing request blocks 15s at Layer 2 before falling through to Layer 3. Both MIPROv2 execution paths are blocked simultaneously. The day-7 FAILURE runbook action references a non-existent `SEMANTIC_ROUTING_ENABLED` constant.
-   Fix: (a) Add circuit breaker to `semantic.py` (first failure blocks 15s, subsequent within 60s are instant). (b) Add `SEMANTIC_ROUTING_ENABLED` to `constants.py`. (c) Restore Ollama host.
+1. **V-mid.1** [FAIL, Critical] -- F12.1 (confidence-based drift metric) is NOT implemented. `_score_verdicts()` has no confidence parameter. `run_drift_check()` does not read confidences from `agent_db.json`. Research-analyst at 45.2% CRITICAL drift. CASCADE_ACTIVE.
+   Fix: Add `confidences: list[float] | None` parameter to `_score_verdicts()`, thread through `detect_drift()` and `run_drift_check()`. Apply to both `masonry/src/drift_detector.py` (canonical) and `masonry/src/dspy_pipeline/drift_detector.py`.
 
 ## Significant Findings (important but not blocking)
 
-4. **P2** [WARNING, High] -- Mock campaign corpus contamination has frozen the optimization loop. 15 `source: mock_campaign` records in scored_all.jsonl degraded before_score from 0.35 to 0.15 (loop 2 was reverted). The held-out eval draws last-N chronologically, so mock records dominate the eval set. Running MIPROv2 on this corpus would train on 40% mislabeled contrast signal.
-   Fix: Filter mock_campaign records from scored_all.jsonl before any optimization run. Add source-filtering to `_load_records()`.
+2. **V-mid.2** [WARNING, Medium] -- P5 primary trigger (double-fire output collision) is CLOSED by F3.1. Two residual risks remain: (a) build-guard exits 0 on cross-session mismatch with stderr-only message not visible in conversation, (b) stop-guard auto-commits all session-touched files unconditionally with no test-pass or IN_PROGRESS task gate. Both are independent of the optimization loop.
+   Fix: Add `hookSpecificOutput` to build-guard cross-session path; add IN_PROGRESS task guard before stop-guard auto-commit.
 
-5. **P5** [CONFIRMED, High] -- D3.2 interrupted-build cascade is imminent with zero additional preconditions. The double-fire output defect produces invalid JSON on session-start, silently discarding the auto-resume directive. Build-guard session-ID gating then permits new sessions to overwrite interrupted build state. Stop-guard may auto-commit partial, unverified implementations.
-   Fix: Verify F3.1 (empty hooks.json) is fully applied. If double-fire persists, add write-once lock to session-start interrupted-build fast path.
+## Fixed This Wave
 
-6. **P4** [WARNING, Medium] -- Pre-agent tracker one-slot-per-type collision confirmed at 16.7% rate (7 of 42 spawns within 10s TTL). 26.2% of research-analyst routing_log entries already have empty request_text. Training corpus corruption is currently latent (requires live record pipeline coupling to routing_log, which does not exist yet).
-   Fix: Replace single-slot with UUID-keyed slot in masonry-preagent-tracker.js. Add warning log on slot overwrite detection.
+3. **F-mid.1** [FIX_APPLIED] -- Karen rubric contamination (P3 cascade) remediated. Stripped contaminated research-analyst rubric from `~/.claude/agents/karen.md`. Fixed `_build_prompt()` in `optimize_with_claude.py` to use signature-conditional rubric selection (4 module-level constants: `_RUBRIC_RESEARCH`, `_RUBRIC_KAREN`, `_FOCUS_RESEARCH`, `_FOCUS_KAREN`). Threaded `signature` parameter through `run()`, `_main()`, and `run_optimize()`.
 
-7. **P7** [WARNING, Low] -- `AgentRegistryEntry.optimized_prompt` is a dead schema field. No write path, no read path, no current consumer. Cascade is dormant. Secondary gap: 21 of 47 agents lack `dspy_status` key in YAML, making `update_registry_dspy_status()` silently skip them.
-   Fix: Remove the dead field from payloads.py. Backfill `dspy_status` for all 47 agents.
+4. **F-mid.2** [FIX_APPLIED] -- Mock campaign corpus contamination (P2) cleaned. Removed 135 records with `source: "mock_campaign"` from `scored_all.jsonl` (actual scope 9x larger than the 15-record estimate from P2). Added `_EXCLUDED_SOURCES = {"mock_campaign", "test_campaign"}` set and source-filter guard to `_load_records()` in `optimize_with_claude.py`.
+
+5. **F-mid.3** [FIX_APPLIED] -- MIN_VERDICTS_FOR_AUTO_OPTIMIZE=10 guard added to `_tool_masonry_drift_check()` auto_trigger loop in `mcp_server/server.py`. Benchmark-engineer (2 verdicts) now excluded from auto-trigger. Partial P6 mitigation -- prevents low-sample agents from triggering optimization, but does not fix the scoring inversion itself.
 
 ## Healthy / Verified
 
-The predict wave found no false alarms -- all seven hypotheses identified real mechanisms. However, several prior-wave accomplishments remain solid:
-
-- **Routing pipeline** (waves 3-11): All four layers operational. L1 15-20%, L2 30% (when Ollama online), L3 35%, L4 35%.
-- **Hook double-fire** (F3.1): Root cause fix applied. P5 notes the cascade if it recurs, but the fix is in place.
-- **Training data pipeline** (waves 4-9, 29-35): 606+ records across agents. Question text enrichment at 500-char median. Deduplication and scoring functional.
-- **Write-back injection** (V32.1): End-to-end confirmed. MIPROv2 -> JSON -> .md -> system prompt path works.
-- **API key CLI** (F32.2): Code blocker for MIPROv2 execution is resolved.
+- **F3.1 (hooks.json empty)**: Confirmed end-to-end. `hooks/hooks.json` contains `{"hooks": {}}`. SessionStart registered once in settings.json. Single-fire fast path produces valid JSON. Double-fire cascade path is permanently closed.
+- **Routing pipeline** (waves 3-11): All four layers operational.
+- **Training data pipeline** (waves 4-9, 29-35): Now clean of mock_campaign records. 471+ legitimate records across agents.
+- **Write-back injection** (V32.1): End-to-end confirmed. Rubric injection now signature-conditional.
+- **API key CLI** (F32.2): MIPROv2 execution unblocked.
 
 ---
 
-## Cross-Cascade Interaction Analysis
+## Cross-Cascade Status Update
 
-The predict wave reveals three cascades that interact:
+The Wave 37 synthesis identified a self-reinforcing feedback loop across P6 + P3 + P2:
 
 ```
 P6 (drift inversion) --[feeds]--> auto_trigger --[launches]--> improve_agent.py
@@ -61,36 +54,31 @@ P6 (drift inversion) --[feeds]--> auto_trigger --[launches]--> improve_agent.py
 P3 (wrong rubric) --[corrupts]--------------------------> optimize_with_claude.py
                                                                        |
 P2 (mock corpus) --[poisons]---> held-out eval + training tiers -------+
-                                                                       |
-                                                               [optimized instructions]
-                                                                       |
-                                                               karen.md / research-analyst.md
-                                                                       |
-                                                               [agent behavior degrades]
-                                                                       |
-P6 (drift inversion) <--[measures degradation as improvement]----------+
 ```
 
-**The feedback loop is self-reinforcing**: P6 triggers optimization on the best agents. P3 ensures optimization uses the wrong rubric. P2 ensures the eval cannot detect the regression. The result is agents that stop finding real defects, which P6 then scores as "healthy." This loop activates on the next `auto_trigger=true` call with zero additional preconditions.
+**Wave 38 status:**
+- P2 (corpus): RESOLVED. 135 mock_campaign records removed. Source-exclusion guard prevents recurrence.
+- P3 (rubric): RESOLVED. Karen.md cleared. Signature-conditional rubric selection shipped. Three project-level copies with legitimate karen MIPROv2 content left untouched.
+- P6 (drift inversion): PARTIALLY MITIGATED. MIN_VERDICTS guard prevents premature auto-trigger for low-sample agents. Primary defect (FAILURE=0.0 in `_score_verdicts()`) unchanged. F12.1 not implemented.
+- P5 (double-fire cascade): PRIMARY TRIGGER CLOSED. Two residual risks (build-guard visibility, stop-guard auto-commit) unaddressed but not blocking.
 
-**Fix ordering matters**: P2 (corpus cleanup) must precede P3 (rubric fix) must precede P6 (metric fix). Fixing P6 alone would stop the auto-trigger cascade but leave the rubric and corpus problems to corrupt the next manual optimization run. Fixing P3 alone would fix karen but leave research-analyst exposed to the mock corpus. All three must be addressed, in order.
+**The feedback loop is now broken at two of three points.** P2 and P3 cannot corrupt future optimization runs. The remaining risk is P6: if `auto_trigger=true` is called, drift scoring still inverts (FAILURE=0.0), causing the best-performing research agents to be flagged as CRITICAL and triggering optimization against them. The MIN_VERDICTS guard prevents this for benchmark-engineer but not for research-analyst (29 verdicts), diagnose-analyst (34), or design-reviewer (10).
+
+**Fix ordering update**: P2 and P3 are complete. Only P6 remains. Implementing F12.1 is the single remaining prerequisite before MIPROv2 optimization runs can safely execute with auto_trigger enabled.
 
 ---
 
-## Campaign-Wide Verdict Summary (Waves 1-37)
+## Campaign-Wide Verdict Summary (Waves 1-38)
 
 | Category | Count |
 |----------|-------|
-| Total questions answered | 209+ |
-| FIX_APPLIED | ~50 |
+| Total questions answered | 214+ |
+| FIX_APPLIED | ~53 |
 | HEALTHY/COMPLIANT/CALIBRATED | ~40 |
 | CONFIRMED (predict mode) | 4 |
-| WARNING | ~20 |
-| FAILURE (subsequently fixed) | ~24 |
-| FAILURE (open) | ~7 |
+| WARNING | ~21 |
+| FAILURE/FAIL (open) | ~6 |
 | Other (DIAGNOSIS_COMPLETE, DONE, etc.) | ~15 |
-
-The campaign has moved from discovery (waves 1-2), through a sustained fix cycle (waves 3-32), into forward-looking cascade analysis (waves 33-37). The system is operationally functional but the optimization feedback loop requires targeted repairs before it can be safely engaged.
 
 ---
 
@@ -98,24 +86,22 @@ The campaign has moved from discovery (waves 1-2), through a sustained fix cycle
 
 **STOP**
 
-The core research campaign is complete. All four routing layers work. Hook double-fires are eliminated. Training data pipeline produces quality records. Write-back injection is confirmed end-to-end. The predict wave identified three interacting cascades in the optimization feedback loop (P6 + P3 + P2) that require ordered fixes, but these are maintenance tasks with clear specifications, not research questions requiring further investigation.
+The cascade remediation work is nearly complete. Two of three interacting cascades (P2 corpus, P3 rubric) are fully resolved. The remaining item -- F12.1 (confidence-weighted drift scoring) -- is a single-function fix with a clear specification, confirmed data infrastructure, and a known expected outcome (research-analyst flips from 45.2% CRITICAL to -7.4% ok). This is a maintenance task, not a research question. Implement it, then the MIPROv2 optimization loop is safe to engage.
 
-**Preconditions before any optimization run:**
-1. Clean mock_campaign records from scored_all.jsonl (P2)
-2. Clear contaminated DSPy section from karen.md on all machines (P3)
-3. Add signature-conditional rubric to optimize_with_claude.py (P3)
-4. Replace _score_verdicts() with confidence-weighted mean in drift_detector.py (P6)
-5. Add circuit breaker to semantic.py (P1)
-6. Restore Ollama or cleanly disable Layer 2 (P1)
+**Preconditions before any optimization run (updated):**
+1. ~~Clean mock_campaign records from scored_all.jsonl (P2)~~ DONE (F-mid.2)
+2. ~~Clear contaminated DSPy section from karen.md on all machines (P3)~~ DONE (F-mid.1)
+3. ~~Add signature-conditional rubric to optimize_with_claude.py (P3)~~ DONE (F-mid.1)
+4. Replace `_score_verdicts()` with confidence-weighted mean in `drift_detector.py` (P6/F12.1) -- OPEN
+5. Add circuit breaker to `semantic.py` (P1) -- OPEN (non-blocking for optimization)
+6. Restore Ollama or cleanly disable Layer 2 (P1) -- OPEN (non-blocking for optimization)
 
-**After those 6 items are complete**, the MIPROv2 optimization runs (research-analyst and karen) can safely execute with the API key.
+**After item 4 is complete**, MIPROv2 optimization runs (research-analyst and karen) can safely execute. Items 5-6 are routing layer improvements, not optimization blockers.
 
 ## Next Wave Hypotheses
 
-If further campaign waves are warranted, these are the highest-value questions:
-
-1. After P2/P3/P6 fixes are applied, does `improve_agent.py --dry-run` produce before_score >= 0.50 for research-analyst and a non-degenerate eval for karen?
-2. After Ollama is restored or the circuit breaker is deployed, what is the actual Layer 2 hit rate on a mixed dev+campaign session? (R9.2 measured 40-60% without the circuit breaker.)
-3. Does the P5 cascade (interrupted-build) actually manifest with F3.1 applied? Needs a live interruption test with an active `.autopilot/` directory.
-4. After MIPROv2 runs, does the optimized research-analyst produce measurably different findings on a held-out question set compared to the pre-optimization baseline?
-5. Is the P4 slot collision (16.7% rate) producing any observable downstream effect beyond empty request_text in routing_log, or is the damage contained to analytics?
+1. After F12.1 is implemented, does `improve_agent.py --dry-run` produce before_score >= 0.50 for research-analyst? (Direct validation of the cascade fix chain.)
+2. After F12.1 ships, does `masonry_drift_check(auto_trigger=true)` correctly skip research-analyst (no longer CRITICAL) and only trigger optimization for genuinely degraded agents?
+3. Do the V-mid.2 residual risks (build-guard cross-session, stop-guard auto-commit) manifest in practice during a real interrupted build? (Needs a live interruption test with an active `.autopilot/` directory.)
+4. After MIPROv2 runs on the cleaned corpus with correct rubrics, does the optimized research-analyst outperform baseline on a held-out question set?
+5. Is the P4 pre-agent tracker slot collision (16.7% rate) producing any observable downstream effect, or is the damage contained to analytics?
