@@ -46,19 +46,14 @@ This correctly resolves to `C:/Users/trg16/Dev/Bricklayer2.0/` regardless of cwd
 
 ---
 
-### T1.3 — LLM router fragile on Windows ⚠️ PARTIALLY FIXED
+### T1.3 — LLM router fragile on Windows ✅
 **Problem:** Was `shlex.quote` + `shell=True`. Code audit shows Windows-specific fix is already in place.
-**Already fixed:** `llm_router.py` uses `["cmd", "/c", "claude", "--model", ...]` list-form on Windows (lines 49-52). No `shell=True`. Timeout is 20s on Windows vs 10s elsewhere.
-**Remaining minor gaps:**
-- Model ID `claude-haiku-4-5-20251001` is still hardcoded (should read from config)
-- No retry on timeout — falls through to None/fallback immediately
-- No pre-flight check that `claude` CLI is available
-**Files:** `masonry/src/routing/llm_router.py`
-**Fix needed (low priority):**
-- [ ] Move `_LLM_MODEL` to read from `~/.masonry/config.json` or env var `MASONRY_LLM_MODEL`, fallback to hardcoded
-- [ ] Add 1 retry with 2s backoff on TimeoutExpired before returning None
-- [ ] Add pre-flight: `shutil.which("claude")` check, warn once on missing CLI
-**Status:** `[~]` Windows fix done; config/retry gaps remain (low priority)
+**Already fixed:** `llm_router.py` uses `["cmd", "/c", "claude", "--model", ...]` list-form on Windows. No `shell=True`. Timeout is 20s on Windows vs 10s elsewhere.
+**Fix applied:**
+- [x] `_LLM_MODEL` reads from `MASONRY_LLM_MODEL` env var, fallback to hardcoded `claude-haiku-4-5-20251001`
+- [x] 1 retry with 2s backoff on `TimeoutExpired` before returning None
+- [x] Pre-flight `shutil.which("claude")` check — warns once on missing CLI, returns None immediately
+**Status:** `[x]` DONE
 
 ---
 
@@ -224,9 +219,9 @@ Makes verdicts trustworthy at scale. Phase 6 items.
 
 | Tier | Items | Done | In Progress | Blocked |
 |------|-------|------|-------------|---------|
-| T1 — Broken Infra | 3 | 2 | 1 | 0 |
+| T1 — Broken Infra | 3 | 3 | 0 | 0 |
 | T2 — Fleet Quality | 4 | 2 | 1 | 0 |
 | T3 — Campaign Intel | 5 | 5 | 0 | 0 |
 | T4 — Structural | 1 | 1 | 0 | 0 |
 | T5 — New Capability | 2 | 2 | 0 | 0 |
-| **Total** | **15** | **12** | **1** | **0** |
+| **Total** | **15** | **13** | **0** | **0** |
