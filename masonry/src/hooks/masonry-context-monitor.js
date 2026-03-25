@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Stop hook (Masonry): Estimate context window usage.
- * Blocks stop with a visible warning when context exceeds 150K tokens.
+ * Blocks stop with a visible warning when context exceeds 750K tokens.
  * stop_hook_active prevents infinite loops — fires once, then allows stop.
  */
 
@@ -34,10 +34,10 @@ async function main() {
     const stats = statSync(transcriptPath);
     const estimatedTokens = Math.round(stats.size / 4);
 
-    if (estimatedTokens > 150000) {
+    if (estimatedTokens > 750000) {
       process.stdout.write(JSON.stringify({
         decision: "block",
-        reason: `Context is ~${Math.round(estimatedTokens / 1000)}K tokens (>150K). Consider committing work and starting a fresh session to avoid context degradation.`,
+        reason: `~${Math.round(estimatedTokens / 1000)}K tokens (>750K) — commit + new session.`,
       }));
     }
   } catch {}

@@ -22,29 +22,55 @@ const ERROR_SIGNALS = [
   /\bundefined\b/i,
 ];
 
+// Fields in a tool_response object that may legitimately contain error text.
+// Deliberately excludes content/code fields (old_string, new_string, content, result,
+// stdout) that commonly contain English words or code matching ERROR_SIGNALS patterns.
+const _ERROR_FIELDS = ['error', 'stderr', 'errorMessage', 'message', 'reason', 'details'];
+
+/**
+ * Extract candidate error text strings from a tool response.
+ * For string responses, returns the string directly.
+ * For object responses, only checks known error-bearing fields to avoid false
+ * positives from code content in old_string/new_string/content/stdout.
+ */
+function _errorTexts(response) {
+  if (!response) return [];
+  if (typeof response === 'string') return [response];
+  // Object response: check is_error flag first for fast path
+  if (response.is_error === true || response.type === 'error') {
+    // Error-flagged responses may serialize safely since they won't contain old code
+    return [JSON.stringify(response)];
+  }
+  // Only extract from known error-bearing fields
+  return _ERROR_FIELDS.map(f => response[f]).filter(v => typeof v === 'string' && v.length > 0);
+}
+
 /**
  * Extract a short error summary from the tool response.
  */
 function extractErrorSummary(response) {
   if (!response) return '';
-  const text = typeof response === 'string' ? response : JSON.stringify(response);
-  // Take first line that looks like an error message
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const texts = _errorTexts(response);
+  const combined = texts.join('\n');
+  const lines = combined.split('\n').map(l => l.trim()).filter(Boolean);
   for (const line of lines) {
     if (ERROR_SIGNALS.some(re => re.test(line))) {
       return line.slice(0, 120);
     }
   }
-  return lines[0]?.slice(0, 120) || text.slice(0, 120);
+  return lines[0]?.slice(0, 120) || combined.slice(0, 120);
 }
 
 /**
  * Check if tool response contains an error signal.
+ * Scopes detection to error-bearing fields only — avoids false positives from
+ * code content (old_string, new_string, stdout) that contains common English
+ * words matching ERROR_SIGNALS patterns.
  */
 function hasErrorSignal(response) {
   if (!response) return false;
-  const text = typeof response === 'string' ? response : JSON.stringify(response);
-  return ERROR_SIGNALS.some(re => re.test(text));
+  const texts = _errorTexts(response);
+  return texts.some(text => ERROR_SIGNALS.some(re => re.test(text)));
 }
 
 /**

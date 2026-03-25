@@ -400,91 +400,11 @@ def _tool_masonry_route(args: dict) -> dict:
         }
 
 
-def _tool_masonry_optimization_status(args: dict) -> dict:
-    """Return DSPy optimization scores for all agents in the optimized_prompts directory."""
-    optimized_dir = Path(
-        args.get("optimized_dir", str(_REPO_ROOT / "masonry" / "optimized_prompts"))
-    )
-
-    agents: list[dict] = []
-
-    if not optimized_dir.is_dir():
-        return {"agents": [], "count": 0}
-
-    for json_file in sorted(optimized_dir.glob("*.json")):
-        try:
-            data = json.loads(json_file.read_text(encoding="utf-8"))
-            if "agent" in data:
-                agents.append(
-                    {
-                        "agent": data["agent"],
-                        "score": data.get("score", 0.0),
-                        "optimized_at": data.get("optimized_at"),
-                    }
-                )
-        except Exception:
-            pass
-
-    return {"agents": agents, "count": len(agents)}
-
-
-def _tool_masonry_optimize_agent(args: dict) -> dict:
-    """Trigger MIPROv2 prompt optimization for a single agent."""
-    agent_name = args.get("agent_name", "")
-    if not agent_name:
-        return {"error": "agent_name is required"}
-
-    projects_dir = Path(args.get("projects_dir", str(_REPO_ROOT)))
-    agent_db_path = Path(
-        args.get("agent_db_path", str(_REPO_ROOT / "agent_db.json"))
-    )
-    questions_md_path_str = args.get("questions_md_path")
-    questions_md_path = Path(questions_md_path_str) if questions_md_path_str else None
-    output_dir = Path(
-        args.get("output_dir", str(_REPO_ROOT / "masonry" / "optimized_prompts"))
-    )
-    model = args.get("model", "claude-sonnet-4-6")
-    backend = args.get("backend", "anthropic")
-    api_key = args.get("api_key")
-
-    try:
-        from masonry.src.dspy_pipeline.training_extractor import build_dataset  # noqa: PLC0415
-        from masonry.src.dspy_pipeline.optimizer import configure_dspy, optimize_agent  # noqa: PLC0415
-        from masonry.src.dspy_pipeline.signatures import ResearchAgentSig  # noqa: PLC0415
-    except ImportError as exc:
-        return {"error": f"DSPy pipeline import failed: {exc}"}
-
-    datasets = build_dataset(projects_dir, agent_db_path, questions_md_path=questions_md_path)
-    agent_dataset = datasets.get(agent_name, [])
-
-    if len(agent_dataset) < 5:
-        return {
-            "error": f"Insufficient training data for {agent_name}: {len(agent_dataset)} examples (need >= 5)",
-            "example_count": len(agent_dataset),
-        }
-
-    try:
-        configure_dspy(model=model, backend=backend, api_key=api_key)
-    except Exception as exc:
-        return {"error": f"DSPy configuration failed: {exc}"}
-
-    try:
-        result = optimize_agent(agent_name, ResearchAgentSig, agent_dataset, output_dir, backend=backend)
-        result["example_count"] = len(agent_dataset)
-        return result
-    except Exception as exc:
-        return {"error": f"Optimization failed: {exc}", "agent": agent_name}
-
-
 def _tool_masonry_onboard(args: dict) -> dict:
     """Detect and register new agent .md files not yet in the registry."""
     agents_dirs_raw = args.get("agents_dirs", [])
     registry_path_str = args.get(
         "registry_path", str(_REPO_ROOT / "masonry" / "agent_registry.yml")
-    )
-    dspy_output_dir_str = args.get(
-        "dspy_output_dir",
-        str(_REPO_ROOT / "masonry" / "src" / "dspy_pipeline" / "generated"),
     )
 
     if isinstance(agents_dirs_raw, str):
@@ -495,12 +415,12 @@ def _tool_masonry_onboard(args: dict) -> dict:
         Path("agents"),
     ]
     registry_path = Path(registry_path_str)
-    dspy_output_dir = Path(dspy_output_dir_str)
 
     try:
         from masonry.scripts.onboard_agent import onboard  # noqa: PLC0415
 
-        result = onboard(agents_dirs, registry_path, dspy_output_dir)
+        # dspy_output_dir is a legacy param (dspy_pipeline was removed); pass a no-op path
+        result = onboard(agents_dirs, registry_path, Path(os.devnull))
         # Return names of newly-added agents under the "onboarded" key for
         # backwards compatibility with callers that expect a list of names.
         names = result.get("names", [])
@@ -515,28 +435,93 @@ def _tool_masonry_onboard(args: dict) -> dict:
         return {"error": str(exc), "onboarded": [], "count": 0}
 
 
+MIN_VERDICTS_FOR_AUTO_OPTIMIZE = 10
+
+
 def _tool_masonry_drift_check(args: dict) -> dict:
-    """Run drift detection for all registry agents that have verdict history."""
+    """Run drift detection for all registry agents that have verdict history.
+
+    When auto_trigger=True, spawns improve_agent.py for every critical agent
+    as a background subprocess and returns the triggered agent list.
+
+    Agents with fewer than MIN_VERDICTS_FOR_AUTO_OPTIMIZE verdicts are skipped
+    by the auto_trigger spawning loop — insufficient sample size for reliable
+    drift scoring.
+    """
+    import subprocess  # noqa: PLC0415
+    import platform    # noqa: PLC0415
+
     agent_db_path_str = args.get(
         "agent_db_path", str(_REPO_ROOT / "agent_db.json")
     )
     registry_path_str = args.get(
         "registry_path", str(_REPO_ROOT / "masonry" / "agent_registry.yml")
     )
+    auto_trigger: bool = args.get("auto_trigger", False)
+    trigger_level: str = args.get("trigger_level", "critical")  # "critical" | "warning"
 
     agent_db_path = Path(agent_db_path_str)
     registry_path = Path(registry_path_str)
 
     try:
-        from masonry.src.dspy_pipeline.drift_detector import run_drift_check  # noqa: PLC0415
         from masonry.src.schemas.registry_loader import load_registry  # noqa: PLC0415
+        from masonry.src.drift_detector import run_drift_check          # noqa: PLC0415
 
         registry = load_registry(registry_path)
         reports = run_drift_check(agent_db_path, registry)
-        return {
+
+        triggered: list[str] = []
+        trigger_errors: list[str] = []
+
+        if auto_trigger:
+            levels_to_trigger = {"critical"} if trigger_level == "critical" else {"critical", "warning"}
+            # Load agent_db once for verdict count checks
+            agent_db: dict = {}
+            if agent_db_path.exists():
+                try:
+                    agent_db = json.loads(agent_db_path.read_text(encoding="utf-8"))
+                except Exception:
+                    agent_db = {}
+            for report in reports:
+                if report.alert_level not in levels_to_trigger:
+                    continue
+                # Skip agents with insufficient verdict history — drift score is
+                # statistically unreliable below MIN_VERDICTS_FOR_AUTO_OPTIMIZE.
+                agent_verdict_count = len(
+                    agent_db.get(report.agent_name, {}).get("verdicts", [])
+                )
+                if agent_verdict_count < MIN_VERDICTS_FOR_AUTO_OPTIMIZE:
+                    continue
+                try:
+                    python = "python" if platform.system() == "Windows" else "python3"
+                    proc = subprocess.Popen(
+                        [python, "masonry/scripts/improve_agent.py", report.agent_name],
+                        cwd=str(_REPO_ROOT),
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    triggered.append(f"{report.agent_name} (pid={proc.pid})")
+                except Exception as exc:
+                    trigger_errors.append(f"{report.agent_name}: {exc}")
+
+        result = {
             "reports": [r.model_dump() for r in reports],
             "count": len(reports),
+            "summary": {
+                "critical": sum(1 for r in reports if r.alert_level == "critical"),
+                "warning": sum(1 for r in reports if r.alert_level == "warning"),
+                "ok": sum(1 for r in reports if r.alert_level == "ok"),
+            },
         }
+        if auto_trigger:
+            result["triggered"] = triggered
+            if trigger_errors:
+                result["trigger_errors"] = trigger_errors
+
+        return result
+
+    except ImportError:
+        return {"error": "drift_detector module not available", "reports": []}
     except Exception as exc:
         return {"error": str(exc), "reports": []}
 
@@ -716,70 +701,11 @@ TOOLS = {
             },
         },
     },
-    "masonry_optimization_status": {
-        "fn": _tool_masonry_optimization_status,
-        "description": (
-            "Return DSPy prompt optimization scores for all agents. "
-            "Reads from the optimized_prompts directory (JSON files saved by MIPROv2)."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "optimized_dir": {
-                    "type": "string",
-                    "description": "Directory containing optimized agent JSON files. "
-                    "Defaults to masonry/optimized_prompts/.",
-                },
-            },
-        },
-    },
-    "masonry_optimize_agent": {
-        "fn": _tool_masonry_optimize_agent,
-        "description": (
-            "Trigger MIPROv2 prompt optimization for a specific agent using campaign findings as training data. "
-            "Requires ANTHROPIC_API_KEY. Saves optimized module to masonry/optimized_prompts/{agent}.json."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "required": ["agent_name"],
-            "properties": {
-                "agent_name": {
-                    "type": "string",
-                    "description": "Name of the agent to optimize, e.g. 'research-analyst'.",
-                },
-                "projects_dir": {
-                    "type": "string",
-                    "description": "Root directory to scan for findings. Defaults to repository root.",
-                },
-                "agent_db_path": {
-                    "type": "string",
-                    "description": "Path to agent_db.json. Defaults to agent_db.json at repository root.",
-                },
-                "questions_md_path": {
-                    "type": "string",
-                    "description": "Path to questions.md for agent attribution. Auto-discovered if omitted.",
-                },
-                "output_dir": {
-                    "type": "string",
-                    "description": "Directory to save optimized prompt JSON. Defaults to masonry/optimized_prompts/.",
-                },
-                "model": {
-                    "type": "string",
-                    "description": "Anthropic model for optimization. Defaults to claude-sonnet-4-6.",
-                    "default": "claude-sonnet-4-6",
-                },
-                "api_key": {
-                    "type": "string",
-                    "description": "Anthropic API key. Falls back to ANTHROPIC_API_KEY env var.",
-                },
-            },
-        },
-    },
     "masonry_onboard": {
         "fn": _tool_masonry_onboard,
         "description": (
             "Detect new agent .md files not yet in the registry and onboard them: "
-            "register in agent_registry.yml and generate DSPy signature stubs."
+            "register in agent_registry.yml."
         ),
         "inputSchema": {
             "type": "object",
@@ -793,10 +719,6 @@ TOOLS = {
                     "type": "string",
                     "description": "Path to agent_registry.yml. Defaults to masonry/agent_registry.yml.",
                 },
-                "dspy_output_dir": {
-                    "type": "string",
-                    "description": "Output dir for DSPy stubs. Defaults to masonry/src/dspy_pipeline/generated/.",
-                },
             },
         },
     },
@@ -804,7 +726,8 @@ TOOLS = {
         "fn": _tool_masonry_drift_check,
         "description": (
             "Run drift detection for all registry agents with verdict history. "
-            "Returns DriftReport per agent with alert_level (ok/warning/critical) and recommendation."
+            "Returns DriftReport per agent with alert_level (ok/warning/critical) and recommendation. "
+            "Set auto_trigger=true to automatically spawn improve_agent.py for drifted agents."
         ),
         "inputSchema": {
             "type": "object",
@@ -816,6 +739,15 @@ TOOLS = {
                 "registry_path": {
                     "type": "string",
                     "description": "Path to agent_registry.yml. Defaults to masonry/agent_registry.yml.",
+                },
+                "auto_trigger": {
+                    "type": "boolean",
+                    "description": "If true, automatically spawns improve_agent.py for each agent at or above trigger_level. Defaults to false.",
+                },
+                "trigger_level": {
+                    "type": "string",
+                    "enum": ["critical", "warning"],
+                    "description": "Minimum alert level to auto-trigger optimization. 'critical' (>=25% drift) or 'warning' (>=10%). Defaults to 'critical'.",
                 },
             },
         },

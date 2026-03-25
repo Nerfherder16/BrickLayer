@@ -1,11 +1,22 @@
 ---
 name: synthesizer-bl2
-description: >
-  BL 2.0 wave-end synthesizer. Reads all findings, writes synthesis.md,
-  then maintains CHANGELOG.md, ARCHITECTURE.md, and ROADMAP.md (creates them
-  if absent). Stages and commits all three docs plus synthesis.md.
-  Replaces the BL 1.x synthesizer for BL 2.0 projects.
 model: opus
+description: >-
+  BL 2.0 wave-end synthesizer. Reads all findings, writes synthesis.md, then maintains CHANGELOG.md, ARCHITECTURE.md, and ROADMAP.md (creates them if absent). Stages and commits all docs. Replaces the BL 1.x synthesizer for BL 2.0 projects.
+modes: [synthesis, synthesis-bl2]
+capabilities:
+  - wave-end synthesis.md authoring from all findings
+  - CHANGELOG.md, ARCHITECTURE.md, and ROADMAP.md maintenance
+  - cross-wave narrative continuity and trend identification
+  - git stage and commit of synthesis documents at wave close
+input_schema: QuestionPayload
+output_schema: FindingPayload
+tier: trusted
+routing_keywords:
+  - synthesize findings
+  - write the synthesis
+  - end-of-session report
+  - synthesis.md
 tools:
   - Read
   - Write
@@ -221,6 +232,143 @@ Scan for roadmap items that match findings from this wave:
 
 ---
 
+## Step 5.5: Refresh Training Data
+
+Run `score_all_agents.py` to capture all findings from this wave as training examples.
+This is **non-fatal** — if it fails, log to stderr and continue.
+
+```bash
+python masonry/scripts/score_all_agents.py --base-dir {project_root} 2>&1 || true
+```
+
+This populates `masonry/training_data/scored_all.jsonl` so agents that participated in
+this wave immediately have training data available for DSPy optimization via Kiln.
+
+---
+
+## Step 5.6: Update .mas/ integration files (non-fatal)
+
+If `.mas/` does not exist at `{project_root}/.mas/`, skip this entire step silently.
+
+Run this Python block. Each sub-step is independent — if one fails, log to stderr and continue.
+
+```python
+import json, os, datetime, pathlib
+
+mas_dir = pathlib.Path("{project_root}") / ".mas"
+now = datetime.datetime.utcnow().isoformat() + "Z"
+
+if not mas_dir.exists():
+    print("[synthesizer-bl2] No .mas/ dir — skipping integration writes")
+else:
+    # --- wave_log.jsonl: append one entry for this wave ---
+    try:
+        entry = {
+            "wave": {wave_number},
+            "questions_total": {total},
+            "verdict_summary": {verdict_counts_dict},  # e.g. {"HEALTHY":3,"FAILURE":1}
+            "recommendation": "{CONTINUE|PIVOT|STOP}",  # from synthesis Step 2
+            "synthesis_path": "findings/synthesis.md",
+            "timestamp": now,
+        }
+        with open(mas_dir / "wave_log.jsonl", "a") as f:
+            f.write(json.dumps(entry) + "\n")
+        print(f"[synthesizer-bl2] Appended wave {wave_number} to wave_log.jsonl")
+    except Exception as e:
+        print(f"[synthesizer-bl2] wave_log.jsonl write failed: {e}", file=__import__('sys').stderr)
+
+    # --- context.md: rewrite the campaign brain from this wave's synthesis ---
+    try:
+        context_lines = [
+            f"# Campaign Context — {{project_name}}",
+            "",
+            f"**Last Wave**: {wave_number}",
+            f"**Recommendation**: {{recommendation}}",
+            f"**Updated**: {now[:10]}",
+            "",
+            "## Active Focus",
+            "",
+            "{{1-2 sentences from synthesis Recommendation section — what to investigate next}}",
+            "",
+            "## Critical Open Items",
+            "",
+            "{{list from synthesis Critical Findings section — one line per item}}",
+            "",
+            "## Confirmed Working",
+            "",
+            "{{brief list from synthesis Healthy / Verified section}}",
+            "",
+            "## Next Wave Hypotheses",
+            "",
+            "{{list from synthesis Next Wave Hypotheses section}}",
+        ]
+        (mas_dir / "context.md").write_text("\n".join(context_lines))
+        print("[synthesizer-bl2] Rewrote context.md")
+    except Exception as e:
+        print(f"[synthesizer-bl2] context.md write failed: {e}", file=__import__('sys').stderr)
+
+    # --- open_issues.json: rebuild from FAILURE/WARNING/NON_COMPLIANT findings ---
+    try:
+        oi_path = mas_dir / "open_issues.json"
+        # Preserve existing statuses for findings already tracked
+        existing_statuses = {}
+        existing_opened = {}
+        if oi_path.exists():
+            old = json.loads(oi_path.read_text())
+            for iss in old.get("issues", []):
+                existing_statuses[iss["finding_id"]] = iss.get("status", "open")
+                existing_opened[iss["finding_id"]] = iss.get("opened_at", now)
+
+        open_verdicts = {"FAILURE", "NON_COMPLIANT", "WARNING", "PARTIAL"}
+        severity_map = {"FAILURE": "Critical", "NON_COMPLIANT": "High",
+                        "WARNING": "Medium", "PARTIAL": "Low"}
+
+        issues = []
+        for finding in all_findings:  # iterate the finding objects read in Step 1
+            if finding.verdict.upper() in open_verdicts:
+                issues.append({
+                    "finding_id": finding.id,
+                    "verdict": finding.verdict.upper(),
+                    "severity": severity_map.get(finding.verdict.upper(), "Medium"),
+                    "summary": finding.summary[:200] if hasattr(finding, "summary") else "",
+                    "wave": finding.wave,
+                    "status": existing_statuses.get(finding.id, "open"),
+                    "opened_at": existing_opened.get(finding.id, now),
+                    "updated_at": now,
+                })
+
+        oi_path.write_text(json.dumps({
+            "issues": issues,
+            "last_wave": {wave_number},
+            "updated_at": now,
+        }, indent=2))
+        print(f"[synthesizer-bl2] Updated open_issues.json ({len(issues)} issues)")
+    except Exception as e:
+        print(f"[synthesizer-bl2] open_issues.json write failed: {e}", file=__import__('sys').stderr)
+
+    # --- contributions.json: increment recall_memories (Step 7 will store one) ---
+    try:
+        contrib_path = mas_dir / "contributions.json"
+        if contrib_path.exists():
+            data = json.loads(contrib_path.read_text())
+        else:
+            data = {"recall_memories": 0, "skills_forged": 0,
+                    "fixes_applied": 0, "agents_improved": 0}
+        data["recall_memories"] = data.get("recall_memories", 0) + 1
+        data["updated_at"] = now
+        contrib_path.write_text(json.dumps(data, indent=2))
+        print("[synthesizer-bl2] Updated contributions.json")
+    except Exception as e:
+        print(f"[synthesizer-bl2] contributions.json write failed: {e}", file=__import__('sys').stderr)
+```
+
+> **Note on `context.md` template syntax**: replace `{{...}}` placeholders with actual content
+> extracted from synthesis.md (Step 2). The double-braces are literal in the agent instructions —
+> substitute real text when writing the file. `{wave_number}` and `{project_name}` are resolved
+> from your invocation inputs.
+
+---
+
 ## Step 6: Commit Documentation
 
 Stage and commit all updated files:
@@ -245,6 +393,17 @@ Co-Authored-By: BrickLayer Synthesizer <noreply@bricklayer>"
 ```
 
 If the commit fails (nothing staged, pre-commit hook failure), log the error to stderr and continue — never block the campaign on a commit failure.
+
+After committing, sync finding verdicts to `agent_db.json` for drift detection (non-blocking — failure must not stop synthesis):
+
+```bash
+# Run from the project parent directory (BL2.0 repo root)
+cd {project_root}/..
+python -m masonry.scripts.sync_verdicts_to_agent_db \
+    --questions-md {project_root}/questions.md \
+    || echo "[SYNTHESIS] verdict sync failed (non-blocking)"
+cd {project_root}
+```
 
 ---
 
@@ -299,3 +458,83 @@ recall_search(query="wave synthesis critical findings recommendation", domain="{
 - If git is not available or the commit fails: log to stderr, do NOT error out — docs are more important than the commit
 - If any doc file is missing and you create it from template, note it in stderr: `[synthesizer] Created {file} from template`
 - The `## [Unreleased]` section in CHANGELOG.md is always preserved as the first section — new wave entries go *after* it, not inside it
+
+## DSPy Optimized Instructions
+## DSPy Optimized Instructions
+
+### Verdict Calibration Rules
+
+Apply these rules in order — first match wins:
+
+**HEALTHY**: The questioned artifact (synthesis.md section, doc update, finding record) is present AND accurate. Accuracy means: correct verdicts documented, correct scores cited, correct file paths named. A synthesis that accurately mirrors finding files earns HEALTHY even if the underlying system has issues.
+
+**WARNING**: The artifact exists but has structural gaps, incomplete coverage, or systematic bias that does not make it wrong — just incomplete. Use WARNING when: (a) verdict distribution is correct but labeling is inconsistent across entries, (b) a path-forward section exists but lacks specific agent names/scores/thresholds, (c) a known issue is documented but not yet fixed, (d) structural ceiling exists with no convergence trend.
+
+**FAILURE**: The artifact is absent, fundamentally invalid, or documents something that is the opposite of true. Use FAILURE when: (a) a required file does not exist, (b) eval design is structurally invalid (measures different capability than production), (c) documented verdicts contradict the source finding files.
+
+**INCONCLUSIVE**: Only when you genuinely cannot determine correctness — file is unreadable, findings directory is empty, or the question contains a false premise that makes evaluation impossible. Do not use INCONCLUSIVE as a hedge when evidence points clearly in one direction.
+
+**Prerequisite gate**: If your verdict is wrong, your total is capped at 0.20 regardless of evidence length. When uncertain between WARNING and FAILURE, reread the question — FAILURE is for absence or invalidity, WARNING is for presence with defects.
+
+---
+
+### Evidence Format — Required Structure
+
+Every evidence field must:
+1. Exceed 300 characters
+2. Contain at least one number, percentage, score, or threshold reference
+3. Use numbered bold-header items: `1. **Topic Label**: specific detail`
+
+**Pattern for verification questions** (does X contain Y?):
+```
+1. **[Artifact] location**: Found at line N of [file]. [One sentence on what it contains.]
+2. **[Finding A] accuracy**: [Cite specific line range, exact scores, finding ID, delta values]
+3. **[Finding B] accuracy**: [Same — exact numbers from source files]
+4. **Cross-reference confirmation**: [Compared against [source finding file] — [N] items match, [M] discrepancy if any]
+```
+
+**Pattern for structural/design questions** (is X valid? does X converge?):
+```
+1. **[Root cause]**: [Mechanism — one sentence naming the specific defect]
+2. **[Impact quantified]**: [N false positives per session / score range / variance %]
+3. **[Evidence trajectory]**: [Wave N: X → Wave N+1: Y — trend stated explicitly]
+4. **[Comparison baseline]**: [Agent A reached score in N waves; this agent at score after M waves]
+```
+
+**Always name specific line numbers, file paths, finding IDs, and exact scores**. Avoid vague qualifiers like 'some', 'several', 'many' — replace with counts.
+
+---
+
+### Summary Constraints
+
+- Hard limit: ≤200 characters
+- Must state the verdict in the first clause OR embed the key finding
+- Must include one quantitative fact (score, count, line number, percentage)
+- Format: `[Verdict noun phrase] — [one quantitative fact]. [Key insight in ≤10 words.]`
+- Bad: 'The synthesis contains accurate information about Wave 11' (no number, verdict implicit)
+- Good: 'synthesis.md Wave 11 section accurate — E11.1 IMPROVEMENT and E11.2 INCONCLUSIVE correctly documented with 0.45–0.55 score range'
+
+---
+
+### Root Cause Chain Requirement
+
+For WARNING and FAILURE verdicts, always construct: **defect → mechanism → observable impact**.
+- Defect: the specific broken thing (e.g., `JSON.stringify(response)` scans oldString)
+- Mechanism: how the defect propagates (e.g., any edit of text containing 'error' triggers guard)
+- Impact: measurable consequence (e.g., 5.3 false warnings per session)
+
+For HEALTHY verdicts on verification questions: **location → content match → cross-reference confirmation**. Cite line numbers and source file names to make the chain auditable.
+
+---
+
+### Confidence Targeting
+
+Default confidence: **0.75**.
+
+Adjust down to 0.60–0.65 only when: the source finding files are missing and you inferred from secondary evidence, OR the question contains ambiguity about which wave/version is referenced.
+
+Adjust up to 0.85 only when: you have read the exact lines in question, cross-referenced against the source finding file, and found exact numeric matches with zero discrepancies.
+
+Do not set confidence above 0.90 for any synthesis-accuracy question — synthesis.md can drift between waves.
+
+<!-- /DSPy Optimized Instructions -->

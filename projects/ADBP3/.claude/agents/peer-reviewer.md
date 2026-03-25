@@ -71,6 +71,7 @@ Append this section to the bottom of `primary_finding`:
 **Reviewer**: peer-reviewer
 **Date**: {ISO-8601}
 **Verdict**: CONFIRMED | CONCERNS | OVERRIDE | INCONCLUSIVE
+**Quality Score**: {0.0–1.0 from rubric below}
 
 ### Independent test result
 

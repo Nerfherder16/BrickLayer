@@ -38,7 +38,7 @@ project-brief.md      — Ground truth (highest authority, human only)
 reports/              — Generated PDF reports (python analyze.py)
 masonry/src/schemas/  — Pydantic v2 payload models (QuestionPayload, FindingPayload, etc.)
 masonry/src/routing/  — Four-layer routing engine (deterministic → semantic → LLM → fallback)
-masonry/src/dspy_pipeline/ — DSPy optimization pipeline (signatures, optimizer, drift detector)
+masonry/src/scoring/ — Heuristic scoring rubrics (verdict match, evidence quality, confidence calibration)
 masonry/optimized_prompts/ — Per-agent optimized prompt JSON files
 masonry/agent_registry.yml — Declarative agent registry (modes, capabilities, tier)
 ```
@@ -66,83 +66,48 @@ Mortar dispatches requests through four layers in priority order:
 
 Use `masonry_route` MCP tool or `masonry/src/routing/router.py` directly.
 
-### DSPy Prompt Optimization
-Agents can be optimized via MIPROv2 using training data from existing findings:
-- Training data extracted by `masonry/src/dspy_pipeline/training_extractor.py`
-- Optimization run via `masonry/src/dspy_pipeline/optimizer.py`
-- Drift detection via `masonry/src/dspy_pipeline/drift_detector.py`
-- Optimized prompts stored in `masonry/optimized_prompts/{agent}.json`
-- After each MIPROv2 run, `run_optimization.py` writes the optimized `signature.instructions` back into the agent `.md` file under a `## DSPy Optimized Instructions` delimited section (write-back mechanism)
-- Agents receive these instructions in their system prompt on every spawn — code-enforced, no runtime lookup required
+### Agent Prompt Optimization
 
-Trigger from Kiln UI "OPTIMIZE" button or via `masonry_optimize_agent` MCP tool.
+Agents improve via an eval → optimize → compare loop using `claude -p`. No API key, Ollama, or DSPy required.
 
-### Running an Optimization
+**Core scripts:**
+- `masonry/src/metrics.py` — heuristic scoring metrics (verdict match, evidence quality, confidence calibration)
+- `masonry/src/writeback.py` — write optimized instructions back to all agent `.md` copies; update registry
+- `masonry/scripts/eval_agent.py` — held-out eval: runs agent prompt through `claude -p`, scores against `scored_all.jsonl`
+- `masonry/scripts/optimize_with_claude.py` — generate improved instructions from high/low-quality examples
+- `masonry/scripts/improve_agent.py` — **the loop**: eval → optimize → compare, keep if improved else revert
 
-Use this runbook to trigger MIPROv2 optimization runs manually from the command line.
-
-**Precondition checks:**
-
-```bash
-# 1. Verify Ollama is reachable (required for semantic routing layer)
-curl -s http://192.168.50.62:11434/api/tags | python -c "import sys,json; d=json.load(sys.stdin); print('Ollama OK —', len(d.get('models',[])), 'models')"
-
-# 2. Verify Anthropic API key is set
-python -c "import os; k=os.environ.get('ANTHROPIC_API_KEY',''); print('ANTHROPIC_API_KEY set' if k.startswith('sk-ant-') else 'ERROR: ANTHROPIC_API_KEY missing or wrong prefix')"
-```
-
-**Optimize research-analyst** (corpus: ~57 records — use `--valset-size 27` to leave 30 training examples):
+**The loop (preferred entry point):**
 
 ```bash
 cd C:/Users/trg16/Dev/Bricklayer2.0
-python masonry/scripts/run_optimization.py research-analyst \
-  --backend anthropic \
-  --num-trials 10 \
-  --valset-size 27 \  # 57 total - 27 valset = 30 training examples (DSPy minimum)
-  --signature research \
-  --api-key sk-ant-...
+
+# Single cycle: eval → optimize → compare
+python masonry/scripts/improve_agent.py research-analyst
+python masonry/scripts/improve_agent.py karen --signature karen
+
+# Multiple cycles
+python masonry/scripts/improve_agent.py research-analyst --loops 3
+
+# Baseline eval only (no changes)
+python masonry/scripts/improve_agent.py research-analyst --dry-run
+
+# Options
+#   --eval-size N      held-out examples per eval (default: 20)
+#   --num-examples N   examples per quality tier for optimization (default: 15)
+#   --model MODEL      Claude model for eval inference (default: claude-haiku-4-5-20251001)
 ```
 
-**Optimize karen** (corpus: ~301 records — `--valset-size 25` is sufficient):
+Run from Git Bash (not inside an active Claude session — avoids nested subprocess issues).
 
-```bash
-cd C:/Users/trg16/Dev/Bricklayer2.0
-python masonry/scripts/run_optimization.py karen \
-  --backend anthropic \
-  --num-trials 10 \
-  --valset-size 25 \
-  --signature karen \
-  --api-key sk-ant-...
-```
-
-**Post-run verification (run all three):**
-
-```bash
-# 1. Confirm optimized prompt JSON was written
-ls -lh masonry/optimized_prompts/research-analyst.json masonry/optimized_prompts/karen.json
-
-# 2. Confirm write-back block exists in each agent .md file
-grep -l "DSPy Optimized Instructions" .claude/agents/research-analyst.md .claude/agents/karen.md
-
-# 3. Confirm registry reflects updated optimization status
-python -c "
-import yaml
-reg = yaml.safe_load(open('masonry/agent_registry.yml'))
-for a in reg.get('agents', []):
-    if a['name'] in ('research-analyst', 'karen'):
-        print(a['name'], '—', a.get('dspy_status','unknown'))
-"
-```
-
-> **Warning (R33.1/R33.3):** The research-analyst corpus is ~57 records. Never set `--valset-size` above 57 or MIPROv2 will error on insufficient validation examples. The default (100) exceeds this limit. Use `--valset-size 27` for research-analyst — this leaves 30 training examples (57 - 27 = 30), which meets the DSPy minimum of ~30 required for reliable optimization. Using 50 would leave only 7 bootstrap training examples.
+**Optimized instructions** are injected into all `{agent}.md` copies under a `## DSPy Optimized Instructions` delimited section and take effect at next agent spawn. If a loop cycle regresses the score, instructions are automatically reverted. Run history is saved to `masonry/agent_snapshots/{agent}/history/`.
 
 ### Agent Onboarding (Zero Manual Steps)
 When a new `.md` file is written to `agents/` or `~/.claude/agents/`:
 1. `masonry-agent-onboard.js` hook detects the Write/Edit event
 2. `masonry/scripts/onboard_agent.py` extracts frontmatter metadata
 3. New `AgentRegistryEntry` appended to `masonry/agent_registry.yml` with `tier: "draft"`
-4. DSPy signature stub generated in `masonry/src/dspy_pipeline/generated/`
-5. Kiln shows new agent on next refresh as "draft / Not optimized"
+4. Kiln shows new agent on next refresh as "draft / Not optimized"
 6. Run a campaign wave to generate training data, then optimize from Kiln UI
 
 ---

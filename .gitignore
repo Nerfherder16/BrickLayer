@@ -56,3 +56,7 @@ masonry/training_data/*.jsonl
 !masonry/training_data/scored_synthetic.jsonl
 masonry/vigil/
 masonry/src/dspy_pipeline/generated/
+**/agent_snapshots/*/eval_latest.json
+**/agent_snapshots/.invocation_count
+**/agent_snapshots/overseer_trigger.flag
+**/agent_snapshots/overseer_report.json

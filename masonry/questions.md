@@ -2459,30 +2459,6 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ---
 
-### E33.2: Execute MIPROv2 optimization run for `karen` (user provides `--api-key`)
-
-**Status**: BLOCKED
-**Operational Mode**: fix
-**Priority**: HIGH
-**Motivated by**: synthesis_wave32 OPEN ISSUE #1 — karen optimization is the second pending run. Karen corpus: 301 records + 5 synthetics = 306 total (largest corpus in the system). Signature dispatch is confirmed correct — karen uses `KarenSig` (F30.5 FIX_APPLIED). No specific score projection exists for karen, but the 306-record corpus is substantially larger than the research-analyst corpus (57 records), providing stronger optimization signal.
-**Hypothesis**: Running `python masonry/scripts/run_optimization.py karen --api-key sk-ant-... --backend anthropic --num-trials 10 --valset-size 25 --signature karen` from `C:/Users/trg16/Dev/Bricklayer2.0` will complete without error, write `masonry/optimized_prompts/karen.json` with a non-empty `predict.signature.instructions` field, inject a `## DSPy Optimized Instructions` block into all reachable `karen.md` agent files, and update `agent_registry.yml` with `dspy_status: optimized`. The larger corpus (306 vs 57 records) should enable a more robust demo selection, potentially yielding a higher best-score than the research-analyst run.
-**Method**: fix-implementer
-**Success criterion**: (1) **User action required**: Tim runs the command with a valid Anthropic API key (may be run after E33.1 or in a separate session). (2) Run completes without `Exception` or `BLOCKED`. (3) `masonry/optimized_prompts/karen.json` exists with non-empty `predict.signature.instructions`. (4) At least one reachable `karen.md` contains a `## DSPy Optimized Instructions` section. (5) `agent_registry.yml` shows `dspy_status: optimized` for `karen`. (6) Report best trial score. Verdict: FIX_APPLIED if all 5 checks pass; WARNING if run completes but writeback fails for karen.md (file not found or regex error); BLOCKED if API key not yet provided.
-
----
-
-### V33.2: Confirm the optimized `research-analyst` receives and acts on its injected instructions when spawned on a real question
-
-**Status**: PENDING
-**Operational Mode**: validate
-**Priority**: HIGH
-**Motivated by**: E33.1 (gated — runs after E33.1 FIX_APPLIED) — E33.1 will confirm the optimization artifacts exist. This question validates the behavioral end: does a live spawned `research-analyst` actually respond differently (structuring output with numbered steps, explicit confidence score, quantitative evidence) in a way consistent with the MIPROv2-generated instruction text? V32.1 validated injection structurally via documentation; V33.2 validates it behaviorally via a live spawn.
-**Hypothesis**: After E33.1, spawning `research-analyst` on a real BL question will produce a response that includes at least two elements specified in the injected DSPy instruction block (e.g., numbered reasoning steps, explicit confidence score 0.0-1.0, tabular evidence) that are absent or inconsistent in a base (pre-optimization) spawn of the same agent. The delta confirms the instruction is active, not inert.
-**Method**: research-analyst
-**Success criterion**: (1) **Gated on E33.1 FIX_APPLIED**. (2) Read `research-analyst.md` `## DSPy Optimized Instructions` section — extract the 2-3 behavioral requirements (e.g., "step-by-step reasoning", "verdict", "confidence score", "evidence tables"). (3) Spawn research-analyst on a real PENDING question from questions.md (any Wave 33 question will do). (4) Check the response: does it contain numbered reasoning steps? An explicit confidence score in [0,1]? An evidence section with quantitative content >= 100 chars? (5) Compare against a base agent response (without DSPy block) on an equivalent question from an earlier wave. If no base comparison is available, assess presence/absence of each behavioral element in the current response alone. Verdict: HEALTHY if the live response contains all behavioral elements specified in the injected instruction block; WARNING if 1 of 3 behavioral elements is missing; FAILURE if the response shows no structural alignment with the injected instructions (suggesting the block is present on disk but not influencing behavior — e.g., a system-prompt ordering issue).
-
----
-
 ### R33.3: Would adding more training examples to the research-analyst corpus improve MIPROv2 scores beyond the projected 70-80% ceiling, or is 57 records adequate?
 
 **Status**: DONE
@@ -2685,62 +2661,466 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ---
 
-### V36.1: Validate that `research-analyst.md` has the correct structure for `writeback_optimized_instructions()` to land cleanly after E33.1
+## Wave 37 — Predict Mode (cascade-analyst)
 
-**Status**: PENDING
-**Operational Mode**: validate
-**Priority**: HIGH
-**Motivated by**: V35.1 HEALTHY — corpus is at 77 records and optimization is unblocked pending ANTHROPIC_API_KEY. The next step after E33.1 completes is the writeback of MIPROv2-generated instructions back into `research-analyst.md`. If the target file is missing, has a non-standard structure, or already contains a malformed `## DSPy Optimized Instructions` section, the writeback may silently fail (no files updated) or corrupt the agent file. This must be confirmed before E33.1 runs.
-**Hypothesis**: `writeback_optimized_instructions()` in `run_optimization.py` searches three candidate paths: `{base_dir}/.claude/agents/research-analyst.md`, one-level-deep sub-project agents, and `~/.claude/agents/research-analyst.md`. The masonry project's `research-analyst.md` exists at `C:/Users/trg16/Dev/Bricklayer2.0/.claude/agents/research-analyst.md` (186 lines, confirmed), which matches candidate path 1 when `base_dir=C:/Users/trg16/Dev/Bricklayer2.0`. The file does not yet contain a `## DSPy Optimized Instructions` section, so the writeback will append rather than replace. Both the append and the future replace code paths are exercised by different runs.
-**Method**: research-analyst
-**Success criterion**: (1) Read `run_optimization.py` lines 140-210 — confirm `_DSPY_SECTION_HEADER = "## DSPy Optimized Instructions"` and `_DSPY_SECTION_END = "<!-- /DSPy Optimized Instructions -->"`. (2) Confirm `writeback_optimized_instructions(base_dir, agent_name, instructions, optimized_at)` adds candidate path `base_dir / ".claude" / "agents" / f"{agent_name}.md"` — the path `C:/Users/trg16/Dev/Bricklayer2.0/.claude/agents/research-analyst.md` must be reachable when `base_dir=Path("C:/Users/trg16/Dev/Bricklayer2.0")`. (3) Read `C:/Users/trg16/Dev/Bricklayer2.0/.claude/agents/research-analyst.md` — confirm the file exists and does NOT already contain a partial or malformed `## DSPy Optimized Instructions` block (which would cause the replace branch to run with a broken regex). (4) Confirm `~/.claude/agents/research-analyst.md` does NOT exist (so the user-global path does not shadow the project-level path). If it does exist, report its line count and whether it contains a DSPy section — dual writeback to both files is expected behavior, not a bug. (5) Run a dry-run writeback: call `writeback_optimized_instructions(base_dir=Path("C:/Users/trg16/Dev/Bricklayer2.0"), agent_name="research-analyst", instructions="# TEST PROBE — DELETE AFTER V36.1", optimized_at="V36.1-probe")` — confirm it returns a non-empty list of updated paths without raising an exception, then immediately revert the injected section (restore the file to its pre-probe state). Verdict: HEALTHY if the dry-run writeback succeeds and returns the project-level path; WARNING if writeback succeeds but only to the user-global path (project-level path resolution is broken — base_dir mismatch); FAILURE if `writeback_optimized_instructions()` raises an exception or returns an empty list (no target file found).
+**Generated from findings**: M32.1/M33.1/M35.1 (Ollama persistent OFFLINE), E33.1 BLOCKED (MIPROv2 never run), V36.2 (karen corpus score concentration), R30.1 WARNING (slot collision dormant), D3.2 WARNING (interrupted-build resume broken), F12.1 deferred (drift metric confusion), V36.1/V36.3 HEALTHY (write-back structure confirmed)
+**Mode**: predict
+**Agent**: cascade-analyst
+**Purpose**: Map downstream failure cascades from unresolved open issues — what breaks next and when if these issues are not addressed?
 
 ---
 
-### V36.2: Validate that the karen corpus in `scored_all.jsonl` is ready for MIPROv2 optimization at `--valset-size 25`
+### P1: If Ollama remains OFFLINE beyond 7 consecutive campaign days, what is the downstream cascade on routing quality and DSPy optimization costs?
 
-**Status**: PENDING
-**Operational Mode**: validate
+**Status**: DONE
+**Operational Mode**: predict
+**Agent**: cascade-analyst
 **Priority**: HIGH
-**Motivated by**: V35.1 HEALTHY — V35.1 confirmed the research-analyst corpus is ready and unblocked. E33.2 (karen optimization) is BLOCKED on the same ANTHROPIC_API_KEY dependency as E33.1. Before the karen run is unblocked, this question verifies that the karen corpus in the updated `scored_all.jsonl` meets the minimum viability criteria: record count, score distribution, and valset split. `scored_all.jsonl` currently shows 321 karen records (confirmed by agent count query 2026-03-23). The runbook specifies `--valset-size 25`, leaving 296 bootstrap examples — well above the DSPy minimum of 30.
-**Hypothesis**: The karen corpus at 321 records with `--valset-size 25` provides 296 bootstrap training examples and is viable for optimization. Score distribution should be similar to research-analyst (mean ~80, min >= 60). No systematic bias in the karen scorer (e.g., all records scoring near the ceiling of 100) that would reduce the effective signal for MIPROv2. The `--valset-size 25` in the runbook is correct and does not need adjustment.
-**Method**: research-analyst
-**Success criterion**: (1) Count karen records in `masonry/training_data/scored_all.jsonl` — report total. (2) Report score distribution: min, max, mean, and count of records below the `TRAINING_THRESHOLD` (60 points). If any below-threshold records exist in the karen corpus, they should have been filtered by `score_all_agents.py` — their presence would indicate a scorer bug. (3) Report the `project_context` fill rate for karen records (count non-empty `project_context` fields). Compare against research-analyst fill rate to determine whether karen records have the same enrichment gap. (4) Confirm that 321 records - 25 valset = 296 bootstrap examples, and that `run_optimization.py` will not crash if `--valset-size 25` is passed with 321 total records (check whether MIPROv2 has an upper-bound limit on bootstrap pool size that could cause issues at 296). (5) Confirm the karen signature is wired correctly: `run_optimization.py` accepts `--signature karen` (confirmed in argparse at line ~452, choices `["research", "karen"]`). Verdict: HEALTHY if karen corpus is >= 300 records, mean score >= 70, no below-threshold records, and `--valset-size 25` leaves a valid bootstrap pool; WARNING if corpus is 250-300 records OR mean score < 70 OR `project_context` fill rate is 0% (all empty); FAILURE if corpus is < 50 records (scorer not processing karen findings) or if below-threshold records are present in scored_all.jsonl.
+**Motivated by**: M32.1/M33.1/M35.1 — Ollama at `192.168.50.62:11434` has been OFFLINE for all 3 health checks on 2026-03-23, crossing into WARNING range. The 7-day FAILURE threshold in `monitor-targets.md` has not been crossed yet.
+**Hypothesis**: If Ollama is not restored within 7 campaign days, two cascades will materialize: (1) Layer 2 (semantic routing) will be permanently non-functional — every request will fall through to Layer 3 (one LLM call per route), increasing latency by ~200ms and API cost by ~0.001 USD/route. At campaign loop velocity (~50 routes/wave), this compounds to ~$0.05/wave in unnecessary cost. (2) The zero-credential DSPy optimization path (`--backend ollama`) becomes permanently unavailable — all MIPROv2 runs will require a live Anthropic API key, eliminating the fallback for credential-free optimization. The cascade terminates when Ollama is restored or the infrastructure is formally decommissioned.
+**Success criterion**: (1) Probe `http://192.168.50.62:11434/api/tags` — record exit code and timestamp. (2) Query `masonry/monitor-targets.md` for consecutive OFFLINE day count. (3) If count >= 7: classify as FAILURE cascade — quantify wave-level API cost delta between L2-functional and L2-degraded routing (extract from routing log hit rates). (4) Project when the API cost delta exceeds the cost of a single MIPROv2 optimization run (~$2-5). (5) Confirm whether `--backend ollama` is documented in the CLAUDE.md runbook as the only zero-cost path. Verdict: CASCADE_IMMINENT if OFFLINE count is 5-6 days (2 days before threshold); CASCADE_ACTIVE if 7+ days (cost accumulation confirmed); DORMANT if OFFLINE count < 5 days (threshold not yet in sight).
 
 ---
 
-### D36.1: Diagnose whether the Ollama host (`192.168.50.19`) is unreachable or only the Ollama container is stopped
+### P2: If E33.1 (MIPROv2 execution) remains BLOCKED indefinitely, what is the compounding quality debt on agent outputs over subsequent campaign waves?
 
-**Status**: PENDING
-**Operational Mode**: diagnose
+**Status**: DONE
+**Operational Mode**: predict
+**Agent**: cascade-analyst
+**Priority**: HIGH
+**Motivated by**: E33.1 BLOCKED — all code-side blockers were resolved by Wave 32 (F32.2 api_key parameter, F31.1 write-back, V36.3 HEALTHY wiring confirmed). The optimization run has never executed. Agents are running on unoptimized instructions since the campaign began.
+**Hypothesis**: Each wave run by an unoptimized research-analyst or karen produces findings scored at the pre-optimization baseline (68.3% — Trial 3, Wave 23, quantitative-analyst analog). The projected post-optimization score is 70-80% (R32.1 +8 to +12 pts). Every wave executed without optimization represents a compounding quality debt: findings that would pass a 75% quality gate instead produce at 68%, creating a false floor in the training corpus. By Wave 40, if E33.1 remains BLOCKED, the 77-record corpus will contain approximately 20-25 Wave 36-40 findings scored at the pre-optimization ceiling, potentially anchoring the next MIPROv2 run to a degraded baseline rather than improving from it.
+**Success criterion**: (1) Count the number of research-analyst findings generated in Waves 33-36 that are present in `scored_all.jsonl` with scores below 75%. (2) Project the corpus composition at Wave 40 if E33.1 remains BLOCKED (estimate net-new records per wave). (3) Determine whether sub-75% records are excluded from MIPROv2 training or included — if included, they dilute the signal; if excluded by a score gate, the corpus may shrink. (4) Estimate the "score floor anchoring" risk: will a MIPROv2 run at Wave 40 produce a lower score than Wave 37 because the training corpus degraded? Verdict: CASCADE_ACTIVE if sub-75% records are being included in the training corpus and diluting signal; CASCADE_IMMINENT if the corpus is shrinking due to exclusion; DORMANT if training corpus quality is stable regardless of E33.1 status.
+
+---
+
+### P3: If the karen corpus score concentration (98.4% records scoring 90-100) is not corrected before the first MIPROv2 karen run, what optimization failure cascade results?
+
+**Status**: DONE
+**Operational Mode**: predict
+**Agent**: cascade-analyst
 **Priority**: MEDIUM
-**Motivated by**: M35.1 DONE — M35.1 is the third consecutive OFFLINE check (M32.1, M33.1, M35.1), all on 2026-03-23, all returning exit code 28 (CURLE_OPERATION_TIMEDOUT). M35.1 explicitly recommended diagnose-analyst to determine the root cause because exit code 28 is ambiguous: it covers both "container stopped, port not open" and "host itself unreachable." The recovery procedure in `monitor-targets.md` (SSH into `192.168.50.19` and restart the Ollama container) cannot be executed if the host is unreachable at the network level. Knowing the root cause determines the correct recovery path.
-**Hypothesis**: The CasaOS host at `192.168.50.19` is reachable on the local network (SSH and HTTP would work) but the Ollama container is stopped or crashed. This is the more likely scenario because a host-level failure would also take down Sadie (the voice AI assistant at `192.168.50.19:7070`) and other CasaOS services, which would be noticed independently. The Ollama-specific port 11434 timing out while the host is reachable indicates a container-level failure.
-**Method**: diagnose-analyst
-**Success criterion**: (1) Probe the CasaOS host at the HTTP layer, not the Ollama port: `curl -s --connect-timeout 5 http://192.168.50.19/` — if this returns any HTTP response (even a 404 or CasaOS dashboard HTML), the host is UP and the problem is container-specific. If this also times out (exit code 28), the host is unreachable. (2) Probe a known stable port: `curl -s --connect-timeout 5 http://192.168.50.19:7070/` (Sadie family hub) — if this responds, CasaOS networking is healthy and only Ollama is down. (3) If host is UP: produce a DIAGNOSIS_COMPLETE verdict. Fix specification: SSH into `192.168.50.19` and run `docker compose restart ollama` (or the equivalent CasaOS restart for the Ollama container). Verification command: `curl -s --connect-timeout 5 http://192.168.50.62:11434/api/tags` returns exit code 0 with JSON. (4) If host is DOWN: produce a FAILURE verdict. This requires physical access or Proxmox console intervention — report the Proxmox VM ID for CasaOS if known and recommend checking Proxmox for the CasaOS VM status. (5) Check whether Tailscale IP `100.70.195.84` (System-Recall) is responsive — if Tailscale is down, that is a separate network failure. Verdict: DIAGNOSIS_COMPLETE if host is UP and container-restart fix specification is produced; FAILURE if host is unreachable at the network level; WARNING if host connectivity is ambiguous (partial response, TLS error, redirect).
+**Motivated by**: V36.2 HEALTHY — karen corpus contains 321 records with mean 98.44 and median 100.0. Only 5 records score below 60. This near-zero variance is structurally problematic for MIPROv2 because the optimizer cannot distinguish good examples from mediocre ones when all scores are 90-100.
+**Hypothesis**: MIPROv2 requires score variance to identify which prompt instructions produce better outputs. If 98.4% of the 321 karen records score 90-100, the optimizer's bootstrap phase will treat nearly all examples as equally high-quality and will be unable to identify which few-shot examples actually improve performance. The result is one of two failure modes: (1) MIPROv2 produces an "optimized" karen that scores the same or lower than baseline because the training signal has insufficient variance; (2) The optimization run succeeds superficially but the resulting instructions overfit to the degenerate scoring distribution, producing a prompt that is confidently wrong in novel situations. The cascade terminus is that the karen optimization run produces a regression, and `writeback_optimized_instructions()` writes degraded instructions into `karen.md`, silently lowering karen's performance on every subsequent spawn.
+**Success criterion**: (1) Read `masonry/src/metrics.py` — confirm whether the karen scoring function uses a different quality rubric than research-analyst (if karen scoring is trivially easy to pass, the 98.4% concentration is a scorer defect, not a corpus defect). (2) Check MIPROv2 bootstrap minimum variance requirements — does DSPy require a minimum score spread to produce meaningful optimization? (3) Identify how many records would be labeled "negative examples" (score < 70) under the current scoring — if only 5 of 321, the bootstrap phase cannot construct meaningful contrastive pairs. (4) Estimate the probability of optimization regression given the current score distribution. Verdict: CASCADE_ACTIVE if scorer confirms karen rubric is trivially easy (structural corpus defect); CASCADE_IMMINENT if DSPy bootstrap minimums require score spread that the current corpus cannot provide; DORMANT if MIPROv2 can extract useful signal from a high-concentration corpus.
 
 ---
 
-### V36.3: Validate that `run_optimization.py --api-key` CLI argument is correctly wired to `configure_dspy()` before running E33.1
+### P4: If the one-slot-per-type collision in masonry-preagent-tracker.js triggers during a parallel campaign wave, what training signal corruption cascade results?
 
-**Status**: PENDING
-**Operational Mode**: validate
+**Status**: DONE
+**Operational Mode**: predict
+**Agent**: cascade-analyst
+**Priority**: MEDIUM
+**Motivated by**: R30.1 WARNING — code confirms one-slot-per-type overwrite strategy; 0% collision rate post-activation in Waves 30-36 because the campaign loop dispatches agents sequentially. The risk is dormant but the code defect is live.
+**Hypothesis**: If two agents of the same type (e.g., two `research-analyst` spawns) are dispatched within the 10-second TTL window, the second agent's prompt will overwrite the first agent's slot. The first agent's training record will then be attributed with the wrong `question_text` (the second question instead of the first). Over multiple collision events, the training corpus accumulates mislabeled examples: findings from Question A are paired with the question_text from Question B. MIPROv2 trains on these corrupted pairs, learning an instruction set that is optimized for question-finding mismatch — the resulting optimized prompt may produce correct verdicts for wrong reasons (coincidental alignment) or systematically wrong verdicts when the mismatch pattern reverses. The cascade is silent: no error is raised, the collision is not logged, and the corpus appears valid.
+**Success criterion**: (1) Confirm the collision window: read `masonry-preagent-tracker.js` TTL value — if still 10 seconds, confirm whether parallel `/ultrawork` or multi-agent dispatches could realistically fire within this window. (2) Estimate the blast radius: how many records in the current 77-record research-analyst corpus could be corrupted if 5% of spawns collided? (3) Determine whether any existing detection mechanism (e.g., question_id cross-reference in scorer) would surface the corruption. (4) Model the MIPROv2 score impact of 5 corrupted records in an 77-record corpus (6.5% contamination rate). Verdict: CASCADE_ACTIVE if parallel dispatch is used and the TTL makes collisions near-certain; CASCADE_IMMINENT if parallel dispatch is used occasionally and the TTL creates a race window; DORMANT if dispatch is strictly sequential and no mechanism produces parallel same-type spawns.
+
+---
+
+### P5: If the D3.2 WARNING (session-start interrupted-build resume silently broken) is not fixed before the next /build campaign, what failure cascade results when a build is interrupted mid-task?
+
+**Status**: DONE
+**Operational Mode**: predict
+**Agent**: cascade-analyst
+**Priority**: MEDIUM
+**Motivated by**: D3.2 WARNING — the session-start hook's interrupted-build resume logic is broken: when a build is interrupted mid-task, the next session start silently fails to resume it. The user sees no error but the in-progress task is abandoned without a BLOCKED or PAUSED status.
+**Hypothesis**: If a `/build` campaign is interrupted (context overflow, session stop, network drop) and the user starts a new session, the masonry-session-start hook attempts to detect and resume the interrupted build. D3.2 confirms this detection is broken. The cascade: (1) The interrupted build's `.autopilot/progress.json` retains status `IN_PROGRESS` for the abandoned task. (2) The next session start does not surface this state. (3) The user runs a new `/build` or `/plan` without knowing a prior build was interrupted. (4) If the new run creates a conflicting spec or overwrites `progress.json`, the interrupted build's task history is permanently lost. (5) Any code changes from the partial task are now uncommitted orphans — present in the working tree but never verified or committed. This cascade is invisible until the user notices unexpected working-tree changes or duplicate task work.
+**Success criterion**: (1) Read `masonry/src/hooks/masonry-session-start.js` — identify the exact detection mechanism for interrupted builds (does it read `.autopilot/mode` or `progress.json`?). (2) Reproduce the failure: manually set `.autopilot/mode = "build"` and `progress.json` task to `IN_PROGRESS`, then simulate a session start — confirm whether the hook surfaces the state or silently skips. (3) Determine whether `masonry-stop-guard.js` provides a partial mitigation (blocks Stop on uncommitted changes), which would surface the abandoned partial task indirectly. (4) Assess the probability that an in-progress build task leaves uncommitted code in the working tree. Verdict: CASCADE_ACTIVE if the broken resume creates silent orphan code changes that are never committed or surfaced; CASCADE_IMMINENT if the broken resume causes task deduplication or spec overwrite; DORMANT if the stop-guard hook provides sufficient mitigation by catching uncommitted changes before session end.
+
+---
+
+### P6: If the drift scoring metric (F12.1 deferred — FAILURE treated as bad agent performance) is never corrected, what quality signal inversion cascade accumulates in agent_db.json over future campaign waves?
+
+**Status**: DONE
+**Operational Mode**: predict
+**Agent**: cascade-analyst
+**Priority**: LOW
+**Motivated by**: F12.1 deferred from Wave 12 — verdict-based drift scoring treats FAILURE verdict as evidence of bad agent performance, but for research agents FAILURE means "correctly found a problem." The confidence-based metric replacement was proposed but not implemented.
+**Hypothesis**: As the campaign continues, agents that correctly identify failures (the campaign's primary purpose) will accumulate negative drift scores in `agent_db.json`. Research agents with high TRUE-FAILURE detection rates will appear as "drifting" or "degraded" while agents that return only HEALTHY or FIX_APPLIED will appear "stable." This inversion means: (1) Kiln's fleet health view will flag the most accurate research agents as underperforming; (2) Any auto-retirement logic triggered by drift score thresholds would preferentially retire the most useful agents; (3) MIPROv2 training data constructed from "high drift" agents (actually high-accuracy agents) would be deprioritized or excluded; (4) The campaign may reflexively generate "fix" questions to "restore" high-FAILURE agents that are actually working correctly. The cascade compounds silently across waves until a human audits `agent_db.json` verdict distributions.
+**Success criterion**: (1) Read `masonry/src/dspy_pipeline/drift_detector.py` — confirm the current scoring logic: does a FAILURE verdict decrease an agent's drift score? (2) Count research-analyst FAILURE verdicts in `agent_db.json` — if the count is high (>10), compute the implied drift score and compare to the FAILURE threshold. (3) Determine whether any auto-retirement threshold in the registry or Kiln would trigger on the current research-analyst drift score. (4) Verify whether the `sync_verdicts_to_agent_db.py` integration (F11.3) currently runs with the broken metric or the correct one. Verdict: CASCADE_ACTIVE if research-analyst drift score is at or near the auto-retirement threshold; CASCADE_IMMINENT if any downstream system acts on drift scores (Kiln display, training data filtering, auto-retirement); DORMANT if drift scores are computed but nothing consumes them yet.
+
+---
+
+### P7: If the `AgentRegistryEntry.optimized_prompt` schema field remains an unpopulated placeholder, what downstream cascade affects any system that reads it to determine optimization status?
+
+**Status**: DONE
+**Operational Mode**: predict
+**Agent**: cascade-analyst
+**Priority**: LOW
+**Motivated by**: V30.5 investigation — `AgentRegistryEntry.optimized_prompt` was identified as a schema field that is "never populated or read by code." The field exists in `masonry/src/schemas/payloads.py` but write-back via `run_optimization.py` does not update the registry entry.
+**Hypothesis**: If MIPROv2 optimization runs succeed (E33.1 eventually executes) and `writeback_optimized_instructions()` writes optimized text into agent `.md` files, the `AgentRegistryEntry.optimized_prompt` field in `agent_registry.yml` will still be empty/null. Any code that reads this field to determine whether an agent has been optimized will incorrectly report all agents as unoptimized — even after successful optimization. Cascades: (1) Kiln's "Not optimized" badge will persist for agents that actually have optimized instructions in their `.md` files, causing false-negative displays; (2) Any routing logic that checks `optimized_prompt` before selecting between base and optimized agent behavior will always fall back to unoptimized behavior; (3) The `masonry_drift_check` MCP tool, if it reads `optimized_prompt` to assess optimization coverage, will report 0% coverage indefinitely. The cascade is cosmetic unless code begins acting on the field.
+**Success criterion**: (1) Read `masonry/src/schemas/payloads.py` — confirm the `AgentRegistryEntry` schema definition for `optimized_prompt` (type, default, required). (2) Grep the entire codebase for reads of `optimized_prompt` from registry entries — confirm whether any code path currently consumes this field. (3) Check Kiln source (`masonry/kiln/` or `BrickLayerHub/`) for any UI component that reads `optimized_prompt` to render the "Not optimized" badge. (4) Determine whether `writeback_optimized_instructions()` in `run_optimization.py` updates `agent_registry.yml` after writing to `.md` files. Verdict: CASCADE_ACTIVE if any executed code path reads `optimized_prompt` and makes decisions based on it; CASCADE_IMMINENT if Kiln reads the field for display (false-negative badge is user-visible); DORMANT if the field is defined but truly unread by any current code path.
+
+---
+
+## Wave Mid — Fix + Validate Questions (Generated 2026-03-24)
+
+### F-mid.1: Clear contaminated karen.md DSPy section and fix `_build_prompt()` rubric injection
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
 **Priority**: HIGH
-**Motivated by**: E33.1 BLOCKED (ANTHROPIC_API_KEY gated) + V35.1 HEALTHY — the corpus is now ready and E33.1 can run as soon as an API key is available. Before Tim provides the key and runs E33.1, this question verifies the full CLI argument chain from `--api-key` on the command line to the actual `configure_dspy()` call. A silent misconfiguration (e.g., argparse storing `--api-key` under `args.api_key` but the function call reading `args.anthropic_api_key`) would cause the run to silently use the wrong (or empty) API key, producing a cryptic auth failure rather than a clear error.
-**Hypothesis**: The argparse definition at line ~456 uses `"--api-key"` which argparse converts to `args.api_key` (hyphen-to-underscore transformation is standard Python argparse behavior). Line ~469 passes this as `api_key=args.api_key`. The `run()` function at line ~261 has signature `run(... api_key: str | None = None ...)` and calls `configure_dspy(backend=backend, api_key=api_key)` at line ~332. The chain is unbroken: CLI `--api-key sk-ant-XXX` → `args.api_key` → `run(api_key=args.api_key)` → `configure_dspy(api_key=api_key)`. Additionally, `default=os.environ.get("ANTHROPIC_API_KEY")` means that if `--api-key` is omitted and the env var is set, it flows through identically.
-**Method**: research-analyst
-**Success criterion**: (1) Read `run_optimization.py` lines 421-474 — confirm argparse `add_argument("--api-key", default=os.environ.get("ANTHROPIC_API_KEY"), ...)` and `sys.exit(run(..., api_key=args.api_key))`. Confirm `args.api_key` (not `args.api-key` or `args.anthropic_api_key`) — Python argparse converts `--api-key` to `args.api_key` by replacing hyphens with underscores. (2) Read `run()` function signature at line ~261 — confirm `api_key: str | None = None` parameter is present. (3) Read lines ~328-336 — confirm `configure_dspy(backend=backend, api_key=api_key)` is called when the backend is `"anthropic"`. (4) Read `configure_dspy()` in `optimizer.py` or wherever it is defined — confirm it accepts `api_key` as a keyword argument and passes it to the Anthropic client (e.g., `dspy.LM("anthropic/claude-3-haiku-...", api_key=api_key)` or equivalent). (5) Confirm there is no second `configure_dspy()` call later in `run()` that would override the first with `api_key=None`. Verdict: HEALTHY if all 5 checks pass and the `--api-key` → `configure_dspy(api_key=...)` chain is unbroken; WARNING if the chain is correct but `configure_dspy()` does not forward `api_key` to the LM constructor (key is accepted but silently dropped); FAILURE if `args.api_key` resolves to a different attribute name or if a second `configure_dspy()` call overwrites the api_key with None.
+**Motivated by**: P3 (CASCADE_ACTIVE) — karen.md contaminated with research-analyst rubric from `optimize_with_claude.py` `_build_prompt()` hardcoding; `karen.json` `optimized_at: 2026-03-24T23:17:33Z` confirms live contamination. P3 peer review quality score 0.95 — all claims verified.
+**Hypothesis**: Fix requires two changes: (A) strip the contaminated DSPy Optimized Instructions section from `karen.md` (and `~/.claude/agents/karen.md` on all machines) using `strip_optimized_instructions()`; (B) fix `_build_prompt()` in `optimize_with_claude.py` to inject the correct karen rubric when `--signature karen` is passed — weight distribution: `quality_score_proximity 0.5`, `action_match 0.3`, `changelog_quality 0.2`. Without fix (A), every karen invocation runs against research-analyst criteria. Without fix (B), the next optimization run will re-contaminate karen.md.
+**Success criterion**: (1) Grep `karen.md` and `~/.claude/agents/karen.md` for `## DSPy Optimized Instructions` — confirm section absent post-fix. (2) Read `_build_prompt()` in `optimize_with_claude.py` — confirm signature-conditional rubric injection present. (3) Run `improve_agent.py karen --signature karen --dry-run` — confirm `before_score` reflects karen-specific metric, not research-analyst metric. Verdict: FIX_APPLIED if all three checks pass; PARTIAL if only strip is done without `_build_prompt()` fix.
 
 ---
 
-### R36.1: What fraction of the 77 research-analyst training records have a non-empty `project_context` field after F34.1's enrichment fix?
+### F-mid.2: Remove 15 mock_campaign records from `scored_all.jsonl` and add source-exclusion guard
 
-**Status**: PENDING
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: P2 (WARNING/High) — 15 records with `source: mock_campaign` in `scored_all.jsonl` are degrading `before_score` from 0.35 → 0.25 → 0.15 across optimization loops, effectively freezing the loop. P2 peer review CONFIRMED all 7 evidence points.
+**Hypothesis**: Remove all records where `source == "mock_campaign"` from `scored_all.jsonl`. Add a filter in `_load_records()` in `optimize_with_claude.py` (line 44) to exclude records with `source` in a configurable exclusion list (`["mock_campaign", "test_campaign"]`). After cleanup, `before_score` should recover to ≥0.45 on next eval cycle.
+**Success criterion**: (1) Count records in `scored_all.jsonl` before and after — confirm 15 fewer records. (2) Grep `scored_all.jsonl` for `mock_campaign` — confirm zero hits post-fix. (3) Read `_load_records()` in `optimize_with_claude.py` — confirm source-exclusion filter present. (4) Run `improve_agent.py research-analyst --dry-run` — confirm `before_score` ≥ 0.45. Verdict: FIX_APPLIED if all checks pass; PARTIAL if records removed but guard not added.
+
+---
+
+### V-mid.1: Verify F12.1 (confidence-based drift metric) is active end-to-end
+
+**Status**: DONE
+**Operational Mode**: validate
+**Agent**: design-reviewer
+**Priority**: HIGH
+**Motivated by**: P6 (CONFIRMED/Critical) — drift scoring inversion is cascade-active. Four agents at CRITICAL drift (45–100%) because FAILURE=0.0. P6 mitigation recommends confidence-based `_score_verdicts()` as fix. V-mid.1 checks whether F12.1 was actually implemented. P6 peer review also flagged that `masonry/src/drift_detector.py` may differ from `masonry/src/dspy_pipeline/drift_detector.py`.
+**Hypothesis**: F12.1 was tracked as a queued fix in prior synthesis. If implemented, `drift_detector.py` should contain a `confidences` parameter in `_score_verdicts()` and a confidence-weighted mean path. If NOT implemented, the four CRITICAL agents remain at inversion risk and `masonry_drift_check(auto_trigger=true)` must stay prohibited.
+**Success criterion**: (1) Read `masonry/src/drift_detector.py` AND `masonry/src/dspy_pipeline/drift_detector.py` — determine which is canonical (imported by `mcp_server/server.py`). (2) Check `_score_verdicts()` signature — does it accept a `confidences` parameter? (3) Check whether `run_drift_check()` passes `confidences` from `agent_db.json` entries. (4) If confidence path exists, compute research-analyst's score with actual confidence values — confirm it flips from CRITICAL to ok. Verdict: PASS if F12.1 is fully active; FAIL if not implemented; PARTIAL if code exists but confidence data not plumbed through.
+
+---
+
+### F-mid.3: Add MIN_VERDICTS guard before auto_trigger fires in `masonry_drift_check`
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: MEDIUM
+**Motivated by**: P6 (CONFIRMED/Critical) — benchmark-engineer at 100% drift from only 2 verdicts. A 2-sample statistical basis is insufficient to trigger `improve_agent.py`. P6 mitigation recommends a minimum sample threshold of ≥10 verdicts.
+**Hypothesis**: Add `MIN_VERDICTS_FOR_AUTO_OPTIMIZE = 10` constant and gate the `auto_trigger` spawning block in `mcp_server/server.py` `_tool_masonry_drift_check()` (lines 438-497) — only spawn `improve_agent.py` if `len(agent_db_entry["verdicts"]) >= MIN_VERDICTS_FOR_AUTO_OPTIMIZE`. This prevents benchmark-engineer (2 verdicts) from triggering unnecessary optimization while the statistical basis is too small to be meaningful.
+**Success criterion**: (1) Read `mcp_server/server.py` `_tool_masonry_drift_check()` — confirm MIN_VERDICTS guard present in `auto_trigger` block. (2) Verify benchmark-engineer's 2-verdict entry would be excluded by the guard. (3) Confirm research-analyst (29 verdicts) and diagnose-analyst (34 verdicts) would still pass the guard. Verdict: FIX_APPLIED if guard present and logic correct; PARTIAL if constant added but guard not wired in.
+
+---
+
+### V-mid.2: Verify F3.1 resolves interrupted-build resume output collision end-to-end
+
+**Status**: DONE
+**Operational Mode**: validate
+**Agent**: design-reviewer
+**Priority**: MEDIUM
+**Motivated by**: P5 (CONFIRMED/High) — session-start interrupted-build cascade. P5 peer review found that F3.1 (empty hooks.json) has already been applied — `hooks/hooks.json` contains `{"hooks": {}}`. V-mid.2 validates this end-to-end: confirms the double-fire path is closed AND that cross-session build-guard gating remains the residual risk.
+**Hypothesis**: With `hooks/hooks.json` empty, SessionStart fires only once (from `~/.claude/settings.json` registration). The interrupted-build fast path in `masonry-session-start.js` lines 67-78 should produce valid single-JSON output that Claude's hook framework can parse. The residual risk is `masonry-build-guard.js` session-ID gating (line 82-97: exits 0 on session mismatch), which remains unaddressed.
+**Success criterion**: (1) Read `hooks/hooks.json` — confirm `{"hooks": {}}` or equivalent empty-hooks structure. (2) Read `~/.claude/settings.json` hook registrations — confirm SessionStart registered once (not twice). (3) Trace `masonry-session-start.js` interrupted-build fast path — confirm single JSON output would be valid. (4) Read `masonry-build-guard.js` lines 82-97 — confirm cross-session gating behavior and whether it surfaces any warning. Verdict: PASS if F3.1 effective and residual risk documented; FAIL if double-fire still possible; PARTIAL if F3.1 applied but stop-guard/build-guard residuals not assessed.
+
+---
+
+## Wave Next — Validation + Optimization Queue (Generated 2026-03-24)
+
+### F-next.1: Implement F12.1 — confidence-based drift metric in drift_detector.py
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: V-mid.1 (FAIL) — F12.1 not implemented; P6 (CONFIRMED/Critical) — drift scoring inversion CASCADE_ACTIVE. V-mid.1 confirmed `_score_verdicts()` has no confidence parameter; research-analyst at 45.2% CRITICAL drift.
+**Hypothesis**: Add `confidences: list[float] | None = None` parameter to `_score_verdicts()` with confidence-weighted mean path; thread through `detect_drift()` and `run_drift_check()` which reads `entry.get("confidences", [])` from `agent_db.json`. Apply to both `masonry/src/drift_detector.py` (canonical) and `masonry/src/dspy_pipeline/drift_detector.py`.
+**Success criterion**: `grep -n "confidences" masonry/src/drift_detector.py` returns 3+ hits; research-analyst drift computes to −7.4% (ok/improvement) from mean confidence 0.9131. Verdict: FIX_APPLIED if all checks pass.
+
+---
+
+### V-next.1: Verify F12.1 end-to-end — masonry_drift_check returns correct alert levels
+
+**Status**: DONE
+**Operational Mode**: validate
+**Agent**: design-reviewer
+**Priority**: HIGH
+**Motivated by**: F-next.1 (FIX_APPLIED) — F12.1 implemented. V-next.1 validates the fix end-to-end by checking that research-analyst and diagnose-analyst flip from CRITICAL to ok/improvement, and that the MIN_VERDICTS guard (F-mid.3) correctly gates benchmark-engineer (2 verdicts).
+**Hypothesis**: With F12.1 live in `masonry/src/drift_detector.py`, calling `run_drift_check()` should compute research-analyst current_score ≈ 0.9131 (mean confidence), drift ≈ −7.4%, alert = ok. Diagnose-analyst and design-reviewer should similarly show ok/WARNING based on their confidence means. Benchmark-engineer (2 verdicts) should be excluded by MIN_VERDICTS guard from auto_trigger path.
+**Success criterion**: (1) Read `masonry/src/drift_detector.py` — confirm `_score_verdicts()` has confidence path (grep for "confidences"). (2) Read `agent_db.json` — get research-analyst confidence mean. (3) Compute expected drift with confidence-weighted score vs. baseline. (4) Verify MIN_VERDICTS guard present in `mcp_server/server.py`. Verdict: PASS if all four agents compute correctly; FAIL if confidence path missing; PARTIAL if path exists but wrong data plumbed.
+
+---
+
+### R-next.1: Does `improve_agent.py --dry-run` show before_score ≥ 0.50 for research-analyst after corpus cleanup?
+
+**Status**: DONE
 **Operational Mode**: research
-**Priority**: MEDIUM
-**Motivated by**: V35.1 HEALTHY (corpus at 77 records) — Wave 32 synthesis noted that 100% of the then-57 records had empty `project_context`, which was identified as a ceiling constraint on the achievable optimization score (R33.2 hypothesis: empty `project_context` limits the achievable range to 0.73-0.87 instead of reaching the 0.9666 self-consistency ceiling). F34.1 fixed `load_training_data_from_scored_all()` to populate `project_context` from `project-brief.md`. However, F34.1 only enriches records at optimization-time (in memory, when `run_optimization.py` loads them) — it does NOT modify `scored_all.jsonl` on disk. The 20 new records added by F35.1/F35.2 were scored by `score_findings.py`, which may have its own `project_context` handling. This question determines whether the on-disk fill rate matters or whether F34.1's in-memory enrichment is sufficient.
-**Hypothesis**: `scored_all.jsonl` stores records with `project_context: ""` for all 77 records (the scorer does not read `project-brief.md`). F34.1 enriches `project_context` in-memory at optimization time by reading `project-brief.md` via `_read_project_brief(base_dir)`. Because MIPROv2 only sees the in-memory enriched dataset (never the on-disk `scored_all.jsonl` directly), the on-disk fill rate is irrelevant to optimization quality. The ceiling concern from Wave 32 is resolved by F34.1 regardless of what `scored_all.jsonl` stores.
-**Method**: research-analyst
-**Success criterion**: (1) Read `masonry/training_data/scored_all.jsonl` — count research-analyst records with non-empty `project_context` field. Report: total records=77, non-empty `project_context`=N, fill rate=N/77. (2) Read `run_optimization.py:load_training_data_from_scored_all()` — confirm that `project_context` is populated from `_read_project_brief(base_dir)` and stamped into every example dict before `optimize_agent()` is called. Confirm this enrichment happens in-memory without writing back to `scored_all.jsonl`. (3) Read `score_findings.py` or `score_all_agents.py` — does either scorer attempt to populate `project_context` when scoring findings? If yes, report what value is set (empty string, or content from `project-brief.md`). (4) Determine whether the on-disk `project_context` field in `scored_all.jsonl` affects optimization: if `load_training_data_from_scored_all()` always overwrites `project_context` with the live `project-brief.md` content, then the on-disk value is irrelevant and the ceiling concern is resolved. If `load_training_data_from_scored_all()` only sets `project_context` when the field is empty (conditional enrichment), then records with a pre-existing non-empty but incorrect value would be used as-is. (5) Conclude: is the `project_context` ceiling concern from Wave 32 fully resolved by F34.1, partially resolved, or still active? Verdict: HEALTHY if F34.1's in-memory enrichment unconditionally overwrites `project_context` for all 77 records (on-disk fill rate is irrelevant); WARNING if enrichment is conditional and any records have a stale or incorrect `project_context` on disk that would not be overwritten; FAILURE if `load_training_data_from_scored_all()` does not enrich `project_context` at all (F34.1 fix was not applied or was reverted).
+**Agent**: research-analyst
+**Priority**: HIGH
+**Motivated by**: F-mid.2 (FIX_APPLIED, 135 mock records removed) + P2 (WARNING/High, before_score degraded 0.35 → 0.25 → 0.15). With the corpus clean and F12.1 active, the eval pipeline should now produce a meaningful before_score that enables improvement detection.
+**Hypothesis**: After removing 135 mock_campaign records from `scored_all.jsonl`, the remaining 527 real records should produce a before_score ≥ 0.45 (P2 cap estimate) or possibly ≥ 0.50 if the contamination was the primary drag. If before_score is still < 0.45, additional corpus issues may exist (sparse low-scoring examples, mislabeled records, or rubric misalignment).
+**Success criterion**: (1) Read `masonry/training_data/scored_all.jsonl` — confirm mock_campaign records absent (grep for "mock_campaign"). (2) Read `masonry/scripts/eval_agent.py` to understand eval sampling. (3) Compute expected before_score from remaining records using `_score_verdicts()` logic. (4) Determine if the eval would produce a score ≥ 0.45 or ≥ 0.50. Verdict: HEALTHY if ≥ 0.50; WARNING if 0.35–0.50; FAILURE if < 0.35 (still degraded despite cleanup).
 
 ---
+
+### F-next.2: Fix build-guard cross-session warning visibility (V-mid.2 residual risk 1)
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: MEDIUM
+**Motivated by**: V-mid.2 (WARNING) — `masonry-build-guard.js` exits 0 on session mismatch with stderr-only message not visible in Claude's conversation context. If user dismisses session-start resume directive, there is no Stop-time enforcement.
+**Hypothesis**: Modify `masonry-build-guard.js` lines 86-91: add a `hookSpecificOutput` to the cross-session mismatch path alongside the existing stderr write. The hookSpecificOutput should name the orphaned build's project and task count, making the warning visible in Claude's conversation context at Stop time as a non-blocking second safety net. The `process.exit(0)` should remain — this is a warning, not a block.
+**Success criterion**: (1) Read `masonry-build-guard.js` lines 82-97. (2) Add hookSpecificOutput to the `buildSessionId !== currentSessionId` branch. (3) Verify the exit code remains 0 (non-blocking). (4) Verify the hookSpecificOutput includes project name and orphaned task count. Verdict: FIX_APPLIED if hookSpecificOutput added; PARTIAL if message modified but not surfaced in-conversation.
+
+---
+
+### F-next.3: Add IN_PROGRESS task gate to stop-guard auto-commit (V-mid.2 residual risk 2)
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: MEDIUM
+**Motivated by**: V-mid.2 (WARNING) — `masonry-stop-guard.js` auto-commits all session-touched files unconditionally with no test-pass gate, no IN_PROGRESS task guard, generic commit message. Partial interrupted-build implementations can enter git history without verification.
+**Hypothesis**: Add a guard before the auto-commit block (line 296 in masonry-stop-guard.js): if `.autopilot/mode` is `"build"` or `"fix"` AND `progress.json` has any tasks with `status: "IN_PROGRESS"`, skip the auto-commit and emit a blocking message explaining that mid-task partial code will not be auto-committed. Also add the build task ID to the auto-commit message for traceability.
+**Success criterion**: (1) Read `masonry-stop-guard.js` lines 280-320. (2) Add IN_PROGRESS task check before auto-commit. (3) Verify the check reads `.autopilot/progress.json` and inspects task statuses. (4) Verify the blocking message names the in-progress task. Verdict: FIX_APPLIED if guard present and logic correct; PARTIAL if guard added but message lacks task context.
+
+---
+
+## Wave 40 — Post-Fix Validation and Open Risk Closure
+
+### V-w40.1: Verify karen corpus score distribution — is bimodal cliff still present after F-mid.1/F-mid.2?
+
+**Status**: DONE
+**Operational Mode**: validate
+**Agent**: design-reviewer
+**Priority**: HIGH
+**Motivated by**: P3 (CONFIRMED) identified a 98.7%-at-100 bimodal cliff with 5 synthetic_negative records at score=0 using mismatched schema. F-mid.1 fixed the rubric injection but did NOT replace the 5 synthetic negatives or diversify the score distribution. P3 Fix 3 ("replace synthetic negatives with real organic examples") was listed as a precondition but not implemented.
+**Hypothesis**: `scored_all.jsonl` still has the bimodal distribution for karen records: 374 records near score=100, 5 synthetic_negative records at score=0, zero records in the 10-89 range. This means the optimization contrast for karen is still derived from structurally mislabeled negatives, and `_tier_examples()` still selects arbitrary records from an undifferentiated high tier. The F-mid.1 rubric fix improves the *direction* of optimization but not the *gradient quality*.
+**Success criterion**: (1) Count karen records in `scored_all.jsonl` by score band: score=100, 90-99, 50-89, 10-49, 0-9. (2) Check if any `synthetic_negative` records remain. (3) Verify whether `build_karen_metric` produces scores in the 10-89 range for any real records. (4) Assess whether the low-tier records are structurally valid contrast examples. Verdict: HEALTHY if ≥ 10 real records below score 50 with valid schema; WARNING if only synthetic_negative records remain as low tier; FAIL if distribution is still bimodal cliff.
+
+---
+
+### R-w40.1: Does karen.md DSPy section contain any research-analyst behavioral patterns on this machine?
+
+**Status**: DONE
+**Operational Mode**: research
+**Agent**: research-analyst
+**Priority**: HIGH
+**Motivated by**: P3 (CONFIRMED) identified that `writeback_optimized_instructions()` propagates to ALL karen.md copies including `~/.claude/agents/karen.md`. F-mid.1 cleared the global copy on casaclaude. However: (a) the fix may not have reached proxyclaude's ~/.claude/agents/karen.md, and (b) project-level copies in bricklayer-v2, bl-audit, and template directories were explicitly preserved. The research-analyst behavioral patterns (verdict calibration, evidence length, confidence targeting) may still be active in project-level karen.md copies used by agents spawned from those directories.
+**Hypothesis**: At least one of the project-level karen.md copies (`.claude/agents/karen.md` in bricklayer-v2/, bl-audit/, template/) contains a DSPy Optimized Instructions section with research-analyst behavioral patterns. These are not the global copy but would affect karen agents spawned from those project contexts.
+**Success criterion**: (1) `grep -rn "DSPy Optimized Instructions" C:/Users/trg16/Dev/Bricklayer2.0/` — count hits. (2) For any hits, check if content references "verdict match", "evidence quality", or "confidence calibration" (research-analyst rubric markers). (3) Verify the global `~/.claude/agents/karen.md` is clean. Verdict: HEALTHY if only global copy is present and clean; WARNING if project-level copies contain research-analyst DSPy content; FAIL if global copy was re-contaminated.
+
+---
+
+### F-w40.1: Add circuit breaker to semantic.py for Ollama timeout (P1 residual)
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: MEDIUM
+**Motivated by**: P1 (CONFIRMED) identified that when Ollama is offline, Layer 2 (semantic routing) hangs for the full HTTP timeout before propagating to Layer 3 (LLM fallback). The cascade: Layer 2 timeout → blocking wait → all routes stall → deterministic Layer 1 handles only slash commands; everything else waits. P1 recommended a circuit breaker with configurable timeout and failure tracking.
+**Hypothesis**: `masonry/src/routing/semantic.py` has no circuit breaker — it makes a direct HTTP call to Ollama's embedding endpoint with no per-call timeout guard, no failure counter, and no fast-fail path. Adding a 2-second per-call timeout with a circuit breaker (e.g., after 3 consecutive failures, skip Layer 2 for 60 seconds) would eliminate the cascade.
+**Success criterion**: (1) Read `masonry/src/routing/semantic.py` — identify the Ollama HTTP call. (2) Add a per-call timeout (≤ 2 seconds). (3) Add a circuit breaker state (failure_count, last_failure_time, OPEN/CLOSED state). (4) When OPEN, skip Layer 2 and fall through to Layer 3 immediately. (5) Reset after 60 seconds or on next success. Verdict: FIX_APPLIED if circuit breaker present with correct timeout and state machine; PARTIAL if timeout added but no circuit state.
+
+---
+
+### R-w40.2: P4 subagent tracker slot collision — what records are actually lost or corrupted?
+
+**Status**: DONE
+**Operational Mode**: research
+**Agent**: research-analyst
+**Priority**: LOW
+**Motivated by**: P4 (peer review: CONCERNS) — the 16.7% near-collision rate in `masonry-subagent-tracker.js` was flagged but the actual downstream impact was unquantified. Each slot overwrites `${subagentType}_latest.json` when two agents of the same type start within the 10-second window. The question is: does this affect any downstream consumer that reads these files, and is the corruption observable in agent_db.json or training data?
+**Hypothesis**: The `${subagentType}_latest.json` files are read by analytics or onboarding scripts that use the data for training record attribution. If a collision overwrites a record, the earlier agent's data may be attributed to the wrong session or lost entirely. However, if the files are only used for in-session tracking with no durable read-back, the 16.7% collision rate is a logging gap with no functional impact.
+**Success criterion**: (1) Read `masonry-subagent-tracker.js` — identify what `${subagentType}_latest.json` contains and who reads it. (2) Search for any script that reads from `agent_snapshots/*/` or `latest.json` files. (3) Determine if lost slots produce missing records in `agent_db.json` or `scored_all.jsonl`. (4) Assess actual vs. theoretical damage. Verdict: HEALTHY if collision has no downstream data impact; WARNING if records are lost but not corrupted; FAIL if agent_db.json attribution errors are traceable to P4 collisions.
+
+---
+
+### F-w40.2: Fix dead `optimized_prompt` field in improve_agent.py comparison report (P7)
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: LOW
+**Motivated by**: P7 (CONFIRMED/DORMANT) — `improve_agent.py` reads `optimized_prompt` from the optimization output JSON but `optimize_with_claude.py` no longer writes this field (the field was removed in an earlier refactor). The comparison report logs an empty or missing field. This is a cosmetic bug — the optimization loop works correctly — but the before/after report is misleading.
+**Hypothesis**: `improve_agent.py` has a line like `optimized = result.get("optimized_prompt", "")` or similar that reads a field no longer written by `optimize_with_claude.py`. The fix is to either (a) remove the field read and display `instructions_applied: true/false` instead, or (b) restore the field write in `optimize_with_claude.py`. Option (a) is simpler.
+**Success criterion**: (1) Read `masonry/scripts/improve_agent.py` — find all references to `optimized_prompt`. (2) Read `masonry/scripts/optimize_with_claude.py` output schema — confirm `optimized_prompt` is absent. (3) Remove or replace the dead field read in `improve_agent.py`. (4) Verify the before/after comparison report still shows meaningful diff (before_score, after_score, delta, instructions excerpt). Verdict: FIX_APPLIED if dead field removed and report still meaningful; PARTIAL if removed but report loses information.
+
+---
+
+### P-w40.1: If improve_agent.py runs now (all cascades fixed), what new failure modes could the optimization loop introduce?
+
+**Status**: DONE
+**Operational Mode**: predict
+**Agent**: cascade-analyst
+**Priority**: MEDIUM
+**Motivated by**: R-next.1 (HEALTHY) confirmed before_score=0.5333 and the optimization pipeline is unblocked. The cascades that previously corrupted optimization (P2 corpus, P3 rubric, P6 drift) are resolved. However, the optimization loop introduces its own risks: LLM-generated instruction changes may degrade agent behavior in ways not captured by the eval metric, the revert gate may have edge cases, and the write-back mechanism may overwrite content beyond the DSPy section boundaries.
+**Hypothesis**: The optimization loop has at least three residual risks now that it's unblocked: (1) The held-out eval metric only measures verdict/evidence/confidence quality — it cannot detect degradation in agent reasoning style, context handling, or edge-case behavior. (2) The revert gate (compare before_score vs. after_score) has a ±0.05 noise band — small degradations below this band will not trigger a revert. (3) `writeback_optimized_instructions()` uses delimiter-based replacement that could corrupt agent instructions if the delimiter appears in the generated content.
+**Success criterion**: Identify the specific failure modes that remain possible after the three cascades are resolved, with evidence from code inspection of `improve_agent.py`, `optimize_with_claude.py`, and `writeback.py`. Assess severity and probability. Predict which agents are at highest risk for silent degradation after optimization. Verdict: CONFIRMED if failure modes are real and code-evidenced; INCONCLUSIVE if risks are theoretical without code support.
+
+---
+
+## Wave 41 — Optimization Safety Gates + Karen Corpus Unblock
+
+### F-w41.1: Enforce train/eval split in scored_all.jsonl to close P-w40.1 convergence trap
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: P-w40.1 (CONFIRMED/IMMINENT) — E5 convergence trap: `eval_agent.py` uses `records[-eval_size:]` and `_tier_examples()` uses all records sorted by score — these overlap when corpus is small, causing the optimizer to see its own eval examples.
+**Hypothesis**: Add a `held_out_ids` exclusion: mark the last N record IDs as held-out in `eval_agent.py`, pass those IDs to `optimize_with_claude.py` so `_tier_examples()` excludes them from the optimization pool. Add guard: if remaining records after exclusion < 10 per tier, warn and skip optimization.
+**Success criterion**: (1) Read `eval_agent.py` — how held-out records are selected. (2) Read `_tier_examples()` — confirm overlap possible. (3) Implement held-out exclusion. (4) Add low-record guard. Verdict: FIX_APPLIED if split enforced + guard present; PARTIAL if split enforced but no guard.
+
+---
+
+### F-w41.2: Increase eval size to N=50 and add minimum improvement threshold to revert gate
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: P-w40.1 (CONFIRMED/IMMINENT) — E1 revert gate dead zone: N=20 minimum delta 0.05, stochasticity ~11% stddev. Sub-5% real regressions pass silently.
+**Hypothesis**: Change default `--eval-size` from 20 to 50. Add `MIN_IMPROVEMENT = 0.02` constant and update gate from `after_score > before_score` to `after_score >= before_score + MIN_IMPROVEMENT`. Ties and marginal changes revert rather than lock in.
+**Success criterion**: (1) Read `improve_agent.py` — find eval_size default and revert gate line (~151). (2) Change default to 50. (3) Add MIN_IMPROVEMENT=0.02 and update gate condition. (4) Report logs the threshold. Verdict: FIX_APPLIED if both changes applied; PARTIAL if only one.
+
+---
+
+### F-w41.3: Sanitize DSPy delimiters in writeback to prevent E3 corruption
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: MEDIUM
+**Motivated by**: P-w40.1 (CONFIRMED/POSSIBLE) — E3 delimiter corruption: `writeback.py` uses delimiter strings as regex anchors with no sanitization. If LLM-generated instructions contain the delimiter, the section replacement breaks.
+**Hypothesis**: Before writing instructions, check if content contains `_SECTION_HEADER` or `_SECTION_END` strings — if found, strip or escape them. After writeback, validate by re-parsing the DSPy section and confirming it matches what was written.
+**Success criterion**: (1) Read `masonry/src/writeback.py` — find delimiter constants and regex replacement. (2) Add pre-write sanitization. (3) Add post-write validation. Verdict: FIX_APPLIED if both present; PARTIAL if only sanitization added.
+
+---
+
+### F-w41.4: Fix karen corpus — add synthetic_negative to exclusions + generate organic low-quality records
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: V-w40.1 (FAIL, High) — Karen corpus bimodal cliff: 5 synthetic_negative records at score=0 not in `_EXCLUDED_SOURCES`. Karen optimization blocked until fixed.
+**Hypothesis**: (1) Add `"synthetic_negative"` to `_EXCLUDED_SOURCES` in `optimize_with_claude.py`. (2) Add guard when low tier is empty — warn and exit rather than optimize with no contrast. (3) Generate 5-10 synthetic organic karen records with genuine low scores (ambiguous commit types, no doc targets), score with `build_karen_metric`, add as `"source": "organic_low"` to `scored_all.jsonl`.
+**Success criterion**: (1) `"synthetic_negative"` in `_EXCLUDED_SOURCES`. (2) Empty-low-tier guard present. (3) ≥ 5 new organic_low records with score < 50. (4) `_tier_examples()` for karen produces valid high + low tiers. Verdict: FIX_APPLIED if all four; PARTIAL if exclusion added but no organic records.
+
+---
+
+### V-w41.1: Verify F-w40.1 circuit breaker — does semantic.py fall through to Layer 3 when OPEN?
+
+**Status**: DONE
+**Operational Mode**: validate
+**Agent**: design-reviewer
+**Priority**: MEDIUM
+**Motivated by**: F-w40.1 (FIX_APPLIED) — circuit breaker added to `semantic.py`. Validates the fall-through contract: OPEN → None → router activates Layer 3.
+**Hypothesis**: `route_semantic()` returns None when OPEN (not raises). `router.py` treats None from Layer 2 as a miss and falls through to Layer 3. Timeout is on the HTTP call parameter. Circuit state is module-level.
+**Success criterion**: (1) semantic.py OPEN path returns None. (2) router.py handles None from Layer 2 → Layer 3. (3) Timeout on HTTP call not a sleep/thread. (4) `_cb_failures`, `_cb_opened_at` are module-level. Verdict: PASS if all four; PARTIAL if OPEN returns None but router doesn't handle it.
+
+---
+
+## Wave 42 — Optimization Pre-Flight + Metric Blind Spots
+
+### R-w42.1: Research-analyst dry-run — does improve_agent.py produce a stable before_score post-Wave-41 changes?
+
+**Status**: DONE
+**Operational Mode**: research
+**Agent**: research-analyst
+**Priority**: HIGH
+**Motivated by**: R-next.1 (HEALTHY, before_score=0.5333 at Wave 39). Wave 41 changed eval_size default (20→50) and added train/eval split exclusion. A new dry-run is needed to confirm before_score is still ≥ 0.50 under the new eval mechanics.
+**Hypothesis**: With eval_size=50 and held_out_ids exclusion, the 36-record corpus may not have enough records to fill both a 50-record held-out set and a meaningful optimization pool. If the corpus is too small, `eval_agent.py` will cap at available records or the exclusion guard will fire. Before_score may differ from 0.5333 due to the larger held-out sample.
+**Success criterion**: (1) Read `masonry/scripts/improve_agent.py` — confirm eval_size default is 50. (2) Read `masonry/agent_snapshots/research-analyst/eval_latest.json` — report before_score and eval_size. (3) Read `masonry/training_data/scored_all.jsonl` — count research-analyst records. (4) Determine whether 36 records can support N=50 eval + meaningful optimization pool. Verdict: HEALTHY if before_score ≥ 0.50 and corpus math works; WARNING if corpus too small for N=50.
+
+---
+
+### R-w42.2: Karen dry-run pre-flight — is karen's before_score interpretable with only 5 organic_low records?
+
+**Status**: DONE
+**Operational Mode**: research
+**Agent**: research-analyst
+**Priority**: HIGH
+**Motivated by**: F-w41.4 (FIXED) — karen corpus unblocked with 5 organic_low records. Before running karen optimization loops, need to verify the before_score is meaningful (not dominated by the 374 high-scoring records producing a near-1.0 score that masks any signal).
+**Hypothesis**: Karen before_score will be ~0.90+ because 374/379 loaded records score 100. The confidence-weighted mean in `_score_verdicts()` will weight high-confidence correct verdicts heavily. This produces a "good" score that provides no gradient — any optimized instructions will also score ~0.90+, making the before/after delta effectively zero regardless of instruction quality.
+**Success criterion**: (1) Read `masonry/agent_snapshots/karen/eval_latest.json` if it exists — report before_score, eval_size, timestamp. (2) Read `masonry/training_data/scored_all.jsonl` — count karen records by source and score distribution. (3) Assess whether a corpus with 98.7% at score=100 can produce a meaningful before_score gradient for optimization. Verdict: HEALTHY if before_score has meaningful variance; WARNING if distribution makes gradient effectively zero.
+
+---
+
+### V-w42.1: Verify F-w41.1 train/eval split — does _tier_examples() actually exclude held_out_ids in practice?
+
+**Status**: DONE
+**Operational Mode**: validate
+**Agent**: design-reviewer
+**Priority**: HIGH
+**Motivated by**: F-w41.1 (FIX_APPLIED) — `excluded_ids` parameter threaded through the call chain. Need to verify the exclusion actually works end-to-end: that `held_out_ids` from `eval_agent.py` reach `_tier_examples()` and that overlap is now zero.
+**Hypothesis**: The exclusion chain (`eval_agent.py` → `improve_agent.py` → `optimize_with_claude.py` → `_tier_examples()`) is correctly wired. Held-out records are excluded from both `high` and `low` tiers. The `_MIN_TIER_RECORDS` guard fires correctly when exclusion empties a tier.
+**Success criterion**: (1) Read `eval_agent.py` — confirm `held_out_ids` is returned in result dict. (2) Read `improve_agent.py` — confirm `before_result["held_out_ids"]` is extracted and passed to `run_optimize()`. (3) Read `optimize_with_claude.py` — confirm `_tier_examples()` receives and applies `excluded_ids`. (4) Trace that `_record_id()` is called consistently in both files. Verdict: PASS if chain is complete; PARTIAL if exclusion exists but `_record_id()` implementations differ between files.
+
+---
+
+### R-w42.3: Metric blind spots (P-w40.1 E2) — does the eval metric measure reasoning quality or only format proxies?
+
+**Status**: DONE
+**Operational Mode**: research
+**Agent**: research-analyst
+**Priority**: MEDIUM
+**Motivated by**: P-w40.1 (CONFIRMED) — E2 identified that `metrics.py` measures evidence length and confidence proximity to 0.75 as proxies for quality. An agent that learns to produce long evidence blocks and calibrated confidence scores will score well regardless of reasoning accuracy.
+**Hypothesis**: The `score_finding()` function in `masonry/src/metrics.py` has no component that measures whether the agent's reasoning is correct — only whether the output format matches expected patterns (verdict present, evidence length ≥ threshold, confidence near 0.75, summary ≤ 200 chars). Over 5-10 optimization cycles, an agent could converge to format compliance while reasoning quality degrades silently.
+**Success criterion**: (1) Read `masonry/src/metrics.py` — enumerate all scoring components in `score_finding()`. (2) For each component, classify as "format proxy" (measures structure) or "reasoning quality" (measures correctness). (3) Determine if any component validates that the verdict matches the actual evidence. (4) Assess whether the current metric can detect a well-formatted but wrong finding. Verdict: WARNING if all components are format proxies; HEALTHY if at least one component measures reasoning correctness.
+
+---
+
+### F-w42.1: Fix P4 slot collision — replace single-slot-per-type with UUID-keyed slots
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: LOW
+**Motivated by**: R-w40.2 (WARNING/Low) — `masonry-preagent-tracker.js` uses one file per `subagent_type`, causing slot collisions when two agents of the same type are dispatched concurrently. Corrupts `routing_log.jsonl` `request_text` for ~1 in 6 routing records.
+**Hypothesis**: Replace `pending_agent_prompts/{subagent_type}.json` with `pending_agent_prompts/{subagent_type}-{uuid}.json`. On SubagentStart, glob for all files matching `{subagent_type}-*.json`, read the oldest one within TTL, consume it. This eliminates collision while preserving TTL and consume-on-read behavior.
+**Success criterion**: (1) Read `masonry-preagent-tracker.js` — find slot write path. (2) Read `masonry-subagent-tracker.js` — find slot read/consume path. (3) Implement UUID suffix on write side. (4) Implement glob-and-oldest-first on read side. (5) Confirm existing stale slots in `~/.masonry/pending_agent_prompts/` are still consumable (backwards-compatible TTL expiry). Verdict: FIX_APPLIED if write+read both updated; PARTIAL if only write side updated.
+
+---
+
+## Wave 43 — Pre-Optimization Safety Fixes
+
+### F-w43.1: Fix eval_size corpus-size cap and run_loop/CLI default sync
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: R-w42.1 (WARNING, High) — 36-record research-analyst corpus cannot support eval_size=50 default. With 36 records and eval_size=50, all records become held-out (eval_agent.py line 239 caps to full corpus), leaving 0 for training and triggering the `_MIN_TIER_RECORDS` hard block in optimize_with_claude.py. Also: `run_loop()` internal default is still 20 (line 69) while CLI default is 50 — divergence.
+**Hypothesis**: Two changes: (1) In `eval_agent.py`, add a corpus-size guard that caps `eval_size` to `max(1, len(records) - MIN_TRAINING_RECORDS)` where `MIN_TRAINING_RECORDS = 10` (leaving at least 10 for the training pool), and logs a warning when capping occurs. (2) In `improve_agent.py`, update `run_loop(eval_size: int = 20)` to match CLI default of 50 OR use a sentinel (None) that defers to the CLI default.
+**Success criterion**: (1) Read `eval_agent.py` line 239 — find the held_out selection. (2) Add corpus-size cap with warning log. (3) Read `improve_agent.py` line 69 — update `run_loop()` default to 50. (4) Verify: with 36-record corpus and eval_size=50, cap fires and reduces eval_size to 26 (36 − 10), leaving 10 for training. Verdict: FIX_APPLIED if both changes present; PARTIAL if only one.
+
+---
+
+### F-w43.2: Fix organic_low record position — switch eval selection from last-N to random sampling
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: HIGH
+**Motivated by**: R-w42.2 (WARNING, High) — all 5 organic_low karen records are the last 5 entries in scored_all.jsonl. Since `eval_agent.py` uses `records[-eval_size:]` (last N), all organic_low records fall inside the eval held-out window and are excluded from the training pool via `excluded_ids`. Optimizer gets 0 low-tier examples — converges on positive-only pattern.
+**Hypothesis**: Change `eval_agent.py` held-out selection from `records[-eval_size:]` to `random.sample(records, eval_size)` with a fixed seed for reproducibility. This distributes organic_low records between eval and training pools probabilistically. With 5 organic_low records and eval_size=30 across 379 karen records, expected ~0.4 organic_low in eval and ~4.6 in training pool per run. Alternatively: stratified sampling that ensures at least 1 low-tier and 1 high-tier record always remain in the training pool after sampling.
+**Success criterion**: (1) Read `eval_agent.py` — find `records[-eval_size:]` selection. (2) Implement random.sample with seed. (3) Confirm held_out_ids still correctly excludes sampled records from training pool. (4) Verify: with 379 karen records and 5 organic_low, random sampling should leave ~4 organic_low in training pool on average. Verdict: FIX_APPLIED if random sampling implemented with seed; PARTIAL if only shuffled before last-N selection.
+
+---
+
+### F-w43.3: Remove dead index param from eval_agent._record_id() and add CLI bypass warning
+
+**Status**: DONE
+**Operational Mode**: fix
+**Agent**: fix-implementer
+**Priority**: MEDIUM
+**Motivated by**: V-w42.1 (WARNING, Medium) — two latent risks: (1) `eval_agent._record_id(record, index)` has dead `index` parameter — future callers writing to match optimize-side signature get TypeError; (2) `optimize_with_claude.py` CLI has no `--excluded-ids`, silently bypasses train/eval split with no warning.
+**Hypothesis**: (1) Remove `index: int` from `eval_agent._record_id()`. Update call site: change `[_record_id(rec, i) for i, rec in enumerate(held_out)]` to `[_record_id(rec) for rec in held_out]`. (2) Add a warning at top of `optimize_with_claude.run()` when `excluded_ids` is None: print to stderr that callers should use `improve_agent.py` to enforce the train/eval split.
+**Success criterion**: (1) Read `eval_agent.py` — find `_record_id` definition and call site. (2) Remove `index` parameter and update call. (3) Read `optimize_with_claude.py run()` — add warning when `excluded_ids is None`. (4) Confirm `_record_id()` signatures now match between both files. Verdict: FIX_APPLIED if both changes present; PARTIAL if only one.
+
+---
+
+### V-w43.1: End-to-end dry-run validation — can research-analyst optimization complete after F-w43.x fixes?
+
+**Status**: DONE
+**Operational Mode**: validate
+**Agent**: design-reviewer
+**Priority**: HIGH
+**Motivated by**: R-w42.1 (WARNING) — corpus-size cap will prevent the hard block, but need to confirm the full loop can complete without aborting: eval → exclude held-out → tier examples → build prompt → compare. Specifically: with 36-record corpus and new corpus-size cap, does the post-cap eval leave enough records for meaningful optimization?
+**Hypothesis**: With corpus-size cap at `len(records) - 10 = 26`, eval uses 26 records as held-out, leaving 10 for training. After `excluded_ids` filter, 10 records remain. `_tier_examples()` picks from these 10: ~8-9 in high tier (score ≥ 75), ~1-2 in low tier (score < 50). Both tiers above `_MIN_TIER_RECORDS=5` threshold? Only if 5+ records in each tier — with 10 training records and ~6 low-scoring research-analyst records, this may still fail the per-tier guard.
+**Success criterion**: (1) Read `masonry/training_data/scored_all.jsonl` — count research-analyst records by score bucket (≥75, 50-74, <50). (2) With 10 training records remaining after cap: how many fall in each tier? (3) Does `_MIN_TIER_RECORDS=5` guard block optimization for either tier? (4) Is the training signal (N=10 examples) sufficient for meaningful optimization? Verdict: PASS if both tiers ≥ 5 records after cap; WARNING if tiers < 5 but combined ≥ 5; FAIL if hard block still fires.
+

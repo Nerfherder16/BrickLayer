@@ -13,7 +13,7 @@
  * Exit code 2 blocks the stop when session files are uncommitted.
  */
 
-const { execSync } = require("child_process");
+const { execSync, execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
@@ -71,10 +71,11 @@ function closeSession(projectDir) {
 
 // Key project docs that must stay current with code changes.
 const PROJECT_DOCS = [
+  "CHANGELOG.md",
+  "ROADMAP.md",
+  "ARCHITECTURE.md",
   "README.md",
   "PROJECT_STATUS.md",
-  "ROADMAP.md",
-  "docs/architecture/ARCHITECTURE.md",
 ];
 
 // Source patterns that count as "real code changes" (not just doc/changelog commits).
@@ -84,6 +85,8 @@ const SOURCE_PATTERNS = [
   /^template\//,
   /^adbp\//,
   /^kiln\//,
+  /^bl\//,
+  /^projects\//,
 ];
 
 /**
@@ -124,6 +127,28 @@ function checkDocStaleness(cwd, snapPath) {
       `  Stale: ${missing.join(", ")}\n` +
       `  Run karen or update docs before your next session.\n`
     );
+
+    // Write flag file to .mas/ (always exists) for next session's karen pickup
+    try {
+      const masDir = path.join(cwd, ".mas");
+      fs.mkdirSync(masDir, { recursive: true });
+      const flag = {
+        reason: "doc_staleness",
+        stale_files: missing,
+        source_files_changed: changedFiles.filter(f =>
+          /\.(py|js|ts|tsx|rs|go|md)$/.test(f) &&
+          !/(CHANGELOG|ARCHITECTURE|ROADMAP|synthesis|findings)/.test(f)
+        ),
+        timestamp: new Date().toISOString(),
+      };
+      fs.writeFileSync(
+        path.join(masDir, "karen-needed.json"),
+        JSON.stringify(flag, null, 2),
+        "utf8"
+      );
+    } catch {
+      // Non-fatal — skip silently
+    }
   } catch {
     // git unavailable or other error — skip silently
   }
@@ -156,6 +181,33 @@ function loadSessionWrites(sessionId, cwd) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Check for overseer trigger flag at Stop. If found, print notice and delete flag.
+ * stderrFn defaults to process.stderr.write — injectable for testing.
+ */
+function checkOverseerTrigger(snapshotsDir, stderrFn) {
+  stderrFn = stderrFn || ((s) => process.stderr.write(s));
+
+  const flagPath = path.join(snapshotsDir, 'overseer_trigger.flag');
+  if (!fs.existsSync(flagPath)) return;
+
+  stderrFn(
+    '\n[overseer] 10 agent invocations since last health check.\n' +
+    'Run: claude -p "Act as overseer agent in ~/.claude/agents/overseer.md. Check all agents."\n'
+  );
+  fs.unlinkSync(flagPath);
+}
+
+module.exports.checkOverseerTrigger = checkOverseerTrigger;
+
+function tryRead(p) {
+  try { return fs.readFileSync(p, "utf8").trim(); } catch { return null; }
+}
+
+function tryJSON(p) {
+  try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; }
 }
 
 async function main() {
@@ -202,6 +254,7 @@ async function main() {
     if (!status) {
       closeSession(cwd);
       checkDocStaleness(cwd, snapPath);
+      checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
       process.exit(0);
     }
 
@@ -247,17 +300,47 @@ async function main() {
     if (sessionModified.length === 0 && sessionUntracked.length === 0) {
       closeSession(cwd);
       checkDocStaleness(cwd, snapPath);
+      checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
       process.exit(0);
     }
 
-    const sessionCount = sessionModified.length + sessionUntracked.length;
-    let output = `\nStop blocked — ${sessionCount} uncommitted session file${sessionCount !== 1 ? "s" : ""}:\n`;
-    for (const file of sessionModified) output += `  M  ${file}\n`;
-    for (const file of sessionUntracked) output += `  ?  ${file}\n`;
-    output += `Commit before stopping.\n`;
+    // Guard: do not auto-commit if an autopilot build/fix task is IN_PROGRESS.
+    // Partial implementations should not be committed without verification.
+    const autopilotMode = tryRead(path.join(cwd, '.autopilot', 'mode'));
+    if (autopilotMode === 'build' || autopilotMode === 'fix') {
+      const progress = tryJSON(path.join(cwd, '.autopilot', 'progress.json'));
+      const inProgressTask = progress?.tasks?.find(t => t.status === 'IN_PROGRESS');
+      if (inProgressTask) {
+        process.stderr.write(`\n[Masonry] Auto-commit skipped: task #${inProgressTask.id} is IN_PROGRESS ("${inProgressTask.description}"). Commit after task completes.\n`);
+        checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
+        process.exit(1);
+      }
+    }
 
-    process.stderr.write(output);
-    process.exit(2);
+    // Auto-commit session files rather than blocking — avoids token-expensive Claude intervention.
+    try {
+      const allSessionFiles = [...sessionModified, ...sessionUntracked];
+      // Add files individually — one bad path won't abort the whole batch
+      let staged = 0;
+      for (const f of allSessionFiles) {
+        try {
+          execFileSync('git', ['add', '--', f], { encoding: 'utf8', timeout: 5000, cwd });
+          staged++;
+        } catch (_) { /* skip files with corrupt/missing paths */ }
+      }
+      if (staged === 0) throw new Error('nothing staged');
+      const msg = `chore: auto-commit ${staged} session file${staged !== 1 ? 's' : ''} on stop`;
+      execFileSync('git', ['commit', '-m', msg], { encoding: 'utf8', timeout: 10000, cwd });
+      process.stderr.write(`[Masonry] Auto-committed ${staged} session file${staged !== 1 ? 's' : ''}.\n`);
+    } catch (commitErr) {
+      // Auto-commit failed — fall back to blocking so user knows
+      const sessionCount = sessionModified.length + sessionUntracked.length;
+      process.stderr.write(`\nStop blocked — ${sessionCount} uncommitted session file${sessionCount !== 1 ? 's' : ''} (git status). Commit before stopping.\n`);
+      checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
+      process.exit(2);
+    }
+
+    checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
   } catch {
     // Not a git repo or git unavailable — allow stop
   }

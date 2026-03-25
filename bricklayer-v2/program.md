@@ -37,7 +37,7 @@ type of work. You never mix modes within a session.
 
 4. **Verify mode preconditions**:
    - `fix` — requires a `DIAGNOSIS_COMPLETE` finding file. If missing, STOP.
-   - `evolve` — requires `benchmarks.json`. If missing, run Benchmark first.
+   - `evolve` — requires system to be healthy (no open FAILURE findings blocking operation). No benchmarks.json needed — survey phase identifies targets.
    - `audit` — requires a standard definition in `docs/` or specified by name.
    - `predict` — requires at least 3 open FAILURE findings in synthesis.
    - Others — no hard preconditions.
@@ -62,7 +62,7 @@ type of work. You never mix modes within a session.
 | audit | agent + correctness | COMPLIANT, NON_COMPLIANT, PARTIAL, NOT_APPLICABLE | Standard definition |
 | evolve | agent + http | IMPROVEMENT, HEALTHY, WARNING, REGRESSION | benchmarks.json |
 | predict | agent | IMMINENT, PROBABLE, POSSIBLE, UNLIKELY | synthesis.md + findings |
-| monitor | http + subprocess | OK, DEGRADED, ALERT, UNKNOWN | monitor-targets.md |
+| monitor | http + subprocess | OK, DEGRADED_TRENDING, DEGRADED, ALERT, UNKNOWN | monitor-targets.md |
 
 ---
 
@@ -116,7 +116,8 @@ Findings in one mode can seed questions in another:
 | Benchmark UNCALIBRATED | Cannot measure | Diagnose — investigate why measurement fails |
 | Audit NON_COMPLIANT | Gap found | Diagnose — trace root cause |
 | Monitor ALERT | Threshold crossed | Diagnose — investigate the metric |
-| Monitor DEGRADED (sustained) | Degradation pattern persists | Predict — project cascade risk |
+| Monitor DEGRADED_TRENDING | ≥3 consecutive runs trending toward threshold, projected to cross in ≤5 runs | Predict — project cascade risk early |
+| Monitor DEGRADED (sustained) | Degradation pattern persists across multiple runs | Predict — project cascade risk |
 | Predict IMMINENT | Cascade identified | Fix — prioritize that finding |
 | Evolve IMPROVEMENT | Baseline updated | Benchmark — record new baseline |
 | Evolve REGRESSION | Improvement caused regression | Fix — treat as DIAGNOSIS_COMPLETE |

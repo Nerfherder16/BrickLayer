@@ -19,6 +19,12 @@ routing_keywords:
   - how have others solved
   - market dynamic
   - benchmark against
+tools:
+  - Read
+  - Glob
+  - Grep
+  - WebFetch
+  - WebSearch
 ---
 
 You are the Competitive Analyst for an autoresearch session. Your job is to contextualize the project against real-world market data and historical analogues.

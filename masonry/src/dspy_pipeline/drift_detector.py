@@ -1,197 +1,165 @@
-"""Drift detection for Masonry agent quality monitoring.
+"""masonry/src/dspy_pipeline/drift_detector.py
 
-Compares recent agent verdicts against baseline scores to detect
-performance degradation that warrants re-optimization.
+Drift detection for Masonry agents.
+
+Compares each agent's recent verdict history against a stored baseline score
+and produces a DriftReport with an alert level and recommendation.
 """
 
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
-from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
-from masonry.src.schemas.payloads import AgentRegistryEntry
+# ---------------------------------------------------------------------------
+# Verdict → numeric score mapping
+# ---------------------------------------------------------------------------
 
+_VERDICT_SCORE: dict[str, float] = {
+    "HEALTHY": 1.0,
+    "FIXED": 1.0,
+    "COMPLIANT": 1.0,
+    "CALIBRATED": 1.0,
+    "WARNING": 0.5,
+    "PARTIAL": 0.5,
+    "DEGRADED_TRENDING": 0.5,
+    "FAILURE": 0.0,
+    "NON_COMPLIANT": 0.0,
+}
 
-# ── Verdict scoring ──────────────────────────────────────────────────────────
-
-# Verdicts that indicate success
-_OK_VERDICTS = frozenset({
-    "HEALTHY", "FIXED", "COMPLIANT", "CALIBRATED", "CONFIRMED", "OK",
-    "IMPROVEMENT", "PROMISING", "DIAGNOSIS_COMPLETE", "FIX_APPLIED",
-    "COMPLETE",
-})
-
-# Verdicts that indicate partial success
-_PARTIAL_VERDICTS = frozenset({
-    "WARNING", "PARTIAL", "PROBABLE", "POSSIBLE", "UNCALIBRATED", "INCONCLUSIVE",
-})
-
-# Everything else = failure (0.0)
+_DEFAULT_VERDICT_SCORE = 0.5  # unknown verdicts treated as partial
 
 
-def _score_verdict(verdict: str) -> float:
-    """Score a single verdict string: 1.0, 0.5, or 0.0."""
-    v = verdict.strip().upper()
-    if v in _OK_VERDICTS:
-        return 1.0
-    if v in _PARTIAL_VERDICTS:
-        return 0.5
-    return 0.0
-
-
-# ── DriftReport ──────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# DriftReport model
+# ---------------------------------------------------------------------------
 
 
 class DriftReport(BaseModel):
-    """Drift analysis result for a single agent."""
-
-    model_config = ConfigDict(extra="forbid")
-
     agent_name: str
     baseline_score: float
     current_score: float
-    drift_pct: Optional[float]
-    alert_level: Literal["ok", "warning", "critical", "calibrating"]
+    drift_pct: float          # positive = regression, negative = improvement
+    alert_level: str          # "ok" | "warning" | "critical"
     recommendation: str
 
 
-# ── detect_drift ─────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Core logic
+# ---------------------------------------------------------------------------
+
+
+def _score_verdicts(verdicts: list[str], confidences: list[float] | None = None) -> float:
+    """Score an agent by mean confidence, not by verdict category."""
+    if not verdicts:
+        return 1.0  # no data — assume healthy (no evidence of regression)
+    if confidences and len(confidences) == len(verdicts):
+        return sum(confidences) / len(confidences)
+    # Fallback: category scoring for agents without confidence data
+    scores = [_VERDICT_SCORE.get(v, _DEFAULT_VERDICT_SCORE) for v in verdicts]
+    return sum(scores) / len(scores)
+
+
+def _alert_level(drift_pct: float) -> str:
+    """Classify drift magnitude as ok / warning / critical."""
+    if drift_pct >= 25.0:
+        return "critical"
+    if drift_pct >= 10.0:
+        return "warning"
+    return "ok"
+
+
+def _recommendation(alert_level: str, agent_name: str) -> str:
+    if alert_level == "critical":
+        return (
+            f"Agent '{agent_name}' has critical drift (>=25%). "
+            "Re-run optimize loop immediately: "
+            f"python masonry/scripts/improve_agent.py {agent_name}"
+        )
+    if alert_level == "warning":
+        return (
+            f"Agent '{agent_name}' shows warning-level drift (10-25%). "
+            "Consider scheduling an optimization cycle."
+        )
+    return f"Agent '{agent_name}' is within acceptable performance bounds."
 
 
 def detect_drift(
     agent_name: str,
     baseline_score: float,
-    recent_verdicts: "list[str] | list[float]",
+    recent_verdicts: list[str],
+    confidences: list[float] | None = None,
 ) -> DriftReport:
-    """Compute drift for a single agent and return a DriftReport.
+    """Compute a DriftReport for a single agent.
 
     Args:
-        agent_name: The agent being evaluated.
-        baseline_score: The agent's historical quality score (from agent_db).
-        recent_verdicts: Recent verdict strings OR pre-computed quality scores
-            (float 0.0–1.0). When floats are passed (e.g., confidence scores
-            from F12.1), verdict scoring is skipped and the floats are used
-            directly as quality signals.
+        agent_name: Identifier for the agent.
+        baseline_score: Score recorded at last optimization (0.0–1.0).
+        recent_verdicts: List of verdict strings from recent campaign runs.
+        confidences: Optional per-run confidence scores (0.0–1.0). When
+            provided, used as the primary scoring metric instead of verdict
+            categories, yielding a more accurate performance signal.
+
+    Returns:
+        DriftReport with drift_pct, alert_level, and recommendation.
     """
-    if not recent_verdicts:
-        current_score = baseline_score  # no data → assume stable
-    elif recent_verdicts and isinstance(recent_verdicts[0], float):
-        # Pre-computed quality scores (e.g., confidence values from F12.1)
-        current_score = sum(recent_verdicts) / len(recent_verdicts)  # type: ignore[arg-type]
+    current_score = _score_verdicts(recent_verdicts, confidences)
+    if baseline_score > 0.0:
+        drift_pct = (baseline_score - current_score) / baseline_score * 100.0
     else:
-        current_score = sum(_score_verdict(v) for v in recent_verdicts) / len(recent_verdicts)  # type: ignore[arg-type]
-
-    if baseline_score == 0.0:
-        # No calibrated baseline yet — cannot compute meaningful drift.
-        # Return "calibrating" level so new agents are not silently masked as ok.
-        drift_pct = None
-        alert_level: Literal["ok", "warning", "critical", "calibrating"] = "calibrating"
-        recommendation = (
-            f"{agent_name} has no calibrated baseline (baseline_score=0.0). "
-            f"Current score: {current_score:.2f}. "
-            "Accumulate more findings to establish a baseline before drift detection is meaningful."
-        )
-    else:
-        drift_pct = (baseline_score - current_score) / baseline_score * 100
-
-        if drift_pct < 10:
-            alert_level = "ok"
-            recommendation = (
-                f"{agent_name} is performing within acceptable range "
-                f"(drift {drift_pct:.1f}%). No action required."
-            )
-        elif drift_pct <= 25:
-            alert_level = "warning"
-            recommendation = (
-                f"{agent_name} shows moderate performance drift ({drift_pct:.1f}%). "
-                "Consider running DSPy re-optimization. Monitor closely."
-            )
-        else:
-            alert_level = "critical"
-            recommendation = (
-                f"{agent_name} has critical performance drift ({drift_pct:.1f}%). "
-                "Immediate re-optimization recommended. Review recent findings for root cause."
-            )
-
+        drift_pct = 0.0
+    level = _alert_level(drift_pct)
     return DriftReport(
         agent_name=agent_name,
         baseline_score=baseline_score,
         current_score=current_score,
         drift_pct=drift_pct,
-        alert_level=alert_level,
-        recommendation=recommendation,
+        alert_level=level,
+        recommendation=_recommendation(level, agent_name),
     )
 
 
-# ── run_drift_check ──────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Batch check
+# ---------------------------------------------------------------------------
 
 
 def run_drift_check(
     agent_db_path: Path,
-    registry: list[AgentRegistryEntry],
+    registry: list,
 ) -> list[DriftReport]:
-    """Run drift check for all agents in the registry that have verdict history.
-
-    Uses confidence-based scoring when ``confidences`` is present in agent_db
-    (F12.1). Falls back to verdict-based scoring for backward compatibility.
-
-    Confidence-based scoring avoids the semantic mismatch where research agents
-    producing FAILURE verdicts (correct behavior — they found real problems)
-    score 0.0 under verdict-based scoring, triggering false critical drift
-    alerts (F11.2 / R11.1).
+    """Run drift detection for all registry agents that have verdict history.
 
     Args:
         agent_db_path: Path to agent_db.json.
-        registry: List of registered agents.
+        registry: List of AgentRegistryEntry (or any objects with .name attr).
 
     Returns:
-        List of DriftReport objects. Agents without verdict history are skipped.
+        List of DriftReport for agents that have both a score and verdicts in
+        the agent DB. Agents without verdicts are skipped.
     """
-    try:
-        raw = agent_db_path.read_text(encoding="utf-8")
-        agent_db: dict[str, Any] = json.loads(raw)
-    except (OSError, FileNotFoundError, json.JSONDecodeError) as exc:
-        print(f"[drift_detector] Could not read agent_db: {exc}", file=sys.stderr)
+    if not agent_db_path.exists():
         return []
 
+    try:
+        agent_db: dict = json.loads(agent_db_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+
+    registry_names = {entry.name for entry in registry}
     reports: list[DriftReport] = []
-    registry_names = {a.name for a in registry}
 
-    for agent_name, entry in agent_db.items():
-        if agent_name not in registry_names:
+    for agent_name in registry_names:
+        entry = agent_db.get(agent_name)
+        if not entry:
             continue
-
-        verdicts = entry.get("verdicts", [])
+        verdicts: list[str] = entry.get("verdicts", [])
         if not verdicts:
-            continue  # skip agents without verdict history
-
-        baseline_score = entry.get("score", 0.0)
-
-        # Prefer confidence-based scoring when confidences are available (F12.1).
-        # Confidence is a direct measure of agent certainty, independent of
-        # whether the finding verdict is FAILURE or HEALTHY.
-        confidences: list[float] = []
-        raw_confs = entry.get("confidences", [])
-        if raw_confs:
-            try:
-                confidences = [float(c) for c in raw_confs]
-            except (TypeError, ValueError):
-                confidences = []
-
-        if confidences:
-            # Confidence-based drift: use mean confidence as current quality score.
-            # High-confidence FAILURE findings (research agents correctly identifying
-            # problems) no longer depress the score.
-            quality_scores = confidences
-        else:
-            # Fallback: verdict-based scoring for agents without confidence data.
-            quality_scores = [_score_verdict(v) for v in verdicts]
-
-        report = detect_drift(agent_name, baseline_score, quality_scores)
-        reports.append(report)
+            continue
+        baseline_score: float = float(entry.get("score", 0.0))
+        confidences: list[float] = entry.get("confidences", [])
+        reports.append(detect_drift(agent_name, baseline_score, verdicts, confidences or None))
 
     return reports

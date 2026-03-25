@@ -1,0 +1,265 @@
+"""masonry/scripts/improve_agent.py
+
+Eval → Optimize → Compare loop for Masonry agents.
+No API key required — uses Claude Max subscription via claude -p.
+
+Workflow:
+  1. Eval current instructions (baseline score)
+  2. Run optimize_with_claude to generate new instructions
+  3. Eval again (new score)
+  4. If score improved → keep new instructions
+     If score same/worse → revert to previous instructions
+  5. Save snapshot of the run
+
+Usage:
+    python masonry/scripts/improve_agent.py research-analyst
+    python masonry/scripts/improve_agent.py karen --signature karen
+    python masonry/scripts/improve_agent.py research-analyst --loops 3
+    python masonry/scripts/improve_agent.py research-analyst --eval-size 15 --dry-run
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import shutil
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+_SCRIPT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_SCRIPT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_ROOT))
+
+from masonry.scripts.eval_agent import run_eval
+from masonry.scripts.optimize_with_claude import run as run_optimize
+from masonry.src.writeback import strip_optimized_instructions
+
+_DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+MIN_IMPROVEMENT = 0.02  # Minimum score delta required to keep new instructions
+
+
+def _snapshot_instructions(base_dir: Path, agent_name: str) -> str | None:
+    """Read current optimized instructions from the agent .md file."""
+    md_path = base_dir / ".claude" / "agents" / f"{agent_name}.md"
+    if not md_path.exists():
+        return None
+    return md_path.read_text(encoding="utf-8")
+
+
+def _restore_instructions(base_dir: Path, agent_name: str, snapshot: str) -> None:
+    """Restore a previously snapshotted agent .md file."""
+    md_path = base_dir / ".claude" / "agents" / f"{agent_name}.md"
+    md_path.write_text(snapshot, encoding="utf-8")
+    # Also restore all sub-project copies
+    for child in base_dir.iterdir():
+        if child.is_dir() and not child.name.startswith("."):
+            p = child / ".claude" / "agents" / f"{agent_name}.md"
+            if p.exists():
+                p.write_text(snapshot, encoding="utf-8")
+    global_md = Path.home() / ".claude" / "agents" / f"{agent_name}.md"
+    if global_md.exists():
+        global_md.write_text(snapshot, encoding="utf-8")
+
+
+def run_loop(
+    agent_name: str,
+    base_dir: Path,
+    signature: str = "research",
+    eval_size: int = 50,
+    num_examples: int = 15,
+    loops: int = 1,
+    model: str = _DEFAULT_MODEL,
+    dry_run: bool = False,
+) -> int:
+    td_dir = base_dir / "masonry" / "training_data"
+    data_file = td_dir / "scored_all.jsonl"
+    snapshot_dir = base_dir / "masonry" / "agent_snapshots"
+    history_dir = snapshot_dir / agent_name / "history"
+    history_dir.mkdir(parents=True, exist_ok=True)
+
+    if not data_file.exists():
+        print(f"[error] scored_all.jsonl not found at {data_file}")
+        print("[error] Run 'Score All' in Kiln first.")
+        return 1
+
+    print(f"[improve] Agent: {agent_name}")
+    print(f"[improve] Loops: {loops}  |  Eval size: {eval_size}  |  Model: {model}")
+    print()
+
+    best_score: float | None = None
+    best_snapshot: str | None = None
+    run_history: list[dict] = []
+
+    for loop_i in range(1, loops + 1):
+        print(f"{'='*60}")
+        print(f"[loop {loop_i}/{loops}] Starting")
+        print(f"{'='*60}")
+
+        # ── Step 1: Eval current instructions ────────────────────────────────
+        print(f"\n[{loop_i}] STEP 1 — Eval current instructions ...")
+        before_snapshot = _snapshot_instructions(base_dir, agent_name)
+
+        before_result = run_eval(
+            agent=agent_name,
+            data_file=data_file,
+            snapshot_dir=snapshot_dir,
+            signature=signature,
+            eval_size=eval_size,
+            model=model,
+            base_dir=base_dir,
+        )
+        before_score = before_result["score"]
+        print(f"[{loop_i}] Before score: {before_score:.3f} ({before_result['passed']}/{before_result['eval_size']})")
+
+        if best_score is None:
+            best_score = before_score
+            best_snapshot = before_snapshot
+
+        if dry_run:
+            print(f"\n[{loop_i}] DRY RUN — skipping optimize and compare.")
+            break
+
+        # ── Step 2: Optimize ─────────────────────────────────────────────────
+        # Pass the held-out IDs from the before-eval so the optimizer excludes
+        # them from the training pool — enforcing the train/eval split.
+        held_out_ids: set[str] = set(before_result.get("held_out_ids", []))
+        print(f"\n[{loop_i}] STEP 2 — Optimizing instructions via claude -p ...")
+        opt_rc = run_optimize(
+            agent_name=agent_name,
+            base_dir=base_dir,
+            num_examples=num_examples,
+            signature=signature,
+            excluded_ids=held_out_ids,
+        )
+        if opt_rc != 0:
+            print(f"[{loop_i}] Optimization failed (exit code {opt_rc}) — skipping compare.")
+            break
+
+        # ── Step 3: Eval new instructions ────────────────────────────────────
+        print(f"\n[{loop_i}] STEP 3 — Eval new instructions ...")
+        after_result = run_eval(
+            agent=agent_name,
+            data_file=data_file,
+            snapshot_dir=snapshot_dir,
+            signature=signature,
+            eval_size=eval_size,
+            model=model,
+            base_dir=base_dir,
+        )
+        after_score = after_result["score"]
+        delta = after_score - before_score
+        print(f"[{loop_i}] After score:  {after_score:.3f} ({after_result['passed']}/{after_result['eval_size']})")
+        print(f"[{loop_i}] Delta:         {delta:+.4f} (threshold: {MIN_IMPROVEMENT})")
+
+        # ── Step 4: Keep or revert ────────────────────────────────────────────
+        if after_score >= before_score + MIN_IMPROVEMENT:
+            print(f"\n[{loop_i}] IMPROVED (+{delta:.4f} >= threshold {MIN_IMPROVEMENT}) — keeping new instructions.")
+            best_score = after_score
+            best_snapshot = _snapshot_instructions(base_dir, agent_name)
+            verdict = "improved"
+        elif after_score >= before_score:
+            print(f"\n[{loop_i}] BELOW THRESHOLD (+{delta:.4f} < threshold {MIN_IMPROVEMENT}) — reverting (improvement insufficient).")
+            if before_snapshot:
+                _restore_instructions(base_dir, agent_name, before_snapshot)
+            verdict = "no_change"
+        else:
+            print(f"\n[{loop_i}] REGRESSION ({delta:.4f}) — reverting to previous instructions.")
+            if before_snapshot:
+                _restore_instructions(base_dir, agent_name, before_snapshot)
+            verdict = "reverted"
+
+        # ── Save run record ───────────────────────────────────────────────────
+        run_record = {
+            "loop": loop_i,
+            "before_score": before_score,
+            "after_score": after_score,
+            "delta": delta,
+            "verdict": verdict,
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        run_history.append(run_record)
+
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+        history_file = history_dir / f"run_{ts}_loop{loop_i}.json"
+        history_file.write_text(json.dumps(run_record, indent=2), encoding="utf-8")
+        print(f"[{loop_i}] Saved run record: {history_file.name}")
+
+    # ── Final summary ─────────────────────────────────────────────────────────
+    print(f"\n{'='*60}")
+    print(f"[improve] DONE — {agent_name}")
+    if run_history:
+        initial = run_history[0]["before_score"]
+        final = run_history[-1]["after_score"] if run_history[-1]["verdict"] == "improved" else run_history[-1]["before_score"]
+        print(f"[improve] Initial score: {initial:.3f}")
+        print(f"[improve] Final score:   {final:.3f}  ({final - initial:+.3f})")
+        improvements = sum(1 for r in run_history if r["verdict"] == "improved")
+        regressions = sum(1 for r in run_history if r["verdict"] == "reverted")
+        print(f"[improve] Loops: {len(run_history)} total  |  {improvements} improved  |  {regressions} reverted")
+    else:
+        print(f"[improve] Dry run — no changes made.")
+    print(f"{'='*60}")
+
+    return 0
+
+
+def _main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Eval → Optimize → Compare loop for Masonry agents (no API key required)."
+    )
+    parser.add_argument("agent_name", help="Name of the agent to improve")
+    parser.add_argument(
+        "--base-dir",
+        type=Path,
+        default=Path.cwd(),
+        help="BrickLayer root directory (default: cwd)",
+    )
+    parser.add_argument(
+        "--signature",
+        default="research",
+        choices=["research", "karen"],
+        help='Metric signature: "research" (default) or "karen"',
+    )
+    parser.add_argument(
+        "--eval-size",
+        type=int,
+        default=50,
+        help="Held-out examples per eval run (default: 50)",
+    )
+    parser.add_argument(
+        "--num-examples",
+        type=int,
+        default=15,
+        help="Max examples per quality tier for optimization (default: 15)",
+    )
+    parser.add_argument(
+        "--loops",
+        type=int,
+        default=1,
+        help="Number of eval→optimize→compare cycles to run (default: 1)",
+    )
+    parser.add_argument(
+        "--model",
+        default=_DEFAULT_MODEL,
+        help=f"Claude model for eval inference (default: {_DEFAULT_MODEL})",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Run baseline eval only, skip optimize and compare",
+    )
+    args = parser.parse_args()
+    sys.exit(run_loop(
+        agent_name=args.agent_name,
+        base_dir=args.base_dir.resolve(),
+        signature=args.signature,
+        eval_size=args.eval_size,
+        num_examples=args.num_examples,
+        loops=args.loops,
+        model=args.model,
+        dry_run=args.dry_run,
+    ))
+
+
+if __name__ == "__main__":
+    _main()

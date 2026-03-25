@@ -13,6 +13,7 @@ from __future__ import annotations
 import math
 import os
 import sys
+import time
 from typing import Any
 
 import httpx
@@ -34,6 +35,45 @@ _DEFAULT_MODEL = "qwen3-embedding:0.6b"
 _DEFAULT_THRESHOLD = 0.60  # lowered from 0.70 per R3.1 calibration (15% → ~40% coverage)
 _MARGIN_THRESHOLD = 0.05   # minimum gap between top-1 and top-2 scores for a confident route
 _TIMEOUT = 15.0  # longer for batch requests
+
+# Per-call timeout for circuit breaker (tighter than _TIMEOUT which applies to batch)
+_CB_CALL_TIMEOUT = 2.0  # seconds — fast-fail per individual HTTP request
+
+# Circuit breaker state (module-level)
+_cb_failures: int = 0          # consecutive failure count
+_cb_opened_at: float | None = None  # timestamp when circuit opened (None = CLOSED)
+_CB_THRESHOLD: int = 3         # failures before OPEN
+_CB_RESET_SECONDS: float = 60.0  # seconds before attempting reset
+
+
+def _cb_is_open() -> bool:
+    """Return True if the circuit breaker is currently OPEN (blocking calls)."""
+    global _cb_opened_at
+    if _cb_opened_at is None:
+        return False
+    if time.monotonic() - _cb_opened_at >= _CB_RESET_SECONDS:
+        # Half-open: allow one attempt; full reset happens on success in _cb_record_success
+        return False
+    return True
+
+
+def _cb_record_failure() -> None:
+    """Record a failure; open the circuit after _CB_THRESHOLD consecutive failures."""
+    global _cb_failures, _cb_opened_at
+    _cb_failures += 1
+    if _cb_failures >= _CB_THRESHOLD and _cb_opened_at is None:
+        _cb_opened_at = time.monotonic()
+        print(
+            f"[semantic] Circuit breaker OPEN after {_cb_failures} consecutive failures.",
+            file=sys.stderr,
+        )
+
+
+def _cb_record_success() -> None:
+    """Reset circuit breaker to CLOSED state on a successful call."""
+    global _cb_failures, _cb_opened_at
+    _cb_failures = 0
+    _cb_opened_at = None
 
 
 def _cosine_similarity(a: list[float], b: list[float]) -> float:
@@ -60,16 +100,18 @@ def _get_embedding(
         response = client.post(
             f"{ollama_url}/api/embed",
             json={"model": model, "input": text},
-            timeout=_TIMEOUT,
+            timeout=_CB_CALL_TIMEOUT,
         )
         response.raise_for_status()
         data = response.json()
         embeddings = data.get("embeddings", [])
         if embeddings:
+            _cb_record_success()
             return embeddings[0]
         return None
     except (httpx.TimeoutException, httpx.HTTPError, Exception) as exc:
         print(f"[semantic] Ollama error: {exc}", file=sys.stderr)
+        _cb_record_failure()
         return None
 
 
@@ -96,8 +138,13 @@ def route_semantic(
     if not registry:
         return None
 
+    # Circuit breaker guard — fall through to Layer 3 immediately when OPEN
+    if _cb_is_open():
+        print("[semantic] Circuit breaker OPEN — skipping Ollama call.", file=sys.stderr)
+        return None
+
     try:
-        with httpx.Client(timeout=_TIMEOUT) as client:
+        with httpx.Client(timeout=_CB_CALL_TIMEOUT) as client:
             # Batch-fetch all uncached agent embeddings in a single Ollama call
             uncached = [
                 a for a in registry
@@ -109,14 +156,16 @@ def route_semantic(
                     resp = client.post(
                         f"{ollama_url}/api/embed",
                         json={"model": model, "input": texts},
-                        timeout=_TIMEOUT,
+                        timeout=_CB_CALL_TIMEOUT,
                     )
                     resp.raise_for_status()
                     batch_embs = resp.json().get("embeddings", [])
                     for agent, emb in zip(uncached, batch_embs):
                         _embedding_cache[_agent_corpus_key(agent)] = emb
+                    _cb_record_success()
                 except Exception as exc:
                     print(f"[semantic] Ollama batch error: {exc}", file=sys.stderr)
+                    _cb_record_failure()
                     return None
 
             # Get request embedding (single call)

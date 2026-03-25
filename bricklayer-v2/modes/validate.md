@@ -55,10 +55,24 @@ When a question requires human judgment:
 - FAILURE findings generate follow-up questions to understand severity
 - Stop condition: all design claims validated or flagged
 
+### FAILURE routing (required before session end)
+
+When `validation-report.md` contains FAILURE findings, route based on system existence:
+
+| System state | FAILURE meaning | Next mode |
+|-------------|----------------|-----------|
+| **New system** (design doc only, no deployed code) | Design flaw — the spec is wrong | **Research** — revisit the assumptions the design was built on |
+| **Existing deployed system** (code exists, behavior mismatches design) | Behavior mismatch — code diverged from spec | **Diagnose** — find the root cause of the mismatch in the deployed code |
+
+Write the routing decision explicitly in `validation-report.md` under each FAILURE finding:
+`→ Route to [Research | Diagnose]: [reason]`
+
+If unclear which path applies, use `SUBJECTIVE` verdict and ask the human.
+
 ### Session end
 
 Produce `validation-report.md`:
 - Table of all design claims and their verdicts
-- All FAILURE findings with exact location in the design doc
+- All FAILURE findings with exact location in the design doc + routing decision (see above)
 - All SUBJECTIVE items awaiting human decision
 - Go/No-Go recommendation with reasoning

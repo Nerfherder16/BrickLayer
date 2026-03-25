@@ -79,6 +79,37 @@ async function main() {
     process.exit(0);
   }
 
+  const buildSessionId = progress.session_id || null;
+  const currentSessionId = parsed.session_id || parsed.sessionId || null;
+
+  // Only block the session that owns this build.
+  if (buildSessionId && currentSessionId && buildSessionId !== currentSessionId) {
+    const orphanMsg = `[Masonry] Prior session build detected: owned by session ${buildSessionId.slice(0, 8)}...`;
+    process.stderr.write(`\n${orphanMsg}\n`);
+    process.stdout.write(
+      JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "Stop",
+          content: `${orphanMsg}\nAn interrupted build from a prior session may still have uncommitted work. Run \`git status\` and check \`.autopilot/progress.json\` before starting new work.`,
+        },
+      }),
+    );
+    process.exit(0);
+  }
+  if (!buildSessionId && currentSessionId) {
+    const legacyMsg = `[Masonry] Prior session build detected: no session owner (legacy build).`;
+    process.stderr.write(`\n${legacyMsg}\n`);
+    process.stdout.write(
+      JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "Stop",
+          content: `${legacyMsg}\nAn interrupted build from a prior session may still have uncommitted work. Run \`git status\` and check \`.autopilot/progress.json\` before starting new work.`,
+        },
+      }),
+    );
+    process.exit(0);
+  }
+
   const tasks = progress.tasks || [];
   const pending = tasks.filter((t) => t.status === "PENDING" || t.status === "IN_PROGRESS");
   const done = tasks.filter((t) => t.status === "DONE");

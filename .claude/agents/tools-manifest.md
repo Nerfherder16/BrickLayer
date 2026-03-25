@@ -11,6 +11,11 @@ capabilities:
 input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: draft
+tools:
+  - Read
+  - Glob
+  - Grep
+  - Bash
 ---
 
 # BrickLayer Tools Manifest

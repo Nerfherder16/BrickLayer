@@ -1,0 +1,245 @@
+{
+  "Q1.1": {
+    "worker": "worker-2",
+    "claimed_at": "2026-03-24T14:25:59.023395+00:00",
+    "status": "DONE",
+    "verdict": "DIAGNOSIS_COMPLETE",
+    "completed_at": "2026-03-24T14:29:08.610552+00:00"
+  },
+  "Q1.2": {
+    "worker": "worker-3",
+    "claimed_at": "2026-03-24T14:26:10.598259+00:00",
+    "status": "DONE",
+    "verdict": "DIAGNOSIS_COMPLETE",
+    "completed_at": "2026-03-24T14:42:20.111159+00:00"
+  },
+  "Q1.3": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:26:21.694827+00:00",
+    "status": "DONE",
+    "verdict": "DIAGNOSIS_COMPLETE",
+    "completed_at": "2026-03-24T14:28:14.988242+00:00"
+  },
+  "Q1.4": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:28:45.367980+00:00",
+    "status": "DONE",
+    "verdict": "DIAGNOSIS_COMPLETE",
+    "completed_at": "2026-03-24T14:29:44.763724+00:00"
+  },
+  "Q1.5": {
+    "worker": "worker-2",
+    "claimed_at": "2026-03-24T14:29:39.652862+00:00",
+    "status": "DONE",
+    "verdict": "DIAGNOSIS_COMPLETE",
+    "completed_at": "2026-03-24T14:31:07.836998+00:00"
+  },
+  "Q2.3": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:30:57.117980+00:00",
+    "status": "DONE",
+    "verdict": "HEALTHY",
+    "completed_at": "2026-03-24T14:31:21.731209+00:00"
+  },
+  "Q2.4": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:30:57.232253+00:00",
+    "status": "DONE",
+    "verdict": "WARNING",
+    "completed_at": "2026-03-24T14:31:21.816501+00:00"
+  },
+  "Q2.5": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:30:57.315657+00:00",
+    "status": "DONE",
+    "verdict": "WARNING",
+    "completed_at": "2026-03-24T14:31:21.900674+00:00"
+  },
+  "Q3.1": {
+    "worker": "worker-2",
+    "claimed_at": "2026-03-24T14:31:18.129324+00:00",
+    "status": "DONE",
+    "verdict": "IMMINENT",
+    "completed_at": "2026-03-24T14:33:17.237092+00:00"
+  },
+  "Q2.1": {
+    "worker": "unknown",
+    "status": "DONE",
+    "verdict": "HEALTHY",
+    "completed_at": "2026-03-24T14:31:21.473993+00:00"
+  },
+  "Q2.2": {
+    "worker": "unknown",
+    "status": "DONE",
+    "verdict": "WARNING",
+    "completed_at": "2026-03-24T14:31:21.560243+00:00"
+  },
+  "Q3.2": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:31:59.826930+00:00",
+    "status": "DONE",
+    "verdict": "HEALTHY",
+    "completed_at": "2026-03-24T14:32:33.839939+00:00"
+  },
+  "Q3.3": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:31:59.928758+00:00",
+    "status": "DONE",
+    "verdict": "PROMISING",
+    "completed_at": "2026-03-24T14:32:33.925720+00:00"
+  },
+  "Q3.4": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:32:00.026208+00:00",
+    "status": "DONE",
+    "verdict": "INCONCLUSIVE",
+    "completed_at": "2026-03-24T14:32:34.008856+00:00"
+  },
+  "Q3.5": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:32:00.161549+00:00",
+    "status": "DONE",
+    "verdict": "HEALTHY",
+    "completed_at": "2026-03-24T14:32:34.096183+00:00"
+  },
+  "Q4.1": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:32:39.721249+00:00",
+    "status": "DONE",
+    "verdict": "HEALTHY",
+    "completed_at": "2026-03-24T14:32:58.958409+00:00"
+  },
+  "Q4.2": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:32:39.856522+00:00",
+    "status": "DONE",
+    "verdict": "HEALTHY",
+    "completed_at": "2026-03-24T14:32:59.047511+00:00"
+  },
+  "Q4.3": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:32:39.975447+00:00",
+    "status": "DONE",
+    "verdict": "HEALTHY",
+    "completed_at": "2026-03-24T14:32:59.135191+00:00"
+  },
+  "E13.1": {
+    "worker": "worker-3",
+    "claimed_at": "2026-03-24T14:32:56.236302+00:00",
+    "status": "DONE",
+    "verdict": "IMPROVEMENT",
+    "completed_at": "2026-03-24T14:39:20.030859+00:00"
+  },
+  "Q5.1": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:33:22.351239+00:00",
+    "status": "DONE",
+    "verdict": "PROMISING",
+    "completed_at": "2026-03-24T14:33:56.233080+00:00"
+  },
+  "Q5.2": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:33:22.436421+00:00",
+    "status": "DONE",
+    "verdict": "PROMISING",
+    "completed_at": "2026-03-24T14:33:56.315020+00:00"
+  },
+  "E13.2": {
+    "worker": "worker-2",
+    "claimed_at": "2026-03-24T14:33:28.440846+00:00",
+    "status": "DONE",
+    "verdict": "IMPROVEMENT",
+    "completed_at": "2026-03-24T14:39:53.703677+00:00"
+  },
+  "E13.6": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:34:06.660921+00:00",
+    "status": "DONE",
+    "verdict": "HEALTHY",
+    "completed_at": "2026-03-24T14:36:17.845667+00:00"
+  },
+  "E13.7": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:36:27.572700+00:00",
+    "status": "DONE",
+    "verdict": "WARNING",
+    "completed_at": "2026-03-24T14:37:55.863164+00:00"
+  },
+  "E13.9": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:38:18.051540+00:00",
+    "status": "DONE",
+    "verdict": "WARNING",
+    "completed_at": "2026-03-24T14:40:13.379783+00:00"
+  },
+  "E13.3": {
+    "worker": "worker-2",
+    "claimed_at": "2026-03-24T14:40:05.612638+00:00",
+    "status": "DONE",
+    "verdict": "BLOCKED",
+    "completed_at": "2026-03-24T22:46:01.818235+00:00"
+  },
+  "E13.10": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:40:34.105368+00:00",
+    "status": "DONE",
+    "verdict": "PENDING_EXTERNAL",
+    "completed_at": "2026-03-24T14:43:11.605515+00:00"
+  },
+  "E13.8": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:43:23.425244+00:00",
+    "status": "DONE",
+    "verdict": "BLOCKED",
+    "completed_at": "2026-03-24T14:46:32.435043+00:00"
+  },
+  "E13.5": {
+    "worker": "worker-3",
+    "claimed_at": "2026-03-24T14:43:48.972627+00:00",
+    "status": "DONE",
+    "verdict": "WARNING",
+    "completed_at": "2026-03-24T15:33:08.170118+00:00"
+  },
+  "F-mid.1": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:48:27.519869+00:00",
+    "status": "DONE",
+    "verdict": "FIXED",
+    "completed_at": "2026-03-24T14:52:50.547365+00:00"
+  },
+  "F-mid.2": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:50:06.537205+00:00",
+    "status": "DONE",
+    "verdict": "FIXED",
+    "completed_at": "2026-03-24T14:52:50.628144+00:00"
+  },
+  "M-mid.1": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:53:13.469548+00:00",
+    "status": "DONE",
+    "verdict": "CALIBRATED",
+    "completed_at": "2026-03-24T14:54:46.413596+00:00"
+  },
+  "M-mid.2": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:53:30.986592+00:00",
+    "status": "DONE",
+    "verdict": "CALIBRATED",
+    "completed_at": "2026-03-24T14:54:46.494179+00:00"
+  },
+  "E-mid.1": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T14:55:04.155593+00:00",
+    "status": "DONE",
+    "verdict": "PENDING_EXTERNAL",
+    "completed_at": "2026-03-24T14:56:43.410872+00:00"
+  },
+  "F-mid.3": {
+    "worker": "worker-1",
+    "claimed_at": "2026-03-24T15:01:40.001142+00:00",
+    "status": "DONE",
+    "verdict": "FIXED",
+    "completed_at": "2026-03-24T15:06:57.336019+00:00"
+  }
+}

@@ -8,7 +8,7 @@
  * or extracting paths from tool_input.command.
  */
 
-const { existsSync, readFileSync, statSync } = require("fs");
+const { existsSync, readFileSync, readdirSync, statSync } = require("fs");
 const { join, dirname } = require("path");
 
 // A build is considered active if progress.json was written within this window.
@@ -214,7 +214,20 @@ async function main() {
   // to confirm an active running campaign (not a dormant project directory).
   function isResearchProjectFresh(dir) {
     if (!isResearchProject(dir)) return false;
-    return isFresh(join(dir, "questions.md"));
+    // questions.md touched = active campaign (standard loop)
+    if (isFresh(join(dir, "questions.md"))) return true;
+    // findings/ written to recently = active campaign (evolve/audit modes write
+    // findings without always updating questions.md between writes)
+    const findingsDir = join(dir, "findings");
+    if (existsSync(findingsDir)) {
+      try {
+        const files = readdirSync(findingsDir);
+        for (const f of files) {
+          if (isFresh(join(findingsDir, f))) return true;
+        }
+      } catch { /* ignore */ }
+    }
+    return false;
   }
   function findResearchProjectFresh(startDir) {
     if (!startDir) return false;
