@@ -205,6 +205,42 @@ async function main() {
     } catch (_) {}
     writeJson(cwd, 'session.json', sessionObj);
     initKilnJson(cwd);
+
+    // --- Session lock (parallel session conflict prevention) ---
+    // Write .mas/session.lock so PreToolUse can detect cross-session writes to
+    // protected files. Only write if no non-stale lock exists from a different session.
+    if (sessionId0) {
+      const LOCK_STALE_MS = 4 * 60 * 60 * 1000; // 4 hours
+      const lockPath = path.join(cwd, '.mas', 'session.lock');
+      let shouldWriteLock = true;
+      try {
+        if (fs.existsSync(lockPath)) {
+          const existingLock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+          const lockAge = Date.now() - new Date(existingLock.started_at || 0).getTime();
+          if (lockAge < LOCK_STALE_MS && existingLock.session_id !== sessionId0) {
+            shouldWriteLock = false;
+            lines.push(
+              `[Masonry] \u26a0\ufe0f  Session lock held by session ${existingLock.session_id} ` +
+              `(started ${existingLock.started_at}).` +
+              ` Protected files (masonry-state.json, questions.md, findings/, .autopilot/) ` +
+              `are READ-ONLY for this session. Delete .mas/session.lock to override.`
+            );
+          }
+        }
+      } catch (_) {}
+      if (shouldWriteLock) {
+        try {
+          const lockData = {
+            session_id: sessionId0,
+            started_at: sessionObj.started_at,
+            cwd,
+            branch: sessionObj.branch,
+          };
+          fs.mkdirSync(path.join(cwd, '.mas'), { recursive: true });
+          fs.writeFileSync(lockPath, JSON.stringify(lockData, null, 2), 'utf8');
+        } catch (_) {}
+      }
+    }
   } catch (_) {}
 
   // Inject context.md if present
