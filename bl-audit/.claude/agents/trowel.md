@@ -232,6 +232,7 @@ Fire when `global_count` crosses a multiple of the interval:
 | Every 10 (global) | Spawn agent-auditor in background: `agents_dir=.claude/agents/, findings_dir=findings/, results_tsv=results.tsv` — then check its output (see Overseer Escalation) |
 | Every 10 (global) | Invoke synthesizer-bl2 in **lightweight mode**: `mode=mid-session, findings_dir=findings/, project_name={project}` — does not commit, just refreshes synthesis.md. Read updated synthesis before routing the next question. |
 | Every 10 (global) | Refresh `campaign-context.md`: run `python -m bl.campaign_context --project-root {project_dir}` to regenerate in-place. |
+| Every 10 (global) | Run peer-review watcher: `python -m bl.peer_review_watcher --project-root {project_dir}` — processes any INCONCLUSIVE findings with quality_score < 0.4 and requeues them in questions.md. |
 | After every finding | Spawn peer-reviewer in background: `primary_finding=findings/{id}.md, target_git=., agents_dir=.claude/agents/` |
 | At campaign close | Force-fire forge-check, agent-auditor, AND skill-forge before/after calling synthesizer; then spawn git-nerd (task=wave-end) |
 
