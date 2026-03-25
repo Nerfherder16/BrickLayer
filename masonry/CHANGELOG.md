@@ -2,6 +2,41 @@
 
 ## [Unreleased]
 
+## [Wave 38] -- 2026-03-24
+
+5 questions answered (3 fix, 2 validate). Two of three interacting cascades (P2 corpus, P3 rubric) fully remediated. F12.1 drift scoring inversion confirmed NOT implemented -- single remaining blocker before MIPROv2 optimization is safe.
+
+### Fixed
+- `F-mid.1` -- Karen rubric contamination cleared: stripped research-analyst rubric from `~/.claude/agents/karen.md`; added signature-conditional rubric selection (`_RUBRIC_RESEARCH`, `_RUBRIC_KAREN`, `_FOCUS_RESEARCH`, `_FOCUS_KAREN`) to `_build_prompt()` in `optimize_with_claude.py`; threaded `signature` parameter through `run()`, `_main()`, `run_optimize()` (`masonry/scripts/optimize_with_claude.py`, `masonry/scripts/improve_agent.py`)
+- `F-mid.2` -- Mock campaign corpus cleaned: removed 135 `source: "mock_campaign"` records from `scored_all.jsonl` (9x larger than estimated 15); added `_EXCLUDED_SOURCES` set and source-filter guard to `_load_records()` (`masonry/scripts/optimize_with_claude.py`, `masonry/training_data/scored_all.jsonl`)
+- `F-mid.3` -- MIN_VERDICTS_FOR_AUTO_OPTIMIZE=10 guard added to `_tool_masonry_drift_check()` auto_trigger loop; benchmark-engineer (2 verdicts) now excluded from premature auto-trigger (`masonry/mcp_server/server.py`)
+
+### Found (open)
+- `V-mid.1` [FAIL] -- F12.1 confidence-based drift metric NOT implemented; `_score_verdicts()` has no confidence parameter; research-analyst at 45.2% CRITICAL drift; CASCADE_ACTIVE
+- `V-mid.2` [WARNING] -- P5 primary trigger closed (F3.1 verified); two residual risks: build-guard cross-session exits 0 with stderr-only message; stop-guard auto-commits without test-pass or IN_PROGRESS task gate
+
+### Healthy
+- F3.1 confirmed end-to-end: `hooks/hooks.json` empty, SessionStart registered once, double-fire cascade path permanently closed
+- P2 corpus clean: 471+ legitimate training records remain after mock_campaign purge
+- P3 rubric injection: signature-conditional selection confirmed working for both research-analyst and karen paths
+
+## [Wave 37] -- 2026-03-24
+
+7 predict-mode questions answered. Three independently active failure cascades identified in the optimization feedback loop (P6 drift inversion + P3 karen rubric + P2 mock corpus). Campaign recommendation changed to STOP with conditions.
+
+### Found (open)
+- `P6` [CONFIRMED, Critical] -- Drift scoring treats FAILURE=0.0; 4 agents at CRITICAL drift (45-100%); auto_trigger=true would optimize best performers
+- `P3` [CONFIRMED, High] -- Karen optimization ran with research-analyst rubric; contaminated instructions live on all machines
+- `P1` [CONFIRMED, High] -- Ollama offline cascade; 15s blocking per non-deterministic route; SEMANTIC_ROUTING_ENABLED constant missing
+- `P2` [WARNING, High] -- Mock campaign corpus (15 records estimated) degrading held-out eval
+- `P5` [CONFIRMED, High] -- Interrupted-build cascade imminent; double-fire output collision
+- `P4` [WARNING, Medium] -- Pre-agent tracker one-slot collision at 16.7% rate
+- `P7` [WARNING, Low] -- AgentRegistryEntry.optimized_prompt is a dead schema field
+
+### Healthy
+- All 7 predict-mode hypotheses confirmed as real mechanisms (zero false alarms)
+- Routing pipeline (L1-L4) operational; hook double-fire fix (F3.1) in place; training data pipeline functional
+
 ## [Wave 24] -- 2026-03-22
 
 7 questions answered. Training data attribution gap closed (+603 recoverable records), CLI optimization flags shipped, Phase 17 metric ceiling revised to 70-73% (verdict accuracy is binding constraint), karen confirmed incompatible with ResearchAgentSig (KarenSig required).
