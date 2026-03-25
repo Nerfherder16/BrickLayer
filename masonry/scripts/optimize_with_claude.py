@@ -288,15 +288,33 @@ def run(
         return 1
 
     print(f"[data] Found {len(records)} records.")
-    high, low = _tier_examples(records, num_examples)
+
+    if excluded_ids:
+        print(f"[data] Excluding {len(excluded_ids)} held-out eval record(s) from training pool.")
+
+    high, low = _tier_examples(records, num_examples, excluded_ids=excluded_ids)
     print(f"[data] High-quality examples: {len(high)}, Low-quality: {len(low)}")
 
-    if len(low) == 0:
+    # Guard: if the combined training pool is degenerate after exclusion, bail
+    # out early rather than optimizing on near-empty data.
+    _available = len(high) + len(low)
+    if _available < _MIN_TIER_RECORDS:
         print(
-            f"[warning] No low-quality examples available for {agent_name}. "
-            "Skipping optimization — add organic low-quality records first."
+            f"[warn] Only {_available} training records remain after excluding held-out "
+            f"eval records (minimum required: {_MIN_TIER_RECORDS}). "
+            "Skipping optimization — add more scored records in Kiln."
         )
         return 1
+    if len(high) < _MIN_TIER_RECORDS:
+        print(
+            f"[warn] High-quality tier has only {len(high)} record(s) after exclusion "
+            f"(threshold: {_MIN_TIER_RECORDS}). Optimization may produce low-signal results."
+        )
+    if len(low) < _MIN_TIER_RECORDS:
+        print(
+            f"[warn] Low-quality tier has only {len(low)} record(s) after exclusion "
+            f"(threshold: {_MIN_TIER_RECORDS}). Optimization may produce low-signal results."
+        )
 
     # ── Read agent instructions ───────────────────────────────────────────────
     md_path = _find_agent_md(agent_name, base_dir)

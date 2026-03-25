@@ -121,12 +121,16 @@ def run_loop(
             break
 
         # ── Step 2: Optimize ─────────────────────────────────────────────────
+        # Pass the held-out IDs from the before-eval so the optimizer excludes
+        # them from the training pool — enforcing the train/eval split.
+        held_out_ids: set[str] = set(before_result.get("held_out_ids", []))
         print(f"\n[{loop_i}] STEP 2 — Optimizing instructions via claude -p ...")
         opt_rc = run_optimize(
             agent_name=agent_name,
             base_dir=base_dir,
             num_examples=num_examples,
             signature=signature,
+            excluded_ids=held_out_ids,
         )
         if opt_rc != 0:
             print(f"[{loop_i}] Optimization failed (exit code {opt_rc}) — skipping compare.")

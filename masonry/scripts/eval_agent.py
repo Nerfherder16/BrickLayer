@@ -180,6 +180,21 @@ def _score_example(
 # ── Core eval function ────────────────────────────────────────────────────────
 
 
+def _record_id(record: dict, index: int) -> str:
+    """Return a stable identifier for a record.
+
+    Uses ``question_id`` when present (most records have it).  Falls back to a
+    content hash so that records without an explicit ID are still uniquely
+    addressable.
+    """
+    qid = record.get("question_id")
+    if qid is not None:
+        return str(qid)
+    import hashlib
+    content = json.dumps(record, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
+
+
 def run_eval(
     agent: str,
     data_file: Path,
@@ -208,6 +223,13 @@ def run_eval(
     base_dir:
         BrickLayer root (used to locate agent .md files). Defaults to
         the repository root derived from this script's location.
+
+    Returns
+    -------
+    dict
+        Eval result dict.  Includes ``"held_out_ids"`` — a list of the IDs
+        for records that were used as held-out examples, so callers can
+        exclude them from the optimization training pool.
     """
     if base_dir is None:
         base_dir = _SCRIPT_ROOT
@@ -215,6 +237,11 @@ def run_eval(
     # Load records
     records = _load_records(data_file, agent)
     held_out = records[-eval_size:] if len(records) >= eval_size else records
+    # Capture stable IDs for held-out records so the optimization step can
+    # exclude them from the training pool (train/eval split).
+    held_out_ids: list[str] = [
+        _record_id(rec, i) for i, rec in enumerate(held_out)
+    ]
 
     # Load agent prompt
     agent_prompt = _load_agent_prompt(base_dir, agent)
@@ -333,6 +360,7 @@ def run_eval(
         "evaluated_at": evaluated_at,
         "model": model,
         "examples": examples_out,
+        "held_out_ids": held_out_ids,
     }
 
     out_path = out_dir / "eval_latest.json"
