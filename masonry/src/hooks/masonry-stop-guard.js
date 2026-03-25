@@ -301,6 +301,19 @@ async function main() {
       process.exit(0);
     }
 
+    // Guard: do not auto-commit if an autopilot build/fix task is IN_PROGRESS.
+    // Partial implementations should not be committed without verification.
+    const autopilotMode = tryRead(path.join(cwd, '.autopilot', 'mode'));
+    if (autopilotMode === 'build' || autopilotMode === 'fix') {
+      const progress = tryJSON(path.join(cwd, '.autopilot', 'progress.json'));
+      const inProgressTask = progress?.tasks?.find(t => t.status === 'IN_PROGRESS');
+      if (inProgressTask) {
+        process.stderr.write(`\n[Masonry] Auto-commit skipped: task #${inProgressTask.id} is IN_PROGRESS ("${inProgressTask.description}"). Commit after task completes.\n`);
+        checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
+        process.exit(1);
+      }
+    }
+
     // Auto-commit session files rather than blocking — avoids token-expensive Claude intervention.
     try {
       const allSessionFiles = [...sessionModified, ...sessionUntracked];
