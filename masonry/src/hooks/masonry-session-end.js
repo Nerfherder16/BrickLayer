@@ -45,6 +45,19 @@ async function main() {
     try { fs.unlinkSync(snapPath); } catch {}
   }
 
+  // --- Release session lock (if owned by this session) ---
+  if (sessionId) {
+    const lockPath = path.join(cwd, ".mas", "session.lock");
+    try {
+      if (fs.existsSync(lockPath)) {
+        const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
+        if (lock.session_id === sessionId) {
+          fs.unlinkSync(lockPath);
+        }
+      }
+    } catch {}
+  }
+
   // --- Autopilot build state snapshot ---
   const autopilotMode = tryRead(path.join(cwd, ".autopilot", "mode"));
   if (autopilotMode && ["build", "fix", "plan"].includes(autopilotMode)) {
