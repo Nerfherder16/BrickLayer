@@ -2672,7 +2672,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### P1: If Ollama remains OFFLINE beyond 7 consecutive campaign days, what is the downstream cascade on routing quality and DSPy optimization costs?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: predict
 **Agent**: cascade-analyst
 **Priority**: HIGH
@@ -2684,7 +2684,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### P2: If E33.1 (MIPROv2 execution) remains BLOCKED indefinitely, what is the compounding quality debt on agent outputs over subsequent campaign waves?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: predict
 **Agent**: cascade-analyst
 **Priority**: HIGH
@@ -2696,7 +2696,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### P3: If the karen corpus score concentration (98.4% records scoring 90-100) is not corrected before the first MIPROv2 karen run, what optimization failure cascade results?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: predict
 **Agent**: cascade-analyst
 **Priority**: MEDIUM
@@ -2708,7 +2708,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### P4: If the one-slot-per-type collision in masonry-preagent-tracker.js triggers during a parallel campaign wave, what training signal corruption cascade results?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: predict
 **Agent**: cascade-analyst
 **Priority**: MEDIUM
@@ -2720,7 +2720,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### P5: If the D3.2 WARNING (session-start interrupted-build resume silently broken) is not fixed before the next /build campaign, what failure cascade results when a build is interrupted mid-task?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: predict
 **Agent**: cascade-analyst
 **Priority**: MEDIUM
@@ -2732,7 +2732,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### P6: If the drift scoring metric (F12.1 deferred — FAILURE treated as bad agent performance) is never corrected, what quality signal inversion cascade accumulates in agent_db.json over future campaign waves?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: predict
 **Agent**: cascade-analyst
 **Priority**: LOW
@@ -2744,7 +2744,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### P7: If the `AgentRegistryEntry.optimized_prompt` schema field remains an unpopulated placeholder, what downstream cascade affects any system that reads it to determine optimization status?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: predict
 **Agent**: cascade-analyst
 **Priority**: LOW
