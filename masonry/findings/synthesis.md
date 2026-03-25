@@ -93,25 +93,39 @@ P2 (mock corpus) --[poisons]---> held-out eval + training tiers -------+
 
 ## Recommendation
 
-**OPTIMIZE**
+**OPTIMIZE (research-analyst only — karen blocked)**
 
-All three interacting cascades (P2 corpus, P3 rubric, P6 drift scoring) are resolved. The MIPROv2 optimization loop is now safe to engage. Run `python masonry/scripts/improve_agent.py research-analyst --loops 3` and `python masonry/scripts/improve_agent.py karen --signature karen --loops 3` from Git Bash to start optimization.
+Research-analyst optimization is safe. Karen optimization is blocked until V-w40.1 (FAIL) is fixed — karen corpus bimodal cliff persists and P3 Fix 3 is unimplemented.
 
 **Preconditions before any optimization run (updated):**
 1. ~~Clean mock_campaign records from scored_all.jsonl (P2)~~ DONE (F-mid.2)
 2. ~~Clear contaminated DSPy section from karen.md on all machines (P3)~~ DONE (F-mid.1)
 3. ~~Add signature-conditional rubric to optimize_with_claude.py (P3)~~ DONE (F-mid.1)
 4. ~~Replace `_score_verdicts()` with confidence-weighted mean in `drift_detector.py` (P6/F12.1)~~ DONE (F-next.1)
-5. Add circuit breaker to `semantic.py` (P1) -- OPEN (non-blocking for optimization)
-6. Restore Ollama or cleanly disable Layer 2 (P1) -- OPEN (non-blocking for optimization)
+5. ~~Add circuit breaker to `semantic.py` (P1)~~ DONE (F-w40.1)
+6. Restore Ollama or cleanly disable Layer 2 (P1) -- OPEN (non-blocking)
+7. **Karen only**: Add `"synthetic_negative"` to `_EXCLUDED_SOURCES` and generate ≥20 real organic low-quality records (V-w40.1 FAIL) -- OPEN, BLOCKING for karen
+8. **All agents**: Enforce train/eval split + add reasoning-quality metric + increase eval N to 50 (P-w40.1 CONFIRMED/IMMINENT) -- OPEN, HIGH priority before multi-loop runs
 
-**After item 4 is complete**, MIPROv2 optimization runs (research-analyst and karen) can safely execute. Items 5-6 are routing layer improvements, not optimization blockers.
+## Wave 40 Additions (2026-03-25)
+
+10. **V-w40.1** [FAIL, High] -- Karen corpus bimodal cliff unchanged: 374/379 records at score=100, 5 synthetic_negative records at score=0, zero in 1-99 range. P3 Fix 3 never implemented. `"synthetic_negative"` not in `_EXCLUDED_SOURCES`. **Do not run karen optimization** until corpus fixed.
+
+11. **R-w40.1** [HEALTHY] -- All karen.md DSPy sections contain only karen-appropriate rubric (action_match, changelog_quality, quality_score). No research-analyst contamination. Global `~/.claude/agents/karen.md` is a clean stub.
+
+12. **F-w40.1** [FIX_APPLIED] -- Circuit breaker added to `semantic.py`: 2s per-call timeout, opens after 3 failures, resets after 60s. P1 routing cascade eliminated. Zero test regressions.
+
+13. **R-w40.2** [WARNING, Low] -- P4 slot collision corrupts only `routing_log.jsonl` `request_text` (context metadata, not scores). All specialist-agent training corpora insulated. Latent cascade (corpus corruption) requires a routing_log→scored_all pipeline that doesn't exist yet.
+
+14. **F-w40.2** [FIXED] -- Dead `optimized_prompt: str | None = None` field removed from `AgentRegistryEntry` in `masonry/src/schemas/payloads.py`. Was never written or read by any active code path. Zero regressions.
+
+15. **P-w40.1** [CONFIRMED, High] -- Optimization loop has two IMMINENT failure modes: (1) **Convergence trap + metric blind spots** (E5+E2): eval and optimization examples overlap in `scored_all.jsonl`; metric measures only format proxies (evidence length, confidence near 0.75) — agent will converge to format patterns while reasoning quality silently degrades over 5-10 cycles. (2) **Revert gate dead zone** (E1): strict `>` comparison with minimum delta 0.05 at N=20; LLM stochasticity ~11% stddev makes gate noisy — sub-5% real regressions pass silently.
 
 ## Next Wave Hypotheses
 
 ~~1. After F12.1 is implemented, does `improve_agent.py --dry-run` produce before_score >= 0.50 for research-analyst?~~ ANSWERED: R-next.1 (HEALTHY, 0.5333)
 ~~2. After F12.1 ships, does `masonry_drift_check(auto_trigger=true)` correctly skip research-analyst?~~ ANSWERED: V-next.1 (PASS, zero CRITICAL)
 ~~3. Do the V-mid.2 residual risks manifest in practice?~~ ANSWERED: Both fixed (F-next.2, F-next.3)
-3. Do the V-mid.2 residual risks (build-guard cross-session, stop-guard auto-commit) manifest in practice during a real interrupted build? (Needs a live interruption test with an active `.autopilot/` directory.)
-4. After MIPROv2 runs on the cleaned corpus with correct rubrics, does the optimized research-analyst outperform baseline on a held-out question set?
-5. Is the P4 pre-agent tracker slot collision (16.7% rate) producing any observable downstream effect, or is the damage contained to analytics?
+~~5. Is the P4 slot collision producing observable downstream effect?~~ ANSWERED: R-w40.2 (WARNING/Low, routing_log only)
+4. Can the P-w40.1 convergence trap be closed before research-analyst optimization runs? (Train/eval split + reasoning metric + N=50)
+5. Can karen optimization be unblocked? (Add synthetic_negative to exclusions + generate 20 organic low-quality records)
