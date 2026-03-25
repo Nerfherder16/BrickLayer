@@ -2942,7 +2942,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### P-w40.1: If improve_agent.py runs now (all cascades fixed), what new failure modes could the optimization loop introduce?
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: predict
 **Agent**: cascade-analyst
 **Priority**: MEDIUM
