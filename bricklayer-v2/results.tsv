@@ -62,3 +62,4 @@ E14.7	IMPROVEMENT	Added 4 deterministic routing patterns (eval/improve-agent, wh
 E14.3	IMPROVEMENT	peer-reviewer.md written to both locations. Unblocks E13.8 baseline eval.	peer-reviewer.md	2026-03-25T01:45:00Z
 E14.4	IMPROVEMENT	agent-auditor.md and retrospective.md written. Unblocks E13.8 baseline eval.	agent-auditor.md retrospective.md	2026-03-25T01:45:00Z
 E14.5	IMPROVEMENT	frontier-analyst.md written, F-mid.3 resolved. FR-prefix mode transitions unblocked.	frontier-analyst.md	2026-03-25T01:45:00Z
+E14.1	WARNING	Rule 4 tuning did not fix E12.1-live-15; live eval 0.75 (12/17), regression from 0.91 baseline (-0.16)	.claude/agents/research-analyst.md template/.claude/agents/research-analyst.md bricklayer-v2/findings/evolve/E14.1.md	2026-03-25T01:30:00Z
