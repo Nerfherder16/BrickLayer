@@ -212,7 +212,7 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 
 ### E14.1: Tune Rule 4 in research-analyst DSPy instructions to fix E12.1-live-15 over-conservative WARNING prediction
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: evolve
 **Priority**: HIGH
 **Motivated by**: E13.3 — post-optimization live eval 0.91 (16/17); sole failure is E12.1-live-15 where agent predicts WARNING on a HEALTHY record. E13.3 traced root cause to Rule 4 (verdict calibration) and Rule 6 (root cause chain) making the agent over-sensitive to minor gaps.
