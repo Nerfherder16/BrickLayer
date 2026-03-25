@@ -173,6 +173,12 @@
             "type": "command",
             "command": "node ${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-ui-compose-guard.js",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-score-trigger.js",
+            "timeout": 5,
+            "async": true
           }
         ]
       }
