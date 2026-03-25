@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `4b7a6a4` chore: auto-commit 1 session file on stop (2026-03-25)
 - `9771e92` chore: auto-commit 3 session files on stop (2026-03-25)
 - `d1642a8` feat(trowel): add Recall health check at campaign start (Wave 1 only) (2026-03-25)
 - `1fa0ba1` feat(trowel): add Recall health check at Wave 1 cold-start (2026-03-25)
