@@ -10,7 +10,7 @@
 
 Wave 38 was a targeted fix-and-validate cycle addressing the three interacting cascades identified in the Wave 37 predict-mode synthesis (P6 + P3 + P2). Two of three cascades are now remediated: the karen rubric contamination (P3) has been cleared and the rubric injection mechanism fixed, and the mock_campaign corpus pollution (P2) has been cleaned (135 records removed, not the 15 originally estimated) with a source-exclusion guard added. A secondary P6 mitigation -- MIN_VERDICTS_FOR_AUTO_OPTIMIZE threshold -- is in place, protecting low-sample agents like benchmark-engineer from premature auto-trigger.
 
-The primary P6 defect remains open: `_score_verdicts()` in `drift_detector.py` still treats FAILURE as 0.0, and the confidence-weighted mean fix (F12.1) has not been implemented. Research-analyst remains at 45.2% CRITICAL drift under the current metric. The operational prohibition on `auto_trigger=true` is still in effect. V-mid.1 confirmed that the confidence data infrastructure exists in `agent_db.json` (29-element float array for research-analyst, mean 0.9131) -- only the consumption side is missing. With F12.1 applied, research-analyst drift would flip from 45.2% CRITICAL to -7.4% ok.
+~~The primary P6 defect remains open: `_score_verdicts()` in `drift_detector.py` still treats FAILURE as 0.0, and the confidence-weighted mean fix (F12.1) has not been implemented.~~ **UPDATE (2026-03-24)**: F12.1 has been implemented and committed (`8a0457d`). `_score_verdicts()` now accepts `confidences: list[float] | None` parameter with confidence-weighted mean path. `run_drift_check()` reads `confidences` from `agent_db.json`. Research-analyst drift is now −7.4% (ok/improvement). The operational prohibition on `auto_trigger=true` is LIFTED. See F-next.1.md.
 
 Additionally, V-mid.2 confirmed that the P5 double-fire cascade trigger is closed (F3.1 verified end-to-end), with two residual risks identified but independent of the optimization loop.
 
@@ -18,8 +18,7 @@ Additionally, V-mid.2 confirmed that the P5 double-fire cascade trigger is close
 
 ## Critical Findings (must act)
 
-1. **V-mid.1** [FAIL, Critical] -- F12.1 (confidence-based drift metric) is NOT implemented. `_score_verdicts()` has no confidence parameter. `run_drift_check()` does not read confidences from `agent_db.json`. Research-analyst at 45.2% CRITICAL drift. CASCADE_ACTIVE.
-   Fix: Add `confidences: list[float] | None` parameter to `_score_verdicts()`, thread through `detect_drift()` and `run_drift_check()`. Apply to both `masonry/src/drift_detector.py` (canonical) and `masonry/src/dspy_pipeline/drift_detector.py`.
+1. ~~**V-mid.1** [FAIL, Critical] -- F12.1 (confidence-based drift metric) is NOT implemented.~~ **RESOLVED (F-next.1, 2026-03-24)**: F12.1 implemented. `_score_verdicts()` has confidence path. Research-analyst drift = −7.4% (ok). CASCADE_RESOLVED.
 
 ## Significant Findings (important but not blocking)
 
@@ -59,12 +58,10 @@ P2 (mock corpus) --[poisons]---> held-out eval + training tiers -------+
 **Wave 38 status:**
 - P2 (corpus): RESOLVED. 135 mock_campaign records removed. Source-exclusion guard prevents recurrence.
 - P3 (rubric): RESOLVED. Karen.md cleared. Signature-conditional rubric selection shipped. Three project-level copies with legitimate karen MIPROv2 content left untouched.
-- P6 (drift inversion): PARTIALLY MITIGATED. MIN_VERDICTS guard prevents premature auto-trigger for low-sample agents. Primary defect (FAILURE=0.0 in `_score_verdicts()`) unchanged. F12.1 not implemented.
+- P6 (drift inversion): **RESOLVED**. F12.1 implemented (commit `8a0457d`). Confidence-weighted mean path live. Research-analyst at −7.4% (ok). MIN_VERDICTS guard also in place. auto_trigger=true operational prohibition LIFTED.
 - P5 (double-fire cascade): PRIMARY TRIGGER CLOSED. Two residual risks (build-guard visibility, stop-guard auto-commit) unaddressed but not blocking.
 
-**The feedback loop is now broken at two of three points.** P2 and P3 cannot corrupt future optimization runs. The remaining risk is P6: if `auto_trigger=true` is called, drift scoring still inverts (FAILURE=0.0), causing the best-performing research agents to be flagged as CRITICAL and triggering optimization against them. The MIN_VERDICTS guard prevents this for benchmark-engineer but not for research-analyst (29 verdicts), diagnose-analyst (34), or design-reviewer (10).
-
-**Fix ordering update**: P2 and P3 are complete. Only P6 remains. Implementing F12.1 is the single remaining prerequisite before MIPROv2 optimization runs can safely execute with auto_trigger enabled.
+**The feedback loop is now broken at all three points.** P2, P3, and P6 are all resolved. MIPROv2 optimization runs (research-analyst and karen) can now safely execute with auto_trigger enabled, subject to the MIN_VERDICTS guard.
 
 ---
 
@@ -84,15 +81,15 @@ P2 (mock corpus) --[poisons]---> held-out eval + training tiers -------+
 
 ## Recommendation
 
-**STOP**
+**OPTIMIZE**
 
-The cascade remediation work is nearly complete. Two of three interacting cascades (P2 corpus, P3 rubric) are fully resolved. The remaining item -- F12.1 (confidence-weighted drift scoring) -- is a single-function fix with a clear specification, confirmed data infrastructure, and a known expected outcome (research-analyst flips from 45.2% CRITICAL to -7.4% ok). This is a maintenance task, not a research question. Implement it, then the MIPROv2 optimization loop is safe to engage.
+All three interacting cascades (P2 corpus, P3 rubric, P6 drift scoring) are resolved. The MIPROv2 optimization loop is now safe to engage. Run `python masonry/scripts/improve_agent.py research-analyst --loops 3` and `python masonry/scripts/improve_agent.py karen --signature karen --loops 3` from Git Bash to start optimization.
 
 **Preconditions before any optimization run (updated):**
 1. ~~Clean mock_campaign records from scored_all.jsonl (P2)~~ DONE (F-mid.2)
 2. ~~Clear contaminated DSPy section from karen.md on all machines (P3)~~ DONE (F-mid.1)
 3. ~~Add signature-conditional rubric to optimize_with_claude.py (P3)~~ DONE (F-mid.1)
-4. Replace `_score_verdicts()` with confidence-weighted mean in `drift_detector.py` (P6/F12.1) -- OPEN
+4. ~~Replace `_score_verdicts()` with confidence-weighted mean in `drift_detector.py` (P6/F12.1)~~ DONE (F-next.1)
 5. Add circuit breaker to `semantic.py` (P1) -- OPEN (non-blocking for optimization)
 6. Restore Ollama or cleanly disable Layer 2 (P1) -- OPEN (non-blocking for optimization)
 
