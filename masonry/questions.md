@@ -2758,7 +2758,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F-mid.1: Clear contaminated karen.md DSPy section and fix `_build_prompt()` rubric injection
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Agent**: fix-implementer
 **Priority**: HIGH
@@ -2770,7 +2770,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F-mid.2: Remove 15 mock_campaign records from `scored_all.jsonl` and add source-exclusion guard
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Agent**: fix-implementer
 **Priority**: HIGH
@@ -2782,7 +2782,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### V-mid.1: Verify F12.1 (confidence-based drift metric) is active end-to-end
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: validate
 **Agent**: design-reviewer
 **Priority**: HIGH
@@ -2794,7 +2794,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### F-mid.3: Add MIN_VERDICTS guard before auto_trigger fires in `masonry_drift_check`
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: fix
 **Agent**: fix-implementer
 **Priority**: MEDIUM
@@ -2806,7 +2806,7 @@ To unblock: set ANTHROPIC_API_KEY and re-run `python masonry/scripts/run_optimiz
 
 ### V-mid.2: Verify F3.1 resolves interrupted-build resume output collision end-to-end
 
-**Status**: PENDING
+**Status**: DONE
 **Operational Mode**: validate
 **Agent**: design-reviewer
 **Priority**: MEDIUM
