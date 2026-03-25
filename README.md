@@ -14,6 +14,11 @@ BrickLayer started as a failure-boundary research loop — run an AI agent again
      Masonry          ← bridge layer: MCP server, hooks, typed schemas, routing engine
         ↕
    BrickLayer         ← research + dev engine: campaigns, simulations, agent fleet, findings
+        ↕                      ↕
+     Recall           ←→    Kiln
+  (memory backbone)      (Electron desktop app)
+  Tailscale 8200          campaign monitor,
+  graceful degradation    agent scores, queue mgmt
 ```
 
 **Claude Code** is where you work. Every request — coding, research, git, UI, campaigns — enters here.
@@ -289,6 +294,8 @@ git init && git add . && git commit -m "chore: init campaign"
 claude --dangerously-skip-permissions \
   "Read program.md and questions.md. Begin the research loop from the first PENDING question. NEVER STOP."
 ```
+
+> **On `--dangerously-skip-permissions`:** This flag lets the autonomous loop write files, run simulations, and commit findings without pausing for approval on each action. The Masonry hook system is the safety layer — `masonry-approver.js` gates writes, `masonry-session-lock.js` prevents parallel session conflicts, and `masonry-context-safety.js` blocks unsafe plan exits. The flag trades interactive approval for autonomous throughput; the hooks enforce the guardrails.
 
 ### Resuming a Campaign
 
