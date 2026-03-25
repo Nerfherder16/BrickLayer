@@ -66,7 +66,7 @@ def run_loop(
     agent_name: str,
     base_dir: Path,
     signature: str = "research",
-    eval_size: int = 20,
+    eval_size: int = 50,
     num_examples: int = 15,
     loops: int = 1,
     model: str = _DEFAULT_MODEL,
