@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `63f5505` chore: auto-commit 3 session files on stop (2026-03-25)
 - `57ea3d8` chore: append Q179 eval finding to scored_all.jsonl training data (2026-03-25)
 - `528079f` chore(wave16): partial — E16.1 marked DONE (questions.md only) (2026-03-25)
 - `5d3a167` chore: auto-commit 1 session file on stop (2026-03-25)
