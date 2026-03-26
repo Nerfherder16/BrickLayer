@@ -16,3 +16,7 @@
 2026-03-25 23:47:47,329 [PID:149296] [INFO] Processing request of type CallToolRequest
 2026-03-25 23:47:47,330 [PID:149296] [INFO] Browser not connected. Waiting up to 15s for connection...
 2026-03-25 23:48:02,566 [PID:149296] [ERROR] Attempted command but browser_socket is None after wait
+2026-03-25 23:54:25,878 [PID:149296] [INFO] connection open
+2026-03-25 23:54:25,879 [PID:149296] [INFO] Incoming connection path: /?token=mcp-browser-bridge-secret
+2026-03-25 23:54:25,879 [PID:149296] [INFO] New connection from ('127.0.0.1', 63054)
+2026-03-25 23:54:25,880 [PID:149296] [INFO] 🌍 Browser Connected!
