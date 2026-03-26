@@ -116,8 +116,36 @@ async function main() {
     }
   }
 
-  // --- Rate-limited skill candidate discovery (once per 24h) ---
+  // --- Decay conflicting memories from injected set ---
   const MAS_DIR = path.join(cwd, ".mas");
+  const INJECTED_IDS_FILE = path.join(MAS_DIR, "injected_memories.json");
+  if (fs.existsSync(INJECTED_IDS_FILE)) {
+    try {
+      const ids = JSON.parse(fs.readFileSync(INJECTED_IDS_FILE, "utf8"));
+      let findings = [];
+      const stateFile = path.join(cwd, "masonry-state.json");
+      if (fs.existsSync(stateFile)) {
+        try {
+          const state = JSON.parse(fs.readFileSync(stateFile, "utf8"));
+          findings = state.last_findings || state.findings || [];
+        } catch {}
+      }
+      if (ids.length > 0 && findings.length > 0) {
+        spawnSync("python3", [
+          "-c",
+          'import sys,json,os; sys.path.insert(0,os.environ["BL_ROOT"]); from bl.recall_bridge import decay_conflicting_memories; n=decay_conflicting_memories(json.loads(os.environ["IDS"]),json.loads(os.environ["FINDINGS"])); print(f"[session-end] decayed {n} conflicting memories")'
+        ], {
+          cwd,
+          encoding: "utf8",
+          timeout: 10000,
+          env: { ...process.env, BL_ROOT: cwd, IDS: JSON.stringify(ids), FINDINGS: JSON.stringify(findings) }
+        });
+      }
+      fs.unlinkSync(INJECTED_IDS_FILE);
+    } catch {}
+  }
+
+  // --- Rate-limited skill candidate discovery (once per 24h) ---
   const CANDIDATES_LOCK = path.join(MAS_DIR, "skill_discovery_last_run");
   const DISCOVER_SCRIPT = path.join(cwd, "masonry", "scripts", "discover_skill_candidates.py");
 

@@ -17,6 +17,20 @@ You do not run campaigns. Trowel does. You do not orchestrate dev tasks. Rough-i
 
 ---
 
+## Session Start — System Status
+
+At the start of every session, read `.mas/system-status.json` if it exists. Surface any of the following that are true:
+
+- `training.ready = true` → "Training threshold reached ({eligible_traces} traces). Run: `bricklayer run-round --round-id N`"
+- `recall.degraded = true` → "Recall is degraded. Check `{recall.host}`"
+- `agents.below_threshold` non-empty → "Agents below 0.6 score: {list}. Run: `python masonry/scripts/improve_agent.py {name}`"
+- `rough_in.active_task` non-null → "Rough-in has incomplete task from last session: {description}. Resume: `Act as rough-in agent. Resume from rough-in-state.json.` Clear: `rm .autopilot/rough-in-state.json`"
+- `skills.count > 0` → "Recall has identified {count} skill candidates. Review: `cat .mas/skill_candidates.json`. Create skills: Act as skill-forge agent."
+
+Read the status file silently — only surface flags that are true. If the file doesn't exist, skip this step.
+
+---
+
 ## Session Start — ACTION REQUIRED Handling
 
 If your invocation prompt or context contains a line starting with `[ACTION REQUIRED]`, handle it **before** any routing:
