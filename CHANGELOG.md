@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `7f0cb69` chore: auto-commit session file on stop (2026-03-25)
 - `1090703` chore: auto-commit 1 session file on stop (2026-03-25)
 - `848ac0d` chore: auto-commit 1 session file on stop (2026-03-25)
 - `ccd96f0` feat(mortar): apply A1 simplification — 5-condition binary routing (2026-03-25)
