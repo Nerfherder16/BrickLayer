@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `8fc3096` chore: auto-commit 1 session file on stop (2026-03-26)
 - `9800251` chore: auto-commit 3 session files on stop (2026-03-26)
 - `82363ca` fix(handoff2): wire 4 gaps — template mortar system-status, trowel regression check, training_ready.flag fallback, decay_conflicting_memories call site (2026-03-26)
 - `440f6a3` chore: auto-commit 1 session file on stop (2026-03-26)
