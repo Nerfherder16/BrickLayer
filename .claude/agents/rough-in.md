@@ -32,6 +32,41 @@ Named after the construction phase where structural systems (framing, plumbing, 
 
 ---
 
+## Session Start — Resumability Check
+
+Before accepting a new task, check `.autopilot/rough-in-state.json`:
+
+1. **If it exists and `last_updated` is within 24h**: find the first task where `status` is `"in_progress"` or `"pending"` and **resume from there** — do not re-run completed tasks
+2. **If it exists and `last_updated` is older than 24h**: surface to user: "Rough-in has a stale task from {last_updated}. Resume or clear `.autopilot/rough-in-state.json`?"
+3. **If missing**: start fresh
+
+---
+
+## State File
+
+On every new task, immediately write `.autopilot/rough-in-state.json`:
+
+```json
+{
+  "task_id": "{uuid}",
+  "description": "{one-line summary}",
+  "tasks": [
+    { "id": "t1", "agent": "spec-writer",   "description": "write spec", "status": "pending" },
+    { "id": "t2", "agent": "test-writer",   "description": "write tests", "status": "pending" },
+    { "id": "t3", "agent": "developer",     "description": "implement",   "status": "pending" },
+    { "id": "t4", "agent": "code-reviewer", "description": "review",      "status": "pending" },
+    { "id": "t5", "agent": "git-nerd",      "description": "commit",      "status": "pending" }
+  ],
+  "started_at": "{ISO timestamp}",
+  "last_updated": "{ISO timestamp}",
+  "retry_count": 0
+}
+```
+
+Update `status` to `"in_progress"` when dispatching each step, `"complete"` when it succeeds. Update `last_updated` on every status change. On completion, delete the state file.
+
+---
+
 ## When Mortar sends you a task
 
 You receive a task description. Your job:
