@@ -11,6 +11,7 @@ outage never blocks a running campaign.
 
 import json
 import os
+import pathlib
 import urllib.request
 import urllib.error
 from typing import Any
@@ -31,6 +32,29 @@ def _headers() -> dict[str, str]:
     return h
 
 
+def _write_recall_degraded(degraded: bool) -> None:
+    """
+    Write a sentinel file so Trowel and other callers can detect Recall health
+    without making a live query. Written to .mas/ alongside other masonry state.
+
+    degraded=True  → Recall was unreachable on last attempt
+    degraded=False → Recall responded successfully
+    """
+    try:
+        sentinel = (
+            pathlib.Path(os.environ.get("BL_ROOT", ".")) / ".mas" / "recall_degraded"
+        )
+        sentinel.parent.mkdir(parents=True, exist_ok=True)
+        if degraded:
+            sentinel.write_text("1", encoding="utf-8")
+        else:
+            # Clear sentinel on successful call
+            if sentinel.exists():
+                sentinel.unlink()
+    except Exception:
+        pass  # never block on sentinel writes
+
+
 def _post(endpoint: str, payload: dict[str, Any]) -> dict[str, Any] | None:
     """POST JSON to Recall. Returns parsed JSON body or None on any error."""
     url = f"{RECALL_HOST}{endpoint}"
@@ -38,8 +62,11 @@ def _post(endpoint: str, payload: dict[str, Any]) -> dict[str, Any] | None:
     req = urllib.request.Request(url, data=data, headers=_headers(), method="POST")
     try:
         with urllib.request.urlopen(req, timeout=RECALL_TIMEOUT) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+            result = json.loads(resp.read().decode("utf-8"))
+            _write_recall_degraded(False)
+            return result
     except Exception:
+        _write_recall_degraded(True)
         return None
 
 
@@ -178,6 +205,49 @@ def get_analogous_failures(
         )
     ]
     return [_clean(m) for m in failures]
+
+
+def get_campaign_context(
+    project: str,
+    wave: int = 1,
+    limit: int = 8,
+) -> list[dict]:
+    """
+    Query Recall for cross-campaign context relevant to this project and wave.
+
+    Surfaces prior findings, known failure modes, and synthesis notes from
+    earlier waves or related projects — giving Trowel useful background before
+    dispatching the first question of a new wave.
+
+    Returns [] on any error so a Recall outage never blocks a campaign.
+    """
+    if not project:
+        return []
+
+    query = f"campaign context project:{project} wave:{wave} findings synthesis"
+    raw = _post(
+        "/memory/search",
+        {
+            "query": query,
+            "domain": f"{project}-bricklayer",
+            "limit": limit,
+            "tags": ["bricklayer", f"project:{project}"],
+        },
+    )
+    memories = _extract_memories(raw)
+
+    # Also search without domain restriction to find cross-project analogues
+    if len(memories) < limit // 2:
+        cross_raw = _post(
+            "/memory/search",
+            {
+                "query": f"bricklayer synthesis failure {project}",
+                "limit": limit - len(memories),
+            },
+        )
+        memories.extend(_extract_memories(cross_raw))
+
+    return [_clean(m) for m in memories]
 
 
 # ---------------------------------------------------------------------------

@@ -1055,3 +1055,37 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
+
+- name: rough-in
+  file: .claude/agents/rough-in.md
+  model: sonnet
+  description: Dev task orchestrator for BrickLayer 2.0. Receives dev tasks from
+    Mortar, orchestrates the full workflow — spec → build → test → review → commit.
+    Mirrors Trowel's loop structure but for development work.
+  modes:
+    - build
+    - fix
+    - plan
+    - verify
+  capabilities:
+    - dev-orchestration
+    - task-decomposition
+    - agent-dispatch
+    - spec-writer delegation
+    - tdd-cycle management
+    - failure-recovery
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords:
+    - build
+    - implement
+    - code
+    - develop
+    - fix
+    - refactor
+    - test
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
