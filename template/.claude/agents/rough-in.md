@@ -50,20 +50,49 @@ receive dev task from Mortar
 
 When you receive a task from Mortar:
 
-1. **Write state** — immediately write to `masonry-state.json`:
+1. **Check for interrupted task** — look for `.autopilot/rough-in-state.json`:
+   - If it exists and `last_updated` is within 24h: find the first task where `status` is `"in_progress"` or `"pending"` and **resume from there** — do not re-run completed tasks
+   - If it exists and `last_updated` is older than 24h: surface to user — "Rough-in has a stale task from {last_updated}. Resume or clear `.autopilot/rough-in-state.json`?"
+   - If missing: start fresh
+
+2. **Write state file** — generate a task_id and write `.autopilot/rough-in-state.json` immediately:
+   ```json
+   {
+     "task_id": "{uuid}",
+     "description": "{one-line task summary}",
+     "tasks": [
+       { "id": "t1", "agent": "spec-writer", "description": "write spec", "status": "pending" },
+       { "id": "t2", "agent": "developer", "description": "implement", "status": "pending" },
+       { "id": "t3", "agent": "test-writer", "description": "write tests", "status": "pending" },
+       { "id": "t4", "agent": "code-reviewer", "description": "review", "status": "pending" },
+       { "id": "t5", "agent": "git-nerd", "description": "commit", "status": "pending" }
+     ],
+     "started_at": "{ISO timestamp}",
+     "last_updated": "{ISO timestamp}",
+     "retry_count": 0
+   }
+   ```
+   Update `status` to `"in_progress"` when dispatching each step, `"complete"` when it succeeds.
+   Update `last_updated` on every status change.
+
+3. **Also write** to `masonry-state.json`:
    ```json
    { "rough_in_status": "STARTING", "task": "{task_summary}", "cycle": 0 }
    ```
 
-2. **Check for existing spec** — look for `.autopilot/spec.md`:
+4. **Check for existing spec** — look for `.autopilot/spec.md`:
    - If it exists: read it, skip spec-writer
    - If missing: delegate to spec-writer (see below), wait for result
 
-3. **Check for in-progress build** — look for `.autopilot/progress.json`:
+5. **Check for in-progress build** — look for `.autopilot/progress.json`:
    - If `status: BUILDING` with incomplete tasks: **surface the state and ask the user** whether to resume or restart. Never auto-resume without confirmation.
    - If `status: COMPLETE` or no file: start fresh
 
-4. **Decompose**: Read spec, extract ordered task list, write to `.autopilot/progress.json`
+6. **Decompose**: Read spec, extract ordered task list, write to `.autopilot/progress.json`
+
+7. **On completion**: delete `.autopilot/rough-in-state.json` and write `ROUGH_IN_COMPLETE` to `masonry-state.json`
+
+**On any agent failure**: increment `retry_count` in state file, re-dispatch same step (max 3 retries). On 3rd failure: set step status `"failed"`, surface to user.
 
 Log: `[ROUGH-IN] Starting dev workflow — {task_count} tasks`
 
