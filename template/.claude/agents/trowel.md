@@ -623,7 +623,23 @@ After requeue (appended immediately below):
 
 Your tag: `agent:trowel`
 
-**At campaign start** — check for prior campaign state:
+**At campaign start** — inject cross-campaign prior context:
+
+Pull prior context before dispatching the first question of each wave:
+```python
+from bl.recall_bridge import get_campaign_context
+prior = get_campaign_context(project="{project}", wave={N})
+```
+
+If `prior` is non-empty, prepend a summary to `campaign-context.md`:
+```
+## Prior Campaign Context (from Recall)
+{top 3 memories by importance — content field only, ≤80 chars each}
+```
+
+If `prior` is empty (Recall unreachable), the `.mas/recall_degraded` sentinel will be set. Continue without blocking.
+
+**At campaign start** — also check for prior campaign state:
 ```
 recall_search(query="campaign wave progress questions completed", domain="{project}-bricklayer", tags=["agent:trowel"])
 ```

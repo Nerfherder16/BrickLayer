@@ -502,6 +502,30 @@ python masonry/src/dspy_pipeline/drift_detector.py
 
 ---
 
+## Training Branch — BL Fine-Tuning Pipeline 📋
+
+**Goal:** Wire BrickLayer's campaign output into a fine-tuning pipeline that trains agent-specific
+LoRA adapters on real campaign examples, then loads them into Ollama for local inference. The Windows
+side installs bridge files and patches existing scripts; the Linux LXC side runs the actual training.
+
+**Plan source:** `TRAINING_BRANCH_PLAN.md` (created 2026-03-25)
+
+**Execution order:** B4 → A1 → A2 → A3 → B5 → B6
+
+| ID | Task | Scope | Status |
+|----|------|-------|--------|
+| B4 | Install bridge files — `bl/training_schema.py`, `bl/training_export.py`, `masonry/src/hooks/masonry-training-export.js` | Windows | 📋 |
+| A1 | Simplify Mortar dispatch to 5-condition binary — remove routing tables, output `{ target, reason }` | Windows | 📋 |
+| A2 | Create `rough-in` agent — dev workflow orchestrator mirroring Trowel; register in `agent_registry.yml` | Windows | 📋 |
+| A3 | Intra-campaign Recall feedback loop — `get_campaign_context()` + `_write_recall_degraded()` in `bl/recall_bridge.py`; inject prior findings into Trowel question dispatch | Windows | 📋 |
+| B5 | Patch `masonry/scripts/score_all_agents.py` — add auto-export block after scoring when `BRICKLAYER_TRAINING_DB` is set | Windows | 📋 |
+| B6 | Register `masonry-training-export.js` in Stop hooks array in `~/.claude/settings.json` (async, 65s timeout) | Windows | 📋 |
+
+**Out of scope for this repo** (Linux LXC / System-Recall): B1 env checks, B2 pytest setup,
+B3 .env config, B7–B11 smoke tests through adapter load, A4 importance-weighted retrieval.
+
+---
+
 ## Design Principles
 
 1. **Universal verdict envelope.** Every runner, every target, every question type produces the same `{verdict, summary, data, details}` shape.
