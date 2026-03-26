@@ -529,16 +529,14 @@ side installs bridge files and patches existing scripts; the Linux LXC side runs
 | H2 | `masonry-score-trigger.js` training ready flag — writes `.mas/training_ready.flag` when eligible traces ≥ 500 | Windows | ✅ |
 | H3 | `rough-in.md` state file — `.autopilot/rough-in-state.json` written on task start; resumable after context compaction | Windows | ✅ |
 | H4 | Agent scores → Recall — `improve_agent.py` writes IMPROVEMENT/REGRESSION to `agent-performance` domain after each eval cycle | Windows | ✅ |
-| H5 | Held-out eval set + `bricklayer eval-compare` CLI — requires Linux bricklayer LXC | Linux | 📋 |
+| H5 | Held-out eval set + `bricklayer eval-compare` CLI — requires Linux bricklayer LXC | Linux | ✅ |
 | H6 | `discover_skill_candidates.py` + session-end wiring — queries Recall for high-frequency patterns; rate-limited once/24h | Windows | ✅ |
 | H7 | `decay_conflicting_memories()` in `bl/recall_bridge.py` — decays importance of memories that conflict with session findings | Windows | ✅ |
 
-**H5 — Held-Out Eval Set + Eval-Compare CLI** (blocked until pve Linux LXC is accessible):
-- Create `configs/eval_tasks/` with 20 tasks per domain (code, math, tool_use, reasoning)
-- Tasks must not overlap with `configs/tasks/` training set
-- Add `bricklayer eval-compare` CLI command to `bricklayer/cli.py`: compares baseline vs candidate model on held-out set
-- Add promotion gate to `scripts/load_adapter.sh`: blocks `ollama create` unless candidate beats baseline
-- See `docs/Handoff2.md` Task 5 for full spec
+**H5 — Held-Out Eval Set + Eval-Compare CLI** ✅ Deployed 2026-03-26 to LXC 104 (`/root/bricklayer/`):
+- `configs/eval_tasks/` — 80 tasks (20 × code/math/tool_use/reasoning), non-overlapping with training set
+- `bricklayer eval-compare` CLI — compares baseline vs candidate on held-out set, outputs JSON report
+- `scripts/load_adapter.sh` — PROMOTE gate: exits 0 if candidate beats baseline, 1 otherwise
 
 **Out of scope for this repo** (Linux LXC / System-Recall): B1 env checks, B2 pytest setup,
 B3 .env config, B7–B11 smoke tests through adapter load, A4 importance-weighted retrieval.
