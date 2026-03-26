@@ -17,6 +17,8 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `f353af8` chore: auto-commit 9 session files on stop (2026-03-25)
+- [docs] Add TRAINING_BRANCH_PLAN.md — implementation plan for training branch (B4, A1, A2, A3, B5, B6) (2026-03-25)
 - `4b7a6a4` chore: auto-commit 1 session file on stop (2026-03-25)
 - `9771e92` chore: auto-commit 3 session files on stop (2026-03-25)
 - `d1642a8` feat(trowel): add Recall health check at campaign start (Wave 1 only) (2026-03-25)
