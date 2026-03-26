@@ -11,6 +11,7 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { spawnSync } = require("child_process");
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -113,6 +114,32 @@ async function main() {
         fs.writeFileSync(path.join(cwd, ".ui", "session-notes.md"), notes, "utf8");
       } catch {}
     }
+  }
+
+  // --- Rate-limited skill candidate discovery (once per 24h) ---
+  const MAS_DIR = path.join(cwd, ".mas");
+  const CANDIDATES_LOCK = path.join(MAS_DIR, "skill_discovery_last_run");
+  const DISCOVER_SCRIPT = path.join(cwd, "masonry", "scripts", "discover_skill_candidates.py");
+
+  function shouldRunDiscovery() {
+    if (!fs.existsSync(CANDIDATES_LOCK)) return true;
+    try {
+      const last = parseInt(fs.readFileSync(CANDIDATES_LOCK, "utf8").trim(), 10);
+      return (Date.now() - last) > 24 * 60 * 60 * 1000;
+    } catch { return true; }
+  }
+
+  if (fs.existsSync(DISCOVER_SCRIPT) && shouldRunDiscovery()) {
+    try {
+      spawnSync("python3", [DISCOVER_SCRIPT], {
+        cwd,
+        encoding: "utf8",
+        timeout: 30000,
+        env: { ...process.env },
+      });
+      if (!fs.existsSync(MAS_DIR)) fs.mkdirSync(MAS_DIR, { recursive: true });
+      fs.writeFileSync(CANDIDATES_LOCK, String(Date.now()), "utf8");
+    } catch {}
   }
 
   process.exit(0);
