@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `d514f33` chore: auto-commit 5 session files on stop (2026-03-26)
 - `3892e4f` chore: auto-commit 1 session file on stop (2026-03-26)
 - `e20c165` chore: auto-commit 2 session files on stop (2026-03-26)
 - `5ef4c43` fix(mortar): enforce delegation via tool restrictions and explicit Agent tool calls (2026-03-26)
