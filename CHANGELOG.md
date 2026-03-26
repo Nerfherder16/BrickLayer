@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `440f6a3` chore: auto-commit 1 session file on stop (2026-03-26)
 - `305312b` chore: update server.log (2026-03-26)
 - `45bd1eb` feat(handoff2): implement connective tissue tasks H1-H7 (2026-03-26)
 - `2498d66` chore: auto-commit 8 session files on stop (2026-03-26)
