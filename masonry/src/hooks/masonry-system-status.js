@@ -62,7 +62,19 @@ async function main() {
   }
 
   function getTrainingStatus() {
-    if (!TRAINING_DB) return { configured: false };
+    if (!TRAINING_DB) {
+      // Fallback: check for .mas/training_ready.flag written by the training pipeline
+      const flagFile = path.join(MAS_DIR, "training_ready.flag");
+      if (fs.existsSync(flagFile)) {
+        try {
+          const eligible_traces = parseInt(fs.readFileSync(flagFile, "utf8").trim(), 10) || 0;
+          return { configured: true, ready: true, eligible_traces, source: "flag" };
+        } catch {
+          return { configured: true, ready: true, eligible_traces: 0, source: "flag" };
+        }
+      }
+      return { configured: false };
+    }
     try {
       const result = spawnSync("python3", [
         "-c",

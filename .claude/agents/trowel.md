@@ -192,6 +192,28 @@ If found, add to the agent prompt:
 {content of tools-manifest.md}
 ```
 
+## Agent Selection — Regression Check
+
+Before dispatching to a specialist, optionally check for recent REGRESSION verdicts in Recall:
+
+```
+recall_search(
+  query="{specialist_name} agent eval performance",
+  domain="agent-performance",
+  tags=["agent:{specialist_name}", "agent-eval"],
+  limit=3
+)
+```
+
+If results show a recent `verdict:REGRESSION` for this agent:
+- Note it in the dispatch context: "Note: {agent} had a recent eval regression — review output carefully"
+- Consider dispatching to a backup agent if one exists for this mode (e.g., `research-analyst` → `competitive-analyst` for research mode)
+- Never block dispatch on missing Recall data — if Recall is unavailable, proceed normally
+
+This check is optional (skip if Recall is degraded or unavailable).
+
+---
+
 ## Invoking a Specialist
 
 Call each specialist with this context block:
