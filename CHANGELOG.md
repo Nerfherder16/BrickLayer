@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `899f42b` chore: auto-commit 1 session file on stop (2026-03-26)
 - `de0786a` fix(e2e): sync template rough-in to BL2.0, patch trowel Recall sections (2026-03-26)
 - `8fc3096` chore: auto-commit 1 session file on stop (2026-03-26)
 - `9800251` chore: auto-commit 3 session files on stop (2026-03-26)
