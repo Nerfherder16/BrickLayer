@@ -34,10 +34,10 @@ async function main() {
     const stats = statSync(transcriptPath);
     const estimatedTokens = Math.round(stats.size / 4);
 
-    if (estimatedTokens > 150000) {
+    if (estimatedTokens > 750000) {
       process.stdout.write(JSON.stringify({
         decision: "block",
-        reason: `~${Math.round(estimatedTokens / 1000)}K tokens (>150K) — commit + new session.`,
+        reason: `~${Math.round(estimatedTokens / 1000)}K tokens (>750K) — commit + new session.`,
       }));
     }
   } catch {}
