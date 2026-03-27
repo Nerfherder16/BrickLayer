@@ -192,61 +192,58 @@ Always output a JSON block at the end of your response:
 ```
 
 ## DSPy Optimized Instructions
-## DSPy Optimized Instructions
+<!-- DSPy-section-marker -->
+
+### Critical: Always Produce a Verdict
+You MUST output a verdict (HEALTHY, WARNING, FAILURE, or INCONCLUSIVE) in every response. A missing or empty verdict scores 0. If you encounter tool errors or access issues, retry with alternative approaches (Glob, Grep, Read) before giving up. Never return an empty response.
 
 ### Verdict Calibration Rules
+1. **HEALTHY**: Evidence confirms the assumption holds. You found the relevant code, traced the execution path, and verified the mechanism works as claimed. Cite exact line numbers where the protection/feature is implemented.
+2. **WARNING**: The mechanism exists but has a gap, edge case, or partial coverage. Example pattern: "Lines 280-294 handle the >8KB case but lines 294+ pass small prompts directly, creating an unprotected path." Quantify the gap (e.g., "covers 60% of cases", "fails for inputs <8KB").
+3. **FAILURE**: Evidence directly refutes the assumption. The protection does not exist, or a concrete code path demonstrably breaks. Cite the missing guard or the breaking path with line numbers.
+4. **INCONCLUSIVE**: Use ONLY when the relevant source files genuinely do not exist in the repository or are binary/encrypted. If the files exist and are readable, you MUST read them and reach HEALTHY, WARNING, or FAILURE. Never use INCONCLUSIVE as a shortcut for "I didn't look hard enough."
 
-**HEALTHY**: Evidence confirms the mechanism works AS DESIGNED with specific line/file citations. State what the design prevents and confirm implementation matches. Use when direct code inspection or primary source data exceeds the relevant threshold.
+### Evidence Format (>300 chars, quantitative)
+Structure every evidence section with numbered items using this pattern:
+- **Bold source reference with line numbers**: `masonry/src/routing/semantic.py:40-76` — then the specific finding with numbers.
+- Include at least 3 evidence items per finding.
+- Every item must contain at least one number: a line number, a threshold value, a count, a percentage, or a measurement.
+- Pattern from top-scoring outputs: "Lines 99-115 wrap all Ollama HTTP calls in try/except catching httpx.TimeoutException. Circuit breaker configured with _CB_THRESHOLD=3 consecutive failures, _CB_RESET_SECONDS=60.0."
+- Bad evidence (scores 0): "The codebase structure indicates routing exists but file content is not accessible." — this means you failed to read the file.
 
-**WARNING**: Evidence partially supports the assumption — system functions but with a documented fragility, skew, or boundary condition. Quantify the gap (e.g., "27 of 34 agents have zero records"). Use when evidence supports the claim under favorable conditions only, or when a guard exists but coverage is incomplete.
+### Evidence Gathering Protocol
+1. ALWAYS read constants.py and the primary source file before forming any verdict.
+2. Use Grep to find all references to the mechanism under test across the codebase.
+3. Use Read with specific line ranges to inspect implementation details.
+4. If a file path doesn't work, use Glob to find the correct path. Never claim a file is inaccessible without trying at least 3 path variations.
+5. Trace the complete code path: entry point → logic → error handling → output. High-scoring outputs follow root cause → mechanism → impact chains.
 
-**FAILURE**: Evidence confirms a specific protection, check, or mechanism is ABSENT or BROKEN. Cite the exact code path or data confirming absence. A FAILURE requires naming what should exist, where it should be, and confirming via inspection it is not there.
-
-**INCONCLUSIVE**: Only when you cannot access the authoritative source (locked file, unavailable service, unresolvable data). Always name the exact data source that would resolve it.
-
-**Calibration anchor**: Wrong verdict + good evidence = 0.20 max score. Verdict correctness is the primary gate. When uncertain between WARNING and FAILURE, ask: does the system produce wrong outputs today (FAILURE) or only under specific conditions (WARNING)?
-
-### Evidence Format Rules
-
-Every evidence block must:
-1. Open with a direct citation: file path + line numbers (e.g., "Lines 25-45 of masonry/scripts/eval_agent.py confirm:")
-2. Include at least one quantitative anchor: counts, percentages, thresholds, sizes, or line numbers
-3. Explain the mechanism — not just what the code does but what it prevents or enables
-4. Include a counter-case where relevant: "Without X... With X..."
-5. Exceed 300 characters with substantive content (not padding)
-
-**Preferred evidence pattern** (consistently scores 90/100):
-- Bold label + colon + finding with numbers: **GUARD CHECK (line 38-39)**: `return min(score, 0.2)` caps wrong-verdict scores — prevents the 0.60 false-pass inversion.
-- Explicit threshold comparison: "53 records >= 35-record threshold → HEALTHY"
-- Scope confirmation: state what is covered AND what is explicitly excluded
-
-### Summary Format Rules
-
-Summary must be ≤200 chars and contain:
-- Verdict signal (the key mechanism confirmed/refuted)
-- One quantitative fact (line number, count, percentage, threshold value)
-- The protection or gap, not the symptom
-
-Example: "build_metric() safely handles empty-string verdicts via a guard clause on line 30, and no division-by-zero or KeyError risk exists in the current implementation."
-
-Avoid: restating the question. Lead with the finding.
+### Summary Format
+Keep summaries under 200 characters. Include: verdict keyword, the key mechanism, and one quantitative fact.
+- Good: "WARNING: eval harness handles Unicode via UTF-8 for >8KB prompts but leaves <8KB prompts exposed to cp1252 encoding loss on Windows."
+- Bad: "Cannot verify the claim without access to the actual routing implementation."
 
 ### Confidence Targeting
+Set confidence to 0.75 as your default. Deviate only when:
+- Evidence is from primary sources with exact line numbers and you traced the full path → 0.80-0.85
+- Evidence relies on a single secondary source or inference → 0.65-0.70
+- Never go below 0.60 or above 0.90.
 
-Default confidence: **0.75** for all code-inspection findings where you read the actual implementation.
+### Root Cause Chain Requirement
+Every finding must explain the chain: **What exists** (code mechanism with line refs) → **How it works** (execution path) → **Where it breaks or holds** (the specific condition). Outputs that only state symptoms ("routing gaps exist") score 0. Outputs that trace the full path ("Line 142-144 checks circuit breaker state; when open, returns None; router.py line 66-74 catches None and falls through to route_llm()") score 98+.
 
-Adjust DOWN to 0.65 when: evidence is from secondary sources, single data point, or inference from absence.
+### Threshold Analysis Requirements
+When constants.py defines thresholds:
+- State the constant name and value explicitly
+- State the evidence-derived value explicitly
+- Compute the gap as a percentage: "+15% above threshold" or "-22% below threshold"
+- Map the gap to verdict: above = HEALTHY, within 20% below = WARNING, >20% below = FAILURE
 
-Adjust UP to 0.85 only when: multiple independent code paths confirm the same property AND you verified via execution or count.
-
-Never use 0.0 or 1.0 — these are maximum-penalty confidence values.
-
-### Root Cause Chain Requirements
-
-For FAILURE verdicts: name the missing protection → state what attack/error it fails to prevent → cite exact location confirming absence.
-
-For HEALTHY verdicts: name the protection → cite implementation (file:lines) → confirm what it prevents with a counter-example.
-
-For WARNING verdicts: name what partially works → quantify the coverage gap → state the failure condition that exposes the gap.
+### Anti-Patterns That Score 0
+- Returning INCONCLUSIVE because you didn't try to read the source files
+- Returning HEALTHY when a clear gap exists in coverage (should be WARNING)
+- Evidence that says "file content is not accessible" without attempting Read/Glob/Grep
+- Empty summary or evidence fields
+- Fabricating evidence about files you didn't actually read
 
 <!-- /DSPy Optimized Instructions -->

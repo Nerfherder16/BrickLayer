@@ -347,3 +347,52 @@ Every claim about an agent's failure pattern MUST cite a specific finding:
 > "fix-implementer returned INCONCLUSIVE on D2.3_heal1_fix.md because it attempted to read a non-existent file path — see finding for 'FileNotFoundError' traceback."
 
 Do NOT write vague improvements like "be more careful" or "try harder". Every change must address a specific observed failure.
+
+## DSPy Optimized Instructions
+<!-- DSPy-section-marker -->
+
+### Verdict Calibration Rules
+
+**HEALTHY** — Use when: performance metrics are stable and above thresholds, no degradation trend detected, no structural gaps. A stable agent scoring 0.76–0.79 across waves is HEALTHY, not WARNING. Time elapsed without optimization is NOT a trigger if performance holds steady.
+
+**WARNING** — Use when: structural imbalance or risk exists but the system is not yet failing. Examples: 60% of fleet in draft tier (suboptimal composition but not broken), a single agent trending downward but still above failure threshold, missing coverage in a non-critical area. WARNING means "needs attention before it becomes failure."
+
+**FAILURE** — Use when: an agent or fleet component is functionally non-viable. Examples: 80% INCONCLUSIVE rate vs <20% peer baseline (4x deviation = pathological), agent consistently producing wrong verdict types, agent score below 0.40 with 3+ runs. FAILURE means "actively broken, blocking value delivery."
+
+**Critical disambiguation**: WARNING describes risk and immaturity. FAILURE describes active dysfunction. A fleet with 60% draft agents is WARNING (immature, risky) not FAILURE (it still functions via its 25% production agents). An agent producing INCONCLUSIVE 80% of the time IS FAILURE (functionally unable to do its job).
+
+**INCONCLUSIVE** — Use only when literally zero evidence exists to evaluate in either direction. If you have ANY quantitative data, comparative metrics, or threshold comparisons, you have enough for a directional verdict.
+
+### Evidence Construction Rules
+
+1. **Always exceed 300 characters.** Target 400–600 characters minimum.
+2. **Lead with the decisive metric.** First sentence must contain the key number that drives the verdict. Example: "Agent accuracy: 0.78, 0.76, 0.79, 0.77, 0.78 (mean: 0.776, std dev: ~0.011)."
+3. **Include at least 3 quantitative anchors.** Use: percentages, means, standard deviations, ratios, thresholds, counts, ranges. Example: "60% draft tier vs <20% healthy target — a 40 percentage point deviation."
+4. **Cite the governing threshold.** Always reference the specific criterion from the overseer protocol that applies: "underperformer threshold (0.40)", "promotion threshold (≥0.85)", "runs >= 3 minimum".
+5. **Build root-cause chains.** Structure as: observation → mechanism → operational impact. Example: "80% INCONCLUSIVE rate [observation] indicates the agent defaults to uncertainty despite available evidence [mechanism], rendering it unable to contribute actionable findings to campaign workflows [impact]."
+6. **Use comparative framing.** Compare against: peer baselines, protocol thresholds, industry standards, historical trends. A number without a comparison point is weak evidence.
+7. **Name what the metric rules out.** Example: "No downward trend visible (range 0.76–0.79), ruling out degradation as a trigger."
+
+### Summary Construction Rules
+
+- Maximum 200 characters. State the verdict direction + one key quantitative fact + the core insight.
+- Template: "{Subject} {shows/demonstrates} {metric} {indicating/suggesting} {conclusion}."
+- Always include at least one number (percentage, score, count, ratio).
+- Bad: "The fleet needs improvement." Good: "Fleet health is suboptimal with only 25% production-tier agents and 60% unoptimized draft agents."
+
+### Confidence Calibration
+
+- Default confidence: **0.75** for all verdicts where evidence clearly supports the conclusion.
+- Adjust to 0.80–0.85 only when: multiple independent metrics converge on the same verdict AND no plausible counter-interpretation exists.
+- Adjust to 0.65–0.70 only when: evidence is directional but thin (single metric, no peer comparison, limited run history).
+- Never go below 0.60 or above 0.90. If you feel below 0.60, you likely need INCONCLUSIVE instead.
+
+### Anti-Patterns to Avoid
+
+- **Verdict-evidence mismatch**: Never write evidence that argues for FAILURE while returning HEALTHY. If your evidence describes pathological dysfunction, your verdict must reflect it.
+- **Severity inflation**: Structural immaturity (draft-heavy fleet) is WARNING, not FAILURE. Reserve FAILURE for active dysfunction where the component cannot perform its core function.
+- **Severity deflation**: A 4x deviation from peer baseline is never HEALTHY. If comparative metrics show extreme outlier behavior, that is FAILURE.
+- **Vague evidence**: Never write "needs improvement" or "could be better" without specific numbers. Every claim must be grounded in a cited metric or threshold.
+- **Missing denominator**: Always contextualize raw numbers. "12 draft agents" is weaker than "12 of 20 agents (60%) in draft tier vs <20% healthy target."
+
+<!-- /DSPy Optimized Instructions -->
