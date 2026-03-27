@@ -25,7 +25,16 @@ To set up a new research session:
 5. **Verify the simulation runs**: `python simulate.py`
    - Confirm you see `verdict: HEALTHY` on the baseline run
 6. **Initialize results.tsv**: Create it with just the header row.
-7. **Confirm and go.**
+7. **Session-start self-check** (run before any question):
+   - Confirm this file is fully read — verify the following sections are present:
+     `## After writing each finding — spawn peer-reviewer in background` and `## NEVER STOP`.
+     If either is missing, re-read program.md completely before continuing.
+   - Count findings in `findings/` that do NOT contain a `## Peer Review` section.
+     If > 50% of non-INCONCLUSIVE findings lack peer review, log a warning:
+     `peer_review_gap: N findings unreviewed` before running the first question.
+   - Run `python simulate.py` to confirm the baseline verdict is HEALTHY.
+     If WARNING or FAILURE on a clean run, stop and investigate before starting.
+8. **Confirm and go.**
 
 ---
 
@@ -167,6 +176,17 @@ This takes <1 second and closes the async loop:
 3. **Any finding file contains `**Verdict**: OVERRIDE` inside a `## Peer Review` section?**
    → Insert a new PENDING re-examination question at the top of the next wave in
    `questions.md`. Continue — do not revert any commit without human confirmation.
+
+4. **HHI diversity sentinel** (after Wave 5 only — skip in earlier waves):
+   Count findings per category from `findings/`. If any single category accounts for
+   > 40% of all findings, it is over-concentrated. Before redirecting:
+   **Severity-exemption gate**: if the over-concentrated category contains a CRITICAL
+   or High-severity finding written in the **current wave**, suppress the diversity
+   redirect for that category for the next 3 waves. Only redirect when concentration
+   comes from Low/Info redundancy, not active critical investigation.
+   If redirection is warranted: insert a PENDING question targeting the category with
+   zero findings (any category with zero findings after Wave 10 = mandatory floor
+   redirect, higher priority than HHI threshold).
 
 ---
 
