@@ -243,6 +243,56 @@ async function main() {
     }
   } catch (_) {}
 
+  // --- Daemon Auto-Start (Ruflo-style) ---
+  // Check if map and ultralearn workers are running; start them if not.
+  // Only fires for real projects (has package.json or pyproject.toml).
+  // Workers run as detached one-shot processes — they self-loop via daemon-manager.
+  try {
+    const projectFiles = fs.readdirSync(cwd).filter(f =>
+      f === 'package.json' || f === 'pyproject.toml' || f === 'requirements.txt'
+    );
+    const isRealProject = projectFiles.length > 0;
+
+    if (isRealProject && !isResearchProject(cwd)) {
+      const DAEMON_DIR = path.join(__dirname, '..', 'daemon');
+      const PID_DIR = path.join(DAEMON_DIR, 'pids');
+
+      // Workers to auto-start (lightweight, always valuable)
+      const AUTO_WORKERS = ['map', 'ultralearn'];
+
+      for (const workerName of AUTO_WORKERS) {
+        const pidFile = path.join(PID_DIR, `${workerName}.pid`);
+        let isRunning = false;
+
+        try {
+          if (fs.existsSync(pidFile)) {
+            const pid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
+            if (pid > 0) {
+              try { process.kill(pid, 0); isRunning = true; } catch {}
+            }
+          }
+        } catch {}
+
+        if (!isRunning) {
+          const workerScript = path.join(DAEMON_DIR, `worker-${workerName}.js`);
+          if (fs.existsSync(workerScript)) {
+            try {
+              const { spawn } = require('child_process');
+              // Run one-shot (daemon-manager handles the loop when started properly)
+              const child = spawn('node', [workerScript], {
+                detached: true,
+                stdio: 'ignore',
+                cwd,
+                env: process.env,
+              });
+              child.unref();
+            } catch {}
+          }
+        }
+      }
+    }
+  } catch (_) {}
+
   // Inject context.md if present
   try {
     const ctxPath = path.join(cwd, '.mas', 'context.md');

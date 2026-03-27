@@ -145,6 +145,43 @@ async function main() {
     } catch {}
   }
 
+  // --- Agent Trust Scoring ---
+  // If the session transcript contains VERIFICATION_REJECT markers, penalize the
+  // developer agent's trust score in agent_db.json. VERIFICATION_PASS = small boost.
+  try {
+    if (sessionId) {
+      const slug = cwd.replace(/\\/g, '/').replace(/:/g, '-').replace(/\//g, '-').replace(/\./g, '-');
+      const transcriptPath = path.join(os.homedir(), '.claude', 'projects', slug, `${sessionId}.jsonl`);
+
+      if (fs.existsSync(transcriptPath)) {
+        const transcript = fs.readFileSync(transcriptPath, 'utf8');
+        const rejectCount = (transcript.match(/VERIFICATION_REJECT/g) || []).length;
+        const passCount = (transcript.match(/VERIFICATION_PASS/g) || []).length;
+
+        if (rejectCount > 0 || passCount > 0) {
+          const agentDbPath = path.join(__dirname, '..', '..', 'masonry', 'agent_db.json');
+          let agentDb = {};
+          try { agentDb = JSON.parse(fs.readFileSync(agentDbPath, 'utf8')); } catch {}
+
+          // Update developer agent score
+          const agentName = 'developer';
+          if (!agentDb[agentName]) agentDb[agentName] = { score: 0.7, runs: 0, pass: 0, fail: 0 };
+          const agent = agentDb[agentName];
+          agent.runs = (agent.runs || 0) + rejectCount + passCount;
+          agent.pass = (agent.pass || 0) + passCount;
+          agent.fail = (agent.fail || 0) + rejectCount;
+          // Bayesian update: score = (pass + 7) / (runs + 10) — prior 0.7 from 10 pseudocounts
+          agent.score = Math.round(((agent.pass + 7) / (agent.runs + 10)) * 1000) / 1000;
+          agent.last_updated = new Date().toISOString();
+
+          try {
+            fs.writeFileSync(agentDbPath, JSON.stringify(agentDb, null, 2), 'utf8');
+          } catch {}
+        }
+      }
+    }
+  } catch {}
+
   // --- Rate-limited skill candidate discovery (once per 24h) ---
   const CANDIDATES_LOCK = path.join(MAS_DIR, "skill_discovery_last_run");
   const DISCOVER_SCRIPT = path.join(cwd, "masonry", "scripts", "discover_skill_candidates.py");
