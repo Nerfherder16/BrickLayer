@@ -134,10 +134,12 @@ Priority tools to add:
 2. ~~**Phase 1.1** — UserPromptSubmit router~~ ✅ DONE
 3. ~~**Phase 3.1 (partial)**~~ — `hierarchical-coordinator.md` ✅ DONE
 4. ~~**Phase 3.3 (partial)**~~ — `python-specialist`, `typescript-specialist`, `database-specialist`, `production-validator` ✅ DONE
-5. **Phase 2** — Pattern memory extraction (requires careful Recall schema design)
-6. **Phase 4** — Daemon workers (bash scripts, medium effort)
-7. **Phase 5** — SPARC modes (modify /build orchestrator logic)
-8. **Phase 6** — MCP expansion (TypeScript, highest effort)
+5. ~~**Phase 3.1 (remaining)**~~ — `queen-coordinator`, `worker-specialist`, `adaptive-coordinator`, `quorum-manager`, `tdd-london-swarm`, `mutation-tester` ✅ DONE
+6. ~~**Phase 2**~~ — `masonry-build-patterns.js` (PostToolUse extraction) + `masonry-session-start.js` (Recall pattern import) ✅ DONE
+7. ~~**Phase 4**~~ — Daemon manager + `worker-testgaps.js`, `worker-optimize.js`, `worker-consolidate.js`, `worker-deepdive.js` ✅ DONE
+8. ~~**Phase 5**~~ — SPARC modes in SKILL.md (`[mode:X]` dispatch table) + spec-writer.md annotations ✅ DONE
+9. ~~**Hook Safety Audit**~~ — `continueOnError: true` on all non-blocking synchronous hooks ✅ DONE
+10. **Phase 6** — MCP expansion (TypeScript, highest effort — 8 new tools)
 
 ---
 
