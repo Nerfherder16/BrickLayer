@@ -167,6 +167,36 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - `6e831f3` chore: auto-commit 2 session files on stop (2026-03-24)
 - `d68fab2` chore: auto-commit 2 session files on stop (2026-03-24)
 
+## [Wave 3 — bricklayer-meta] — 2026-03-26
+
+Meta-research Wave 3: 9 questions (Q7.1-Q7.9), 36 cumulative. 3 FAILURE, 2 WARNING, 4 HEALTHY. Pivoting from research to implementation.
+
+### Added
+- Q7.5: HHI severity-exemption gate specification — 100% precision/recall retroactively validated
+- Q7.6: Session-start self-check specification — 3 format-invariant substrings, ready for program.md insert
+- Q7.9: Runner contract empirical back-validation — specialist/generalist gap = 0.485
+
+### Changed
+- Q7.4: Combined capacity recovery quantified at +0.179 yield delta (doubles Q6.7's +0.035 estimate)
+- Q7.7: SUBJECTIVE ceiling revised from 15% to 8-10% (model-conditional; Q6.7 assumption invalidated under Model A)
+- Q7.9: Runner contract yield estimate narrowed from +0.215 (upper bound) to +0.05-+0.10 (empirically grounded)
+- Evolution roadmap priorities 3-4 promoted to READY (session-start self-check, HHI gate)
+- Temperature lever removed from consideration (Q7.8 confirmed non-viable)
+
+### Found (open)
+- `Q7.2` [FAILURE] — J-curve Model B Phase 2 miss (-0.303 delta); rise slope too shallow, needs steeper early inflection
+- `Q7.7` [FAILURE] — 15% SUBJECTIVE ceiling unvalidated under Model A; safe default is 8-10%
+- `Q7.8` [FAILURE] — Temperature increase not viable for category concentration; resolution floor prevents measurable improvement
+- `Q7.1` [WARNING] — Novelty cliff at DN=0.95, +0.15-0.35 outside predicted 0.60-0.80 range
+- `Q7.3` [WARNING] — DEPLOYMENT_BLOCKED + PENDING_EXTERNAL compose safely but need ~25 lines for question-status resume_after
+
+### Healthy
+- Q7.4 combined capacity delta confirmed additive and robust
+- Q7.5 HHI gate and Q7.6 session-start self-check both implementation-ready
+- Q7.9 runner contract direction confirmed with empirical evidence
+
+---
+
 ## [Wave 13 — bricklayer-v2 Evolve] — 2026-03-24
 
 Calibration cleanup, routing baseline (75% deterministic), fleet gap audit. 10 questions: 4 DONE, 2 WARNING, 2 PENDING, 1 PENDING_EXTERNAL, 1 BLOCKED.
