@@ -461,7 +461,7 @@ def _main() -> None:
             exporter = BLTrainingExporter(db_path=training_db, bl_root=str(args.base_dir))
             results = exporter.export_all()
             total_exported = sum(r.get("exported", 0) for r in results.values())
-            print(f"Training export      : {total_exported} traces → {training_db}")
+            print(f"Training export      : {total_exported} traces -> {training_db}")
         except Exception as exc:  # noqa: BLE001
             print(f"Training export skipped: {exc}")
 
