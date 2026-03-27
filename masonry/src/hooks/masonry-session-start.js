@@ -254,6 +254,61 @@ async function main() {
     }
   } catch (_) {}
 
+  // --- Build Pattern Import (Phase 2.2) ---
+  // Query Recall for build patterns matching the current project type.
+  // Injects relevant patterns as context to avoid regenerating known solutions.
+  try {
+    const projectFiles = fs.readdirSync(cwd).slice(0, 30);
+    const hasPyproject = projectFiles.some(f => f === 'pyproject.toml' || f === 'setup.py' || f === 'requirements.txt');
+    const hasPackageJson = projectFiles.some(f => f === 'package.json');
+
+    if (hasPyproject || hasPackageJson) {
+      const lang = hasPyproject ? 'python' : 'typescript';
+      const RECALL_HOST_URL = process.env.RECALL_HOST || 'http://100.70.195.84:8200';
+      const RECALL_API_KEY_VAL = process.env.RECALL_API_KEY || '';
+
+      // Fire-and-forget Recall query — don't block session start
+      const http = require('http');
+      const https = require('https');
+      const queryBody = JSON.stringify({
+        query: `build patterns ${lang}`,
+        domain: 'build-patterns',
+        limit: 5,
+      });
+      const url = new URL(`${RECALL_HOST_URL}/api/memory/search`);
+      const lib = url.protocol === 'https:' ? https : http;
+      const req = lib.request({
+        hostname: url.hostname,
+        port: url.port || (url.protocol === 'https:' ? 443 : 80),
+        path: url.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(queryBody),
+          ...(RECALL_API_KEY_VAL ? { 'Authorization': `Bearer ${RECALL_API_KEY_VAL}` } : {}),
+        },
+        timeout: 3000,
+      }, (res) => {
+        let data = '';
+        res.on('data', c => (data += c));
+        res.on('end', () => {
+          try {
+            const results = JSON.parse(data);
+            const memories = Array.isArray(results) ? results : (results.results || results.memories || []);
+            if (memories.length > 0) {
+              lines.push(`[Masonry] ${memories.length} build pattern(s) from Recall (${lang}): ${memories.map(m => m.tags?.find(t => t.startsWith('framework:'))?.replace('framework:', '') || 'unknown').filter(Boolean).join(', ')}`);
+              lines.push('  Relevant patterns available — use masonry_recall tool to retrieve details.');
+            }
+          } catch (_) {}
+        });
+      });
+      req.on('error', () => {});
+      req.on('timeout', () => { req.destroy(); });
+      req.write(queryBody);
+      req.end();
+    }
+  } catch (_) {}
+
   if (lines.length > 0) {
     process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "SessionStart", content: lines.join("\n") } }));
   }
