@@ -175,7 +175,7 @@ def run_loop(
             from bl.recall_bridge import store_finding as _store_finding
             _recall_verdict = "IMPROVEMENT" if verdict == "improved" else "REGRESSION"
             _summary = (
-                f"{agent_name}: {before_score:.3f} → {after_score:.3f} "
+                f"{agent_name}: {before_score:.3f} -> {after_score:.3f} "
                 f"({'kept' if verdict == 'improved' else 'reverted'})"
             )
             _store_finding(
