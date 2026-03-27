@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `1f9d2a3` chore: auto-commit 2 session files on stop (2026-03-27)
 - `67b7946` chore(registry): auto-onboard 5 new specialist agents (2026-03-27)
 - `760aa4d` chore: auto-commit 2 session files on stop (2026-03-27)
 - `31fc2aa` feat(hooks): add prompt router + teammate-idle auto-assign; update dev roadmap (2026-03-27)
