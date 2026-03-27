@@ -21,6 +21,10 @@ Usage:
 
 from __future__ import annotations
 
+import os
+# Must be set before torch is imported anywhere
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
 import argparse
 import json
 import subprocess
@@ -30,9 +34,9 @@ from pathlib import Path
 
 # ── Hyperparameters ──────────────────────────────────────────────────────────
 
-# Qwen2.5-7B-Instruct: ungated, no HF token needed, similar perf to llama3.1:8b
-# Switch to meta-llama/Meta-Llama-3.1-8B-Instruct if you have HF token + Meta license
-MODEL_ID = "Qwen/Qwen2.5-7B-Instruct"
+# Qwen2.5-3B-Instruct: ungated, fits in 12GB VRAM (3B FP16 = 6GB, well within limit)
+# 7B models require ~14GB FP16 during load — exceeds RTX 3060 12GB
+MODEL_ID = "Qwen/Qwen2.5-3B-Instruct"
 OLLAMA_BASE = "llama3.1:8b"   # reference only (Ollama weights are GGUF, not usable for training)
 
 LORA_R = 16
@@ -137,6 +141,7 @@ def train(data_path: str, max_steps: int, dry_run: bool) -> None:
         quantization_config=bnb_config,
         device_map="auto",
         trust_remote_code=True,
+        low_cpu_mem_usage=True,
     )
     model = prepare_model_for_kbit_training(model)
 
