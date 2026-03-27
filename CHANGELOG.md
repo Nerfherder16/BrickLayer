@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `984eff9` chore: auto-register verification agent in registry (2026-03-27)
 - `447d5e0` feat(tier1): Ruflo gap closures — verification agent, effort routing, ultralearn, map, context curator (2026-03-27)
 - `7ab6d59` feat(mcp): Phase 6 complete — 9 new dev execution tools in masonry-mcp.js (2026-03-27)
 - `9721fc9` chore: auto-commit 1 session file on stop (2026-03-27)
