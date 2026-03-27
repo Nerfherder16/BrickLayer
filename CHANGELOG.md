@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `b92cf0a` chore: auto-commit training data updates on stop (2026-03-27)
 - `fa3336b` chore: session update to training data (2026-03-27)
 - `8ecd56f` chore: auto-commit session file on stop (2026-03-27)
 - `8ecd56f` chore: auto-commit session file on stop (2026-03-27)
