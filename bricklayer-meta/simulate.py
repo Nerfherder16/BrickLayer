@@ -55,7 +55,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 # Change one or more parameters, run, observe the verdict.
 # =============================================================================
 
-SCENARIO_NAME = "Baseline — nominal BrickLayer campaign, default config"
+SCENARIO_NAME = "Recalibrated baseline — changes 1-3 applied (Q6.1/Q6.7)"
 
 # --- Campaign structure ---
 WAVE_COUNT = 4
@@ -98,6 +98,14 @@ PEER_REVIEW_RATE = 1.00
 # 1.0 matches actual code: peer-reviewer is spawned after every question.
 # In practice, async spawn means some reviews lag — set to 0.85 to model that.
 
+# --- Recalibrations from Q6.1 / Q6.7 (applied as overrides in simulate.py) ---
+# Change 1: PEER_REVIEW_CORRECTION_RATE recalibrated 0.55 → 0.40 (Q6.1)
+RECALIBRATED_PEER_REVIEW_CORRECTION_RATE = 0.40
+
+# Change 3: BASE_GENERALIST_ACCURACY recalibrated 0.625 → 0.50 (Q6.7)
+RECALIBRATED_BASE_GENERALIST_ACCURACY = 0.50
+# (Change 2 — novelty discount formula — is applied directly in _peer_correction())
+
 # --- Fix loop (opt-in: --fix-loop flag in actual BrickLayer) ---
 FIX_LOOP_ENABLED = False
 # Whether the fix loop is active. When True: FAILURE verdicts trigger a blocking
@@ -114,10 +122,14 @@ FIX_LOOP_REGRESSION_PROBABILITY = 0.08
 
 
 def _agent_accuracy() -> float:
-    """Weighted verdict accuracy from agent fleet composition."""
+    """Weighted verdict accuracy from agent fleet composition.
+
+    Uses RECALIBRATED_BASE_GENERALIST_ACCURACY (0.50) instead of the constant
+    BASE_GENERALIST_ACCURACY (0.625) per Q6.7 recalibration (Change 3).
+    """
     return (
         AGENT_SPECIALIZATION_RATIO * BASE_SPECIALIST_ACCURACY
-        + (1.0 - AGENT_SPECIALIZATION_RATIO) * BASE_GENERALIST_ACCURACY
+        + (1.0 - AGENT_SPECIALIZATION_RATIO) * RECALIBRATED_BASE_GENERALIST_ACCURACY
     )
 
 
@@ -169,11 +181,18 @@ def _peer_correction(drift_rate: float) -> float:
     than overriding them. This novelty discount captures that effect.
 
     At DOMAIN_NOVELTY=0.0:  full correction rate applies
-    At DOMAIN_NOVELTY=0.90: correction rate discounted to ~25% of nominal
+    At DOMAIN_NOVELTY=0.90: correction rate discounted to ~19% of nominal
+
+    Recalibrations applied (Q6.1/Q6.7):
+      Change 1: RECALIBRATED_PEER_REVIEW_CORRECTION_RATE = 0.40 (was 0.55)
+      Change 2: novelty_discount = max(0.05, 1.0 - DOMAIN_NOVELTY * 0.90) (was max(0.20, 1-DN*0.60))
     """
-    novelty_discount = max(0.20, 1.0 - DOMAIN_NOVELTY * 0.60)
+    novelty_discount = max(0.05, 1.0 - DOMAIN_NOVELTY * 0.90)
     return (
-        PEER_REVIEW_RATE * drift_rate * PEER_REVIEW_CORRECTION_RATE * novelty_discount
+        PEER_REVIEW_RATE
+        * drift_rate
+        * RECALIBRATED_PEER_REVIEW_CORRECTION_RATE
+        * novelty_discount
     )
 
 
