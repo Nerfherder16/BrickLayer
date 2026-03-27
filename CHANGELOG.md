@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `c1171cd` chore: auto-commit 3 session files on stop (2026-03-26)
 - `01a4838` chore: auto-commit 4 session files on stop (2026-03-26)
 - `bf48a06` chore: auto-commit 2 session files on stop (2026-03-26)
 - `a80f4ec` feat(bricklayer-meta): complete Wave 3 — Q7.1-Q7.9 findings + synthesis (2026-03-26)
