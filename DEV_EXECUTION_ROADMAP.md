@@ -175,14 +175,15 @@ Priority tools to add:
 
 ---
 
-## Phase 8 — Ruflo Gap Closures (Tier 2, Backlog)
+## Phase 8 — Ruflo Gap Closures (Tier 2, Backlog) ✓ COMPLETE
 
-- `worker-document.js` — auto-docstring extraction + Recall storage
-- `worker-refactor.js` — background dead code + duplication scanner (beyond deepdive)
-- `worker-benchmark.js` — performance regression tracker post-build
-- Agent trust scoring wired into `masonry-session-end.js`
-- compact-manual / compact-auto PreCompact split
-- `masonry_doctor` MCP tool — system health endpoint
+- ✅ `worker-document.js` — auto-docstring extraction + Recall storage (60min interval)
+- ✅ `worker-refactor.js` — god files + duplicate blocks + deep nesting → `.autopilot/refactor-candidates.md` (2h interval)
+- ✅ `worker-benchmark.js` — test suite timing, baseline tracking, regression detection → `.autopilot/benchmark.md` (4h interval)
+- ✅ Agent trust scoring wired into `masonry-session-end.js` — Bayesian update on developer agent score from VERIFICATION_REJECT/PASS markers
+- ✅ Daemon auto-start in `masonry-session-start.js` (Ruflo-style) — map + ultralearn auto-start on real projects
+- ✅ `masonry_doctor` MCP tool — 6-point health check: Recall, daemons, hooks, registry, training data, output freshness
+- ⏭ compact-manual / compact-auto PreCompact split — skipped (existing masonry-pre-compact.js handles both cases correctly)
 
 ---
 
