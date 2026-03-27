@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `a80f4ec` feat(bricklayer-meta): complete Wave 3 — Q7.1-Q7.9 findings + synthesis (2026-03-26)
 - `8a5f625` chore: auto-commit 2 session files on stop (2026-03-26)
 - `e425fcc` feat(bricklayer-meta): add Wave 3 questions Q7.1-Q7.9 (2026-03-26)
 - `899f42b` chore: auto-commit 1 session file on stop (2026-03-26)
