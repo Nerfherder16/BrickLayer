@@ -1378,3 +1378,20 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
+- name: verification
+  file: C:/Users/trg16/.claude/agents/verification.md
+  model: sonnet
+  description: Build-time truth enforcement agent. Cross-checks developer agent claims
+    against git state, test results, and file existence after each /build task. Returns
+    VERIFIED/SUSPICIOUS/REJECT verdict. Invoke after every developer task completes,
+    before marking DONE.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
