@@ -139,7 +139,7 @@ Priority tools to add:
 7. ~~**Phase 4**~~ — Daemon manager + `worker-testgaps.js`, `worker-optimize.js`, `worker-consolidate.js`, `worker-deepdive.js` ✅ DONE
 8. ~~**Phase 5**~~ — SPARC modes in SKILL.md (`[mode:X]` dispatch table) + spec-writer.md annotations ✅ DONE
 9. ~~**Hook Safety Audit**~~ — `continueOnError: true` on all non-blocking synchronous hooks ✅ DONE
-10. **Phase 6** — MCP expansion (TypeScript, highest effort — 8 new tools)
+10. ~~**Phase 6**~~ — MCP expansion (9 new tools: route, pattern_store/search, worker_status, task_assign, agent_health, wave_validate, swarm_init, consensus_check) ✅ DONE
 
 ---
 
