@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `e89e63c` fix(eval_sft): align karen eval with training data format (2026-03-27)
 - `b3446d4` chore: auto-commit 1 session file on stop (2026-03-27)
 - `b1344d3` fix(finetune): reduce seq_len and batch size to fit RTX 3060 VRAM (2026-03-27)
 - `fe0231c` fix(training): switch to Qwen2.5-3B, fix PYTORCH_CUDA_ALLOC_CONF placement (2026-03-27)
