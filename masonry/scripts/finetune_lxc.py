@@ -30,8 +30,10 @@ from pathlib import Path
 
 # ── Hyperparameters ──────────────────────────────────────────────────────────
 
-MODEL_ID = "meta-llama/Meta-Llama-3.1-8B-Instruct"
-OLLAMA_BASE = "llama3.1:8b"   # pull from Ollama cache if HF unavailable
+# Qwen2.5-7B-Instruct: ungated, no HF token needed, similar perf to llama3.1:8b
+# Switch to meta-llama/Meta-Llama-3.1-8B-Instruct if you have HF token + Meta license
+MODEL_ID = "Qwen/Qwen2.5-7B-Instruct"
+OLLAMA_BASE = "llama3.1:8b"   # reference only (Ollama weights are GGUF, not usable for training)
 
 LORA_R = 16
 LORA_ALPHA = 32
@@ -73,12 +75,12 @@ def load_sharegpt(path: str) -> list[str]:
             if not human or not gpt:
                 continue
 
-            # Format as llama3 chat template
+            # Format as Qwen2.5 chat template (ChatML)
             text = ""
             if system:
-                text += f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system}<|eot_id|>"
-            text += f"<|start_header_id|>user<|end_header_id|>\n\n{human}<|eot_id|>"
-            text += f"<|start_header_id|>assistant<|end_header_id|>\n\n{gpt}<|eot_id|>"
+                text += f"<|im_start|>system\n{system}<|im_end|>\n"
+            text += f"<|im_start|>user\n{human}<|im_end|>\n"
+            text += f"<|im_start|>assistant\n{gpt}<|im_end|>"
 
             records.append(text)
 
