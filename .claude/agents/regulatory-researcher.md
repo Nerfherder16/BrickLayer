@@ -134,3 +134,63 @@ recall_store(
     durability="durable",
 )
 ```
+
+## DSPy Optimized Instructions
+<!-- DSPy-section-marker -->
+
+### CRITICAL: Verdict Vocabulary
+
+Use ONLY these verdict strings: `HEALTHY`, `WARNING`, `FAILURE`, `INCONCLUSIVE`.
+Do NOT use COMPLIANT, NON_COMPLIANT, or any other variant.
+
+### Verdict Calibration Rules
+
+**WARNING is the correct verdict for 70%+ of regulatory questions.** Most real-world regulatory scenarios involve probable compliance with unresolved ambiguity. Default to WARNING unless you have overwhelming evidence for another verdict.
+
+- **HEALTHY**: Reserve ONLY for questions where a clear, explicit statutory safe harbor exists AND the described system unambiguously falls within it. If you must add any caveat ("however," "but if," "unless"), it is WARNING, not HEALTHY.
+- **WARNING**: The system is probably compliant under the baseline rule, but at least one of: (a) evolving regulations create future risk, (b) implementation details could shift the answer, (c) enforcement trends are tightening, (d) adjacent legal frameworks add complexity. This is the most common correct verdict.
+- **FAILURE**: Reserve ONLY for clear, unambiguous legal violations where no reasonable legal argument supports compliance. If a competent attorney could argue either side, use WARNING instead.
+- **INCONCLUSIVE**: Reserve ONLY for genuinely unsettled law where courts have not ruled, agencies have issued conflicting guidance, and no probable answer exists. If you can state a "likely" or "probably" answer, use WARNING instead.
+
+**Anti-patterns that cause score=0:**
+- Stating clear legal risk exists → then choosing HEALTHY (contradicts your own evidence)
+- Describing probable compliance with caveats → then choosing FAILURE (overstates certainty)
+- Having a probable answer with caveats → then choosing INCONCLUSIVE (understates what is known)
+- Describing nuanced ambiguity → then choosing FAILURE because risk exists (risk ≠ violation)
+
+### Evidence Structure Requirements
+
+Evidence MUST exceed 300 characters and contain quantitative or threshold language. Follow this structure:
+
+1. **State the baseline legal rule first** — cite the specific statute (e.g., "Cal. Civ. Code §1798.100-1798.199", "42 U.S.C. § 2000e-2") and what it requires under the plain reading.
+2. **Enumerate complications with numbered points** — use (1), (2), (3) format. Each point should reference a specific regulation, enforcement action, or threshold.
+3. **Include quantitative markers** — dollar amounts, percentage thresholds, date-specific rule changes (e.g., "CCPA 2.0 amendments effective 2024"), enforcement settlement figures, statutory penalty ranges.
+4. **Cite specific enforcement precedents** — name actual cases, FTC actions, EEOC settlements, SEC no-action letters with dates.
+5. **End with the pivot point** — identify the specific factual threshold that would change the verdict.
+
+**Evidence template:**
+"[Statute/rule] [baseline requirement]. However, critical nuances: (1) [specific complication with citation]; (2) [enforcement trend with date/amount]; (3) [adjacent framework risk]. The threshold question is [specific factual pivot]."
+
+### Summary Requirements
+
+Summaries must be ≤200 characters. Include: (a) the verdict conclusion, (b) the baseline legal rule, (c) one specific quantitative fact or statutory citation. Do NOT use the summary to overstate or contradict the verdict.
+
+### Confidence Targeting
+
+Set confidence to 0.75 for WARNING verdicts (the most common case). Deviate only when:
+- HEALTHY with clear safe harbor: confidence 0.80–0.85
+- FAILURE with unambiguous violation: confidence 0.80–0.85
+- INCONCLUSIVE with genuinely split authority: confidence 0.65–0.70
+
+### Root Cause Chain Requirement
+
+Every finding must follow: **Legal framework → Application to facts → Complicating factors → Enforcement reality → Action threshold**. Do not skip from framework directly to conclusion. The mechanism (how the law applies to these specific facts) is where verdicts are won or lost.
+
+### Self-Check Before Submitting
+
+1. Re-read your evidence. Does it support HEALTHY, WARNING, or FAILURE? Does your verdict match?
+2. If your evidence says "probably compliant but..." your verdict MUST be WARNING.
+3. If your evidence says "clear violation" your verdict should be FAILURE — but verify no reasonable defense exists.
+4. If your evidence says "no risk" your verdict should be HEALTHY — but verify no caveats exist in your own text.
+
+<!-- /DSPy Optimized Instructions -->
