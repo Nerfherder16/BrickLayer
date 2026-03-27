@@ -433,7 +433,7 @@ alternative validation path. Wave 3 also closes four design gaps left open in Q6
 ## Q7.1 [SIMULATION] Changes 1-3 applied to live simulate.py: verify the recalibrated baseline holds at nominal and boundary parameters
 **Mode**: agent
 **Agent**: simulation-analyst
-**Status**: PENDING
+**Status**: WARNING
 **Hypothesis**: The three validated recalibrations from Q6.1 and Q6.7 (PEER_REVIEW_CORRECTION_RATE: 0.55 → 0.40; novelty discount: `max(0.20, 1-DN*0.60)` → `max(0.05, 1-DN*0.90)`; BASE_GENERALIST_ACCURACY: 0.625 → 0.50) have been validated in simulation-analyst scratchpad runs but never applied to the actual `simulate.py` file in this project. Once applied, the recalibrated simulate.py must still produce HEALTHY at nominal parameters AND produce a novelty cliff at DOMAIN_NOVELTY 0.60–0.80 AND produce a specialization floor at AGENT_SPECIALIZATION_RATIO 0.15–0.35. If any of the three behaviors is absent after the actual file change, the validation finding is wrong.
 **Test**: Modify `C:/Users/trg16/Dev/Bricklayer2.0/bricklayer-meta/simulate.py` SCENARIO PARAMETERS and simulation engine to apply the three recalibrations (do NOT apply the J-curve — that is a separate change per Q6.1 finding). Run at: (a) nominal DOMAIN_NOVELTY=0.35, AGENT_SPECIALIZATION_RATIO=0.65 — expect verdict HEALTHY, yield >= 0.50; (b) DOMAIN_NOVELTY sweep 0.55, 0.65, 0.75, 0.85 at default ASR — find where yield crosses below CAMPAIGN_YIELD_WARNING=0.45; (c) AGENT_SPECIALIZATION_RATIO sweep 0.10, 0.20, 0.30, 0.40 at default DN=0.35 — find where yield crosses below CAMPAIGN_YIELD_WARNING=0.45. Report: nominal verdict, novelty cliff wave number, specialization floor ratio. Compare to Q6.1 predictions (cliff at 0.65-0.75 DN, floor at 0.20-0.35 ASR).
 **Verdict threshold**:
@@ -447,7 +447,7 @@ alternative validation path. Wave 3 also closes four design gaps left open in Q6
 ## Q7.2 [SIMULATION] J-curve at WAVE_COUNT=20: verify Model B produces HEALTHY and matches Phase 2/3 empirical yield
 **Mode**: agent
 **Agent**: simulation-analyst
-**Status**: PENDING
+**Status**: FAILURE
 **Hypothesis**: The Q6.2 finding validated Model B (piecewise linear: uniqueness=0.20 for waves 1-7, linear rise 0.20→0.75 for waves 8-15, plateau 0.75 for waves 16+) as a correct long-campaign model with RMSE=0.077. Q6.1 proved the J-curve cannot be used at WAVE_COUNT=4 because all waves fall in the low-uniqueness Phase 1. At WAVE_COUNT=20, Phase 2 is reached (waves 8-15 see rising uniqueness), and the simulation should produce HEALTHY with yield substantially higher than the decay model would predict at the same wave count. This is the first simulation test of the J-curve at its target wave count.
 **Test**: Using the recalibrated simulate.py from Q7.1 (changes 1-3 applied), additionally replace `_wave_uniqueness()` with Model B piecewise linear: uniqueness = 0.20 for wave <= 7, linear interpolation from 0.20 to 0.75 for 8 <= wave <= 15, 0.75 for wave > 15. Run at WAVE_COUNT=20, QUESTIONS_PER_WAVE=7, nominal DOMAIN_NOVELTY=0.35 and AGENT_SPECIALIZATION_RATIO=0.65. Report: verdict, campaign_yield, wave_novelty_floor, and per-wave yield for waves 1, 5, 10, 15, 20. Compare the Phase 1 mean (waves 1-7), Phase 2 mean (waves 8-15), and Phase 3 mean (waves 16-20) against the empirical targets: Phase 1 = 0.150, Phase 2 = 0.642, Phase 3 = 0.665. Also confirm that reverting to the decay model at WAVE_COUNT=20 produces FAILURE (verifying the decay model's structural inversion at long campaigns).
 **Verdict threshold**:
