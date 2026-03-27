@@ -118,6 +118,33 @@ function detectIntent(prompt) {
   return null;
 }
 
+// ─── Effort Classification ────────────────────────────────────────────────────
+// Maps prompt complexity to Opus 4.6 effort levels (low/medium/high/max).
+// Injected as [effort:X] annotation alongside routing hints.
+function classifyEffort(prompt) {
+  // max: full system scope, security vulns, ultrawork
+  if (/\b(full.?system|entire.?codebase|complete.?rewrite|all.?services)\b/i.test(prompt) ||
+      /\b(vulnerability|exploit|cve|penetration)\b/i.test(prompt) ||
+      /\/ultrawork\b|\/masonry-run\b/i.test(prompt)) {
+    return "max";
+  }
+  // high: multi-file, architecture, complex debug, refactor, perf
+  if (/\b(architect|architecture|redesign|migrate|migration|refactor|restructure)\b/i.test(prompt) ||
+      /\b(performance|optimize|bottleneck|profil)\b/i.test(prompt) ||
+      /\b(multiple.{0,20}files|across.{0,20}(all|the)|throughout)\b/i.test(prompt) ||
+      /\b(traceback|stack.?trace|why.{0,30}(is|are|does|won.t).{0,40}(not|fail|broken|wrong))\b/i.test(prompt) ||
+      /\b(security.?audit|owasp)\b/i.test(prompt)) {
+    return "high";
+  }
+  // low: short lookups, explain/show/where queries
+  if (prompt.length < 50 ||
+      /^\s*(what|where|how|why|show|list|explain|who|when)\b/i.test(prompt)) {
+    return "low";
+  }
+  // medium: default for standard dev tasks
+  return "medium";
+}
+
 async function main() {
   const raw = await readStdin();
   let input = {};
@@ -149,10 +176,17 @@ async function main() {
   } catch {}
 
   const intent = detectIntent(prompt);
-  if (!intent) process.exit(0);
+  const effort = classifyEffort(prompt);
 
-  const parts = [`→ Mortar: routing to ${intent.route}`];
-  if (intent.note) parts.push(intent.note);
+  // Emit only if we have something useful to say
+  const hasSignal = intent || effort !== "medium";
+  if (!hasSignal) process.exit(0);
+
+  const routeStr = intent ? `routing to ${intent.route}` : null;
+  const effortStr = `[effort:${effort}]`;
+  const mainPart = routeStr ? `→ Mortar: ${routeStr} ${effortStr}` : `→ Mortar: ${effortStr}`;
+  const parts = [mainPart];
+  if (intent && intent.note) parts.push(intent.note);
 
   process.stdout.write(
     JSON.stringify({
