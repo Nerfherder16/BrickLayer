@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `deca9b0` chore: auto-commit 1 session file on stop (2026-03-27)
 - `f25592e` chore: normalize line endings (2026-03-27)
 - `d8667c7` chore: add research assessment training data (2026-03-27)
 - `6424b2d` chore: update git-nerd agent with DSPy optimized instructions (2026-03-27)
