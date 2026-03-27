@@ -175,7 +175,7 @@ def convert(
             written += 1
             agent_counts[agent] += 1
 
-    print(f"[export_sharegpt] Written: {written} conversations → {output_path}")
+    print(f"[export_sharegpt] Written: {written} conversations -> {output_path}")
     print(f"[export_sharegpt] Skipped: score<{min_score}={skipped_score}, empty={skipped_empty}, agent_filter={skipped_agent}")
     print("[export_sharegpt] By agent:")
     for agent, count in agent_counts.most_common():
