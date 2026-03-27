@@ -463,7 +463,7 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  dspy_status: not_optimized
+  dspy_status: optimized
   drift_status: ok
   last_score: 100.0
   runs_since_optimization: 0
