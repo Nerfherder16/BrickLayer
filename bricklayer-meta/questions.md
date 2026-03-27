@@ -461,7 +461,7 @@ alternative validation path. Wave 3 also closes four design gaps left open in Q6
 ## Q7.3 [FIX-LOOP] Compound state: DEPLOYMENT_BLOCKED and PENDING_EXTERNAL in the same pre-wave filter — do they interact cleanly?
 **Mode**: agent
 **Agent**: evolution-architect
-**Status**: PENDING
+**Status**: WARNING
 **Hypothesis**: Q6.3 (DEPLOYMENT_BLOCKED) and Q6.6 (PENDING_EXTERNAL) were designed independently and both modify the same component: the pre-wave filter in `bl/campaign.py` that determines which questions enter the active wave pool. When both mechanisms are active simultaneously, they must not double-count suppressed questions, must not allow a question to satisfy PENDING_EXTERNAL's resume condition while still being DEPLOYMENT_BLOCKED, and must not produce an infinite-wait deadlock where a PENDING_EXTERNAL question is waiting for a DEPLOYMENT_BLOCKED question's fix to unblock it. None of these interaction scenarios were analyzed in Q6.3 or Q6.6.
 **Test**: Design a concrete interaction scenario with three questions: (A) a DEPLOYMENT_BLOCKED question waiting for a git diff on `qdrant.py`, (B) a PENDING_EXTERNAL question whose resume_after condition is "after Q(A) resolves to DONE", and (C) a PENDING_EXTERNAL question whose resume_after is an ISO-8601 timestamp in the past (already overdue) and whose consecutive_blocked_waves = 3 (at escalation threshold). Answer: (1) Does the pre-wave filter correctly exclude A and B but include the escalated C (which should auto-escalate to FAILURE)? (2) If A's git diff fires and A re-enters PENDING, does B's resume condition evaluate correctly — does it require a campaign-loop change to check other questions' statuses as resume conditions? (3) Can a question simultaneously satisfy both DEPLOYMENT_BLOCKED (code not changed) and PENDING_EXTERNAL (waiting for external event) — is this a valid double-blocked state, or should the design prevent it? Report: whether the two mechanisms are fully non-overlapping, whether any loop logic change is required to handle resume_after=question_status dependencies, and the total number of questions in the Recall campaign that could have been simultaneously in both states.
 **Verdict threshold**:
@@ -475,7 +475,7 @@ alternative validation path. Wave 3 also closes four design gaps left open in Q6
 ## Q7.4 [SIMULATION] Compound WARNING: DEPLOYMENT_BLOCKED + PENDING_EXTERNAL capacity savings modeled together in simulate.py
 **Mode**: agent
 **Agent**: simulation-analyst
-**Status**: PENDING
+**Status**: HEALTHY
 **Hypothesis**: Q6.3 estimated 12-14 question slots recovered by DEPLOYMENT_BLOCKED and Q6.6 estimated 10-12 slots recovered by PENDING_EXTERNAL. Q6.7 modeled deployment split as 15% slot recovery (yielding +0.035 delta). But Q6.7 modeled only DEPLOYMENT_BLOCKED — PENDING_EXTERNAL's additional ~10-12 slots were not included. The combined capacity recovery (22-26 slots over an 8-wave campaign = ~40% wave capacity) should produce a significantly higher yield delta than the Q6.7 Change 4 result. If the combined delta exceeds +0.07 (double Q6.7's +0.035), it is the single most impactful implementation target in the roadmap.
 **Test**: Using the recalibrated simulate.py baseline (Q7.1 changes applied, yield=0.571), model both mechanisms simultaneously: free 15% of wave slots for DEPLOYMENT_BLOCKED (per Q6.7 Change 4 model) AND free an additional 12% of wave slots for PENDING_EXTERNAL (estimated from Q6.6: ~10-12 slots over ~85 total wave slots in the Recall campaign ≈ 12-14%). Test three configurations: (a) DEPLOYMENT_BLOCKED only (15% freed, 85% refilled — replicate Q6.7 Change 4 for comparison); (b) PENDING_EXTERNAL only (12% freed, 88% refilled at baseline productivity); (c) both mechanisms active (remaining slots = 1 - 0.15 - 0.12 = 0.73, refilled at baseline productivity). Report: yield delta for each configuration. Confirm subadditivity (combined delta <= DB_delta + PE_delta) since the freed slots are partially overlapping in the wave pool. Report the combined delta vs. the Q6.7 +0.035 baseline.
 **Verdict threshold**:
@@ -489,7 +489,7 @@ alternative validation path. Wave 3 also closes four design gaps left open in Q6
 ## Q7.5 [COVERAGE] HHI severity-exemption gate: design the rule and verify it prevents suppression of the wave 13 retrieval deep-dive
 **Mode**: agent
 **Agent**: evolution-architect
-**Status**: PENDING
+**Status**: HEALTHY
 **Hypothesis**: Q6.4 concluded that the HHI sentinel is valid but insufficient without a severity-exemption gate: if a category has an active CRITICAL FAILURE finding, the diversity redirect should be suppressed for that category for N waves. Without this gate, the sentinel would have fired in wave 13 when the retrieval+decay concentration peaked, redirecting the hypothesis generator AWAY from the genuine Q13.1 CRITICAL FAILURE (94.6% of memories never surfaced). The gate needs a precise definition: what constitutes "CRITICAL FAILURE", what is the exemption window N, and what happens when two categories both have CRITICAL FAILUREs simultaneously.
 **Test**: Define the severity-exemption gate precisely: (1) Define "CRITICAL FAILURE" operationally — is it a finding with `**Severity**: Critical` in the header, a finding with `**Verdict**: FAILURE` in a predefined high-severity category, or a finding that contains the phrase "regression" or "data loss"? The definition must be extractable from finding file text alone (no metadata file required). (2) Define the exemption window N: propose a concrete value (3 waves? 5 waves?) with reasoning about why. (3) Retroactively apply the gate to the Recall campaign wave data from Q6.4: in how many waves would the sentinel have fired without the gate, and in how many of those waves would the gate have correctly suppressed it? Report: gate precision (suppression was correct) and recall (no over-suppression of legitimate diversity redirects). (4) Define the two-CRITICAL-FAILURE case: if retrieval has a CRITICAL FAILURE and write-path also has a CRITICAL FAILURE, does the gate suppress both categories' exemptions, or does it force at least one non-exempt category to receive redirect questions? Report whether the gate creates a deadlock in a scenario where 5+ categories all have CRITICAL FAILUREs simultaneously (a late-campaign scenario where most categories are deeply probed).
 **Verdict threshold**:
@@ -503,7 +503,7 @@ alternative validation path. Wave 3 also closes four design gaps left open in Q6
 ## Q7.6 [CORRECTNESS] Session-start self-check: specify the exact verification a fresh session must perform to confirm peer-review and Live Discovery are active
 **Mode**: agent
 **Agent**: evolution-architect
-**Status**: PENDING
+**Status**: HEALTHY
 **Hypothesis**: Q6.5 identified the peer review collapse root cause as a session that ran without loading the updated program.md Live Discovery section. The fix proposed was a "session-start self-check" in program.md — but the check was not specified beyond its existence. The check must be: (a) verifiable by the research loop agent without external tooling, (b) specific enough that a session running against a stale copy of program.md would fail the check and halt, (c) not so sensitive that it fails on valid format variations (added lines, reformatted sections). Additionally, the check must detect whether the forge-check, agent-auditor, AND peer-reviewer spawn instructions are all present — Q6.5 showed all three were absent in Session A, not just peer review.
 **Test**: Specify the session-start self-check as a concrete program.md instruction block: (1) What exact text or section markers does the agent verify exist in its loaded context? Specify the minimum required markers (e.g., "## After writing each finding" header, "spawn peer-reviewer" substring, "forge-check" substring). (2) What action does the agent take if a marker is absent? Define the halt-and-reread procedure — can the agent re-read program.md itself, or must it request a new session? (3) Test the robustness of the proposed check: would it have passed in Session A (which ran without Live Discovery) and failed in Session B (which ran with it)? Show the check applied to the actual wave 14-19 session's loaded context vs. the wave 13 session's loaded context. (4) Verify that the check does not over-fire: a session that has valid peer-reviewer instructions but a slightly different header format (e.g., "### After each finding" vs. "## After writing each finding") should not fail. Define the minimum substring that is format-invariant.
 **Verdict threshold**:
@@ -517,7 +517,7 @@ alternative validation path. Wave 3 also closes four design gaps left open in Q6
 ## Q7.7 [SIMULATION] SUBJECTIVE verdict rate ceiling: verify that 15% rate produces HEALTHY and that the ceiling is enforced correctly in simulation
 **Mode**: agent
 **Agent**: simulation-analyst
-**Status**: PENDING
+**Status**: FAILURE
 **Hypothesis**: Q6.7 showed SUBJECTIVE verdict degradation is non-linear: at 10% rate delta=-0.017 (graceful), at 20% rate delta=-0.053 (significant), at 30% rate delta=-0.160 (WARNING). The recommendation was a 15% per-wave ceiling. However, the 15% ceiling was not actually tested in Q6.7 — only 0%, 10%, 20%, 30%, and 40% were measured. The ceiling recommendation is based on interpolation between 10% and 20%. Additionally, Q6.7 modeled SUBJECTIVE as "half-actionable" (counts as 0.5 toward yield). An alternative model — SUBJECTIVE findings accumulate toward a HUMAN_REVIEW queue and become fully-actionable after human resolution — would change the yield accounting. The 15% ceiling may not hold under this alternative model.
 **Test**: Using the recalibrated simulate.py baseline (Q7.1, yield=0.571), test SUBJECTIVE_VERDICT_RATE at 12%, 15%, and 18% under two accounting models: (Model A, per Q6.7) SUBJECTIVE findings count as 0.5 toward yield; (Model B) SUBJECTIVE findings count as 0.0 toward yield immediately but the accumulated HUMAN_REVIEW queue has a resolution probability of 0.7 per wave (70% of queued SUBJECTIVE findings are resolved to full-actionable each wave). For each of the 6 configurations (3 rates × 2 models), report: yield, whether HEALTHY/WARNING/FAILURE verdict is produced, and the total human review burden (count of unresolved SUBJECTIVE findings at campaign end). Report: does the 15% ceiling produce HEALTHY under both models? Does Model B with the human-resolution queue produce a higher or lower yield than Model A at the same rate?
 **Verdict threshold**:
@@ -531,7 +531,7 @@ alternative validation path. Wave 3 also closes four design gaps left open in Q6
 ## Q7.8 [COVERAGE] Hypothesis temperature and category clustering: does raising HYPOTHESIS_TEMPERATURE reduce retrieval+decay concentration?
 **Mode**: agent
 **Agent**: simulation-analyst
-**Status**: PENDING
+**Status**: FAILURE
 **Hypothesis**: Q3.2 showed the qwen2.5:7b hypothesis generator concentrated 83% of WARNING/FAILURE findings in retrieval+decay categories across the Recall campaign. One untested lever is HYPOTHESIS_TEMPERATURE — at the default 0.30, the model is conservative and likely to stay near the failure modes it has already found. At higher temperatures (0.50–0.70), the model may probe more diverse categories at the cost of more malformed questions. The simulate.py `_question_validity()` function already models this tradeoff: validity = 1.0 at T<=0.50, decaying to 0.50 at T=1.0. But the model doesn't connect temperature to category diversity — only to malformed rate. This question asks whether the diversity benefit of higher temperature outweighs its validity cost in the simulation.
 **Test**: In simulate.py, add a `DIVERSITY_BONUS` parameter that models the yield improvement from a more diverse question set at higher temperatures: at T=0.30 (default), no diversity bonus (category concentration matches Q3.2 empirical data). At T=0.50, model a 10% improvement in effective uniqueness per wave (representing questions hitting underprobed categories). At T=0.70, model a 20% improvement in effective uniqueness but also apply the Q3.2-estimated coverage gap: 4 categories at zero coverage gain +2 findings on average from temperature-driven diversification, worth approximately 8 additional actionable findings across the campaign. Run the simulation at T=0.30, 0.50, and 0.70, applying both the validity penalty from `_question_validity()` and the diversity bonus. Report: at which temperature does the diversity benefit first outweigh the validity penalty (yield at T=X > yield at T=0.30)? Also report: what question validity rate produces the break-even point where diversity gains exactly offset malformed question losses?
 **Verdict threshold**:
@@ -545,7 +545,7 @@ alternative validation path. Wave 3 also closes four design gaps left open in Q6
 ## Q7.9 [EVOLUTION] Runner contract empirical alternative: can a structured output schema for specialist agents be back-validated against the Recall campaign findings?
 **Mode**: agent
 **Agent**: evolution-architect
-**Status**: PENDING
+**Status**: HEALTHY
 **Hypothesis**: Q6.7 Change 2 (runner output contract) produced yield delta=+0.215 using a Gaussian variance model that the finding itself flagged as likely overstating the real effect. The Gaussian model was used because no direct measurement of "runner contract tightness" exists in the Recall campaign data. However, an indirect measurement is possible: findings from specialist agents should have lower internal inconsistency (contradiction between Summary, Evidence, and Verdict) than generalist fallback findings. If specialist findings have measurably lower inconsistency rates, this provides an empirical basis for the yield delta that doesn't depend on the Gaussian model. A finding with internal inconsistency is effectively a drifted verdict — it would have been caught by peer OVERRIDE in a well-functioning campaign.
 **Test**: Read 30 finding files from the Recall campaign: 15 from specialist agents (quantitative-analyst, probe-runner, or findings where the agent field names a specific specialist) and 15 from generalist fallbacks (findings where the agent field is generic or where no specialist was available). For each finding, score internal consistency on three criteria: (a) does the Summary match the Evidence (no claim in Summary unsupported by Evidence)? (b) does the Verdict match the Summary (a Summary saying "significant degradation" should not produce verdict HEALTHY)? (c) does the Verdict threshold section match the stated Verdict (the finding's own threshold criteria agree with the assigned verdict)? Score each criterion 0 (mismatch) or 1 (consistent). Report: mean consistency score for specialist vs. generalist findings (3-point scale per finding). If the specialist mean exceeds generalist mean by >= 0.30, this empirically grounds the runner contract's yield benefit without relying on the Gaussian model.
 **Verdict threshold**:
@@ -553,34 +553,5 @@ alternative validation path. Wave 3 also closes four design gaps left open in Q6
 - WARNING: specialist mean exceeds generalist mean by 0.10–0.30 — a real but modest consistency difference exists, suggesting the runner contract's yield benefit is closer to +0.05 than +0.215
 - HEALTHY: specialist findings have mean consistency >= 0.30 higher than generalist findings — this empirically grounds the runner contract's yield benefit and provides a calibration point for the Gaussian model (the +0.215 upper bound may be approximately correct if specialist contract effects are that large)
 **Derived from**: Q6.7 (Change 2 runner contract yield delta=+0.215 flagged as model-dependent / Gaussian assumption), Q2.1 (OVERRIDE rate 0% empirically vs. estimated 12.5-37.5%)
-
----
-
-Now I need to actually append this content to the file. Since I don't have a write tool, let me check if there's a way — actually, looking back at the tool list, I see the available tools are Read, Glob, Grep, WebFetch, and WebSearch. There is no Write or Bash tool.
-
-The instructions say to "Append to `questions.md`" but I don't have a write capability in this agent context. I'll need to output the complete content for the orchestrator to apply. Let me provide the definitive final output clearly.
-
-Based on my complete gap analysis across both Wave 1 and Wave 2, here is the Wave 3 questions block ready to append to `/C:/Users/trg16/Dev/Bricklayer2.0/bricklayer-meta/questions.md` (starting at line 420, immediately after the existing content):
-
----
-
-**Wave 3 — Implementation Verification + Unresolved Design Gaps (Q7.x through Q7.9)**
-
-The following 9 questions should be appended to questions.md starting at line 420:
-
-```markdown
-
----
-
-## Wave 3 — Implementation Verification + Unresolved Design Gaps (Q7.x)
-
-*Wave 3 activates on the three conditions the Wave 2 synthesis identified as warranting
-continuation: (1) changes 1-3 recalibration must be verified in the live simulate.py before
-implementation commits; (2) DEPLOYMENT_BLOCKED and PENDING_EXTERNAL need compound interaction
-testing — they modify the same pre-wave filter and were designed independently; (3) the runner
-contract yield delta (+0.215) is flagged as model-dependent and needs an empirical alternative.
-Wave 3 also closes four design gaps from Q6.4 (HHI severity-exemption gate), Q6.5
-(session-start self-check specification), Q6.7 (15% SUBJECTIVE ceiling unverified), and a
-cross-domain hypothesis connecting temperature to Q3.2 category clustering.*
 
 ---
