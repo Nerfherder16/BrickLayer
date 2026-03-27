@@ -1,0 +1,8 @@
+{
+  "loop": 2,
+  "before_score": 0.875,
+  "after_score": 0.625,
+  "delta": -0.25,
+  "verdict": "reverted",
+  "timestamp": "2026-03-27T20:03:52Z"
+}
