@@ -18,6 +18,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 
 ---
 - `8ecd56f` chore: auto-commit session file on stop (2026-03-27)
+- `8ecd56f` chore: auto-commit session file on stop (2026-03-27)
 - `de132f2` chore: auto-commit 1 session file on stop (2026-03-27)
 - `f674751` chore: auto-commit 1 session file on stop (2026-03-27)
 - `e89e63c` fix(eval_sft): align karen eval with training data format (2026-03-27)
