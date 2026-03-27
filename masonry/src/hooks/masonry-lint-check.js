@@ -192,9 +192,28 @@ async function main() {
       process.exit(0);
     }
   } else if (/\.(ts|tsx|js|jsx)$/.test(filePath)) {
-    // Prettier: run in background — npx startup (~1-3s on Windows) was blocking
-    // the tool response long enough for VS Code to reset webview scroll position.
-    runBackground("npx", ["prettier", "--write", filePath], projectRoot);
+    // Resolve prettier/eslint from local node_modules/.bin rather than npx.
+    // npx on Windows spawns cmd.exe which flashes a console window and steals
+    // keyboard focus even with windowsHide:true. Direct binary lookup avoids this.
+    function findLocalBin(binName, root) {
+      const ext = process.platform === "win32" ? ".cmd" : "";
+      // Walk up from projectRoot looking for node_modules/.bin
+      let dir = root;
+      for (let i = 0; i < 5; i++) {
+        const p = path.join(dir, "node_modules", ".bin", binName + ext);
+        if (existsSync(p)) return p;
+        const parent = path.dirname(dir);
+        if (parent === dir) break;
+        dir = parent;
+      }
+      return null;
+    }
+
+    const prettierBin = findLocalBin("prettier", projectRoot);
+    if (prettierBin) {
+      runBackground(prettierBin, ["--write", filePath], projectRoot);
+    }
+    // If no local prettier found, skip — don't fall back to npx (causes focus steal)
 
     // ESLint: check only if config exists nearby, also background
     let hasEslintConfig = false;
@@ -215,7 +234,8 @@ async function main() {
     }
 
     if (hasEslintConfig) {
-      runBackground("npx", ["eslint", "--fix", winPath], projectRoot);
+      const eslintBin = findLocalBin("eslint", projectRoot);
+      if (eslintBin) runBackground(eslintBin, ["--fix", winPath], projectRoot);
     }
 
     // tsc --noEmit intentionally removed.
