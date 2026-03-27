@@ -44,9 +44,9 @@ LORA_ALPHA = 32
 LORA_DROPOUT = 0.05
 TARGET_MODULES = ["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
-BATCH_SIZE = 2
-GRAD_ACCUM = 4          # effective batch = 8
-MAX_SEQ_LEN = 2048
+BATCH_SIZE = 1
+GRAD_ACCUM = 8          # effective batch = 8
+MAX_SEQ_LEN = 512       # BL conversations are short; reduces logits memory 4x vs 2048
 LEARNING_RATE = 2e-4
 MAX_STEPS = 500         # ~30-45 min on RTX 3060
 WARMUP_STEPS = 20
@@ -101,9 +101,8 @@ def train(data_path: str, max_steps: int, dry_run: bool) -> None:
         AutoModelForCausalLM,
         AutoTokenizer,
         BitsAndBytesConfig,
-        TrainingArguments,
     )
-    from trl import SFTTrainer
+    from trl import SFTConfig, SFTTrainer
 
     print(f"[finetune] CUDA available: {torch.cuda.is_available()}")
     if torch.cuda.is_available():
@@ -144,6 +143,7 @@ def train(data_path: str, max_steps: int, dry_run: bool) -> None:
         low_cpu_mem_usage=True,
     )
     model = prepare_model_for_kbit_training(model)
+    model.gradient_checkpointing_enable()
 
     # LoRA config
     lora_config = LoraConfig(
@@ -160,8 +160,8 @@ def train(data_path: str, max_steps: int, dry_run: bool) -> None:
     # Dataset
     dataset = Dataset.from_dict({"text": texts})
 
-    # Training args
-    training_args = TrainingArguments(
+    # SFTConfig combines TrainingArguments + SFT-specific args (TRL >= 0.10)
+    training_args = SFTConfig(
         output_dir=OUTPUT_DIR,
         num_train_epochs=1,
         max_steps=max_steps,
@@ -177,15 +177,15 @@ def train(data_path: str, max_steps: int, dry_run: bool) -> None:
         lr_scheduler_type="cosine",
         report_to="none",
         dataloader_pin_memory=False,
+        dataset_text_field="text",
+        max_length=MAX_SEQ_LEN,  # renamed from max_seq_length in TRL 0.29
     )
 
     trainer = SFTTrainer(
         model=model,
         args=training_args,
         train_dataset=dataset,
-        tokenizer=tokenizer,
-        dataset_text_field="text",
-        max_seq_length=MAX_SEQ_LEN,
+        processing_class=tokenizer,
     )
 
     print(f"[finetune] Training for {max_steps} steps...")
