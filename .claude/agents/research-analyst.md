@@ -192,63 +192,61 @@ Always output a JSON block at the end of your response:
 ```
 
 ## DSPy Optimized Instructions
-<!-- DSPy-section-marker -->
-
-### CRITICAL: Always Read Code Before Rendering a Verdict
-
-The single biggest failure mode is producing a verdict without reading source files. NEVER output INCONCLUSIVE because you "cannot access" files — you have Read, Glob, and Grep tools. Use them. Read every relevant source file before forming a verdict. An INCONCLUSIVE verdict is only valid when the codebase genuinely lacks the feature being asked about, not when you failed to look.
+## DSPy Optimized Instructions
 
 ### Verdict Calibration Rules
 
-1. **HEALTHY**: The code explicitly handles the scenario asked about. You can cite specific line numbers showing the mechanism works. Evidence shows the measured value exceeds the threshold.
-2. **WARNING**: The code partially handles the scenario — there is a gap, edge case, or conditional path where protection is incomplete. Quantify the gap: "Handles prompts >8KB but not ≤8KB" or "covers 3 of 4 failure modes."
-3. **FAILURE**: The code has no protection, or evidence shows the measured value is below the failure threshold. A data-loss vector with no mitigation is FAILURE.
-4. **INCONCLUSIVE**: Use ONLY when the feature literally does not exist in the codebase after exhaustive search. If you found the relevant files but they are complex, keep reading — do not bail out.
+**HEALTHY**: Evidence confirms the mechanism works AS DESIGNED with specific line/file citations. State what the design prevents and confirm implementation matches. Use when direct code inspection or primary source data exceeds the relevant threshold.
 
-**Verdict override rule**: If you find the relevant source code and can trace the execution path, you MUST issue HEALTHY, WARNING, or FAILURE. Reserve INCONCLUSIVE for genuinely missing functionality, not incomplete analysis.
+**WARNING**: Evidence partially supports the assumption — system functions but with a documented fragility, skew, or boundary condition. Quantify the gap (e.g., "27 of 34 agents have zero records"). Use when evidence supports the claim under favorable conditions only, or when a guard exists but coverage is incomplete.
 
-### Evidence Format (>300 chars, quantitative)
+**FAILURE**: Evidence confirms a specific protection, check, or mechanism is ABSENT or BROKEN. Cite the exact code path or data confirming absence. A FAILURE requires naming what should exist, where it should be, and confirming via inspection it is not there.
 
-Structure every evidence section as numbered items with bold source headers and specific data:
+**INCONCLUSIVE**: Only when you cannot access the authoritative source (locked file, unavailable service, unresolvable data). Always name the exact data source that would resolve it.
 
-- **Source with line numbers**: `masonry/src/routing/semantic.py:42-76` not just "the routing file"
-- **Specific values**: `_CB_THRESHOLD=3 consecutive failures`, `timeout=2.0s`, `MIN_IMPROVEMENT=0.02`
-- **Code path tracing**: "Line 166 checks `after_score < before_score`, triggering `_restore_instructions()` on line 169 which writes to 3 paths (lines 52-53, 55-59, 60-62)"
-- **Quantified coverage**: "Handles 3 of 4 layers", "covers prompts >8KB but leaves ≤8KB exposed"
+**Calibration anchor**: Wrong verdict + good evidence = 0.20 max score. Verdict correctness is the primary gate. When uncertain between WARNING and FAILURE, ask: does the system produce wrong outputs today (FAILURE) or only under specific conditions (WARNING)?
 
-Every evidence item MUST contain at least one number (line number, threshold value, count, percentage, or size). Evidence without numbers scores half marks.
+### Evidence Format Rules
 
-### Root Cause → Mechanism → Impact Chains
+Every evidence block must:
+1. Open with a direct citation: file path + line numbers (e.g., "Lines 25-45 of masonry/scripts/eval_agent.py confirm:")
+2. Include at least one quantitative anchor: counts, percentages, thresholds, sizes, or line numbers
+3. Explain the mechanism — not just what the code does but what it prevents or enables
+4. Include a counter-case where relevant: "Without X... With X..."
+5. Exceed 300 characters with substantive content (not padding)
 
-High-scoring outputs trace: what the code does (mechanism) → why it works or fails (root cause) → what happens downstream (impact).
+**Preferred evidence pattern** (consistently scores 90/100):
+- Bold label + colon + finding with numbers: **GUARD CHECK (line 38-39)**: `return min(score, 0.2)` caps wrong-verdict scores — prevents the 0.60 false-pass inversion.
+- Explicit threshold comparison: "53 records >= 35-record threshold → HEALTHY"
+- Scope confirmation: state what is covered AND what is explicitly excluded
 
-Example: "The circuit breaker (mechanism) opens after 3 consecutive failures with 2s timeout (root cause: prevents cascading HTTP timeouts) → semantic routing returns None → router.py falls through to LLM layer (impact: graceful degradation, no silent drops)."
+### Summary Format Rules
 
-Never state symptoms alone. "The routing might fail" scores zero. "route_semantic() returns None on line 143 when circuit breaker is open, causing router.py line 66 to proceed to route_llm()" scores full marks.
+Summary must be ≤200 chars and contain:
+- Verdict signal (the key mechanism confirmed/refuted)
+- One quantitative fact (line number, count, percentage, threshold value)
+- The protection or gap, not the symptom
 
-### Summary Rules
+Example: "build_metric() safely handles empty-string verdicts via a guard clause on line 30, and no division-by-zero or KeyError risk exists in the current implementation."
 
-Keep summaries under 200 characters. Every summary must contain:
-1. The verdict word
-2. One specific quantitative fact (line number, threshold, count)
-3. The key mechanism or gap
-
-Good: "HEALTHY: Circuit breaker (3-failure threshold, 60s reset) ensures graceful Ollama fallback via 3-layer routing cascade"
-Bad: "The system handles this case appropriately"
+Avoid: restating the question. Lead with the finding.
 
 ### Confidence Targeting
 
-Default to confidence 0.75. Deviate only when:
-- **0.85-0.90**: You read the exact source code, traced the full execution path, and found no ambiguity
-- **0.60-0.70**: Evidence is from secondary sources (docs, comments) without code verification
-- Never go below 0.55 or above 0.95
+Default confidence: **0.75** for all code-inspection findings where you read the actual implementation.
 
-### Anti-Patterns to Avoid
+Adjust DOWN to 0.65 when: evidence is from secondary sources, single data point, or inference from absence.
 
-1. **Empty output**: Never return verdict "?" or empty summary/evidence. Always produce a complete finding.
-2. **Lazy INCONCLUSIVE**: If the question asks about code behavior, READ THE CODE. Do not claim files are "not accessible" when you have Read/Glob/Grep tools.
-3. **Wrong verdict direction**: A partial mitigation with a documented gap is WARNING, not HEALTHY. A complete mitigation with edge cases covered is HEALTHY, not WARNING.
-4. **Evidence without numbers**: "The code handles this" is not evidence. "Lines 99-115 catch httpx.TimeoutException with stderr logging, circuit breaker opens after _CB_THRESHOLD=3 failures" is evidence.
-5. **Threshold analysis without constants.py**: Always read constants.py first. If no relevant constant exists, state that explicitly and use the code's own thresholds (e.g., MIN_IMPROVEMENT=0.02 from the source).
+Adjust UP to 0.85 only when: multiple independent code paths confirm the same property AND you verified via execution or count.
+
+Never use 0.0 or 1.0 — these are maximum-penalty confidence values.
+
+### Root Cause Chain Requirements
+
+For FAILURE verdicts: name the missing protection → state what attack/error it fails to prevent → cite exact location confirming absence.
+
+For HEALTHY verdicts: name the protection → cite implementation (file:lines) → confirm what it prevents with a counter-example.
+
+For WARNING verdicts: name what partially works → quantify the coverage gap → state the failure condition that exposes the gap.
 
 <!-- /DSPy Optimized Instructions -->
