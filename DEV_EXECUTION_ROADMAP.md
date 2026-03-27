@@ -7,25 +7,25 @@
 
 ## Phase 1 — Zero-Friction Core (Highest Impact, Build First)
 
-### 1.1 UserPromptSubmit Transparent Router
+### 1.1 UserPromptSubmit Transparent Router ✅ DONE
 **File**: `masonry/src/hooks/masonry-prompt-router.js`
 **Trigger**: UserPromptSubmit (fires before Claude sees the prompt)
 **What it does**:
 - Reads prompt from stdin
 - Detects intent: coding / research / git / UI / campaign / architecture / debug
-- Injects routing suggestion into context: "→ Routing: developer+test-writer+code-reviewer"
-- Falls back silently if intent unclear
+- Injects routing suggestion into context: "→ Mortar: routing to developer+test-writer+code-reviewer"
+- Falls back silently if intent unclear or slash command
 **Impact**: Every natural-language request auto-routed — no slash commands required.
 **Ruflo equivalent**: `hook-handler.cjs route` via UserPromptSubmit
 
-### 1.2 TeammateIdle Auto-Assignment
+### 1.2 TeammateIdle Auto-Assignment ✅ DONE
 **File**: `masonry/src/hooks/masonry-teammate-idle.js`
-**settings.json addition**:
-```json
-"TeammateIdle": [{"hooks": [{"type": "command", "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-teammate-idle.js", "timeout": 5}]}],
-"TaskCompleted": [{"hooks": [{"type": "command", "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-teammate-idle.js", "timeout": 5}]}]
-```
-**What it does**: Reads `.autopilot/progress.json`, finds first PENDING task, outputs task prompt for idle agent.
+**Wired into settings.json**: `TeammateIdle` + `TaskCompleted` hook events.
+**What it does**:
+- Fires when an agent team member goes idle or completes a task
+- Reads `.autopilot/progress.json`, atomically claims first PENDING task (marks IN_PROGRESS)
+- Outputs TDD task assignment with SPARC mode support (`[mode:tdd]`, `[mode:security]`, etc.)
+- Handles all-done signal when no tasks remain
 **Prereq**: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` — already set in settings.json.
 **Ruflo equivalent**: `post-task` handler + `autoAssignOnIdle: true`
 
@@ -130,10 +130,10 @@ Priority tools to add:
 
 ## Implementation Order
 
-1. **Phase 1.2** — TeammateIdle hook (2h, zero risk, huge impact)
-2. **Phase 1.1** — UserPromptSubmit router (4h, requires intent detection logic)
-3. **Phase 3.1–3.2** — Coordination + consensus agents (write .md files, low effort)
-4. **Phase 3.3** — Domain specialist agents (write .md files)
+1. ~~**Phase 1.2** — TeammateIdle hook~~ ✅ DONE
+2. ~~**Phase 1.1** — UserPromptSubmit router~~ ✅ DONE
+3. ~~**Phase 3.1 (partial)**~~ — `hierarchical-coordinator.md` ✅ DONE
+4. ~~**Phase 3.3 (partial)**~~ — `python-specialist`, `typescript-specialist`, `database-specialist`, `production-validator` ✅ DONE
 5. **Phase 2** — Pattern memory extraction (requires careful Recall schema design)
 6. **Phase 4** — Daemon workers (bash scripts, medium effort)
 7. **Phase 5** — SPARC modes (modify /build orchestrator logic)
@@ -149,10 +149,57 @@ Priority tools to add:
 - Campaign/research mode (Trowel) — Ruflo has no research campaign equivalent
 - Kiln (BrickLayerHub) — Ruflo has no monitoring UI
 
+## New Findings (Firecrawl Deep Dive, 2026-03-27)
+
+### Parallel Execution Mechanisms (Ruflo's actual power)
+
+**`claude -p` headless instances** — spawn non-interactive Claude for background work:
+```bash
+result=$(claude -p "Read file.ts, find all TODO comments, return JSON list" --output-format json)
+```
+Key flags: `--output-format json|text|stream-json`, `--max-turns N`, `--fork-session` (parallel hypothesis exploration from a resumed session).
+
+**`run_in_background: true` in Task calls** — non-blocking agent spawning:
+```javascript
+// Fire-and-forget parallel agents
+Agent({subagent_type: "developer", prompt: "...", run_in_background: true})
+Agent({subagent_type: "test-writer", prompt: "...", run_in_background: true})
+```
+BrickLayer already has `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` but barely uses `run_in_background`.
+
+**Native agent team tools** (already available in BrickLayer):
+- `TeamCreate` — create a named team of agents
+- `TaskCreate / TaskList / TaskUpdate / TaskGet / TaskOutput` — task queue
+- `SendMessage` — send message to a specific named agent
+All these are deferred tools — use `ToolSearch` to load them.
+
+### Token Optimizer (30-50% reduction)
+Ruflo claims these sources of reduction:
+- ReasoningBank retrieval: pull pre-computed reasoning instead of regenerating (-32%)
+- Agent Booster edits: WASM patches vs full rewrites (-15%)
+- Prompt cache: reuse session context (-10%)
+- Optimal batch size: group similar work (-20%)
+
+BrickLayer equivalent: inject cached context from Recall into session start instead of regenerating (-10-15% likely achievable now).
+
+### In-Process MCP Server
+Ruflo runs MCP server in the same process as the agent (no IPC overhead). Sub-millisecond tool execution.
+BrickLayer Masonry MCP runs out-of-process via stdio. Not worth changing unless perf becomes a bottleneck.
+
+### Hook Safety Audit Needed
+Issue #1107 warning: hooks without `continueOnError: true` hard-block every Claude Code session if they crash.
+**Action**: Audit all hooks in settings.json — any synchronous (non-async) hook that doesn't `process.exit(0)` on error path must add `continueOnError: true`.
+
+### SPARC 16 Dev Modes (slash commands in Ruflo)
+`/architect`, `/code`, `/tdd`, `/debug`, `/security-review`, `/docs-writer`, `/integration`, `/devops`, `/refinement`, `/spec-pseudocode`, `/mcp`, `/ask`, `/reset`, `/deep-research`, `/batch`, `/workflow`
+BrickLayer equivalent: add these as mode annotations in spec.md tasks (Phase 5).
+
+### Dual-Mode Collaboration
+Ruflo: Claude Code (architecture/security/testing) + OpenAI Codex (implementation/optimization).
+Shared memory namespace `collaboration` via `memory_store/memory_search`.
+BrickLayer equivalent: already has Recall shared memory — just need the naming convention.
+
 ## Firecrawl Fix
 
-Self-hosted container is down at 192.168.50.35:3002 and 192.168.50.19:3002.
-Options:
-A) Restart big-bear-firecrawl container on CasaOS: `docker start <container>`
-B) Switch to Exa MCP (already connected) for web scraping — covers most use cases
-C) Use cloud firecrawl-mcp with FIRECRAWL_API_KEY env var
+Cloud firecrawl-mcp (`npx -y firecrawl-mcp`) is working — use this.
+Self-hosted container at 192.168.50.35:3002 and 192.168.50.19:3002 is down (separate issue).
