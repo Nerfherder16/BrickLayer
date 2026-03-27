@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `b6415f0` chore(training): complete research agent data + fix export unicode (2026-03-27)
 - `2918a99` chore(training): add research agent training data (partial — gen still running) (2026-03-26)
 - `c13c55f` fix(training): switch finetune_lxc to Qwen2.5-7B-Instruct (ungated) (2026-03-26)
 - `18166af` chore: auto-commit 1 session file on stop (2026-03-26)
