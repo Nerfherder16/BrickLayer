@@ -1231,3 +1231,150 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
+- name: queen-coordinator
+  file: C:/Users/trg16/.claude/agents/queen-coordinator.md
+  model: sonnet
+  description: "Hive-mind coordinator for parallel builds. Maintains a shared task\
+    \ queue in .autopilot/progress.json and assigns tasks to idle worker agents. Does\
+    \ not implement code \u2014 pure task dispatch and monitoring. Workers pull tasks\
+    \ and report back. Scales to 8 concurrent workers; monitors heartbeats and re-queues\
+    \ stale IN_PROGRESS tasks after 10 minutes."
+  modes:
+  - build
+  - orchestrate
+  capabilities:
+  - task queue management (FIFO with priority)
+  - idle worker detection and assignment
+  - heartbeat monitoring (re-queue stale tasks >10min)
+  - wave-based parallelism for dependent task groups
+  - completion reporting with pass/fail summary
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: worker-specialist
+  file: C:/Users/trg16/.claude/agents/worker-specialist.md
+  model: sonnet
+  description: 'Autonomous worker agent for hive builds. Pulls a single task from
+    the queen or progress.json, implements it with TDD, commits, and reports DONE.
+    Never spawns sub-workers. Designed to run in background (run_in_background: true)
+    as part of a swarm. Reports DEV_ESCALATE if blocked after 3 attempts.'
+  modes:
+  - build
+  - code
+  capabilities:
+  - TDD implementation (RED-GREEN-REFACTOR)
+  - atomic task claiming from progress.json
+  - per-task git commit
+  - escalation via DEV_ESCALATE output signal
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: adaptive-coordinator
+  file: C:/Users/trg16/.claude/agents/adaptive-coordinator.md
+  model: sonnet
+  description: "Topology-switching coordinator. Analyzes the task list and selects\
+    \ the optimal agent topology: hierarchical (coordinator\u2192workers) for large\
+    \ independent task lists, mesh (peer review between workers) for quality-critical\
+    \ tasks, ring (sequential pipeline) for dependent chains. Delegates to the appropriate\
+    \ coordinator after topology selection."
+  modes:
+  - build
+  - orchestrate
+  capabilities:
+  - '{''topology analysis'': ''hierarchical vs mesh vs ring vs hybrid''}'
+  - task dependency graph construction from spec.md
+  - delegation to hierarchical-coordinator for parallel work
+  - ring sequencing for strictly dependent task chains
+  - topology switch mid-build if task count or conditions change
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: quorum-manager
+  file: C:/Users/trg16/.claude/agents/quorum-manager.md
+  model: sonnet
+  description: Consensus gate for destructive operations. Before any agent executes
+    a destructive action (drop table, force push, delete branch, truncate data, remove
+    migration), it must check with quorum-manager. Requires majority approval (2/3
+    agents or explicit human approval) before allowing the action. Stores approvals
+    in .autopilot/consensus.json.
+  modes:
+  - verify
+  - build
+  capabilities:
+  - destructive action classification
+  - consensus.json read/write for pre-approvals
+  - approval request formatting for human review
+  - automatic approval for pre-approved actions
+  - audit log of all destructive action decisions
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: tdd-london-swarm
+  file: C:/Users/trg16/.claude/agents/tdd-london-swarm.md
+  model: sonnet
+  description: "Parallel TDD agents using London-school (outside-in, mockist) methodology.\
+    \ Invoked when [mode:tdd] tasks require strict boundary isolation. Spawns: 1 interface-designer\
+    \ (defines contracts/mocks), N implementers (one per class/module), 1 integration-tester\
+    \ (end-to-end contract verification). All unit tests use mock objects \u2014 no\
+    \ real dependencies at unit level."
+  modes:
+  - build
+  - tdd
+  capabilities:
+  - '{''London-school TDD'': ''outside-in, mockist approach''}'
+  - interface contract design before implementation
+  - parallel unit test + implementation (one agent per module)
+  - mock generation with pytest-mock / vitest vi.fn()
+  - integration test layer after all units pass
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: mutation-tester
+  file: C:/Users/trg16/.claude/agents/mutation-tester.md
+  model: sonnet
+  description: 'Test quality validator using mutation testing. After /build or /verify,
+    runs mutation testing to verify tests actually catch bugs (not just achieve coverage).
+    Uses mutmut (Python) or stryker (TypeScript/JavaScript). Reports mutation score:
+    % of mutants killed. Score < 60% = test suite is weak. Identifies specific untested
+    code paths and recommends concrete tests to add.'
+  modes:
+  - verify
+  capabilities:
+  - '{''Python'': ''mutmut integration''}'
+  - '{''TypeScript/JS'': ''Stryker integration''}'
+  - mutation score reporting (killed/survived/timeout)
+  - '{''survival analysis'': ''which code paths have no effective tests''}'
+  - '{''concrete recommendations'': ''specific test cases to add per survivor''}'
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
