@@ -106,6 +106,14 @@ RECALIBRATED_PEER_REVIEW_CORRECTION_RATE = 0.40
 RECALIBRATED_BASE_GENERALIST_ACCURACY = 0.50
 # (Change 2 — novelty discount formula — is applied directly in _peer_correction())
 
+# --- Diversity bonus (temperature-driven category diversification) ---
+DIVERSITY_BONUS = 0.0
+# Effective uniqueness multiplier from probing underprobed categories at higher temperature.
+# At T=0.30: no bonus (category concentration matches Q3.2 empirical baseline).
+# At T=0.50: +0.10 relative uniqueness improvement (10% more coverage of underprobed categories).
+# At T=0.70: +0.20 relative uniqueness improvement (20% more coverage, per Q7.8 model).
+# Set to 0.0 by default; only modified for Q7.8 temperature diversification tests.
+
 # --- Fix loop (opt-in: --fix-loop flag in actual BrickLayer) ---
 FIX_LOOP_ENABLED = False
 # Whether the fix loop is active. When True: FAILURE verdicts trigger a blocking
@@ -167,9 +175,13 @@ def _wave_uniqueness(wave: int) -> float:
     questions are run per wave (more ground covered per iteration).
     Floor of 0.10: there is always some residual novelty even in late waves
     (emergent failure modes, environment drift, new dependencies).
+
+    DIVERSITY_BONUS applies a relative uplift when higher hypothesis temperature
+    causes the generator to explore underprobed categories (Q7.8 model).
     """
     saturation = WAVE_SATURATION_RATE * (QUESTIONS_PER_WAVE / 7.0)
-    return max(0.10, 1.0 - (wave - 1) * saturation)
+    base_uniqueness = max(0.10, 1.0 - (wave - 1) * saturation)
+    return min(1.0, base_uniqueness * (1.0 + DIVERSITY_BONUS))
 
 
 def _peer_correction(drift_rate: float) -> float:

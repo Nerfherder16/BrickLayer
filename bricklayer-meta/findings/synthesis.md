@@ -353,3 +353,237 @@ None of these conditions exist today. The research has reached a natural stoppin
 | PENDING_EXTERNAL escalation fires on legitimate long wait | Low | Low | Deterministic TTL wait exceeds 3 waves without max_blocked_waves override | Question author |
 
 Note: constants.py remains unchanged. All recalibration changes (1-3) modify SCENARIO PARAMETERS in simulate.py, not the immutable thresholds in constants.py. The immutable thresholds (CAMPAIGN_YIELD_FAILURE=0.25, CAMPAIGN_YIELD_WARNING=0.45, etc.) remain the quality gates that the recalibrated model must pass.
+
+---
+---
+
+# Synthesis: BrickLayer Meta-Research — Wave 3
+
+**Generated**: 2026-03-26
+**Questions answered**: 9 (Q7.1–Q7.9)
+**Cumulative total**: 36 questions across 3 waves
+**Purpose**: Verify recalibrated simulate.py against live runs, stress-test J-curve Model B at WAVE_COUNT=20, specify compound-state interaction rules, quantify combined capacity recovery, fully specify HHI severity-exemption gate and session-start self-check, and validate runner contract yield assumptions empirically.
+
+---
+
+## 1. Executive Summary
+
+Wave 3 targeted implementation readiness: every question either validates a Wave 2 design to the point of code-writability or identifies a specific gap that blocks deployment. The wave produced 3 FAILURE verdicts, 2 WARNINGs, and 4 HEALTHY findings — the densest FAILURE concentration of the three waves.
+
+The FAILUREs are concentrated in the simulation model and in Q6.7's conditional recommendations. They do not indicate architectural problems with BrickLayer itself; they indicate that two simulation components require further iteration before they match empirical behavior, and that the 15% SUBJECTIVE ceiling and the J-curve parameters both have unresolved model-dependency.
+
+The HEALTHY findings are uniformly high quality: combined capacity delta, HHI severity-exemption gate, session-start self-check, and runner contract back-validation are all fully specified and ready to implement without further research.
+
+**Verdict Distribution — Wave 3 (9 questions):**
+- FAILURE: 3 (Q7.2 — J-curve Model B at WAVE_COUNT=20, Q7.7 — 15% SUBJECTIVE ceiling under Model A, Q7.8 — temperature as concentration lever)
+- WARNING: 2 (Q7.1 — novelty cliff location off prediction, Q7.3 — compound state requires new loop capability)
+- HEALTHY: 4 (Q7.4 — combined capacity delta additive, Q7.5 — HHI severity-exemption gate, Q7.6 — session-start self-check, Q7.9 — runner contract empirical back-validation)
+
+**Cumulative Distribution (36 questions):**
+- FAILURE: 10 (28%)
+- WARNING: 8 (22%)
+- HEALTHY: 18 (50%)
+
+**Overall health signal: HEALTHY** — BrickLayer's architecture and implementation readiness remain solid. The Wave 3 FAILUREs are measurement and calibration failures in supporting components, not structural failures in the campaign engine itself.
+
+---
+
+## 2. Wave 3 Summary Table
+
+| Q | Verdict | Severity | Summary |
+|---|---------|----------|---------|
+| Q7.1 | WARNING | Medium | Nominal HEALTHY (yield=0.750) confirmed, but novelty cliff at DN≈0.95 — +0.15–0.35 outside predicted range |
+| Q7.2 | FAILURE | High | J-curve Model B at WAVE_COUNT=20 produces WARNING (yield=0.371); Phase 2 misses empirical target by −0.303 |
+| Q7.3 | WARNING | Medium | DEPLOYMENT_BLOCKED + PENDING_EXTERNAL are non-overlapping and deadlock-free; `resume_after=question_status` needs structured syntax + post-completion re-eval hook (~25 lines) |
+| Q7.4 | HEALTHY | Low | Combined capacity delta +0.179; mechanisms are additive; robust down to 50% refill quality |
+| Q7.5 | HEALTHY | Low | HHI severity-exemption gate fully specified; 100% precision/recall retroactively on Recall campaign |
+| Q7.6 | HEALTHY | Medium | Session-start self-check specified using 3 format-invariant substrings; correctly identifies Session A (fail) and Session B (pass) |
+| Q7.7 | FAILURE | High | 15% SUBJECTIVE ceiling is model-dependent: WARNING under Model A, barely HEALTHY under Model B; ceiling must be 8–10% if Model B cannot be guaranteed |
+| Q7.8 | FAILURE | Medium | Temperature increase not viable for reducing category concentration; resolution floor (1/28 ≈ 0.036) prevents measurable improvement; T>0.50 produces net yield loss |
+| Q7.9 | HEALTHY | Low | Specialist/generalist consistency gap = 0.485 (exceeds 0.30 threshold); primary mechanism is evidence completeness, not accuracy; runner contract yield estimate revised to +0.05–+0.10 |
+
+---
+
+## 3. Key Findings from Wave 3
+
+### 3a. Simulation recalibration: nominal is confirmed, boundary predictions are off
+
+Q7.1 confirms the three Wave 1/2 recalibrations (PEER_REVIEW_CORRECTION_RATE=0.40, steeper novelty discount, BASE_GENERALIST_ACCURACY=0.50) apply cleanly to the live `simulate.py` and produce yield=0.750 at nominal parameters. The simulation is correctly recalibrated.
+
+However, the novelty cliff moved to DN≈0.95 (predicted range: 0.60–0.80), and no specialization floor appears in the ASR=[0.00–0.40] sweep range. The root cause is that the dominant yield factor at WAVE_COUNT=4 is wave uniqueness saturation, not accuracy collapse. The accuracy-driven boundary (cliff, floor) only manifests at extreme novelty or all-generalist configurations — scenarios outside the default operating envelope. The recalibrated model is more resilient than predicted, which is not a problem for nominal operation but means the simulation underestimates robustness at moderate stress levels.
+
+**Implication**: The simulation is a valid nominal-parameter tool. Boundary predictions (cliff location, floor onset) should not be treated as precise absolute values — they are order-of-magnitude indicators.
+
+### 3b. J-curve Model B needs steeper early-phase rise
+
+Q7.2 is a clean FAILURE: Model B at WAVE_COUNT=20 produces WARNING (yield=0.371), not HEALTHY. Phase 2 yield mean (0.339) misses the empirical target (0.642) by −0.303. The piecewise linear function reaches only uniqueness=0.357 at wave 10 — insufficient to sustain yield above the WARNING floor through the mid-campaign transition.
+
+The fix is clear: the rise phase must start steeper. Options include raising the Phase 1 floor above 0.20, compressing the rise window from waves 8–15 to waves 8–12, or using a convex rather than linear rise function. None of these require architectural changes — only parameter tuning. A Q8.x verification run with adjusted parameters would be the natural next step if the J-curve is prioritized.
+
+### 3c. Compound state: safe but requires one new capability
+
+Q7.3 confirms DEPLOYMENT_BLOCKED and PENDING_EXTERNAL are non-overlapping (zero Recall campaign questions would have held both statuses) and deadlock-free (A's unblocking conditions are always external; B's dependency on A forms a DAG, not a cycle). This resolves the primary safety concern.
+
+The implementation gap is narrow: Q6.6's event-description syntax for question-status `resume_after` conditions is informal prose. A structured format (`Q22.1.R:DONE`) and a 15-line post-completion re-evaluation hook in `bl/campaign.py` are required. Without this, B activates one wave late after A reaches DONE — functionally correct but suboptimal. Total new code: ~25 lines.
+
+### 3d. Combined capacity recovery is large and robust
+
+Q7.4 quantifies the compound effect: DEPLOYMENT_BLOCKED + PENDING_EXTERNAL together free 27% of question capacity, producing a yield delta of +0.179 at baseline refill quality. The mechanisms are strictly additive (non-overlapping question pools). Even at 50% refill quality, the delta (+0.089) remains well above the HEALTHY threshold. This confirms that implementing both mechanisms delivers a meaningful, durable campaign quality improvement.
+
+### 3e. HHI severity-exemption gate is implementation-ready
+
+Q7.5 delivers a complete, retroactively-validated gate specification. The two-condition CRITICAL FAILURE definition (Verdict=FAILURE + severity phrase from a ten-item list) is extractable from the finding's title and first 30 lines without metadata files or structured schemas. The gate achieves 100% precision and recall on the Recall campaign: all 7 write-path redirects in waves 1–7 correctly pass, and the within-wave-13 retrieval deep-dive is correctly protected from interruption.
+
+The per-category exemption window (N=5 waves, with early-expiry rule) prevents deadlock even when multiple categories are simultaneously exempt. The tie-breaking rule (fewer questions asked, then alphabetical) prevents oscillating redirects. This specification can be inserted into `program.md` directly.
+
+### 3f. Session-start self-check specified and retroactively validated
+
+Q7.6 provides three format-invariant substrings (`spawn peer-reviewer`, `spawn forge-check`, `agent-auditor`) that fully discriminate between live and stale session contexts. The check uses only the Read file tool, survives header-level reformatting, and correctly identifies Session A (which caused 20+ waves of unreviewed findings) as failing while Session B passes. The halt-and-reread procedure recovers stale sessions automatically. The full block is ready to insert into `program.md` and `template/program.md`.
+
+### 3g. SUBJECTIVE verdict ceiling is model-conditional
+
+Q7.7 reveals a significant gap in Q6.7's 15% ceiling recommendation. Under Model A (SUBJECTIVE findings count as 0.5 toward yield), even 12% drops yield to WARNING (0.705 < 0.716 threshold). Only Model B (active human review queue, ≥70% per-wave resolution) passes HEALTHY at 15%. The Wave 2 recommendation was validated implicitly under Model B semantics without verifying Model A.
+
+The corrected ceilings: Model A ≤10%, Model B ≤15–17%. Since many campaigns cannot guarantee a 70% per-wave human resolution rate, the operationally safer default ceiling is 10%. This is not a fatal problem — SUBJECTIVE verdicts are a quality feature, and healthy campaigns should trend to 5–8% without needing to approach the ceiling.
+
+### 3h. Temperature increase is not a viable concentration lever
+
+Q7.8 resolves the Q3.2/Q6.4 residual: raising hypothesis temperature does not reduce category concentration in a 28-question campaign. The root cause is a resolution floor — the minimum detectable yield improvement at 7 q/wave × 4 waves is 1/28 ≈ 0.036. A 10% uniqueness uplift from T=0.50 shifts expected actionable count by less than one question, producing zero measurable yield change under a fixed RNG. At T=0.70, the validity penalty removes 2–3 questions entirely, producing yield=0.643 (−0.107). Temperature is a coarse lever for a fine-grained problem; HHI sentinel + category-floor forcing (from Q6.4) remains the correct mechanism.
+
+### 3i. Runner contract yield benefit empirically grounded
+
+Q7.9 provides the first empirical back-validation of the runner contract hypothesis. Specialist findings (quantitative-analyst, 15 sampled) achieve mean internal consistency 1.000; generalist proxy findings (research-analyst + synthesizer-bl2 in agent-task mode, 11 sampled) achieve 0.515. The 0.485 gap substantially exceeds the HEALTHY threshold of 0.30.
+
+The primary mechanism is evidence completeness, not accuracy precision: all 11 generalist proxy findings have empty Evidence sections (criterion (a) fails 11/11). A structured output schema requiring Evidence fields would have prevented all criterion (a) failures. This revises the Q6.7 Gaussian upper bound (+0.215) downward to +0.05–+0.10, but confirms the direction and existence of a real yield benefit from enforcing output contracts.
+
+---
+
+## 4. Cross-Domain Patterns (FAILURE + WARNING together)
+
+Three patterns emerge from the Wave 3 FAILURE and WARNING findings read as a group:
+
+### Pattern 1: Model-dependency is a recurring failure mode in Q6.7 extrapolations
+
+Q7.7 (SUBJECTIVE ceiling), Q7.2 (J-curve), and Q7.1 (cliff location) all trace back to Q6.7 recommendations that carried implicit model assumptions. Q6.7's Change 3 (SUBJECTIVE) used proportional delta analysis without testing absolute yield floors; Change 5 (J-curve) was validated at WAVE_COUNT=20 without verifying Phase 2 phase means; Change 4 (recalibration) assumed the novelty cliff would appear in the DN=0.60–0.80 range without accounting for saturation dominance at WAVE_COUNT=4.
+
+**Pattern**: Q6.7 quantified yield deltas correctly at a coarse level but did not test boundary conditions for each change. Wave 3 found the boundary failures. The Q6.7 roadmap remains valid as a priority ordering; the specific threshold recommendations require model-conditional refinement.
+
+### Pattern 2: Continuous math over-predicts discrete simulation improvements
+
+Q7.8's resolution floor finding and Q7.9's Gaussian model recalibration both point to the same problem: continuous multiplicative models (Q6.7 Gaussian variance reduction, Q7.8 break-even net_mult) predict improvements that are below the integer-outcome resolution floor in a 28-question campaign.
+
+This is a simulation design limitation, not a BrickLayer limitation. Real campaigns with 200+ questions (like the 36-wave Recall campaign) can detect effects that a 4-wave simulation cannot. When evaluating roadmap changes against the simulation, effects smaller than ~0.036 yield delta should be treated as "too small to model at WAVE_COUNT=4" rather than "zero."
+
+### Pattern 3: Implementation gaps are consistently narrow (not architectural)
+
+Q7.3's resume_after syntax gap (~25 lines), Q7.2's J-curve phase calibration (parameter tuning), Q7.7's ceiling model-conditionality (documentation change) — all Wave 3 FAILUREs and WARNINGs identify gaps that are bounded, specific, and non-architectural. None requires rethinking a mechanism; each requires either a targeted code addition or a documentation precision fix.
+
+This is encouraging: three waves of stress-testing have not found any structural defects in BrickLayer's campaign loop. The remaining work is refinement, not redesign.
+
+---
+
+## 5. Implementation Priorities
+
+Based on all three waves, the following priority order is recommended for implementation. Items marked READY have complete specifications from Q6–Q7 findings and can be implemented without further research.
+
+| Priority | Change | Status | Evidence | Estimated effort |
+|----------|--------|--------|----------|-----------------|
+| 1 | **DEPLOYMENT_BLOCKED status + suppression** | READY | Q6.3, Q7.4 | Medium — new Status enum, pre-wave filter, git diff check |
+| 2 | **PENDING_EXTERNAL status + escalation** | READY | Q6.6, Q7.3, Q7.4 | Medium — new Status enum, ISO-8601 + question-status resume_after parser (~25 lines) |
+| 3 | **Session-start self-check in program.md** | READY | Q7.6 | Trivial — insert block, ~15 lines |
+| 4 | **HHI severity-exemption gate in program.md** | READY | Q7.5 | Small — insert gate specification into program.md and template/program.md |
+| 5 | **simulate.py recalibration (changes 1-3 only)** | APPLIED | Q7.1 | Done — already applied to simulate.py |
+| 6 | **J-curve Model B parameter re-tuning** | NEEDS WORK | Q7.2 | Small — adjust Phase 1 floor or compress rise window; verify with a single simulation run |
+| 7 | **Pluggable evaluate.py interface** | SPECIFIED | Q6.7 | Large — new module, proven +0.108 yield delta |
+| 8 | **Runner output contract** | SPECIFIED | Q7.9, Q6.7 | Medium — output schema enforcement; yield delta revised to +0.05–+0.10 |
+| 9 | **SUBJECTIVE verdict + Model B queue** | CONDITIONAL | Q7.7 | Medium — requires active human review queue; ceiling is 10% without it |
+
+**Key changes from Wave 2 priority order:**
+- Session-start self-check (Priority 3) and HHI gate (Priority 4) promoted to READY — both are fully specified and trivially implementable.
+- J-curve re-tuning (Priority 6) moved behind READY items — it requires one more simulation run to validate revised parameters before implementation.
+- Runner contract yield estimate revised from +0.215 (upper bound) to +0.05–+0.10 (empirically grounded by Q7.9), but still positive and real — priority unchanged.
+- Temperature lever (Q7.8) removed from consideration — confirmed non-viable.
+
+---
+
+## 6. Open Questions for Wave 4
+
+Wave 3 closed five Wave 2 open items and generated three new open questions. Wave 4 is warranted only if priorities 1–6 are implemented and a verification run is desired — not for further design research.
+
+### 6a. J-curve Phase 2 calibration (Q7.2 FAILURE — unresolved)
+
+The piecewise linear rise needs a steeper early slope. Candidates:
+- Raise Phase 1 floor: 0.20 → 0.35 (starts higher, reaches plateau sooner)
+- Compress rise window: waves 8–12 instead of 8–15 (steeper linear slope)
+- Convex rise: use a concave-up function rather than linear
+
+A single simulation run at WAVE_COUNT=20 with each candidate would resolve this. This is a verification run, not a research question — it belongs in the implementation cycle, not a Wave 4 campaign.
+
+### 6b. Model B human review queue operationalization (Q7.7 WARNING — partial)
+
+The 15% SUBJECTIVE ceiling under Model B requires ≥70% per-wave human resolution rate. No operational definition of "the review queue" exists in program.md or any agent specification. Before enabling SUBJECTIVE verdict type in a production campaign, the review process needs to be specified: who reviews, when, how verdicts are updated in questions.md, and what happens if the queue backlog exceeds N findings.
+
+### 6c. Temperature-driven diversity at larger campaign scale (Q7.8 FAILURE — follow-up)
+
+Q7.8 identified the resolution floor as the reason temperature fails at 28 questions. At QUESTIONS_PER_WAVE=9 or WAVE_COUNT=6, the resolution floor drops to ~0.024 (6 q/wave × 6 waves = 36 questions, 1/36 ≈ 0.028), potentially making temperature effects detectable. Additionally, empirically measuring HHI across temperatures via actual qwen2.5:7b sampling would validate or refute the 10% uniqueness uplift assumption. Both are optional follow-ups — the HHI sentinel is sufficient as the primary concentration lever regardless.
+
+---
+
+## 7. Revised Evolution Roadmap (post-Wave 3)
+
+This updates Section 7 from the Wave 2 synthesis. Changes from Wave 2 in **bold**.
+
+| Priority | Change | Status | Notes |
+|----------|--------|--------|-------|
+| 1 | DEPLOYMENT_BLOCKED + suppression | READY | Fully specified, Q6.3. Implement first — highest capacity gain with most certain delta. |
+| 2 | PENDING_EXTERNAL + escalation | READY | Fully specified, Q6.6. Implement alongside P1 in same `bl/campaign.py` pass. **Q7.3 adds: ~25 lines for structured resume_after syntax.** |
+| 3 | **Session-start self-check in program.md** | **READY (new)** | **Q7.6: 15-line insert, trivial cost, prevents 20+ waves of unreviewed findings. Highest ROI of any Wave 3 item.** |
+| 4 | **HHI gate + severity exemption** | **READY (updated)** | **Q7.5 completes the Q6.4 WARNING. Full specification ready for program.md insert.** |
+| 5 | simulate.py recalibration (changes 1-3) | APPLIED | Already applied in Q7.1. No further work required. |
+| 6 | **J-curve Model B re-tuning** | **NEEDS 1 RUN** | **Q7.2 FAILURE. Parameters need adjustment before implementation. Single verification run sufficient.** |
+| 7 | Pluggable evaluate.py interface | SPECIFIED | +0.108 yield delta confirmed. Second-highest proven gain after capacity recovery. Large build. |
+| 8 | Runner output contract | SPECIFIED | **Yield delta revised to +0.05–+0.10 (Q7.9). Mechanism is evidence completeness, not accuracy.** |
+| 9 | SUBJECTIVE verdict + human queue | CONDITIONAL | **Ceiling is model-conditional (Q7.7). Implement only with active human review process. Default ceiling 10% if Model B uncertain.** |
+
+---
+
+## 8. Residual Risk Inventory (Updated)
+
+Carries forward Wave 2 risks with updates. Changes from Wave 2 marked with arrows.
+
+| Risk | Severity | Likelihood | Change from Wave 2 |
+|------|----------|------------|-------------------|
+| J-curve applied to short campaign by mistake | High | Low | Unchanged |
+| **J-curve Phase 2 yield undershoot at WAVE_COUNT=20** | **High** | **High** | **NEW — Q7.2 confirms current parameters produce WARNING. Must be fixed before J-curve is merged.** |
+| Runner contract yield overestimated | Medium | Medium | → **Downgraded: Q7.9 empirically grounds a real effect at +0.05–+0.10. Upper bound overstated, but direction confirmed.** |
+| HHI sentinel suppresses legitimate deep-dive | Medium | Medium | → **Resolved: Q7.5 delivers severity-exemption gate spec. Risk drops to Low once gate is implemented.** |
+| SUBJECTIVE rate exceeds ceiling in creative domains | Medium | Medium | → **Upgraded to Medium: Q7.7 shows the ceiling is model-conditional. Risk is real if team assumes 15% without Model B operational process.** |
+| Session boundary causes peer review gap | Low | Medium | → **Resolved: Q7.6 delivers session-start self-check spec. Risk drops to Low once check is inserted into program.md.** |
+| Temperature used as diversity lever without HHI sentinel | Low | Low | **NEW — Q7.8 confirms temperature is ineffective. Document as anti-pattern.** |
+| Recalibration changes shift thresholds for other projects | Low | Low | Unchanged |
+| PENDING_EXTERNAL escalation fires on legitimate long wait | Low | Low | Unchanged |
+
+---
+
+## 9. Recommendation: PIVOT to Implementation
+
+Wave 3 has achieved its objectives:
+
+1. **Simulation recalibrations verified** — Nominal HEALTHY confirmed (yield=0.750). Cliff and floor locations are off-prediction but understood (saturation dominance at short campaign lengths). Simulation is fit for nominal-parameter use.
+
+2. **J-curve failure characterized** — Phase 2 undershoot identified; fix is parameter tuning (steeper early rise), not architecture change. One verification run after re-tuning is sufficient.
+
+3. **Compound state safety verified** — DEPLOYMENT_BLOCKED + PENDING_EXTERNAL are non-overlapping and deadlock-free. One implementation gap (~25 lines) identified and specified.
+
+4. **All priority-1 through priority-4 items are fully implementable** — Session-start self-check, HHI severity-exemption gate, combined capacity recovery mechanisms: each has a complete spec and can be merged without further research.
+
+5. **Wave 2's open questions resolved** — SUBJECTIVE ceiling is model-conditional (clarified, not refuted); temperature is confirmed non-viable (closes the Q3.2/Q6.4 follow-up thread); runner contract yield revised to a tighter, empirically-grounded range.
+
+**A Wave 4 would be warranted only after implementation**:
+- Implement priorities 1–4, plus J-curve re-tuning
+- Run a live campaign with the new mechanisms active
+- If the campaign produces unexpected behavior (DEPLOYMENT_BLOCKED capacity recovery differs significantly from +0.107, J-curve still undershoots Phase 2, HHI gate fires at wrong threshold) — then a targeted verification wave
+
+**Recommendation: PIVOT. Stop generating new research questions. Implement priorities 1–4 immediately (trivial to medium effort). Tune J-curve parameters and run one verification simulation. Then run a live campaign against an active project to validate the combined effect empirically.**
+
+The research findings are now ahead of implementation. Further simulation questions produce diminishing returns relative to actual build-and-verify work.
