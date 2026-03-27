@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Stop hook (Masonry): Estimate context window usage.
- * Blocks stop with a visible warning when context exceeds 150K tokens.
+ * Blocks stop with a visible warning when context exceeds 750K tokens.
  * stop_hook_active prevents infinite loops — fires once, then allows stop.
  */
 
