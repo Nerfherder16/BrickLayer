@@ -262,7 +262,7 @@ def run_agent(
 
         score = _score_output(raw_output, expected_verdict, metric_fn)
         score_int = int(score * 100)
-        match = "✓" if predicted_verdict == expected_verdict else "✗"
+        match = "OK" if predicted_verdict == expected_verdict else "XX"
         print(f"score={score_int} | got={predicted_verdict} {match}")
         scores.append(score_int)
 
