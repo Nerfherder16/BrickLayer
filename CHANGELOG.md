@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `408ddfb` feat(hooks): add masonry-mortar-enforcer PreToolUse:Agent hook (2026-03-26)
 - `7dcb3e9` chore: auto-commit 1 session file on stop (2026-03-26)
 - `cf3ab7f` fix(hooks): use local node_modules/.bin instead of npx for prettier/eslint (2026-03-26)
 - `c1171cd` chore: auto-commit 3 session files on stop (2026-03-26)
