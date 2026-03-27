@@ -13,6 +13,8 @@
 #   optimize   — 30min: linter + typecheck, write .autopilot/quality.md
 #   consolidate — 2h: deduplicate Recall build patterns via similarity
 #   deepdive   — 4h: code complexity + dead code + duplication audit
+#   ultralearn  — 60min: deep session pattern extraction, store to Recall
+#   map         — 30min: codebase structure map, write .autopilot/map.md
 
 set -euo pipefail
 
@@ -28,6 +30,8 @@ declare -A WORKER_SCRIPTS=(
   [optimize]="${DAEMON_DIR}/worker-optimize.js"
   [consolidate]="${DAEMON_DIR}/worker-consolidate.js"
   [deepdive]="${DAEMON_DIR}/worker-deepdive.js"
+  [ultralearn]="${DAEMON_DIR}/worker-ultralearn.js"
+  [map]="${DAEMON_DIR}/worker-map.js"
 )
 
 declare -A WORKER_INTERVALS=(
@@ -35,6 +39,8 @@ declare -A WORKER_INTERVALS=(
   [optimize]=1800      # 30 minutes
   [consolidate]=7200   # 2 hours
   [deepdive]=14400     # 4 hours
+  [ultralearn]=3600    # 60 minutes
+  [map]=1800           # 30 minutes
 )
 
 pid_file() { echo "${PID_DIR}/${1}.pid"; }
@@ -108,7 +114,7 @@ stop_worker() {
 show_status() {
   echo "Masonry Daemon Workers"
   echo "====================="
-  for name in testgaps optimize consolidate deepdive; do
+  for name in testgaps optimize consolidate deepdive ultralearn map; do
     local pidfile; pidfile=$(pid_file "$name")
     local logfile; logfile=$(log_file "$name")
     local interval="${WORKER_INTERVALS[$name]}"
@@ -146,21 +152,21 @@ WORKER="${2:-all}"
 case "$COMMAND" in
   start)
     if [[ "$WORKER" == "all" ]]; then
-      for name in testgaps optimize consolidate deepdive; do start_worker "$name"; done
+      for name in testgaps optimize consolidate deepdive ultralearn map; do start_worker "$name"; done
     else
       start_worker "$WORKER"
     fi
     ;;
   stop)
     if [[ "$WORKER" == "all" ]]; then
-      for name in testgaps optimize consolidate deepdive; do stop_worker "$name"; done
+      for name in testgaps optimize consolidate deepdive ultralearn map; do stop_worker "$name"; done
     else
       stop_worker "$WORKER"
     fi
     ;;
   restart)
     if [[ "$WORKER" == "all" ]]; then
-      for name in testgaps optimize consolidate deepdive; do
+      for name in testgaps optimize consolidate deepdive ultralearn map; do
         stop_worker "$name"
         sleep 0.5
         start_worker "$name"

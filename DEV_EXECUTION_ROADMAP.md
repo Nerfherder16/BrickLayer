@@ -140,6 +140,49 @@ Priority tools to add:
 8. ~~**Phase 5**~~ — SPARC modes in SKILL.md (`[mode:X]` dispatch table) + spec-writer.md annotations ✅ DONE
 9. ~~**Hook Safety Audit**~~ — `continueOnError: true` on all non-blocking synchronous hooks ✅ DONE
 10. ~~**Phase 6**~~ — MCP expansion (9 new tools: route, pattern_store/search, worker_status, task_assign, agent_health, wave_validate, swarm_init, consensus_check) ✅ DONE
+11. ~~**Phase 7 (Ruflo Gap — Tier 1)**~~ — Firecrawl gap analysis + 5 highest-ROI additions ✅ DONE
+
+---
+
+## Phase 7 — Ruflo Gap Closures (Tier 1)
+
+### 7.1 `verification` Agent ✅ DONE
+**File**: `~/.claude/agents/verification.md`
+**What it does**: Build-time truth enforcement. Runs after each developer task in `/build`. Cross-checks agent claims against git diff, file existence, test results. Emits VERIFICATION_PASS / VERIFICATION_SUSPICIOUS / VERIFICATION_REJECT with structured evidence.
+**Ruflo equivalent**: Verification sidecar — Ruflo's #1 differentiator for multi-agent build quality
+
+### 7.2 Effort-Level Routing ✅ DONE
+**File**: `masonry/src/hooks/masonry-prompt-router.js`
+**What it does**: Classifies every prompt as `low/medium/high/max` effort (Opus 4.6 thinking budget). Injects `[effort:X]` annotation alongside routing hint. Maps to 76% token savings at `medium` vs `high`.
+**Ruflo equivalent**: Effort-level dispatch in hook-handler.cjs
+
+### 7.3 `worker-ultralearn.js` ✅ DONE
+**File**: `masonry/src/daemon/worker-ultralearn.js`
+**Interval**: 60 min
+**What it does**: Analyzes last 20 git commits, extracts build patterns (lang/framework/layer), stores new patterns to Recall. Deduplicates before storing. Deeper than per-write extraction — retrospective analysis.
+**Ruflo equivalent**: `ultralearn` daemon + `trainPatternsOnComplete`
+
+### 7.4 `worker-map.js` ✅ DONE
+**File**: `masonry/src/daemon/worker-map.js`
+**Interval**: 30 min
+**What it does**: Walks codebase, detects stack (langs, frameworks, test runner, build tool), entry points, key directories, test coverage ratio. Writes `.autopilot/map.md`.
+**Ruflo equivalent**: `worker-map.mjs` structure mapper
+
+### 7.5 Context Curator Upgrade ✅ DONE
+**File**: `masonry/src/hooks/masonry-session-start.js`
+**What it does**: Reads `.autopilot/map.md` at session start and injects a compact 3-line codebase snapshot (stack, entry points, key dirs). Saves Claude from re-discovering project structure each session.
+**Ruflo equivalent**: `session-restore` + `auto-memory-hook.mjs import` with codebase context
+
+---
+
+## Phase 8 — Ruflo Gap Closures (Tier 2, Backlog)
+
+- `worker-document.js` — auto-docstring extraction + Recall storage
+- `worker-refactor.js` — background dead code + duplication scanner (beyond deepdive)
+- `worker-benchmark.js` — performance regression tracker post-build
+- Agent trust scoring wired into `masonry-session-end.js`
+- compact-manual / compact-auto PreCompact split
+- `masonry_doctor` MCP tool — system health endpoint
 
 ---
 
