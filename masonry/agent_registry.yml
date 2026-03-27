@@ -1055,36 +1055,178 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
-
 - name: rough-in
   file: .claude/agents/rough-in.md
   model: sonnet
-  description: Dev task orchestrator for BrickLayer 2.0. Receives dev tasks from
-    Mortar, orchestrates the full workflow — spec → build → test → review → commit.
-    Mirrors Trowel's loop structure but for development work.
+  description: "Dev task orchestrator for BrickLayer 2.0. Receives dev tasks from\
+    \ Mortar, orchestrates the full workflow \u2014 spec \u2192 build \u2192 test\
+    \ \u2192 review \u2192 commit. Mirrors Trowel's loop structure but for development\
+    \ work."
   modes:
-    - build
-    - fix
-    - plan
-    - verify
+  - build
+  - fix
+  - plan
+  - verify
   capabilities:
-    - dev-orchestration
-    - task-decomposition
-    - agent-dispatch
-    - spec-writer delegation
-    - tdd-cycle management
-    - failure-recovery
+  - dev-orchestration
+  - task-decomposition
+  - agent-dispatch
+  - spec-writer delegation
+  - tdd-cycle management
+  - failure-recovery
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
   routing_keywords:
-    - build
-    - implement
-    - code
-    - develop
-    - fix
-    - refactor
-    - test
+  - build
+  - implement
+  - code
+  - develop
+  - fix
+  - refactor
+  - test
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: python-specialist
+  file: C:/Users/trg16/.claude/agents/python-specialist.md
+  model: sonnet
+  description: "Deep Python domain expert. Invoked by Mortar for Python/FastAPI/Pydantic/asyncio\
+    \ tasks that require specialized knowledge beyond what the general developer agent\
+    \ covers. Handles: async patterns, FastAPI router/middleware/dependency injection,\
+    \ Pydantic v2 models, pytest fixtures, SQLAlchemy/asyncpg, subprocess/OS interaction,\
+    \ performance profiling. Does NOT replace the TDD cycle \u2014 it extends the\
+    \ developer agent for Python-specific depth."
+  modes:
+  - build
+  - fix
+  - code
+  capabilities:
+  - FastAPI routing, middleware, lifespan, dependency injection
+  - Pydantic v2 model design, validators, discriminated unions
+  - asyncio concurrency patterns (gather, TaskGroup, semaphores)
+  - pytest fixtures, parametrize, monkeypatch, async test patterns
+  - PostgreSQL with asyncpg or SQLAlchemy async
+  - subprocess, OS, pathlib, tempfile on Windows and Linux
+  - type annotations, ruff/mypy compliance
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: typescript-specialist
+  file: C:/Users/trg16/.claude/agents/typescript-specialist.md
+  model: sonnet
+  description: "Deep TypeScript/React domain expert. Invoked by Mortar for frontend\
+    \ tasks requiring React 19, Tailwind v4, Vite, Vitest, and TypeScript strict-mode\
+    \ expertise. Handles: hooks design, context patterns, React Query, cva component\
+    \ variants, animation with Framer Motion, Playwright tests, bundle optimization.\
+    \ Uses Tim's dark dashboard aesthetic. Never hardcodes hex values \u2014 always\
+    \ uses design tokens."
+  modes:
+  - build
+  - fix
+  - code
+  - ui
+  capabilities:
+  - React 19 hooks, context, Suspense, Server Components awareness
+  - TypeScript strict mode, generics, discriminated unions, satisfies operator
+  - Tailwind v4 utility-first, CSS custom properties, dark mode
+  - cva (class-variance-authority) component variants
+  - Vite config, code splitting, dynamic imports
+  - Vitest + React Testing Library + Playwright
+  - Framer Motion spring animations, reduced-motion compliance
+  - Nivo charts (dark theme), Lucide icons
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: database-specialist
+  file: C:/Users/trg16/.claude/agents/database-specialist.md
+  model: sonnet
+  description: "Deep database expert for Tim's stack: PostgreSQL (asyncpg/SQLAlchemy),\
+    \ Qdrant (vector search), Neo4j (graph queries), Redis (caching/pub-sub). Invoked\
+    \ by Mortar for schema design, query optimization, migration writing, vector embedding\
+    \ pipelines, graph traversal, and cache strategy. Does NOT replace the developer\
+    \ agent \u2014 it handles the data layer with production-quality patterns."
+  modes:
+  - build
+  - fix
+  - code
+  capabilities:
+  - '{''PostgreSQL'': ''schema design, indexes, CTEs, window functions, JSONB, partitioning''}'
+  - '{''SQLAlchemy 2.x async'': ''mapped_column, relationship, select/scalars, migrations
+    via Alembic''}'
+  - '{''Qdrant'': ''collection design, vector upsert, filter payload, HNSW tuning,
+    hybrid search''}'
+  - '{''Neo4j'': ''Cypher queries, MERGE patterns, relationship traversal, graph schema''}'
+  - '{''Redis'': ''key naming conventions, TTL strategy, pub/sub, sorted sets for
+    leaderboards''}'
+  - '{''Migration safety'': ''zero-downtime patterns, nullable-first, backfill strategy''}'
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: hierarchical-coordinator
+  file: C:/Users/trg16/.claude/agents/hierarchical-coordinator.md
+  model: sonnet
+  description: "Swarm coordinator for complex multi-agent builds. Invoked by Mortar\
+    \ for tasks that require more than 3 independent workers. Maintains coordinator\u2192\
+    worker topology: assigns tasks from .autopilot/progress.json to worker agents,\
+    \ monitors completion, handles escalations, and prevents drift. Uses run_in_background:\
+    \ true for non-blocking parallel worker dispatch. Max 6 concurrent workers."
+  modes:
+  - build
+  - orchestrate
+  capabilities:
+  - parallel worker dispatch via Agent tool with run_in_background
+  - task queue management from progress.json
+  - '{''anti-drift'': ''topology enforcement, max agent cap, post-task checkpoints''}'
+  - '{''worker failure handling'': ''re-queue failed tasks, escalate to diagnose-analyst''}'
+  - consensus gate before destructive operations
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: production-validator
+  file: C:/Users/trg16/.claude/agents/production-validator.md
+  model: sonnet
+  description: 'Production readiness validator. Invoked after /build completes, before
+    merging to main. Validates that the built code would survive production: runs
+    tests in prod-like environment, checks for common production failure patterns
+    (blocking I/O in async, hardcoded localhost, missing env validation, Docker build
+    success, migration safety). Returns PROD_PASS or PROD_FAIL with a prioritized
+    fix list.'
+  modes:
+  - verify
+  capabilities:
+  - async/sync production failure pattern detection
+  - environment variable validation audit
+  - Docker build smoke test
+  - database migration dry-run check
+  - hardcoded host/port/secret detection
+  - dependency version pinning audit
+  - performance smoke test (startup time, first request latency)
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
