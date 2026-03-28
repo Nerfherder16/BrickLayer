@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 /**
  * Stop hook (Masonry): Estimate context window usage.
- * Blocks stop with a visible warning when context exceeds 750K tokens.
+ * Blocks stop ONLY when context > 750K AND there are uncommitted changes.
+ * If the repo is clean, emits a stderr warning but allows the stop.
  * stop_hook_active prevents infinite loops — fires once, then allows stop.
  */
 
-const { statSync } = require("fs");
+const { statSync, existsSync } = require("fs");
+const { execSync } = require("child_process");
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -15,6 +17,17 @@ function readStdin() {
     process.stdin.on("end", () => resolve(data));
     setTimeout(() => resolve(data), 2000);
   });
+}
+
+function hasUncommittedChanges(cwd) {
+  try {
+    const status = execSync("git status --porcelain", {
+      encoding: "utf8", timeout: 5000, cwd,
+    }).trim();
+    return status.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 async function main() {
@@ -35,10 +48,20 @@ async function main() {
     const estimatedTokens = Math.round(stats.size / 4);
 
     if (estimatedTokens > 750000) {
-      process.stdout.write(JSON.stringify({
-        decision: "block",
-        reason: `~${Math.round(estimatedTokens / 1000)}K tokens (>750K) — commit + new session.`,
-      }));
+      const cwd = parsed.cwd || process.cwd();
+      const dirty = hasUncommittedChanges(cwd);
+      const label = `~${Math.round(estimatedTokens / 1000)}K tokens (>750K) — commit + new session.`;
+
+      if (dirty) {
+        // Block: uncommitted changes + large context = risk of lost work
+        process.stdout.write(JSON.stringify({
+          decision: "block",
+          reason: label,
+        }));
+      } else {
+        // Warn only: repo is clean, safe to stop
+        process.stderr.write(`\n[Masonry] ${label}\n`);
+      }
     }
   } catch {}
 
