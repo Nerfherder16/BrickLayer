@@ -89,10 +89,7 @@ async function main() {
     process.stderr.write(`\n${orphanMsg}\n`);
     process.stdout.write(
       JSON.stringify({
-        hookSpecificOutput: {
-          hookEventName: "Stop",
-          content: `${orphanMsg}\nAn interrupted build from a prior session may still have uncommitted work. Run \`git status\` and check \`.autopilot/progress.json\` before starting new work.`,
-        },
+        systemMessage: `${orphanMsg}\nAn interrupted build from a prior session may still have uncommitted work. Run \`git status\` and check \`.autopilot/progress.json\` before starting new work.`,
       }),
     );
     process.exit(0);
@@ -102,10 +99,7 @@ async function main() {
     process.stderr.write(`\n${legacyMsg}\n`);
     process.stdout.write(
       JSON.stringify({
-        hookSpecificOutput: {
-          hookEventName: "Stop",
-          content: `${legacyMsg}\nAn interrupted build from a prior session may still have uncommitted work. Run \`git status\` and check \`.autopilot/progress.json\` before starting new work.`,
-        },
+        systemMessage: `${legacyMsg}\nAn interrupted build from a prior session may still have uncommitted work. Run \`git status\` and check \`.autopilot/progress.json\` before starting new work.`,
       }),
     );
     process.exit(0);
