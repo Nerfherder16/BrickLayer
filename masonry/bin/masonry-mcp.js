@@ -1552,7 +1552,36 @@ function toolSwarmInit(args) {
     return { initialized: false, error: `Failed to write progress.json: ${err.message}` };
   }
 
-  return { initialized: true, tasks, task_count: tasks.length, project: name, branch: progress.branch };
+  // Analyze task dependencies to determine swarm topology
+  let topology = "hierarchical";
+  const tasksWithDeps = tasks.filter((t) => t.depends_on && t.depends_on.length > 0);
+  if (tasksWithDeps.length === 0) {
+    topology = "hierarchical";
+  } else {
+    // Check for strictly linear chain: task N's depends_on = [N-1]
+    const isLinear = tasks.every((t, i) => {
+      if (i === 0) return !t.depends_on || t.depends_on.length === 0;
+      return t.depends_on && t.depends_on.length === 1 && t.depends_on[0] === tasks[i - 1].id;
+    });
+    if (isLinear) {
+      topology = "ring";
+    } else {
+      // Check for mesh: multiple tasks reference the same output file (same filename in description)
+      const fileRefs = {};
+      for (const t of tasks) {
+        const fileMatch = t.description.match(/\b[\w.-]+\.(py|ts|js|tsx|jsx|json|md)\b/g);
+        if (fileMatch) {
+          for (const f of fileMatch) {
+            fileRefs[f] = (fileRefs[f] || 0) + 1;
+          }
+        }
+      }
+      const hasMeshFiles = Object.values(fileRefs).some((count) => count > 1);
+      topology = hasMeshFiles ? "mesh" : "hybrid";
+    }
+  }
+
+  return { initialized: true, tasks, task_count: tasks.length, project: name, branch: progress.branch, topology };
 }
 
 function toolConsensusCheck(args) {
@@ -2175,6 +2204,57 @@ async function dispatchTool(name, args) {
       return toolVerify7point(args);
     case "masonry_pattern_decay":
       return toolPatternDecay(args);
+    case "masonry_training_update": {
+      const { telemetry_path } = args;
+      const { execSync: _execSync } = require("child_process");
+      const collectorPath = path.join(__dirname, "../src/training/collector.py");
+      const telPath = telemetry_path || path.join(__dirname, "../../telemetry.jsonl");
+      try {
+        _execSync(`python "${collectorPath}" "${telPath}"`, { timeout: 15000, encoding: "utf8" });
+        const histPath = path.join(__dirname, "../src/training/ema_history.json");
+        const hist = JSON.parse(fs.readFileSync(histPath, "utf8"));
+        const recommendations = {};
+        for (const [taskType, strategies] of Object.entries(hist)) {
+          const best = Object.entries(strategies).sort((a, b) => b[1] - a[1])[0];
+          recommendations[taskType] = { strategy: best[0], ema_score: best[1] };
+        }
+        return { success: true, recommendations, task_types: Object.keys(hist).length };
+      } catch (e) {
+        return { success: false, error: e.message };
+      }
+    }
+    case "masonry_reasoning_query": {
+      const { query, top_k = 5, domain } = args;
+      const { execSync: _execSync } = require("child_process");
+      const bankPath = path.join(__dirname, "../src/reasoning/bank.py");
+      try {
+        const domainArg = domain ? ` "${domain}"` : "";
+        const out = _execSync(
+          `python "${bankPath}" query "${query.replace(/"/g, '\\"')}" ${top_k}${domainArg}`,
+          { timeout: 5000, encoding: "utf8" }
+        );
+        const patterns = JSON.parse(out.trim());
+        return { patterns, count: patterns.length };
+      } catch (e) {
+        return { patterns: [], count: 0, error: e.message };
+      }
+    }
+    case "masonry_reasoning_store": {
+      const { content, domain = "general", pattern_id } = args;
+      const { execSync: _execSync } = require("child_process");
+      const bankPath = path.join(__dirname, "../src/reasoning/bank.py");
+      try {
+        const idArg = pattern_id ? ` "${pattern_id}"` : "";
+        const out = _execSync(
+          `python "${bankPath}" store "${content.replace(/"/g, '\\"')}" "${domain}"${idArg}`,
+          { timeout: 5000, encoding: "utf8" }
+        );
+        const result = JSON.parse(out.trim());
+        return { success: true, pattern_id: result.pattern_id };
+      } catch (e) {
+        return { success: false, error: e.message };
+      }
+    }
     default:
       throw new Error(`Unknown tool: ${name}`);
   }

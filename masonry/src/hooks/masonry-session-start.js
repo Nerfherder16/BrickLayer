@@ -446,6 +446,33 @@ async function main() {
     }
   }
 
+  // --- ReasoningBank pattern injection ---
+  // Query the local ReasoningBank for patterns relevant to the current mode + project.
+  // Silently skipped if bank.py is unavailable or throws.
+  try {
+    const bankPath = path.join(__dirname, "../../src/reasoning/bank.py");
+    if (fs.existsSync(bankPath)) {
+      const projectBasename = path.basename(cwd);
+      const modeStr = autopilotMode || uiMode || "general";
+      const queryStr = `${modeStr} ${projectBasename}`;
+      const { execSync: _rbExecSync } = require("child_process");
+      const rbOut = _rbExecSync(
+        `python "${bankPath}" query "${queryStr.replace(/"/g, '\\"')}" 5`,
+        { timeout: 3000, encoding: "utf8" }
+      );
+      const rbPatterns = JSON.parse(rbOut.trim());
+      if (Array.isArray(rbPatterns) && rbPatterns.length > 0) {
+        lines.push("## Relevant ReasoningBank Patterns");
+        for (const p of rbPatterns) {
+          const conf = typeof p.confidence === "number" ? p.confidence.toFixed(2) : "?";
+          lines.push(`${p.content} (confidence: ${conf})`);
+        }
+      }
+    }
+  } catch (_) {
+    // bank.py unavailable or errored — skip silently
+  }
+
   if (lines.length > 0) {
     process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "SessionStart", content: lines.join("\n") } }));
   }
