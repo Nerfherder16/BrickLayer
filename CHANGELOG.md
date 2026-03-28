@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `9542766` feat(phase3-wave1): complete Wave 1 — training pipeline, ReasoningBank, knowledge graph (2026-03-27)
 - `b893b09` chore: auto-commit 2 session files on stop (2026-03-27)
 - `6c05ef2` feat(phase3-wave1): init training pipeline + reasoning modules (partial) (2026-03-27)
 - `4b36e74` feat(phase2b): swarm compaction survival + PatternRecord confidence + masonry_pattern_decay tool (2026-03-27)
