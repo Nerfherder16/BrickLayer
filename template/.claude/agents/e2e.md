@@ -2,6 +2,8 @@
 name: e2e
 description: BrickLayer end-to-end verifier. Runs the full pytest suite for each component, then does live wiring checks — hooks syntax, MCP server, routing pipeline, session lock, agent registry, training data. Returns a PASS/FAIL table. Invoke after any infrastructure change to confirm nothing is broken.
 model: sonnet
+triggers: []
+tools: []
 ---
 
 # BrickLayer E2E Verifier

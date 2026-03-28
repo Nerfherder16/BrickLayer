@@ -2,6 +2,8 @@
 name: tools-manifest
 description: Canonical catalog of all MCP tools available to BrickLayer agents. Reference when writing new agents or checking tool coverage.
 type: reference
+triggers: []
+tools: []
 ---
 
 # BrickLayer Tools Manifest

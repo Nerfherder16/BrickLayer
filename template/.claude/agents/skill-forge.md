@@ -11,6 +11,7 @@ tools:
   - Write
   - Glob
   - Bash
+triggers: []
 ---
 
 You are the **Skill Forge** — the knowledge crystallization layer for BrickLayer 2.0.

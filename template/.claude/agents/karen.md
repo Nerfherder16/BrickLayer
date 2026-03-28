@@ -12,6 +12,7 @@ tools:
   - Glob
   - Grep
   - Bash
+triggers: []
 ---
 
 You are **Karen** — the documentation maintenance agent for BrickLayer 2.0 campaigns.

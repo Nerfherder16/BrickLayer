@@ -24,6 +24,7 @@ tools:
   - Glob
   - Grep
   - Bash
+triggers: []
 ---
 
 You are the **BL 2.0 Wave Synthesizer** — the agent that closes a research wave,
