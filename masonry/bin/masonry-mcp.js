@@ -3,7 +3,7 @@
 /**
  * bin/masonry-mcp.js — Masonry MCP server
  *
- * Exposes 27 tools over MCP stdio transport (JSON-RPC 2.0):
+ * Exposes 29 tools over MCP stdio transport (JSON-RPC 2.0):
  *
  * Research / Campaign:
  *   - masonry_status          — current campaign state
@@ -35,6 +35,8 @@
  *   - masonry_training_update — recompute EMA strategy scores from telemetry.jsonl
  *   - masonry_reasoning_query — query ReasoningBank for top-k patterns matching a string
  *   - masonry_reasoning_store — store a new pattern in ReasoningBank
+ *   - masonry_graph_record     — record pattern co-citations as CITES edges in Neo4j after task success
+ *   - masonry_pagerank_run     — run PageRank on pattern graph, update confidence scores
  */
 
 const fs = require("fs");
@@ -564,6 +566,31 @@ const TOOLS = [
         pattern_id: { type: "string", description: "Optional explicit ID; auto-generated if omitted" }
       },
       required: ["content"]
+    }
+  },
+  {
+    name: "masonry_graph_record",
+    description: "Record pattern co-citations as CITES edges in Neo4j after a task succeeds. Pass pattern_ids that were used together.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        task_id: { type: "string", description: "Task identifier" },
+        pattern_ids: { type: "array", items: { type: "string" }, description: "Pattern IDs used in this task" },
+        project: { type: "string", description: "Project name (for scoping)" }
+      },
+      required: ["task_id", "pattern_ids"]
+    }
+  },
+  {
+    name: "masonry_pagerank_run",
+    description: "Run PageRank on the pattern citation graph for a project. Updates confidence scores in pattern-confidence.json.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project: { type: "string", description: "Project name to scope the PageRank run" },
+        confidence_path: { type: "string", description: "Path to pattern-confidence.json (optional)" }
+      },
+      required: ["project"]
     }
   },
 ];
@@ -1501,19 +1528,37 @@ function toolSwarmInit(args) {
   }
 
   // Parse task list: lines like "- [ ] **Task N** — description" or "- [ ] Task N: description"
+  // Optional continuation line:  depends_on: [1, 2]
   const tasks = [];
-  const taskPattern = /^[-*]\s+\[[ x]\]\s+\*?\*?Task\s+(\d+)\*?\*?\s*[:\-—]\s*(.+?)(?:\s+\[mode:(\w+)\])?$/im;
   const lines = specContent.split("\n");
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const m = line.match(/^[-*]\s+\[[ x]\]\s+(?:\*\*)?(?:Task\s+)?(\d+)(?:\.\*\*)?\s*[:\-—]\s*(.+?)(?:\s+\[mode:(\w+)\])?$/i);
     if (m) {
-      tasks.push({
+      const task = {
         id: parseInt(m[1], 10),
         description: m[2].replace(/\*\*/g, "").trim(),
         status: "PENDING",
         mode: m[3] || "default",
-      });
+      };
+
+      // Look ahead up to 3 lines for a depends_on: [...] field
+      for (let j = i + 1; j <= i + 3 && j < lines.length; j++) {
+        const nextLine = lines[j].trim();
+        if (!nextLine) break; // blank line ends the task block
+        const depsMatch = nextLine.match(/^depends_on:\s*(\[.*?\])/);
+        if (depsMatch) {
+          try {
+            task.depends_on = JSON.parse(depsMatch[1]);
+          } catch (_) { /* malformed — skip */ }
+          break;
+        }
+        // If the next line looks like another task item, stop looking
+        if (/^[-*]\s+\[[ x]\]/.test(nextLine)) break;
+      }
+
+      tasks.push(task);
     }
   }
 
@@ -1556,6 +1601,7 @@ function toolSwarmInit(args) {
   let topology = "hierarchical";
   const tasksWithDeps = tasks.filter((t) => t.depends_on && t.depends_on.length > 0);
   if (tasksWithDeps.length === 0) {
+    // No explicit depends_on on any task — independent parallel work
     topology = "hierarchical";
   } else {
     // Check for strictly linear chain: task N's depends_on = [N-1]
@@ -1566,18 +1612,15 @@ function toolSwarmInit(args) {
     if (isLinear) {
       topology = "ring";
     } else {
-      // Check for mesh: multiple tasks reference the same output file (same filename in description)
-      const fileRefs = {};
-      for (const t of tasks) {
-        const fileMatch = t.description.match(/\b[\w.-]+\.(py|ts|js|tsx|jsx|json|md)\b/g);
-        if (fileMatch) {
-          for (const f of fileMatch) {
-            fileRefs[f] = (fileRefs[f] || 0) + 1;
-          }
+      // Check for mesh: multiple tasks share the same depends_on entry
+      const depRefCount = {};
+      for (const t of tasksWithDeps) {
+        for (const dep of t.depends_on) {
+          depRefCount[dep] = (depRefCount[dep] || 0) + 1;
         }
       }
-      const hasMeshFiles = Object.values(fileRefs).some((count) => count > 1);
-      topology = hasMeshFiles ? "mesh" : "hybrid";
+      const hasMesh = Object.values(depRefCount).some((count) => count > 1);
+      topology = hasMesh ? "mesh" : "hybrid";
     }
   }
 
@@ -2255,6 +2298,40 @@ async function dispatchTool(name, args) {
         return { success: false, error: e.message };
       }
     }
+
+    case "masonry_graph_record": {
+      const { task_id, pattern_ids, project = "default" } = args;
+      const { execSync } = require("child_process");
+      const graphPath = path.join(__dirname, "../src/reasoning/graph.py");
+      try {
+        const out = execSync(
+          `python "${graphPath}" "${project}" "${task_id}" ${pattern_ids.map(id => `"${id}"`).join(" ")}`,
+          { timeout: 10000, encoding: "utf8" }
+        );
+        const result = JSON.parse(out.trim());
+        return result;
+      } catch (e) {
+        return { success: false, error: e.message, skipped: "neo4j likely unavailable" };
+      }
+    }
+
+    case "masonry_pagerank_run": {
+      const { project, confidence_path } = args;
+      const { execSync } = require("child_process");
+      const pagerankPath = path.join(__dirname, "../src/reasoning/pagerank.py");
+      const confPath = confidence_path || path.join(process.cwd(), ".autopilot", "pattern-confidence.json");
+      try {
+        const out = execSync(
+          `python "${pagerankPath}" "${project}" "${confPath}"`,
+          { timeout: 30000, encoding: "utf8" }
+        );
+        const result = JSON.parse(out.trim());
+        return result;
+      } catch (e) {
+        return { success: false, error: e.message, skipped: "neo4j likely unavailable" };
+      }
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }

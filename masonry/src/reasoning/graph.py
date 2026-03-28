@@ -145,3 +145,22 @@ class PatternGraph:
             top_k=top_k,
         )
         return [record["id"] for record in result]
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import json
+    import sys
+    # Usage: python graph.py <project> <task_id> <pattern_id1> [pattern_id2 ...]
+    if len(sys.argv) < 4:
+        print(json.dumps({"success": False, "error": "Usage: graph.py <project> <task_id> <pattern_id> ..."}))
+        sys.exit(1)
+    project = sys.argv[1]
+    task_id = sys.argv[2]
+    pattern_ids = sys.argv[3:]
+    g = PatternGraph(project=project)
+    edges = g.record_success(task_id, pattern_ids)
+    print(json.dumps({"success": True, "edges_recorded": edges, "patterns": pattern_ids}))

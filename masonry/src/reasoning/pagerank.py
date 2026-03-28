@@ -201,7 +201,7 @@ def _pagerank_manual(
 if __name__ == "__main__":
     # Usage: python pagerank.py <project> <confidence_json_path>
     if len(sys.argv) < 3:
-        print("Usage: python pagerank.py <project> <confidence_json_path>", file=sys.stderr)
+        print(json.dumps({"success": False, "error": "Usage: pagerank.py <project> <confidence_json_path>"}))
         sys.exit(1)
 
     project_arg = sys.argv[1]
@@ -209,4 +209,4 @@ if __name__ == "__main__":
 
     pr = PatternPageRank(project=project_arg)
     summary = pr.run(confidence_arg)
-    print(json.dumps(summary, indent=2))
+    print(json.dumps(summary))
