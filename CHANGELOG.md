@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `b571fe4` feat(tier3-partial): graph.py updates + HNSW test + topology module (in-progress) (2026-03-28)
 - `2bdb919` chore: update masonry (1 file) (2026-03-28)
 - `81abd77` feat(consensus): wire masonry_review_consensus into code-reviewer for conflict resolution (2026-03-28)
 - `a68d996` feat(sparc-consensus): SPARC phases + consensus builder fully wired (2026-03-28)
