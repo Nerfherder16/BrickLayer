@@ -122,6 +122,22 @@ async function main() {
     process.exit(2);
   }
 
+  // Cleanup old backups (>7 days)
+  const fs = require("fs");
+  const backupsDir = path.join(autopilotDir, "backups");
+  if (existsSync(backupsDir)) {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const files = fs.readdirSync(backupsDir);
+    let deleted = 0;
+    for (const f of files) {
+      const fp = path.join(backupsDir, f);
+      try {
+        if (fs.statSync(fp).mtimeMs < cutoff) { fs.unlinkSync(fp); deleted++; }
+      } catch {}
+    }
+    if (deleted > 0) process.stderr.write(`[masonry-build-guard] Cleaned ${deleted} old backup(s)\n`);
+  }
+
   process.exit(0);
 }
 
