@@ -249,7 +249,8 @@ async function main() {
   // Workers run as detached one-shot processes — they self-loop via daemon-manager.
   try {
     const projectFiles = fs.readdirSync(cwd).filter(f =>
-      f === 'package.json' || f === 'pyproject.toml' || f === 'requirements.txt'
+      f === 'package.json' || f === 'pyproject.toml' || f === 'requirements.txt' ||
+      f === 'masonry' || f === '.claude' || f === 'Makefile' || f === 'Cargo.toml' || f === 'go.mod'
     );
     const isRealProject = projectFiles.length > 0;
 
@@ -278,13 +279,19 @@ async function main() {
           if (fs.existsSync(workerScript)) {
             try {
               const { spawn } = require('child_process');
-              // Run one-shot (daemon-manager handles the loop when started properly)
+              if (!fs.existsSync(PID_DIR)) fs.mkdirSync(PID_DIR, { recursive: true });
+              const logPath = path.join(DAEMON_DIR, 'logs', `${workerName}.log`);
+              if (!fs.existsSync(path.join(DAEMON_DIR, 'logs'))) {
+                fs.mkdirSync(path.join(DAEMON_DIR, 'logs'), { recursive: true });
+              }
+              const logStream = fs.openSync(logPath, 'a');
               const child = spawn('node', [workerScript], {
                 detached: true,
-                stdio: 'ignore',
+                stdio: ['ignore', logStream, logStream],
                 cwd,
                 env: process.env,
               });
+              fs.writeFileSync(pidFile, String(child.pid), 'utf8');
               child.unref();
             } catch {}
           }
