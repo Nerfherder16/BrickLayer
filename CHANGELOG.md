@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `fececfc` feat(agents): add tdd-orchestrator agent (2026-03-28)
 - `dc627a6` feat: add pass@N metrics, test files, Charlie playbooks (tasks 12/25/32 progress) (2026-03-28)
 - `948e07a` feat(agents): add LOKI reflect phase and competing hypotheses protocol to trowel (task 22/32) (2026-03-28)
 - `75b1309` feat(agents): add verifier agent for dual spec-compliance verification (2026-03-28)
