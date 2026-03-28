@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `00ebf08` chore: auto-commit 5 session files on stop (2026-03-28)
 - `0a8b8e2` chore: auto-commit 1 session file on stop (2026-03-28)
 - `00a76e9` feat(phase3-wave2): MCP tools + session-start ReasoningBank integration (2026-03-27)
 - `6592d89` chore: session update to masonry-mcp.js (2026-03-27)
