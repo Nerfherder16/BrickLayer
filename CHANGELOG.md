@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `ac0f8d1` feat: masonry-pre-compact saves full build+campaign state before compaction (task 7/23) (2026-03-28)
 - `adb59b9` feat: masonry-context-monitor semantic degradation detection via Ollama (task 10/23) (2026-03-28)
 - `4e90590` docs(repo-research): finalize skills-libraries findings in INDEX (2026-03-28)
 - `7da2fb0` docs(repo-research): finalize visual/UI entries in INDEX (2026-03-28)
