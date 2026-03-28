@@ -1795,13 +1795,24 @@ agents:
 - name: tdd-orchestrator
   file: C:/Users/trg16/.claude/agents/tdd-orchestrator.md
   model: sonnet
-  description: 'Deep TDD agent: mutation testing, property-based (Hypothesis/QuickCheck), chaos, ATDD/BDD. Triggered by [mode:tdd-deep].'
-  modes: [tdd-deep]
-  capabilities: [mutation_testing, property_based, chaos, bdd]
+  description: 'Deep TDD agent: mutation testing, property-based (Hypothesis/QuickCheck),
+    chaos, ATDD/BDD. Triggered by [mode:tdd-deep].'
+  modes:
+  - tdd-deep
+  capabilities:
+  - mutation_testing
+  - property_based
+  - chaos
+  - bdd
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: [tdd, mutation, property-based, chaos, bdd]
+  routing_keywords:
+  - tdd
+  - mutation
+  - property-based
+  - chaos
+  - bdd
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1811,13 +1822,20 @@ agents:
 - name: pr-writer
   file: C:/Users/trg16/.claude/agents/pr-writer.md
   model: sonnet
-  description: 'Writes PR description, review checklist, and linked issues at /build completion.'
+  description: Writes PR description, review checklist, and linked issues at /build
+    completion.
   modes: []
-  capabilities: [pr_description, review_checklist]
+  capabilities:
+  - pr_description
+  - review_checklist
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: [pull request, pr, github, merge]
+  routing_keywords:
+  - pull request
+  - pr
+  - github
+  - merge
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1827,13 +1845,20 @@ agents:
 - name: verifier
   file: C:/Users/trg16/.claude/agents/verifier.md
   model: sonnet
-  description: 'Build-time truth enforcement agent. Cross-checks developer claims against git state, test results, and file existence.'
+  description: Build-time truth enforcement agent. Cross-checks developer claims against
+    git state, test results, and file existence.
   modes: []
-  capabilities: [verification, spec_compliance]
+  capabilities:
+  - verification
+  - spec_compliance
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: [verify, spec compliance, check, validate]
+  routing_keywords:
+  - verify
+  - spec compliance
+  - check
+  - validate
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1843,13 +1868,180 @@ agents:
 - name: rust-specialist
   file: C:/Users/trg16/.claude/agents/rust-specialist.md
   model: sonnet
-  description: 'Senior Rust developer. Implements Rust code, refactoring, tests and benchmarks. Understands ownership, async, lifetimes, unsafe.'
+  description: Senior Rust developer. Implements Rust code, refactoring, tests and
+    benchmarks. Understands ownership, async, lifetimes, unsafe.
   modes: []
-  capabilities: [rust, systems, performance]
+  capabilities:
+  - rust
+  - systems
+  - performance
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: [rust, ownership, lifetimes, async, cargo]
+  routing_keywords:
+  - rust
+  - ownership
+  - lifetimes
+  - async
+  - cargo
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: redis-specialist
+  file: C:/Users/trg16/.claude/agents/redis-specialist.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: reinforcement-learning-engineer
+  file: C:/Users/trg16/.claude/agents/reinforcement-learning-engineer.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: scientific-computing-specialist
+  file: C:/Users/trg16/.claude/agents/scientific-computing-specialist.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: vector-db-specialist
+  file: C:/Users/trg16/.claude/agents/vector-db-specialist.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: spec-reviewer
+  file: ~/.claude/agents/spec-reviewer.md
+  model: sonnet
+  description: Read-only spec compliance reviewer — returns COMPLIANT/OVER_BUILT/UNDER_BUILT/SCOPE_DRIFT
+    between developer and code-reviewer in /build
+  modes:
+  - build
+  capabilities:
+  - spec-compliance
+  - scope-detection
+  - drift-detection
+  - code-review
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: verification-analyst
+  file: C:/Users/trg16/.claude/agents/verification-analyst.md
+  model: sonnet
+  description: "Mandatory 6-gate false positive verification for security and research\
+    \ findings. Runs Process \u2192 Reachability \u2192 Real Impact \u2192 PoC \u2192\
+    \ Math Bounds \u2192 Environment checks. Returns VERIFIED | UNVERIFIED | INCONCLUSIVE\
+    \ with gate-by-gate evidence."
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: mcp-developer
+  file: C:/Users/trg16/.claude/agents/mcp-developer.md
+  model: sonnet
+  description: MCP (Model Context Protocol) server specialist. Scaffolds new MCP servers,
+    adds tools to existing ones, handles stdio/SSE transport, writes MCP tests. Knows
+    the MCP SDK, tool schema design, and error handling conventions.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: penetration-tester
+  file: C:/Users/trg16/.claude/agents/penetration-tester.md
+  model: sonnet
+  description: Security penetration testing with required authorization context. Tests
+    authentication bypass, injection, privilege escalation, exposed secrets, SSRF,
+    insecure deserialization. Returns CVSS-scored findings. Refuses without explicit
+    authorization in prompt.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: scientific-literature-researcher
+  file: C:/Users/trg16/.claude/agents/scientific-literature-researcher.md
+  model: sonnet
+  description: 'Grounds research findings in peer-reviewed literature. Searches arXiv,
+    Semantic Scholar, and PubMed. Extracts: citation, abstract, key claims, methodology,
+    sample size, effect size, confidence intervals. Flags predatory journals and unreviewed
+    preprints.'
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
   triggers: []
   tools: []
   dspy_status: not_optimized
