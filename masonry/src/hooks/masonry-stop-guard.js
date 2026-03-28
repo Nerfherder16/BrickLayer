@@ -237,6 +237,55 @@ function checkOverseerTrigger(snapshotsDir, stderrFn) {
 
 module.exports.checkOverseerTrigger = checkOverseerTrigger;
 
+/**
+ * Prune backup files older than 7 days from .autopilot/backups/.
+ * Walks the directory tree recursively, unlinks stale files, and removes
+ * empty directories left behind. Silent on any error — never blocks Stop.
+ */
+function pruneOldBackups(autopilotDir) {
+  const backupsRoot = path.join(autopilotDir, "backups");
+  if (!fs.existsSync(backupsRoot)) return;
+
+  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+  const cutoff = Date.now() - SEVEN_DAYS_MS;
+
+  function pruneDir(dir) {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir);
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry);
+      let stat;
+      try {
+        stat = fs.statSync(fullPath);
+      } catch {
+        continue;
+      }
+
+      if (stat.isDirectory()) {
+        pruneDir(fullPath);
+        // Remove directory if now empty
+        try {
+          const remaining = fs.readdirSync(fullPath);
+          if (remaining.length === 0) fs.rmdirSync(fullPath);
+        } catch { /* ignore */ }
+      } else if (stat.mtimeMs < cutoff) {
+        try {
+          fs.unlinkSync(fullPath);
+        } catch { /* ignore */ }
+      }
+    }
+  }
+
+  try {
+    pruneDir(backupsRoot);
+  } catch { /* ignore */ }
+}
+
 function tryRead(p) {
   try { return fs.readFileSync(p, "utf8").trim(); } catch { return null; }
 }
@@ -382,6 +431,13 @@ async function main() {
 
   closeSession(cwd);
   checkDocStaleness(cwd, snapPath);
+
+  // Prune stale backups (older than 7 days) from .autopilot/backups/
+  const autopilotDirForPrune = path.join(cwd, ".autopilot");
+  if (fs.existsSync(autopilotDirForPrune)) {
+    pruneOldBackups(autopilotDirForPrune);
+  }
+
   process.exit(0);
 }
 
