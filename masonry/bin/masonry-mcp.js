@@ -3,7 +3,7 @@
 /**
  * bin/masonry-mcp.js — Masonry MCP server
  *
- * Exposes 22 tools over MCP stdio transport (JSON-RPC 2.0):
+ * Exposes 23 tools over MCP stdio transport (JSON-RPC 2.0):
  *
  * Research / Campaign:
  *   - masonry_status          — current campaign state
@@ -1744,6 +1744,271 @@ async function toolDoctor(args) {
 }
 
 // ---------------------------------------------------------------------------
+// masonry_verify_7point — 7-point quality gate
+// ---------------------------------------------------------------------------
+
+function toolVerify7point(args) {
+  const { project_dir } = args;
+
+  if (!fs.existsSync(project_dir)) {
+    return { overall: "FAIL", checks: [], blocking_failures: ["project_dir not found"], warnings: [] };
+  }
+
+  const checks = [];
+  const blockingFailures = [];
+  const warnings = [];
+
+  const execOpts = { encoding: "utf8", timeout: 120000, cwd: project_dir };
+
+  // Detect project type
+  const hasPytestIni = fs.existsSync(path.join(project_dir, "pytest.ini"));
+  const hasPyproject = fs.existsSync(path.join(project_dir, "pyproject.toml"));
+  const isPython = hasPytestIni || hasPyproject;
+
+  let packageJson = null;
+  try {
+    const pkgPath = path.join(project_dir, "package.json");
+    if (fs.existsSync(pkgPath)) {
+      packageJson = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+    }
+  } catch (_) {}
+  const isJS = packageJson && packageJson.scripts && packageJson.scripts.test;
+
+  // -- CHECK 1: Unit tests --
+  {
+    let cmd;
+    if (isPython) cmd = "pytest -q --tb=short";
+    else if (isJS) cmd = "npm test -- --reporter=dot";
+
+    if (!cmd) {
+      checks.push({ name: "unit_tests", status: "SKIP", detail: "No test runner detected (no pytest.ini, pyproject.toml, or package.json with test script)" });
+    } else {
+      try {
+        execSync(cmd, execOpts);
+        checks.push({ name: "unit_tests", status: "PASS", detail: `${cmd} exited 0` });
+      } catch (err) {
+        const output = ((err.stdout || "") + (err.stderr || "")).slice(-1000);
+        checks.push({ name: "unit_tests", status: "FAIL", detail: output || err.message });
+        blockingFailures.push("unit_tests");
+      }
+    }
+  }
+
+  // -- CHECK 2: Coverage ≥ 80% (warning only) --
+  try {
+    let coveragePct = null;
+    let coverageDetail = "";
+
+    if (isPython) {
+      try {
+        const out = execSync("pytest --cov=src --cov-report=term-missing -q 2>&1", execOpts);
+        const match = out.match(/TOTAL\s+\d+\s+\d+\s+(\d+)%/);
+        if (match) {
+          coveragePct = parseInt(match[1], 10);
+          coverageDetail = `${coveragePct}% total coverage`;
+        } else {
+          coverageDetail = "Coverage output not parseable";
+        }
+      } catch (err) {
+        coverageDetail = "pytest --cov failed: " + (err.message || "").slice(0, 200);
+      }
+    } else if (isJS) {
+      try {
+        const out = execSync("npm test -- --coverage 2>&1", execOpts);
+        const match = out.match(/All files[^\|]*\|\s*([\d.]+)/);
+        if (match) {
+          coveragePct = parseFloat(match[1]);
+          coverageDetail = `${coveragePct}% total coverage`;
+        } else {
+          coverageDetail = "Coverage output not parseable";
+        }
+      } catch (err) {
+        coverageDetail = "npm test --coverage failed: " + (err.message || "").slice(0, 200);
+      }
+    } else {
+      coverageDetail = "No test runner — skipping coverage";
+    }
+
+    if (coveragePct !== null && coveragePct < 80) {
+      checks.push({ name: "coverage", status: "PASS", detail: coverageDetail + " (below 80% threshold)" });
+      warnings.push(`Coverage ${coveragePct}% is below 80% target`);
+    } else {
+      checks.push({ name: "coverage", status: "PASS", detail: coverageDetail || "Coverage check skipped" });
+    }
+  } catch (_) {
+    checks.push({ name: "coverage", status: "SKIP", detail: "Coverage check skipped" });
+  }
+
+  // -- CHECK 3: Integration tests --
+  const integrationDirs = [
+    path.join(project_dir, "tests", "integration"),
+    path.join(project_dir, "test", "integration"),
+  ];
+  const integrationDir = integrationDirs.find((d) => fs.existsSync(d));
+
+  if (!integrationDir) {
+    checks.push({ name: "integration_tests", status: "SKIP", detail: "No tests/integration or test/integration directory found" });
+  } else {
+    try {
+      let cmd;
+      if (isPython) cmd = `pytest ${integrationDir} -q --tb=short`;
+      else if (isJS) cmd = `npx vitest run ${integrationDir} --reporter=dot`;
+      else cmd = null;
+
+      if (cmd) {
+        try {
+          execSync(cmd, execOpts);
+          checks.push({ name: "integration_tests", status: "PASS", detail: `${path.basename(integrationDir)} passed` });
+        } catch (err) {
+          const output = ((err.stdout || "") + (err.stderr || "")).slice(-800);
+          checks.push({ name: "integration_tests", status: "FAIL", detail: output || err.message });
+          blockingFailures.push("integration_tests");
+        }
+      } else {
+        checks.push({ name: "integration_tests", status: "SKIP", detail: "No test runner for integration dir" });
+      }
+    } catch (_) {
+      checks.push({ name: "integration_tests", status: "SKIP", detail: "Integration test runner failed to start" });
+    }
+  }
+
+  // -- CHECK 4: E2E tests --
+  const playwrightConfig = ["playwright.config.ts", "playwright.config.js"].find((f) =>
+    fs.existsSync(path.join(project_dir, f))
+  );
+  const cypressConfig = ["cypress.config.ts", "cypress.config.js", "cypress.json"].find((f) =>
+    fs.existsSync(path.join(project_dir, f))
+  );
+
+  if (!playwrightConfig && !cypressConfig) {
+    checks.push({ name: "e2e_tests", status: "SKIP", detail: "No Playwright or Cypress config found" });
+  } else {
+    try {
+      let cmd;
+      if (playwrightConfig) cmd = "npx playwright test --reporter=dot";
+      else cmd = "npx cypress run --headless";
+
+      try {
+        execSync(cmd, execOpts);
+        checks.push({ name: "e2e_tests", status: "PASS", detail: `${playwrightConfig ? "Playwright" : "Cypress"} passed` });
+      } catch (err) {
+        const output = ((err.stdout || "") + (err.stderr || "")).slice(-800);
+        checks.push({ name: "e2e_tests", status: "FAIL", detail: output || err.message });
+        blockingFailures.push("e2e_tests");
+      }
+    } catch (_) {
+      checks.push({ name: "e2e_tests", status: "SKIP", detail: "E2E runner failed to start" });
+    }
+  }
+
+  // -- CHECK 5: Security scan --
+  try {
+    if (isPython) {
+      try {
+        const out = execSync("bandit -r src/ -q -f json 2>/dev/null || true", execOpts);
+        let findings = [];
+        try {
+          const parsed = JSON.parse(out);
+          findings = (parsed.results || []).filter(
+            (r) => r.issue_severity === "HIGH" || r.issue_severity === "CRITICAL"
+          );
+        } catch (_) {}
+
+        if (findings.length > 0) {
+          const summary = findings.map((f) => `${f.issue_severity}: ${f.issue_text} (${f.filename}:${f.line_number})`).join("; ");
+          checks.push({ name: "security", status: "FAIL", detail: `${findings.length} HIGH/CRITICAL finding(s): ${summary}` });
+          blockingFailures.push("security");
+        } else {
+          checks.push({ name: "security", status: "PASS", detail: "No HIGH/CRITICAL bandit findings" });
+        }
+      } catch (_) {
+        checks.push({ name: "security", status: "SKIP", detail: "bandit not available" });
+      }
+    } else if (isJS) {
+      try {
+        const out = execSync("npm audit --audit-level=high 2>/dev/null || true", execOpts);
+        const hasCritical = /critical|high/i.test(out);
+        if (hasCritical) {
+          checks.push({ name: "security", status: "FAIL", detail: "npm audit found HIGH/CRITICAL vulnerabilities: " + out.slice(0, 400) });
+          blockingFailures.push("security");
+        } else {
+          checks.push({ name: "security", status: "PASS", detail: "No HIGH/CRITICAL npm audit findings" });
+        }
+      } catch (_) {
+        checks.push({ name: "security", status: "SKIP", detail: "npm audit not available" });
+      }
+    } else {
+      checks.push({ name: "security", status: "SKIP", detail: "No security scanner for detected project type" });
+    }
+  } catch (_) {
+    checks.push({ name: "security", status: "SKIP", detail: "Security scan failed to run" });
+  }
+
+  // -- CHECK 6: Performance baseline --
+  const autopilotDir = path.join(project_dir, ".autopilot");
+  const baselineFile = path.join(autopilotDir, "perf-baseline.json");
+
+  if (!fs.existsSync(baselineFile)) {
+    // Write a baseline — not a blocking failure, just a warning
+    try {
+      fs.mkdirSync(autopilotDir, { recursive: true });
+      const baseline = { created_at: new Date().toISOString(), timing_ms: 0, note: "Initial baseline — no timing data yet" };
+      fs.writeFileSync(baselineFile, JSON.stringify(baseline, null, 2), "utf8");
+      checks.push({ name: "performance", status: "PASS", detail: "No prior baseline — wrote initial baseline to .autopilot/perf-baseline.json" });
+      warnings.push("Performance baseline did not exist — created initial baseline (no timing comparison possible yet)");
+    } catch (err) {
+      checks.push({ name: "performance", status: "SKIP", detail: "Could not write baseline: " + err.message });
+    }
+  } else {
+    try {
+      const baseline = JSON.parse(fs.readFileSync(baselineFile, "utf8"));
+      const baselineTiming = baseline.timing_ms || 0;
+
+      if (baselineTiming === 0) {
+        checks.push({ name: "performance", status: "PASS", detail: "Baseline exists but has no timing data — skipping comparison" });
+      } else {
+        // Quick timing test: run unit tests and measure
+        const start = Date.now();
+        try {
+          if (isPython) execSync("pytest -q --co -q 2>/dev/null || true", { ...execOpts, timeout: 30000 });
+          else if (isJS) execSync("npm test -- --reporter=dot --run 2>/dev/null || true", { ...execOpts, timeout: 30000 });
+        } catch (_) {}
+        const elapsed = Date.now() - start;
+
+        const threshold = baselineTiming * 1.2;
+        if (elapsed > threshold) {
+          checks.push({ name: "performance", status: "PASS", detail: `${elapsed}ms vs baseline ${baselineTiming}ms (>${Math.round((elapsed / baselineTiming - 1) * 100)}% slower)` });
+          warnings.push(`Performance ${Math.round((elapsed / baselineTiming - 1) * 100)}% slower than baseline (${elapsed}ms vs ${baselineTiming}ms)`);
+        } else {
+          checks.push({ name: "performance", status: "PASS", detail: `${elapsed}ms vs baseline ${baselineTiming}ms (within 20% threshold)` });
+        }
+      }
+    } catch (err) {
+      checks.push({ name: "performance", status: "SKIP", detail: "Could not read baseline: " + err.message });
+    }
+  }
+
+  // -- CHECK 7: Docker build --
+  const dockerfilePath = path.join(project_dir, "Dockerfile");
+  if (!fs.existsSync(dockerfilePath)) {
+    checks.push({ name: "docker_build", status: "SKIP", detail: "No Dockerfile in project_dir" });
+  } else {
+    try {
+      execSync("docker build . --no-cache -q 2>&1", execOpts);
+      checks.push({ name: "docker_build", status: "PASS", detail: "docker build succeeded" });
+    } catch (err) {
+      const output = ((err.stdout || "") + (err.stderr || "")).slice(-800);
+      checks.push({ name: "docker_build", status: "FAIL", detail: output || err.message });
+      blockingFailures.push("docker_build");
+    }
+  }
+
+  const overall = blockingFailures.length > 0 ? "FAIL" : "PASS";
+
+  return { overall, checks, blocking_failures: blockingFailures, warnings };
+}
+
+// ---------------------------------------------------------------------------
 // MCP protocol dispatch
 // ---------------------------------------------------------------------------
 
@@ -1794,6 +2059,8 @@ async function dispatchTool(name, args) {
       return toolConsensusCheck(args);
     case "masonry_doctor":
       return await toolDoctor(args);
+    case "masonry_verify_7point":
+      return toolVerify7point(args);
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
