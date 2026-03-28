@@ -24,6 +24,7 @@ import argparse
 import json
 import shutil
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -37,6 +38,36 @@ from masonry.src.writeback import strip_optimized_instructions
 
 _DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 MIN_IMPROVEMENT = 0.02  # Minimum score delta required to keep new instructions
+
+
+@dataclass
+class PassAtNMetrics:
+    """Pass@N eval metrics derived from a single accuracy value.
+
+    pass_at_1   — standard accuracy (probability a single attempt passes)
+    pass_at_3   — probability at least 1 of 3 independent attempts passes: 1 - (1-p)^3
+    pass_strict_3 — probability all 3 attempts pass (strict consistency): p^3
+    """
+
+    pass_at_1: float
+    pass_at_3: float
+    pass_strict_3: float
+
+    @classmethod
+    def from_accuracy(cls, accuracy: float) -> "PassAtNMetrics":
+        p = max(0.0, min(1.0, accuracy))
+        return cls(
+            pass_at_1=p,
+            pass_at_3=1.0 - (1.0 - p) ** 3,
+            pass_strict_3=p ** 3,
+        )
+
+    def __str__(self) -> str:
+        return (
+            f"pass@1={self.pass_at_1:.3f}  "
+            f"pass@3={self.pass_at_3:.3f}  "
+            f"pass^3={self.pass_strict_3:.3f}"
+        )
 
 
 def _snapshot_instructions(base_dir: Path, agent_name: str) -> str | None:
@@ -110,7 +141,9 @@ def run_loop(
             base_dir=base_dir,
         )
         before_score = before_result["score"]
+        before_metrics = PassAtNMetrics.from_accuracy(before_score)
         print(f"[{loop_i}] Before score: {before_score:.3f} ({before_result['passed']}/{before_result['eval_size']})")
+        print(f"[{loop_i}] Metrics:      {before_metrics}")
 
         if best_score is None:
             best_score = before_score
@@ -148,9 +181,14 @@ def run_loop(
             base_dir=base_dir,
         )
         after_score = after_result["score"]
+        after_metrics = PassAtNMetrics.from_accuracy(after_score)
         delta = after_score - before_score
         print(f"[{loop_i}] After score:  {after_score:.3f} ({after_result['passed']}/{after_result['eval_size']})")
         print(f"[{loop_i}] Delta:         {delta:+.4f} (threshold: {MIN_IMPROVEMENT})")
+        print(f"[{loop_i}] Baseline:     {before_metrics}")
+        print(f"[{loop_i}] New:          {after_metrics}")
+        delta_pass3 = after_metrics.pass_at_3 - before_metrics.pass_at_3
+        print(f"[{loop_i}] pass@3 delta: {delta_pass3:+.3f}")
 
         # ── Step 4: Keep or revert ────────────────────────────────────────────
         if after_score >= before_score + MIN_IMPROVEMENT:
@@ -198,6 +236,9 @@ def run_loop(
             "delta": delta,
             "verdict": verdict,
             "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "pass_at_1": after_metrics.pass_at_1,
+            "pass_at_3": after_metrics.pass_at_3,
+            "pass_strict_3": after_metrics.pass_strict_3,
         }
         run_history.append(run_record)
 
