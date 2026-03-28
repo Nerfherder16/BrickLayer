@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `948e07a` feat(agents): add LOKI reflect phase and competing hypotheses protocol to trowel (task 22/32) (2026-03-28)
 - `75b1309` feat(agents): add verifier agent for dual spec-compliance verification (2026-03-28)
 - `f53f171` docs(tooling): add repomix MCP guide for codebase context packing (2026-03-28)
 - `e4b611a` feat(agents): add triggers/tools fields to SKILL.md frontmatter standard (task 2/32) (2026-03-28)
