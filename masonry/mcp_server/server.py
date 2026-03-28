@@ -435,12 +435,16 @@ def _tool_masonry_onboard(args: dict) -> dict:
         Path("agents"),
     ]
     registry_path = Path(registry_path_str)
+    dspy_output_dir_str = args.get(
+        "dspy_output_dir",
+        str(_REPO_ROOT / "masonry" / "src" / "dspy_pipeline" / "generated"),
+    )
+    dspy_output_dir = Path(dspy_output_dir_str)
 
     try:
         from masonry.scripts.onboard_agent import onboard  # noqa: PLC0415
 
-        # dspy_output_dir is a legacy param (dspy_pipeline was removed); pass a no-op path
-        result = onboard(agents_dirs, registry_path, Path(os.devnull))
+        result = onboard(agents_dirs, registry_path, dspy_output_dir)
         # Return names of newly-added agents under the "onboarded" key for
         # backwards compatibility with callers that expect a list of names.
         names = result.get("names", [])
