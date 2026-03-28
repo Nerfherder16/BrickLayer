@@ -3,6 +3,6 @@ export default defineConfig({
   test: {
     globals: true,
     testTimeout: 15000,
-    include: ["tests/hooks/**/*.js"],
+    include: ["tests/hooks/**/*.js", "tests/bin/**/*.test.js", "tests/bin/*.test.js"],
   },
 });
