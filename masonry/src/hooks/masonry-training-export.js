@@ -85,6 +85,29 @@ if (!python) {
   process.exit(0);
 }
 
+// ── Load pattern confidence scores for export ────────────────────────────────
+
+let patternConfidence = {};
+const cwd = process.env.CLAUDE_WORKING_DIRECTORY || process.cwd();
+try {
+  const confPath = path.join(cwd, '.autopilot', 'pattern-confidence.json');
+  patternConfidence = JSON.parse(fs.readFileSync(confPath, 'utf8'));
+} catch {}
+
+// Build confidence summary line if there are entries
+const confKeys = Object.keys(patternConfidence);
+if (confKeys.length > 0) {
+  const scores = confKeys.map(k => ({ key: k, score: patternConfidence[k] }));
+  scores.sort((a, b) => b.score - a.score);
+  const highest = scores[0];
+  const lowest = scores[scores.length - 1];
+  process.stdout.write(
+    `[masonry-training-export] Pattern confidence: ${confKeys.length} patterns tracked` +
+    ` (highest: ${highest.key}=${highest.score.toFixed(2)},` +
+    ` lowest: ${lowest.key}=${lowest.score.toFixed(2)})\n`
+  );
+}
+
 // ── Run export ───────────────────────────────────────────────────────────────
 
 process.stdout.write("[masonry-training-export] exporting campaign traces...\n");
@@ -95,6 +118,11 @@ const args = [
   "--bl-root", BL_ROOT,
   "--db", TRAINING_DB,
 ];
+
+// Attach confidence data if any patterns are tracked
+if (confKeys.length > 0) {
+  args.push("--pattern-confidence", JSON.stringify(patternConfidence));
+}
 
 const result = spawnSync(python, args, {
   cwd: BL_ROOT,
