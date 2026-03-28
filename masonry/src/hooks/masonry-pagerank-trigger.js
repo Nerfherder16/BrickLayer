@@ -95,7 +95,7 @@ async function main() {
   const project = path.basename(cwd);
   const confidenceJsonPath = path.join(cwd, '.autopilot', 'pattern-confidence.json');
   const child = spawn('python', [scriptPath, project, confidenceJsonPath], {
-    detached: true,
+    detached: true, windowsHide: true,
     stdio: 'ignore',
     cwd,
     windowsHide: true,

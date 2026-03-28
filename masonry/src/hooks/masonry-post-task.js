@@ -96,7 +96,7 @@ function maybeSyncRecall(autopilotDir, projectDir) {
     if (!fs.existsSync(bankPath)) return;
 
     const proc = spawn('python', [bankPath, 'query', query, '3'], {
-      detached: true,
+      detached: true, windowsHide: true,
       stdio: ['ignore', 'pipe', 'ignore'],
       cwd: projectDir,
     });
@@ -194,7 +194,7 @@ async function main() {
       const graphPath = path.join(__dirname, "../../src/reasoning/graph.py");
       const args = ["python", [graphPath, project, task_id, ...patternIds]];
       const proc = spawn(args[0], args[1], {
-        detached: true,
+        detached: true, windowsHide: true,
         stdio: "ignore",
         cwd: projectDir,
       });
@@ -261,7 +261,7 @@ async function main() {
         searchDir = parent;
       }
       const collectorPath = path.join(__dirname, "../../src/training/collector.py");
-      spawn("python", [collectorPath], { cwd: projectRoot, detached: true, stdio: "ignore" }).unref();
+      spawn("python", [collectorPath], { cwd: projectRoot, detached: true, stdio: "ignore", windowsHide: true }).unref();
     }
   } catch (_) { /* non-fatal — silently skip */ }
 

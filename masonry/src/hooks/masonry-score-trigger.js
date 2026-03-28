@@ -114,7 +114,7 @@ function spawnDspyOptimization(repoRoot) {
       'python',
       [scriptPath, DSPY_DEFAULT_AGENT, '--base-dir', repoRoot],
       {
-        detached: true,
+        detached: true, windowsHide: true,
         stdio: 'ignore',
         cwd: repoRoot,
         windowsHide: true,
@@ -195,7 +195,7 @@ async function main() {
 
   // Spawn detached — does not block Stop
   const child = spawn('python', [scriptPath, '--base-dir', cwd], {
-    detached: true,
+    detached: true, windowsHide: true,
     stdio: 'ignore',
     cwd,
     windowsHide: true,
