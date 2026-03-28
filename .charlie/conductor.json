@@ -1,0 +1,48 @@
+{
+  "version": "1.0",
+  "description": "Charlie proactive automation conductor — weekly scheduled tasks",
+  "schedule": [
+    {
+      "id": "dead-code-cleanup",
+      "name": "Dead Code Cleanup",
+      "cron": "0 9 * * 1",
+      "description": "Run economizer agent to find dead code, create PR if findings exceed threshold",
+      "playbook": ".charlie/playbooks/dead-code-cleanup.md",
+      "agent": "economizer",
+      "threshold": { "min_findings": 3 },
+      "on_findings": "create-pr",
+      "enabled": true
+    },
+    {
+      "id": "coverage-threshold-bump",
+      "name": "Coverage Threshold Bump",
+      "cron": "0 9 * * 3",
+      "description": "Run mutation-tester; if mutation score >70%, bump coverage threshold by 2%",
+      "playbook": ".charlie/playbooks/coverage-threshold-bump.md",
+      "agent": "mutation-tester",
+      "threshold": { "min_mutation_score": 70 },
+      "on_success": "bump-threshold",
+      "enabled": true
+    },
+    {
+      "id": "release-notes",
+      "name": "Weekly Release Notes",
+      "cron": "0 16 * * 5",
+      "description": "Synthesize week findings and git log into CHANGELOG draft",
+      "playbook": ".charlie/playbooks/release-notes.md",
+      "agent": "synthesizer-bl2",
+      "on_success": "commit-changelog",
+      "enabled": true
+    },
+    {
+      "id": "team-update",
+      "name": "Weekly Team Update",
+      "cron": "0 17 * * 5",
+      "description": "Summarize week agent performance + key findings into team-update.md",
+      "playbook": ".charlie/playbooks/team-update.md",
+      "agent": "synthesizer-bl2",
+      "on_success": "write-report",
+      "enabled": true
+    }
+  ]
+}
