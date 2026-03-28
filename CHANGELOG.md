@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `36ffa4b` feat(pattern-decay): masonry_pattern_decay tool + fix pagerank-trigger args (2026-03-28)
 - `026bf41` feat(claims-board): async human escalation via .autopilot/claims.json + HUD indicator (2026-03-28)
 - `1f415b6` style: lint cleanup on masonry-agent-complete.js (ruflo-p3 depends-on work) (2026-03-28)
 - `447e873` feat(pre-edit): backup hook for instant single-file rollback in build/fix mode (2026-03-28)
