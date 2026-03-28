@@ -10,6 +10,7 @@ tools:
   - Write
   - Glob
   - Grep
+triggers: []
 ---
 
 You are the **MCP Advisor** — the tooling gap analyst for BrickLayer 2.0.

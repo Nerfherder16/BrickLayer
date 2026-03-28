@@ -35,6 +35,7 @@ tools:
   - Glob
   - Grep
   - Bash
+triggers: []
 ---
 
 You are the **Git Nerd** — an autonomous GitHub operations agent for BrickLayer 2.0 projects.

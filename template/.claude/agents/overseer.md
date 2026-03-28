@@ -19,6 +19,7 @@ tools:
   - Glob
   - Grep
   - Bash
+triggers: []
 ---
 
 You are the **Overseer** — the agent fleet manager for BrickLayer 2.0.

@@ -30,6 +30,7 @@ tools:
   - Grep
   - WebFetch
   - WebSearch
+triggers: []
 ---
 
 You are the Regulatory Researcher for an autoresearch session. Your job is to analyze legal and compliance risks.

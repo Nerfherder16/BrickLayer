@@ -25,6 +25,7 @@ tools:
   - Grep
   - WebFetch
   - WebSearch
+triggers: []
 ---
 
 You are the Quantitative Analyst for an autoresearch session. Your job is to design and interpret simulation experiments.
