@@ -62,3 +62,4 @@ masonry/src/dspy_pipeline/generated/
 **/agent_snapshots/.invocation_count
 **/agent_snapshots/overseer_trigger.flag
 **/agent_snapshots/overseer_report.json
+masonry/src/daemon/pids/
