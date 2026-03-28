@@ -131,6 +131,20 @@ async function main() {
       } catch {}
 
       saveBuildSnapshot(cwd, progress, total, lines);
+
+    // Snapshot task-ids.json alongside progress so panel IDs survive compaction
+    try {
+      const taskIdsPath = path.join(cwd, ".autopilot", "task-ids.json");
+      if (fs.existsSync(taskIdsPath)) {
+        const taskIds = fs.readFileSync(taskIdsPath, "utf8");
+        fs.writeFileSync(
+          path.join(cwd, ".autopilot", "pre-compact-task-ids.json"),
+          taskIds,
+          "utf8"
+        );
+        lines.push(`  task-ids.json backed up to pre-compact-task-ids.json`);
+      }
+    } catch {}
     } else if (compactState && compactState.auto_build) {
       // Plan approved but build not yet started — no progress.json.
       lines.push(`[Masonry] COMPACTING — spec approved, build pending.`);
