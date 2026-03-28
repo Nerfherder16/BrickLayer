@@ -1,0 +1,27 @@
+name: FEATURE-DEV
+description: Standard feature development pipeline — spec to PR
+stages:
+  - agent: spec-writer
+    description: Explore codebase and write .autopilot/spec.md
+    outputs:
+      - .autopilot/spec.md
+  - agent: test-writer
+    description: Write failing tests for each spec task
+    inputs:
+      - .autopilot/spec.md
+    outputs:
+      - tests/**/*.py
+      - tests/**/*.test.ts
+  - agent: developer
+    description: Implement code to pass tests (TDD RED→GREEN→REFACTOR)
+    inputs:
+      - .autopilot/spec.md
+      - tests/**
+  - agent: code-reviewer
+    description: Quality, security, style review
+    on_failure: developer
+  - agent: pr-writer
+    description: Generate GitHub PR at completion
+    outputs:
+      - .github/PR_BODY.md
+on_failure: diagnose-analyst
