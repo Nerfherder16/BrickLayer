@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `526c4b5` docs(repo-research): finalize awesome-claude-plugins INDEX — all 6 deep research agents complete (2026-03-28)
 - `40fb03a` docs(repo-research): update INDEX with superpowers + everything-claude-code findings (2026-03-28)
 - `0af0a6c` docs(repo-research): VoltAgent subagents + autoresearch + visual/UI + skills libraries (2026-03-28)
 - `3cc16b7` docs(repo-research): awesome-claude-plugins INDEX + infra-tools deep research (2026-03-28)
