@@ -1505,3 +1505,29 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
+- name: parallel-debugger
+  file: C:/Users/trg16/.claude/agents/parallel-debugger.md
+  model: sonnet
+  description: Parallel debugging orchestrator that spawns 3 competing diagnose-analyst
+    subagents with different root cause hypotheses when developer escalates 3 times.
+    Synthesizes competing diagnoses into single highest-confidence fix specification.
+  modes:
+  - fix
+  - debug
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers:
+  - DEV_ESCALATE (3rd occurrence)
+  - parallel debug
+  - competing hypotheses
+  tools:
+  - Agent
+  - Read
+  - Bash
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0

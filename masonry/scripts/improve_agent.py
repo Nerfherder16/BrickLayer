@@ -24,7 +24,7 @@ import argparse
 import json
 import shutil
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -68,6 +68,98 @@ class PassAtNMetrics:
             f"pass@3={self.pass_at_3:.3f}  "
             f"pass^3={self.pass_strict_3:.3f}"
         )
+
+
+@dataclass
+class StagedRollout:
+    """5% → 20% → 50% → 100% rollout with rollback triggers."""
+
+    agent_name: str
+    baseline_score: float
+    stages: list[float] = field(default_factory=lambda: [0.05, 0.20, 0.50, 1.00])
+    rollback_threshold: float = -0.05  # rollback if score drops >5% vs baseline
+
+    def should_rollback(self, stage_score: float) -> bool:
+        """Return True if stage_score has dropped strictly more than rollback_threshold vs baseline.
+
+        Uses a small epsilon (1e-9) to handle floating-point boundary cases so that
+        a drop of exactly rollback_threshold does NOT trigger rollback.
+        """
+        _EPSILON = 1e-9
+        return (stage_score - self.baseline_score) < (self.rollback_threshold - _EPSILON)
+
+    def next_stage(self, current_stage: float) -> float | None:
+        """Return next stage percentage, or None if at 100%."""
+        idx = self.stages.index(current_stage)
+        return self.stages[idx + 1] if idx + 1 < len(self.stages) else None
+
+
+def save_snapshot(
+    agent_name: str,
+    instructions: str,
+    score: float,
+    stage: float,
+    base_dir: Path,
+) -> str:
+    """Save a stage snapshot to masonry/agent_snapshots/{agent}/history/.
+
+    Returns the path to the saved file as a string.
+    """
+    history_dir = base_dir / "masonry" / "agent_snapshots" / agent_name / "history"
+    history_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    stage_label = f"{int(stage * 100):03d}"
+    filename = f"{ts}_stage{stage_label}.json"
+    snapshot = {
+        "agent_name": agent_name,
+        "instructions": instructions,
+        "score": score,
+        "stage_pct": stage,
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    out_path = history_dir / filename
+    out_path.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
+    return str(out_path)
+
+
+def run_staged_rollout(
+    agent_name: str,
+    new_instructions: str,
+    baseline_score: float,
+    new_score: float,
+    base_dir: Path,
+) -> tuple:
+    """Run a 4-stage canary rollout, saving snapshots and checking rollback triggers.
+
+    Staged scores are computed as a weighted projection:
+        staged_score = baseline + (new_score - baseline) * stage_pct
+
+    Returns:
+        ("PROMOTED", final_score) — all stages passed
+        ("ROLLBACK", failed_stage, reason) — a stage triggered rollback
+    """
+    rollout = StagedRollout(agent_name=agent_name, baseline_score=baseline_score)
+
+    for stage in rollout.stages:
+        staged_score = baseline_score + (new_score - baseline_score) * stage
+
+        if rollout.should_rollback(staged_score):
+            reason = (
+                f"score {staged_score:.4f} dropped {staged_score - baseline_score:+.4f} "
+                f"vs baseline {baseline_score:.4f} "
+                f"(threshold {rollout.rollback_threshold})"
+            )
+            return ("ROLLBACK", stage, reason)
+
+        save_snapshot(
+            agent_name=agent_name,
+            instructions=new_instructions,
+            score=staged_score,
+            stage=stage,
+            base_dir=base_dir,
+        )
+
+    return ("PROMOTED", baseline_score + (new_score - baseline_score) * 1.00)
 
 
 def _snapshot_instructions(base_dir: Path, agent_name: str) -> str | None:
@@ -192,10 +284,28 @@ def run_loop(
 
         # ── Step 4: Keep or revert ────────────────────────────────────────────
         if after_score >= before_score + MIN_IMPROVEMENT:
-            print(f"\n[{loop_i}] IMPROVED (+{delta:.4f} >= threshold {MIN_IMPROVEMENT}) — keeping new instructions.")
-            best_score = after_score
-            best_snapshot = _snapshot_instructions(base_dir, agent_name)
-            verdict = "improved"
+            print(f"\n[{loop_i}] IMPROVED (+{delta:.4f} >= threshold {MIN_IMPROVEMENT}) — running staged rollout ...")
+            new_instructions = _snapshot_instructions(base_dir, agent_name) or ""
+            rollout_result = run_staged_rollout(
+                agent_name=agent_name,
+                new_instructions=new_instructions,
+                baseline_score=before_score,
+                new_score=after_score,
+                base_dir=base_dir,
+            )
+            rollout_status = rollout_result[0]
+            if rollout_status == "ROLLBACK":
+                failed_stage = rollout_result[1]
+                rollback_reason = rollout_result[2]
+                print(f"[{loop_i}] STAGED_ROLLOUT_ROLLBACK: rolled back at stage {failed_stage} — {rollback_reason}")
+                if before_snapshot:
+                    _restore_instructions(base_dir, agent_name, before_snapshot)
+                verdict = "reverted"
+            else:
+                print(f"[{loop_i}] STAGED_ROLLOUT_COMPLETE: promoted through all 4 stages")
+                best_score = after_score
+                best_snapshot = _snapshot_instructions(base_dir, agent_name)
+                verdict = "improved"
         elif after_score >= before_score:
             print(f"\n[{loop_i}] BELOW THRESHOLD (+{delta:.4f} < threshold {MIN_IMPROVEMENT}) — reverting (improvement insufficient).")
             if before_snapshot:
