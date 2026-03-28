@@ -5,7 +5,7 @@ Source: https://github.com/quemsah/awesome-claude-plugins (Top 100, as of 2026-0
 - Total repos cataloged: 100
 - Already covered by BrickLayer: ~25
 - New high-value items identified: 32
-- Deep research dispatched: 6 parallel agents (results appended below as they complete)
+- Deep research dispatched: 6 parallel agents (all complete ✅)
 - Irrelevant/out-of-scope: ~43
 
 ---
@@ -16,7 +16,7 @@ Source: https://github.com/quemsah/awesome-claude-plugins (Top 100, as of 2026-0
 | # | Repo | What it does | Gap it fills | Deep Research |
 |---|------|-------------|--------------|---------------|
 | 28 | [VoltAgent/awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents) | 127 subagents across 10 categories; top gaps: `mcp-developer`, `chaos-engineer`, `penetration-tester`, `scientific-literature-researcher` | mcp-developer fills BL's MCP-native blind spot; chaos+pentest complement (not duplicate) security agent; scientific-researcher grounds findings in peer-reviewed literature | ✅ [voltagent-autoresearch.md](voltagent-autoresearch.md) |
-| 75 | [trailofbits/skills](https://github.com/trailofbits/skills) | Security research, vuln detection, audit workflows (36 skills) | Deep security research patterns beyond OWASP audit | [security-knowledge-work.md](security-knowledge-work.md) |
+| 75 | [trailofbits/skills](https://github.com/trailofbits/skills) | 36 skills across 7 categories; fp-check (6-gate false positive pipeline: Process/Reachability/Real Impact/PoC/Math Bounds/Environment); differential-review; variant-hunting; 9-vector CI/CD audit; LLM-as-completeness-gate Stop hook blocks session until every claimed bug is verified | **Top gap: `verification-analyst` agent** — BL security findings are narrative-only with no mandatory falsification; this replaces them with audit-grade structured verdicts | ✅ [security-knowledge-work.md](security-knowledge-work.md) |
 | 87 | [OpenAgentsControl](https://github.com/darrenhinde/OpenAgentsControl) | Plan-first development with approval-based execution | Explicit human approval gate before execution | TBD |
 
 ### Skills & Slash Commands
@@ -50,7 +50,7 @@ Source: https://github.com/quemsah/awesome-claude-plugins (Top 100, as of 2026-0
 | # | Repo | What it does | Count | Deep Research |
 |---|------|-------------|-------|---------------|
 | 13 | [antigravity-awesome-skills](https://github.com/sickn33/antigravity-awesome-skills) | 1,304+ agentic skills with installer CLI | 1304+ | [skills-libraries.md](skills-libraries.md) |
-| 42 | [anthropics/knowledge-work-plugins](https://github.com/anthropics/knowledge-work-plugins) | Official Anthropic knowledge worker plugins | 38 | [security-knowledge-work.md](security-knowledge-work.md) |
+| 42 | [anthropics/knowledge-work-plugins](https://github.com/anthropics/knowledge-work-plugins) | 12 official plugins; top gaps: engineering incident-response (blameless postmortem + 5-why chain), legal compliance-classification | Marginal value overall; extract incident-response pattern for masonry | ✅ [security-knowledge-work.md](security-knowledge-work.md) |
 | 43 | [huggingface/skills](https://github.com/huggingface/skills) | HuggingFace ecosystem skills | 11 | TBD |
 | 48 | [pm-skills](https://github.com/phuryn/pm-skills) | 100+ PM skills (discovery, strategy, execution) | 100+ | TBD |
 | 51 | [claude-skills (Jeffallan)](https://github.com/Jeffallan/claude-skills) | 66 full-stack developer skills | 66 | [skills-libraries.md](skills-libraries.md) |
