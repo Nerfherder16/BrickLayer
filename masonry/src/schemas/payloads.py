@@ -178,15 +178,9 @@ class DiagnosisPayload(BaseModel):
 # ---------------------------------------------------------------------------
 
 class AgentRegistryEntry(BaseModel):
-    """Registry entry for a Masonry agent, sourced from agent_registry.yml.
+    """Registry entry for a Masonry agent, sourced from agent_registry.yml."""
 
-    Uses ``extra="ignore"`` (not ``extra="forbid"``) so that onboarding-added
-    fields (``dspy_status``, ``drift_status``, ``last_score``,
-    ``runs_since_optimization``, ``registrySource``) do not fail validation
-    when the registry is loaded by registry_loader or run_drift_check (F11.1).
-    """
-
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
     name: str
     file: str
@@ -197,9 +191,7 @@ class AgentRegistryEntry(BaseModel):
     input_schema: str = "QuestionPayload"
     output_schema: str = "FindingPayload"
     tier: Literal["draft", "candidate", "trusted", "retired"] = "draft"
-    # Optimization status is tracked via `dspy_status`/`last_optimized` in agent_registry.yml
-    # and by the presence of masonry/optimized_prompts/{agent}.json. Do not add an inline
-    # optimized_prompt field here — it is never written by any optimization script.
+    optimized_prompt: str | None = None
     routing_keywords: list[str] = Field(default_factory=list)
 
 
