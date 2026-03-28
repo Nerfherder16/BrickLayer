@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `5d21ff8` fix(stop-guard): generate descriptive auto-commit messages instead of generic ones (2026-03-28)
 - `8ce696d` feat(p3-task2): add masonry_optimization_status to Python MCP server (2026-03-28)
 - `345a7e8` chore: auto-commit 1 session file on stop (2026-03-28)
 - `e3cc158` chore: auto-commit 1 session file on stop (2026-03-28)
