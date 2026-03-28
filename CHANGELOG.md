@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `d5094db` chore: auto-commit 4 session files on stop (2026-03-27)
 - `0de2d61` fix(recall): correct API endpoints and payload schema across all workers (2026-03-27)
 - `7af4a8d` chore: gitignore daemon pids dir (2026-03-27)
 - `99fda6a` fix(session-start): daemon auto-start fires on more project types + writes pid files (2026-03-27)
