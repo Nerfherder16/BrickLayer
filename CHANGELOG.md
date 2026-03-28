@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `ac4be04` feat: masonry-pre-compact backs up task-ids.json for panel ID survival across compaction (2026-03-28)
 - `edf1163` feat(phase6): dev execution loop upgrades — agents, hooks, skills, UI quality (2026-03-28)
 - `83ce215` feat: 5 new specialist agents — verification-analyst, mcp-developer, chaos-engineer, penetration-tester, scientific-literature-researcher (task 11/23) [phase_end:agents] (2026-03-28)
 - `0d3fbae` feat: spec-reviewer agent — COMPLIANT/OVER_BUILT/UNDER_BUILT/SCOPE_DRIFT (task 3/23) (2026-03-28)
