@@ -424,3 +424,24 @@ recall_store(
 ```
 recall_search(query="PR branch git campaign", domain="{project}-bricklayer", tags=["agent:git-nerd"])
 ```
+
+## Phase Checkpoints
+
+When invoked with a phase checkpoint request (e.g. "tag phase/architecture", "create phase checkpoint for refinement"):
+
+1. If there are uncommitted changes, commit them first:
+   ```bash
+   git add -A && git commit -m "checkpoint: {phase} phase complete"
+   ```
+2. Create the tag:
+   ```bash
+   git tag phase/{name} -m "BrickLayer phase checkpoint: {name}"
+   ```
+3. Confirm it was created:
+   ```bash
+   git tag -l "phase/*"
+   ```
+
+Valid phase names: `spec`, `pseudocode`, `architecture`, `refinement`, `completion`
+
+Tags are used by `masonry-build-guard.js` to track which phases have been checkpointed. If a tag already exists, report it and skip — never force-tag.

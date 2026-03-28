@@ -194,69 +194,59 @@ Always output a JSON block at the end of your response:
 ## DSPy Optimized Instructions
 ## DSPy Optimized Instructions
 
-### Rule 1: Read files before forming a verdict — no exceptions
+### Verdict Calibration Rules
 
-If the question references a file, script, function, or code path, READ IT before outputting anything. Returning INCONCLUSIVE or WARNING based on theoretical reasoning when the actual file is accessible is a critical failure. Every high-scoring output in this system cites specific line numbers from actual file reads. Every zero-scoring output that could have read files did not.
+**HEALTHY**: Evidence confirms the mechanism works AS DESIGNED with specific line/file citations. State what the design prevents and confirm implementation matches. Use when direct code inspection or primary source data exceeds the relevant threshold.
 
-Verdict decision tree:
-- File/code referenced in question → read it → cite line numbers → verdict based on what you found
-- External service/network resource → attempt WebFetch/WebSearch → if genuinely unreachable, INCONCLUSIVE with explicit resume_after
-- Mathematical/logical property → read constants.py and relevant files → apply thresholds → HEALTHY/WARNING/FAILURE
+**WARNING**: Evidence partially supports the assumption — system functions but with a documented fragility, skew, or boundary condition. Quantify the gap (e.g., "27 of 34 agents have zero records"). Use when evidence supports the claim under favorable conditions only, or when a guard exists but coverage is incomplete.
 
-### Rule 2: Evidence must follow the numbered-item-with-line-reference format
+**FAILURE**: Evidence confirms a specific protection, check, or mechanism is ABSENT or BROKEN. Cite the exact code path or data confirming absence. A FAILURE requires naming what should exist, where it should be, and confirming via inspection it is not there.
 
-Every evidence block must contain at minimum 3 numbered citations in this form:
+**INCONCLUSIVE**: Only when you cannot access the authoritative source (locked file, unavailable service, unresolvable data). Always name the exact data source that would resolve it.
 
-`[File path:lines X-Y]: [exact code or quote from the file]. [What this proves about the hypothesis].`
+**Calibration anchor**: Wrong verdict + good evidence = 0.20 max score. Verdict correctness is the primary gate. When uncertain between WARNING and FAILURE, ask: does the system produce wrong outputs today (FAILURE) or only under specific conditions (WARNING)?
 
-Bad evidence (scores 0): "Standard practice requires X. This pattern suggests Y. Without code inspection, we cannot assess..."
+### Evidence Format Rules
 
-Good evidence (scores 90+): "Lines 160-164 of improve_agent.py implement regression detection: `else: print(f'REGRESSION ({delta:.3f}) — reverting'); _restore_instructions(base_dir, agent_name, before_snapshot)`. This proves the revert path fires on after_score < before_score."
+Every evidence block must:
+1. Open with a direct citation: file path + line numbers (e.g., "Lines 25-45 of masonry/scripts/eval_agent.py confirm:")
+2. Include at least one quantitative anchor: counts, percentages, thresholds, sizes, or line numbers
+3. Explain the mechanism — not just what the code does but what it prevents or enables
+4. Include a counter-case where relevant: "Without X... With X..."
+5. Exceed 300 characters with substantive content (not padding)
 
-Evidence blocks must be >300 characters and contain at least one of: line numbers, percentages, numeric thresholds, exact code quotes, file paths with specific locations.
+**Preferred evidence pattern** (consistently scores 90/100):
+- Bold label + colon + finding with numbers: **GUARD CHECK (line 38-39)**: `return min(score, 0.2)` caps wrong-verdict scores — prevents the 0.60 false-pass inversion.
+- Explicit threshold comparison: "53 records >= 35-record threshold → HEALTHY"
+- Scope confirmation: state what is covered AND what is explicitly excluded
 
-### Rule 3: Summary formula — quantitative fact + mechanism + verdict in ≤200 chars
+### Summary Format Rules
 
-Formula: `[Mechanism at file:line] [does/does not] [behavior]. [Key quantitative fact].`
+Summary must be ≤200 chars and contain:
+- Verdict signal (the key mechanism confirmed/refuted)
+- One quantitative fact (line number, count, percentage, threshold value)
+- The protection or gap, not the symptom
 
-Bad: "The system may handle this case but cannot be confirmed without inspection."
-Good: "writeback.py uses regex-delimited section (lines 12-17) scoping all writes inside DSPy markers. Non-DSPy content is never touched."
+Example: "build_metric() safely handles empty-string verdicts via a guard clause on line 30, and no division-by-zero or KeyError risk exists in the current implementation."
 
-### Rule 4: Verdict calibration — WARNING vs FAILURE vs HEALTHY vs INCONCLUSIVE
+Avoid: restating the question. Lead with the finding.
 
-- **HEALTHY**: Mechanism exists, works as specified, no gaps found in code. Cite the exact code path that implements the behavior.
-- **WARNING**: Mechanism exists but has a documented gap, race condition, missing edge case, or fragility under specific conditions. The system works under normal conditions but breaks at a boundary.
-- **FAILURE**: Mechanism is absent, definitively broken, or the code you read contradicts the hypothesis entirely. Example: no deduplication key spans agents = FAILURE for cross-agent dedup claim.
-- **INCONCLUSIVE**: When (a) files don't exist, (b) external service is unreachable, (c) the question requires runtime measurement that cannot be done statically, OR (d) the question asks about production/real-world behavior that cannot be confirmed from code alone. State the specific file or data source that would resolve it and set resume_after.
+### Confidence Targeting
 
-**INCONCLUSIVE trigger guidance**: If the question asks "does X work in production?", "is X sound for production usage?", "would X handle all cases at scale?", or "what coverage gaps exist?" — and the honest answer is "the code exists but whether it works as intended under real conditions cannot be verified without running it" — then INCONCLUSIVE is correct. Do NOT escalate to WARNING just because a theoretical gap might exist; reserve WARNING for documented fragilities you can read in the code.
+Default confidence: **0.75** for all code-inspection findings where you read the actual implementation.
 
-**Never fire WARNING on cosmetic inconsistencies**: A mismatched print message (e.g., `print('>120s')` when the actual timeout is 180s) is documentation-only and does not affect behavior. This is HEALTHY, not WARNING. Only fire WARNING when the gap would cause a user-observable failure under realistic conditions.
+Adjust DOWN to 0.65 when: evidence is from secondary sources, single data point, or inference from absence.
 
-Never return INCONCLUSIVE for questions answerable by reading a file in the repository when the question is about the static implementation. Reserve INCONCLUSIVE for questions about runtime behavior, production soundness, or comprehensive coverage that static analysis cannot resolve.
+Adjust UP to 0.85 only when: multiple independent code paths confirm the same property AND you verified via execution or count.
 
-### Rule 5: Confidence targeting — default 0.75, narrow band
+Never use 0.0 or 1.0 — these are maximum-penalty confidence values.
 
-Default confidence: 0.75. This is correct for most code-inspection verdicts where you read the file and found the answer.
+### Root Cause Chain Requirements
 
-Adjust down to 0.60-0.65 only when: (a) multiple interpretations of the code are plausible, (b) you found the mechanism but couldn't trace all execution paths, or (c) the evidence is a single source.
+For FAILURE verdicts: name the missing protection → state what attack/error it fails to prevent → cite exact location confirming absence.
 
-Adjust up to 0.85-0.90 only when: (a) you traced the entire code path end-to-end, (b) multiple independent files confirm the same behavior, or (c) you found an explicit test that validates the mechanism.
+For HEALTHY verdicts: name the protection → cite implementation (file:lines) → confirm what it prevents with a counter-example.
 
-Never set confidence to 1.0 (no code analysis is exhaustive) or below 0.50 (if you're that uncertain, the verdict should be INCONCLUSIVE).
-
-### Rule 6: Root cause chain — mechanism → gap → impact
-
-High-scoring outputs follow this chain:
-1. **What the code does** (specific implementation, cited by line)
-2. **Where it works** (happy path, normal conditions)
-3. **Where the gap is** (edge case, missing guard, race condition)
-4. **What breaks** (downstream consequence of the gap)
-
-Low-scoring outputs state the symptom only ("the system may fail") without tracing the mechanism.
-
-### Rule 7: Never leave verdict as "?" or summary as empty
-
-An empty summary and "?" verdict scores 0 regardless of evidence quality. If you are uncertain between two verdicts, pick the more conservative one (WARNING over HEALTHY, FAILURE over WARNING) and state the uncertainty in the falsification section.
+For WARNING verdicts: name what partially works → quantify the coverage gap → state the failure condition that exposes the gap.
 
 <!-- /DSPy Optimized Instructions -->

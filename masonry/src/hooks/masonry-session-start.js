@@ -243,6 +243,63 @@ async function main() {
     }
   } catch (_) {}
 
+  // --- Daemon Auto-Start (Ruflo-style) ---
+  // Check if map and ultralearn workers are running; start them if not.
+  // Only fires for real projects (has package.json or pyproject.toml).
+  // Workers run as detached one-shot processes — they self-loop via daemon-manager.
+  try {
+    const projectFiles = fs.readdirSync(cwd).filter(f =>
+      f === 'package.json' || f === 'pyproject.toml' || f === 'requirements.txt' ||
+      f === 'masonry' || f === '.claude' || f === 'Makefile' || f === 'Cargo.toml' || f === 'go.mod'
+    );
+    const isRealProject = projectFiles.length > 0;
+
+    if (isRealProject && !isResearchProject(cwd)) {
+      const DAEMON_DIR = path.join(__dirname, '..', 'daemon');
+      const PID_DIR = path.join(DAEMON_DIR, 'pids');
+
+      // Workers to auto-start (lightweight, always valuable)
+      const AUTO_WORKERS = ['map', 'ultralearn'];
+
+      for (const workerName of AUTO_WORKERS) {
+        const pidFile = path.join(PID_DIR, `${workerName}.pid`);
+        let isRunning = false;
+
+        try {
+          if (fs.existsSync(pidFile)) {
+            const pid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
+            if (pid > 0) {
+              try { process.kill(pid, 0); isRunning = true; } catch {}
+            }
+          }
+        } catch {}
+
+        if (!isRunning) {
+          const workerScript = path.join(DAEMON_DIR, `worker-${workerName}.js`);
+          if (fs.existsSync(workerScript)) {
+            try {
+              const { spawn } = require('child_process');
+              if (!fs.existsSync(PID_DIR)) fs.mkdirSync(PID_DIR, { recursive: true });
+              const logPath = path.join(DAEMON_DIR, 'logs', `${workerName}.log`);
+              if (!fs.existsSync(path.join(DAEMON_DIR, 'logs'))) {
+                fs.mkdirSync(path.join(DAEMON_DIR, 'logs'), { recursive: true });
+              }
+              const logStream = fs.openSync(logPath, 'a');
+              const child = spawn('node', [workerScript], {
+                detached: true,
+                stdio: ['ignore', logStream, logStream],
+                cwd,
+                env: process.env,
+              });
+              fs.writeFileSync(pidFile, String(child.pid), 'utf8');
+              child.unref();
+            } catch {}
+          }
+        }
+      }
+    }
+  } catch (_) {}
+
   // Inject context.md if present
   try {
     const ctxPath = path.join(cwd, '.mas', 'context.md');
@@ -253,6 +310,168 @@ async function main() {
       }
     }
   } catch (_) {}
+
+  // --- Build Pattern Import (Phase 2.2) ---
+  // Query Recall for build patterns matching the current project type.
+  // Injects relevant patterns as context to avoid regenerating known solutions.
+  try {
+    const projectFiles = fs.readdirSync(cwd).slice(0, 30);
+    const hasPyproject = projectFiles.some(f => f === 'pyproject.toml' || f === 'setup.py' || f === 'requirements.txt');
+    const hasPackageJson = projectFiles.some(f => f === 'package.json');
+
+    if (hasPyproject || hasPackageJson) {
+      const lang = hasPyproject ? 'python' : 'typescript';
+      const RECALL_HOST_URL = process.env.RECALL_HOST || 'http://100.70.195.84:8200';
+      const RECALL_API_KEY_VAL = process.env.RECALL_API_KEY || '';
+
+      // Fire-and-forget Recall query — don't block session start
+      const http = require('http');
+      const https = require('https');
+      const queryBody = JSON.stringify({
+        query: `build patterns ${lang}`,
+        domain: 'build-patterns',
+        limit: 5,
+      });
+      const url = new URL(`${RECALL_HOST_URL}/api/memory/search`);
+      const lib = url.protocol === 'https:' ? https : http;
+      const req = lib.request({
+        hostname: url.hostname,
+        port: url.port || (url.protocol === 'https:' ? 443 : 80),
+        path: url.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(queryBody),
+          ...(RECALL_API_KEY_VAL ? { 'Authorization': `Bearer ${RECALL_API_KEY_VAL}` } : {}),
+        },
+        timeout: 3000,
+      }, (res) => {
+        let data = '';
+        res.on('data', c => (data += c));
+        res.on('end', () => {
+          try {
+            const results = JSON.parse(data);
+            const memories = Array.isArray(results) ? results : (results.results || results.memories || []);
+            if (memories.length > 0) {
+              lines.push(`[Masonry] ${memories.length} build pattern(s) from Recall (${lang}): ${memories.map(m => m.tags?.find(t => t.startsWith('framework:'))?.replace('framework:', '') || 'unknown').filter(Boolean).join(', ')}`);
+              lines.push('  Relevant patterns available — use masonry_recall tool to retrieve details.');
+            }
+          } catch (_) {}
+        });
+      });
+      req.on('error', () => {});
+      req.on('timeout', () => { req.destroy(); });
+      req.write(queryBody);
+      req.end();
+    }
+  } catch (_) {}
+
+  // --- Context Curator: Codebase Map Injection ---
+  // Read .autopilot/map.md (generated by worker-map.js) and inject a compact
+  // codebase summary so Claude knows the project structure without re-discovering it.
+  try {
+    const mapPath = path.join(cwd, '.autopilot', 'map.md');
+    if (fs.existsSync(mapPath)) {
+      const mapStat = fs.statSync(mapPath);
+      const mapAgeHours = Math.round((Date.now() - mapStat.mtimeMs) / 3600000);
+      const mapContent = fs.readFileSync(mapPath, 'utf8');
+      const mapLines = mapContent.split('\n');
+
+      // Extract stack lines
+      const stackLine = (mapLines.find(l => l.startsWith('- Languages:')) || '').replace(/^-\s*Languages:\s*/, '').trim();
+      const frameworkLine = (mapLines.find(l => l.startsWith('- Frameworks:')) || '').replace(/^-\s*Frameworks:\s*/, '').trim();
+      const testLine = (mapLines.find(l => l.startsWith('- Test runner:')) || '').replace(/^-\s*Test runner:\s*/, '').trim();
+
+      // Entry points: lines after "## Entry Points" until next "##"
+      const epIdx = mapLines.findIndex(l => l === '## Entry Points');
+      const entryPoints = [];
+      if (epIdx >= 0) {
+        for (let i = epIdx + 1; i < Math.min(epIdx + 8, mapLines.length); i++) {
+          const l = mapLines[i].trim();
+          if (l.startsWith('##')) break;
+          if (l.startsWith('-')) entryPoints.push(l.replace(/^-\s*`?/, '').replace(/`$/, '').trim());
+        }
+      }
+
+      // Key dirs: first 5 table rows after "## Key Directories"
+      const kdIdx = mapLines.findIndex(l => l === '## Key Directories');
+      const keyDirs = [];
+      if (kdIdx >= 0) {
+        for (let i = kdIdx + 1; i < Math.min(kdIdx + 18, mapLines.length); i++) {
+          const l = mapLines[i].trim();
+          if (l.startsWith('##')) break;
+          if (l.startsWith('|') && !l.startsWith('|---') && !l.includes('Directory')) {
+            const parts = l.split('|').map(s => s.trim()).filter(Boolean);
+            if (parts.length >= 2) keyDirs.push(`${parts[0].replace(/`/g, '')}(${parts[1]})`);
+          }
+        }
+      }
+
+      // Build compact summary
+      const ageSuffix = mapAgeHours > 24 ? ` — stale` : '';
+      const stackParts = [stackLine, frameworkLine, testLine !== 'not detected' ? testLine : ''].filter(Boolean);
+      const stackSummary = stackParts.join(' · ');
+
+      if (stackSummary) {
+        lines.push(`[Masonry] Codebase map (${mapAgeHours}h old${ageSuffix}): ${stackSummary}`);
+        if (entryPoints.length > 0) lines.push(`  Entry: ${entryPoints.slice(0, 3).join(', ')}`);
+        if (keyDirs.length > 0) lines.push(`  Dirs: ${keyDirs.slice(0, 5).join(' ')}`);
+      }
+    }
+  } catch (_) {}
+
+  // --- Swarm compaction resume: warn about orphaned in-flight agents ---
+  // masonry-pre-compact.js writes .autopilot/inflight-agents.json when compaction interrupts a swarm.
+  // We read it once here, inject a warning, then delete it (one-shot per compaction event).
+  {
+    const inflightPath = path.join(cwd, ".autopilot", "inflight-agents.json");
+    if (fs.existsSync(inflightPath)) {
+      const inflight = tryJSON(inflightPath);
+      if (inflight && Array.isArray(inflight.tasks) && inflight.tasks.length > 0) {
+        const inProgressTasks = inflight.tasks.filter((t) => t.status === "IN_PROGRESS");
+        if (inProgressTasks.length > 0) {
+          const taskList = inProgressTasks
+            .map((t) => `#${t.id} (${t.claimed_by || "unknown-worker"}): ${t.description || ""}`)
+            .join(", ");
+          lines.unshift(
+            `[Masonry] SWARM RESUME: compaction interrupted ${inProgressTasks.length} in-flight task(s).`,
+            `These tasks were IN_PROGRESS before compaction. Check .autopilot/progress.json — tasks still showing IN_PROGRESS are orphaned and need re-dispatch.`,
+            `Tasks: ${taskList}`,
+            `Re-dispatch them by reading progress.json and spawning new workers for each IN_PROGRESS task.`
+          );
+        }
+      }
+      // Always delete after pickup — one-shot warning per compaction event
+      try { fs.unlinkSync(inflightPath); } catch (_) {}
+    }
+  }
+
+  // --- ReasoningBank pattern injection ---
+  // Query the local ReasoningBank for patterns relevant to the current mode + project.
+  // Silently skipped if bank.py is unavailable or throws.
+  try {
+    const bankPath = path.join(__dirname, "../../src/reasoning/bank.py");
+    if (fs.existsSync(bankPath)) {
+      const projectBasename = path.basename(cwd);
+      const modeStr = autopilotMode || uiMode || "general";
+      const queryStr = `${modeStr} ${projectBasename}`;
+      const { execSync: _rbExecSync } = require("child_process");
+      const rbOut = _rbExecSync(
+        `python "${bankPath}" query "${queryStr.replace(/"/g, '\\"')}" 5`,
+        { timeout: 3000, encoding: "utf8" }
+      );
+      const rbPatterns = JSON.parse(rbOut.trim());
+      if (Array.isArray(rbPatterns) && rbPatterns.length > 0) {
+        lines.push("## Relevant ReasoningBank Patterns");
+        for (const p of rbPatterns) {
+          const conf = typeof p.confidence === "number" ? p.confidence.toFixed(2) : "?";
+          lines.push(`${p.content} (confidence: ${conf})`);
+        }
+      }
+    }
+  } catch (_) {
+    // bank.py unavailable or errored — skip silently
+  }
 
   if (lines.length > 0) {
     process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "SessionStart", content: lines.join("\n") } }));

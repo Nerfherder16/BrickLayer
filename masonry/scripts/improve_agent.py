@@ -169,6 +169,27 @@ def run_loop(
                 _restore_instructions(base_dir, agent_name, before_snapshot)
             verdict = "reverted"
 
+        # ── Write result to Recall ────────────────────────────────────────────
+        try:
+            import time as _time
+            from bl.recall_bridge import store_finding as _store_finding
+            _recall_verdict = "IMPROVEMENT" if verdict == "improved" else "REGRESSION"
+            _summary = (
+                f"{agent_name}: {before_score:.3f} -> {after_score:.3f} "
+                f"({'kept' if verdict == 'improved' else 'reverted'})"
+            )
+            _store_finding(
+                question_id=f"agent_eval_{agent_name}_{int(_time.time())}",
+                verdict=_recall_verdict,
+                summary=_summary,
+                project="bricklayer-meta",
+                tags=["bricklayer", f"agent:{agent_name}", "agent-eval"],
+                domain="agent-performance",
+                importance=0.7 if _recall_verdict == "IMPROVEMENT" else 0.5,
+            )
+        except Exception:
+            pass  # never block optimization on Recall write
+
         # ── Save run record ───────────────────────────────────────────────────
         run_record = {
             "loop": loop_i,

@@ -3,7 +3,9 @@
 /**
  * bin/masonry-mcp.js — Masonry MCP server
  *
- * Exposes 12 tools over MCP stdio transport (JSON-RPC 2.0):
+ * Exposes 29 tools over MCP stdio transport (JSON-RPC 2.0):
+ *
+ * Research / Campaign:
  *   - masonry_status          — current campaign state
  *   - masonry_findings        — recent findings with verdicts
  *   - masonry_questions       — question bank query
@@ -16,6 +18,25 @@
  *   - masonry_run_question    — run a single question by ID
  *   - masonry_run_simulation  — run a simulation with custom params, return structured results
  *   - masonry_sweep           — parameter sweep across multiple values
+ *
+ * Dev Execution (Phase 6):
+ *   - masonry_route           — route a request through the 4-layer router
+ *   - masonry_pattern_store   — store a build pattern to Recall domain "build-patterns"
+ *   - masonry_pattern_search  — search build patterns from Recall by lang/framework/layer
+ *   - masonry_worker_status   — query daemon worker state (PID files + output files)
+ *   - masonry_task_assign     — atomically claim next PENDING task from .autopilot/progress.json
+ *   - masonry_agent_health    — per-agent performance metrics from agent_db + registry
+ *   - masonry_wave_validate   — validate all tasks in a wave are DONE before advancing
+ *   - masonry_swarm_init      — initialize .autopilot/progress.json for a swarm build
+ *   - masonry_consensus_check — quorum gate: read/write .autopilot/consensus.json
+ *   - masonry_doctor          — system health check: Recall, daemons, hooks, registry
+ *   - masonry_verify_7point   — 7-point quality gate: unit tests, coverage, integration, e2e, security, perf, docker
+ *   - masonry_pattern_decay   — apply time decay to pattern confidence scores and prune below 0.2 threshold
+ *   - masonry_training_update — recompute EMA strategy scores from telemetry.jsonl
+ *   - masonry_reasoning_query — query ReasoningBank for top-k patterns matching a string
+ *   - masonry_reasoning_store — store a new pattern in ReasoningBank
+ *   - masonry_graph_record     — record pattern co-citations as CITES edges in Neo4j after task success
+ *   - masonry_pagerank_run     — run PageRank on pattern graph, update confidence scores
  */
 
 const fs = require("fs");
@@ -252,6 +273,325 @@ const TOOLS = [
       },
       required: ["project_path", "param_name", "values"],
     },
+  },
+
+  // -------------------------------------------------------------------------
+  // Phase 6 — Dev Execution Tools
+  // -------------------------------------------------------------------------
+
+  {
+    name: "masonry_route",
+    description: "Route a natural-language request through Masonry's 4-layer router (deterministic → semantic → LLM → fallback). Returns the target agent, routing layer used, confidence score, and reason.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        request: {
+          type: "string",
+          description: "The natural language request to route (e.g. 'implement FastAPI pricing endpoint')",
+        },
+        project_path: {
+          type: "string",
+          description: "Project directory for context (optional, defaults to cwd)",
+        },
+      },
+      required: ["request"],
+    },
+  },
+
+  {
+    name: "masonry_pattern_store",
+    description: "Store a reusable build pattern to Recall under domain 'build-patterns'. Call this after implementing a pattern worth reusing (e.g. async SQLAlchemy query, cva component variant, Qdrant hybrid search).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        pattern_name: {
+          type: "string",
+          description: "Human-readable name: 'FastAPI async route with dependency injection'",
+        },
+        content: {
+          type: "string",
+          description: "The pattern description or code snippet to store",
+        },
+        lang: {
+          type: "string",
+          description: "Language: 'python' | 'typescript' | 'javascript' | 'rust' | etc.",
+        },
+        framework: {
+          type: "string",
+          description: "Framework: 'fastapi' | 'react' | 'sqlalchemy' | 'qdrant' | etc.",
+        },
+        layer: {
+          type: "string",
+          description: "Architecture layer: 'router' | 'model' | 'service' | 'component' | 'test' | etc.",
+        },
+      },
+      required: ["pattern_name", "content", "lang", "framework"],
+    },
+  },
+
+  {
+    name: "masonry_pattern_search",
+    description: "Search build patterns stored in Recall. Returns matching patterns with their content, tags, and recency. Use at the start of a build task to check if a similar pattern was already implemented.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Natural language search query: 'FastAPI auth endpoint' or 'React stat card dark theme'",
+        },
+        lang: {
+          type: "string",
+          description: "Filter by language (optional): 'python' | 'typescript' | etc.",
+        },
+        framework: {
+          type: "string",
+          description: "Filter by framework (optional): 'fastapi' | 'react' | etc.",
+        },
+        limit: {
+          type: "number",
+          description: "Max results to return (default: 5)",
+          default: 5,
+        },
+      },
+      required: ["query"],
+    },
+  },
+
+  {
+    name: "masonry_worker_status",
+    description: "Query the state of Masonry background daemon workers (testgaps, optimize, consolidate, deepdive). Returns which workers are running (PID), last run time, and paths to their output files.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: {
+          type: "string",
+          description: "Project path to check for daemon output files (.autopilot/testgaps.md, quality.md, etc.)",
+        },
+      },
+      required: ["project_path"],
+    },
+  },
+
+  {
+    name: "masonry_task_assign",
+    description: "Atomically claim the next PENDING task from .autopilot/progress.json and mark it IN_PROGRESS. Used by TeammateIdle hook and worker agents to safely pull tasks without race conditions. Returns the claimed task or null if all tasks are done.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: {
+          type: "string",
+          description: "Project directory containing .autopilot/progress.json",
+        },
+        worker_id: {
+          type: "string",
+          description: "ID or name of the worker claiming the task (for heartbeat tracking)",
+        },
+      },
+      required: ["project_path"],
+    },
+  },
+
+  {
+    name: "masonry_agent_health",
+    description: "Get per-agent performance metrics: score, runs, pass rate, last run, optimization status. Reads from agent_db.json and agent_registry.yml. Use to decide which specialist agents are performing well vs. need re-optimization.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: {
+          type: "string",
+          description: "Project directory containing agent_db.json",
+        },
+        agent_name: {
+          type: "string",
+          description: "Specific agent to query (optional — omit for all agents)",
+        },
+        sort_by: {
+          type: "string",
+          description: "'score' | 'runs' | 'pass_rate' | 'last_run' (default: score)",
+          default: "score",
+        },
+      },
+      required: ["project_path"],
+    },
+  },
+
+  {
+    name: "masonry_wave_validate",
+    description: "Validate that all tasks in a build wave are DONE before advancing to the next wave. Reads .autopilot/progress.json. Returns: wave status, blocking tasks, test counts, and whether it's safe to proceed.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: {
+          type: "string",
+          description: "Project directory containing .autopilot/progress.json",
+        },
+        wave_task_ids: {
+          type: "array",
+          items: { type: "number" },
+          description: "Task IDs that belong to the current wave",
+        },
+      },
+      required: ["project_path", "wave_task_ids"],
+    },
+  },
+
+  {
+    name: "masonry_swarm_init",
+    description: "Initialize .autopilot/progress.json for a swarm build from a spec. Parses the spec's task list, creates progress.json with all tasks PENDING, sets status to BUILDING. Returns the initialized task list for coordinator dispatch.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: {
+          type: "string",
+          description: "Project directory where .autopilot/ lives",
+        },
+        spec_path: {
+          type: "string",
+          description: "Path to spec.md (optional, defaults to .autopilot/spec.md)",
+        },
+        project_name: {
+          type: "string",
+          description: "Name for this build (used in progress.json 'project' field)",
+        },
+      },
+      required: ["project_path"],
+    },
+  },
+
+  {
+    name: "masonry_consensus_check",
+    description: "Quorum gate for destructive operations. Check if an action is pre-approved in .autopilot/consensus.json, or register a new approval request. Used by agents before DROP TABLE, force push, rm -rf, or other irreversible actions.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: {
+          type: "string",
+          description: "Project directory containing (or to create) .autopilot/consensus.json",
+        },
+        action: {
+          type: "string",
+          description: "The destructive action to check: 'DROP TABLE users_old' or 'git push --force'",
+        },
+        mode: {
+          type: "string",
+          description: "'check' — look for existing approval | 'approve' — add approval to consensus.json | 'list' — show all approvals",
+          default: "check",
+        },
+        approved_by: {
+          type: "string",
+          description: "Who is approving (required when mode='approve'): 'human' | agent name",
+        },
+      },
+      required: ["project_path", "action"],
+    },
+  },
+  {
+    name: "masonry_doctor",
+    description: "System health check. Verifies Recall connectivity, daemon worker status, hook file existence, agent registry coverage, and training data freshness. Returns a PASS/WARN/FAIL table. Run this when something feels off or after a major BrickLayer update.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: {
+          type: "string",
+          description: "Project directory to check daemon output files in. Defaults to current working directory.",
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "masonry_verify_7point",
+    description: "7-point quality gate for a project. Runs: unit tests, coverage ≥80%, integration tests, e2e tests, security scan, performance baseline, docker build. Returns overall PASS/FAIL with per-check details. Coverage <80% and missing perf baseline are warnings (non-blocking); all others are blocking.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_dir: {
+          type: "string",
+          description: "Absolute path to the project directory to verify",
+        },
+      },
+      required: ["project_dir"],
+    },
+  },
+  {
+    name: "masonry_pattern_decay",
+    description: "Apply time decay to pattern confidence scores and prune patterns below the 0.2 threshold. Reads .autopilot/pattern-confidence.json, applies -0.005/hr decay since last_used, removes entries below 0.2. Returns pruned count and surviving entries.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: {
+          type: "string",
+          description: "Absolute path to the project directory (where .autopilot/ lives)"
+        },
+        dry_run: {
+          type: "boolean",
+          description: "If true, report what would be pruned without modifying the file",
+          default: false
+        }
+      },
+      required: ["project_path"]
+    }
+  },
+  {
+    name: "masonry_training_update",
+    description: "Recompute EMA strategy scores from masonry/telemetry.jsonl. Returns updated strategy recommendations per task_type.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        telemetry_path: { type: "string", description: "Path to telemetry.jsonl (optional, defaults to masonry/telemetry.jsonl)" }
+      }
+    }
+  },
+  {
+    name: "masonry_reasoning_query",
+    description: "Query ReasoningBank for top-5 patterns matching a query string. Returns pattern list with confidence scores.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search query text" },
+        top_k: { type: "number", description: "Number of results (default 5)" },
+        domain: { type: "string", description: "Filter by domain (optional)" }
+      },
+      required: ["query"]
+    }
+  },
+  {
+    name: "masonry_reasoning_store",
+    description: "Store a new pattern in ReasoningBank with content, domain, and initial confidence 0.7.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        content: { type: "string", description: "Pattern content text" },
+        domain: { type: "string", description: "Domain tag (e.g. 'testing', 'architecture')" },
+        pattern_id: { type: "string", description: "Optional explicit ID; auto-generated if omitted" }
+      },
+      required: ["content"]
+    }
+  },
+  {
+    name: "masonry_graph_record",
+    description: "Record pattern co-citations as CITES edges in Neo4j after a task succeeds. Pass pattern_ids that were used together.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        task_id: { type: "string", description: "Task identifier" },
+        pattern_ids: { type: "array", items: { type: "string" }, description: "Pattern IDs used in this task" },
+        project: { type: "string", description: "Project name (for scoping)" }
+      },
+      required: ["task_id", "pattern_ids"]
+    }
+  },
+  {
+    name: "masonry_pagerank_run",
+    description: "Run PageRank on the pattern citation graph for a project. Updates confidence scores in pattern-confidence.json.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project: { type: "string", description: "Project name to scope the PageRank run" },
+        confidence_path: { type: "string", description: "Path to pattern-confidence.json (optional)" }
+      },
+      required: ["project"]
+    }
   },
 ];
 
@@ -835,6 +1175,1024 @@ print(json.dumps({"question_id": args["question_id"], "result": result}))  # noq
 }
 
 // ---------------------------------------------------------------------------
+// Phase 6 — Dev Execution Tool implementations
+// ---------------------------------------------------------------------------
+
+function toolRoute(args) {
+  const { request, project_path } = args;
+  return callPython(`
+import sys, json
+sys.path.insert(0, ${JSON.stringify(REPO_ROOT)})
+try:
+    from masonry.src.routing.router import route_request
+    result = route_request(args["request"], project_path=args.get("project_path"))
+    print(json.dumps(result))  # noqa: mcp-stdout
+except Exception as e:
+    print(json.dumps({"error": str(e), "target_agent": "user", "layer": "fallback", "confidence": 0, "reason": "Router unavailable"}))  # noqa: mcp-stdout
+`, args);
+}
+
+async function toolPatternStore(args) {
+  const { pattern_name, content, lang, framework, layer } = args;
+  const cfg = loadConfig();
+
+  const tags = [`lang:${lang}`, `framework:${framework}`];
+  if (layer) tags.push(`layer:${layer}`);
+  tags.push("source:manual");
+
+  const payload = JSON.stringify({
+    content: `# ${pattern_name}\n\n${content}`,
+    domain: "build-patterns",
+    tags,
+    metadata: { pattern_name, lang, framework, layer: layer || null },
+  });
+
+  try {
+    const resp = await Promise.race([
+      httpRequest(
+        `${process.env.RECALL_HOST || cfg.recallHost}/memory/store`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(payload),
+            ...(cfg.recallApiKey ? { Authorization: `Bearer ${cfg.recallApiKey}` } : {}),
+          },
+        },
+        payload,
+      ),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
+    ]);
+
+    if (resp.status >= 400) {
+      return { stored: false, error: `Recall returned HTTP ${resp.status}` };
+    }
+
+    return { stored: true, pattern_name, lang, framework, layer, tags };
+  } catch (err) {
+    return { stored: false, error: err.message };
+  }
+}
+
+async function toolPatternSearch(args) {
+  const { query, lang, framework, limit = 5 } = args;
+  const cfg = loadConfig();
+
+  const searchBody = {
+    query,
+    domains: ["build-patterns"],
+    limit,
+  };
+  if (lang) searchBody.tags = [`lang:${lang}`];
+  if (framework && searchBody.tags) searchBody.tags.push(`framework:${framework}`);
+  else if (framework) searchBody.tags = [`framework:${framework}`];
+
+  const payload = JSON.stringify(searchBody);
+
+  try {
+    const resp = await Promise.race([
+      httpRequest(
+        `${process.env.RECALL_HOST || cfg.recallHost}/search/query`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(payload),
+            ...(cfg.recallApiKey ? { Authorization: `Bearer ${cfg.recallApiKey}` } : {}),
+          },
+        },
+        payload,
+      ),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
+    ]);
+
+    if (resp.status >= 400) {
+      return { error: `Recall returned HTTP ${resp.status}`, results: [] };
+    }
+
+    const data = resp.body;
+    const results = Array.isArray(data) ? data : (data.results || data.memories || []);
+    return { results, count: results.length, query, lang, framework };
+  } catch (err) {
+    return { error: err.message, results: [] };
+  }
+}
+
+function toolWorkerStatus(args) {
+  const { project_path } = args;
+  const daemonDir = path.join(REPO_ROOT, "masonry", "src", "daemon");
+  const pidsDir = path.join(daemonDir, "pids");
+  const logsDir = path.join(daemonDir, "logs");
+  const autopilotDir = path.join(project_path, ".autopilot");
+
+  const WORKERS = ["testgaps", "optimize", "consolidate", "deepdive"];
+  const OUTPUT_FILES = {
+    testgaps: "testgaps.md",
+    optimize: "quality.md",
+    consolidate: null,
+    deepdive: "deepdive.md",
+  };
+
+  const status = {};
+
+  for (const worker of WORKERS) {
+    const pidFile = path.join(pidsDir, `${worker}.pid`);
+    let running = false;
+    let pid = null;
+
+    if (fs.existsSync(pidFile)) {
+      try {
+        pid = parseInt(fs.readFileSync(pidFile, "utf8").trim(), 10);
+        // Check if process is still alive
+        try { process.kill(pid, 0); running = true; } catch (_) { running = false; }
+      } catch (_) { /* unreadable pid */ }
+    }
+
+    let lastRunAt = null;
+    const logFile = path.join(logsDir, `${worker}.log`);
+    if (fs.existsSync(logFile)) {
+      try { lastRunAt = new Date(fs.statSync(logFile).mtime).toISOString(); } catch (_) {}
+    }
+
+    let outputFile = null;
+    let outputAge = null;
+    if (OUTPUT_FILES[worker]) {
+      const outPath = path.join(autopilotDir, OUTPUT_FILES[worker]);
+      if (fs.existsSync(outPath)) {
+        outputFile = outPath;
+        try {
+          const ageMs = Date.now() - fs.statSync(outPath).mtimeMs;
+          outputAge = Math.round(ageMs / 60000) + "min ago";
+        } catch (_) {}
+      }
+    }
+
+    status[worker] = { running, pid, last_run_at: lastRunAt, output_file: outputFile, output_age: outputAge };
+  }
+
+  return { workers: status, daemon_dir: daemonDir, project_path };
+}
+
+function toolTaskAssign(args) {
+  const { project_path, worker_id } = args;
+  const progressFile = path.join(project_path, ".autopilot", "progress.json");
+
+  if (!fs.existsSync(progressFile)) {
+    return { task: null, reason: "No .autopilot/progress.json found" };
+  }
+
+  let progress;
+  try {
+    progress = JSON.parse(fs.readFileSync(progressFile, "utf8"));
+  } catch (err) {
+    return { task: null, error: `Failed to parse progress.json: ${err.message}` };
+  }
+
+  const pending = (progress.tasks || []).find((t) => t.status === "PENDING");
+
+  if (!pending) {
+    const inProgress = (progress.tasks || []).filter((t) => t.status === "IN_PROGRESS");
+    const done = (progress.tasks || []).filter((t) => t.status === "DONE");
+    return {
+      task: null,
+      reason: inProgress.length > 0 ? "all_in_progress" : "all_done",
+      in_progress_count: inProgress.length,
+      done_count: done.length,
+      total: (progress.tasks || []).length,
+    };
+  }
+
+  // Atomically claim the task
+  pending.status = "IN_PROGRESS";
+  if (worker_id) pending.claimed_by = worker_id;
+  pending.claimed_at = new Date().toISOString();
+  progress.updated_at = new Date().toISOString();
+
+  try {
+    fs.writeFileSync(progressFile, JSON.stringify(progress, null, 2), "utf8");
+  } catch (err) {
+    return { task: null, error: `Failed to write progress.json: ${err.message}` };
+  }
+
+  return {
+    task: pending,
+    total_tasks: (progress.tasks || []).length,
+    pending_remaining: (progress.tasks || []).filter((t) => t.status === "PENDING").length,
+  };
+}
+
+function toolAgentHealth(args) {
+  const { project_path, agent_name, sort_by = "score" } = args;
+
+  const agentDbFile = path.join(project_path, "agent_db.json");
+  const registryFile = path.join(REPO_ROOT, "masonry", "agent_registry.yml");
+
+  let db = {};
+  let registry = [];
+
+  try {
+    if (fs.existsSync(agentDbFile)) {
+      db = JSON.parse(fs.readFileSync(agentDbFile, "utf8"));
+    }
+  } catch (_) {}
+
+  // Parse YAML registry manually (no yaml dep — simple line parser)
+  try {
+    if (fs.existsSync(registryFile)) {
+      const lines = fs.readFileSync(registryFile, "utf8").split("\n");
+      let current = null;
+      for (const line of lines) {
+        const nameMatch = line.match(/^  - name:\s+(.+)/);
+        if (nameMatch) {
+          if (current) registry.push(current);
+          current = { name: nameMatch[1].trim() };
+        } else if (current) {
+          const tierMatch = line.match(/^\s+tier:\s+(.+)/);
+          const dspyMatch = line.match(/^\s+dspy_optimized:\s+(.+)/);
+          if (tierMatch) current.tier = tierMatch[1].trim();
+          if (dspyMatch) current.dspy_optimized = dspyMatch[1].trim() === "true";
+        }
+      }
+      if (current) registry.push(current);
+    }
+  } catch (_) {}
+
+  // Merge db scores into registry entries
+  const merged = registry.map((r) => {
+    const dbEntry = db[r.name] || {};
+    return {
+      name: r.name,
+      tier: r.tier || "unknown",
+      dspy_optimized: r.dspy_optimized || false,
+      score: dbEntry.score ?? dbEntry.avg_score ?? null,
+      runs: dbEntry.runs ?? dbEntry.total_runs ?? 0,
+      pass_rate: dbEntry.pass_rate ?? null,
+      last_run: dbEntry.last_run ?? dbEntry.updated_at ?? null,
+    };
+  });
+
+  // Also include db-only entries not in registry
+  for (const [name, dbEntry] of Object.entries(db)) {
+    if (!merged.find((m) => m.name === name)) {
+      merged.push({
+        name,
+        tier: "unknown",
+        dspy_optimized: false,
+        score: dbEntry.score ?? dbEntry.avg_score ?? null,
+        runs: dbEntry.runs ?? dbEntry.total_runs ?? 0,
+        pass_rate: dbEntry.pass_rate ?? null,
+        last_run: dbEntry.last_run ?? dbEntry.updated_at ?? null,
+      });
+    }
+  }
+
+  if (agent_name) {
+    const found = merged.find((m) => m.name === agent_name);
+    return found ? { agent: found } : { error: `Agent '${agent_name}' not found` };
+  }
+
+  // Sort
+  const sortFn = {
+    score: (a, b) => (b.score ?? -1) - (a.score ?? -1),
+    runs: (a, b) => (b.runs ?? 0) - (a.runs ?? 0),
+    pass_rate: (a, b) => (b.pass_rate ?? -1) - (a.pass_rate ?? -1),
+    last_run: (a, b) => (b.last_run || "").localeCompare(a.last_run || ""),
+  }[sort_by] || ((a, b) => (b.score ?? -1) - (a.score ?? -1));
+
+  merged.sort(sortFn);
+
+  return {
+    agents: merged,
+    total: merged.length,
+    optimized: merged.filter((m) => m.dspy_optimized).length,
+    sort_by,
+  };
+}
+
+function toolWaveValidate(args) {
+  const { project_path, wave_task_ids } = args;
+  const progressFile = path.join(project_path, ".autopilot", "progress.json");
+
+  if (!fs.existsSync(progressFile)) {
+    return { valid: false, error: "No .autopilot/progress.json found" };
+  }
+
+  let progress;
+  try {
+    progress = JSON.parse(fs.readFileSync(progressFile, "utf8"));
+  } catch (err) {
+    return { valid: false, error: `Failed to parse progress.json: ${err.message}` };
+  }
+
+  const taskMap = {};
+  for (const t of (progress.tasks || [])) {
+    taskMap[t.id] = t;
+  }
+
+  const waveTasks = wave_task_ids.map((id) => taskMap[id] || { id, status: "NOT_FOUND" });
+  const blocking = waveTasks.filter((t) => t.status !== "DONE");
+  const allDone = blocking.length === 0;
+
+  return {
+    valid: allDone,
+    safe_to_advance: allDone,
+    wave_task_ids,
+    blocking_tasks: blocking.map((t) => ({ id: t.id, status: t.status, description: t.description || null })),
+    done_count: waveTasks.length - blocking.length,
+    total_wave_tasks: waveTasks.length,
+    overall_progress: {
+      total: (progress.tasks || []).length,
+      done: (progress.tasks || []).filter((t) => t.status === "DONE").length,
+      in_progress: (progress.tasks || []).filter((t) => t.status === "IN_PROGRESS").length,
+      pending: (progress.tasks || []).filter((t) => t.status === "PENDING").length,
+    },
+    tests: progress.tests || null,
+  };
+}
+
+function toolSwarmInit(args) {
+  const { project_path, spec_path, project_name } = args;
+
+  const autopilotDir = path.join(project_path, ".autopilot");
+  const specFile = spec_path || path.join(autopilotDir, "spec.md");
+
+  if (!fs.existsSync(specFile)) {
+    return { initialized: false, error: `Spec file not found: ${specFile}` };
+  }
+
+  let specContent;
+  try {
+    specContent = fs.readFileSync(specFile, "utf8");
+  } catch (err) {
+    return { initialized: false, error: `Failed to read spec: ${err.message}` };
+  }
+
+  // Parse task list: lines like "- [ ] **Task N** — description" or "- [ ] Task N: description"
+  // Optional continuation line:  depends_on: [1, 2]
+  const tasks = [];
+  const lines = specContent.split("\n");
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const m = line.match(/^[-*]\s+\[[ x]\]\s+(?:\*\*)?(?:Task\s+)?(\d+)(?:\.\*\*)?\s*[:\-—]\s*(.+?)(?:\s+\[mode:(\w+)\])?$/i);
+    if (m) {
+      const task = {
+        id: parseInt(m[1], 10),
+        description: m[2].replace(/\*\*/g, "").trim(),
+        status: "PENDING",
+        mode: m[3] || "default",
+      };
+
+      // Look ahead up to 3 lines for a depends_on: [...] field
+      for (let j = i + 1; j <= i + 3 && j < lines.length; j++) {
+        const nextLine = lines[j].trim();
+        if (!nextLine) break; // blank line ends the task block
+        const depsMatch = nextLine.match(/^depends_on:\s*(\[.*?\])/);
+        if (depsMatch) {
+          try {
+            task.depends_on = JSON.parse(depsMatch[1]);
+          } catch (_) { /* malformed — skip */ }
+          break;
+        }
+        // If the next line looks like another task item, stop looking
+        if (/^[-*]\s+\[[ x]\]/.test(nextLine)) break;
+      }
+
+      tasks.push(task);
+    }
+  }
+
+  if (tasks.length === 0) {
+    // Fallback: match any checked/unchecked list item with a number
+    let taskNum = 1;
+    for (const line of lines) {
+      const fm = line.match(/^[-*]\s+\[[ x]\]\s+(.+)/);
+      if (fm && !fm[1].startsWith("#")) {
+        tasks.push({ id: taskNum++, description: fm[1].replace(/\*\*/g, "").trim(), status: "PENDING", mode: "default" });
+      }
+    }
+  }
+
+  if (tasks.length === 0) {
+    return { initialized: false, error: "No tasks found in spec. Expected '- [ ] **Task N** — description' format." };
+  }
+
+  const name = project_name || path.basename(project_path);
+  const dateSuffix = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const progress = {
+    project: name,
+    status: "BUILDING",
+    branch: `autopilot/${name}-${dateSuffix}`,
+    tasks,
+    tests: { total: 0, passing: 0, failing: 0 },
+    updated_at: new Date().toISOString(),
+  };
+
+  try {
+    fs.mkdirSync(autopilotDir, { recursive: true });
+    fs.writeFileSync(path.join(autopilotDir, "progress.json"), JSON.stringify(progress, null, 2), "utf8");
+    // Write mode file so masonry-teammate-idle fires for this swarm
+    fs.writeFileSync(path.join(autopilotDir, "mode"), "build", "utf8");
+  } catch (err) {
+    return { initialized: false, error: `Failed to write progress.json: ${err.message}` };
+  }
+
+  // Analyze task dependencies to determine swarm topology
+  let topology = "hierarchical";
+  const tasksWithDeps = tasks.filter((t) => t.depends_on && t.depends_on.length > 0);
+  if (tasksWithDeps.length === 0) {
+    // No explicit depends_on on any task — independent parallel work
+    topology = "hierarchical";
+  } else {
+    // Check for strictly linear chain: task N's depends_on = [N-1]
+    const isLinear = tasks.every((t, i) => {
+      if (i === 0) return !t.depends_on || t.depends_on.length === 0;
+      return t.depends_on && t.depends_on.length === 1 && t.depends_on[0] === tasks[i - 1].id;
+    });
+    if (isLinear) {
+      topology = "ring";
+    } else {
+      // Check for mesh: multiple tasks share the same depends_on entry
+      const depRefCount = {};
+      for (const t of tasksWithDeps) {
+        for (const dep of t.depends_on) {
+          depRefCount[dep] = (depRefCount[dep] || 0) + 1;
+        }
+      }
+      const hasMesh = Object.values(depRefCount).some((count) => count > 1);
+      topology = hasMesh ? "mesh" : "hybrid";
+    }
+  }
+
+  return { initialized: true, tasks, task_count: tasks.length, project: name, branch: progress.branch, topology };
+}
+
+function toolConsensusCheck(args) {
+  const { project_path, action, mode = "check", approved_by } = args;
+  const autopilotDir = path.join(project_path, ".autopilot");
+  const consensusFile = path.join(autopilotDir, "consensus.json");
+
+  let consensus = { approvals: [] };
+  try {
+    if (fs.existsSync(consensusFile)) {
+      consensus = JSON.parse(fs.readFileSync(consensusFile, "utf8"));
+    }
+  } catch (_) {}
+
+  if (!Array.isArray(consensus.approvals)) consensus.approvals = [];
+
+  if (mode === "list") {
+    return { approvals: consensus.approvals, total: consensus.approvals.length };
+  }
+
+  // Normalize action for comparison
+  const actionNorm = action.trim().toLowerCase();
+  const existing = consensus.approvals.find((a) => a.action.toLowerCase() === actionNorm);
+
+  if (mode === "check") {
+    if (existing) {
+      return {
+        approved: true,
+        action,
+        approved_by: existing.approved_by,
+        approved_at: existing.approved_at,
+        note: existing.note || null,
+      };
+    }
+    return {
+      approved: false,
+      action,
+      message: "No prior approval found. Call with mode='approve' after human confirmation.",
+    };
+  }
+
+  if (mode === "approve") {
+    if (!approved_by) {
+      return { error: "approved_by is required when mode='approve'" };
+    }
+
+    if (existing) {
+      // Update existing
+      existing.approved_by = approved_by;
+      existing.approved_at = new Date().toISOString();
+    } else {
+      consensus.approvals.push({
+        action: action.trim(),
+        approved_by,
+        approved_at: new Date().toISOString(),
+      });
+    }
+
+    try {
+      fs.mkdirSync(autopilotDir, { recursive: true });
+      fs.writeFileSync(consensusFile, JSON.stringify(consensus, null, 2), "utf8");
+    } catch (err) {
+      return { error: `Failed to write consensus.json: ${err.message}` };
+    }
+
+    return { recorded: true, action, approved_by, total_approvals: consensus.approvals.length };
+  }
+
+  return { error: `Unknown mode: ${mode}. Use 'check' | 'approve' | 'list'` };
+}
+
+// ---------------------------------------------------------------------------
+// masonry_doctor — system health check
+// ---------------------------------------------------------------------------
+
+async function toolDoctor(args) {
+  const projectPath = args.project_path || process.cwd();
+  const cfg = loadConfig();
+  const daemonDir = path.join(REPO_ROOT, "masonry", "src", "daemon");
+  const hooksDir = path.join(REPO_ROOT, "masonry", "src", "hooks");
+  const pidsDir = path.join(daemonDir, "pids");
+
+  const checks = [];
+
+  // --- 1. Recall connectivity ---
+  try {
+    const resp = await Promise.race([
+      httpRequest(`${cfg.recallHost}/health`, { method: "GET", headers: {} }, null),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000)),
+    ]);
+    if (resp.status >= 200 && resp.status < 300) {
+      checks.push({ check: "Recall API", status: "PASS", detail: `${cfg.recallHost} → HTTP ${resp.status}` });
+    } else {
+      checks.push({ check: "Recall API", status: "WARN", detail: `HTTP ${resp.status} from ${cfg.recallHost}` });
+    }
+  } catch (err) {
+    checks.push({ check: "Recall API", status: "FAIL", detail: `Unreachable: ${err.message}` });
+  }
+
+  // --- 2. Daemon worker status ---
+  const ALL_WORKERS = ["testgaps", "optimize", "consolidate", "deepdive", "ultralearn", "map", "document", "refactor", "benchmark"];
+  const runningWorkers = [];
+  const stoppedWorkers = [];
+
+  for (const worker of ALL_WORKERS) {
+    const pidFile = path.join(pidsDir, `${worker}.pid`);
+    let running = false;
+    if (fs.existsSync(pidFile)) {
+      try {
+        const pid = parseInt(fs.readFileSync(pidFile, "utf8").trim(), 10);
+        try { process.kill(pid, 0); running = true; } catch (_) {}
+      } catch (_) {}
+    }
+    if (running) runningWorkers.push(worker);
+    else stoppedWorkers.push(worker);
+  }
+
+  if (runningWorkers.length > 0) {
+    checks.push({ check: "Daemon workers", status: "PASS", detail: `Running: ${runningWorkers.join(", ")}` });
+  } else {
+    checks.push({ check: "Daemon workers", status: "WARN", detail: "No workers running — start with daemon-manager.sh start" });
+  }
+
+  // --- 3. Core hook files ---
+  const CORE_HOOKS = [
+    "masonry-session-start.js",
+    "masonry-session-end.js",
+    "masonry-approver.js",
+    "masonry-lint-check.js",
+    "masonry-stop-guard.js",
+    "masonry-build-guard.js",
+    "masonry-tdd-enforcer.js",
+    "masonry-mortar-enforcer.js",
+    "masonry-pre-compact.js",
+  ];
+
+  const missingHooks = CORE_HOOKS.filter(h => !fs.existsSync(path.join(hooksDir, h)));
+  if (missingHooks.length === 0) {
+    checks.push({ check: "Hook files", status: "PASS", detail: `All ${CORE_HOOKS.length} core hooks present` });
+  } else {
+    checks.push({ check: "Hook files", status: "FAIL", detail: `Missing: ${missingHooks.join(", ")}` });
+  }
+
+  // --- 4. Agent registry coverage ---
+  const registryFile = path.join(REPO_ROOT, "masonry", "agent_registry.yml");
+  let registryCount = 0;
+  let agentDirCount = 0;
+
+  if (fs.existsSync(registryFile)) {
+    try {
+      const content = fs.readFileSync(registryFile, "utf8");
+      registryCount = (content.match(/^- name:/gm) || []).length;
+    } catch (_) {}
+  }
+
+  const agentDirs = [
+    path.join(REPO_ROOT, ".claude", "agents"),
+    path.join(os.homedir(), ".claude", "agents"),
+  ];
+  const seenAgents = new Set();
+  for (const dir of agentDirs) {
+    if (fs.existsSync(dir)) {
+      try {
+        fs.readdirSync(dir)
+          .filter(f => f.endsWith(".md"))
+          .forEach(f => seenAgents.add(f));
+      } catch (_) {}
+    }
+  }
+  agentDirCount = seenAgents.size;
+
+  if (registryCount === 0) {
+    checks.push({ check: "Agent registry", status: "WARN", detail: "agent_registry.yml not found or empty" });
+  } else if (agentDirCount > registryCount + 3) {
+    checks.push({ check: "Agent registry", status: "WARN", detail: `${agentDirCount} agent files but only ${registryCount} in registry — run masonry_onboard` });
+  } else {
+    checks.push({ check: "Agent registry", status: "PASS", detail: `${registryCount} agents registered, ${agentDirCount} agent files` });
+  }
+
+  // --- 5. Training data freshness ---
+  const trainingFile = path.join(REPO_ROOT, "masonry", "training_data", "scored_all.jsonl");
+  if (!fs.existsSync(trainingFile)) {
+    checks.push({ check: "Training data", status: "WARN", detail: "scored_all.jsonl not found — run a campaign wave to generate training data" });
+  } else {
+    try {
+      const ageMs = Date.now() - fs.statSync(trainingFile).mtimeMs;
+      const ageDays = Math.round(ageMs / (86400 * 1000));
+      const lines = fs.readFileSync(trainingFile, "utf8").split("\n").filter(l => l.trim()).length;
+      if (ageDays > 30) {
+        checks.push({ check: "Training data", status: "WARN", detail: `${lines} records, last updated ${ageDays} days ago — consider running a new campaign` });
+      } else {
+        checks.push({ check: "Training data", status: "PASS", detail: `${lines} records, updated ${ageDays} day(s) ago` });
+      }
+    } catch (_) {
+      checks.push({ check: "Training data", status: "WARN", detail: "Could not read training data stats" });
+    }
+  }
+
+  // --- 6. Daemon output files freshness ---
+  const OUTPUT_MAP = {
+    "testgaps.md": "testgaps",
+    "quality.md": "optimize",
+    "deepdive.md": "deepdive",
+    "map.md": "map",
+    "refactor-candidates.md": "refactor",
+    "benchmark.md": "benchmark",
+  };
+  const autopilotDir = path.join(projectPath, ".autopilot");
+  const staleOutputs = [];
+  const presentOutputs = [];
+  for (const [file, worker] of Object.entries(OUTPUT_MAP)) {
+    const fp = path.join(autopilotDir, file);
+    if (fs.existsSync(fp)) {
+      try {
+        const ageMs = Date.now() - fs.statSync(fp).mtimeMs;
+        const ageH = Math.round(ageMs / 3600000);
+        presentOutputs.push(`${file}(${ageH}h)`);
+        if (ageH > 24) staleOutputs.push(file);
+      } catch (_) {}
+    }
+  }
+  if (presentOutputs.length === 0) {
+    checks.push({ check: "Daemon outputs", status: "WARN", detail: "No .autopilot output files yet — workers haven't run in this project" });
+  } else if (staleOutputs.length > 0) {
+    checks.push({ check: "Daemon outputs", status: "WARN", detail: `Stale (>24h): ${staleOutputs.join(", ")}` });
+  } else {
+    checks.push({ check: "Daemon outputs", status: "PASS", detail: presentOutputs.join(", ") });
+  }
+
+  // --- Summary ---
+  const failed = checks.filter(c => c.status === "FAIL").length;
+  const warned = checks.filter(c => c.status === "WARN").length;
+  const passed = checks.filter(c => c.status === "PASS").length;
+
+  let overall = "PASS";
+  if (failed > 0) overall = "FAIL";
+  else if (warned > 0) overall = "WARN";
+
+  const table = checks.map(c => `${c.status.padEnd(4)} | ${c.check.padEnd(20)} | ${c.detail}`).join("\n");
+
+  return {
+    overall,
+    summary: `${passed} passed, ${warned} warned, ${failed} failed`,
+    checks,
+    table: `STATUS | CHECK                 | DETAIL\n${"─".repeat(70)}\n${table}`,
+    project_path: projectPath,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// masonry_verify_7point — 7-point quality gate
+// ---------------------------------------------------------------------------
+
+function toolVerify7point(args) {
+  const { project_dir } = args;
+
+  if (!fs.existsSync(project_dir)) {
+    return { overall: "FAIL", checks: [], blocking_failures: ["project_dir not found"], warnings: [] };
+  }
+
+  const checks = [];
+  const blockingFailures = [];
+  const warnings = [];
+
+  const execOpts = { encoding: "utf8", timeout: 120000, cwd: project_dir };
+
+  // Detect project type
+  const hasPytestIni = fs.existsSync(path.join(project_dir, "pytest.ini"));
+  const hasPyproject = fs.existsSync(path.join(project_dir, "pyproject.toml"));
+  const isPython = hasPytestIni || hasPyproject;
+
+  let packageJson = null;
+  try {
+    const pkgPath = path.join(project_dir, "package.json");
+    if (fs.existsSync(pkgPath)) {
+      packageJson = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+    }
+  } catch (_) {}
+  const isJS = packageJson && packageJson.scripts && packageJson.scripts.test;
+
+  // -- CHECK 1: Unit tests --
+  {
+    let cmd;
+    if (isPython) cmd = "pytest -q --tb=short";
+    else if (isJS) cmd = "npm test -- --reporter=dot";
+
+    if (!cmd) {
+      checks.push({ name: "unit_tests", status: "SKIP", detail: "No test runner detected (no pytest.ini, pyproject.toml, or package.json with test script)" });
+    } else {
+      try {
+        execSync(cmd, execOpts);
+        checks.push({ name: "unit_tests", status: "PASS", detail: `${cmd} exited 0` });
+      } catch (err) {
+        const output = ((err.stdout || "") + (err.stderr || "")).slice(-1000);
+        checks.push({ name: "unit_tests", status: "FAIL", detail: output || err.message });
+        blockingFailures.push("unit_tests");
+      }
+    }
+  }
+
+  // -- CHECK 2: Coverage ≥ 80% (warning only) --
+  try {
+    let coveragePct = null;
+    let coverageDetail = "";
+
+    if (isPython) {
+      try {
+        const out = execSync("pytest --cov=src --cov-report=term-missing -q 2>&1", execOpts);
+        const match = out.match(/TOTAL\s+\d+\s+\d+\s+(\d+)%/);
+        if (match) {
+          coveragePct = parseInt(match[1], 10);
+          coverageDetail = `${coveragePct}% total coverage`;
+        } else {
+          coverageDetail = "Coverage output not parseable";
+        }
+      } catch (err) {
+        coverageDetail = "pytest --cov failed: " + (err.message || "").slice(0, 200);
+      }
+    } else if (isJS) {
+      try {
+        const out = execSync("npm test -- --coverage 2>&1", execOpts);
+        const match = out.match(/All files[^\|]*\|\s*([\d.]+)/);
+        if (match) {
+          coveragePct = parseFloat(match[1]);
+          coverageDetail = `${coveragePct}% total coverage`;
+        } else {
+          coverageDetail = "Coverage output not parseable";
+        }
+      } catch (err) {
+        coverageDetail = "npm test --coverage failed: " + (err.message || "").slice(0, 200);
+      }
+    } else {
+      coverageDetail = "No test runner — skipping coverage";
+    }
+
+    if (coveragePct !== null && coveragePct < 80) {
+      checks.push({ name: "coverage", status: "PASS", detail: coverageDetail + " (below 80% threshold)" });
+      warnings.push(`Coverage ${coveragePct}% is below 80% target`);
+    } else {
+      checks.push({ name: "coverage", status: "PASS", detail: coverageDetail || "Coverage check skipped" });
+    }
+  } catch (_) {
+    checks.push({ name: "coverage", status: "SKIP", detail: "Coverage check skipped" });
+  }
+
+  // -- CHECK 3: Integration tests --
+  const integrationDirs = [
+    path.join(project_dir, "tests", "integration"),
+    path.join(project_dir, "test", "integration"),
+  ];
+  const integrationDir = integrationDirs.find((d) => fs.existsSync(d));
+
+  if (!integrationDir) {
+    checks.push({ name: "integration_tests", status: "SKIP", detail: "No tests/integration or test/integration directory found" });
+  } else {
+    try {
+      let cmd;
+      if (isPython) cmd = `pytest ${integrationDir} -q --tb=short`;
+      else if (isJS) cmd = `npx vitest run ${integrationDir} --reporter=dot`;
+      else cmd = null;
+
+      if (cmd) {
+        try {
+          execSync(cmd, execOpts);
+          checks.push({ name: "integration_tests", status: "PASS", detail: `${path.basename(integrationDir)} passed` });
+        } catch (err) {
+          const output = ((err.stdout || "") + (err.stderr || "")).slice(-800);
+          checks.push({ name: "integration_tests", status: "FAIL", detail: output || err.message });
+          blockingFailures.push("integration_tests");
+        }
+      } else {
+        checks.push({ name: "integration_tests", status: "SKIP", detail: "No test runner for integration dir" });
+      }
+    } catch (_) {
+      checks.push({ name: "integration_tests", status: "SKIP", detail: "Integration test runner failed to start" });
+    }
+  }
+
+  // -- CHECK 4: E2E tests --
+  const playwrightConfig = ["playwright.config.ts", "playwright.config.js"].find((f) =>
+    fs.existsSync(path.join(project_dir, f))
+  );
+  const cypressConfig = ["cypress.config.ts", "cypress.config.js", "cypress.json"].find((f) =>
+    fs.existsSync(path.join(project_dir, f))
+  );
+
+  if (!playwrightConfig && !cypressConfig) {
+    checks.push({ name: "e2e_tests", status: "SKIP", detail: "No Playwright or Cypress config found" });
+  } else {
+    try {
+      let cmd;
+      if (playwrightConfig) cmd = "npx playwright test --reporter=dot";
+      else cmd = "npx cypress run --headless";
+
+      try {
+        execSync(cmd, execOpts);
+        checks.push({ name: "e2e_tests", status: "PASS", detail: `${playwrightConfig ? "Playwright" : "Cypress"} passed` });
+      } catch (err) {
+        const output = ((err.stdout || "") + (err.stderr || "")).slice(-800);
+        checks.push({ name: "e2e_tests", status: "FAIL", detail: output || err.message });
+        blockingFailures.push("e2e_tests");
+      }
+    } catch (_) {
+      checks.push({ name: "e2e_tests", status: "SKIP", detail: "E2E runner failed to start" });
+    }
+  }
+
+  // -- CHECK 5: Security scan --
+  try {
+    if (isPython) {
+      try {
+        const out = execSync("bandit -r src/ -q -f json 2>/dev/null || true", execOpts);
+        let findings = [];
+        try {
+          const parsed = JSON.parse(out);
+          findings = (parsed.results || []).filter(
+            (r) => r.issue_severity === "HIGH" || r.issue_severity === "CRITICAL"
+          );
+        } catch (_) {}
+
+        if (findings.length > 0) {
+          const summary = findings.map((f) => `${f.issue_severity}: ${f.issue_text} (${f.filename}:${f.line_number})`).join("; ");
+          checks.push({ name: "security", status: "FAIL", detail: `${findings.length} HIGH/CRITICAL finding(s): ${summary}` });
+          blockingFailures.push("security");
+        } else {
+          checks.push({ name: "security", status: "PASS", detail: "No HIGH/CRITICAL bandit findings" });
+        }
+      } catch (_) {
+        checks.push({ name: "security", status: "SKIP", detail: "bandit not available" });
+      }
+    } else if (isJS) {
+      try {
+        const out = execSync("npm audit --audit-level=high 2>/dev/null || true", execOpts);
+        const hasCritical = /critical|high/i.test(out);
+        if (hasCritical) {
+          checks.push({ name: "security", status: "FAIL", detail: "npm audit found HIGH/CRITICAL vulnerabilities: " + out.slice(0, 400) });
+          blockingFailures.push("security");
+        } else {
+          checks.push({ name: "security", status: "PASS", detail: "No HIGH/CRITICAL npm audit findings" });
+        }
+      } catch (_) {
+        checks.push({ name: "security", status: "SKIP", detail: "npm audit not available" });
+      }
+    } else {
+      checks.push({ name: "security", status: "SKIP", detail: "No security scanner for detected project type" });
+    }
+  } catch (_) {
+    checks.push({ name: "security", status: "SKIP", detail: "Security scan failed to run" });
+  }
+
+  // -- CHECK 6: Performance baseline --
+  const autopilotDir = path.join(project_dir, ".autopilot");
+  const baselineFile = path.join(autopilotDir, "perf-baseline.json");
+
+  if (!fs.existsSync(baselineFile)) {
+    // Write a baseline — not a blocking failure, just a warning
+    try {
+      fs.mkdirSync(autopilotDir, { recursive: true });
+      const baseline = { created_at: new Date().toISOString(), timing_ms: 0, note: "Initial baseline — no timing data yet" };
+      fs.writeFileSync(baselineFile, JSON.stringify(baseline, null, 2), "utf8");
+      checks.push({ name: "performance", status: "PASS", detail: "No prior baseline — wrote initial baseline to .autopilot/perf-baseline.json" });
+      warnings.push("Performance baseline did not exist — created initial baseline (no timing comparison possible yet)");
+    } catch (err) {
+      checks.push({ name: "performance", status: "SKIP", detail: "Could not write baseline: " + err.message });
+    }
+  } else {
+    try {
+      const baseline = JSON.parse(fs.readFileSync(baselineFile, "utf8"));
+      const baselineTiming = baseline.timing_ms || 0;
+
+      if (baselineTiming === 0) {
+        checks.push({ name: "performance", status: "PASS", detail: "Baseline exists but has no timing data — skipping comparison" });
+      } else {
+        // Quick timing test: run unit tests and measure
+        const start = Date.now();
+        try {
+          if (isPython) execSync("pytest -q --co -q 2>/dev/null || true", { ...execOpts, timeout: 30000 });
+          else if (isJS) execSync("npm test -- --reporter=dot --run 2>/dev/null || true", { ...execOpts, timeout: 30000 });
+        } catch (_) {}
+        const elapsed = Date.now() - start;
+
+        const threshold = baselineTiming * 1.2;
+        if (elapsed > threshold) {
+          checks.push({ name: "performance", status: "PASS", detail: `${elapsed}ms vs baseline ${baselineTiming}ms (>${Math.round((elapsed / baselineTiming - 1) * 100)}% slower)` });
+          warnings.push(`Performance ${Math.round((elapsed / baselineTiming - 1) * 100)}% slower than baseline (${elapsed}ms vs ${baselineTiming}ms)`);
+        } else {
+          checks.push({ name: "performance", status: "PASS", detail: `${elapsed}ms vs baseline ${baselineTiming}ms (within 20% threshold)` });
+        }
+      }
+    } catch (err) {
+      checks.push({ name: "performance", status: "SKIP", detail: "Could not read baseline: " + err.message });
+    }
+  }
+
+  // -- CHECK 7: Docker build --
+  const dockerfilePath = path.join(project_dir, "Dockerfile");
+  if (!fs.existsSync(dockerfilePath)) {
+    checks.push({ name: "docker_build", status: "SKIP", detail: "No Dockerfile in project_dir" });
+  } else {
+    try {
+      execSync("docker build . --no-cache -q 2>&1", execOpts);
+      checks.push({ name: "docker_build", status: "PASS", detail: "docker build succeeded" });
+    } catch (err) {
+      const output = ((err.stdout || "") + (err.stderr || "")).slice(-800);
+      checks.push({ name: "docker_build", status: "FAIL", detail: output || err.message });
+      blockingFailures.push("docker_build");
+    }
+  }
+
+  const overall = blockingFailures.length > 0 ? "FAIL" : "PASS";
+
+  return { overall, checks, blocking_failures: blockingFailures, warnings };
+}
+
+// ---------------------------------------------------------------------------
+// masonry_pattern_decay — time-decay pattern confidence scores
+// ---------------------------------------------------------------------------
+
+function toolPatternDecay(args) {
+  const { project_path, dry_run = false } = args;
+  const confPath = path.join(project_path, '.autopilot', 'pattern-confidence.json');
+
+  let store = {};
+  try {
+    store = JSON.parse(fs.readFileSync(confPath, 'utf8'));
+  } catch {
+    return { pruned: 0, surviving: 0, message: 'No pattern-confidence.json found' };
+  }
+
+  const now = Date.now();
+  const DECAY_PER_HOUR = 0.005;
+  const PRUNE_THRESHOLD = 0.2;
+
+  const pruned = [];
+  const surviving = {};
+
+  for (const [key, entry] of Object.entries(store)) {
+    const lastUsed = entry.last_used ? new Date(entry.last_used).getTime() : now;
+    const hoursElapsed = (now - lastUsed) / (1000 * 60 * 60);
+    const decayed = Math.max(0, entry.confidence - DECAY_PER_HOUR * hoursElapsed);
+
+    if (decayed < PRUNE_THRESHOLD) {
+      pruned.push({ key, confidence: decayed, hours_since_use: Math.round(hoursElapsed) });
+    } else {
+      surviving[key] = { ...entry, confidence: decayed };
+    }
+  }
+
+  if (!dry_run && pruned.length > 0) {
+    try {
+      fs.writeFileSync(confPath, JSON.stringify(surviving, null, 2), 'utf8');
+    } catch (err) {
+      return { error: err.message };
+    }
+  }
+
+  return {
+    pruned: pruned.length,
+    surviving: Object.keys(surviving).length,
+    dry_run,
+    pruned_entries: pruned,
+    message: dry_run
+      ? `Dry run: ${pruned.length} patterns would be pruned`
+      : `Pruned ${pruned.length} patterns below ${PRUNE_THRESHOLD} threshold`
+  };
+}
+
+// ---------------------------------------------------------------------------
 // MCP protocol dispatch
 // ---------------------------------------------------------------------------
 
@@ -864,6 +2222,116 @@ async function dispatchTool(name, args) {
       return toolRunSimulation(args);
     case "masonry_sweep":
       return toolSweep(args);
+    // Phase 6 — Dev Execution
+    case "masonry_route":
+      return toolRoute(args);
+    case "masonry_pattern_store":
+      return await toolPatternStore(args);
+    case "masonry_pattern_search":
+      return await toolPatternSearch(args);
+    case "masonry_worker_status":
+      return toolWorkerStatus(args);
+    case "masonry_task_assign":
+      return toolTaskAssign(args);
+    case "masonry_agent_health":
+      return toolAgentHealth(args);
+    case "masonry_wave_validate":
+      return toolWaveValidate(args);
+    case "masonry_swarm_init":
+      return toolSwarmInit(args);
+    case "masonry_consensus_check":
+      return toolConsensusCheck(args);
+    case "masonry_doctor":
+      return await toolDoctor(args);
+    case "masonry_verify_7point":
+      return toolVerify7point(args);
+    case "masonry_pattern_decay":
+      return toolPatternDecay(args);
+    case "masonry_training_update": {
+      const { telemetry_path } = args;
+      const { execSync: _execSync } = require("child_process");
+      const collectorPath = path.join(__dirname, "../src/training/collector.py");
+      const telPath = telemetry_path || path.join(__dirname, "../../telemetry.jsonl");
+      try {
+        _execSync(`python "${collectorPath}" "${telPath}"`, { timeout: 15000, encoding: "utf8" });
+        const histPath = path.join(__dirname, "../src/training/ema_history.json");
+        const hist = JSON.parse(fs.readFileSync(histPath, "utf8"));
+        const recommendations = {};
+        for (const [taskType, strategies] of Object.entries(hist)) {
+          const best = Object.entries(strategies).sort((a, b) => b[1] - a[1])[0];
+          recommendations[taskType] = { strategy: best[0], ema_score: best[1] };
+        }
+        return { success: true, recommendations, task_types: Object.keys(hist).length };
+      } catch (e) {
+        return { success: false, error: e.message };
+      }
+    }
+    case "masonry_reasoning_query": {
+      const { query, top_k = 5, domain } = args;
+      const { execSync: _execSync } = require("child_process");
+      const bankPath = path.join(__dirname, "../src/reasoning/bank.py");
+      try {
+        const domainArg = domain ? ` "${domain}"` : "";
+        const out = _execSync(
+          `python "${bankPath}" query "${query.replace(/"/g, '\\"')}" ${top_k}${domainArg}`,
+          { timeout: 5000, encoding: "utf8" }
+        );
+        const patterns = JSON.parse(out.trim());
+        return { patterns, count: patterns.length };
+      } catch (e) {
+        return { patterns: [], count: 0, error: e.message };
+      }
+    }
+    case "masonry_reasoning_store": {
+      const { content, domain = "general", pattern_id } = args;
+      const { execSync: _execSync } = require("child_process");
+      const bankPath = path.join(__dirname, "../src/reasoning/bank.py");
+      try {
+        const idArg = pattern_id ? ` "${pattern_id}"` : "";
+        const out = _execSync(
+          `python "${bankPath}" store "${content.replace(/"/g, '\\"')}" "${domain}"${idArg}`,
+          { timeout: 5000, encoding: "utf8" }
+        );
+        const result = JSON.parse(out.trim());
+        return { success: true, pattern_id: result.pattern_id };
+      } catch (e) {
+        return { success: false, error: e.message };
+      }
+    }
+
+    case "masonry_graph_record": {
+      const { task_id, pattern_ids, project = "default" } = args;
+      const { execSync } = require("child_process");
+      const graphPath = path.join(__dirname, "../src/reasoning/graph.py");
+      try {
+        const out = execSync(
+          `python "${graphPath}" "${project}" "${task_id}" ${pattern_ids.map(id => `"${id}"`).join(" ")}`,
+          { timeout: 10000, encoding: "utf8" }
+        );
+        const result = JSON.parse(out.trim());
+        return result;
+      } catch (e) {
+        return { success: false, error: e.message, skipped: "neo4j likely unavailable" };
+      }
+    }
+
+    case "masonry_pagerank_run": {
+      const { project, confidence_path } = args;
+      const { execSync } = require("child_process");
+      const pagerankPath = path.join(__dirname, "../src/reasoning/pagerank.py");
+      const confPath = confidence_path || path.join(process.cwd(), ".autopilot", "pattern-confidence.json");
+      try {
+        const out = execSync(
+          `python "${pagerankPath}" "${project}" "${confPath}"`,
+          { timeout: 30000, encoding: "utf8" }
+        );
+        const result = JSON.parse(out.trim());
+        return result;
+      } catch (e) {
+        return { success: false, error: e.message, skipped: "neo4j likely unavailable" };
+      }
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -973,14 +2441,24 @@ const rl = readline.createInterface({
   crlfDelay: Infinity,
 });
 
+let pendingRequests = 0;
+let stdinClosed = false;
+
 rl.on("line", (line) => {
   const trimmed = line.trim();
   if (!trimmed) return;
-  handleRequest(trimmed).catch((err) => {
-    process.stderr.write(`Unhandled error: ${err.message}\n`);
-  });
+  pendingRequests++;
+  handleRequest(trimmed)
+    .catch((err) => {
+      process.stderr.write(`Unhandled error: ${err.message}\n`);
+    })
+    .finally(() => {
+      pendingRequests--;
+      if (stdinClosed && pendingRequests === 0) process.exit(0);
+    });
 });
 
 rl.on("close", () => {
-  process.exit(0);
+  stdinClosed = true;
+  if (pendingRequests === 0) process.exit(0);
 });

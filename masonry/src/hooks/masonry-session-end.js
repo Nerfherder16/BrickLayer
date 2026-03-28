@@ -11,6 +11,7 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { spawnSync } = require("child_process");
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -113,6 +114,97 @@ async function main() {
         fs.writeFileSync(path.join(cwd, ".ui", "session-notes.md"), notes, "utf8");
       } catch {}
     }
+  }
+
+  // --- Decay conflicting memories from injected set ---
+  const MAS_DIR = path.join(cwd, ".mas");
+  const INJECTED_IDS_FILE = path.join(MAS_DIR, "injected_memories.json");
+  if (fs.existsSync(INJECTED_IDS_FILE)) {
+    try {
+      const ids = JSON.parse(fs.readFileSync(INJECTED_IDS_FILE, "utf8"));
+      let findings = [];
+      const stateFile = path.join(cwd, "masonry-state.json");
+      if (fs.existsSync(stateFile)) {
+        try {
+          const state = JSON.parse(fs.readFileSync(stateFile, "utf8"));
+          findings = state.last_findings || state.findings || [];
+        } catch {}
+      }
+      if (ids.length > 0 && findings.length > 0) {
+        spawnSync("python3", [
+          "-c",
+          'import sys,json,os; sys.path.insert(0,os.environ["BL_ROOT"]); from bl.recall_bridge import decay_conflicting_memories; n=decay_conflicting_memories(json.loads(os.environ["IDS"]),json.loads(os.environ["FINDINGS"])); print(f"[session-end] decayed {n} conflicting memories")'
+        ], {
+          cwd,
+          encoding: "utf8",
+          timeout: 10000,
+          env: { ...process.env, BL_ROOT: cwd, IDS: JSON.stringify(ids), FINDINGS: JSON.stringify(findings) }
+        });
+      }
+      fs.unlinkSync(INJECTED_IDS_FILE);
+    } catch {}
+  }
+
+  // --- Agent Trust Scoring ---
+  // If the session transcript contains VERIFICATION_REJECT markers, penalize the
+  // developer agent's trust score in agent_db.json. VERIFICATION_PASS = small boost.
+  try {
+    if (sessionId) {
+      const slug = cwd.replace(/\\/g, '/').replace(/:/g, '-').replace(/\//g, '-').replace(/\./g, '-');
+      const transcriptPath = path.join(os.homedir(), '.claude', 'projects', slug, `${sessionId}.jsonl`);
+
+      if (fs.existsSync(transcriptPath)) {
+        const transcript = fs.readFileSync(transcriptPath, 'utf8');
+        const rejectCount = (transcript.match(/VERIFICATION_REJECT/g) || []).length;
+        const passCount = (transcript.match(/VERIFICATION_PASS/g) || []).length;
+
+        if (rejectCount > 0 || passCount > 0) {
+          const agentDbPath = path.join(__dirname, '..', '..', 'masonry', 'agent_db.json');
+          let agentDb = {};
+          try { agentDb = JSON.parse(fs.readFileSync(agentDbPath, 'utf8')); } catch {}
+
+          // Update developer agent score
+          const agentName = 'developer';
+          if (!agentDb[agentName]) agentDb[agentName] = { score: 0.7, runs: 0, pass: 0, fail: 0 };
+          const agent = agentDb[agentName];
+          agent.runs = (agent.runs || 0) + rejectCount + passCount;
+          agent.pass = (agent.pass || 0) + passCount;
+          agent.fail = (agent.fail || 0) + rejectCount;
+          // Bayesian update: score = (pass + 7) / (runs + 10) — prior 0.7 from 10 pseudocounts
+          agent.score = Math.round(((agent.pass + 7) / (agent.runs + 10)) * 1000) / 1000;
+          agent.last_updated = new Date().toISOString();
+
+          try {
+            fs.writeFileSync(agentDbPath, JSON.stringify(agentDb, null, 2), 'utf8');
+          } catch {}
+        }
+      }
+    }
+  } catch {}
+
+  // --- Rate-limited skill candidate discovery (once per 24h) ---
+  const CANDIDATES_LOCK = path.join(MAS_DIR, "skill_discovery_last_run");
+  const DISCOVER_SCRIPT = path.join(cwd, "masonry", "scripts", "discover_skill_candidates.py");
+
+  function shouldRunDiscovery() {
+    if (!fs.existsSync(CANDIDATES_LOCK)) return true;
+    try {
+      const last = parseInt(fs.readFileSync(CANDIDATES_LOCK, "utf8").trim(), 10);
+      return (Date.now() - last) > 24 * 60 * 60 * 1000;
+    } catch { return true; }
+  }
+
+  if (fs.existsSync(DISCOVER_SCRIPT) && shouldRunDiscovery()) {
+    try {
+      spawnSync("python3", [DISCOVER_SCRIPT], {
+        cwd,
+        encoding: "utf8",
+        timeout: 30000,
+        env: { ...process.env },
+      });
+      if (!fs.existsSync(MAS_DIR)) fs.mkdirSync(MAS_DIR, { recursive: true });
+      fs.writeFileSync(CANDIDATES_LOCK, String(Date.now()), "utf8");
+    } catch {}
   }
 
   process.exit(0);

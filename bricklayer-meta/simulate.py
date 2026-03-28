@@ -55,7 +55,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 # Change one or more parameters, run, observe the verdict.
 # =============================================================================
 
-SCENARIO_NAME = "Baseline — nominal BrickLayer campaign, default config"
+SCENARIO_NAME = "Recalibrated baseline — changes 1-3 applied (Q6.1/Q6.7)"
 
 # --- Campaign structure ---
 WAVE_COUNT = 4
@@ -98,6 +98,47 @@ PEER_REVIEW_RATE = 1.00
 # 1.0 matches actual code: peer-reviewer is spawned after every question.
 # In practice, async spawn means some reviews lag — set to 0.85 to model that.
 
+# --- Recalibrations from Q6.1 / Q6.7 (applied as overrides in simulate.py) ---
+# Change 1: PEER_REVIEW_CORRECTION_RATE recalibrated 0.55 → 0.40 (Q6.1)
+RECALIBRATED_PEER_REVIEW_CORRECTION_RATE = 0.40
+
+# Change 3: BASE_GENERALIST_ACCURACY recalibrated 0.625 → 0.50 (Q6.7)
+RECALIBRATED_BASE_GENERALIST_ACCURACY = 0.50
+# (Change 2 — novelty discount formula — is applied directly in _peer_correction())
+
+# --- Diversity bonus (temperature-driven category diversification) ---
+DIVERSITY_BONUS = 0.0
+
+# --- J-curve model (long-campaign alternative, WAVE_COUNT >= 15 only) ---
+JCURVE_ENABLED = False
+# Set True ONLY when WAVE_COUNT >= 15. Structurally incompatible with short
+# campaigns (Q6.1 FAILURE: J-curve + WAVE_COUNT=4 produces WARNING baseline).
+
+JCURVE_PHASE1_FLOOR = 0.15
+# Uniqueness floor for Phase 1 (waves 1–JCURVE_PHASE1_END).
+# Q6.2 Model B spec was 0.20; synthesis RMSE-optimal tuning: 0.15/0.68.
+
+JCURVE_PHASE1_END = 7
+# Last wave in Phase 1 (low-uniqueness accumulation phase).
+
+JCURVE_PHASE2_END = 15
+# Last wave in Phase 2 (linear rise). Phase 2 = waves 8 through this value.
+
+JCURVE_PHASE3_CEILING = 0.68
+# Uniqueness plateau for Phase 3 (waves > JCURVE_PHASE2_END).
+# Q6.2 Model B spec was 0.75; synthesis RMSE-optimal: 0.68.
+
+JCURVE_PHASE2_SLOPE = 1.20
+# Rise rate multiplier for Phase 2. Values > 1.0 cause the curve to hit the
+# ceiling before JCURVE_PHASE2_END, compressing the effective rise window.
+# Q6.2 original Model B implied slope ≈ 0.90, which Q7.2 showed produces
+# Phase 2 mean=0.339 vs. empirical target=0.642 (FAILURE). Slope fix: 0.90 → 1.20.
+# Effective uniqueness multiplier from probing underprobed categories at higher temperature.
+# At T=0.30: no bonus (category concentration matches Q3.2 empirical baseline).
+# At T=0.50: +0.10 relative uniqueness improvement (10% more coverage of underprobed categories).
+# At T=0.70: +0.20 relative uniqueness improvement (20% more coverage, per Q7.8 model).
+# Set to 0.0 by default; only modified for Q7.8 temperature diversification tests.
+
 # --- Fix loop (opt-in: --fix-loop flag in actual BrickLayer) ---
 FIX_LOOP_ENABLED = False
 # Whether the fix loop is active. When True: FAILURE verdicts trigger a blocking
@@ -114,10 +155,14 @@ FIX_LOOP_REGRESSION_PROBABILITY = 0.08
 
 
 def _agent_accuracy() -> float:
-    """Weighted verdict accuracy from agent fleet composition."""
+    """Weighted verdict accuracy from agent fleet composition.
+
+    Uses RECALIBRATED_BASE_GENERALIST_ACCURACY (0.50) instead of the constant
+    BASE_GENERALIST_ACCURACY (0.625) per Q6.7 recalibration (Change 3).
+    """
     return (
         AGENT_SPECIALIZATION_RATIO * BASE_SPECIALIST_ACCURACY
-        + (1.0 - AGENT_SPECIALIZATION_RATIO) * BASE_GENERALIST_ACCURACY
+        + (1.0 - AGENT_SPECIALIZATION_RATIO) * RECALIBRATED_BASE_GENERALIST_ACCURACY
     )
 
 
@@ -148,16 +193,41 @@ def _question_validity() -> float:
     return max(0.50, 1.0 - (HYPOTHESIS_TEMPERATURE - 0.50) * 0.50)
 
 
+def _wave_uniqueness_jcurve(wave: int) -> float:
+    """J-curve uniqueness model for long campaigns (WAVE_COUNT >= 15).
+
+    Phase 1: low-signal accumulation (waves 1 through JCURVE_PHASE1_END).
+    Phase 2: linear rise with slope multiplier — steeper than 1.0 compresses
+             the effective rise window, hitting the ceiling before JCURVE_PHASE2_END.
+    Phase 3: plateau at JCURVE_PHASE3_CEILING.
+
+    Variant B parameters (synthesis RMSE-optimal): floor=0.15, ceiling=0.68,
+    slope=1.20. Original Q6.2 Model B had floor=0.20, ceiling=0.75, slope≈0.90.
+    """
+    if wave <= JCURVE_PHASE1_END:
+        return JCURVE_PHASE1_FLOOR
+    if wave <= JCURVE_PHASE2_END:
+        t = (wave - JCURVE_PHASE1_END) / (JCURVE_PHASE2_END - JCURVE_PHASE1_END)
+        rise = JCURVE_PHASE2_SLOPE * (JCURVE_PHASE3_CEILING - JCURVE_PHASE1_FLOOR) * t
+        return min(JCURVE_PHASE3_CEILING, JCURVE_PHASE1_FLOOR + rise)
+    return JCURVE_PHASE3_CEILING
+
+
 def _wave_uniqueness(wave: int) -> float:
     """Fraction of wave's questions that probe unexplored failure space.
 
-    Decays each wave as coverage saturates. The rate accelerates when more
-    questions are run per wave (more ground covered per iteration).
-    Floor of 0.10: there is always some residual novelty even in late waves
-    (emergent failure modes, environment drift, new dependencies).
+    Uses J-curve model when JCURVE_ENABLED and WAVE_COUNT >= 15;
+    otherwise standard saturation decay (short-campaign default).
+
+    DIVERSITY_BONUS applies a relative uplift when higher hypothesis temperature
+    causes the generator to explore underprobed categories (Q7.8 model).
     """
-    saturation = WAVE_SATURATION_RATE * (QUESTIONS_PER_WAVE / 7.0)
-    return max(0.10, 1.0 - (wave - 1) * saturation)
+    if JCURVE_ENABLED and WAVE_COUNT >= 15:
+        base_uniqueness = _wave_uniqueness_jcurve(wave)
+    else:
+        saturation = WAVE_SATURATION_RATE * (QUESTIONS_PER_WAVE / 7.0)
+        base_uniqueness = max(0.10, 1.0 - (wave - 1) * saturation)
+    return min(1.0, base_uniqueness * (1.0 + DIVERSITY_BONUS))
 
 
 def _peer_correction(drift_rate: float) -> float:
@@ -169,11 +239,18 @@ def _peer_correction(drift_rate: float) -> float:
     than overriding them. This novelty discount captures that effect.
 
     At DOMAIN_NOVELTY=0.0:  full correction rate applies
-    At DOMAIN_NOVELTY=0.90: correction rate discounted to ~25% of nominal
+    At DOMAIN_NOVELTY=0.90: correction rate discounted to ~19% of nominal
+
+    Recalibrations applied (Q6.1/Q6.7):
+      Change 1: RECALIBRATED_PEER_REVIEW_CORRECTION_RATE = 0.40 (was 0.55)
+      Change 2: novelty_discount = max(0.05, 1.0 - DOMAIN_NOVELTY * 0.90) (was max(0.20, 1-DN*0.60))
     """
-    novelty_discount = max(0.20, 1.0 - DOMAIN_NOVELTY * 0.60)
+    novelty_discount = max(0.05, 1.0 - DOMAIN_NOVELTY * 0.90)
     return (
-        PEER_REVIEW_RATE * drift_rate * PEER_REVIEW_CORRECTION_RATE * novelty_discount
+        PEER_REVIEW_RATE
+        * drift_rate
+        * RECALIBRATED_PEER_REVIEW_CORRECTION_RATE
+        * novelty_discount
     )
 
 

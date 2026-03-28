@@ -177,6 +177,7 @@ _PARKED_STATUSES = frozenset(
     (
         "DIAGNOSIS_COMPLETE",
         "PENDING_EXTERNAL",
+        "DEPLOYMENT_BLOCKED",  # Q6.3: diagnosed but awaiting deployment; re-check suppressed
         "DONE",
         "INCONCLUSIVE",
         "FIXED",
@@ -189,10 +190,39 @@ _PARKED_STATUSES = frozenset(
     )
 )
 
+# Question IDs referenced in resume_after fields (e.g. "Q6.3" or "after Q6.3 is DONE")
+# are matched by this pattern.
+import re as _re
+
+_QREF_PATTERN = _re.compile(r"\b([A-Za-z]\d+(?:\.\d+)?)\b")
+
 
 def get_next_pending(questions: list[dict]) -> dict | None:
-    """Return the first PENDING question, skipping parked/terminal statuses."""
+    """Return the first PENDING question, skipping parked/terminal statuses.
+
+    resume_after supports two formats:
+      - ISO-8601 datetime string: skip until that time has passed
+      - Question-ID reference (e.g. "Q6.3" or "after Q6.3 is DONE"):
+        skip until the referenced question reaches a resolved status
+    """
     from datetime import datetime, timezone
+
+    # Statuses that count as "resolved" for resume_after question-ID references.
+    _RESOLVED = frozenset(
+        (
+            "DONE",
+            "HEALTHY",
+            "WARNING",
+            "FAILURE",
+            "INCONCLUSIVE",
+            "FIXED",
+            "FIX_FAILED",
+            "COMPLIANT",
+            "NON_COMPLIANT",
+            "CALIBRATED",
+            "HEAL_EXHAUSTED",
+        )
+    )
 
     now = datetime.now(timezone.utc)
     for q in questions:
@@ -202,12 +232,19 @@ def get_next_pending(questions: list[dict]) -> dict | None:
             continue
         resume_after = q.get("resume_after", "")
         if resume_after:
+            # Try ISO-8601 datetime first
             try:
                 gate = datetime.fromisoformat(resume_after.replace("Z", "+00:00"))
                 if now < gate:
                     continue
             except ValueError:
-                pass
+                # Try question-ID reference: "Q6.3", "after Q6.3 is DONE", "DONE:Q6.3"
+                ref_match = _QREF_PATTERN.search(resume_after)
+                if ref_match:
+                    ref_qid = ref_match.group(1).upper()
+                    ref_q = get_question_by_id(questions, ref_qid)
+                    if ref_q and ref_q["status"] not in _RESOLVED:
+                        continue  # referenced question not yet resolved
         return q
     return None
 
@@ -268,6 +305,7 @@ def sync_status_from_results() -> int:
                     "UNKNOWN",
                     "SUBJECTIVE",
                     "DEGRADED_TRENDING",
+                    "DEPLOYMENT_BLOCKED",  # Q6.3: preserve — human must confirm deployment before unblocking
                     "HEAL_EXHAUSTED",  # F-mid.1: exhausted heal loop — preserve status
                 }
             )
@@ -279,6 +317,7 @@ def sync_status_from_results() -> int:
                         "INCONCLUSIVE",
                         "DIAGNOSIS_COMPLETE",
                         "PENDING_EXTERNAL",
+                        "DEPLOYMENT_BLOCKED",  # Q6.3: preserve — awaiting deployment
                         "FIXED",
                         "FIX_FAILED",
                         "BLOCKED",

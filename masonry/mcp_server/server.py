@@ -375,6 +375,26 @@ def _tool_masonry_recall_search(args: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 
+def _tool_masonry_optimization_status(args: dict) -> dict:
+    """Return optimization scores for all agents that have been through the improve loop."""
+    optimized_dir = Path(
+        args.get("optimized_dir", str(_REPO_ROOT / "masonry" / "optimized_prompts"))
+    )
+
+    if not optimized_dir.exists():
+        return {"agents": [], "count": 0}
+
+    agents = []
+    for json_file in optimized_dir.glob("*.json"):
+        try:
+            data = json.loads(json_file.read_text(encoding="utf-8"))
+            agents.append({"agent": json_file.stem, "score": data.get("score", 0.0)})
+        except Exception:
+            pass
+
+    return {"agents": agents, "count": len(agents)}
+
+
 def _tool_masonry_route(args: dict) -> dict:
     """Route a request to the appropriate Masonry agent using the four-layer router."""
     request_text = args.get("request_text", "")
@@ -415,12 +435,16 @@ def _tool_masonry_onboard(args: dict) -> dict:
         Path("agents"),
     ]
     registry_path = Path(registry_path_str)
+    dspy_output_dir_str = args.get(
+        "dspy_output_dir",
+        str(_REPO_ROOT / "masonry" / "src" / "dspy_pipeline" / "generated"),
+    )
+    dspy_output_dir = Path(dspy_output_dir_str)
 
     try:
         from masonry.scripts.onboard_agent import onboard  # noqa: PLC0415
 
-        # dspy_output_dir is a legacy param (dspy_pipeline was removed); pass a no-op path
-        result = onboard(agents_dirs, registry_path, Path(os.devnull))
+        result = onboard(agents_dirs, registry_path, dspy_output_dir)
         # Return names of newly-added agents under the "onboarded" key for
         # backwards compatibility with callers that expect a list of names.
         names = result.get("names", [])
@@ -676,6 +700,22 @@ TOOLS = {
                 "query": {"type": "string"},
                 "domain": {"type": "string", "description": "Optional domain filter"},
                 "limit": {"type": "integer", "default": 10},
+            },
+        },
+    },
+    "masonry_optimization_status": {
+        "fn": _tool_masonry_optimization_status,
+        "description": (
+            "Return optimization scores for all agents that have completed the improve_agent loop. "
+            "Reads *.json files from the optimized_prompts directory, each containing {score, ...}."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "optimized_dir": {
+                    "type": "string",
+                    "description": "Path to the optimized_prompts directory. Defaults to masonry/optimized_prompts/.",
+                },
             },
         },
     },

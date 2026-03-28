@@ -502,6 +502,47 @@ python masonry/src/dspy_pipeline/drift_detector.py
 
 ---
 
+## Training Branch — BL Fine-Tuning Pipeline 📋
+
+**Goal:** Wire BrickLayer's campaign output into a fine-tuning pipeline that trains agent-specific
+LoRA adapters on real campaign examples, then loads them into Ollama for local inference. The Windows
+side installs bridge files and patches existing scripts; the Linux LXC side runs the actual training.
+
+**Plan source:** `TRAINING_BRANCH_PLAN.md` (created 2026-03-25)
+
+**Execution order:** B4 → A1 → A2 → A3 → B5 → B6
+
+| ID | Task | Scope | Status |
+|----|------|-------|--------|
+| B4 | Install bridge files — `bl/training_schema.py`, `bl/training_export.py`, `masonry/src/hooks/masonry-training-export.js` | Windows | 📋 |
+| A1 | Simplify Mortar dispatch to 5-condition binary — remove routing tables, output `{ target, reason }` | Windows | 📋 |
+| A2 | Create `rough-in` agent — dev workflow orchestrator mirroring Trowel; register in `agent_registry.yml` | Windows | 📋 |
+| A3 | Intra-campaign Recall feedback loop — `get_campaign_context()` + `_write_recall_degraded()` in `bl/recall_bridge.py`; inject prior findings into Trowel question dispatch | Windows | 📋 |
+| B5 | Patch `masonry/scripts/score_all_agents.py` — add auto-export block after scoring when `BRICKLAYER_TRAINING_DB` is set | Windows | 📋 |
+| B6 | Register `masonry-training-export.js` in Stop hooks array in `~/.claude/settings.json` (async, 65s timeout) | Windows | 📋 |
+
+**Handoff2 connective tissue tasks** (all on Windows side):
+
+| ID | Task | Scope | Status |
+|----|------|-------|--------|
+| H1 | `masonry-system-status.js` Stop hook — writes `.mas/system-status.json` at session end; Mortar reads at startup | Windows | ✅ |
+| H2 | `masonry-score-trigger.js` training ready flag — writes `.mas/training_ready.flag` when eligible traces ≥ 500 | Windows | ✅ |
+| H3 | `rough-in.md` state file — `.autopilot/rough-in-state.json` written on task start; resumable after context compaction | Windows | ✅ |
+| H4 | Agent scores → Recall — `improve_agent.py` writes IMPROVEMENT/REGRESSION to `agent-performance` domain after each eval cycle | Windows | ✅ |
+| H5 | Held-out eval set + `bricklayer eval-compare` CLI — requires Linux bricklayer LXC | Linux | ✅ |
+| H6 | `discover_skill_candidates.py` + session-end wiring — queries Recall for high-frequency patterns; rate-limited once/24h | Windows | ✅ |
+| H7 | `decay_conflicting_memories()` in `bl/recall_bridge.py` — decays importance of memories that conflict with session findings | Windows | ✅ |
+
+**H5 — Held-Out Eval Set + Eval-Compare CLI** ✅ Deployed 2026-03-26 to LXC 104 (`/root/bricklayer/`):
+- `configs/eval_tasks/` — 80 tasks (20 × code/math/tool_use/reasoning), non-overlapping with training set
+- `bricklayer eval-compare` CLI — compares baseline vs candidate on held-out set, outputs JSON report
+- `scripts/load_adapter.sh` — PROMOTE gate: exits 0 if candidate beats baseline, 1 otherwise
+
+**Out of scope for this repo** (Linux LXC / System-Recall): B1 env checks, B2 pytest setup,
+B3 .env config, B7–B11 smoke tests through adapter load, A4 importance-weighted retrieval.
+
+---
+
 ## Design Principles
 
 1. **Universal verdict envelope.** Every runner, every target, every question type produces the same `{verdict, summary, data, details}` shape.

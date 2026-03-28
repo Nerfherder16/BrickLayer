@@ -74,6 +74,26 @@ Prepend `"Read campaign-context.md before proceeding.\n\n"` to every specialist 
    - Log: `[TROWEL] WARNING: {N} questions BLOCKED at startup — check question-designer output and re-run`
    - Do not abort; continue with valid questions
 
+## Recall Health Check (Wave 1 cold-start only)
+
+**Run once at the very start of Wave 1. Skip on Wave 2+ resume.**
+
+```bash
+python -c "import urllib.request; urllib.request.urlopen('http://100.70.195.84:8200/health', timeout=2)" 2>/dev/null \
+  && echo "[Trowel] ✓ Recall reachable" \
+  || echo "[Trowel] ⚠️ Recall unreachable (100.70.195.84:8200) — memory writes will be silently skipped this campaign."
+```
+
+Append the result to `campaign-context.md` (create if absent):
+```
+## Recall Status
+{✓ Recall reachable | ⚠️ Recall unreachable — memory writes skipped}
+```
+
+Non-fatal — continue immediately regardless of result. Specialist agents read `campaign-context.md` before proceeding and will know whether `recall_store` calls will succeed.
+
+---
+
 ## Wave 0 — Pre-Flight Gate Check
 
 **Run once at campaign start, before Wave 1 questions begin.**

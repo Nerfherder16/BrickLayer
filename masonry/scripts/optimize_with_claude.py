@@ -41,7 +41,7 @@ _DSPY_SECTION_END = "<!-- /DSPy Optimized Instructions -->"
 
 # ── Training data helpers ────────────────────────────────────────────────────
 
-_EXCLUDED_SOURCES = {"mock_campaign", "test_campaign", "synthetic_negative"}
+_EXCLUDED_SOURCES = {"test_campaign", "synthetic_negative"}  # mock_campaign is real agent output — allow it
 
 
 def _load_records(scored_all_path: Path, agent_name: str) -> list[dict]:
@@ -355,7 +355,8 @@ def run(
 
     try:
         result = subprocess.run(
-            [claude_bin, "-p", "--no-session-persistence", "--dangerously-skip-permissions"],
+            [claude_bin, "-p", "--no-session-persistence", "--dangerously-skip-permissions",
+             "--setting-sources", ""],
             input=prompt,
             capture_output=True,
             text=True,

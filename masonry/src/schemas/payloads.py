@@ -6,7 +6,8 @@ ensuring strict payload validation at agent handoff boundaries.
 
 from __future__ import annotations
 
-from typing import Any, Literal, Optional
+from datetime import datetime
+from typing import Any, ClassVar, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -200,3 +201,34 @@ class AgentRegistryEntry(BaseModel):
     # and by the presence of masonry/optimized_prompts/{agent}.json. Do not add an inline
     # optimized_prompt field here — it is never written by any optimization script.
     routing_keywords: list[str] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# PatternRecord — learned execution pattern with Bayesian confidence tracking
+# ---------------------------------------------------------------------------
+
+class PatternRecord(BaseModel):
+    """A learned execution pattern stored in the pattern registry."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    INITIAL_CONFIDENCE: ClassVar[float] = 0.7
+    PRUNE_THRESHOLD: ClassVar[float] = 0.2
+
+    pattern_id: str
+    content: str
+    domain: str = "general"
+    confidence: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Bayesian confidence score. Updated on task outcomes: "
+            "success += 0.20*(1-c), failure -= 0.15*c, time decay -0.005/hr. "
+            "Prune when below 0.2."
+        ),
+    )
+    last_used: Optional[str] = None
+    created_at: str = Field(
+        default_factory=lambda: datetime.utcnow().isoformat()
+    )

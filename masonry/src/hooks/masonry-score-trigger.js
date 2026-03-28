@@ -9,7 +9,7 @@
 
 'use strict';
 
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -86,6 +86,41 @@ async function main() {
   child.unref();
 
   process.stderr.write('[Masonry] Scoring pipeline started in background (scores >24h old).\n');
+
+  // ── Training readiness check ──────────────────────────────────────────────
+  const TRAINING_DB = process.env.BRICKLAYER_TRAINING_DB;
+  const TRAINING_THRESHOLD = parseInt(process.env.TRAINING_THRESHOLD || '500', 10);
+  const TRAINING_FLAG = path.join(cwd, '.mas', 'training_ready.flag');
+
+  if (TRAINING_DB) {
+    const check = spawnSync('python3', [
+      '-c',
+      [
+        'import sqlite3',
+        `db = sqlite3.connect('${TRAINING_DB.replace(/\\/g, '/')}')`,
+        "n = db.execute('SELECT COUNT(*) FROM traces WHERE sft_eligible=1').fetchone()[0]",
+        'print(n)',
+      ].join(';'),
+    ], { encoding: 'utf8', timeout: 5000 });
+
+    if (check.status === 0) {
+      const eligible = parseInt(check.stdout.trim(), 10);
+      const masDir = path.join(cwd, '.mas');
+      if (!fs.existsSync(masDir)) fs.mkdirSync(masDir, { recursive: true });
+      if (eligible >= TRAINING_THRESHOLD) {
+        fs.writeFileSync(TRAINING_FLAG, String(eligible), 'utf8');
+        process.stderr.write(
+          `[Masonry] Training ready: ${eligible} eligible traces (threshold: ${TRAINING_THRESHOLD})\n`
+        );
+      } else {
+        if (fs.existsSync(TRAINING_FLAG)) fs.unlinkSync(TRAINING_FLAG);
+        process.stderr.write(
+          `[Masonry] Training progress: ${eligible}/${TRAINING_THRESHOLD} eligible traces\n`
+        );
+      }
+    }
+  }
+
   process.exit(0);
 }
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from collections import defaultdict
@@ -450,6 +451,19 @@ def _main() -> None:
     print(f"Agents with 10+      : {summary['agents_with_10_plus']}")
     print(f"Registry updated     : {summary['registry_agents_updated']} agents")
     print(f"Written to           : {summary['output_path']}")
+
+    # Export scored traces to training DB (if configured)
+    training_db = os.environ.get("BRICKLAYER_TRAINING_DB")
+    if training_db:
+        try:
+            from bl.training_export import BLTrainingExporter
+
+            exporter = BLTrainingExporter(db_path=training_db, bl_root=str(args.base_dir))
+            results = exporter.export_all()
+            total_exported = sum(r.get("exported", 0) for r in results.values())
+            print(f"Training export      : {total_exported} traces -> {training_db}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"Training export skipped: {exc}")
 
 
 if __name__ == "__main__":

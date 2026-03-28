@@ -26,3 +26,12 @@ Q6.4	WARNING	HHI sentinel fires wave 1 (write-path monopoly), not wave 8-16; ret
 Q6.5	WARNING	Root cause B (session context): peer review absent in Session A which pre-dated program.md peer-review instruction; two sessions ran campaign; no auto-disable code exists	VERDICT_DRIFT	2026-03-21T16:52:00Z
 Q6.6	HEALTHY	PENDING_EXTERNAL 5th status value; 4 metadata fields; N=3 escalation threshold; 10 wave slots recovered from GC/cron chains	FIX_LOOP_DIVERGENCE	2026-03-21T16:48:00Z
 Q6.7	HEALTHY	3/4 roadmap changes exceed +0.03 yield threshold; SUBJECTIVE degrades by -0.053 at 20%; combined delta +0.142 (Gaussian variance model)		2026-03-21T17:00:00Z
+Q7.1	WARNING	Sim recalibration nominal HEALTHY (yield=0.750) but novelty cliff at DN=0.95 — +0.15-0.35 outside predicted range	calibration	2026-03-26T12:00:00Z
+Q7.2	FAILURE	J-curve Model B at WAVE_COUNT=20 produces WARNING (yield=0.371); Phase 2 misses empirical target by -0.303	calibration	2026-03-26T12:10:00Z
+Q7.3	WARNING	DEPLOYMENT_BLOCKED + PENDING_EXTERNAL non-overlapping and deadlock-free; resume_after=question_status needs structured syntax + ~25 lines	FIX_LOOP_DIVERGENCE	2026-03-26T12:20:00Z
+Q7.4	HEALTHY	Combined capacity recovery +0.179 yield delta; mechanisms additive; robust down to 50% refill quality		2026-03-26T12:30:00Z
+Q7.5	HEALTHY	HHI severity-exemption gate fully specified; 100% precision/recall retroactively on Recall campaign	COVERAGE_COLLAPSE	2026-03-26T12:40:00Z
+Q7.6	HEALTHY	Session-start self-check specified; 3 format-invariant substrings; correctly identifies Session A (fail) and B (pass)		2026-03-26T12:50:00Z
+Q7.7	FAILURE	15% SUBJECTIVE ceiling is model-dependent: WARNING under Model A; safe ceiling is 8-10% without guaranteed human review queue		2026-03-26T13:00:00Z
+Q7.8	FAILURE	Temperature increase not viable for reducing category concentration; resolution floor 1/28=0.036 prevents measurable improvement		2026-03-26T13:10:00Z
+Q7.9	HEALTHY	Runner contract back-validated; specialist/generalist consistency gap=0.485 (exceeds 0.30); yield estimate revised to +0.05-+0.10		2026-03-26T13:20:00Z

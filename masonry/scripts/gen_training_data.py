@@ -262,7 +262,7 @@ def run_agent(
 
         score = _score_output(raw_output, expected_verdict, metric_fn)
         score_int = int(score * 100)
-        match = "✓" if predicted_verdict == expected_verdict else "✗"
+        match = "OK" if predicted_verdict == expected_verdict else "XX"
         print(f"score={score_int} | got={predicted_verdict} {match}")
         scores.append(score_int)
 
@@ -295,7 +295,7 @@ def run_agent(
         avg = sum(scores) / len(scores)
         high = sum(1 for s in scores if s >= 75)
         low = sum(1 for s in scores if s < 50)
-        print(f"\n[{agent_name}] Done: {added} added | avg={avg:.0f} | high(≥75)={high} | low(<50)={low}")
+        print(f"\n[{agent_name}] Done: {added} added | avg={avg:.0f} | high(>=75)={high} | low(<50)={low}")
 
     return {
         "agent": agent_name,

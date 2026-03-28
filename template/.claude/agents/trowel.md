@@ -74,6 +74,26 @@ Prepend `"Read campaign-context.md before proceeding.\n\n"` to every specialist 
    - Log: `[TROWEL] WARNING: {N} questions BLOCKED at startup — check question-designer output and re-run`
    - Do not abort; continue with valid questions
 
+## Recall Health Check (Wave 1 cold-start only)
+
+**Run once at the very start of Wave 1. Skip on Wave 2+ resume.**
+
+```bash
+python -c "import urllib.request; urllib.request.urlopen('http://100.70.195.84:8200/health', timeout=2)" 2>/dev/null \
+  && echo "[Trowel] ✓ Recall reachable" \
+  || echo "[Trowel] ⚠️ Recall unreachable (100.70.195.84:8200) — memory writes will be silently skipped this campaign."
+```
+
+Append the result to `campaign-context.md` (create if absent):
+```
+## Recall Status
+{✓ Recall reachable | ⚠️ Recall unreachable — memory writes skipped}
+```
+
+Non-fatal — continue immediately regardless of result. Specialist agents read `campaign-context.md` before proceeding and will know whether `recall_store` calls will succeed.
+
+---
+
 ## Wave 0 — Pre-Flight Gate Check
 
 **Run once at campaign start, before Wave 1 questions begin.**
@@ -191,6 +211,28 @@ If found, add to the agent prompt:
 ## Available Tools
 {content of tools-manifest.md}
 ```
+
+## Agent Selection — Regression Check
+
+Before dispatching to a specialist, optionally check for recent REGRESSION verdicts in Recall:
+
+```
+recall_search(
+  query="{specialist_name} agent eval performance",
+  domain="agent-performance",
+  tags=["agent:{specialist_name}", "agent-eval"],
+  limit=3
+)
+```
+
+If results show a recent `verdict:REGRESSION` for this agent:
+- Note it in the dispatch context: "Note: {agent} had a recent eval regression — review output carefully"
+- Consider dispatching to a backup agent if one exists for this mode (e.g., `research-analyst` → `competitive-analyst` for research mode)
+- Never block dispatch on missing Recall data — if Recall is unavailable, proceed normally
+
+This check is optional (skip if Recall is degraded or unavailable).
+
+---
 
 ## Invoking a Specialist
 
@@ -603,7 +645,23 @@ After requeue (appended immediately below):
 
 Your tag: `agent:trowel`
 
-**At campaign start** — check for prior campaign state:
+**At campaign start** — inject cross-campaign prior context:
+
+Pull prior context before dispatching the first question of each wave:
+```python
+from bl.recall_bridge import get_campaign_context
+prior = get_campaign_context(project="{project}", wave={N})
+```
+
+If `prior` is non-empty, prepend a summary to `campaign-context.md`:
+```
+## Prior Campaign Context (from Recall)
+{top 3 memories by importance — content field only, ≤80 chars each}
+```
+
+If `prior` is empty (Recall unreachable), the `.mas/recall_degraded` sentinel will be set. Continue without blocking.
+
+**At campaign start** — also check for prior campaign state:
 ```
 recall_search(query="campaign wave progress questions completed", domain="{project}-bricklayer", tags=["agent:trowel"])
 ```

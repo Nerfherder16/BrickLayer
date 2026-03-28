@@ -5,6 +5,7 @@
  */
 
 const { existsSync, readFileSync } = require("fs");
+const { execSync } = require("child_process");
 const path = require("path");
 
 function readStdin() {
@@ -79,6 +80,9 @@ async function main() {
     process.exit(0);
   }
 
+  // If the build already completed, don't warn about an interrupted build.
+  if (progress.status === "COMPLETE") process.exit(0);
+
   const buildSessionId = progress.session_id || null;
   const currentSessionId = parsed.session_id || parsed.sessionId || null;
 
@@ -88,10 +92,7 @@ async function main() {
     process.stderr.write(`\n${orphanMsg}\n`);
     process.stdout.write(
       JSON.stringify({
-        hookSpecificOutput: {
-          hookEventName: "Stop",
-          content: `${orphanMsg}\nAn interrupted build from a prior session may still have uncommitted work. Run \`git status\` and check \`.autopilot/progress.json\` before starting new work.`,
-        },
+        systemMessage: `${orphanMsg}\nAn interrupted build from a prior session may still have uncommitted work. Run \`git status\` and check \`.autopilot/progress.json\` before starting new work.`,
       }),
     );
     process.exit(0);
@@ -101,10 +102,7 @@ async function main() {
     process.stderr.write(`\n${legacyMsg}\n`);
     process.stdout.write(
       JSON.stringify({
-        hookSpecificOutput: {
-          hookEventName: "Stop",
-          content: `${legacyMsg}\nAn interrupted build from a prior session may still have uncommitted work. Run \`git status\` and check \`.autopilot/progress.json\` before starting new work.`,
-        },
+        systemMessage: `${legacyMsg}\nAn interrupted build from a prior session may still have uncommitted work. Run \`git status\` and check \`.autopilot/progress.json\` before starting new work.`,
       }),
     );
     process.exit(0);
@@ -120,6 +118,48 @@ async function main() {
       `\nMasonry build in progress! ${done.length}/${tasks.length} tasks complete.\n\nPending:\n${summary}\n\nTo stop: clear .autopilot/mode or use stop_hook_active.\n`,
     );
     process.exit(2);
+  }
+
+  // Phase checkpoint tagging
+  const fs = require("fs");
+  const phaseTags = (() => { try { return JSON.parse(fs.readFileSync(path.join(autopilotDir, "phase-tags.json"), "utf8")); } catch { return {}; } })();
+  const allTasks = (progress.tasks || []);
+  let newTags = false;
+  for (const task of allTasks) {
+    if (task.status === "DONE" && task.phase_end) {
+      const tagName = `phase/${task.phase_end}`;
+      if (!phaseTags[tagName]) {
+        try {
+          execSync(`git tag "${tagName}" -m "BrickLayer phase checkpoint: ${task.phase_end}"`, {
+            cwd: sessionCwd,
+            stdio: "pipe"
+          });
+          phaseTags[tagName] = new Date().toISOString();
+          newTags = true;
+          process.stderr.write(`[masonry-build-guard] Tagged phase checkpoint: ${tagName}\n`);
+        } catch {
+          // Tag may already exist or git not available — ignore silently
+        }
+      }
+    }
+  }
+  if (newTags) {
+    fs.writeFileSync(path.join(autopilotDir, "phase-tags.json"), JSON.stringify(phaseTags, null, 2), "utf8");
+  }
+
+  // Cleanup old backups (>7 days)
+  const backupsDir = path.join(autopilotDir, "backups");
+  if (existsSync(backupsDir)) {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const files = fs.readdirSync(backupsDir);
+    let deleted = 0;
+    for (const f of files) {
+      const fp = path.join(backupsDir, f);
+      try {
+        if (fs.statSync(fp).mtimeMs < cutoff) { fs.unlinkSync(fp); deleted++; }
+      } catch {}
+    }
+    if (deleted > 0) process.stderr.write(`[masonry-build-guard] Cleaned ${deleted} old backup(s)\n`);
   }
 
   process.exit(0);
