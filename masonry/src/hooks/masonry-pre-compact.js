@@ -177,6 +177,44 @@ async function main() {
     }
   }
 
+  // --- Swarm inflight task persistence ---
+  // Save IN_PROGRESS tasks (with claimed_by) to .autopilot/inflight-agents.json before compaction.
+  // masonry-session-start.js reads this on resume to warn the coordinator about orphaned workers.
+  {
+    const swarmProgress = tryJSON(path.join(cwd, ".autopilot", "progress.json"));
+    if (swarmProgress) {
+      const inflightTasks = (swarmProgress.tasks || []).filter(
+        (t) => t.status === "IN_PROGRESS"
+      );
+      if (inflightTasks.length > 0) {
+        const inflightPayload = {
+          saved_at: new Date().toISOString(),
+          tasks: inflightTasks.map((t) => ({
+            id: t.id,
+            description: t.description || "",
+            claimed_by: t.claimed_by || null,
+            status: t.status,
+          })),
+        };
+        try {
+          fs.mkdirSync(path.join(cwd, ".autopilot"), { recursive: true });
+          fs.writeFileSync(
+            path.join(cwd, ".autopilot", "inflight-agents.json"),
+            JSON.stringify(inflightPayload, null, 2),
+            "utf8"
+          );
+        } catch {}
+        lines.push(
+          `[Masonry] Swarm in progress: ${inflightTasks.length} task(s) IN_PROGRESS — agent IDs saved to .autopilot/inflight-agents.json`
+        );
+        for (const t of inflightTasks) {
+          const worker = t.claimed_by ? t.claimed_by : "unknown-worker";
+          lines.push(`  Task #${t.id} (${worker}): ${t.description || ""}`);
+        }
+      }
+    }
+  }
+
   // --- Campaign state ---
   const campaign = tryJSON(path.join(cwd, "masonry-state.json"));
   if (campaign && campaign.mode) {
