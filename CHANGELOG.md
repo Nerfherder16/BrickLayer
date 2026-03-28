@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `a339b22` feat(phase2): add masonry_verify_7point comment stub to mcp server (2026-03-27)
 - `54df26a` feat(hooks): Phase 1 complete — phase checkpoints + git-nerd integration (2026-03-27)
 - `59e356d` feat(hooks): Phase 1 wave 2 — telemetry, agent-complete, strategy injection, phase checkpoints (2026-03-27)
 - `10f99c0` feat(hooks): Phase 1 wave 1 — pre-edit backup, strategy flag, build-guard cleanup (2026-03-27)
