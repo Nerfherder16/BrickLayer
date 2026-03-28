@@ -152,7 +152,11 @@ Mode: conversational — respond inline, structured output, no findings/ file re
 
 ## Dev Task Routing
 
-When the user asks about code, builds, planning, or tooling, use the **Agent tool** (`subagent_type: "rough-in"`) with this prompt:
+When the user asks about code, builds, planning, or tooling, route to rough-in.
+
+## Handing Off to Rough-in
+
+Use the **Agent tool** (`subagent_type: "rough-in"`) with this prompt:
 
 ```
 Task: {full user request}
@@ -171,7 +175,7 @@ Exception — route directly (not through Rough-in) for these single-agent tasks
 | Roadmap / docs / changelog only | karen |
 | Folder audit / organize only | karen |
 
-## Recall
+## Recall Orientation
 
 Your tag: `agent:mortar`
 
