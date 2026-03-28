@@ -72,6 +72,57 @@ function updatePatternConfidence(autopilotDir, taskType, success) {
   } catch {}
 }
 
+// Mid-build recall sync — every N=5 completed tasks
+// Queries ReasoningBank for patterns relevant to the next pending task and writes
+// .autopilot/recall-injection.json for the orchestrator to pick up.
+function maybeSyncRecall(autopilotDir, projectDir) {
+  const SYNC_INTERVAL = 5;
+  try {
+    const progressPath = path.join(autopilotDir, 'progress.json');
+    if (!fs.existsSync(progressPath)) return;
+    const progress = JSON.parse(fs.readFileSync(progressPath, 'utf8'));
+    const doneTasks = (progress.tasks || []).filter(t => t.status === 'DONE').length;
+
+    // Only fire at exact multiples of SYNC_INTERVAL (5, 10, 15, …)
+    if (doneTasks <= 0 || doneTasks % SYNC_INTERVAL !== 0) return;
+
+    // Use next pending task description as the query, fall back to generic
+    const pendingTask = (progress.tasks || []).find(t => t.status === 'PENDING');
+    const query = pendingTask
+      ? pendingTask.description.slice(0, 100)
+      : 'build task';
+
+    const bankPath = path.join(__dirname, '../../src/reasoning/bank.py');
+    if (!fs.existsSync(bankPath)) return;
+
+    const proc = spawn('python', [bankPath, 'query', query, '3'], {
+      detached: true,
+      stdio: ['ignore', 'pipe', 'ignore'],
+      cwd: projectDir,
+    });
+
+    let output = '';
+    proc.stdout.on('data', d => { output += d; });
+    proc.on('close', () => {
+      try {
+        const patterns = JSON.parse(output.trim());
+        if (!Array.isArray(patterns)) return;
+        fs.writeFileSync(
+          path.join(autopilotDir, 'recall-injection.json'),
+          JSON.stringify({
+            timestamp: new Date().toISOString(),
+            patterns,
+            query,
+            done_count: doneTasks,
+          }),
+          'utf8'
+        );
+      } catch (_) { /* non-fatal — output may be empty or malformed */ }
+    });
+    proc.unref();
+  } catch (_) { /* non-fatal — never blocks the hook */ }
+}
+
 async function main() {
   const raw = await readStdin();
   let parsed = {};
@@ -152,6 +203,11 @@ async function main() {
       // Debug note: skip graph recording — task not successful or task_id missing
     }
   } catch (_) { /* non-fatal — graph recording never blocks the hook */ }
+
+  // Mid-build recall sync — every N=5 completed tasks
+  if (success) {
+    maybeSyncRecall(autopilotDir, path.dirname(autopilotDir));
+  }
 
   // Auto-trigger training collector if telemetry was updated in the last 60 seconds
   try {
