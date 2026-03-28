@@ -22,7 +22,7 @@ Source: https://github.com/quemsah/awesome-claude-plugins (Top 100, as of 2026-0
 ### Skills & Slash Commands
 | # | Repo | What it does | Gap it fills | Deep Research |
 |---|------|-------------|--------------|---------------|
-| 52 | [visual-explainer](https://github.com/nicobailon/visual-explainer) | HTML synthesis reports, diff reviews, plan audits | /visual-report, /visual-diff skills (Phase 5 item) | [visual-ui-design.md](visual-ui-design.md) |
+| 52 | [visual-explainer](https://github.com/nicobailon/visual-explainer) | Self-contained HTML artifacts to `~/.agent/diagrams/`; decision log with confidence tagging; re-entry context notes that survive session compaction | **BL has zero browser-openable output** — /visual-diff, /visual-plan, /visual-recap directly solve context-loss between sessions | ✅ [visual-ui-design.md](visual-ui-design.md) |
 | 56 | [last30days-skill](https://github.com/mvanhorn/last30days-skill) | Multi-source research (Reddit, X, YouTube, HN, web) | Research across social/community sources | TBD |
 | 97 | [autoresearch](https://github.com/uditgoenka/autoresearch) | Commit-before-verify + auto-rollback loop; Guard/Verify separation; debug-as-loop with 7 investigation techniques (binary search, differential, minimal repro, trace, pattern search, backward, rubber duck) | **fix-implementer should adopt commit-first-then-verify-then-revert**; add Guard vs Verify split to /build; add `/debug` skill as loop (not one-shot) | ✅ [voltagent-autoresearch.md](voltagent-autoresearch.md) |
 | 23 | [planning-with-files](https://github.com/OthmanAdi/planning-with-files) | Manus-style persistent markdown planning | Persistent planning pattern comparison | TBD |
@@ -32,8 +32,8 @@ Source: https://github.com/quemsah/awesome-claude-plugins (Top 100, as of 2026-0
 | # | Repo | What it does | Gap it fills | Deep Research |
 |---|------|-------------|--------------|---------------|
 | 8 | [ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | AI design intelligence skill | Additional UI/UX patterns for uiux-master | TBD |
-| 32 | [impeccable](https://github.com/pbakaus/impeccable) | Design language for AI harnesses | AI Slop Test, quantitative Nielsen scoring (Phase 5) | [visual-ui-design.md](visual-ui-design.md) |
-| 70 | [interface-design](https://github.com/Dammyjay93/interface-design) | Design enforcement + memory for consistent UI | Design memory/enforcement patterns | [visual-ui-design.md](visual-ui-design.md) |
+| 32 | [impeccable](https://github.com/pbakaus/impeccable) | 7-point AI slop gate (Inter+purple gradient, background-clip:text, emoji headers, glowing cards, cyan-magenta-pink, uniform grid, three-dot chrome); Nielsen scoring; OKLCH color enforcement | Convert BL's existing anti-patterns list into structured self-evaluation uiux-master must complete before delivery — zero new infrastructure | ✅ [visual-ui-design.md](visual-ui-design.md) |
+| 70 | [interface-design](https://github.com/Dammyjay93/interface-design) | Pre-design forcing function: 5+ domain concepts, 5+ domain colors from physical world, 3 defaults to explicitly reject, mandatory WHY per component | BL's frontend-design-philosophy.md tells uiux-master what to produce but doesn't force upstream thinking — this prevents LLM defaulting to generic output | ✅ [visual-ui-design.md](visual-ui-design.md) |
 
 ### Infrastructure & Tooling
 | # | Repo | What it does | Gap it fills | Deep Research |
