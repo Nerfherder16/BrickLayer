@@ -209,6 +209,41 @@ async function main() {
     maybeSyncRecall(autopilotDir, path.dirname(autopilotDir));
   }
 
+  // On first task completion, run topology selector if not already set
+  const topoFile = path.join(autopilotDir, 'topology');
+  if (!fs.existsSync(topoFile)) {
+    try {
+      const progressPath = path.join(autopilotDir, 'progress.json');
+      if (fs.existsSync(progressPath)) {
+        const progress = JSON.parse(fs.readFileSync(progressPath, 'utf8'));
+        if (progress.tasks) {
+          // Walk up to find the masonry/ project root for the selector script
+          let searchDir = path.dirname(autopilotDir);
+          let projectRoot = searchDir;
+          for (let i = 0; i < 10; i++) {
+            if (fs.existsSync(path.join(searchDir, 'masonry'))) {
+              projectRoot = searchDir;
+              break;
+            }
+            const parent = path.dirname(searchDir);
+            if (parent === searchDir) break;
+            searchDir = parent;
+          }
+          const selectorPath = path.join(projectRoot, 'masonry/src/topology/selector.py');
+          if (fs.existsSync(selectorPath)) {
+            const { execSync } = require('child_process');
+            const result = execSync(
+              `python "${selectorPath}" '${JSON.stringify({ tasks: progress.tasks })}'`,
+              { cwd: projectRoot, timeout: 5000, stdio: 'pipe' }
+            ).toString().trim();
+            const topo = JSON.parse(result);
+            fs.writeFileSync(topoFile, topo.topology, 'utf8');
+          }
+        }
+      }
+    } catch (_) { /* non-fatal — topology is advisory */ }
+  }
+
   // Auto-trigger training collector if telemetry was updated in the last 60 seconds
   try {
     const telemetryStat = fs.existsSync(telemetryFile) ? fs.statSync(telemetryFile) : null;

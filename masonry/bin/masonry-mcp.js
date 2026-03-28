@@ -750,6 +750,12 @@ function toolStatus(args) {
     }
   } catch (_) { /* non-fatal — ignore missing or malformed file */ }
 
+  // Inject active swarm topology if set
+  const topoFile = path.join(project_path, ".autopilot", "topology");
+  if (fs.existsSync(topoFile)) {
+    result.topology = fs.readFileSync(topoFile, "utf8").trim();
+  }
+
   return result;
 }
 
