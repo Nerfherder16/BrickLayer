@@ -1550,9 +1550,14 @@ agents:
 - name: chaos-engineer
   file: C:/Users/trg16/.claude/agents/chaos-engineer.md
   model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
+  description: Controlled failure injection for resilience testing — read-only default, execution requires approval
+  modes:
+  - security
+  - architect
+  capabilities:
+  - chaos-engineering
+  - blast-radius
+  - resilience-testing
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
@@ -1976,12 +1981,14 @@ agents:
 - name: verification-analyst
   file: C:/Users/trg16/.claude/agents/verification-analyst.md
   model: sonnet
-  description: "Mandatory 6-gate false positive verification for security and research\
-    \ findings. Runs Process \u2192 Reachability \u2192 Real Impact \u2192 PoC \u2192\
-    \ Math Bounds \u2192 Environment checks. Returns VERIFIED | UNVERIFIED | INCONCLUSIVE\
-    \ with gate-by-gate evidence."
-  modes: []
-  capabilities: []
+  description: 6-gate false positive verification pipeline for security and research findings
+  modes:
+  - research
+  - security
+  capabilities:
+  - verification
+  - false-positive-detection
+  - cvss-scoring
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
@@ -1995,11 +2002,14 @@ agents:
 - name: mcp-developer
   file: C:/Users/trg16/.claude/agents/mcp-developer.md
   model: sonnet
-  description: MCP (Model Context Protocol) server specialist. Scaffolds new MCP servers,
-    adds tools to existing ones, handles stdio/SSE transport, writes MCP tests. Knows
-    the MCP SDK, tool schema design, and error handling conventions.
-  modes: []
-  capabilities: []
+  description: MCP server specialist — scaffolds, adds tools, handles transport, writes tests
+  modes:
+  - developer
+  capabilities:
+  - mcp-servers
+  - tool-schema
+  - stdio-transport
+  - sse-transport
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
@@ -2013,12 +2023,15 @@ agents:
 - name: penetration-tester
   file: C:/Users/trg16/.claude/agents/penetration-tester.md
   model: sonnet
-  description: Security penetration testing with required authorization context. Tests
-    authentication bypass, injection, privilege escalation, exposed secrets, SSRF,
-    insecure deserialization. Returns CVSS-scored findings. Refuses without explicit
-    authorization in prompt.
-  modes: []
-  capabilities: []
+  description: Authorized security pen testing — CVSS-scored findings, refuses without authorization context
+  modes:
+  - security
+  capabilities:
+  - penetration-testing
+  - cvss
+  - owasp
+  - injection
+  - auth-bypass
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
@@ -2032,12 +2045,14 @@ agents:
 - name: scientific-literature-researcher
   file: C:/Users/trg16/.claude/agents/scientific-literature-researcher.md
   model: sonnet
-  description: 'Grounds research findings in peer-reviewed literature. Searches arXiv,
-    Semantic Scholar, and PubMed. Extracts: citation, abstract, key claims, methodology,
-    sample size, effect size, confidence intervals. Flags predatory journals and unreviewed
-    preprints.'
-  modes: []
-  capabilities: []
+  description: Grounds findings in peer-reviewed literature — extracts methodology, effect sizes, flags weak evidence
+  modes:
+  - research
+  capabilities:
+  - literature-search
+  - evidence-quality
+  - meta-analysis
+  - citation-extraction
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
