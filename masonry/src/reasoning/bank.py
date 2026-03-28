@@ -1,10 +1,12 @@
 """
 # Requirements: sqlite3 (stdlib). Optional: hnswlib-python for fast vector search.
 # Install hnswlib: pip install hnswlib
-# Without hnswlib, falls back to SQLite-only text search (LIKE queries).
+# Without hnswlib, falls back to LocalHNSW brute-force cosine similarity via numpy,
+# then to SQLite-only text search (LIKE queries) if numpy is also unavailable.
 """
 
 import hashlib
+import logging
 import sqlite3
 import struct
 import threading
@@ -18,6 +20,20 @@ try:
     _HNSWLIB_AVAILABLE = True
 except ImportError:
     _HNSWLIB_AVAILABLE = False
+
+try:
+    from masonry.src.reasoning.local_hnsw import LocalHNSW as _LocalHNSW  # noqa: F401
+    _LOCAL_HNSW_AVAILABLE = True
+except ImportError:
+    _LOCAL_HNSW_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
+
+if not _HNSWLIB_AVAILABLE:
+    if _LOCAL_HNSW_AVAILABLE:
+        logger.warning("hnswlib unavailable — ReasoningBank will use LocalHNSW brute-force cosine fallback for vector queries")
+    else:
+        logger.warning("hnswlib and LocalHNSW unavailable — ReasoningBank will use SQLite LIKE text search only")
 
 _EMBEDDING_DIM = 384
 _HNSW_EF_CONSTRUCTION = 200
