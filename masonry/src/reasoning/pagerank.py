@@ -6,9 +6,10 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any, Optional
 
 try:
-    from neo4j import GraphDatabase  # type: ignore[import-untyped]
+    from neo4j import GraphDatabase
     _NEO4J_AVAILABLE = True
 except ImportError:
     _NEO4J_AVAILABLE = False
@@ -34,22 +35,22 @@ class PatternPageRank:
     def __init__(
         self,
         project: str,
-        uri: str | None = None,
-        auth: tuple[str, str] | None = None,
+        uri: Optional[str] = None,
+        auth: Optional[tuple[str, str]] = None,
     ) -> None:
         self.project = project
         raw_uri = uri or os.environ.get("RECALL_HOST", _DEFAULT_HTTP)
         self._uri = _to_bolt_uri(raw_uri)
         self._auth = auth or _DEFAULT_AUTH
-        self._available = False
-        self._driver = None
+        self._available: bool = False
+        self._driver: Any = None  # neo4j.Driver when connected, None otherwise
         self._connect()
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def run(self, confidence_path: str) -> dict:
+    def run(self, confidence_path: str) -> dict[str, Any]:
         """Run PageRank and apply confidence boosts to patterns with rank > 0.5.
 
         Reads *confidence_path* (a JSON dict mapping pattern_id → confidence
@@ -59,7 +60,7 @@ class PatternPageRank:
         Returns a summary dict. If unavailable, returns
         ``{skipped: True, reason: "neo4j unavailable"}``.
         """
-        if not self._available:
+        if not self._available or self._driver is None:
             return {"skipped": True, "reason": "neo4j unavailable"}
 
         with self._driver.session() as session:
@@ -93,15 +94,15 @@ class PatternPageRank:
     # PageRank strategies
     # ------------------------------------------------------------------
 
-    def _run_gds_pagerank(self, session) -> dict[str, float]:
+    def _run_gds_pagerank(self, session: Any) -> dict[str, float]:
         """Try GDS PageRank; fall back to manual implementation."""
         try:
-            return session.execute_read(self._gds_query, self.project)
+            return session.execute_read(self._gds_query, self.project)  # type: ignore[no-any-return]
         except Exception:
-            return session.execute_read(self._manual_query, self.project)
+            return session.execute_read(self._manual_query, self.project)  # type: ignore[no-any-return]
 
     @staticmethod
-    def _gds_query(tx, project: str) -> dict[str, float]:
+    def _gds_query(tx: Any, project: str) -> dict[str, float]:
         """Execute GDS pageRank.stream and return id → score mapping."""
         result = tx.run(
             """
@@ -119,7 +120,7 @@ class PatternPageRank:
         return {record["pattern_id"]: record["score"] for record in result}
 
     @staticmethod
-    def _manual_query(tx, project: str) -> dict[str, float]:
+    def _manual_query(tx: Any, project: str) -> dict[str, float]:
         """Fetch all CITES edges and compute PageRank manually."""
         result = tx.run(
             """
@@ -131,9 +132,9 @@ class PatternPageRank:
         edges = [(rec["source"], rec["target"], rec["weight"]) for rec in result]
         return _pagerank_manual(edges)
 
-    def _run_manual_pagerank(self, session) -> dict[str, float]:
+    def _run_manual_pagerank(self, session: Any) -> dict[str, float]:
         """Public fallback entry point for manual PageRank."""
-        return session.execute_read(self._manual_query, self.project)
+        return session.execute_read(self._manual_query, self.project)  # type: ignore[no-any-return]
 
     # ------------------------------------------------------------------
     # Internal
@@ -169,7 +170,6 @@ def _pagerank_manual(
     if not edges:
         return {}
 
-    # Collect all nodes and build out-edge adjacency
     nodes: set[str] = set()
     out_edges: dict[str, list[tuple[str, float]]] = {}
     out_weight: dict[str, float] = {}
@@ -187,8 +187,8 @@ def _pagerank_manual(
         new_rank: dict[str, float] = {node: (1.0 - damping) / n for node in nodes}
         for src, targets in out_edges.items():
             total = out_weight.get(src, 1.0) or 1.0
-            for tgt, weight in targets:
-                new_rank[tgt] = new_rank.get(tgt, 0.0) + damping * rank[src] * (weight / total)
+            for tgt, w in targets:
+                new_rank[tgt] = new_rank.get(tgt, 0.0) + damping * rank[src] * (w / total)
         rank = new_rank
 
     return rank
