@@ -1479,3 +1479,29 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
+- name: repo-researcher
+  file: C:/Users/trg16/.claude/agents/repo-researcher.md
+  model: sonnet
+  description: "Deep GitHub repository analyst. Given a repo URL, reads the ENTIRE\
+    \ repo \u2014 every file, README section, component, agent definition, hook, workflow,\
+    \ MCP config, and code path \u2014 then produces a full file inventory, architecture\
+    \ overview, feature gap analysis vs BrickLayer 2.0, and prioritized recommendations.\
+    \ Saves output to docs/repo-research/{repo-name}.md in the BrickLayer project\
+    \ directory. Use when Tim wants to research a GitHub repo for patterns to incorporate\
+    \ into BrickLayer."
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords:
+  - research this repo
+  - analyze this repo
+  - explore this github
+  - what can we learn from
+  - compare this repo
+  - repo research
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
