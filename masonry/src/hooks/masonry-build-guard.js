@@ -123,8 +123,34 @@ async function main() {
     process.exit(2);
   }
 
-  // Cleanup old backups (>7 days)
+  // Phase checkpoint tagging
   const fs = require("fs");
+  const phaseTags = (() => { try { return JSON.parse(fs.readFileSync(path.join(autopilotDir, "phase-tags.json"), "utf8")); } catch { return {}; } })();
+  const allTasks = (progress.tasks || []);
+  let newTags = false;
+  for (const task of allTasks) {
+    if (task.status === "DONE" && task.phase_end) {
+      const tagName = `phase/${task.phase_end}`;
+      if (!phaseTags[tagName]) {
+        try {
+          execSync(`git tag "${tagName}" -m "BrickLayer phase checkpoint: ${task.phase_end}"`, {
+            cwd: sessionCwd,
+            stdio: "pipe"
+          });
+          phaseTags[tagName] = new Date().toISOString();
+          newTags = true;
+          process.stderr.write(`[masonry-build-guard] Tagged phase checkpoint: ${tagName}\n`);
+        } catch {
+          // Tag may already exist or git not available — ignore silently
+        }
+      }
+    }
+  }
+  if (newTags) {
+    fs.writeFileSync(path.join(autopilotDir, "phase-tags.json"), JSON.stringify(phaseTags, null, 2), "utf8");
+  }
+
+  // Cleanup old backups (>7 days)
   const backupsDir = path.join(autopilotDir, "backups");
   if (existsSync(backupsDir)) {
     const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
