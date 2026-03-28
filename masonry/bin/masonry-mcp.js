@@ -3,7 +3,7 @@
 /**
  * bin/masonry-mcp.js — Masonry MCP server
  *
- * Exposes 23 tools over MCP stdio transport (JSON-RPC 2.0):
+ * Exposes 24 tools over MCP stdio transport (JSON-RPC 2.0):
  *
  * Research / Campaign:
  *   - masonry_status          — current campaign state
@@ -31,6 +31,7 @@
  *   - masonry_consensus_check — quorum gate: read/write .autopilot/consensus.json
  *   - masonry_doctor          — system health check: Recall, daemons, hooks, registry
  *   - masonry_verify_7point   — 7-point quality gate: unit tests, coverage, integration, e2e, security, perf, docker
+ *   - masonry_pattern_decay   — apply time decay to pattern confidence scores and prune below 0.2 threshold
  */
 
 const fs = require("fs");
@@ -506,6 +507,25 @@ const TOOLS = [
       },
       required: ["project_dir"],
     },
+  },
+  {
+    name: "masonry_pattern_decay",
+    description: "Apply time decay to pattern confidence scores and prune patterns below the 0.2 threshold. Reads .autopilot/pattern-confidence.json, applies -0.005/hr decay since last_used, removes entries below 0.2. Returns pruned count and surviving entries.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: {
+          type: "string",
+          description: "Absolute path to the project directory (where .autopilot/ lives)"
+        },
+        dry_run: {
+          type: "boolean",
+          description: "If true, report what would be pruned without modifying the file",
+          default: false
+        }
+      },
+      required: ["project_path"]
+    }
   },
 ];
 
@@ -2009,6 +2029,59 @@ function toolVerify7point(args) {
 }
 
 // ---------------------------------------------------------------------------
+// masonry_pattern_decay — time-decay pattern confidence scores
+// ---------------------------------------------------------------------------
+
+function toolPatternDecay(args) {
+  const { project_path, dry_run = false } = args;
+  const confPath = path.join(project_path, '.autopilot', 'pattern-confidence.json');
+
+  let store = {};
+  try {
+    store = JSON.parse(fs.readFileSync(confPath, 'utf8'));
+  } catch {
+    return { pruned: 0, surviving: 0, message: 'No pattern-confidence.json found' };
+  }
+
+  const now = Date.now();
+  const DECAY_PER_HOUR = 0.005;
+  const PRUNE_THRESHOLD = 0.2;
+
+  const pruned = [];
+  const surviving = {};
+
+  for (const [key, entry] of Object.entries(store)) {
+    const lastUsed = entry.last_used ? new Date(entry.last_used).getTime() : now;
+    const hoursElapsed = (now - lastUsed) / (1000 * 60 * 60);
+    const decayed = Math.max(0, entry.confidence - DECAY_PER_HOUR * hoursElapsed);
+
+    if (decayed < PRUNE_THRESHOLD) {
+      pruned.push({ key, confidence: decayed, hours_since_use: Math.round(hoursElapsed) });
+    } else {
+      surviving[key] = { ...entry, confidence: decayed };
+    }
+  }
+
+  if (!dry_run && pruned.length > 0) {
+    try {
+      fs.writeFileSync(confPath, JSON.stringify(surviving, null, 2), 'utf8');
+    } catch (err) {
+      return { error: err.message };
+    }
+  }
+
+  return {
+    pruned: pruned.length,
+    surviving: Object.keys(surviving).length,
+    dry_run,
+    pruned_entries: pruned,
+    message: dry_run
+      ? `Dry run: ${pruned.length} patterns would be pruned`
+      : `Pruned ${pruned.length} patterns below ${PRUNE_THRESHOLD} threshold`
+  };
+}
+
+// ---------------------------------------------------------------------------
 // MCP protocol dispatch
 // ---------------------------------------------------------------------------
 
@@ -2061,6 +2134,8 @@ async function dispatchTool(name, args) {
       return await toolDoctor(args);
     case "masonry_verify_7point":
       return toolVerify7point(args);
+    case "masonry_pattern_decay":
+      return toolPatternDecay(args);
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
