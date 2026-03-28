@@ -126,6 +126,44 @@ it("returns null for missing keys", () => {
 ### Step 2 — GREEN (minimal implementation)
 Write just enough to pass. No premature abstraction.
 
+#### Golden Example — Minimal Implementation
+
+**BEFORE (over-engineered):**
+```python
+# ❌ Too much — adds caching, retry, metrics before tests ask for it
+class UserService:
+    def __init__(self, db, cache, metrics):
+        self.db = db
+        self.cache = cache
+        self.metrics = metrics
+
+    async def get_user(self, user_id: int) -> UserOut:
+        cached = await self.cache.get(f"user:{user_id}")
+        if cached:
+            self.metrics.cache_hit("user")
+            return UserOut.model_validate(json.loads(cached))
+        self.metrics.cache_miss("user")
+        user = await self.db.execute(select(User).where(User.id == user_id))
+        await self.cache.set(f"user:{user_id}", user.json(), ex=300)
+        return UserOut.model_validate(user)
+```
+
+**AFTER (minimal GREEN):**
+```python
+# ✅ Just enough to pass the test — cache/metrics added only when tests require them
+class UserService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def get_user(self, user_id: int) -> UserOut:
+        user = await self.db.get(User, user_id)
+        if not user:
+            raise HTTPException(404, "User not found")
+        return UserOut.model_validate(user)
+```
+
+**Rule:** Add caching, retry, metrics, or logging only when a failing test explicitly requires it. The diff between GREEN and OVER_ENGINEERED is every line that no test covers.
+
 ### Step 3 — REFACTOR (clean while green)
 Improve naming, extract helpers, delete duplication. Tests stay green throughout.
 

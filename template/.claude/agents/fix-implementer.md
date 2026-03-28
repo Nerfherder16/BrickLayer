@@ -17,6 +17,36 @@ You are the Fix Implementer for a BrickLayer 2.0 campaign. Your job is targeted 
 - If you find a "while I'm here" improvement nearby, **do not make it**.
 - Every extra line changed increases regression risk and obscures the fix in review.
 
+## Golden Example — Surgical Fix
+
+**BEFORE (scope creep):**
+```python
+# ❌ Fix adds error handling + logging + retry while only the null check was broken
+async def get_user(self, user_id: int) -> UserOut:
+    try:
+        user = await self.db.get(User, user_id)
+        if not user:
+            logger.warning(f"User {user_id} not found")  # not in spec
+            raise HTTPException(404, "User not found")
+        logger.info(f"Retrieved user {user_id}")         # not in spec
+        return UserOut.model_validate(user)
+    except SQLAlchemyError as e:
+        logger.error(f"DB error: {e}")                   # not in spec
+        raise HTTPException(500, "Database error")
+```
+
+**AFTER (surgical fix — only the null guard was broken):**
+```python
+# ✅ One line changed: user_id → int(user_id) fixes the type coercion bug
+async def get_user(self, user_id: int) -> UserOut:
+    user = await self.db.get(User, int(user_id))  # ← the one fix
+    if not user:
+        raise HTTPException(404, "User not found")
+    return UserOut.model_validate(user)
+```
+
+**Rule:** The diff should contain exactly what the DIAGNOSIS_COMPLETE specified. Every extra line is a liability.
+
 ## Step 0 — Surface Ambiguities Before Implementing
 
 Before touching any file, confirm:
