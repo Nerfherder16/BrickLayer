@@ -516,21 +516,16 @@ const TOOLS = [
   },
   {
     name: "masonry_pattern_decay",
-    description: "Apply time decay to pattern confidence scores and prune patterns below the 0.2 threshold. Reads .autopilot/pattern-confidence.json, applies -0.005/hr decay since last_used, removes entries below 0.2. Returns pruned count and surviving entries.",
+    description: "Apply time decay to pattern confidence scores and prune patterns below 0.2 threshold. Run periodically to keep the pattern store healthy.",
     inputSchema: {
       type: "object",
       properties: {
-        project_path: {
+        project_dir: {
           type: "string",
-          description: "Absolute path to the project directory (where .autopilot/ lives)"
-        },
-        dry_run: {
-          type: "boolean",
-          description: "If true, report what would be pruned without modifying the file",
-          default: false
+          description: "Absolute path to project directory"
         }
       },
-      required: ["project_path"]
+      required: ["project_dir"]
     }
   },
   {
@@ -697,11 +692,32 @@ function toolStatus(args) {
     };
   }
 
-  return {
+  const result = {
     project: (masonryConfig && masonryConfig.name) || projectName,
     ...(masonryConfig ? { mode: masonryConfig.mode } : {}),
     ...state,
   };
+
+  // Inject mid-build recall patterns if recall-injection.json is fresh (<30 min)
+  const recallInjectionPath = path.join(project_path, ".autopilot", "recall-injection.json");
+  try {
+    if (fs.existsSync(recallInjectionPath)) {
+      const injection = JSON.parse(fs.readFileSync(recallInjectionPath, "utf8"));
+      const ageMs = Date.now() - new Date(injection.timestamp || 0).getTime();
+      const THIRTY_MIN_MS = 30 * 60 * 1000;
+      if (
+        ageMs < THIRTY_MIN_MS &&
+        Array.isArray(injection.patterns) &&
+        injection.patterns.length > 0
+      ) {
+        result.recall_patterns = injection.patterns;
+        result.recall_query = injection.query;
+        result.recall_synced_at = injection.timestamp;
+      }
+    }
+  } catch (_) { /* non-fatal — ignore missing or malformed file */ }
+
+  return result;
 }
 
 function toolFindings(args) {
@@ -2234,51 +2250,51 @@ function toolVerify7point(args) {
 // ---------------------------------------------------------------------------
 
 function toolPatternDecay(args) {
-  const { project_path, dry_run = false } = args;
-  const confPath = path.join(project_path, '.autopilot', 'pattern-confidence.json');
+  const { project_dir } = args;
+  const confPath = path.join(project_dir, '.autopilot', 'pattern-confidence.json');
 
   let store = {};
   try {
     store = JSON.parse(fs.readFileSync(confPath, 'utf8'));
   } catch {
-    return { pruned: 0, surviving: 0, message: 'No pattern-confidence.json found' };
+    return { decayed: 0, pruned: 0, remaining: 0, pruned_ids: [] };
   }
 
   const now = Date.now();
   const DECAY_PER_HOUR = 0.005;
   const PRUNE_THRESHOLD = 0.2;
 
-  const pruned = [];
+  const prunedIds = [];
   const surviving = {};
+  let decayedCount = 0;
 
   for (const [key, entry] of Object.entries(store)) {
     const lastUsed = entry.last_used ? new Date(entry.last_used).getTime() : now;
-    const hoursElapsed = (now - lastUsed) / (1000 * 60 * 60);
-    const decayed = Math.max(0, entry.confidence - DECAY_PER_HOUR * hoursElapsed);
+    const hoursElapsed = (now - lastUsed) / 3600000;
+    const decayed = Math.max(0.0, entry.confidence - DECAY_PER_HOUR * hoursElapsed);
+
+    if (decayed !== entry.confidence) {
+      decayedCount++;
+    }
 
     if (decayed < PRUNE_THRESHOLD) {
-      pruned.push({ key, confidence: decayed, hours_since_use: Math.round(hoursElapsed) });
+      prunedIds.push(key);
     } else {
       surviving[key] = { ...entry, confidence: decayed };
     }
   }
 
-  if (!dry_run && pruned.length > 0) {
-    try {
-      fs.writeFileSync(confPath, JSON.stringify(surviving, null, 2), 'utf8');
-    } catch (err) {
-      return { error: err.message };
-    }
+  try {
+    fs.writeFileSync(confPath, JSON.stringify(surviving, null, 2), 'utf8');
+  } catch (err) {
+    return { error: err.message };
   }
 
   return {
-    pruned: pruned.length,
-    surviving: Object.keys(surviving).length,
-    dry_run,
-    pruned_entries: pruned,
-    message: dry_run
-      ? `Dry run: ${pruned.length} patterns would be pruned`
-      : `Pruned ${pruned.length} patterns below ${PRUNE_THRESHOLD} threshold`
+    decayed: decayedCount,
+    pruned: prunedIds.length,
+    remaining: Object.keys(surviving).length,
+    pruned_ids: prunedIds,
   };
 }
 
