@@ -80,6 +80,9 @@ async function main() {
     process.exit(0);
   }
 
+  // If the build already completed, don't warn about an interrupted build.
+  if (progress.status === "COMPLETE") process.exit(0);
+
   const buildSessionId = progress.session_id || null;
   const currentSessionId = parsed.session_id || parsed.sessionId || null;
 
