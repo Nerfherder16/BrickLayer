@@ -42,6 +42,35 @@ function findAutopilotDir(startDir) {
   return null;
 }
 
+// Bayesian confidence update
+function updatePatternConfidence(autopilotDir, taskType, success) {
+  const confPath = path.join(autopilotDir, 'pattern-confidence.json');
+  let store = {};
+  try { store = JSON.parse(fs.readFileSync(confPath, 'utf8')); } catch {}
+
+  const key = taskType || 'general';
+  const now = new Date().toISOString();
+
+  if (!store[key]) {
+    store[key] = { confidence: 0.7, last_used: now, uses: 0 };
+  }
+
+  const entry = store[key];
+  const c = entry.confidence;
+
+  if (success) {
+    entry.confidence = Math.min(1.0, c + 0.20 * (1 - c));
+  } else {
+    entry.confidence = Math.max(0.0, c - 0.15 * c);
+  }
+  entry.last_used = now;
+  entry.uses = (entry.uses || 0) + 1;
+
+  try {
+    fs.writeFileSync(confPath, JSON.stringify(store, null, 2), 'utf8');
+  } catch {}
+}
+
 async function main() {
   const raw = await readStdin();
   let parsed = {};
@@ -88,6 +117,9 @@ async function main() {
   const success = !/ERROR|FAILED|DEV_ESCALATE/.test(resultStr);
 
   const agent = (parsed.tool_input && parsed.tool_input.subagent_type) || "unknown";
+
+  // Bayesian confidence update
+  updatePatternConfidence(autopilotDir, agent, success);
 
   const record = JSON.stringify({
     task_id,
