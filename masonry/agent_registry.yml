@@ -1411,3 +1411,71 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
+- name: architecture-writer
+  file: C:/Users/trg16/.claude/agents/architecture-writer.md
+  model: sonnet
+  description: "SPARC Phase 3 \u2014 writes architecture.md from spec.md + pseudocode.md\
+    \ before /build. Component boundaries, interface contracts, data flows, out-of-scope\
+    \ list."
+  modes:
+  - agent
+  capabilities:
+  - codebase exploration and dependency mapping
+  - component boundary definition
+  - interface contract authoring
+  - data flow documentation
+  - out-of-scope boundary enforcement
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: consensus-builder
+  file: C:/Users/trg16/.claude/agents/consensus-builder.md
+  model: sonnet
+  description: Resolves conflicting review verdicts via weighted majority vote. Invoked
+    when reviewers disagree. Returns final APPROVED/BLOCKED verdict with vote breakdown.
+  modes:
+  - review
+  capabilities:
+  - weighted majority vote across reviewer verdicts
+  - confidence-weighted verdict aggregation
+  - tie-breaking with conservative BLOCKED default
+  - audit trail logging to .autopilot/consensus-log.jsonl
+  - escalation to senior-developer on ties
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords:
+  - consensus
+  - conflicting verdicts
+  - review conflict
+  - majority vote
+  - resolve reviewer disagreement
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: pseudocode-writer
+  file: C:/Users/trg16/.claude/agents/pseudocode-writer.md
+  model: sonnet
+  description: "SPARC Phase 2 \u2014 writes pseudocode.md from spec.md before /build.\
+    \ Per-task plain-English logic covering flow, edge cases, and failure modes."
+  modes:
+  - agent
+  capabilities:
+  - spec analysis and task decomposition
+  - plain-English algorithmic blueprinting
+  - edge case and failure mode enumeration
+  - interface contract extraction
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0

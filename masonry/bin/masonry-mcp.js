@@ -29,6 +29,7 @@
  *   - masonry_wave_validate   — validate all tasks in a wave are DONE before advancing
  *   - masonry_swarm_init      — initialize .autopilot/progress.json for a swarm build
  *   - masonry_consensus_check — quorum gate: read/write .autopilot/consensus.json
+ *   - masonry_review_consensus — weighted majority vote across reviewer verdicts; logs to .autopilot/consensus-log.jsonl
  *   - masonry_doctor          — system health check: Recall, daemons, hooks, registry
  *   - masonry_verify_7point   — 7-point quality gate: unit tests, coverage, integration, e2e, security, perf, docker
  *   - masonry_pattern_decay   — apply time decay to pattern confidence scores and prune below 0.2 threshold
@@ -650,6 +651,38 @@ const TOOLS = [
         },
       },
       required: ["project_path"],
+    },
+  },
+  {
+    name: "masonry_review_consensus",
+    description: "Resolve conflicting review verdicts via weighted majority vote. When code-reviewer, peer-reviewer, or design-reviewer disagree on the same task, call this to get a final APPROVED/BLOCKED verdict with audit trail. Appends to .autopilot/consensus-log.jsonl.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        votes: {
+          type: "array",
+          description: "List of reviewer verdicts. Each item: {reviewer: string, verdict: 'APPROVED'|'BLOCKED'|'NEEDS_REVISION', confidence: number (0-1), summary: string}",
+          items: {
+            type: "object",
+            properties: {
+              reviewer: { type: "string" },
+              verdict: { type: "string", enum: ["APPROVED", "BLOCKED", "NEEDS_REVISION"] },
+              confidence: { type: "number" },
+              summary: { type: "string" },
+            },
+            required: ["reviewer", "verdict", "confidence", "summary"],
+          },
+        },
+        task_id: {
+          type: "string",
+          description: "Task or finding identifier (e.g. 'Q3.2', 'task-5')",
+        },
+        project_dir: {
+          type: "string",
+          description: "Absolute path to the project directory. Consensus log written to {project_dir}/.autopilot/consensus-log.jsonl",
+        },
+      },
+      required: ["votes", "task_id", "project_dir"],
     },
   },
 ];
@@ -1733,6 +1766,143 @@ function toolSwarmInit(args) {
   return { initialized: true, tasks, task_count: tasks.length, project: name, branch: progress.branch, topology };
 }
 
+function toolReviewConsensus(args) {
+  const { votes, task_id, project_dir } = args;
+  const VALID_VERDICTS = ["APPROVED", "BLOCKED", "NEEDS_REVISION"];
+
+  // Step 1 — validate votes
+  const skipped = [];
+  const valid = [];
+  for (const v of Array.isArray(votes) ? votes : []) {
+    if (
+      typeof v.reviewer === "string" &&
+      VALID_VERDICTS.includes(v.verdict) &&
+      typeof v.confidence === "number" &&
+      v.confidence >= 0 &&
+      v.confidence <= 1 &&
+      typeof v.summary === "string"
+    ) {
+      valid.push(v);
+    } else {
+      skipped.push(v.reviewer || "(unknown)");
+    }
+  }
+
+  if (valid.length < 2) {
+    const result = {
+      final_verdict: "BLOCKED",
+      vote_breakdown: [],
+      reasoning: `Insufficient valid votes (${valid.length} valid, ${skipped.length} skipped). Minimum 2 required.`,
+      escalate: true,
+      task_id,
+      timestamp: new Date().toISOString(),
+    };
+    _appendConsensusLog(project_dir, task_id, valid, "BLOCKED", true);
+    return result;
+  }
+
+  // Step 2 — compute weighted scores
+  const scores = { APPROVED: 0, BLOCKED: 0, NEEDS_REVISION: 0 };
+  const reviewersByVerdict = { APPROVED: [], BLOCKED: [], NEEDS_REVISION: [] };
+  let totalWeight = 0;
+  for (const v of valid) {
+    scores[v.verdict] += v.confidence;
+    reviewersByVerdict[v.verdict].push(v.reviewer);
+    totalWeight += v.confidence;
+  }
+
+  // Step 3 — determine winner (check for tie)
+  const share = {};
+  for (const verdict of VALID_VERDICTS) {
+    share[verdict] = totalWeight > 0 ? scores[verdict] / totalWeight : 0;
+  }
+
+  const sorted = VALID_VERDICTS.slice().sort((a, b) => scores[b] - scores[a]);
+  const top = sorted[0];
+  const second = sorted[1];
+  const isTie = Math.abs(scores[top] - scores[second]) < 0.001;
+
+  let winner;
+  let escalate;
+  if (isTie) {
+    winner = "BLOCKED";
+    escalate = true;
+  } else {
+    winner = top;
+    escalate = winner === "BLOCKED";
+  }
+
+  // Step 4 — map to binary output
+  let final_verdict;
+  if (winner === "APPROVED") {
+    final_verdict = "APPROVED";
+    escalate = false;
+  } else if (winner === "BLOCKED") {
+    final_verdict = "BLOCKED";
+    escalate = true;
+  } else {
+    // NEEDS_REVISION -> soft BLOCKED, no escalation unless tie forced it
+    final_verdict = "BLOCKED";
+    if (!isTie) escalate = false;
+  }
+
+  // Step 5 — build breakdown
+  const vote_breakdown = VALID_VERDICTS.filter((v) => scores[v] > 0 || reviewersByVerdict[v].length > 0).map((v) => ({
+    verdict: v,
+    weighted_score: Math.round(scores[v] * 1000) / 1000,
+    share: Math.round(share[v] * 1000) / 1000,
+    reviewers: reviewersByVerdict[v],
+  }));
+
+  const winnerShare = Math.round(share[winner] * 100);
+  const winnerScore = Math.round(scores[winner] * 100) / 100;
+  const reasonParts = vote_breakdown
+    .sort((a, b) => b.share - a.share)
+    .map((b) => `${b.verdict}: ${Math.round(b.share * 100)}%`);
+
+  let reasoning;
+  if (isTie) {
+    reasoning = `Tie between ${top} and ${second} (both at ${Math.round(scores[top] * 100) / 100}). Conservative default: BLOCKED. Escalating.`;
+  } else {
+    reasoning = `${winner} won with ${winnerShare}% weighted share (${winnerScore}/${Math.round(totalWeight * 100) / 100}). ${reasonParts.join(". ")}.`;
+  }
+  if (skipped.length > 0) {
+    reasoning += ` Skipped malformed votes from: ${skipped.join(", ")}.`;
+  }
+
+  const result = {
+    final_verdict,
+    vote_breakdown,
+    reasoning,
+    escalate,
+    task_id,
+    timestamp: new Date().toISOString(),
+  };
+
+  _appendConsensusLog(project_dir, task_id, valid, final_verdict, escalate);
+  return result;
+}
+
+function _appendConsensusLog(project_dir, task_id, votes, final_verdict, escalated) {
+  try {
+    const autopilotDir = path.join(project_dir, ".autopilot");
+    if (!fs.existsSync(autopilotDir)) {
+      fs.mkdirSync(autopilotDir, { recursive: true });
+    }
+    const logFile = path.join(autopilotDir, "consensus-log.jsonl");
+    const entry = JSON.stringify({
+      timestamp: new Date().toISOString(),
+      task_id,
+      votes,
+      final_verdict,
+      escalated,
+    });
+    fs.appendFileSync(logFile, entry + "\n", "utf8");
+  } catch (_err) {
+    // log write failure is non-fatal
+  }
+}
+
 function toolConsensusCheck(args) {
   const { project_path, action, mode = "check", approved_by } = args;
   const autopilotDir = path.join(project_path, ".autopilot");
@@ -2455,6 +2625,8 @@ async function dispatchTool(name, args) {
       return toolSwarmInit(args);
     case "masonry_consensus_check":
       return toolConsensusCheck(args);
+    case "masonry_review_consensus":
+      return toolReviewConsensus(args);
     case "masonry_doctor":
       return await toolDoctor(args);
     case "masonry_verify_7point":
