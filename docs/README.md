@@ -11,13 +11,6 @@ This directory contains all reference documentation for BrickLayer 2.0.
 | [ARCHITECTURE.md](architecture/ARCHITECTURE.md) | Full BL 2.0 build reference — module status, agent fleet, self-heal loop, campaign loop diagram, self-audit campaign history |
 | [ARCHITECTURE-SUMMARY.md](architecture/ARCHITECTURE-SUMMARY.md) | Technical deep-dive — data models, data flow patterns, verdict lifecycle, evaluation layers, integration patterns |
 
-## guides/
-
-| File | Description |
-|------|-------------|
-| [QUICKSTART.md](guides/QUICKSTART.md) | Hands-on guide — starting the dashboard, new project setup, resuming sessions, injecting questions, generating reports |
-| [FRAMEWORK.md](guides/FRAMEWORK.md) | Framework overview — directory structure, source authority hierarchy, agent architecture, Recall integration, loop mechanics |
-
 ## masonry/
 
 | File | Description |
