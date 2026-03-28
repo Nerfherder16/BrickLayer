@@ -7,6 +7,7 @@ ensuring strict payload validation at agent handoff boundaries.
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import Any, ClassVar, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -15,38 +16,40 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 # Valid verdict strings (all ~30 BL2.0 verdict strings)
 # ---------------------------------------------------------------------------
 
-VALID_VERDICTS = frozenset({
-    "HEALTHY",
-    "WARNING",
-    "FAILURE",
-    "INCONCLUSIVE",
-    "DIAGNOSIS_COMPLETE",
-    "FIXED",
-    "FIX_FAILED",
-    "COMPLIANT",
-    "NON_COMPLIANT",
-    "PARTIAL",
-    "NOT_APPLICABLE",
-    "CALIBRATED",
-    "UNCALIBRATED",
-    "NOT_MEASURABLE",
-    "IMPROVEMENT",
-    "REGRESSION",
-    "IMMINENT",
-    "PROBABLE",
-    "POSSIBLE",
-    "UNLIKELY",
-    "OK",
-    "DEGRADED",
-    "DEGRADED_TRENDING",
-    "ALERT",
-    "UNKNOWN",
-    "PROMISING",
-    "BLOCKED",
-    "WEAK",
-    "SUBJECTIVE",
-    "PENDING_EXTERNAL",
-})
+VALID_VERDICTS = frozenset(
+    {
+        "HEALTHY",
+        "WARNING",
+        "FAILURE",
+        "INCONCLUSIVE",
+        "DIAGNOSIS_COMPLETE",
+        "FIXED",
+        "FIX_FAILED",
+        "COMPLIANT",
+        "NON_COMPLIANT",
+        "PARTIAL",
+        "NOT_APPLICABLE",
+        "CALIBRATED",
+        "UNCALIBRATED",
+        "NOT_MEASURABLE",
+        "IMPROVEMENT",
+        "REGRESSION",
+        "IMMINENT",
+        "PROBABLE",
+        "POSSIBLE",
+        "UNLIKELY",
+        "OK",
+        "DEGRADED",
+        "DEGRADED_TRENDING",
+        "ALERT",
+        "UNKNOWN",
+        "PROMISING",
+        "BLOCKED",
+        "WEAK",
+        "SUBJECTIVE",
+        "PENDING_EXTERNAL",
+    }
+)
 
 
 def _validate_verdict(v: str) -> str:
@@ -60,6 +63,7 @@ def _validate_verdict(v: str) -> str:
 # ---------------------------------------------------------------------------
 # QuestionPayload — input to every specialist agent
 # ---------------------------------------------------------------------------
+
 
 class QuestionPayload(BaseModel):
     """Structured input payload delivered to every specialist agent."""
@@ -97,8 +101,35 @@ class QuestionPayload(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# GradeConfidence — GRADE-style semantic confidence enum
+# ---------------------------------------------------------------------------
+
+
+class GradeConfidence(str, Enum):
+    """
+    GRADE confidence system — replaces scalar 0.0-1.0 with semantic enum.
+
+    Downgrade triggers:
+    - HIGH → MODERATE: single source, no independent replication
+    - MODERATE → LOW: contradicting evidence found
+    - LOW → VERY_LOW: speculation only, no direct evidence
+
+    Upgrade triggers:
+    - VERY_LOW → LOW: at least one direct observation
+    - LOW → MODERATE: two independent sources agree
+    - MODERATE → HIGH: three+ independent sources, quantitative evidence
+    """
+
+    HIGH = "HIGH"
+    MODERATE = "MODERATE"
+    LOW = "LOW"
+    VERY_LOW = "VERY_LOW"
+
+
+# ---------------------------------------------------------------------------
 # FindingPayload — output from every specialist agent
 # ---------------------------------------------------------------------------
+
 
 class FindingPayload(BaseModel):
     """Structured output payload returned by every specialist agent."""
@@ -114,16 +145,35 @@ class FindingPayload(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     recommend: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+    grade_confidence: Optional[GradeConfidence] = Field(
+        default=None,
+        description="GRADE confidence grade — preferred over scalar confidence float",
+    )
 
     @model_validator(mode="after")
     def check_verdict(self) -> FindingPayload:
         _validate_verdict(self.verdict)
         return self
 
+    @model_validator(mode="after")
+    def auto_populate_grade(self) -> FindingPayload:
+        """Auto-populate grade_confidence from float confidence if not set."""
+        if self.grade_confidence is None and self.confidence is not None:
+            if self.confidence >= 0.8:
+                self.grade_confidence = GradeConfidence.HIGH
+            elif self.confidence >= 0.6:
+                self.grade_confidence = GradeConfidence.MODERATE
+            elif self.confidence >= 0.4:
+                self.grade_confidence = GradeConfidence.LOW
+            else:
+                self.grade_confidence = GradeConfidence.VERY_LOW
+        return self
+
 
 # ---------------------------------------------------------------------------
 # RoutingDecision — output of the four-layer routing engine
 # ---------------------------------------------------------------------------
+
 
 class RoutingDecision(BaseModel):
     """Routing decision returned by any layer of the four-layer router."""
@@ -135,14 +185,21 @@ class RoutingDecision(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     reason: str = Field(max_length=100)
     fallback_agents: list[str] = Field(default_factory=list)
-    fallback_reason: Optional[Literal[
-        "ambiguous", "ollama_timeout", "llm_timeout", "registry_empty", "multi_failure"
-    ]] = None
+    fallback_reason: Optional[
+        Literal[
+            "ambiguous",
+            "ollama_timeout",
+            "llm_timeout",
+            "registry_empty",
+            "multi_failure",
+        ]
+    ] = None
 
 
 # ---------------------------------------------------------------------------
 # DiagnosePayload — input to the diagnose-analyst agent
 # ---------------------------------------------------------------------------
+
 
 class DiagnosePayload(BaseModel):
     """Input payload for the diagnose-analyst agent."""
@@ -159,6 +216,7 @@ class DiagnosePayload(BaseModel):
 # ---------------------------------------------------------------------------
 # DiagnosisPayload — output from the diagnose-analyst agent
 # ---------------------------------------------------------------------------
+
 
 class DiagnosisPayload(BaseModel):
     """Output payload from the diagnose-analyst agent."""
@@ -177,6 +235,7 @@ class DiagnosisPayload(BaseModel):
 # AgentRegistryEntry — one entry in agent_registry.yml
 # ---------------------------------------------------------------------------
 
+
 class AgentRegistryEntry(BaseModel):
     """Registry entry for a Masonry agent, sourced from agent_registry.yml."""
 
@@ -193,11 +252,14 @@ class AgentRegistryEntry(BaseModel):
     tier: Literal["draft", "candidate", "trusted", "retired"] = "draft"
     optimized_prompt: str | None = None
     routing_keywords: list[str] = Field(default_factory=list)
+    triggers: list[str] = Field(default_factory=list)
+    tools: list[str] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
 # PatternRecord — learned execution pattern with Bayesian confidence tracking
 # ---------------------------------------------------------------------------
+
 
 class PatternRecord(BaseModel):
     """A learned execution pattern stored in the pattern registry."""
@@ -221,6 +283,4 @@ class PatternRecord(BaseModel):
         ),
     )
     last_used: Optional[str] = None
-    created_at: str = Field(
-        default_factory=lambda: datetime.utcnow().isoformat()
-    )
+    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
