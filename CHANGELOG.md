@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `2b1705d` style: lint cleanup after ruflo-p2 pre-edit backup hook work (2026-03-28)
 - `e3d07b4` chore: update masonry (2 files) (2026-03-28)
 - `6e15a81` feat(score-trigger): auto-spawn DSPy optimization every 50 scored examples (2026-03-28)
 - `39c0aa9` feat(pagerank-trigger): Stop hook runs pagerank.py hourly fire-and-forget (2026-03-28)
