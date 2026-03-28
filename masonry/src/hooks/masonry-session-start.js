@@ -8,7 +8,10 @@
  * Also snapshots the current dirty file list so the stop-guard can
  * distinguish files modified THIS session from pre-existing dirty files.
  *
- * Replaces OMC's session-start.mjs + project-memory-session
+ * Modules:
+ *   session/build-state.js    — autopilot/UI/campaign/karen state
+ *   session/project-detect.js — BL detection, session lock, daemon
+ *   session/context-data.js   — Recall, codebase map, ReasoningBank, skills
  */
 
 "use strict";
@@ -16,7 +19,10 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { execSync } = require("child_process");
-const { writeJson, initKilnJson } = require("../core/mas");
+
+const { addBuildState } = require("./session/build-state");
+const { addProjectContext } = require("./session/project-detect");
+const { addContextData } = require("./session/context-data");
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -28,17 +34,9 @@ function readStdin() {
   });
 }
 
-function tryRead(p) {
-  try { return fs.readFileSync(p, "utf8").trim(); } catch { return null; }
-}
-
-function tryJSON(p) {
-  try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; }
-}
-
 function isResearchProject(dir) {
-  return fs.existsSync(path.join(dir, 'program.md')) &&
-         fs.existsSync(path.join(dir, 'questions.md'));
+  return fs.existsSync(path.join(dir, "program.md")) &&
+         fs.existsSync(path.join(dir, "questions.md"));
 }
 
 async function main() {
@@ -51,458 +49,37 @@ async function main() {
 
   const cwd = input.cwd || process.cwd();
   const lines = [];
+  const state = {}; // shared: autopilotMode, uiMode, campaign
 
-  // --- Autopilot build state ---
-  const autopilotMode = tryRead(path.join(cwd, ".autopilot", "mode"));
-  if (autopilotMode && ["build", "fix", "verify"].includes(autopilotMode)) {
-    const progress = tryJSON(path.join(cwd, ".autopilot", "progress.json"));
-    if (progress) {
-      const pending = (progress.tasks || []).filter(t => t.status !== "DONE" && t.status !== "BLOCKED");
-      const done = (progress.tasks || []).filter(t => t.status === "DONE").length;
-      const total = (progress.tasks || []).length;
+  // Phase 1: Build / UI / campaign / Karen state (may exit early for interrupted build)
+  addBuildState(lines, cwd, state);
 
-      if (pending.length > 0 && (autopilotMode === "build" || autopilotMode === "fix")) {
-        // Interrupted build detected — auto-resume by injecting /build into the conversation.
-        // Write hookSpecificOutput to stdout so Claude receives it as a prompt directive.
-        const resumeMsg = [
-          `[Masonry] Interrupted ${autopilotMode} detected: project "${progress.project || "?"}", ${done}/${total} tasks done.`,
-          `  Next: #${pending[0].id} — ${pending[0].description}`,
-          `  Auto-resuming — run /build to continue.`,
-        ].join("\n");
-        process.stdout.write(JSON.stringify({
-          hookSpecificOutput: {
-            hookEventName: "SessionStart",
-            content: resumeMsg + "\n\nResume the interrupted build now. Invoke the /build skill to continue from where it left off.",
-          },
-        }));
-        process.exit(0);
-      }
+  // Phase 2: BL project detection, session init, lock, daemon
+  addProjectContext(lines, cwd, input, state);
 
-      lines.push(`[Masonry] Autopilot ${autopilotMode.toUpperCase()} mode active — project: ${progress.project || "?"}, ${done}/${total} tasks done, ${pending.length} remaining.`);
-      if (pending.length > 0) {
-        lines.push(`  Next task: #${pending[0].id} — ${pending[0].description}`);
-        lines.push(`  Run /build to resume.`);
-      }
-    } else {
-      lines.push(`[Masonry] Autopilot ${autopilotMode.toUpperCase()} mode active. Check .autopilot/ for state.`);
-    }
-  }
-
-  // --- UI compose state ---
-  const uiMode = tryRead(path.join(cwd, ".ui", "mode"));
-  if (uiMode && ["compose", "fix", "review"].includes(uiMode)) {
-    const uiProgress = tryJSON(path.join(cwd, ".ui", "progress.json"));
-    if (uiProgress) {
-      const pending = (uiProgress.tasks || []).filter(t => t.status !== "DONE").length;
-      lines.push(`[Masonry] UI ${uiMode.toUpperCase()} mode active — ${pending} components pending. Run /ui-compose to resume.`);
-    } else {
-      lines.push(`[Masonry] UI ${uiMode.toUpperCase()} mode active. Check .ui/ for state.`);
-    }
-  }
-
-  // --- Campaign state (masonry-state.json) ---
-  const campaign = tryJSON(path.join(cwd, "masonry-state.json"));
-  if (campaign && campaign.mode) {
-    lines.push(`[Masonry] Campaign active — ${campaign.project || path.basename(cwd)}: wave ${campaign.wave || 0}, Q${campaign.q_current || 0}/${campaign.q_total || 0}, mode: ${campaign.mode}.`);
-  }
-
-  // --- Karen doc maintenance flag ---
-  // Check both .autopilot/ (preferred) and legacy .mas/ locations
-  try {
-    const karenFlagPaths = [
-      path.join(cwd, ".autopilot", "karen-needed.json"),
-      path.join(cwd, ".mas", "karen-needed.json"),
-    ];
-    for (const karenFlagPath of karenFlagPaths) {
-      if (fs.existsSync(karenFlagPath)) {
-        const flag = JSON.parse(fs.readFileSync(karenFlagPath, "utf8"));
-        const staleList = (flag.stale_files || []).join(", ");
-        lines.push(
-          `[Masonry] Doc maintenance needed. Spawn karen: Act as the karen agent in ~/.claude/agents/karen.md. ` +
-          `Update and commit these stale project docs: ${staleList}. Do this before any other work.`
-        );
-        // Clean up flag after pickup so it doesn't fire every session
-        try { fs.unlinkSync(karenFlagPath); } catch (_) {}
-        break; // only process first found flag
-      }
-    }
-  } catch (_) {
-    // Malformed flag file or read error — skip silently
-  }
-
-  // --- BL project detection (auto bl-run) ---
-  // If cwd looks like a BL project with pending questions and no active campaign,
-  // inject the run commands so the user doesn't have to invoke /bl-run manually.
-  const hasProgramMd = fs.existsSync(path.join(cwd, "program.md"));
-  const hasQuestionsMd = fs.existsSync(path.join(cwd, "questions.md"));
-  const hasActiveCampaign = !!(campaign && campaign.mode);
-  const hasActiveAutopilot = !!(autopilotMode && ["build", "fix", "verify"].includes(autopilotMode));
-
-  if (hasProgramMd && hasQuestionsMd && !hasActiveCampaign && !hasActiveAutopilot) {
-    try {
-      const qText = fs.readFileSync(path.join(cwd, "questions.md"), "utf8");
-      const pendingMatches = (qText.match(/\|\s*PENDING\s*\|/gi) || []).length;
-
-      if (pendingMatches > 0) {
-        const projectName = path.basename(cwd);
-        // Detect BL root by walking up from cwd — look for a directory that has
-        // both bl/ and masonry/ subdirectories. Falls back to null (omits path-dependent hints).
-        let blRoot = null;
-        {
-          let dir = cwd;
-          for (let i = 0; i < 10; i++) {
-            if (fs.existsSync(path.join(dir, "bl")) && fs.existsSync(path.join(dir, "masonry"))) {
-              blRoot = dir;
-              break;
-            }
-            const parent = path.dirname(dir);
-            if (parent === dir) break;
-            dir = parent;
-          }
-        }
-        const tip = pendingMatches > 10 ? `\n  Tip: ${pendingMatches} questions — parallel workers will finish ~3x faster.` : "";
-
-        // Check if claims.json has active workers (parallel session already running)
-        const claimsPath = path.join(cwd, "claims.json");
-        let activeWorkers = 0;
-        if (fs.existsSync(claimsPath)) {
-          try {
-            const claims = JSON.parse(fs.readFileSync(claimsPath, "utf8"));
-            activeWorkers = Object.values(claims).filter(c => c.status === "IN_PROGRESS").length;
-          } catch {}
-        }
-
-        if (activeWorkers > 0) {
-          lines.push(`[BL] ${projectName}: ${pendingMatches} pending, ${activeWorkers} active worker(s) — parallel session may still be running.`);
-          if (blRoot) lines.push(`  Check: python ${blRoot}/bl/claim.py status ${cwd}`);
-        } else {
-          lines.push(`[BL] ${projectName}: ${pendingMatches} questions PENDING — ready to run.${tip}`);
-          lines.push(`  Single worker:`);
-          lines.push(`    claude --dangerously-skip-permissions "Read program.md and questions.md. Resume the research loop from the first PENDING question. NEVER STOP."`);
-          if (blRoot) {
-            lines.push(`  Parallel (3x faster):`);
-            lines.push(`    cd ${blRoot} && ./bl-parallel.ps1 -Project ${projectName} -Workers 3`);
-          }
-        }
-      }
-    } catch {
-      // questions.md unreadable — skip silently
-    }
-  }
-
-  // --- Subagent tracking state (global ~/.masonry/state/) ---
-  const agentState = tryJSON(path.join(os.homedir(), ".masonry", "state", "agents.json"));
-  if (agentState && agentState.active && agentState.active.length > 0) {
-    lines.push(`[Masonry] ${agentState.active.length} agent(s) were active at last session: ${agentState.active.map(a => a.name || a.type).join(", ")}.`);
-  }
-
-  // --- .mas/ session + context injection ---
-  try {
-    const sessionId0 = input.session_id || input.sessionId || null;
-    const sessionObj = {
-      session_id: sessionId0 || 'unknown',
-      started_at: new Date().toISOString(),
-      cwd,
-      branch: null,
-    };
-    try {
-      sessionObj.branch = execSync('git branch --show-current', {
-        encoding: 'utf8', timeout: 3000, cwd,
-      }).trim() || null;
-    } catch (_) {}
-    writeJson(cwd, 'session.json', sessionObj);
-    initKilnJson(cwd);
-
-    // --- Session lock (parallel session conflict prevention) ---
-    // Write .mas/session.lock so PreToolUse can detect cross-session writes to
-    // protected files. Only write if no non-stale lock exists from a different session.
-    if (sessionId0) {
-      const LOCK_STALE_MS = 4 * 60 * 60 * 1000; // 4 hours
-      const lockPath = path.join(cwd, '.mas', 'session.lock');
-      let shouldWriteLock = true;
-      try {
-        if (fs.existsSync(lockPath)) {
-          const existingLock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
-          const lockAge = Date.now() - new Date(existingLock.started_at || 0).getTime();
-          if (lockAge < LOCK_STALE_MS && existingLock.session_id !== sessionId0) {
-            shouldWriteLock = false;
-            lines.push(
-              `[Masonry] \u26a0\ufe0f  Session lock held by session ${existingLock.session_id} ` +
-              `(started ${existingLock.started_at}).` +
-              ` Protected files (masonry-state.json, questions.md, findings/, .autopilot/) ` +
-              `are READ-ONLY for this session. Delete .mas/session.lock to override.`
-            );
-          }
-        }
-      } catch (_) {}
-      if (shouldWriteLock) {
-        try {
-          const lockData = {
-            session_id: sessionId0,
-            started_at: sessionObj.started_at,
-            cwd,
-            branch: sessionObj.branch,
-          };
-          fs.mkdirSync(path.join(cwd, '.mas'), { recursive: true });
-          fs.writeFileSync(lockPath, JSON.stringify(lockData, null, 2), 'utf8');
-        } catch (_) {}
-      }
-    }
-  } catch (_) {}
-
-  // --- Daemon Auto-Start (Ruflo-style) ---
-  // Check if map and ultralearn workers are running; start them if not.
-  // Only fires for real projects (has package.json or pyproject.toml).
-  // Workers run as detached one-shot processes — they self-loop via daemon-manager.
-  try {
-    const projectFiles = fs.readdirSync(cwd).filter(f =>
-      f === 'package.json' || f === 'pyproject.toml' || f === 'requirements.txt' ||
-      f === 'masonry' || f === '.claude' || f === 'Makefile' || f === 'Cargo.toml' || f === 'go.mod'
-    );
-    const isRealProject = projectFiles.length > 0;
-
-    if (isRealProject && !isResearchProject(cwd)) {
-      const DAEMON_DIR = path.join(__dirname, '..', 'daemon');
-      const PID_DIR = path.join(DAEMON_DIR, 'pids');
-
-      // Workers to auto-start (lightweight, always valuable)
-      const AUTO_WORKERS = ['map', 'ultralearn'];
-
-      for (const workerName of AUTO_WORKERS) {
-        const pidFile = path.join(PID_DIR, `${workerName}.pid`);
-        let isRunning = false;
-
-        try {
-          if (fs.existsSync(pidFile)) {
-            const pid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
-            if (pid > 0) {
-              try { process.kill(pid, 0); isRunning = true; } catch {}
-            }
-          }
-        } catch {}
-
-        if (!isRunning) {
-          const workerScript = path.join(DAEMON_DIR, `worker-${workerName}.js`);
-          if (fs.existsSync(workerScript)) {
-            try {
-              const { spawn } = require('child_process');
-              if (!fs.existsSync(PID_DIR)) fs.mkdirSync(PID_DIR, { recursive: true });
-              const logPath = path.join(DAEMON_DIR, 'logs', `${workerName}.log`);
-              if (!fs.existsSync(path.join(DAEMON_DIR, 'logs'))) {
-                fs.mkdirSync(path.join(DAEMON_DIR, 'logs'), { recursive: true });
-              }
-              const logStream = fs.openSync(logPath, 'a');
-              const child = spawn('node', [workerScript], {
-                detached: true, windowsHide: true,
-                stdio: ['ignore', logStream, logStream],
-                cwd,
-                env: process.env,
-              });
-              fs.writeFileSync(pidFile, String(child.pid), 'utf8');
-              child.unref();
-            } catch {}
-          }
-        }
-      }
-    }
-  } catch (_) {}
-
-  // Inject context.md if present
-  try {
-    const ctxPath = path.join(cwd, '.mas', 'context.md');
-    if (fs.existsSync(ctxPath)) {
-      const ctx = fs.readFileSync(ctxPath, 'utf8').trim();
-      if (ctx) {
-        lines.push('[Masonry] Campaign context loaded from .mas/context.md');
-      }
-    }
-  } catch (_) {}
-
-  // --- Build Pattern Import (Phase 2.2) ---
-  // Query Recall for build patterns matching the current project type.
-  // Injects relevant patterns as context to avoid regenerating known solutions.
-  try {
-    const projectFiles = fs.readdirSync(cwd).slice(0, 30);
-    const hasPyproject = projectFiles.some(f => f === 'pyproject.toml' || f === 'setup.py' || f === 'requirements.txt');
-    const hasPackageJson = projectFiles.some(f => f === 'package.json');
-
-    if (hasPyproject || hasPackageJson) {
-      const lang = hasPyproject ? 'python' : 'typescript';
-      const RECALL_HOST_URL = process.env.RECALL_HOST || 'http://100.70.195.84:8200';
-      const RECALL_API_KEY_VAL = process.env.RECALL_API_KEY || '';
-
-      // Fire-and-forget Recall query — don't block session start
-      const http = require('http');
-      const https = require('https');
-      const queryBody = JSON.stringify({
-        query: `build patterns ${lang}`,
-        domain: 'build-patterns',
-        limit: 5,
-      });
-      const url = new URL(`${RECALL_HOST_URL}/api/memory/search`);
-      const lib = url.protocol === 'https:' ? https : http;
-      const req = lib.request({
-        hostname: url.hostname,
-        port: url.port || (url.protocol === 'https:' ? 443 : 80),
-        path: url.pathname,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(queryBody),
-          ...(RECALL_API_KEY_VAL ? { 'Authorization': `Bearer ${RECALL_API_KEY_VAL}` } : {}),
-        },
-        timeout: 3000,
-      }, (res) => {
-        let data = '';
-        res.on('data', c => (data += c));
-        res.on('end', () => {
-          try {
-            const results = JSON.parse(data);
-            const memories = Array.isArray(results) ? results : (results.results || results.memories || []);
-            if (memories.length > 0) {
-              lines.push(`[Masonry] ${memories.length} build pattern(s) from Recall (${lang}): ${memories.map(m => m.tags?.find(t => t.startsWith('framework:'))?.replace('framework:', '') || 'unknown').filter(Boolean).join(', ')}`);
-              lines.push('  Relevant patterns available — use masonry_recall tool to retrieve details.');
-            }
-          } catch (_) {}
-        });
-      });
-      req.on('error', () => {});
-      req.on('timeout', () => { req.destroy(); });
-      req.write(queryBody);
-      req.end();
-    }
-  } catch (_) {}
-
-  // --- Context Curator: Codebase Map Injection ---
-  // Read .autopilot/map.md (generated by worker-map.js) and inject a compact
-  // codebase summary so Claude knows the project structure without re-discovering it.
-  try {
-    const mapPath = path.join(cwd, '.autopilot', 'map.md');
-    if (fs.existsSync(mapPath)) {
-      const mapStat = fs.statSync(mapPath);
-      const mapAgeHours = Math.round((Date.now() - mapStat.mtimeMs) / 3600000);
-      const mapContent = fs.readFileSync(mapPath, 'utf8');
-      const mapLines = mapContent.split('\n');
-
-      // Extract stack lines
-      const stackLine = (mapLines.find(l => l.startsWith('- Languages:')) || '').replace(/^-\s*Languages:\s*/, '').trim();
-      const frameworkLine = (mapLines.find(l => l.startsWith('- Frameworks:')) || '').replace(/^-\s*Frameworks:\s*/, '').trim();
-      const testLine = (mapLines.find(l => l.startsWith('- Test runner:')) || '').replace(/^-\s*Test runner:\s*/, '').trim();
-
-      // Entry points: lines after "## Entry Points" until next "##"
-      const epIdx = mapLines.findIndex(l => l === '## Entry Points');
-      const entryPoints = [];
-      if (epIdx >= 0) {
-        for (let i = epIdx + 1; i < Math.min(epIdx + 8, mapLines.length); i++) {
-          const l = mapLines[i].trim();
-          if (l.startsWith('##')) break;
-          if (l.startsWith('-')) entryPoints.push(l.replace(/^-\s*`?/, '').replace(/`$/, '').trim());
-        }
-      }
-
-      // Key dirs: first 5 table rows after "## Key Directories"
-      const kdIdx = mapLines.findIndex(l => l === '## Key Directories');
-      const keyDirs = [];
-      if (kdIdx >= 0) {
-        for (let i = kdIdx + 1; i < Math.min(kdIdx + 18, mapLines.length); i++) {
-          const l = mapLines[i].trim();
-          if (l.startsWith('##')) break;
-          if (l.startsWith('|') && !l.startsWith('|---') && !l.includes('Directory')) {
-            const parts = l.split('|').map(s => s.trim()).filter(Boolean);
-            if (parts.length >= 2) keyDirs.push(`${parts[0].replace(/`/g, '')}(${parts[1]})`);
-          }
-        }
-      }
-
-      // Build compact summary
-      const ageSuffix = mapAgeHours > 24 ? ` — stale` : '';
-      const stackParts = [stackLine, frameworkLine, testLine !== 'not detected' ? testLine : ''].filter(Boolean);
-      const stackSummary = stackParts.join(' · ');
-
-      if (stackSummary) {
-        lines.push(`[Masonry] Codebase map (${mapAgeHours}h old${ageSuffix}): ${stackSummary}`);
-        if (entryPoints.length > 0) lines.push(`  Entry: ${entryPoints.slice(0, 3).join(', ')}`);
-        if (keyDirs.length > 0) lines.push(`  Dirs: ${keyDirs.slice(0, 5).join(' ')}`);
-      }
-    }
-  } catch (_) {}
-
-  // --- Swarm compaction resume: warn about orphaned in-flight agents ---
-  // masonry-pre-compact.js writes .autopilot/inflight-agents.json when compaction interrupts a swarm.
-  // We read it once here, inject a warning, then delete it (one-shot per compaction event).
-  {
-    const inflightPath = path.join(cwd, ".autopilot", "inflight-agents.json");
-    if (fs.existsSync(inflightPath)) {
-      const inflight = tryJSON(inflightPath);
-      if (inflight && Array.isArray(inflight.tasks) && inflight.tasks.length > 0) {
-        const inProgressTasks = inflight.tasks.filter((t) => t.status === "IN_PROGRESS");
-        if (inProgressTasks.length > 0) {
-          const taskList = inProgressTasks
-            .map((t) => `#${t.id} (${t.claimed_by || "unknown-worker"}): ${t.description || ""}`)
-            .join(", ");
-          lines.unshift(
-            `[Masonry] SWARM RESUME: compaction interrupted ${inProgressTasks.length} in-flight task(s).`,
-            `These tasks were IN_PROGRESS before compaction. Check .autopilot/progress.json — tasks still showing IN_PROGRESS are orphaned and need re-dispatch.`,
-            `Tasks: ${taskList}`,
-            `Re-dispatch them by reading progress.json and spawning new workers for each IN_PROGRESS task.`
-          );
-        }
-      }
-      // Always delete after pickup — one-shot warning per compaction event
-      try { fs.unlinkSync(inflightPath); } catch (_) {}
-    }
-  }
-
-  // --- ReasoningBank pattern injection ---
-  // Query the local ReasoningBank for patterns relevant to the current mode + project.
-  // Silently skipped if bank.py is unavailable or throws.
-  try {
-    const bankPath = path.join(__dirname, "../../src/reasoning/bank.py");
-    if (fs.existsSync(bankPath)) {
-      const projectBasename = path.basename(cwd);
-      const modeStr = autopilotMode || uiMode || "general";
-      const queryStr = `${modeStr} ${projectBasename}`;
-      const { execSync: _rbExecSync } = require("child_process");
-      const rbOut = _rbExecSync(
-        `python "${bankPath}" query "${queryStr.replace(/"/g, '\\"')}" 5`,
-        { timeout: 3000, encoding: "utf8" }
-      );
-      const rbPatterns = JSON.parse(rbOut.trim());
-      if (Array.isArray(rbPatterns) && rbPatterns.length > 0) {
-        lines.push("## Relevant ReasoningBank Patterns");
-        for (const p of rbPatterns) {
-          const conf = typeof p.confidence === "number" ? p.confidence.toFixed(2) : "?";
-          lines.push(`${p.content} (confidence: ${conf})`);
-        }
-      }
-    }
-  } catch (_) {
-    // bank.py unavailable or errored — skip silently
-  }
+  // Phase 3: Recall patterns, codebase map, swarm resume, ReasoningBank, skills
+  await addContextData(lines, cwd, state);
 
   if (lines.length > 0) {
-    process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "SessionStart", content: lines.join("\n") } }));
+    process.stdout.write(JSON.stringify({
+      hookSpecificOutput: { hookEventName: "SessionStart", content: lines.join("\n") },
+    }));
   }
 
   // --- Session snapshot for stop-guard dirty-file diffing ---
-  // Capture which files are already dirty at session open so the stop-guard
-  // can ignore them and only flag files modified THIS session.
   const sessionId = input.session_id || input.sessionId || null;
   if (sessionId) {
     try {
-      const status = execSync("git status --porcelain", {
-        encoding: "utf8",
-        timeout: 5000,
-        cwd,
-      }).trim();
+      const status = execSync("git status --porcelain", { encoding: "utf8", timeout: 5000, cwd }).trim();
       const preExisting = status
         ? status.split("\n").filter(Boolean).map((l) => l.slice(3).trim())
         : [];
-      const snapPath = path.join(os.tmpdir(), `masonry-snap-${sessionId}.json`);
-      fs.writeFileSync(snapPath, JSON.stringify({ sessionId, cwd, preExisting }), "utf8");
-    } catch {
-      // Non-git dir or git unavailable — skip snapshot silently
-    }
+      fs.writeFileSync(
+        path.join(os.tmpdir(), `masonry-snap-${sessionId}.json`),
+        JSON.stringify({ sessionId, cwd, preExisting }),
+        "utf8"
+      );
+    } catch {}
   }
 
   process.exit(0);

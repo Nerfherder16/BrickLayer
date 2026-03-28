@@ -804,183 +804,25 @@ agents:
   last_score: null
   runs_since_optimization: 0
 - name: adbp-model-analyst
-  file: agents/adbp-model-analyst.md
+  file: .claude/agents/adbp-model-analyst.md
   model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
+  description: 'ADBP economic model analyst. Stress-tests the 40-year geographic hybrid
+    simulation for ADBP benefit credit economics: spend dynamics, vendor adoption,
+    credit flywheel velocity, admin fee sustainability, and Token-2022 NonTransferable
+    invariant compliance.'
+  modes:
+  - quantitative
+  - research
+  capabilities:
+  - ADBP simulation scenario analysis
+  - Solana Token-2022 NonTransferable economics
+  - spend cap adequacy modeling (daily $500 / monthly $2000)
+  - vendor adoption dynamics and network effects
+  - credit flywheel velocity and churn modeling
+  - admin fee sustainability with C/M-ratio multiplier
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: commit-reviewer
-  file: agents/commit-reviewer.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: crucible
-  file: agents/crucible.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: fix-agent
-  file: agents/fix-agent.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: candidate
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: forge
-  file: agents/forge.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: lint-guard
-  file: agents/lint-guard.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: perf-optimizer
-  file: agents/perf-optimizer.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: draft
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: probe-runner
-  file: agents/probe-runner.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: regression-guard
-  file: agents/regression-guard.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: scope-analyzer
-  file: agents/scope-analyzer.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: scout
-  file: agents/scout.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: security-hardener
-  file: agents/security-hardener.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: draft
-  dspy_status: optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: triage
-  file: agents/triage.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: type-strictener
-  file: agents/type-strictener.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: draft
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -1171,31 +1013,6 @@ agents:
   - '{''Redis'': ''key naming conventions, TTL strategy, pub/sub, sorted sets for
     leaderboards''}'
   - '{''Migration safety'': ''zero-downtime patterns, nullable-first, backfill strategy''}'
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  routing_keywords: []
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: hierarchical-coordinator
-  file: C:/Users/trg16/.claude/agents/hierarchical-coordinator.md
-  model: sonnet
-  description: "Swarm coordinator for complex multi-agent builds. Invoked by Mortar\
-    \ for tasks that require more than 3 independent workers. Maintains coordinator\u2192\
-    worker topology: assigns tasks from .autopilot/progress.json to worker agents,\
-    \ monitors completion, handles escalations, and prevents drift. Uses run_in_background:\
-    \ true for non-blocking parallel worker dispatch. Max 6 concurrent workers."
-  modes:
-  - build
-  - orchestrate
-  capabilities:
-  - parallel worker dispatch via Agent tool with run_in_background
-  - task queue management from progress.json
-  - '{''anti-drift'': ''topology enforcement, max agent cap, post-task checkpoints''}'
-  - '{''worker failure handling'': ''re-queue failed tasks, escalate to diagnose-analyst''}'
-  - consensus gate before destructive operations
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
@@ -1550,7 +1367,8 @@ agents:
 - name: chaos-engineer
   file: C:/Users/trg16/.claude/agents/chaos-engineer.md
   model: sonnet
-  description: Controlled failure injection for resilience testing — read-only default, execution requires approval
+  description: "Controlled failure injection for resilience testing \u2014 read-only\
+    \ default, execution requires approval"
   modes:
   - security
   - architect
@@ -1962,8 +1780,8 @@ agents:
 - name: spec-reviewer
   file: ~/.claude/agents/spec-reviewer.md
   model: sonnet
-  description: Read-only spec compliance reviewer — returns COMPLIANT/OVER_BUILT/UNDER_BUILT/SCOPE_DRIFT
-    between developer and code-reviewer in /build
+  description: "Read-only spec compliance reviewer \u2014 returns COMPLIANT/OVER_BUILT/UNDER_BUILT/SCOPE_DRIFT\
+    \ between developer and code-reviewer in /build"
   modes:
   - build
   capabilities:
@@ -1981,7 +1799,8 @@ agents:
 - name: verification-analyst
   file: C:/Users/trg16/.claude/agents/verification-analyst.md
   model: sonnet
-  description: 6-gate false positive verification pipeline for security and research findings
+  description: 6-gate false positive verification pipeline for security and research
+    findings
   modes:
   - research
   - security
@@ -2002,7 +1821,8 @@ agents:
 - name: mcp-developer
   file: C:/Users/trg16/.claude/agents/mcp-developer.md
   model: sonnet
-  description: MCP server specialist — scaffolds, adds tools, handles transport, writes tests
+  description: "MCP server specialist \u2014 scaffolds, adds tools, handles transport,\
+    \ writes tests"
   modes:
   - developer
   capabilities:
@@ -2023,7 +1843,8 @@ agents:
 - name: penetration-tester
   file: C:/Users/trg16/.claude/agents/penetration-tester.md
   model: sonnet
-  description: Authorized security pen testing — CVSS-scored findings, refuses without authorization context
+  description: "Authorized security pen testing \u2014 CVSS-scored findings, refuses\
+    \ without authorization context"
   modes:
   - security
   capabilities:
@@ -2045,7 +1866,8 @@ agents:
 - name: scientific-literature-researcher
   file: C:/Users/trg16/.claude/agents/scientific-literature-researcher.md
   model: sonnet
-  description: Grounds findings in peer-reviewed literature — extracts methodology, effect sizes, flags weak evidence
+  description: "Grounds findings in peer-reviewed literature \u2014 extracts methodology,\
+    \ effect sizes, flags weak evidence"
   modes:
   - research
   capabilities:
@@ -2053,6 +1875,241 @@ agents:
   - evidence-quality
   - meta-analysis
   - citation-extraction
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: hierarchical-coordinator
+  file: C:/Users/trg16/.claude/agents/hierarchical-coordinator.md
+  model: sonnet
+  description: "Swarm coordinator for complex multi-agent builds. Invoked by Mortar\
+    \ for tasks that require more than 3 independent workers. Maintains coordinator\u2192\
+    worker topology: assigns tasks from .autopilot/progress.json to worker agents,\
+    \ monitors completion, handles escalations, and prevents drift. Uses run_in_background:\
+    \ true for non-blocking parallel worker dispatch. Max 6 concurrent workers."
+  modes:
+  - build
+  - orchestrate
+  capabilities:
+  - parallel worker dispatch via Agent tool with run_in_background
+  - task queue management from progress.json
+  - '{''anti-drift'': ''topology enforcement, max agent cap, post-task checkpoints''}'
+  - '{''worker failure handling'': ''re-queue failed tasks, escalate to diagnose-analyst''}'
+  - consensus gate before destructive operations
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: commit-reviewer
+  file: agents/commit-reviewer.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: crucible
+  file: agents/crucible.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: fix-agent
+  file: agents/fix-agent.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: forge
+  file: agents/forge.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: lint-guard
+  file: agents/lint-guard.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: perf-optimizer
+  file: agents/perf-optimizer.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: probe-runner
+  file: agents/probe-runner.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: regression-guard
+  file: agents/regression-guard.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: scope-analyzer
+  file: agents/scope-analyzer.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: scout
+  file: agents/scout.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: security-hardener
+  file: agents/security-hardener.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: triage
+  file: agents/triage.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: type-strictener
+  file: agents/type-strictener.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
