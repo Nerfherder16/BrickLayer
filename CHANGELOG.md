@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `1b7d7b5` fix(mcp): async exit race + Recall health endpoint + pulse hook wired (2026-03-27)
 - `253e79d` feat(phase8): complete Ruflo gap closures — daemon workers, trust scoring, doctor tool (2026-03-27)
 - `984eff9` chore: auto-register verification agent in registry (2026-03-27)
 - `447d5e0` feat(tier1): Ruflo gap closures — verification agent, effort routing, ultralearn, map, context curator (2026-03-27)
