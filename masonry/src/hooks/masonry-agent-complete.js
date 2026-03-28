@@ -14,6 +14,7 @@
 "use strict";
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -84,6 +85,23 @@ async function main() {
   };
   try {
     fs.writeFileSync(resultFile, JSON.stringify(resultPayload, null, 2), "utf8");
+  } catch (_) {}
+
+  // Remove completed agent from ~/.masonry/state/agents.json active list
+  try {
+    const agentsFile = path.join(os.homedir(), ".masonry", "state", "agents.json");
+    if (fs.existsSync(agentsFile)) {
+      const data = JSON.parse(fs.readFileSync(agentsFile, "utf8"));
+      const before = (data.active || []).length;
+      data.active = (data.active || []).filter(
+        (a) => a.id !== agent_id && a.id !== parsed.agent_id
+      );
+      if (data.active.length !== before) {
+        const tmp = `${agentsFile}.tmp.${process.pid}`;
+        fs.writeFileSync(tmp, JSON.stringify(data, null, 2), "utf8");
+        fs.renameSync(tmp, agentsFile);
+      }
+    }
   } catch (_) {}
 
   // Check progress.json for dependency unblocking

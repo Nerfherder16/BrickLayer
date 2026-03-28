@@ -27,7 +27,7 @@ function runBackground(cmd, args, cwd) {
     const finalCmd = process.platform === "win32" ? "cmd" : cmd;
     const finalArgs = process.platform === "win32" ? ["/c", cmd, ...args] : args;
     const proc = spawn(finalCmd, finalArgs, {
-      detached: true,
+      detached: true, windowsHide: true,
       stdio: "ignore",
       cwd,
       shell: false,

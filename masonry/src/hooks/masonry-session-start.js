@@ -293,7 +293,7 @@ async function main() {
               }
               const logStream = fs.openSync(logPath, 'a');
               const child = spawn('node', [workerScript], {
-                detached: true,
+                detached: true, windowsHide: true,
                 stdio: ['ignore', logStream, logStream],
                 cwd,
                 env: process.env,

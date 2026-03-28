@@ -64,7 +64,7 @@ function recallDot(cfg) {
       const child = spawn(
         process.execPath,
         [script, cfg.recallHost, cfg.recallApiKey || ""],
-        { detached: true, stdio: "ignore" },
+        { detached: true, stdio: "ignore", windowsHide: true },
       );
       child.unref();
     }

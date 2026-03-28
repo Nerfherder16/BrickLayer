@@ -137,7 +137,7 @@ async function main() {
 
   // Fire-and-forget: spawn detached
   const child = spawn('python', [collectorPath], {
-    detached: true,
+    detached: true, windowsHide: true,
     stdio: 'ignore',
     cwd,
     windowsHide: true,

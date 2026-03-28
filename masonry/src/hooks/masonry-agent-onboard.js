@@ -60,7 +60,7 @@ async function main() {
   const scriptPath = path.join(cwd, "masonry", "scripts", "onboard_agent.py");
 
   const child = spawn("python", [scriptPath], {
-    detached: true,
+    detached: true, windowsHide: true,
     stdio: "ignore",
     cwd,
     windowsHide: true,
