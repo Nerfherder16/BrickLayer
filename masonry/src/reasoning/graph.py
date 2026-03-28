@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import itertools
 import os
+from typing import TYPE_CHECKING, Any, Optional
 
 try:
-    from neo4j import GraphDatabase  # type: ignore[import-untyped]
+    from neo4j import GraphDatabase
+    if TYPE_CHECKING:
+        from neo4j import Driver
     _NEO4J_AVAILABLE = True
 except ImportError:
     _NEO4J_AVAILABLE = False
+    if TYPE_CHECKING:
+        Driver = Any  # type: ignore[assignment,misc]
 
 _DEFAULT_HTTP = "http://100.70.195.84:8200"
 _DEFAULT_AUTH = ("neo4j", "password")
@@ -32,15 +37,15 @@ class PatternGraph:
     def __init__(
         self,
         project: str,
-        uri: str | None = None,
-        auth: tuple[str, str] | None = None,
+        uri: Optional[str] = None,
+        auth: Optional[tuple[str, str]] = None,
     ) -> None:
         self.project = project
         raw_uri = uri or os.environ.get("RECALL_HOST", _DEFAULT_HTTP)
         self._uri = _to_bolt_uri(raw_uri)
         self._auth = auth or _DEFAULT_AUTH
-        self._available = False
-        self._driver = None
+        self._available: bool = False
+        self._driver: Any = None  # neo4j.Driver when connected, None otherwise
         self._connect()
 
     # ------------------------------------------------------------------
@@ -53,7 +58,7 @@ class PatternGraph:
         Returns the number of edges created or updated. No-op if the
         Neo4j driver is unavailable.
         """
-        if not self._available or len(pattern_ids) < 2:
+        if not self._available or self._driver is None or len(pattern_ids) < 2:
             return 0
 
         pairs = list(itertools.combinations(pattern_ids, 2))
@@ -71,11 +76,11 @@ class PatternGraph:
 
         Falls back to [] if the driver is unavailable.
         """
-        if not self._available:
+        if not self._available or self._driver is None:
             return []
 
         with self._driver.session() as session:
-            result = session.execute_read(
+            result: list[str] = session.execute_read(
                 self._query_related, pattern_id, self.project, top_k
             )
         return result
@@ -98,7 +103,7 @@ class PatternGraph:
 
     @staticmethod
     def _upsert_edge(
-        tx,
+        tx: Any,
         p1_id: str,
         p2_id: str,
         task_id: str,
@@ -121,7 +126,7 @@ class PatternGraph:
 
     @staticmethod
     def _query_related(
-        tx,
+        tx: Any,
         pattern_id: str,
         project: str,
         top_k: int,
