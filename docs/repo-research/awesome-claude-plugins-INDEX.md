@@ -15,7 +15,7 @@ Source: https://github.com/quemsah/awesome-claude-plugins (Top 100, as of 2026-0
 ### Agents & Subagents
 | # | Repo | What it does | Gap it fills | Deep Research |
 |---|------|-------------|--------------|---------------|
-| 28 | [VoltAgent/awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents) | 100+ specialized subagents | Niche domain agents not in BL fleet | [voltagent-autoresearch.md](voltagent-autoresearch.md) |
+| 28 | [VoltAgent/awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents) | 127 subagents across 10 categories; top gaps: `mcp-developer`, `chaos-engineer`, `penetration-tester`, `scientific-literature-researcher` | mcp-developer fills BL's MCP-native blind spot; chaos+pentest complement (not duplicate) security agent; scientific-researcher grounds findings in peer-reviewed literature | ✅ [voltagent-autoresearch.md](voltagent-autoresearch.md) |
 | 75 | [trailofbits/skills](https://github.com/trailofbits/skills) | Security research, vuln detection, audit workflows (36 skills) | Deep security research patterns beyond OWASP audit | [security-knowledge-work.md](security-knowledge-work.md) |
 | 87 | [OpenAgentsControl](https://github.com/darrenhinde/OpenAgentsControl) | Plan-first development with approval-based execution | Explicit human approval gate before execution | TBD |
 
@@ -24,7 +24,7 @@ Source: https://github.com/quemsah/awesome-claude-plugins (Top 100, as of 2026-0
 |---|------|-------------|--------------|---------------|
 | 52 | [visual-explainer](https://github.com/nicobailon/visual-explainer) | HTML synthesis reports, diff reviews, plan audits | /visual-report, /visual-diff skills (Phase 5 item) | [visual-ui-design.md](visual-ui-design.md) |
 | 56 | [last30days-skill](https://github.com/mvanhorn/last30days-skill) | Multi-source research (Reddit, X, YouTube, HN, web) | Research across social/community sources | TBD |
-| 97 | [autoresearch](https://github.com/uditgoenka/autoresearch) | Karpathy-style autonomous iteration loop | Comparison with BL research loop | [voltagent-autoresearch.md](voltagent-autoresearch.md) |
+| 97 | [autoresearch](https://github.com/uditgoenka/autoresearch) | Commit-before-verify + auto-rollback loop; Guard/Verify separation; debug-as-loop with 7 investigation techniques (binary search, differential, minimal repro, trace, pattern search, backward, rubber duck) | **fix-implementer should adopt commit-first-then-verify-then-revert**; add Guard vs Verify split to /build; add `/debug` skill as loop (not one-shot) | ✅ [voltagent-autoresearch.md](voltagent-autoresearch.md) |
 | 23 | [planning-with-files](https://github.com/OthmanAdi/planning-with-files) | Manus-style persistent markdown planning | Persistent planning pattern comparison | TBD |
 | 100 | [PRPs-agentic-eng](https://github.com/Wirasm/PRPs-agentic-eng) | Prompts, workflows for agentic engineering | PRP (Product Requirements Prompt) pattern | TBD |
 
