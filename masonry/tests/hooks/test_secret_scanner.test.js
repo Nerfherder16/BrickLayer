@@ -76,7 +76,7 @@ describe("secret scanner — positive matches (should block)", () => {
   it("blocks Stripe secret key (sk_live_...)", () => {
     const code = runHook("Write", {
       file_path: "payments.js",
-      content: 'const stripe = "sk_XXXX_FAKE_TEST_KEY_NOT_REAL_XXXXX";',
+      content: 'const stripe = "sk_' + 'live_ABCDEFGHIJKLMNOPQRSTUVWXYZabcd";',
     });
     expect(code).toBe(2);
   });
