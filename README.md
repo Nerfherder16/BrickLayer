@@ -2,7 +2,7 @@
 
 Autonomous AI research and development framework built on top of Claude Code.
 
-BrickLayer started as a failure-boundary research loop — run an AI agent against a simulation, map every parameter combination that breaks it, write structured findings. It has since grown into a three-layer platform that handles the complete software development lifecycle alongside campaign research, with 67 specialized agents, a four-layer routing engine, a session lifecycle hook system, and a self-improvement pipeline that optimizes agent prompts without requiring an API key or labeled dataset.
+BrickLayer started as a failure-boundary research loop — run an AI agent against a simulation, map every parameter combination that breaks it, write structured findings. It has since grown into a three-layer platform that handles the complete software development lifecycle alongside campaign research, with 80 specialized agents, a four-layer routing engine, a session lifecycle hook system, and a self-improvement pipeline that optimizes agent prompts without requiring an API key or labeled dataset.
 
 ---
 
@@ -113,15 +113,17 @@ Use `masonry_route` MCP tool or `masonry/src/routing/router.py` directly.
 
 ## Hook System
 
-26 JavaScript hook files covering the full session lifecycle. Active hooks in `masonry/hooks/hooks.json`:
+32 JavaScript hook files covering the full session lifecycle:
 
 | Event | Hook(s) | What it does |
 |-------|---------|--------------|
-| `SessionStart` | `masonry-session-start` | Restore autopilot/UI/campaign context; write session ownership lock |
+| `SessionStart` | `masonry-session-start` | Restore autopilot/UI/campaign context; auto-start daemon workers; write session ownership lock |
 | `UserPromptSubmit` | `masonry-register` | Register prompt for routing |
+| `UserPromptSubmit` | `masonry-prompt-router` | Auto-route prompt to specialist agent via intent detection |
 | `PreToolUse` (Write/Edit) | `masonry-session-lock` | Block writes to protected files owned by another session |
 | `PreToolUse` (Write/Edit/Bash) | `masonry-approver` | Auto-approve writes in build/fix/compose mode |
 | `PreToolUse` (ExitPlanMode) | `masonry-context-safety` | Block plan-mode exit during active build or high context |
+| `PreToolUse` (Agent) | `masonry-mortar-enforcer` | Block generic agent spawns — force routing through Mortar or named specialist |
 | `PreToolUse` (Agent) | `masonry-preagent-tracker` | Track agent spawns before they start |
 | `PostToolUse` (Write/Edit) | `masonry-observe` | Campaign state observation (async) |
 | `PostToolUse` (Write/Edit) | `masonry-lint-check` | ruff + prettier + eslint after every write |
@@ -129,26 +131,30 @@ Use `masonry_route` MCP tool or `masonry/src/routing/router.py` directly.
 | `PostToolUse` (Write/Edit) | `masonry-guard` | 3-strike error fingerprinter (async) |
 | `PostToolUse` (Write/Edit) | `masonry-tdd-enforcer` | Block writes that lack corresponding test files |
 | `PostToolUse` (Write/Edit) | `masonry-agent-onboard` | Auto-onboard new agents to registry (async) |
+| `PostToolUse` (Write/Edit) | `masonry-build-patterns` | Extract build patterns from edits and store to Recall (async) |
+| `PostToolUse` (Write/Edit) | `masonry-pulse` | Write session heartbeat to `.mas/pulse.jsonl` (rate-limited) |
 | `PostToolUseFailure` | `masonry-tool-failure` | Error tracking + 3-strike escalation |
 | `SubagentStart` | `masonry-subagent-tracker` | Track active agent spawns |
-| `SessionEnd` | `masonry-session-end` | Release session ownership lock |
-| `PreCompact` | `masonry-pre-compact` | Context compaction preparation |
+| `TeammateIdle` | `masonry-teammate-idle` | Auto-assign pending tasks to idle agents |
+| `TaskCompleted` | `masonry-teammate-idle` | Re-check queue after task completion |
+| `SessionEnd` | `masonry-session-end` | Agent trust scoring; release session lock |
+| `PreCompact` | `masonry-pre-compact` | Preserve autopilot/campaign state before context compaction |
 | `Stop` | `masonry-stop-guard` | Block stop on uncommitted git changes |
 | `Stop` | `masonry-session-summary` | Write session summary |
 | `Stop` | `masonry-handoff` | Write handoff notes for context continuation (async) |
-| `Stop` | `masonry-context-monitor` | Warn when context exceeds 150K tokens |
+| `Stop` | `masonry-context-monitor` | Warn when context exceeds 750K tokens |
 | `Stop` | `masonry-build-guard` | Block stop if `.autopilot/` has pending tasks |
 | `Stop` | `masonry-ui-compose-guard` | Block stop if `.ui/` compose has pending tasks |
-| `Stop` | `masonry-score-trigger` | Trigger agent scoring run if training data is >24h stale (async) |
+| `Stop` | `masonry-score-trigger` | Trigger agent scoring if training data is >24h stale (async) |
+| `Stop` | `masonry-system-status` | Write system health snapshot at session end |
+| `Stop` | `masonry-training-export` | Export session findings to training data corpus |
 | `statusLine` | `masonry-statusline` | Live status in the Claude Code status bar |
-
-All hooks use `${CLAUDE_PLUGIN_ROOT}/...` portable paths. Fresh installs get the full manifest — no manual hook injection required.
 
 ---
 
-## Agent Fleet (67 agents)
+## Agent Fleet (80 agents)
 
-67 agents declared in `masonry/agent_registry.yml`. Every agent declares `model:` (opus/sonnet/haiku) in frontmatter, a tier (`trusted`/`candidate`/`draft`), supported modes, and capabilities. New agents are auto-onboarded when their `.md` file is written.
+80 agents declared in `masonry/agent_registry.yml`. Every agent declares `model:` (opus/sonnet/haiku) in frontmatter, a tier (`trusted`/`candidate`/`draft`), supported modes, and capabilities. New agents are auto-onboarded when their `.md` file is written.
 
 **Orchestration**: `mortar` · `trowel`
 
@@ -238,7 +244,7 @@ The `e2e` agent runs 10 checks after any infrastructure change to confirm nothin
 | 1. LLM router pytest | Full 11-test suite for T1.3 hardening (env var model, preflight, retry logic) |
 | 2. Hook JS syntax | Every hook file in hooks.json exists and passes `node --check` |
 | 3. hooks.json → settings.json | All event types covered, all referenced files exist |
-| 4. MCP server + tools | Server imports cleanly, all 9 expected tools registered |
+| 4. MCP server + tools | Server imports cleanly, all 22 expected tools registered |
 | 5. Deterministic routing | 5 canonical patterns match expected agents |
 | 6. LLM router preflight + env var | `claude` CLI found, `MASONRY_LLM_MODEL` override applies |
 | 7. Session lock wired | `masonry-session-lock.js` exists, referenced in all 3 lifecycle hooks |
@@ -255,19 +261,32 @@ BL root: /path/to/Bricklayer2.0
 
 ## MCP Tools
 
-The Python MCP server exposes these tools to Claude Code:
+The Node.js MCP server (`masonry/bin/masonry-mcp.js`) exposes 22 tools to Claude Code:
 
 | Tool | Purpose |
 |------|---------|
 | `masonry_status` | Campaign state, question counts, wave for a project dir |
 | `masonry_questions` | List questions from questions.md, filtered by status |
+| `masonry_findings` | List findings from findings/, filtered by verdict/severity |
+| `masonry_run` | Run the research loop for a project |
 | `masonry_nl_generate` | Generate BL research questions from plain English |
 | `masonry_weights` | Question weight report — high priority, prunable, retry flags |
 | `masonry_git_hypothesis` | Analyze recent git diffs, generate targeted questions |
 | `masonry_run_question` | Run a single BL question by ID, return verdict envelope |
+| `masonry_run_simulation` | Run simulate.py with given parameters |
+| `masonry_sweep` | Parameter sweep across scenario space |
 | `masonry_fleet` | Agent list with performance scores from registry + agent_db |
 | `masonry_recall` | Search Recall for memories relevant to a query |
 | `masonry_route` | Route a request through the four-layer pipeline |
+| `masonry_pattern_store` | Store a build pattern to Recall |
+| `masonry_pattern_search` | Search stored build patterns by query |
+| `masonry_worker_status` | Check daemon worker PID status and output file freshness |
+| `masonry_task_assign` | Assign a pending autopilot task to a worker agent |
+| `masonry_agent_health` | Agent health check — score, drift, run history |
+| `masonry_wave_validate` | Validate a completed campaign wave for quality |
+| `masonry_swarm_init` | Initialize a parallel agent swarm for a build task |
+| `masonry_consensus_check` | Multi-agent consensus vote on a decision |
+| `masonry_doctor` | System health check — Recall, daemons, hooks, registry, training data |
 
 ---
 
