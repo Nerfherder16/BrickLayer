@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `34dd053` feat(hooks): add 5 anti-pattern detection checks to masonry-agent-onboard.js (task 4/32) (2026-03-28)
 - `c748b16` feat(hooks): add masonry-secret-scanner.js PreToolUse hook with 12 secret patterns (task 5/32) (2026-03-28)
 - `2ff9210` feat(agents): add H0/H1/prediction triad template to question-designer-bl2 (task 9/32) (2026-03-28)
 - `6ddb840` feat(agents): add fail-closed defaults and confidence gating to reviewer agents (task 15/32) (2026-03-28)
