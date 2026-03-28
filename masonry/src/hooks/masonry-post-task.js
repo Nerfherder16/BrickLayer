@@ -122,6 +122,37 @@ async function main() {
   // Bayesian confidence update
   updatePatternConfidence(autopilotDir, agent, success);
 
+  // Fire-and-forget: record pattern co-citations in ReasoningBank graph
+  try {
+    if (success && task_id) {
+      // Derive project name from the directory containing .autopilot/
+      const projectDir = path.dirname(autopilotDir);
+      const project = path.basename(projectDir) || "unknown";
+
+      // Extract pattern IDs from tool_result if present; fall back to empty
+      let patternIds = [];
+      try {
+        const toolResult = parsed.tool_result;
+        if (toolResult && typeof toolResult === "object" && Array.isArray(toolResult.pattern_ids)) {
+          patternIds = toolResult.pattern_ids.map(String).filter(Boolean);
+        }
+      } catch (_) { /* no patterns available — skip silently */ }
+
+      // graph.py requires at least 2 patterns to create edges; pass what we have
+      // (the Python side no-ops if < 2 are provided)
+      const graphPath = path.join(__dirname, "../../src/reasoning/graph.py");
+      const args = ["python", [graphPath, project, task_id, ...patternIds]];
+      const proc = spawn(args[0], args[1], {
+        detached: true,
+        stdio: "ignore",
+        cwd: projectDir,
+      });
+      proc.unref();
+    } else {
+      // Debug note: skip graph recording — task not successful or task_id missing
+    }
+  } catch (_) { /* non-fatal — graph recording never blocks the hook */ }
+
   // Auto-trigger training collector if telemetry was updated in the last 60 seconds
   try {
     const telemetryStat = fs.existsSync(telemetryFile) ? fs.statSync(telemetryFile) : null;
