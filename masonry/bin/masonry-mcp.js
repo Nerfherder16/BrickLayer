@@ -37,6 +37,7 @@
  *   - masonry_reasoning_store — store a new pattern in ReasoningBank
  *   - masonry_graph_record     — record pattern co-citations as CITES edges in Neo4j after task success
  *   - masonry_pagerank_run     — run PageRank on pattern graph, update confidence scores
+ *   - masonry_set_strategy     — write execution strategy ("conservative"|"balanced"|"aggressive") to .autopilot/strategy
  */
 
 const fs = require("fs");
@@ -592,6 +593,69 @@ const TOOLS = [
       },
       required: ["project"]
     }
+  },
+  {
+    name: "masonry_set_strategy",
+    description: "Set the execution strategy for the active autopilot build. Writes to .autopilot/strategy and is read by masonry-pre-task.js on every agent spawn.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: {
+          type: "string",
+          description: "Absolute path to the project directory containing .autopilot/",
+        },
+        strategy: {
+          type: "string",
+          enum: ["conservative", "balanced", "aggressive"],
+          description: "conservative: extra verification after each step | balanced: default | aggressive: skip redundant checks, maximize parallelism",
+        },
+      },
+      required: ["project_path", "strategy"],
+    },
+  },
+  // Claims Board
+  {
+    name: "masonry_claim_add",
+    description: "File a human-input claim to .autopilot/claims.json and continue the build. Use when you need human input but can proceed with independent tasks. The build does NOT stop.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: { type: "string", description: "Absolute path to the project directory" },
+        question: { type: "string", description: "The question or decision that requires human input" },
+        task_id: { type: "string", description: "The task ID this claim is associated with (optional)" },
+        context: { type: "string", description: "Additional context to help Tim answer quickly (optional)" },
+      },
+      required: ["project_path", "question"],
+    },
+  },
+  {
+    name: "masonry_claim_resolve",
+    description: "Resolve a pending claim in .autopilot/claims.json with an answer. Tim calls this to unblock a waiting task.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: { type: "string", description: "Absolute path to the project directory" },
+        claim_id: { type: "string", description: "The claim ID to resolve (e.g. claim-001)" },
+        answer: { type: "string", description: "The answer or decision that resolves this claim" },
+      },
+      required: ["project_path", "claim_id", "answer"],
+    },
+  },
+  {
+    name: "masonry_claims_list",
+    description: "List claims from .autopilot/claims.json, filtered by status. Use to see what questions are awaiting human input.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: { type: "string", description: "Absolute path to the project directory" },
+        status: {
+          type: "string",
+          enum: ["pending", "resolved", "all"],
+          description: "Filter by status. Defaults to 'pending'.",
+        },
+      },
+      required: ["project_path"],
+    },
   },
 ];
 
@@ -2329,6 +2393,25 @@ async function dispatchTool(name, args) {
         return result;
       } catch (e) {
         return { success: false, error: e.message, skipped: "neo4j likely unavailable" };
+      }
+    }
+
+    case "masonry_set_strategy": {
+      const { project_path, strategy } = args;
+      const VALID_STRATEGIES = ["conservative", "balanced", "aggressive"];
+      if (!VALID_STRATEGIES.includes(strategy)) {
+        return { success: false, error: `Invalid strategy: "${strategy}". Must be one of: ${VALID_STRATEGIES.join(", ")}` };
+      }
+      const autopilotDir = path.join(project_path, ".autopilot");
+      if (!fs.existsSync(autopilotDir)) {
+        return { success: false, error: `No .autopilot/ directory found at ${project_path}` };
+      }
+      const strategyFile = path.join(autopilotDir, "strategy");
+      try {
+        fs.writeFileSync(strategyFile, strategy, "utf8");
+        return { success: true, strategy, path: strategyFile };
+      } catch (e) {
+        return { success: false, error: e.message };
       }
     }
 

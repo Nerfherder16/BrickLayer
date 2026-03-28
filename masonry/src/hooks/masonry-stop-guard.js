@@ -128,21 +128,25 @@ function checkDocStaleness(cwd, snapPath) {
       `  Run karen or update docs before your next session.\n`
     );
 
-    // Write flag file to .mas/ (always exists) for next session's karen pickup
+    // Write flag file to .autopilot/ (preferred) for next session's karen pickup.
+    // Falls back to .mas/ if .autopilot/ does not exist.
     try {
+      const autopilotDir = path.join(cwd, ".autopilot");
       const masDir = path.join(cwd, ".mas");
-      fs.mkdirSync(masDir, { recursive: true });
+      const targetDir = fs.existsSync(autopilotDir) ? autopilotDir : masDir;
+      fs.mkdirSync(targetDir, { recursive: true });
       const flag = {
         reason: "doc_staleness",
         stale_files: missing,
-        source_files_changed: changedFiles.filter(f =>
-          /\.(py|js|ts|tsx|rs|go|md)$/.test(f) &&
-          !/(CHANGELOG|ARCHITECTURE|ROADMAP|synthesis|findings)/.test(f)
+        source_files_changed: changedFiles.filter(
+          (f) =>
+            /\.(py|js|ts|tsx|rs|go|md)$/.test(f) &&
+            !/(CHANGELOG|ARCHITECTURE|ROADMAP|synthesis|findings)/.test(f)
         ),
         timestamp: new Date().toISOString(),
       };
       fs.writeFileSync(
-        path.join(masDir, "karen-needed.json"),
+        path.join(targetDir, "karen-needed.json"),
         JSON.stringify(flag, null, 2),
         "utf8"
       );
