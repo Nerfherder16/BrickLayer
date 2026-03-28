@@ -30,6 +30,7 @@
  *   - masonry_swarm_init      — initialize .autopilot/progress.json for a swarm build
  *   - masonry_consensus_check — quorum gate: read/write .autopilot/consensus.json
  *   - masonry_doctor          — system health check: Recall, daemons, hooks, registry
+ *   - masonry_verify_7point   — 7-point quality gate: unit tests, coverage, integration, e2e, security, perf, docker
  */
 
 const fs = require("fs");
@@ -490,6 +491,20 @@ const TOOLS = [
         },
       },
       required: [],
+    },
+  },
+  {
+    name: "masonry_verify_7point",
+    description: "7-point quality gate for a project. Runs: unit tests, coverage ≥80%, integration tests, e2e tests, security scan, performance baseline, docker build. Returns overall PASS/FAIL with per-check details. Coverage <80% and missing perf baseline are warnings (non-blocking); all others are blocking.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_dir: {
+          type: "string",
+          description: "Absolute path to the project directory to verify",
+        },
+      },
+      required: ["project_dir"],
     },
   },
 ];
