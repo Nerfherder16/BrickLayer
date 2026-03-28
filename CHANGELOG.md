@@ -12,6 +12,50 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 
 ---
 
+## [Phase 6] — 2026-03-28
+
+### Added
+
+**Agents (6 new)**
+- `spec-reviewer` — COMPLIANT / OVER_BUILT / UNDER_BUILT / SCOPE_DRIFT compliance gate; runs as Step 5a in /build pipeline after code-reviewer
+- `verification-analyst` — 6-gate false positive pipeline (Trail of Bits pattern): Process / Reachability / Real Impact / PoC / Math Bounds / Environment
+- `mcp-developer` — MCP server authoring specialist; closes BL's MCP-native capability blind spot
+- `chaos-engineer` — fault injection and resilience testing specialist
+- `penetration-tester` — authorized security testing; requires explicit authorization context before running
+- `scientific-literature-researcher` — peer-reviewed literature research and fact-grounding
+
+**Skills (9 new)**
+- `/debug` — 8-step structured diagnosis loop (technique tried in order until root cause found)
+- `/aside` — freeze an active /build task, answer a read-only question, then resume without derailing
+- `/visual-diff` — self-contained HTML before/after diff artifact; writes to `~/.agent/diagrams/`
+- `/visual-plan` — self-contained HTML task dependency graph generated from `.autopilot/spec.md`
+- `/visual-recap` — self-contained HTML session summary with action timeline and re-entry context note
+- `/spec-mine` — inverse spec-writer: mines existing code into `.autopilot/spec.md`
+- `/release-manager` — semantic versioning + CHANGELOG entry from conventional commits; confirms before writes
+- `/discover` — JTBD discovery + assumption mapping + experiment design; outputs `.discover/{slug}/discovery.md`
+- `/parse-prd` — parses a PRD into `.autopilot/spec.md` with SPARC mode annotations and complexity estimates
+
+**Hooks (2 new)**
+- `masonry-config-protection.js` (PreToolUse Write/Edit) — blocks writes to `.eslintrc` / `prettier` / `pyproject` lint config sections without `LINT_CONFIG_OVERRIDE` env token
+- `masonry-block-no-verify.js` (PreToolUse Bash) — blocks `git commit --no-verify` and `git push --force`
+
+### Changed
+
+**Hook upgrades**
+- `masonry-pre-compact.js` — now saves full build state + campaign state before compaction; previously only preserved autopilot mode file
+- `masonry-context-monitor.js` — now detects 4 semantic degradation patterns via Ollama cosine similarity (lost-in-middle, poisoning, distraction, clash) in addition to token count warning
+
+**Pipeline upgrades**
+- `/build` Guard/Verify split: Guard = full regression suite (blocks on failure); Verify = task-specific metric (experimental, non-blocking)
+- `/build` Step 5a: spec-reviewer gate after code-reviewer — SCOPE_DRIFT and OVER_BUILT block by default
+- `fix-implementer`: commit-before-verify+revert pattern — every attempt committed as `experiment:` prefix; reverted on Guard FAIL; relabeled `fix:` on success
+
+**uiux-master**
+- 7-point AI slop self-evaluation gate; must score ≥86% before delivery
+- Domain exploration forcing function (Phase 0): 5+ domain concepts, 5+ domain colors, 3 rejected defaults, WHY per component — required before any code is written
+
+---
+
 ## [Unreleased]
 
 *Items in the working tree — committed but awaiting the next named release or wave.*

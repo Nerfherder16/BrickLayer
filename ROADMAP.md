@@ -196,80 +196,76 @@ All 5 items shipped Mar 18 2026.
 
 ---
 
-## Phase 6 — Campaign Quality Intelligence 📋
+## Phase 6 — Dev Execution Loop Upgrades ✅
 
-Inspired by the NVIDIA Multi-Agent Intelligent Warehouse (MAIW) architecture (Mar 2026).
-Goal: make BrickLayer's research loop self-aware about output quality, not just output volume.
+Shipped 2026-03-28. Inspired by awesome-claude-plugins research.
+Goal: harden the dev execution pipeline — better spec compliance gating, richer skill surface,
+stronger guardrails, and plug specialist gaps (MCP authoring, chaos, security, literature research).
 
-**Rated benefit: 7/10.** Phases 1–5 built the engine and expanded reach. Phase 6 makes verdicts
-trustworthy at scale — the difference between "we ran 200 questions" and "we ran 200 questions
-and we know which ones we can trust." Most impactful when campaigns exceed a single wave.
-
-### 6.01 — Verdict Confidence Tiers 📋
-
-Replace binary verdicts with a confidence-weighted tier system.
+### New Agents
 
 | # | Item | Status |
 |---|------|--------|
-| 6.01a | Add `confidence: 0.0–1.0` field to finding frontmatter | ✅ |
-| 6.01b | Add `needs_human: bool` flag — auto-set when confidence < 0.35 | 📋 |
-| 6.01c | Kiln: render confidence as fill bar on finding cards | 📋 |
-| 6.01d | Dashboard: filter INCONCLUSIVE by confidence band | 📋 |
+| 6.01 | `spec-reviewer` — COMPLIANT/OVER_BUILT/UNDER_BUILT/SCOPE_DRIFT compliance gate in /build (Step 5a) | ✅ |
+| 6.02 | `verification-analyst` — 6-gate false positive pipeline (Trail of Bits): Process/Reachability/Real Impact/PoC/Math Bounds/Environment | ✅ |
+| 6.03 | `mcp-developer` — MCP server authoring specialist (fills BL's MCP-native blind spot) | ✅ |
+| 6.04 | `chaos-engineer` — fault injection and resilience testing | ✅ |
+| 6.05 | `penetration-tester` — authorized security testing (requires explicit authorization context) | ✅ |
+| 6.06 | `scientific-literature-researcher` — peer-reviewed literature research and fact-grounding | ✅ |
 
-### 6.02 — LLM-as-Judge (peer reviewer scoring) 📋
-
-`peer-reviewer` currently appends CONFIRMED/CONCERNS/OVERRIDE but assigns no numeric quality
-signal. Mortar treats all INCONCLUSIVEs identically regardless of review outcome.
-
-| # | Item | Status |
-|---|------|--------|
-| 6.02a | Extend `peer-reviewer` to emit `quality_score: 0.0–1.0` in finding frontmatter | 📋 |
-| 6.02b | Mortar: re-queue INCONCLUSIVE findings where quality_score < 0.4 with narrowed scope | 📋 |
-| 6.02c | `question_weights.py`: incorporate quality_score into weight update formula | 📋 |
-
-### 6.03 — Question Sharpening (feedback loop) 📋
-
-hypothesis-generator currently only appends new questions. Low-confidence findings should
-retroactively narrow *remaining PENDING questions* in the same domain.
+### New Skills
 
 | # | Item | Status |
 |---|------|--------|
-| 6.03a | `bl/question_sharpener.py` — reads PENDING questions + recent INCONCLUSIVE findings, rewrites scope | ✅ |
-| 6.03b | Wave synthesizer calls sharpener before writing synthesis.md | 📋 |
-| 6.03c | Dashboard: show "sharpened" badge on questions that were narrowed | 📋 |
+| 6.10 | `/debug` — 8-step structured diagnosis loop | ✅ |
+| 6.11 | `/aside` — freeze /build task, answer read-only question, resume | ✅ |
+| 6.12 | `/visual-diff` — self-contained HTML before/after diff artifact | ✅ |
+| 6.13 | `/visual-plan` — self-contained HTML task dependency graph from spec.md | ✅ |
+| 6.14 | `/visual-recap` — self-contained HTML session summary | ✅ |
+| 6.15 | `/spec-mine` — inverse spec-writer: mine existing code into spec.md | ✅ |
+| 6.16 | `/release-manager` — semantic versioning + CHANGELOG from conventional commits | ✅ |
+| 6.17 | `/discover` — JTBD discovery + assumption mapping + experiment design | ✅ |
+| 6.18 | `/parse-prd` — parse PRD into `.autopilot/spec.md` with SPARC mode annotations | ✅ |
 
-### 6.04 — Shared Campaign Context Injection 📋
-
-Each agent spawned by Mortar currently starts cold, re-reading findings/ and questions.md.
-A `campaign-context.md` written at wave start would give all agents consistent shared state.
-
-| # | Item | Status |
-|---|------|--------|
-| 6.04a | Mortar writes `campaign-context.md` at wave start: project summary + top 5 findings + open hypotheses | 📋 |
-| 6.04b | All agent spawn prompts prepend campaign-context.md content | 📋 |
-| 6.04c | campaign-context.md auto-refreshed after every 10 findings | 📋 |
-
-### 6.05 — Agent Performance Time-Series 📋
-
-`agent_db.json` stores static scores. No trend data — Kiln can't show if an agent is improving
-or drifting. Needed for overseer to make meaningful rewrite decisions.
+### New Hooks
 
 | # | Item | Status |
 |---|------|--------|
-| 6.05a | Extend `agent_db.json` schema: `runs: [{timestamp, verdict, duration_ms, quality_score}]` | 📋 |
-| 6.05b | Kiln: verdict accuracy sparkline per agent (last 20 runs) | 📋 |
-| 6.05c | `agent-auditor`: flag agents with declining accuracy trend (last 5 vs prior 5) | 📋 |
+| 6.20 | `masonry-config-protection.js` — blocks writes to lint config sections without `LINT_CONFIG_OVERRIDE` | ✅ |
+| 6.21 | `masonry-block-no-verify.js` — blocks `git commit --no-verify` and `git push --force` | ✅ |
 
-### 6.06 — MCP Tool Manifest 📋
-
-Each agent declares its own tool access independently. Tool descriptions drift. New tools added
-to MCP aren't surfaced to existing agents.
+### Hook + Pipeline Upgrades
 
 | # | Item | Status |
 |---|------|--------|
-| 6.06a | `template/.claude/agents/tools-manifest.md` — canonical tool list with descriptions | ✅ |
-| 6.06b | Agent frontmatter: `tools: [recall, simulate, filesystem]` declaration | 📋 |
-| 6.06c | `forge-check` validates agents aren't missing tool declarations | 📋 |
+| 6.30 | `masonry-pre-compact.js` — now saves full build state + campaign state before compaction | ✅ |
+| 6.31 | `masonry-context-monitor.js` — detects 4 semantic degradation patterns via Ollama cosine similarity: lost-in-middle, poisoning, distraction, clash | ✅ |
+| 6.32 | `/build` Guard/Verify split — Guard = full regression suite (blocker); Verify = task-specific metric (experimental) | ✅ |
+| 6.33 | `fix-implementer` commit-before-verify+revert pattern — `experiment:` commit per attempt, reverted on Guard FAIL, relabeled `fix:` on success | ✅ |
+
+### uiux-master Upgrades
+
+| # | Item | Status |
+|---|------|--------|
+| 6.40 | 7-point AI slop self-evaluation gate — must score ≥86% before delivery | ✅ |
+| 6.41 | Domain exploration forcing function (Phase 0) — 5+ domain concepts, 5+ domain colors, 3 rejected defaults, WHY per component | ✅ |
+
+---
+
+## Phase 6 (Original Plan) — Campaign Quality Intelligence 📋
+
+*Deferred to Phase 7. The items below were planned for Phase 6 but execution loop upgrades
+(above) were prioritized based on awesome-claude-plugins research findings.*
+
+| # | Item | Status |
+|---|------|--------|
+| 6.01a (orig) | `confidence: 0.0–1.0` field in finding frontmatter | ✅ |
+| 6.01b (orig) | `needs_human: bool` flag — auto-set when confidence < 0.35 | 📋 |
+| 6.02a (orig) | `peer-reviewer` quality_score emission | 📋 |
+| 6.03a (orig) | `bl/question_sharpener.py` — PENDING question narrowing from INCONCLUSIVE findings | ✅ |
+| 6.04a (orig) | `campaign-context.md` written at wave start | 📋 |
+| 6.05a (orig) | `agent_db.json` time-series run history | 📋 |
+| 6.06a (orig) | `tools-manifest.md` canonical tool list | ✅ |
 
 ---
 

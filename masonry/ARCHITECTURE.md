@@ -71,7 +71,7 @@ masonry/
     score_ops_agents.py       Ops-category agent scorer
     score_routing.py          Routing decision scorer
     score_all_agents.py       Unified scorer: aggregates all signals, updates registry last_score
-  skills/                     /skill-name.md definitions (13 skills)
+  skills/                     /skill-name.md definitions (22 skills)
   agent_registry.yml          80-agent declarative registry (YAML, Pydantic-validated)
   hooks.json                  Hook manifest (consumed by masonry-setup.js installer)
   package.json                Node.js package (name: masonry-mcp, version: 0.1.0, no runtime deps)
@@ -168,6 +168,8 @@ Hooks are Node.js scripts invoked by Claude Code on specific events. They commun
 
 | Hook file | Event | Async | Behavior |
 |-----------|-------|-------|----------|
+| `masonry-config-protection.js` | PreToolUse (Write/Edit) | no | Block writes to .eslintrc/prettier/pyproject lint sections without LINT_CONFIG_OVERRIDE token |
+| `masonry-block-no-verify.js` | PreToolUse (Bash) | no | Block `git commit --no-verify` and `git push --force` |
 | `masonry-session-start.js` | SessionStart | no | Restore autopilot/UI/campaign context; auto-start daemon workers; write session lock |
 | `masonry-register.js` | UserPromptSubmit | no | Register prompt for routing; Recall context injection |
 | `masonry-prompt-router.js` | UserPromptSubmit | no | Auto-route prompt to specialist via intent detection |
@@ -399,3 +401,60 @@ masonry/
 ```
 
 Python package root is `Bricklayer2.0/`. Import as `from masonry.src.routing.router import route`.
+
+---
+
+## Phase 6 Additions — Dev Execution Loop Upgrades (2026-03-28)
+
+### New Agents (6)
+
+| Agent | Role |
+|-------|------|
+| `spec-reviewer` | Read-only spec compliance gate in /build pipeline — emits COMPLIANT / OVER_BUILT / UNDER_BUILT / SCOPE_DRIFT |
+| `verification-analyst` | 6-gate false positive pipeline (Trail of Bits pattern): Process / Reachability / Real Impact / PoC / Math Bounds / Environment |
+| `mcp-developer` | MCP server authoring specialist — fills BL's MCP-native blind spot |
+| `chaos-engineer` | Fault injection and resilience testing specialist |
+| `penetration-tester` | Authorized security testing — requires explicit authorization context before running |
+| `scientific-literature-researcher` | Peer-reviewed literature research and fact-grounding specialist |
+
+### New Skills (9)
+
+| Skill | Purpose |
+|-------|---------|
+| `/debug` | 8-step structured diagnosis loop for broken code or failing tests |
+| `/aside` | Freeze an active /build task, answer a read-only question, resume |
+| `/visual-diff` | Self-contained HTML before/after diff artifact — writes to `~/.agent/diagrams/` |
+| `/visual-plan` | Self-contained HTML task dependency graph from spec.md |
+| `/visual-recap` | Self-contained HTML session summary with action timeline and re-entry context |
+| `/spec-mine` | Inverse spec-writer: mines existing code into `.autopilot/spec.md` |
+| `/release-manager` | Semantic versioning + CHANGELOG generation from conventional commits |
+| `/discover` | JTBD discovery + assumption mapping + experiment design |
+| `/parse-prd` | Parse a PRD into `.autopilot/spec.md` with SPARC mode annotations |
+
+### New Hooks (2)
+
+| Hook | Event | Behavior |
+|------|-------|----------|
+| `masonry-config-protection.js` | PreToolUse (Write/Edit) | Blocks writes to `.eslintrc` / `prettier` / `pyproject` lint sections without `LINT_CONFIG_OVERRIDE` token |
+| `masonry-block-no-verify.js` | PreToolUse (Bash) | Blocks `git commit --no-verify` and `git push --force` |
+
+### Hook Upgrades
+
+| Hook | Change |
+|------|--------|
+| `masonry-pre-compact.js` | Now saves full build state + campaign state before compaction (not just autopilot mode) |
+| `masonry-context-monitor.js` | Now detects 4 semantic degradation patterns via Ollama cosine similarity: lost-in-middle, poisoning, distraction, clash |
+
+### /build Pipeline Upgrades
+
+- **Guard/Verify split**: Guard = full regression suite (blocker); Verify = task-specific metric (experimental, non-blocking)
+- **Spec-reviewer gate (Step 5a)**: After code-reviewer, before commit — COMPLIANT/OVER_BUILT/UNDER_BUILT/SCOPE_DRIFT blocks SCOPE_DRIFT and OVER_BUILT by default
+
+### fix-implementer Upgrade
+
+- **Commit-before-verify+revert pattern**: Every attempt is committed as `experiment:` prefix. On Guard FAIL the commit is reverted. On success the commit is relabeled `fix:`.
+
+### uiux-master Upgrades
+
+- **7-point AI slop self-evaluation gate**: Must score ≥86% before delivery
+- **Domain exploration forcing function (Phase 0)**: 5+ domain concepts, 5+ domain colors, 3 rejected defaults, WHY per component required before any code is written
