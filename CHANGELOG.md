@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `43c5822` fix(windows): windowsHide on all detached spawns + remove completed agents from statusline (2026-03-28)
 - `42426fd` feat(tier3): P3.2 HNSW fallback + P3.3 PageRank + P3.4 topology selector (2026-03-28)
 - `2f387c7` feat(ema-loop): end-to-end EMA training pipeline — collector + Stop hook (2026-03-28)
 - `1f69601` feat(reasoning): local HNSW fallback for ReasoningBank — works without Qdrant (2026-03-28)
