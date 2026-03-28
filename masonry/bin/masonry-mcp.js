@@ -3,7 +3,7 @@
 /**
  * bin/masonry-mcp.js — Masonry MCP server
  *
- * Exposes 24 tools over MCP stdio transport (JSON-RPC 2.0):
+ * Exposes 27 tools over MCP stdio transport (JSON-RPC 2.0):
  *
  * Research / Campaign:
  *   - masonry_status          — current campaign state
@@ -32,6 +32,9 @@
  *   - masonry_doctor          — system health check: Recall, daemons, hooks, registry
  *   - masonry_verify_7point   — 7-point quality gate: unit tests, coverage, integration, e2e, security, perf, docker
  *   - masonry_pattern_decay   — apply time decay to pattern confidence scores and prune below 0.2 threshold
+ *   - masonry_training_update — recompute EMA strategy scores from telemetry.jsonl
+ *   - masonry_reasoning_query — query ReasoningBank for top-k patterns matching a string
+ *   - masonry_reasoning_store — store a new pattern in ReasoningBank
  */
 
 const fs = require("fs");
@@ -525,6 +528,42 @@ const TOOLS = [
         }
       },
       required: ["project_path"]
+    }
+  },
+  {
+    name: "masonry_training_update",
+    description: "Recompute EMA strategy scores from masonry/telemetry.jsonl. Returns updated strategy recommendations per task_type.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        telemetry_path: { type: "string", description: "Path to telemetry.jsonl (optional, defaults to masonry/telemetry.jsonl)" }
+      }
+    }
+  },
+  {
+    name: "masonry_reasoning_query",
+    description: "Query ReasoningBank for top-5 patterns matching a query string. Returns pattern list with confidence scores.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search query text" },
+        top_k: { type: "number", description: "Number of results (default 5)" },
+        domain: { type: "string", description: "Filter by domain (optional)" }
+      },
+      required: ["query"]
+    }
+  },
+  {
+    name: "masonry_reasoning_store",
+    description: "Store a new pattern in ReasoningBank with content, domain, and initial confidence 0.7.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        content: { type: "string", description: "Pattern content text" },
+        domain: { type: "string", description: "Domain tag (e.g. 'testing', 'architecture')" },
+        pattern_id: { type: "string", description: "Optional explicit ID; auto-generated if omitted" }
+      },
+      required: ["content"]
     }
   },
 ];
