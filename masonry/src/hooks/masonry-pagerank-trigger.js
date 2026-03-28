@@ -92,7 +92,9 @@ async function main() {
   writeLastRun();
 
   // Spawn detached — does not block Stop
-  const child = spawn('python', [scriptPath], {
+  const project = path.basename(cwd);
+  const confidenceJsonPath = path.join(cwd, '.autopilot', 'pattern-confidence.json');
+  const child = spawn('python', [scriptPath, project, confidenceJsonPath], {
     detached: true,
     stdio: 'ignore',
     cwd,
