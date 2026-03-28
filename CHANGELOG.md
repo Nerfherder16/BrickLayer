@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `2ff9210` feat(agents): add H0/H1/prediction triad template to question-designer-bl2 (task 9/32) (2026-03-28)
 - `6ddb840` feat(agents): add fail-closed defaults and confidence gating to reviewer agents (task 15/32) (2026-03-28)
 - `7db12b7` chore: update .claude-plugin, masonry (3 files) (2026-03-28)
 - `6f05bc4` chore: auto-commit 11 session files on stop (2026-03-28)
