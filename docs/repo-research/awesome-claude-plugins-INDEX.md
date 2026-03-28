@@ -40,9 +40,10 @@ Source: https://github.com/quemsah/awesome-claude-plugins (Top 100, as of 2026-0
 |---|------|-------------|--------------|---------------|
 | 3 | [superpowers](https://github.com/obra/superpowers) | Agentic skills framework + dev methodology (111K stars) | Core methodology patterns | [superpowers-everything-claude.md](superpowers-everything-claude.md) |
 | 4 | [everything-claude-code](https://github.com/affaan-m/everything-claude-code) | Agent harness optimization (107K stars) | Performance + security patterns | [superpowers-everything-claude.md](superpowers-everything-claude.md) |
-| 22 | [promptfoo](https://github.com/promptfoo/promptfoo) | Prompt/agent/RAG testing + red teaming | Agent eval harness (complement to improve_agent.py) | [infra-tools.md](infra-tools.md) |
-| 72 | [spec-workflow-mcp](https://github.com/Pimzino/spec-workflow-mcp) | MCP for spec-driven dev + VSCode extension | Spec dashboard / VSCode integration | [infra-tools.md](infra-tools.md) |
-| 83 | [code-review-graph](https://github.com/tirth8205/code-review-graph) | Local knowledge graph — 6.8x fewer tokens (Phase 4 item) | AST-based context injection for reviews | [infra-tools.md](infra-tools.md) |
+| 22 | [promptfoo](https://github.com/promptfoo/promptfoo) | 50+ assertion types, 40+ red-team plugins (OWASP LLM Top 10, RAG poisoning, MCP attacks), CVSS-style risk scoring | **BL has zero red-team capability** — promptfoo benchmarks agents under adversarial conditions; replace eval_agent.py; add /masonry-redteam skill | ✅ [infra-tools.md](infra-tools.md) |
+| 14 | [claude-task-master](https://github.com/eyaltoledano/claude-task-master) | 36 MCP tools: dependency graph, complexity scoring (1-10), priority-aware `next_task`, PRD parsing, tag-isolated task contexts | **BL's progress.json is a flat list** — no dependency edges, no complexity, no priority scheduling; `/parse-prd` skill would auto-generate spec.md from PRD | ✅ [infra-tools.md](infra-tools.md) |
+| 83 | [code-review-graph](https://github.com/tirth8205/code-review-graph) | Tree-sitter AST → SQLite graph, blast-radius (callers+dependents+coverage), 22 MCP tools, 8.2x token reduction, incremental re-index <2s | **BL code-reviewer has zero structural awareness** — install as MCP, add masonry-blast-radius.js PostToolUse hook, inject into code-reviewer and /verify | ✅ [infra-tools.md](infra-tools.md) |
+| 72 | [spec-workflow-mcp](https://github.com/Pimzino/spec-workflow-mcp) | 12 MCP tools, steering documents auto-injected into every spec, per-document revision tracking | Steering document pattern for `.autopilot/steering/` | ✅ [infra-tools.md](infra-tools.md) |
 | 79 | [worktrunk](https://github.com/max-sixty/worktrunk) | Git worktree CLI for parallel AI agent workflows (Phase 4) | Parallel agent isolation | TBD |
 
 ### Skills Libraries (mine for individual items)
@@ -65,8 +66,7 @@ Source: https://github.com/quemsah/awesome-claude-plugins (Top 100, as of 2026-0
 
 | # | Repo | What it does | Why medium |
 |---|------|-------------|------------|
-| 10 | [claude-mem](https://github.com/thedotmack/claude-mem) | Session capture + AI compression + context injection | BL already has System-Recall; worth comparing approach |
-| 14 | [claude-task-master](https://github.com/eyaltoledano/claude-task-master) | AI-powered task management with PRD parsing | BL has /plan + /build; different UX approach |
+| 10 | [claude-mem](https://github.com/thedotmack/claude-mem) | `<private>` tag excludes content from storage; 3-layer retrieval (compact→filter→full) ~10x token savings | BL covered by Recall; extract `<private>` tag pattern + 3-layer retrieval for masonry-observe.js | ✅ [infra-tools.md](infra-tools.md) |
 | 16 | [claude-code-templates](https://github.com/davila7/claude-code-templates) | CLI tool for configuring + monitoring Claude Code (10 plugins) | May have config patterns worth adopting |
 | 20 | [beads](https://github.com/steveyegge/beads) | Memory upgrade for coding agent | Alternative memory architecture |
 | 24 | [obsidian-skills](https://github.com/kepano/obsidian-skills) | Obsidian Markdown + Bases + JSON Canvas skills | Niche but could serve knowledge management |
