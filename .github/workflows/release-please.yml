@@ -1,0 +1,29 @@
+name: Release Please
+on:
+  push:
+    branches:
+      - master
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/release-please-action@v4
+        with:
+          release-type: node
+          package-name: bricklayer2
+          changelog-types: |
+            [
+              {"type": "feat", "section": "Features"},
+              {"type": "fix", "section": "Bug Fixes"},
+              {"type": "chore", "section": "Miscellaneous"},
+              {"type": "docs", "section": "Documentation"},
+              {"type": "refactor", "section": "Code Refactoring"},
+              {"type": "perf", "section": "Performance Improvements"},
+              {"type": "test", "section": "Tests"}
+            ]

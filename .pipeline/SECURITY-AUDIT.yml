@@ -1,0 +1,19 @@
+name: SECURITY-AUDIT
+description: Security audit pipeline — OWASP review to findings PR
+stages:
+  - agent: security
+    description: OWASP Top 10 audit, no code modifications
+    outputs:
+      - .autopilot/security-findings.md
+  - agent: code-reviewer
+    description: Review flagged code paths for security issues
+    mode: security
+    inputs:
+      - .autopilot/security-findings.md
+  - agent: compliance-auditor
+    description: Check against known compliance standards
+    inputs:
+      - .autopilot/security-findings.md
+  - agent: pr-writer
+    description: Generate PR with security findings and remediation plan
+on_failure: security
