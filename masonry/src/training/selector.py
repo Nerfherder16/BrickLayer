@@ -183,6 +183,16 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--ema-path",
+        type=Path,
+        default=_EMA_HISTORY_PATH,
+        metavar="PATH",
+        help=(
+            "Path to ema_history.json "
+            f"(default: {_EMA_HISTORY_PATH})."
+        ),
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Print blend calculation details to stderr.",
@@ -193,6 +203,10 @@ def _build_arg_parser() -> argparse.ArgumentParser:
 if __name__ == "__main__":
     parser = _build_arg_parser()
     args = parser.parse_args()
+    # Allow --ema-path to override the module-level constant at runtime
+    if args.ema_path != _EMA_HISTORY_PATH:
+        import src.training.selector as _self  # noqa: PLC0415
+        _self._EMA_HISTORY_PATH = args.ema_path
     result = select_strategy(
         args.task_type,
         confidence_path=args.confidence_path,
