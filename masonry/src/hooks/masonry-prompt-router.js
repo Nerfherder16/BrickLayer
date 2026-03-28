@@ -152,6 +152,18 @@ async function main() {
 
   const prompt = (input.prompt || input.message || "").trim();
 
+  // Strategy flag detection — write .autopilot/strategy file if --strategy is present
+  const strategyMatch = prompt.match(/--strategy\s+(conservative|balanced|aggressive)/i);
+  if (strategyMatch) {
+    const strategy = strategyMatch[1].toLowerCase();
+    const autopilotDir = path.join(input.cwd || process.cwd(), ".autopilot");
+    if (fs.existsSync(autopilotDir)) {
+      try {
+        fs.writeFileSync(path.join(autopilotDir, "strategy"), strategy, "utf8");
+      } catch {}
+    }
+  }
+
   // Skip: empty, slash commands, very short inputs
   if (!prompt || prompt.startsWith("/") || prompt.length < 20) process.exit(0);
 
