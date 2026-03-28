@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `41b4e18` feat(hooks): merge pre-edit + session-lock → masonry-pre-protect.js (2026-03-28)
 - `fe36645` feat(hooks): merge lint-check + design-token-enforcer → masonry-style-checker.js (2026-03-28)
 - `cdfc883` feat(hooks): merge config-protection + secret-scanner → masonry-content-guard.js (2026-03-28)
 - `277c3c3` chore(hooks): remove dead/redundant hooks — recall-check, guard, permission-mode-watcher (2026-03-28)
