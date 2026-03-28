@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `6592d89` chore: session update to masonry-mcp.js (2026-03-27)
 - `a63216e` fix(phase3-wave1): minor cleanup to graph.py and pagerank.py (2026-03-27)
 - `9542766` feat(phase3-wave1): complete Wave 1 — training pipeline, ReasoningBank, knowledge graph (2026-03-27)
 - `b893b09` chore: auto-commit 2 session files on stop (2026-03-27)
