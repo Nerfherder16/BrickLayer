@@ -94,6 +94,33 @@ async function main() {
     fs.writeFileSync(path.join(autopilotDir, "current-task-id"), task_id, "utf8");
   } catch (_) { /* non-fatal */ }
 
+  // --- Strategy injection (EMA-based selector) ---
+  // Skip if user already set .autopilot/strategy manually.
+  const strategyFile = path.join(autopilotDir, "strategy");
+  if (!fs.existsSync(strategyFile)) {
+    try {
+      const inferredTaskType =
+        (parsed.task && parsed.task.type) ||
+        parsed.task_type ||
+        task_type;
+
+      const selectorScript = path.join(
+        __dirname, "..", "training", "selector.py"
+      );
+
+      const { execFileSync } = require("child_process");
+      const stdout = execFileSync(
+        "python",
+        [selectorScript, inferredTaskType],
+        { timeout: 3000, encoding: "utf8" }
+      ).trim();
+
+      if (stdout) {
+        fs.writeFileSync(strategyFile, stdout, "utf8");
+      }
+    } catch (_) { /* selector unavailable — non-fatal */ }
+  }
+
   process.exit(0);
 }
 

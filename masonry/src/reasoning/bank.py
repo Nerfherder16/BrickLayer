@@ -211,4 +211,4 @@ class ReasoningBank:
 # ------------------------------------------------------------------
 
 def _floats_to_blob(floats: list) -> bytes:
-    return struct.pack(f"{len(floats)}f", *floats)
+    return struct.pack(f"{len(floats)}f", *[float(v) for v in floats])
