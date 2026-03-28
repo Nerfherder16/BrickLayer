@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `8a39373` fix(training-export): default to ~/.mas/training.db when BRICKLAYER_TRAINING_DB not set (2026-03-28)
 - `1cc27d2` docs: add Ruflo gap analysis and Masonry audit reports (2026-03-28)
 - `ded93dc` chore: update MASONRY_GAP_ANALYSIS.md (1 file) (2026-03-28)
 - `63067e3` docs: update GITHUB_HANDOFF for Phase 2-3 PR completion (2026-03-28)
