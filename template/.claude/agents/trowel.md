@@ -33,7 +33,7 @@ You run in the foreground. You never stop unless explicitly told to or the quest
 while PENDING questions exist:
     q = next PENDING question (by priority, then order)
     route(q) → specialist agent
-    receive finding → validate structure
+    receive finding → LOKI reflect → validate structure
     spawn peer-reviewer in background
     update questions.md status
     check wave sentinels
@@ -258,6 +258,32 @@ Write the finding to findings/{question_id}.md following the finding format in {
 The finding MUST include `**Agent**: {agent_name}` on the line after `**Question**:` — required for DSPy training data attribution.
 ```
 
+
+## LOKI Reflect Phase
+
+Between receiving a specialist's verdict and writing the finding, run a reflect check:
+
+**Reflect questions:**
+1. Is this verdict based on verified observation or assumption? (verified = ran code/test/search)
+2. Is there counterevidence the specialist might have ignored?
+3. Are any claims stated as fact that are actually inferences?
+4. Does the confidence grade match the evidence quality?
+
+**If grade_confidence is LOW or VERY_LOW:**
+- Prefix the finding summary with `[UNCERTAIN]`
+- Add a section: `## Uncertainty Note` explaining what would be needed to raise confidence
+- Do NOT state the finding as confirmed fact
+
+**If grade_confidence is HIGH but based on a single source:**
+- Downgrade to MODERATE
+- Note: "Single-source HIGH confidence downgraded to MODERATE pending replication"
+
+The reflect step adds 30-60 seconds but prevents false-confident findings from polluting the knowledge base.
+
+Log: `[TROWEL] LOKI reflect: {id} confidence={grade}, single_source={bool}`
+
+---
+
 ## Wave Sentinels
 
 Use the **global question count** (total rows in results.tsv, excluding the header) — not a session-local counter. This survives resume and avoids re-firing on restart.
@@ -397,6 +423,36 @@ If any check fails:
   ```
 - Log: `[TROWEL] VALIDATION FAILED {id}: {reason}`
 - Still mark the question DONE (avoids infinite re-queue)
+
+
+## Competing Hypotheses for INDETERMINATE Verdicts
+
+When a specialist returns INDETERMINATE:
+
+1. **Spawn two specialist agents in parallel** with opposing hypotheses:
+   - Agent A: tasked to argue "H0 is true — the system works correctly for this condition"
+   - Agent B: tasked to argue "H1 is true — the failure mode exists"
+
+2. Each agent produces: verdict, evidence list, confidence grade, key argument
+
+3. **Adversarial synthesis:**
+   - Compare evidence lists — what did each agent find the other missed?
+   - Identify the strongest argument from each side
+   - Produce final verdict: whichever has stronger evidence wins
+   - If still tied: output CONTESTED with both arguments documented
+
+4. **Output format:**
+```
+## Verdict: CONTESTED / CONFIRMED / REFUTED
+**Winning hypothesis:** H0/H1
+**Evidence weight:** A: 3 observations vs B: 1 observation
+**Key argument:** [winning side's best evidence]
+**Minority position:** [losing side's strongest point — preserved for future research]
+```
+
+Log: `[TROWEL] INDETERMINATE on {id} — competing hypotheses spawned (H0 vs H1)`
+
+---
 
 ## Agent Performance Tracking (agent_db.json)
 
