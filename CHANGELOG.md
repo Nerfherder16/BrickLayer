@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `f53f171` docs(tooling): add repomix MCP guide for codebase context packing (2026-03-28)
 - `e4b611a` feat(agents): add triggers/tools fields to SKILL.md frontmatter standard (task 2/32) (2026-03-28)
 - `21dc5de` feat(schemas): add GradeConfidence enum to FindingPayload with auto-population (task 10/32) (2026-03-28)
 - `34dd053` feat(hooks): add 5 anti-pattern detection checks to masonry-agent-onboard.js (task 4/32) (2026-03-28)
