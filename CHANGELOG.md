@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `a68d996` feat(sparc-consensus): SPARC phases + consensus builder fully wired (2026-03-28)
 - `8ef5c5e` feat(mid-build-recall): sync Recall patterns every 5 completed tasks during build (2026-03-28)
 - `36ffa4b` feat(pattern-decay): masonry_pattern_decay tool + fix pagerank-trigger args (2026-03-28)
 - `026bf41` feat(claims-board): async human escalation via .autopilot/claims.json + HUD indicator (2026-03-28)
