@@ -212,3 +212,53 @@ class ReasoningBank:
 
 def _floats_to_blob(floats: list) -> bytes:
     return struct.pack(f"{len(floats)}f", *[float(v) for v in floats])
+
+
+if __name__ == "__main__":
+    import json
+    import sys
+
+    def _print_json(obj: object) -> None:
+        print(json.dumps(obj))
+
+    args = sys.argv[1:]
+    if not args:
+        print("Usage: bank.py query <text> [top_k] [domain]", file=sys.stderr)
+        print("       bank.py store <content> <domain> [pattern_id]", file=sys.stderr)
+        sys.exit(1)
+
+    command = args[0]
+    bank = ReasoningBank()
+
+    if command == "query":
+        if len(args) < 2:
+            print("Usage: bank.py query <text> [top_k] [domain]", file=sys.stderr)
+            sys.exit(1)
+        text = args[1]
+        top_k = int(args[2]) if len(args) > 2 else 5
+        domain_filter = args[3] if len(args) > 3 else None
+
+        results = bank.query(text, top_k=top_k)
+        if domain_filter:
+            results = [r for r in results if r.get("domain") == domain_filter]
+        # Remove binary embedding blob from output — not JSON-serialisable
+        for r in results:
+            r.pop("embedding", None)
+        _print_json(results)
+
+    elif command == "store":
+        if len(args) < 3:
+            print("Usage: bank.py store <content> <domain> [pattern_id]", file=sys.stderr)
+            sys.exit(1)
+        content = args[1]
+        domain = args[2]
+        explicit_id = args[3] if len(args) > 3 else None
+        pattern: dict = {"content": content, "domain": domain, "confidence": 0.7}
+        if explicit_id:
+            pattern["pattern_id"] = explicit_id
+        stored_id = bank.store(pattern)
+        _print_json({"pattern_id": stored_id})
+
+    else:
+        print(f"Unknown command: {command}. Use 'query' or 'store'.", file=sys.stderr)
+        sys.exit(1)
