@@ -1412,16 +1412,25 @@ function toolTaskAssign(args) {
     return { task: null, error: `Failed to parse progress.json: ${err.message}` };
   }
 
+  // Only pick PENDING tasks — skip BLOCKED (waiting on depends_on)
   const pending = (progress.tasks || []).find((t) => t.status === "PENDING");
 
   if (!pending) {
     const inProgress = (progress.tasks || []).filter((t) => t.status === "IN_PROGRESS");
     const done = (progress.tasks || []).filter((t) => t.status === "DONE");
+    const blocked = (progress.tasks || []).filter((t) => t.status === "BLOCKED");
+    const reason = inProgress.length > 0
+      ? "all_in_progress"
+      : blocked.length > 0
+        ? "waiting_on_dependencies"
+        : "all_done";
     return {
       task: null,
-      reason: inProgress.length > 0 ? "all_in_progress" : "all_done",
+      reason,
       in_progress_count: inProgress.length,
       done_count: done.length,
+      blocked_count: blocked.length,
+      blocked_tasks: blocked.map((t) => ({ id: t.id, description: t.description, depends_on: t.depends_on })),
       total: (progress.tasks || []).length,
     };
   }
@@ -1438,10 +1447,15 @@ function toolTaskAssign(args) {
     return { task: null, error: `Failed to write progress.json: ${err.message}` };
   }
 
+  const blocked = (progress.tasks || []).filter((t) => t.status === "BLOCKED");
   return {
     task: pending,
     total_tasks: (progress.tasks || []).length,
     pending_remaining: (progress.tasks || []).filter((t) => t.status === "PENDING").length,
+    blocked_count: blocked.length,
+    note: blocked.length > 0
+      ? `${blocked.length} task(s) are BLOCKED waiting on depends_on — they will become PENDING when upstream tasks complete`
+      : undefined,
   };
 }
 
@@ -1639,6 +1653,18 @@ function toolSwarmInit(args) {
 
   if (tasks.length === 0) {
     return { initialized: false, error: "No tasks found in spec. Expected '- [ ] **Task N** — description' format." };
+  }
+
+  // Set initial status: tasks with unresolved depends_on start as BLOCKED
+  const taskIds = new Set(tasks.map((t) => t.id));
+  for (const task of tasks) {
+    if (
+      Array.isArray(task.depends_on) &&
+      task.depends_on.length > 0 &&
+      task.depends_on.some((depId) => taskIds.has(depId))
+    ) {
+      task.status = "BLOCKED";
+    }
   }
 
   const name = project_name || path.basename(project_path);
@@ -2257,6 +2283,114 @@ function toolPatternDecay(args) {
 }
 
 // ---------------------------------------------------------------------------
+// Claims Board
+// ---------------------------------------------------------------------------
+
+function _claimsFile(project_path) {
+  return path.join(project_path, ".autopilot", "claims.json");
+}
+
+function _loadClaims(claimsPath) {
+  if (!fs.existsSync(claimsPath)) return [];
+  try {
+    const data = JSON.parse(fs.readFileSync(claimsPath, "utf8"));
+    return Array.isArray(data) ? data : [];
+  } catch (_err) {
+    return [];
+  }
+}
+
+function _saveClaims(claimsPath, claims) {
+  const dir = path.dirname(claimsPath);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(claimsPath, JSON.stringify(claims, null, 2), "utf8");
+}
+
+function _nextClaimId(claims) {
+  const nums = claims
+    .map((c) => parseInt((c.id || "").replace("claim-", ""), 10))
+    .filter((n) => !isNaN(n));
+  const max = nums.length > 0 ? Math.max(...nums) : 0;
+  return `claim-${String(max + 1).padStart(3, "0")}`;
+}
+
+function toolClaimAdd(args) {
+  const { project_path, question, task_id, context } = args;
+  const claimsPath = _claimsFile(project_path);
+  const claims = _loadClaims(claimsPath);
+
+  const id = _nextClaimId(claims);
+  const claim = {
+    id,
+    question,
+    ...(task_id ? { task_id } : {}),
+    ...(context ? { context } : {}),
+    status: "pending",
+    created_at: new Date().toISOString(),
+  };
+  claims.push(claim);
+
+  try {
+    _saveClaims(claimsPath, claims);
+  } catch (err) {
+    return { error: `Failed to write claims.json: ${err.message}` };
+  }
+
+  return {
+    claim_id: id,
+    message: "Claim filed. Build continues on independent tasks.",
+  };
+}
+
+function toolClaimResolve(args) {
+  const { project_path, claim_id, answer } = args;
+  const claimsPath = _claimsFile(project_path);
+  const claims = _loadClaims(claimsPath);
+
+  const claim = claims.find((c) => c.id === claim_id);
+  if (!claim) {
+    return { error: `Claim not found: ${claim_id}` };
+  }
+  if (claim.status === "resolved") {
+    return { error: `Claim ${claim_id} is already resolved` };
+  }
+
+  claim.status = "resolved";
+  claim.answer = answer;
+  claim.resolved_at = new Date().toISOString();
+
+  try {
+    _saveClaims(claimsPath, claims);
+  } catch (err) {
+    return { error: `Failed to write claims.json: ${err.message}` };
+  }
+
+  const pending = claims.filter((c) => c.status === "pending").length;
+  return {
+    resolved: claim_id,
+    pending_remaining: pending,
+    message: pending === 0 ? "All claims resolved." : `${pending} claim(s) still pending.`,
+  };
+}
+
+function toolClaimsList(args) {
+  const { project_path, status = "pending" } = args;
+  const claimsPath = _claimsFile(project_path);
+  const claims = _loadClaims(claimsPath);
+
+  const filtered =
+    status === "all"
+      ? claims
+      : claims.filter((c) => c.status === status);
+
+  return {
+    claims: filtered,
+    count: filtered.length,
+    status_filter: status,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // MCP protocol dispatch
 // ---------------------------------------------------------------------------
 
@@ -2414,6 +2548,14 @@ async function dispatchTool(name, args) {
         return { success: false, error: e.message };
       }
     }
+
+    // Claims Board
+    case "masonry_claim_add":
+      return toolClaimAdd(args);
+    case "masonry_claim_resolve":
+      return toolClaimResolve(args);
+    case "masonry_claims_list":
+      return toolClaimsList(args);
 
     default:
       throw new Error(`Unknown tool: ${name}`);
