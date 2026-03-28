@@ -205,6 +205,23 @@ recall_store(
 )
 ```
 
+## Consensus resolution — multi-reviewer conflicts
+
+If you are aware that a peer-reviewer or design-reviewer has also reviewed the same task and produced a different verdict than yours, do not simply defer to the last reviewer's output. Instead, call `masonry_review_consensus` with all known verdicts to obtain a final ruling:
+
+```json
+masonry_review_consensus({
+  "votes": [
+    {"reviewer": "code-reviewer", "verdict": "<your verdict>", "confidence": 0.0-1.0, "summary": "<your notes>"},
+    {"reviewer": "peer-reviewer",  "verdict": "<their verdict>", "confidence": <0.0-1.0>, "summary": "<their summary>"}
+  ],
+  "task_id": "{finding_id}",
+  "project_dir": "{target_git}"
+})
+```
+
+Use the `final_verdict` from the response as the authoritative outcome. If `escalate` is true, output `ESCALATE: {task_id} — tied or BLOCKED, routing to senior-developer.` and stop — do not commit.
+
 ## Output contract
 
 After appending to the finding file, output a JSON block:
