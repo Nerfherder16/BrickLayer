@@ -1,251 +1,341 @@
-# BrickLayer Dev Execution Roadmap
-# Goal: Ruflo-level end-to-end app creation capability
-# Reference: ruvnet/ruflo studied 2026-03-27
-# Language note: Ruflo is TypeScript; BrickLayer agents are Markdown prompts + JS hooks
+# Dev Execution Roadmap — Closing the Ruflo Gaps
+
+**Created**: 2026-03-27
+**Source**: `.autopilot/ruflo-gap-synthesis.md`
+**Goal**: Ruflo-level autonomous app building without human intervention
 
 ---
 
-## Phase 1 — Zero-Friction Core (Highest Impact, Build First)
+## Phase 1 — Quick Wins (1-2 weeks)
 
-### 1.1 UserPromptSubmit Transparent Router ✅ DONE
-**File**: `masonry/src/hooks/masonry-prompt-router.js`
-**Trigger**: UserPromptSubmit (fires before Claude sees the prompt)
-**What it does**:
-- Reads prompt from stdin
-- Detects intent: coding / research / git / UI / campaign / architecture / debug
-- Injects routing suggestion into context: "→ Mortar: routing to developer+test-writer+code-reviewer"
-- Falls back silently if intent unclear or slash command
-**Impact**: Every natural-language request auto-routed — no slash commands required.
-**Ruflo equivalent**: `hook-handler.cjs route` via UserPromptSubmit
-
-### 1.2 TeammateIdle Auto-Assignment ✅ DONE
-**File**: `masonry/src/hooks/masonry-teammate-idle.js`
-**Wired into settings.json**: `TeammateIdle` + `TaskCompleted` hook events.
-**What it does**:
-- Fires when an agent team member goes idle or completes a task
-- Reads `.autopilot/progress.json`, atomically claims first PENDING task (marks IN_PROGRESS)
-- Outputs TDD task assignment with SPARC mode support (`[mode:tdd]`, `[mode:security]`, etc.)
-- Handles all-done signal when no tasks remain
-**Prereq**: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` — already set in settings.json.
-**Ruflo equivalent**: `post-task` handler + `autoAssignOnIdle: true`
+Additive work only. No existing behavior changes. No architectural dependencies.
 
 ---
 
-## Phase 2 — Pattern Memory (Learning Loop)
+### 1.1 Pre-task / Post-task Telemetry Hooks
 
-### 2.1 Build Pattern Extraction
-**File**: `masonry/src/hooks/masonry-build-patterns.js`
-**Trigger**: PostToolUse(Write|Edit) during a build session
-**What it does**:
-- Detects if `.autopilot/` is active
-- Extracts: file type, framework, pattern name from the written code
-- Stores to Recall: `domain: "build-patterns"`, tags: `["lang:python", "framework:fastapi", "layer:router"]`
-**Ruflo equivalent**: `trainPatternsOnComplete: true` in agentTeams coordination config
+**Gap addressed**: Gap 8 — no task-level telemetry feeding the future training pipeline.
 
-### 2.2 SessionStart Pattern Import
-**File**: `masonry/src/hooks/masonry-session-start.js` (extend existing)
-**What it does**: Query Recall for build patterns matching current project type and inject as context preamble.
-**Ruflo equivalent**: `session-restore` + `auto-memory-hook.mjs import`
+| File | Action | Purpose |
+|------|--------|---------|
+| `masonry/src/hooks/masonry-pre-task.js` | CREATE | PreToolUse(Agent) — write task record to `.autopilot/telemetry.jsonl` with timestamp, task_id, complexity |
+| `masonry/src/hooks/masonry-post-task.js` | CREATE | PostToolUse(Agent) — append outcome, duration_ms, agent_used, success/fail |
+| `masonry/src/schemas/payloads.py` | EXTEND | Add `TaskTelemetryRecord` Pydantic model |
+| `masonry/.claude/settings.json` | REGISTER | Add both hooks to PreToolUse/PostToolUse(Agent) events |
 
----
-
-## Phase 3 — New Agents (Add to ~/.claude/agents/)
-
-### 3.1 Swarm Coordination Agents
-- `hierarchical-coordinator` — enforces coordinator→worker topology, detects drift
-- `adaptive-coordinator` — switches topology (hierarchical/mesh/ring) based on task type
-- `queen-coordinator` — assigns tasks from shared queue to idle workers (hive-mind pattern)
-- `worker-specialist` — pulls tasks from queue autonomously, reports to queen
-
-### 3.2 Consensus / Anti-Drift Agents
-- `quorum-manager` — requires majority agreement before destructive actions (drop DB, force push)
-- `raft-manager` — coordinates multi-session builds (multiple Claude Code instances)
-- `byzantine-coordinator` — detects a failing/diverging agent, isolates and reassigns its tasks
-
-### 3.3 Domain Specialists (Narrow-Focus Implementers)
-- `python-specialist` — FastAPI, Pydantic, asyncio, pytest deep expertise
-- `typescript-specialist` — React 19, Tailwind v4, Vite, Vitest deep expertise
-- `database-specialist` — PostgreSQL, Qdrant, Neo4j, Redis schema and query expertise
-- `solana-specialist` — already exists ✓
-
-### 3.4 Optimization Background Workers
-- `benchmark-suite` — runs perf benchmarks after builds
-- `performance-monitor` — watches build metrics proactively
-- `production-validator` — validates in prod-like environment before marking DONE
-
-### 3.5 Testing Specialists
-- `tdd-london-swarm` — parallel TDD agents using London-school mocking
-- `mutation-tester` — runs mutation testing to verify test quality (not just coverage)
-
----
-
-## Phase 4 — Background Daemon Workers
-
-**Mechanism**: nohup + sleep loops (same as Ruflo — simpler than cron).
-**File**: `masonry/src/daemon/daemon-manager.sh`
-
-Workers to implement:
-| Worker | Interval | What it does |
-|--------|----------|-------------|
-| `testgaps` | 30min | Scans for files without tests, writes `.autopilot/testgaps.md` |
-| `optimize` | 30min | Runs linter + typecheck in background, writes `.autopilot/quality.md` |
-| `consolidate` | 2h | Deduplicates Recall build patterns via similarity |
-| `deepdive` | 4h | Audits code complexity, dead code, duplication |
-| `benchmark` | trigger | Runs perf benchmarks after build completion |
-
----
-
-## Phase 5 — SPARC Modes in spec.md
-
-**Add `mode` field to task items**:
-```markdown
-- [ ] **Task 3** [mode:tdd] — implement user auth endpoint
-- [ ] **Task 4** [mode:security] — audit auth for OWASP Top 10
-- [ ] **Task 5** [mode:devops] — write Dockerfile and compose config
+Record schema:
+```json
+{"task_id": "t-001", "phase": "pre", "timestamp": "ISO", "type": "frontend", "complexity": "low"}
+{"task_id": "t-001", "phase": "post", "timestamp": "ISO", "duration_ms": 4200, "success": true, "agent": "general-purpose"}
 ```
 
-**Orchestrator behavior**: reads mode, dispatches right specialist:
-- `tdd` → test-writer first (forced), then developer
-- `security` → security agent, no code-write permission
-- `devops` → devops agent
-- `architect` → architect agent, no implementation
+**Why now**: Training pipeline (Phase 3) needs 50+ samples per task type. Every build after this hook accumulates signal. Start collecting immediately.
 
 ---
 
-## Phase 6 — Masonry MCP Expansion
+### 1.2 Pre-edit Backup Hook
 
-Current: ~12 tools. Target: 50+ tools.
+**Gap addressed**: Gap 8 — a bad Write/Edit currently requires `git reset --hard`.
 
-Priority tools to add:
-- `masonry_route` — expose 4-layer router as callable tool
-- `masonry_pattern_store` / `masonry_pattern_search` — build pattern memory
-- `masonry_worker_status` — query daemon worker state
-- `masonry_task_assign` — TeammateIdle can call to get next task
-- `masonry_agent_health` — per-agent performance metrics
-- `masonry_wave_validate` — between-wave state validation for /ultrawork
-- `masonry_swarm_init` — spawn a coordinator+worker swarm for a build
-- `masonry_consensus_check` — quorum gate before destructive actions
+| File | Action | Purpose |
+|------|--------|---------|
+| `masonry/src/hooks/masonry-pre-edit.js` | CREATE | PreToolUse(Write/Edit) — snapshot file to `.autopilot/backups/` before modification |
+| `masonry/src/hooks/masonry-build-guard.js` | EXTEND | Add backup cleanup (prune backups >7 days old) to Stop event |
 
----
+Behavior:
+- Only fires when `.autopilot/mode` is `build` or `fix` (no-op otherwise)
+- Backup path: `.autopilot/backups/{relative_path}/{filename}.{ISO_timestamp}`
+- Silent exit if file doesn't exist yet (new file write)
 
-## Implementation Order
-
-1. ~~**Phase 1.2** — TeammateIdle hook~~ ✅ DONE
-2. ~~**Phase 1.1** — UserPromptSubmit router~~ ✅ DONE
-3. ~~**Phase 3.1 (partial)**~~ — `hierarchical-coordinator.md` ✅ DONE
-4. ~~**Phase 3.3 (partial)**~~ — `python-specialist`, `typescript-specialist`, `database-specialist`, `production-validator` ✅ DONE
-5. ~~**Phase 3.1 (remaining)**~~ — `queen-coordinator`, `worker-specialist`, `adaptive-coordinator`, `quorum-manager`, `tdd-london-swarm`, `mutation-tester` ✅ DONE
-6. ~~**Phase 2**~~ — `masonry-build-patterns.js` (PostToolUse extraction) + `masonry-session-start.js` (Recall pattern import) ✅ DONE
-7. ~~**Phase 4**~~ — Daemon manager + `worker-testgaps.js`, `worker-optimize.js`, `worker-consolidate.js`, `worker-deepdive.js` ✅ DONE
-8. ~~**Phase 5**~~ — SPARC modes in SKILL.md (`[mode:X]` dispatch table) + spec-writer.md annotations ✅ DONE
-9. ~~**Hook Safety Audit**~~ — `continueOnError: true` on all non-blocking synchronous hooks ✅ DONE
-10. ~~**Phase 6**~~ — MCP expansion (9 new tools: route, pattern_store/search, worker_status, task_assign, agent_health, wave_validate, swarm_init, consensus_check) ✅ DONE
-11. ~~**Phase 7 (Ruflo Gap — Tier 1)**~~ — Firecrawl gap analysis + 5 highest-ROI additions ✅ DONE
+**Why now**: Enables instant single-file rollback without touching git history. Immediate pain relief.
 
 ---
 
-## Phase 7 — Ruflo Gap Closures (Tier 1)
+### 1.3 Agent-complete Hook
 
-### 7.1 `verification` Agent ✅ DONE
-**File**: `~/.claude/agents/verification.md`
-**What it does**: Build-time truth enforcement. Runs after each developer task in `/build`. Cross-checks agent claims against git diff, file existence, test results. Emits VERIFICATION_PASS / VERIFICATION_SUSPICIOUS / VERIFICATION_REJECT with structured evidence.
-**Ruflo equivalent**: Verification sidecar — Ruflo's #1 differentiator for multi-agent build quality
+**Gap addressed**: Gap 5 — results polled via files; dependent agents can't start until the full batch completes.
 
-### 7.2 Effort-Level Routing ✅ DONE
-**File**: `masonry/src/hooks/masonry-prompt-router.js`
-**What it does**: Classifies every prompt as `low/medium/high/max` effort (Opus 4.6 thinking budget). Injects `[effort:X]` annotation alongside routing hint. Maps to 76% token savings at `medium` vs `high`.
-**Ruflo equivalent**: Effort-level dispatch in hook-handler.cjs
+| File | Action | Purpose |
+|------|--------|---------|
+| `masonry/src/hooks/masonry-agent-complete.js` | CREATE | SubagentStop — write to `.autopilot/results/{agent_id}.json`; signal dependent tasks |
+| `masonry/bin/masonry-mcp.js` — toolSwarmInit | EXTEND | Add `depends_on` field to task schema |
+| `masonry/src/hooks/masonry-teammate-idle.js` | EXTEND | Check result cache; wake dependent tasks immediately on completion |
 
-### 7.3 `worker-ultralearn.js` ✅ DONE
-**File**: `masonry/src/daemon/worker-ultralearn.js`
-**Interval**: 60 min
-**What it does**: Analyzes last 20 git commits, extracts build patterns (lang/framework/layer), stores new patterns to Recall. Deduplicates before storing. Deeper than per-write extraction — retrospective analysis.
-**Ruflo equivalent**: `ultralearn` daemon + `trainPatternsOnComplete`
-
-### 7.4 `worker-map.js` ✅ DONE
-**File**: `masonry/src/daemon/worker-map.js`
-**Interval**: 30 min
-**What it does**: Walks codebase, detects stack (langs, frameworks, test runner, build tool), entry points, key directories, test coverage ratio. Writes `.autopilot/map.md`.
-**Ruflo equivalent**: `worker-map.mjs` structure mapper
-
-### 7.5 Context Curator Upgrade ✅ DONE
-**File**: `masonry/src/hooks/masonry-session-start.js`
-**What it does**: Reads `.autopilot/map.md` at session start and injects a compact 3-line codebase snapshot (stack, entry points, key dirs). Saves Claude from re-discovering project structure each session.
-**Ruflo equivalent**: `session-restore` + `auto-memory-hook.mjs import` with codebase context
-
----
-
-## Phase 8 — Ruflo Gap Closures (Tier 2, Backlog) ✓ COMPLETE
-
-- ✅ `worker-document.js` — auto-docstring extraction + Recall storage (60min interval)
-- ✅ `worker-refactor.js` — god files + duplicate blocks + deep nesting → `.autopilot/refactor-candidates.md` (2h interval)
-- ✅ `worker-benchmark.js` — test suite timing, baseline tracking, regression detection → `.autopilot/benchmark.md` (4h interval)
-- ✅ Agent trust scoring wired into `masonry-session-end.js` — Bayesian update on developer agent score from VERIFICATION_REJECT/PASS markers
-- ✅ Daemon auto-start in `masonry-session-start.js` (Ruflo-style) — map + ultralearn auto-start on real projects
-- ✅ `masonry_doctor` MCP tool — 6-point health check: Recall, daemons, hooks, registry, training data, output freshness
-- ⏭ compact-manual / compact-auto PreCompact split — skipped (existing masonry-pre-compact.js handles both cases correctly)
-
----
-
-## What We Already Have That Ruflo Doesn't
-
-- `ENABLE_TOOL_SEARCH: "auto:3"` — better than Ruflo's role-based scoping (native Claude Code deferred tools)
-- Recall (System-Recall) — production vector+graph memory vs Ruflo's SQLite+HNSW stub
-- Masonry 4-layer router — Ruflo's router is static regex; Masonry has semantic + LLM layers
-- Campaign/research mode (Trowel) — Ruflo has no research campaign equivalent
-- Kiln (BrickLayerHub) — Ruflo has no monitoring UI
-
-## New Findings (Firecrawl Deep Dive, 2026-03-27)
-
-### Parallel Execution Mechanisms (Ruflo's actual power)
-
-**`claude -p` headless instances** — spawn non-interactive Claude for background work:
-```bash
-result=$(claude -p "Read file.ts, find all TODO comments, return JSON list" --output-format json)
+Dependency format in progress.json:
+```json
+{"id": 4, "description": "Integration test", "status": "PENDING", "depends_on": [3]}
 ```
-Key flags: `--output-format json|text|stream-json`, `--max-turns N`, `--fork-session` (parallel hypothesis exploration from a resumed session).
 
-**`run_in_background: true` in Task calls** — non-blocking agent spawning:
-```javascript
-// Fire-and-forget parallel agents
-Agent({subagent_type: "developer", prompt: "...", run_in_background: true})
-Agent({subagent_type: "test-writer", prompt: "...", run_in_background: true})
+**Why now**: Frontend build → integration test chains can start the moment the build finishes rather than waiting for the whole batch.
+
+---
+
+### 1.4 Execution Strategy Flag
+
+**Gap addressed**: Gap 4 — one strategy for all tasks; a db migration runs the same as a config typo fix.
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `masonry/src/hooks/masonry-prompt-router.js` | EXTEND | Parse `--strategy conservative/balanced/aggressive` from UserPromptSubmit |
+| `masonry/bin/masonry-mcp.js` — toolSwarmInit | EXTEND | Accept `strategy` field; write to `.autopilot/strategy` |
+| `masonry/src/hooks/masonry-teammate-idle.js` | EXTEND | Inject strategy context into task assignment output |
+| `~/.claude/skills/build.md` | EXTEND | Document the `--strategy` flag |
+
+Strategy definitions (written to `.autopilot/strategy`):
 ```
-BrickLayer already has `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` but barely uses `run_in_background`.
+conservative  → extra verification steps, security scan, slower but thorough
+balanced      → default path, standard test suite
+aggressive    → skip redundant checks, parallel tasks, fastest path
+```
 
-**Native agent team tools** (already available in BrickLayer):
-- `TeamCreate` — create a named team of agents
-- `TaskCreate / TaskList / TaskUpdate / TaskGet / TaskOutput` — task queue
-- `SendMessage` — send message to a specific named agent
-All these are deferred tools — use `ToolSearch` to load them.
+**Why now**: Even before the training pipeline auto-selects strategy, giving Tim (or the orchestrator) explicit control per task is immediately useful.
 
-### Token Optimizer (30-50% reduction)
-Ruflo claims these sources of reduction:
-- ReasoningBank retrieval: pull pre-computed reasoning instead of regenerating (-32%)
-- Agent Booster edits: WASM patches vs full rewrites (-15%)
-- Prompt cache: reuse session context (-10%)
-- Optimal batch size: group similar work (-20%)
+---
 
-BrickLayer equivalent: inject cached context from Recall into session start instead of regenerating (-10-15% likely achievable now).
+### 1.5 Phase Checkpoint Commits
 
-### In-Process MCP Server
-Ruflo runs MCP server in the same process as the agent (no IPC overhead). Sub-millisecond tool execution.
-BrickLayer Masonry MCP runs out-of-process via stdio. Not worth changing unless perf becomes a bottleneck.
+**Gap addressed**: Gap 2 — failure means full restart; no mid-build rollback point.
 
-### Hook Safety Audit Needed
-Issue #1107 warning: hooks without `continueOnError: true` hard-block every Claude Code session if they crash.
-**Action**: Audit all hooks in settings.json — any synchronous (non-async) hook that doesn't `process.exit(0)` on error path must add `continueOnError: true`.
+| File | Action | Purpose |
+|------|--------|---------|
+| `masonry/src/hooks/masonry-build-guard.js` | EXTEND | Detect phase boundary on DONE task; fire git-nerd for tagged commit |
+| `masonry/bin/masonry-mcp.js` — toolSwarmInit | EXTEND | Accept `phases` array; mark `phase_end` on tasks in progress.json |
+| `~/.claude/agents/git-nerd.md` | EXTEND | Handle `--phase-checkpoint` flag; tag as `phase/{name}` |
 
-### SPARC 16 Dev Modes (slash commands in Ruflo)
-`/architect`, `/code`, `/tdd`, `/debug`, `/security-review`, `/docs-writer`, `/integration`, `/devops`, `/refinement`, `/spec-pseudocode`, `/mcp`, `/ask`, `/reset`, `/deep-research`, `/batch`, `/workflow`
-BrickLayer equivalent: add these as mode annotations in spec.md tasks (Phase 5).
+Phase boundary detection in progress.json:
+```json
+{"id": 5, "description": "Architecture approved", "status": "DONE", "phase_end": "architecture"}
+```
 
-### Dual-Mode Collaboration
-Ruflo: Claude Code (architecture/security/testing) + OpenAI Codex (implementation/optimization).
-Shared memory namespace `collaboration` via `memory_store/memory_search`.
-BrickLayer equivalent: already has Recall shared memory — just need the naming convention.
+Tag format: `phase/spec`, `phase/architecture`, `phase/refinement`, `phase/completion`
 
-## Firecrawl Fix
+**Why now**: Fits directly onto the existing git-nerd pattern. Rollback to checkpoint instead of full abort.
 
-Cloud firecrawl-mcp (`npx -y firecrawl-mcp`) is working — use this.
-Self-hosted container at 192.168.50.35:3002 and 192.168.50.19:3002 is down (separate issue).
+---
+
+## Phase 2 — Medium Term (2-4 weeks)
+
+---
+
+### 2.1 SPARC Phases: Pseudocode + Architecture
+
+**Gap addressed**: Gap 2 — 2-stage build (spec → code) vs 5-stage SPARC.
+
+**Current**: `spec.md` → `/build`
+**Target**: `spec.md` → `pseudocode.md` → `architecture.md` → `/build` (Refinement + Completion)
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `~/.claude/agents/spec-writer.md` | EXTEND | Add pseudocode + architecture phases before returning |
+| `~/.claude/skills/pseudocode.md` | CREATE | New skill — writes `.autopilot/pseudocode.md` (plain English logic, no code syntax) |
+| `~/.claude/skills/architecture.md` | CREATE | New skill — spawns architect; writes `.autopilot/architecture.md` |
+| `~/.claude/agents/developer.md` | EXTEND | Inject both docs into task prompt if present |
+
+Pseudocode = per-task logic in plain English (flow + edge cases, no syntax).
+Architecture = component diagram, interface contracts, data flow, explicit out-of-scope list.
+
+**Why**: The most common source of multi-cycle rework is a developer agent building the right code for the wrong design. Pseudocode makes logic explicit before implementation.
+
+---
+
+### 2.2 Confidence-Scored Pattern Storage
+
+**Gap addressed**: Gap 3 — patterns never decay; bad patterns survive indefinitely alongside good ones.
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `masonry/src/hooks/masonry-post-task.js` | EXTEND | Success: `confidence += 0.20*(1-c)`; Failure: `confidence -= 0.15*c` |
+| `masonry/src/hooks/masonry-training-export.js` | EXTEND | Include confidence delta in recall export payload on Stop |
+| `masonry/bin/masonry-mcp.js` | EXTEND | Add `masonry_pattern_decay` tool: prune patterns below 0.2 threshold |
+| `masonry/src/schemas/payloads.py` | EXTEND | Add `confidence` float field to `PatternRecord` |
+
+Bayesian update rules (matching Ruflo):
+```
+success:    confidence += 0.20 * (1 - confidence)
+failure:    confidence -= 0.15 * confidence
+time decay: -0.005 per hour since last use
+prune:      remove if confidence < 0.2
+initial:    0.7 for all existing patterns
+```
+
+**Why**: Qdrant already handles retrieval. The gap is in the feedback loop, not the storage backend.
+
+---
+
+### 2.3 7-Point Verification Checklist
+
+**Gap addressed**: Gap 6 — tests + lint is the full bar. Security and deployment never checked.
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `masonry/bin/masonry-mcp.js` | EXTEND | Add `masonry_verify_7point` tool: runs all 7 checks, returns structured report |
+| `masonry/src/hooks/masonry-lint-check.js` | EXTEND | Add security scan as check 5 |
+| `~/.claude/skills/verify.md` | EXTEND | Call `masonry_verify_7point`; block PASS verdict on any failure |
+| `~/.claude/agents/verification.md` | EXTEND | Add 7-point checklist to verdict criteria |
+
+7 checks (fail-fast order):
+1. Test coverage >= 80%
+2. Unit tests pass
+3. Integration tests pass
+4. E2E tests pass (if test files exist)
+5. **Security scan** — `bandit -r src/ -q` (Python) or `eslint --plugin security` (JS) — NEW
+6. **Performance baseline** — warn if >20% slower than prior run — NEW
+7. **Docker build** — only if Dockerfile present — NEW
+
+**Why**: Security and deployment checks wrap existing tools. 70% of the value for 30% of the work.
+
+---
+
+### 2.4 Senior Agent Escalation Tier
+
+**Gap addressed**: Gap 7 — 3 developer failures goes straight to Tim; no intermediate capable agent.
+
+**Current**: `developer x3` → `diagnose-analyst` → human
+**Target**: `developer x3` → `senior-developer` → `architect` → `diagnose-analyst` → human + GitHub issue
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `~/.claude/agents/senior-developer.md` | CREATE | Wider system context, reads all related files, can propose refactors |
+| `~/.claude/skills/build.md` | EXTEND | Add senior-developer before diagnose-analyst in escalation chain |
+| `masonry/bin/masonry-mcp.js` | EXTEND | Add `masonry_github_issue` tool: auto-create issue + full log on human escalation |
+| `~/.claude/agents/hierarchical-coordinator.md` | EXTEND | Wire escalation chain with new senior tier |
+
+Escalation flow:
+```
+developer fails x3 → DEV_ESCALATE
+  → senior-developer (full system context, wider file scope)
+senior-developer fails → SENIOR_ESCALATE
+  → diagnose-analyst (root cause analysis)
+diagnose-analyst → DIAGNOSIS_COMPLETE → fix-implementer
+fix-implementer fails → HUMAN_ESCALATE
+  → create GitHub issue with full task log + notify Tim
+```
+
+**Why**: Most failures that currently interrupt Tim (junior agent hitting architectural wall) can be resolved by a more capable agent with broader context.
+
+---
+
+## Phase 3 — Long Term (Architecture Changes)
+
+---
+
+### 3.1 Training Pipeline
+
+**Gap addressed**: Gap 1 — every build uses the same strategy; no learning across builds.
+**Depends on**: Phase 1.1 telemetry — needs ~50 samples per task type first.
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `masonry/src/training/collector.py` | CREATE | Read `telemetry.jsonl`; group by task_type; compute EMA success rate per strategy |
+| `masonry/src/training/selector.py` | CREATE | Given task_type + history, return optimal strategy |
+| `masonry/bin/masonry-mcp.js` | EXTEND | Add `masonry_training_update` tool: trigger EMA recompute after each build |
+| `masonry/src/hooks/masonry-pre-task.js` | EXTEND | Auto-call selector; write recommended strategy to `.autopilot/strategy` |
+
+EMA formula: `alpha=0.3; ema = 0.3*outcome + 0.7*ema`
+Cold start: all strategies begin at 0.688 (Ruflo's base conservative success rate).
+
+---
+
+### 3.2 ReasoningBank (Local HNSW Index)
+
+**Gap addressed**: Gap 3 — Qdrant ~200ms round-trips too slow for synchronous session-start injection.
+**Depends on**: Phase 2.2 confidence scoring (patterns need confidence fields before indexing).
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `masonry/src/reasoning/bank.py` | CREATE | SQLite (metadata) + hnswlib (vectors); 2-3ms local retrieval |
+| `masonry/src/hooks/masonry-session-start.js` | EXTEND | Query ReasoningBank synchronously; inject top-5 patterns into context |
+| `masonry/bin/masonry-mcp.js` | EXTEND | Add `masonry_reasoning_query` and `masonry_reasoning_store` tools |
+
+Dependencies: `hnswlib-python`, `sqlite3` (stdlib)
+Qdrant stays for long-term archival and full-text search.
+
+---
+
+### 3.3 Knowledge Graph + PageRank Pattern Ranking
+
+**Gap addressed**: Gap 9 — flat Recall storage; no pattern relationships; high-value patterns don't surface reliably.
+**Depends on**: Phase 3.2 ReasoningBank.
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `masonry/src/reasoning/graph.py` | CREATE | Neo4j CITES edges between co-used successful patterns |
+| `masonry/src/reasoning/pagerank.py` | CREATE | PageRank run; updates confidence scores in bank |
+| `masonry-daemon-manager.js` | EXTEND | Nightly PageRank recompute |
+
+Edge creation: task T succeeds using patterns [A, B, C] → create CITES edges between all three.
+Project isolation: each project gets its own graph scope.
+
+---
+
+### 3.4 Adaptive Topology Selection
+
+**Gap addressed**: BrickLayer always uses hierarchical topology; mesh/ring never applied.
+**Depends on**: Phase 1.1 telemetry (task dependency graph data).
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `masonry/bin/masonry-mcp.js` — toolSwarmInit | EXTEND | Analyze task dependency graph; recommend topology |
+| `~/.claude/agents/adaptive-coordinator.md` | UPDATE | Receive explicit topology recommendation from swarm_init |
+
+Selection rules:
+```
+All tasks independent        → hierarchical (current default)
+Tasks with shared code review → mesh (peer review between agents)
+Linear chain (N feeds N+1)   → ring (stream output directly)
+Mixed                        → hybrid
+```
+
+---
+
+## Sequencing Map
+
+```
+No deps — start immediately:
+  1.2 pre-edit backup         ← smallest, immediate pain relief
+  1.4 strategy flag           ← zero architectural change
+  1.5 phase checkpoints       ← fits existing git-nerd
+  1.1 pre/post telemetry      ← starts data clock for 3.1
+  1.3 agent-complete          ← dependency signaling
+
+No deps — weeks 3-5:
+  2.4 senior agent tier       ← biggest Tim interruption reduction
+  2.3 7-point verify          ← wraps existing tools
+  2.1 SPARC phases            ← biggest rework cycle reduction
+  2.2 confidence scoring      ← Recall metadata extension
+    └─> 3.2 ReasoningBank
+          └─> 3.3 knowledge graph
+
+  1.1 telemetry (after 50+ samples/type)
+    └─> 3.1 training pipeline
+          └─> 3.4 adaptive topology
+```
+
+---
+
+## Net New Files
+
+```
+masonry/src/hooks/masonry-pre-task.js
+masonry/src/hooks/masonry-post-task.js
+masonry/src/hooks/masonry-pre-edit.js
+masonry/src/hooks/masonry-agent-complete.js
+~/.claude/skills/pseudocode.md
+~/.claude/skills/architecture.md
+~/.claude/agents/senior-developer.md
+masonry/src/training/collector.py
+masonry/src/training/selector.py
+masonry/src/reasoning/bank.py
+masonry/src/reasoning/graph.py
+masonry/src/reasoning/pagerank.py
+```
+
+---
+
+## Recommended Start Order
+
+1. **Phase 1.2** — smallest, immediate pain relief on bad writes during builds
+2. **Phase 1.4** — zero architectural change; immediately controls build behavior
+3. **Phase 1.1** — starts the data clock for the training pipeline
+4. **Phase 2.4** — biggest reduction in Tim interruptions per build
+5. **Phase 2.1** — biggest reduction in multi-cycle rework
