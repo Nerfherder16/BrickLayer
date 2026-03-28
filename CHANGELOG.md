@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `e3cc158` chore: auto-commit 1 session file on stop (2026-03-28)
 - `926b2c8` chore: auto-commit 2 session files on stop (2026-03-28)
 - `2f61dd2` fix(p1+p3): register senior-developer in registry + fix test_server.py sys.path (2026-03-28)
 - `00ebf08` chore: auto-commit 5 session files on stop (2026-03-28)
