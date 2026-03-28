@@ -38,6 +38,19 @@ from masonry.src.writeback import (
 _DSPY_SECTION_HEADER = "## DSPy Optimized Instructions"
 _DSPY_SECTION_END = "<!-- /DSPy Optimized Instructions -->"
 
+CONSTITUTIONAL_ANTIPATTERNS = [
+    "Promises specific quantitative outcomes without evidence",
+    "Uses absolute language (always/never) without qualifying context",
+    "Claims to perform actions outside its tool scope",
+    "Hallucinates specific file paths, function names, or APIs",
+    "Reverses or ignores a stated constraint from the prompt",
+    "Over-hedges to the point of giving no actionable output",
+    "Repeats the prompt verbatim as part of the answer",
+    "Fabricates citations, URLs, or source references",
+    "Ignores failure modes or error cases entirely",
+    "Presents guesses or assumptions as verified facts",
+]
+
 
 # ── Training data helpers ────────────────────────────────────────────────────
 
@@ -262,6 +275,108 @@ Respond with ONLY a JSON object, no markdown fences, no commentary:
 }}"""
 
 
+# ── Constitutional AI critique-revise pass ───────────────────────────────────
+
+def run_constitutional_critique(
+    instructions: str,
+    base_dir: Path,
+    max_rounds: int = 3,
+) -> tuple[str, int, bool]:
+    """Run a Constitutional AI critique-revise loop on agent instructions.
+
+    Parameters
+    ----------
+    instructions:
+        The agent instructions to review.
+    base_dir:
+        BrickLayer root directory (used to locate the claude binary context).
+    max_rounds:
+        Maximum number of critique-revise cycles before stopping.
+
+    Returns
+    -------
+    (revised_instructions, rounds_taken, passed_clean)
+        revised_instructions — final instructions after all rounds
+        rounds_taken         — 0 if CONSTITUTIONAL_PASS on first check
+        passed_clean         — True only if the final critique returned CONSTITUTIONAL_PASS
+    """
+    import shutil
+
+    claude_bin = shutil.which("claude")
+    if not claude_bin:
+        return (instructions, 0, False)
+
+    numbered_patterns = "\n".join(
+        f"{i + 1}. {p}" for i, p in enumerate(CONSTITUTIONAL_ANTIPATTERNS)
+    )
+
+    def _build_critique_prompt(text: str) -> str:
+        return (
+            "Review these agent instructions for the following anti-patterns:\n"
+            f"{numbered_patterns}\n\n"
+            "Instructions to review:\n"
+            f"{text}\n\n"
+            "For each anti-pattern found, explain the violation briefly.\n"
+            "If none found, respond: CONSTITUTIONAL_PASS\n"
+            "If violations found, respond: CONSTITUTIONAL_VIOLATIONS\n"
+            "Then list each violation with a suggested fix."
+        )
+
+    def _build_revision_prompt(text: str, critique_output: str) -> str:
+        return (
+            "Revise the following agent instructions to fix the constitutional violations "
+            "identified below. Return ONLY the corrected instructions text — no commentary, "
+            "no preamble, no markdown fences.\n\n"
+            "Violations found:\n"
+            f"{critique_output}\n\n"
+            "Original instructions:\n"
+            f"{text}"
+        )
+
+    def _call_claude(prompt: str) -> tuple[str, bool]:
+        """Call claude -p and return (stdout, success)."""
+        try:
+            result = subprocess.run(
+                [
+                    claude_bin,
+                    "-p",
+                    "--no-session-persistence",
+                    "--dangerously-skip-permissions",
+                    "--setting-sources",
+                    "",
+                ],
+                input=prompt,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=300,
+            )
+        except subprocess.TimeoutExpired:
+            return ("", False)
+        if result.returncode != 0:
+            return ("", False)
+        return (result.stdout.strip(), True)
+
+    current = instructions
+    for round_num in range(1, max_rounds + 1):
+        critique_output, ok = _call_claude(_build_critique_prompt(current))
+        if not ok:
+            # Claude call failed — return what we have without claiming a pass
+            return (current, round_num - 1, False)
+
+        if "CONSTITUTIONAL_PASS" in critique_output:
+            return (current, round_num - 1, True)
+
+        # Violations found — ask Claude to revise
+        revised, ok = _call_claude(_build_revision_prompt(current, critique_output))
+        if not ok or not revised:
+            return (current, round_num, False)
+        current = revised
+
+    # Exhausted max_rounds without a clean pass
+    return (current, max_rounds, False)
+
+
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def run(
@@ -411,6 +526,18 @@ def run(
         print("[parse] Key changes:")
         for change in key_changes[:5]:
             print(f"  - {change}")
+
+    # ── Constitutional AI critique-revise pass ────────────────────────────────
+    if not dry_run:
+        print("[constitutional] Running Constitutional AI critique pass ...")
+        revised, rounds, passed = run_constitutional_critique(instructions, base_dir)
+        if rounds > 0:
+            print(
+                f"[constitutional] {rounds} round(s) — {'PASS' if passed else 'PARTIAL'}"
+            )
+        else:
+            print("[constitutional] PASS (no violations found)")
+        instructions = revised
 
     # ── Write-back ────────────────────────────────────────────────────────────
     # Scope guard: only write back to the file that was read for optimization.
