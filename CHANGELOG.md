@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `df0ee0d` chore: update template (1 file) (2026-03-28)
 - `ab5ec69` fix(tests): split fake Stripe test key to avoid push protection false positive (2026-03-28)
 - `12318b5` feat(phase5): complete build queue — 22 domain agents, 7 marketing skills, golden examples, 8 interaction states (2026-03-28)
 - `74068e1` feat(phases1-5): T3/T6/T7/T11/T13/T14/T18/T29/T31 — session 3 progress (2026-03-28)
