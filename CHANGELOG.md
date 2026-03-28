@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `1cc27d2` docs: add Ruflo gap analysis and Masonry audit reports (2026-03-28)
 - `ded93dc` chore: update MASONRY_GAP_ANALYSIS.md (1 file) (2026-03-28)
 - `63067e3` docs: update GITHUB_HANDOFF for Phase 2-3 PR completion (2026-03-28)
 - `3f46918` fix(build-guard): skip legacy-build warning when progress.json status is COMPLETE (2026-03-28)
