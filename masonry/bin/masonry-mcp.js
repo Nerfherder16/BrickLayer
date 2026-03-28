@@ -1564,7 +1564,7 @@ async function toolDoctor(args) {
   // --- 1. Recall connectivity ---
   try {
     const resp = await Promise.race([
-      httpRequest(`${cfg.recallHost}/api/health`, { method: "GET", headers: {} }, null),
+      httpRequest(`${cfg.recallHost}/health`, { method: "GET", headers: {} }, null),
       new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000)),
     ]);
     if (resp.status >= 200 && resp.status < 300) {
@@ -1886,14 +1886,24 @@ const rl = readline.createInterface({
   crlfDelay: Infinity,
 });
 
+let pendingRequests = 0;
+let stdinClosed = false;
+
 rl.on("line", (line) => {
   const trimmed = line.trim();
   if (!trimmed) return;
-  handleRequest(trimmed).catch((err) => {
-    process.stderr.write(`Unhandled error: ${err.message}\n`);
-  });
+  pendingRequests++;
+  handleRequest(trimmed)
+    .catch((err) => {
+      process.stderr.write(`Unhandled error: ${err.message}\n`);
+    })
+    .finally(() => {
+      pendingRequests--;
+      if (stdinClosed && pendingRequests === 0) process.exit(0);
+    });
 });
 
 rl.on("close", () => {
-  process.exit(0);
+  stdinClosed = true;
+  if (pendingRequests === 0) process.exit(0);
 });
