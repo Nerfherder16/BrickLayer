@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `2f387c7` feat(ema-loop): end-to-end EMA training pipeline — collector + Stop hook (2026-03-28)
 - `1f69601` feat(reasoning): local HNSW fallback for ReasoningBank — works without Qdrant (2026-03-28)
 - `b571fe4` feat(tier3-partial): graph.py updates + HNSW test + topology module (in-progress) (2026-03-28)
 - `2bdb919` chore: update masonry (1 file) (2026-03-28)
