@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `5b0de17` fix(e2e): add missing mortar.md sentinel headings + update agent_registry (2026-03-28)
 - `df0ee0d` chore: update template (1 file) (2026-03-28)
 - `ab5ec69` fix(tests): split fake Stripe test key to avoid push protection false positive (2026-03-28)
 - `12318b5` feat(phase5): complete build queue — 22 domain agents, 7 marketing skills, golden examples, 8 interaction states (2026-03-28)
