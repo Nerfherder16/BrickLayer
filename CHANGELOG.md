@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `5686edb` chore: update docs (3 files) (2026-03-28)
 - `cd6d2f4` chore: update docs (1 file) (2026-03-28)
 - `d69b058` feat(tests): add wiring completeness test suite (17 tests, W1-W6) (2026-03-28)
 - `729b1b4` test: add 36-test build queue verification suite (all 32 tasks + Ruflo build skill) (2026-03-28)
