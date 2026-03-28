@@ -47,18 +47,19 @@ Source: https://github.com/quemsah/awesome-claude-plugins (Top 100, as of 2026-0
 | 79 | [worktrunk](https://github.com/max-sixty/worktrunk) | Git worktree CLI for parallel AI agent workflows (Phase 4) | Parallel agent isolation | TBD |
 
 ### Skills Libraries (mine for individual items)
-| # | Repo | What it does | Count | Deep Research |
-|---|------|-------------|-------|---------------|
-| 13 | [antigravity-awesome-skills](https://github.com/sickn33/antigravity-awesome-skills) | 1,304+ agentic skills with installer CLI | 1304+ | [skills-libraries.md](skills-libraries.md) |
-| 42 | [anthropics/knowledge-work-plugins](https://github.com/anthropics/knowledge-work-plugins) | 12 official plugins; top gaps: engineering incident-response (blameless postmortem + 5-why chain), legal compliance-classification | Marginal value overall; extract incident-response pattern for masonry | ✅ [security-knowledge-work.md](security-knowledge-work.md) |
-| 43 | [huggingface/skills](https://github.com/huggingface/skills) | HuggingFace ecosystem skills | 11 | TBD |
-| 48 | [pm-skills](https://github.com/phuryn/pm-skills) | 100+ PM skills (discovery, strategy, execution) | 100+ | TBD |
-| 51 | [claude-skills (Jeffallan)](https://github.com/Jeffallan/claude-skills) | 66 full-stack developer skills | 66 | [skills-libraries.md](skills-libraries.md) |
-| 53 | [claude-skills (alirezarezvani)](https://github.com/alirezarezvani/claude-skills) | 192+ skills across engineering, marketing, product | 192+ | [skills-libraries.md](skills-libraries.md) |
-| 61 | [AI-Research-SKILLs](https://github.com/Orchestra-Research/AI-Research-SKILLs) | AI research + engineering skills | 22 | TBD |
-| 75 | [trailofbits/skills](https://github.com/trailofbits/skills) | Security audit + vuln detection skills | 36 | [security-knowledge-work.md](security-knowledge-work.md) |
-| 78 | [Anthropic-Cybersecurity-Skills](https://github.com/mukul975/Anthropic-Cybersecurity-Skills) | 734+ MITRE ATT&CK mapped cybersecurity skills | 734+ | TBD |
-| 92 | [Product-Manager-Skills](https://github.com/deanpeters/Product-Manager-Skills) | PM framework skills (battle-tested) | 46 | TBD |
+| # | Repo | Top gaps for BrickLayer | Deep Research |
+|---|------|------------------------|---------------|
+| 13 | [antigravity-awesome-skills](https://github.com/sickn33/antigravity-awesome-skills) | The Fool's 5 structured challenge modes for design-reviewer | ✅ [skills-libraries.md](skills-libraries.md) |
+| 30 | [Agent-Skills-for-Context-Engineering](https://github.com/muratcankoylan/Agent-Skills-for-Context-Engineering) | **Semantic context degradation detection** (extend masonry-context-monitor.js to detect lost-in-middle/poisoning/distraction/clash via Ollama cosine similarity); LLM-as-Judge pairwise eval for DSPy loop; standardized Gotchas sections across all agent files | ✅ [skills-libraries.md](skills-libraries.md) |
+| 42 | [anthropics/knowledge-work-plugins](https://github.com/anthropics/knowledge-work-plugins) | Engineering incident-response (blameless postmortem + 5-why chain) | ✅ [security-knowledge-work.md](security-knowledge-work.md) |
+| 43 | [huggingface/skills](https://github.com/huggingface/skills) | HuggingFace ecosystem integration | TBD |
+| 48 | [pm-skills](https://github.com/phuryn/pm-skills) | Product discovery / JTBD patterns | TBD |
+| 51 | [claude-skills (Jeffallan)](https://github.com/Jeffallan/claude-skills) | `spec-miner` (inverse spec-writer — mines existing code into spec), The Fool's 5 for design-reviewer | ✅ [skills-libraries.md](skills-libraries.md) |
+| 53 | [claude-skills (alirezarezvani)](https://github.com/alirezarezvani/claude-skills) | `/discover` (JTBD + experiment design), `release-manager` (conventional commits → semver → release notes) | ✅ [skills-libraries.md](skills-libraries.md) |
+| 61 | [AI-Research-SKILLs](https://github.com/Orchestra-Research/AI-Research-SKILLs) | AI research + engineering depth | TBD |
+| 75 | [trailofbits/skills](https://github.com/trailofbits/skills) | See `verification-analyst` in Agents section above | ✅ [security-knowledge-work.md](security-knowledge-work.md) |
+| 78 | [Anthropic-Cybersecurity-Skills](https://github.com/mukul975/Anthropic-Cybersecurity-Skills) | Mine for security agent expansion (734+ MITRE ATT&CK mapped) | TBD |
+| 92 | [Product-Manager-Skills](https://github.com/deanpeters/Product-Manager-Skills) | PM framework (battle-tested, 46 skills) | TBD |
 
 ---
 

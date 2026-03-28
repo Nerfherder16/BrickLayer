@@ -35,7 +35,7 @@ Or via Mortar: "research this repo: https://github.com/owner/repo"
 | [pbakaus/impeccable](pbakaus-impeccable.md) | 2026-03-28 | 210+ (21 skills × 10 providers) | 21 skills | 9 | AI Slop Test + quantitative Nielsen scoring (0-40) + Context Gathering Protocol |
 | [tambo-ai/tambo](tambo-ai-tambo.md) | 2026-03-28 | large monorepo | 2 skills + 4 Charlie playbooks | 3 | Charlie proactive playbooks (dead-code cleanup, coverage bumping, release notes — weekly scheduled) |
 | [VoltAgent/awesome-claude-code-subagents](voltagent-awesome-claude-code-subagents.md) | 2026-03-28 | 127+ agents | 127 | 4 | BGPT MCP for academic paper search + BrickLayer Claude plugin marketplace entry |
-| [nicobailon/visual-explainer](nicobailon-visual-explainer.md) | 2026-03-28 | ~20 | 1 SKILL + 8 commands | 8 | HTML synthesis reports — make findings/synthesis.md navigable browser HTML |
+| [Skills Libraries Cross-Reference](skills-libraries.md) | 2026-03-28 | ~1,700+ across 5 repos | 205+ skills (alirezarezvani) | 3 | Semantic context degradation detection + LLM-as-Judge eval + spec-miner skill |
 
 ---
 
@@ -47,13 +47,17 @@ Or via Mortar: "research this repo: https://github.com/owner/repo"
 - **Parallel multi-agent debugging** — wshobson agent-teams debug preset + AGENTS-COLLECTION ZEUS LOKI: competing hypothesis parallel investigators is a proven pattern.
 - **Fail-closed defaults** — AGENTS-COLLECTION TITAN/ZEUS + wshobson defaults-to-FAIL: every quality system defaults FAIL, must earn PASS.
 - **AST/semantic context** — code-review-graph, lsp-index-engineer: blast-radius context injection instead of exhaustive file reads.
-- **SKILL.md capability advertisement** — CLI-Anything, impeccable, tambo, visual-explainer, VoltAgent: YAML frontmatter on SKILL.md is converging as the standard for agent discoverability. BL uses .md without structured frontmatter.
+- **SKILL.md capability advertisement** — CLI-Anything, impeccable, tambo, visual-explainer, VoltAgent, antigravity, alirezarezvani: YAML frontmatter on SKILL.md is converging as the standard for agent discoverability. BL uses .md without structured frontmatter.
 - **Plugin marketplace distribution** — tambo, impeccable, VoltAgent, visual-explainer, CLI-Anything: every major skills repo ships a `.claude-plugin/marketplace.json`. BL agents are distributed by cloning — no packaging.
 - **Project context file gates skill execution** — impeccable (`.impeccable.md`), CLI-Anything (`skill_generator.py`), tambo (`devdocs/CLAUDE_SKILLS.md`): all serious skill repos gate execution on an explicit context file. BL has `project-brief.md` for campaigns but not for dev tasks.
 - **Proactive automation (scheduled AI)** — tambo Charlie (4 weekly playbooks): scheduled AI runs creating PRs/issues/coverage bumps. BL automation is 100% reactive.
 - **Quantitative scoring rubrics** — impeccable (Nielsen 0-40, audit 0-20) + wshobson PluginEval + AGENTS-COLLECTION EDD: numeric scores enable training signal. BL uses qualitative verdicts.
 - **HTML visual output** — visual-explainer (8 commands, slide decks, Mermaid zoom/pan): all agent output as markdown is readable but not navigable. HTML output is a clear step up.
 - **H0/H1 formal hypotheses** — K-Dense-AI-claude-scientific-skills: null/alternative hypothesis + prediction triad for falsifiable research. BL questions lack formal falsification conditions.
+- **Context engineering as explicit discipline** — muratcankoylan Agent-Skills-for-Context-Engineering: 13 dedicated skills covering degradation detection, compression strategies, LLM-as-Judge, BDI architecture. BL's context management is implicit (token count hook only).
+- **Skill decision tree chaining** — Jeffallan/claude-skills: explicit workflow sequences (Feature Dev → Bug Fix → Legacy Migration) as documentation patterns. BL's Mortar routing docs don't provide this level of task-specific chain guidance.
+- **Structured challenge modes** — the-fool skill (antigravity, Jeffallan): devil's advocate + first principles + inversion + pre-mortem + Socratic — five modes for stress-testing decisions. BL's design-reviewer has no equivalent structured challenge pattern.
+- **Gotchas sections** — muratcankoylan standardizes 5-9 failure mode entries per skill. BL agent files have no standardized failure documentation format.
 
 ---
 
@@ -67,6 +71,8 @@ Or via Mortar: "research this repo: https://github.com/owner/repo"
 - [ ] **ui-reasoning.csv ingestion** — 161-row industry-specific design reasoning table → BM25 search in uiux-master workflow; `product_type` column maps to style + color + typography + anti-patterns (from nextlevelbuilder/ui-ux-pro-max-skill)
 
 ### HIGH Priority
+- [ ] **Semantic context degradation detection** — Extend `masonry-context-monitor.js` to detect lost-in-middle, poisoning, distraction, and clash patterns via Ollama cosine similarity; emit DEGRADATION_WARNING to claims board when cosine similarity < 0.6 against original task (from muratcankoylan/Agent-Skills-for-Context-Engineering — 4h)
+- [ ] **LLM-as-Judge evaluation** — Add `--eval-mode llm-judge` to `improve_agent.py`; pairwise comparison with position bias mitigation (run twice, swap order); rubric generation from high-quality examples; integrate alongside EMA heuristics (from muratcankoylan/Agent-Skills-for-Context-Engineering — 6h)
 - [ ] **chrome-devtools-mcp** — Add `npx chrome-devtools-mcp@latest` to MCP config; performance tracing (LCP/CLS/INP), source-mapped debug, network waterfall. Official Google tool, 31.4K★. (from quemsah catalog)
 - [ ] **code-review-graph** — AST knowledge graph for BL codebases; blast-radius context injection; 6.8x token reduction on reviews, 18 langs, incremental git hook. (from quemsah catalog)
 - [ ] **worktrunk** — `cargo install worktrunk`; git worktree manager purpose-built for parallel AI agent workflows; `wt switch -c -x claude feat` spins up worktree+Claude in one command. (from quemsah catalog)
@@ -80,7 +86,7 @@ Or via Mortar: "research this repo: https://github.com/owner/repo"
 - [ ] **Dependency audit + file size enforcement hooks** — dep vuln scan on package.json/requirements.txt changes; hard block >300 lines (from AGENTS-COLLECTION — hooks-collection)
 - [ ] **TDD depth upgrade** — `tdd-orchestrator` opus agent covering full TDD lifecycle: mutation testing, property-based (Hypothesis/QuickCheck), chaos, ATDD/BDD, Chicago vs London school per component (from wshobson/agents)
 - [ ] **repomix MCP server** — `npx repomix-mcp`; 8 tools incl. `pack_codebase`, `grep_repomix_output`, `generate_skill`; Tree-sitter ~70% token compression; auto-generate BL skill packages (from yamadashy/repomix)
-- [ ] **SKILL.md capability advertisement format** — Add YAML frontmatter (`name`, `description`, `triggers`, `model`, `tools`) to all BL agent .md files; update onboard_agent.py to parse it; enables `/subagent-catalog:search` style discoverability (from HKUDS/CLI-Anything + tambo + VoltAgent)
+- [ ] **SKILL.md capability advertisement format** — Add YAML frontmatter (`name`, `description`, `triggers`, `model`, `tools`) to all BL agent .md files; update onboard_agent.py to parse it; enables `/subagent-catalog:search` style discoverability (from HKUDS/CLI-Anything + tambo + VoltAgent + antigravity + alirezarezvani)
 - [ ] **gap-analyst agent** — runs inventory scan → re-scans after context build → priority gap analysis → confirm → implement; formalizes the pre-build SOP (from HKUDS/CLI-Anything)
 - [ ] **HTML synthesis reports** — visual-explainer's SKILL.md + css-patterns.md + libraries.md as BL `/visual-report` skill; convert synthesis.md/build summaries/verify reports to navigable HTML with Mermaid zoom/pan, KPI cards, collapsible sections (from nicobailon/visual-explainer)
 - [ ] **Visual diff review command** — port `diff-review.md` with 10-section structure, fact-sheet verification checkpoint, decision confidence tiers (sourced/inferred/not-recoverable), cognitive debt surfacing, re-entry context (from nicobailon/visual-explainer)
@@ -92,6 +98,7 @@ Or via Mortar: "research this repo: https://github.com/owner/repo"
 - [ ] **BGPT MCP for academic paper search** — `npx bgpt-mcp` at bgpt.pro/mcp/sse; `mcp__bgpt__search_papers` with 25+ fields; injects peer-reviewed citations into BL research campaign findings (from VoltAgent/awesome-claude-code-subagents)
 - [ ] **Harvest 15 stack-matched agents** from 0xfurai/claude-code-subagents — python, rust, go, kotlin, bash, postgres, redis, neo4j, fastapi, nextjs, kafka, docker, opentelemetry, github-actions, vector-db (from 0xfurai research)
 - [ ] **Harvest niche domain agents** from VoltAgent catalog — chaos-engineer, reinforcement-learning-engineer, legacy-modernizer, scientific-computing, geospatial-developer, embedded-developer, game-developer (from VoltAgent/awesome-claude-code-subagents)
+- [ ] **Product discovery skill (/discover)** — chains ux-researcher + experiment-designer + discovery-coach patterns; takes vague product idea → user segment + 3 JTBD hypotheses + minimum experiment designs + PRD stub (from alirezarezvani/claude-skills — 5h)
 
 ### MEDIUM Priority
 - [ ] **Constitutional AI critique loop** — Add critique-revise pass to `optimize_with_claude.py` after generating improved instructions; check against 10 anti-patterns; max 3 rounds (from wshobson/agents — S complexity)
@@ -100,9 +107,13 @@ Or via Mortar: "research this repo: https://github.com/owner/repo"
 - [ ] **Karpathy 4 principles — Surgical Changes constraint** — Add explicit anti-adjacent-edit rule + dead-code ownership qualifier to `developer.md`, `fix-implementer.md`, `senior-developer.md`: "every changed line traces to the task; match existing style; only remove YOUR orphaned imports" (from forrestchang/andrej-karpathy-skills — 2h)
 - [ ] **Karpathy 4 principles — Pre-implementation ambiguity gate** — Add Step 0 "Surface Ambiguities" before RED phase in `developer.md` and `fix-implementer.md`; state assumptions, pick most conservative interpretation, flag for redirect (from forrestchang/andrej-karpathy-skills — 3h)
 - [ ] **Karpathy 4 principles — Before/after examples in agent prompts** — Add concrete bad-vs-correct code diffs to behavioral sections of `developer.md`, `typescript-specialist.md`, `python-specialist.md` (from forrestchang/andrej-karpathy-skills EXAMPLES.md — 4h)
+- [ ] **Spec-miner skill (/spec-mine)** — reverse-engineer implicit specification from existing codebase; output contracts/invariants/patterns/entry-points to `.autopilot/spec-mined.md`; `/plan` picks it up as "Existing System Behavior" section (from Jeffallan/claude-skills + alirezarezvani — 3h)
+- [ ] **Gotchas sections standardization** — Add 5-7 failure mode entries to every BL agent .md file following muratcankoylan format: "Gotcha: [what] — [why] — [how to avoid]"; gives EMA optimization loop structured failure signal (from muratcankoylan/Agent-Skills-for-Context-Engineering — 4h)
+- [ ] **The Fool challenge modes** — Integrate 5 structured challenge modes (devil's advocate, first principles, inversion, pre-mortem, Socratic) into design-reviewer and hypothesis-generator agents (from Jeffallan + sickn33/antigravity)
+- [ ] **Release manager skill (/release)** — reads conventional commits → bumps semver → generates structured release notes → runs readiness checklist (tests passing, migrations documented, rollback plan) (from alirezarezvani/claude-skills)
 - [ ] **LOKI Reflect phase** in research loop — spawn reflect agent between specialist verdict and writing finding; flags low-confidence verdicts as UNCERTAIN (from AGENTS-COLLECTION — ZEUS LOKI)
 - [ ] **LSP/semantic code index** — unified symbol graph via pyright/tsserver/gopls; `masonry_lsp_query` MCP tool; replaces exhaustive file reads in developer/diagnose agents (from AGENTS-COLLECTION — lsp-index-engineer)
-- [ ] **Context compression** — active summarization at 120K tokens targeting ≤500-token handoff summary (from AGENTS-COLLECTION — ZEUS 98.6% compression)
+- [ ] **Context compression skill** — formal compaction trigger at 70% utilization; active summarization targeting ≤500-token handoff; what to summarize (old tool outputs) vs preserve (original goal, key decisions, live state) (from muratcankoylan/Agent-Skills-for-Context-Engineering — AGENTS-COLLECTION — 3h)
 - [ ] **sequential-thinking MCP** — add `@modelcontextprotocol/server-sequential-thinking`; inject for `reasoning: deep` tasks (from AGENTS-COLLECTION — MCP configs)
 - [ ] **Confidence-gated output** (>80% threshold) for code-reviewer and research-analyst
 - [ ] **Golden examples in agent prompts** — add worked examples to spec-writer, question-designer-bl2, synthesizer
@@ -126,6 +137,10 @@ Or via Mortar: "research this repo: https://github.com/owner/repo"
 - [ ] **Conventional commits + release-please** — `release-please.yml` GitHub Action; auto-generates release PRs from conventional commits; pairs with `/commit` skill (from tambo-ai/tambo)
 - [ ] **multi-provider skills build system** — impeccable's `build.js` pattern: single source SKILL.md → 10 provider outputs (Claude, Cursor, Gemini, Codex, etc.); enables BL skills to target multiple AI coding tools (from pbakaus/impeccable)
 - [ ] **Slide deck command** — port visual-explainer's `generate-slides.md` for BL campaign synthesis → magazine-quality slide decks with SlideEngine.js, 4 presets, scroll-snap navigation (from nicobailon/visual-explainer)
+- [ ] **Persona concept for BrickLayer** — define 2-3 BL personas (Startup CTO, Research Analyst, Platform Engineer) as CLAUDE.md injection patterns that configure Mortar routing priorities and agent defaults (from alirezarezvani/claude-skills)
+- [ ] **MCP developer skill (/mcp-build)** — takes OpenAPI spec, scaffolds MCP server (TypeScript or Python) with manifest.json, tool definitions, and basic tests (from Jeffallan/claude-skills + alirezarezvani)
+- [ ] **Skill decision tree documentation** — document BL agent dispatch chains as explicit workflow sequences in CLAUDE.md: "Task X: agent A → agent B → verify with agent C" (from Jeffallan/claude-skills)
+- [ ] **Context compression trigger** — `masonry-context-compress.js` hook fires at 70% capacity; outputs suggested compaction summary with what to summarize vs preserve (from muratcankoylan/Agent-Skills-for-Context-Engineering)
 
 ### LOW Priority
 - [ ] soul.md ethical constraint doc per agent (from AGENTS-COLLECTION — ClawSec)
@@ -137,10 +152,18 @@ Or via Mortar: "research this repo: https://github.com/owner/repo"
 - [ ] SBOM + license compliance in security pipeline (from AGENTS-COLLECTION — security-workflows)
 - [ ] VoltAgent language specialists — elixir-expert, swift-expert, rails-expert, kotlin-specialist for gaps (from VoltAgent catalog)
 - [ ] n8n-skills — n8n workflow building skills for homelab automation context (from quemsah catalog)
-- [ ] andrej-karpathy-skills principles — [fully researched](forrestchang-andrej-karpathy-skills.md); Surgical Changes + assumption-surface gate are HIGH gaps; see build queue items below
+- [ ] andrej-karpathy-skills principles — [fully researched](forrestchang-andrej-karpathy-skills.md); Surgical Changes + assumption-surface gate are HIGH gaps; see build queue items above
 - [ ] Vercel share integration — visual-explainer's `share.sh` + vercel-deploy skill; one-command HTML report publishing (from nicobailon/visual-explainer)
 - [ ] surf-cli AI image generation in slide decks (from nicobailon/visual-explainer)
 - [ ] mcp-developer agent from VoltAgent — MCP server development, JSON-RPC 2.0 specialist (from VoltAgent)
+- [ ] BDI cognitive architecture for Trowel — formal belief/desire/intention mental model for campaign conductor; improves wave boundary coherence (from muratcankoylan/Agent-Skills-for-Context-Engineering)
+- [ ] Regulatory compliance skills (ISO 13485, MDR 2017/745, FDA 21 CFR Part 820, ISO 27001, GDPR) — relevant only if BL targets regulated industries (from alirezarezvani/claude-skills)
+- [ ] C-level advisory agents (CTO/CFO/CMO personas) — out of BL's core domain but useful for ADBP strategic decisions (from alirezarezvani/claude-skills)
+- [ ] Chaos engineer skill — fault injection planning, blast radius analysis, hypothesis-driven chaos experiments (from Jeffallan/claude-skills + sickn33/antigravity)
+- [ ] Incident commander skill — P0-P4 severity classifier, runbook lookup, PIR generator (from sickn33/antigravity + alirezarezvani)
+- [ ] Fine-tuning / LoRA skills — ML training pipeline, PEFT; outside BL's scope (from Jeffallan/claude-skills)
+- [ ] Multi-tool format conversion — single source SKILL.md → Cursor/Aider/Windsurf outputs (from alirezarezvani/claude-skills)
+- [ ] Skill security auditor — scan new agent .md files for injection/exfiltration patterns before onboarding (from sickn33/antigravity + alirezarezvani)
 
 ---
 
@@ -154,3 +177,5 @@ From the quemsah catalog, high-value repos not yet researched:
 - `max-sixty/worktrunk` (3.7K★) — Rust worktree manager (already recommended above)
 - `tirth8205/code-review-graph` (3.5K★) — AST blast-radius context injection
 - `ChromeDevTools/chrome-devtools-mcp` (31.4K★) — official Chrome DevTools MCP
+- `trailofbits/skills` — differential-review, second-opinion, semgrep-rule-creator (security-focused skills)
+- `snarktank/everything-claude-code` — instinct system with `/loop-start`, `/quality-gate`
