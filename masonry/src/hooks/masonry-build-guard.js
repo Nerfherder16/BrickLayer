@@ -5,6 +5,7 @@
  */
 
 const { existsSync, readFileSync } = require("fs");
+const { execSync } = require("child_process");
 const path = require("path");
 
 function readStdin() {

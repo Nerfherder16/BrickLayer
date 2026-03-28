@@ -132,11 +132,27 @@ async function main() {
     .join("\n")
     .trim();
 
+  // Inject strategy context if set
+  const strategyFile = path.join(cwd, ".autopilot", "strategy");
+  let strategyNote = "";
+  if (fs.existsSync(strategyFile)) {
+    const strategy = (tryRead(strategyFile) || "").trim();
+    const strategyDescriptions = {
+      conservative: "extra verification steps, security scan, slower but thorough",
+      balanced: "default path, standard test suite",
+      aggressive: "skip redundant checks, parallel tasks, fastest path",
+    };
+    const desc = strategyDescriptions[strategy] || strategy;
+    if (strategy) {
+      strategyNote = `\n\n[STRATEGY: ${strategy}] Apply ${strategy} execution mode: ${desc}.`;
+    }
+  }
+
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: {
         hookEventName: eventName,
-        content: assignment,
+        content: assignment + strategyNote,
       },
     })
   );
