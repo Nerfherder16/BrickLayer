@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `56656d1` chore: auto-commit 3 session files on stop (2026-03-27)
 - `7d8962d` fix(hooks): fix Stop hook JSON schema + context-monitor only blocks when dirty (2026-03-27)
 - `44e5fec` feat(phase2): add masonry_verify_7point tests and vitest config update (2026-03-27)
 - `f7cc9b3` feat(phase2): implement masonry_verify_7point 7-check quality gate (Gap 6) (2026-03-27)
