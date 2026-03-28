@@ -15,12 +15,12 @@ the system, and why.
 ## Directory Layout
 
 ```
-autosearch/
+Bricklayer2.0/
   template/           — Copy this to start a new project
-  QUICKSTART.md       — Full reference (read this if unsure)
-  FRAMEWORK.md        — System architecture details
-  adbp/               — ADBP project (active)
-  {other projects}/   — Additional research projects
+  masonry/            — Masonry platform (hooks, MCP server, daemon workers, routing)
+  projects/           — Research projects
+  {project}/          — Individual project folder at root level (active campaigns)
+  docs/               — Platform documentation
 ```
 
 Each project folder contains:
