@@ -420,6 +420,32 @@ async function main() {
     }
   } catch (_) {}
 
+  // --- Swarm compaction resume: warn about orphaned in-flight agents ---
+  // masonry-pre-compact.js writes .autopilot/inflight-agents.json when compaction interrupts a swarm.
+  // We read it once here, inject a warning, then delete it (one-shot per compaction event).
+  {
+    const inflightPath = path.join(cwd, ".autopilot", "inflight-agents.json");
+    if (fs.existsSync(inflightPath)) {
+      const inflight = tryJSON(inflightPath);
+      if (inflight && Array.isArray(inflight.tasks) && inflight.tasks.length > 0) {
+        const inProgressTasks = inflight.tasks.filter((t) => t.status === "IN_PROGRESS");
+        if (inProgressTasks.length > 0) {
+          const taskList = inProgressTasks
+            .map((t) => `#${t.id} (${t.claimed_by || "unknown-worker"}): ${t.description || ""}`)
+            .join(", ");
+          lines.unshift(
+            `[Masonry] SWARM RESUME: compaction interrupted ${inProgressTasks.length} in-flight task(s).`,
+            `These tasks were IN_PROGRESS before compaction. Check .autopilot/progress.json — tasks still showing IN_PROGRESS are orphaned and need re-dispatch.`,
+            `Tasks: ${taskList}`,
+            `Re-dispatch them by reading progress.json and spawning new workers for each IN_PROGRESS task.`
+          );
+        }
+      }
+      // Always delete after pickup — one-shot warning per compaction event
+      try { fs.unlinkSync(inflightPath); } catch (_) {}
+    }
+  }
+
   if (lines.length > 0) {
     process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "SessionStart", content: lines.join("\n") } }));
   }
