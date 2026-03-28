@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `0af0a6c` docs(repo-research): VoltAgent subagents + autoresearch + visual/UI + skills libraries (2026-03-28)
 - `3cc16b7` docs(repo-research): awesome-claude-plugins INDEX + infra-tools deep research (2026-03-28)
 - `5686edb` chore: update docs (3 files) (2026-03-28)
 - `cd6d2f4` chore: update docs (1 file) (2026-03-28)
