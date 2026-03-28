@@ -200,7 +200,7 @@ async function main() {
   const langs = [...new Set(allEntries.map(e => e.lang))];
 
   try {
-    const result = await httpRequest("POST", `${RECALL_HOST}/api/memory`, {
+    const result = await httpRequest("POST", `${RECALL_HOST}/memory/store`, {
       domain: "documentation",
       content: content.slice(0, 3000),
       tags: [
