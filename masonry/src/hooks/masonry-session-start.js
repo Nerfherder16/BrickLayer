@@ -107,17 +107,24 @@ async function main() {
   }
 
   // --- Karen doc maintenance flag ---
+  // Check both .autopilot/ (preferred) and legacy .mas/ locations
   try {
-    const karenFlagPath = path.join(cwd, ".mas", "karen-needed.json");
-    if (fs.existsSync(karenFlagPath)) {
-      const flag = JSON.parse(fs.readFileSync(karenFlagPath, "utf8"));
-      const staleList = (flag.stale_files || []).join(", ");
-      lines.push(
-        `[ACTION REQUIRED] Spawn karen now: Act as the karen agent in ~/.claude/agents/karen.md. ` +
-        `Update and commit these stale project docs: ${staleList}. Do this before any other work.`
-      );
-      // Clean up flag after pickup so it doesn't fire every session
-      try { fs.unlinkSync(karenFlagPath); } catch (_) {}
+    const karenFlagPaths = [
+      path.join(cwd, ".autopilot", "karen-needed.json"),
+      path.join(cwd, ".mas", "karen-needed.json"),
+    ];
+    for (const karenFlagPath of karenFlagPaths) {
+      if (fs.existsSync(karenFlagPath)) {
+        const flag = JSON.parse(fs.readFileSync(karenFlagPath, "utf8"));
+        const staleList = (flag.stale_files || []).join(", ");
+        lines.push(
+          `[Masonry] Doc maintenance needed. Spawn karen: Act as the karen agent in ~/.claude/agents/karen.md. ` +
+          `Update and commit these stale project docs: ${staleList}. Do this before any other work.`
+        );
+        // Clean up flag after pickup so it doesn't fire every session
+        try { fs.unlinkSync(karenFlagPath); } catch (_) {}
+        break; // only process first found flag
+      }
     }
   } catch (_) {
     // Malformed flag file or read error — skip silently
