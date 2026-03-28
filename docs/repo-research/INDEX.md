@@ -20,7 +20,7 @@ Or via Mortar: "research this repo: https://github.com/owner/repo"
 
 | Repo | Date | Files | Agents | High Gaps | Top Recommendation |
 |------|------|-------|--------|-----------|-------------------|
-| [mk-knight23/AGENTS-COLLECTION](agents-collection.md) | 2026-03-28 | 100+ | 70+ | 12 | Fail-closed /verify + confidence gating |
+| [mk-knight23/AGENTS-COLLECTION](agents-collection.md) | 2026-03-28 | 3,475 | 700+ | 8 | Blind review system (3 reviewers + Devil's Advocate) |
 
 ---
 
@@ -35,20 +35,30 @@ Common patterns appearing in multiple repos will be promoted to the BrickLayer b
 ## Build Queue (from repo research)
 
 ### HIGH Priority
-- [ ] Fail-closed defaults + confidence gating in /verify (from AGENTS-COLLECTION)
-- [ ] PR-writer agent (from AGENTS-COLLECTION — OpenClaw PR agent pattern)
-- [ ] File size + dependency audit hooks (from AGENTS-COLLECTION — hooks-collection)
-- [ ] Named pipeline templates (from AGENTS-COLLECTION — OpenClaw FEATURE-DEV/BUG-FIX/SECURITY-AUDIT)
-- [ ] sequential-thinking MCP + pass^N evals (from AGENTS-COLLECTION — NEXUS/EDD)
+- [ ] **Blind review system** — 3 parallel reviewers + Devil's Advocate agent; weighted consensus (from AGENTS-COLLECTION — ZEUS/TITAN)
+- [ ] **Secret scanning hook** — `masonry-secret-scanner.js` PreToolUse with Gitleaks + Semgrep; critical given ADBP Solana keys (from AGENTS-COLLECTION — security-hooks)
+- [ ] **Eval-Driven Development harness** — capability/regression/safety evals per agent + pass@1/pass@3/pass^3 metrics extending improve_agent.py (from AGENTS-COLLECTION — NEXUS/EDD)
+- [ ] **Fail-closed defaults + confidence gating** in /verify — default verdict FAIL, only surface findings ≥80% confidence (from AGENTS-COLLECTION — TITAN/everything-cc)
+- [ ] **PR-writer agent** — writes PR description, review checklist, links issues at /build completion (from AGENTS-COLLECTION — OpenClaw PR agent)
+- [ ] **Named pipeline templates** — FEATURE-DEV/BUG-FIX/SECURITY-AUDIT as YAML files with typed agent handoffs (from AGENTS-COLLECTION — OpenClaw)
+- [ ] **Dependency audit + file size enforcement hooks** — dep vuln scan on package.json/requirements.txt changes; hard block >300 lines (from AGENTS-COLLECTION — hooks-collection)
 
 ### MEDIUM Priority
-- [ ] Confidence-gated output (>80% threshold) for code-reviewer
-- [ ] Golden examples in spec-writer, question-designer-bl2, synthesizer prompts
-- [ ] Devil's Advocate as required /build pipeline stage
-- [ ] LOKI RARV loop in developer agent (Reason→Act→Reflect→Verify per tool call)
-- [ ] Dual verification — separate REVIEWER and VERIFIER agents
+- [ ] **LOKI Reflect phase** in research loop — spawn reflect agent between specialist verdict and writing finding; flags low-confidence verdicts as UNCERTAIN (from AGENTS-COLLECTION — ZEUS LOKI)
+- [ ] **LSP/semantic code index** — unified symbol graph via pyright/tsserver/gopls; `masonry_lsp_query` MCP tool; replaces exhaustive file reads in developer/diagnose agents (from AGENTS-COLLECTION — lsp-index-engineer)
+- [ ] **Context compression** — active summarization at 120K tokens targeting ≤500-token handoff summary (from AGENTS-COLLECTION — ZEUS 98.6% compression)
+- [ ] **sequential-thinking MCP** — add `@modelcontextprotocol/server-sequential-thinking`; inject for `reasoning: deep` tasks (from AGENTS-COLLECTION — MCP configs)
+- [ ] **Confidence-gated output** (>80% threshold) for code-reviewer and research-analyst
+- [ ] **Golden examples in agent prompts** — add worked examples to spec-writer, question-designer-bl2, synthesizer
+- [ ] **Dual verification** — separate REVIEWER (quality/style) and VERIFIER (spec compliance/correctness) agents in /build
+- [ ] **Agentic identity trust** — Ed25519 keypairs per agent for delegation chain verification (from AGENTS-COLLECTION — agentic-identity-trust)
+- [ ] **CI/CD templates** — Node.js/Python/Go GitHub Actions workflows with change-detection (dorny/paths-filter) (from AGENTS-COLLECTION — ci-cd-workflows)
 
 ### LOW Priority
 - [ ] soul.md ethical constraint doc per agent (from AGENTS-COLLECTION — ClawSec)
-- [ ] AARRR growth agent (from AGENTS-COLLECTION — PULSE)
-- [ ] SRE incident responder agent (from AGENTS-COLLECTION — NEW-AGENTS)
+- [ ] AARRR / PLFS growth + ethical scoring agent (from AGENTS-COLLECTION — PULSE)
+- [ ] SRE incident responder agent with blameless postmortem template (from AGENTS-COLLECTION — NEW-AGENTS)
+- [ ] Spatial computing agents — visionOS/XR/Metal GPU (from AGENTS-COLLECTION — AGENCY-SOURCE)
+- [ ] Chinese platform marketing specialists (from AGENTS-COLLECTION — AGENCY-SOURCE/MARKETING)
+- [ ] Semantic release automation from conventional commits (from AGENTS-COLLECTION — ci-cd-workflows)
+- [ ] SBOM + license compliance in security pipeline (from AGENTS-COLLECTION — security-workflows)
