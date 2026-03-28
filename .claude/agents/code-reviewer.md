@@ -94,7 +94,30 @@ Run the verification command from the Fix Specification:
 
 Capture output. If it fails: BLOCKED.
 
-### Step 6 — Issue verdict
+### Step 6 — Consensus gate (destructive operations only)
+
+Before issuing your verdict, check whether the diff contains a **destructive or irreversible operation**:
+- Database migration that drops columns, tables, or indexes
+- Deletion of 5+ files
+- `git push --force`, branch deletion, or `git reset --hard`
+- Truncation of data or irreversible infrastructure changes
+
+If any destructive operation is detected, spawn the consensus-builder agent:
+
+```
+Invoke consensus-builder with:
+  action: "{brief description of the destructive operation}"
+  project_path: "{target_git}"
+  votes: [
+    {reviewer: "code-reviewer", verdict: "{your draft verdict}", confidence: {0.0-1.0}, summary: "{one-line rationale}"}
+  ]
+  context: "{diff summary}"
+```
+
+Use the consensus-builder's final verdict instead of your own for the output section.
+If consensus-builder returns NEEDS_REVISION, pass it through as NEEDS_REVISION.
+
+### Step 7 — Issue verdict
 
 | Verdict | Criteria |
 |---------|---------|
