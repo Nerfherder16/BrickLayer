@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `20a75d7` chore(dead-code): archive epoch scripts, remove orphaned statusline hook, update gitignore (2026-03-28)
 - `ac4be04` feat: masonry-pre-compact backs up task-ids.json for panel ID survival across compaction (2026-03-28)
 - `edf1163` feat(phase6): dev execution loop upgrades — agents, hooks, skills, UI quality (2026-03-28)
 - `83ce215` feat: 5 new specialist agents — verification-analyst, mcp-developer, chaos-engineer, penetration-tester, scientific-literature-researcher (task 11/23) [phase_end:agents] (2026-03-28)
