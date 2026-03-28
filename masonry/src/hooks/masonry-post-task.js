@@ -12,6 +12,7 @@
 "use strict";
 const fs = require("fs");
 const path = require("path");
+const { spawn } = require("child_process");
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -120,6 +121,27 @@ async function main() {
 
   // Bayesian confidence update
   updatePatternConfidence(autopilotDir, agent, success);
+
+  // Auto-trigger training collector if telemetry was updated in the last 60 seconds
+  try {
+    const telemetryStat = fs.existsSync(telemetryFile) ? fs.statSync(telemetryFile) : null;
+    if (telemetryStat && (Date.now() - telemetryStat.mtimeMs) < 60000) {
+      // Walk up from autopilotDir to find the masonry/ directory (project root)
+      let searchDir = path.dirname(autopilotDir);
+      let projectRoot = searchDir;
+      for (let i = 0; i < 10; i++) {
+        if (fs.existsSync(path.join(searchDir, "masonry"))) {
+          projectRoot = searchDir;
+          break;
+        }
+        const parent = path.dirname(searchDir);
+        if (parent === searchDir) break;
+        searchDir = parent;
+      }
+      const collectorPath = path.join(__dirname, "../../src/training/collector.py");
+      spawn("python", [collectorPath], { cwd: projectRoot, detached: true, stdio: "ignore" }).unref();
+    }
+  } catch (_) { /* non-fatal — silently skip */ }
 
   const record = JSON.stringify({
     task_id,
