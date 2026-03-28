@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `f6e9519` chore(hooks): setup archive directory and HOOKS_CHANGELOG.md (2026-03-28)
 - `e3c88ee` feat(session+agents): split session-start into modules, wire skill-surface, consolidate coordinators, recreate adbp-model-analyst (2026-03-28)
 - `20a75d7` chore(dead-code): archive epoch scripts, remove orphaned statusline hook, update gitignore (2026-03-28)
 - `ac4be04` feat: masonry-pre-compact backs up task-ids.json for panel ID survival across compaction (2026-03-28)
