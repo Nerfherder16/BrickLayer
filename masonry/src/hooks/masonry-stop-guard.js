@@ -232,9 +232,11 @@ function checkOverseerTrigger(snapshotsDir, stderrFn) {
   const flagPath = path.join(snapshotsDir, 'overseer_trigger.flag');
   if (!fs.existsSync(flagPath)) return;
 
+  const agentsDir = path.join(os.homedir(), '.claude', 'agents');
+  const overseerPath = path.join(agentsDir, 'overseer.md');
   stderrFn(
     '\n[overseer] 10 agent invocations since last health check.\n' +
-    'Run: claude -p "Act as overseer agent in ~/.claude/agents/overseer.md. Check all agents."\n'
+    `Run: claude -p "Act as overseer agent in ${overseerPath}. agents_dir=${agentsDir}. Check all agents."\n`
   );
   fs.unlinkSync(flagPath);
 }

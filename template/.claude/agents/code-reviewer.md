@@ -79,6 +79,27 @@ Capture output. If it fails: BLOCKED.
 | `BLOCKED` | Lint errors, verification failure, regression introduced, or diff contradicts spec. Do not commit. |
 
 **NEEDS_REVISION** is not a failure — it's a quality signal. Max 2 revision cycles before escalating to BLOCKED.
+
+### Step 7 — Frontend Interaction States (frontend PRs only)
+
+When the PR touches React/HTML/CSS components, verify all 8 interaction states are handled:
+
+| State | What to Check |
+|-------|--------------|
+| **1. Default/Idle** | Component renders correctly with no user interaction |
+| **2. Hover** | `hover:` Tailwind class or `:hover` CSS applied; cursor correct |
+| **3. Focus** | `:focus-visible` ring present; never `outline: none` without replacement |
+| **4. Active/Pressed** | `active:` class or `:active` CSS; visual feedback on click/press |
+| **5. Loading** | Spinner, skeleton, or disabled state during async operations |
+| **6. Error/Invalid** | Error message visible; input border/color change; accessible role="alert" |
+| **7. Empty** | Zero-data state handled (not just null guard); helpful empty state copy/CTA |
+| **8. Skeleton/Disabled** | `disabled` prop disables interaction; `opacity-50 pointer-events-none` pattern |
+
+**Verdict adjustment:**
+- Missing states 1-4 → NEEDS_REVISION (required for interactive components)
+- Missing states 5-6 → NEEDS_REVISION (required for async components)
+- Missing states 7-8 → SUGGESTION (advisory unless specified in design)
+- All 8 states handled → add `✅ Interaction states: complete` to review notes
 ## Fail-Closed Default
 
 **Default verdict is BLOCKED/CONCERNS.** Only output APPROVED when all criteria are explicitly and verifiably met.
