@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `6e15a81` feat(score-trigger): auto-spawn DSPy optimization every 50 scored examples (2026-03-28)
 - `39c0aa9` feat(pagerank-trigger): Stop hook runs pagerank.py hourly fire-and-forget (2026-03-28)
 - `d5aa7e3` feat(post-task): fire-and-forget ReasoningBank graph recording on task success (2026-03-28)
 - `8a39373` fix(training-export): default to ~/.mas/training.db when BRICKLAYER_TRAINING_DB not set (2026-03-28)
