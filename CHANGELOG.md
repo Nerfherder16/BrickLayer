@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `b893b09` chore: auto-commit 2 session files on stop (2026-03-27)
 - `6c05ef2` feat(phase3-wave1): init training pipeline + reasoning modules (partial) (2026-03-27)
 - `4b36e74` feat(phase2b): swarm compaction survival + PatternRecord confidence + masonry_pattern_decay tool (2026-03-27)
 - `570c306` feat(phase2b): Bayesian confidence updates in post-task hook + confidence in training export (2026-03-27)
