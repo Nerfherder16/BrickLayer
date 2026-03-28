@@ -1395,3 +1395,19 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
+- name: senior-developer
+  file: C:/Users/trg16/.claude/agents/senior-developer.md
+  model: opus
+  description: Senior escalation tier for failed developer tasks. Reads broader context,
+    classifies failure type, attempts fix with deeper analysis. Invoked after developer
+    fails 3 times (DEV_ESCALATE). Returns SENIOR_DONE or SENIOR_ESCALATE.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
