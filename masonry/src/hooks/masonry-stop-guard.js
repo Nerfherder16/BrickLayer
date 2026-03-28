@@ -155,6 +155,41 @@ function checkDocStaleness(cwd, snapPath) {
 }
 
 /**
+ * Generate a descriptive auto-commit message based on the files being committed.
+ *
+ * Heuristics (in priority order):
+ * 1. If ALL files appear in the most recent commit's changeset → lint cleanup after that commit.
+ * 2. If files span ≤3 top-level directories → name them.
+ * 3. Fallback: count + generic label.
+ */
+function generateAutoCommitMessage(files, cwd) {
+  // --- Heuristic 1: lint cleanup detection ---
+  try {
+    const lastCommitFiles = new Set(
+      execSync('git show --name-only --pretty=format: HEAD', {
+        encoding: 'utf8', timeout: 5000, cwd,
+      }).trim().split('\n').filter(Boolean)
+    );
+    if (files.length > 0 && files.every(f => lastCommitFiles.has(f))) {
+      const hash = execSync('git rev-parse --short HEAD', {
+        encoding: 'utf8', timeout: 3000, cwd,
+      }).trim();
+      return `style: lint cleanup after ${hash} (${files.length} file${files.length !== 1 ? 's' : ''})`;
+    }
+  } catch { /* git unavailable — fall through */ }
+
+  // --- Heuristic 2: descriptive directory summary ---
+  const dirs = new Set(files.map(f => f.split('/')[0]).filter(Boolean));
+  const dirList = [...dirs].slice(0, 3).join(', ');
+  if (dirs.size <= 3 && dirList) {
+    return `chore: update ${dirList} (${files.length} file${files.length !== 1 ? 's' : ''})`;
+  }
+
+  // --- Fallback ---
+  return `chore: auto-commit ${files.length} session file${files.length !== 1 ? 's' : ''} on stop`;
+}
+
+/**
  * Load the set of files this session actually wrote to, from the activity log
  * written by masonry-observe.js (PostToolUse Write/Edit hook).
  * Returns a Set of normalized relative paths, or null if log unavailable.
@@ -329,9 +364,9 @@ async function main() {
         } catch (_) { /* skip files with corrupt/missing paths */ }
       }
       if (staged === 0) throw new Error('nothing staged');
-      const msg = `chore: auto-commit ${staged} session file${staged !== 1 ? 's' : ''} on stop`;
+      const msg = generateAutoCommitMessage(allSessionFiles, cwd);
       execFileSync('git', ['commit', '-m', msg], { encoding: 'utf8', timeout: 10000, cwd });
-      process.stderr.write(`[Masonry] Auto-committed ${staged} session file${staged !== 1 ? 's' : ''}.\n`);
+      process.stderr.write(`[Masonry] Auto-committed ${staged} session file${staged !== 1 ? 's' : ''}: "${msg}"\n`);
     } catch (commitErr) {
       // Auto-commit failed — fall back to blocking so user knows
       const sessionCount = sessionModified.length + sessionUntracked.length;
