@@ -17,6 +17,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `cff61ea` chore: update docs (6 files) (2026-03-28)
 - `b3eaa67` chore: update docs (1 file) (2026-03-28)
 - `8a315e2` docs(repo-research): update INDEX with full AGENTS-COLLECTION findings (2026-03-28)
 - `beb0610` feat(repo-research): add repo-researcher agent + AGENTS-COLLECTION analysis (2026-03-28)
