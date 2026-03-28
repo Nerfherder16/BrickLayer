@@ -1109,7 +1109,7 @@ async function toolPatternStore(args) {
   try {
     const resp = await Promise.race([
       httpRequest(
-        `${process.env.RECALL_HOST || cfg.recallHost}/api/memory`,
+        `${process.env.RECALL_HOST || cfg.recallHost}/memory/store`,
         {
           method: "POST",
           headers: {
@@ -1139,7 +1139,7 @@ async function toolPatternSearch(args) {
 
   const searchBody = {
     query,
-    domain: "build-patterns",
+    domains: ["build-patterns"],
     limit,
   };
   if (lang) searchBody.tags = [`lang:${lang}`];
@@ -1151,7 +1151,7 @@ async function toolPatternSearch(args) {
   try {
     const resp = await Promise.race([
       httpRequest(
-        `${process.env.RECALL_HOST || cfg.recallHost}/api/memory/search`,
+        `${process.env.RECALL_HOST || cfg.recallHost}/search/query`,
         {
           method: "POST",
           headers: {

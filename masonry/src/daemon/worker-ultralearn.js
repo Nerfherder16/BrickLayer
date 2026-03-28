@@ -97,9 +97,9 @@ function extractPattern(files) {
 
 async function patternExists(lang, framework, layer) {
   try {
-    const result = await httpRequest("POST", `${RECALL_HOST}/api/memory/search`, {
+    const result = await httpRequest("POST", `${RECALL_HOST}/search/query`, {
       query: `${framework} ${layer} ${lang}`,
-      domain: "build-patterns",
+      domains: ["build-patterns"],
       limit: 1,
       tags: [`lang:${lang}`, `framework:${framework}`, `layer:${layer}`, "source:ultralearn"],
     });
@@ -115,8 +115,8 @@ async function patternExists(lang, framework, layer) {
 async function storePattern(pattern, hash) {
   const content = `Pattern: ${pattern.framework} ${pattern.layer} (${pattern.lang}). Representative files: ${pattern.files.join(", ")}. Source: ultralearn commit ${hash}.`;
   try {
-    const result = await httpRequest("POST", `${RECALL_HOST}/api/memory`, {
-      domain: "build-patterns",
+    const result = await httpRequest("POST", `${RECALL_HOST}/memory/store`, {
+      domains: ["build-patterns"],
       content,
       tags: [`lang:${pattern.lang}`, `framework:${pattern.framework}`, `layer:${pattern.layer}`, "source:ultralearn"],
     });

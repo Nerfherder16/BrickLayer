@@ -67,10 +67,10 @@ async function main() {
   // Query Recall for all build-patterns
   let memories = [];
   try {
-    const result = await httpRequest("POST", `${RECALL_HOST}/api/memory/search`, {
+    const result = await httpRequest("POST", `${RECALL_HOST}/search/query`, {
       query: "build pattern",
-      domain: "build-patterns",
-      limit: 200,
+      domains: ["build-patterns"],
+      limit: 100,
     });
 
     if (result.status >= 200 && result.status < 300) {
@@ -126,7 +126,7 @@ async function main() {
   let deleted = 0;
   for (const id of toDelete) {
     try {
-      const result = await httpRequest("DELETE", `${RECALL_HOST}/api/memory/${id}`);
+      const result = await httpRequest("DELETE", `${RECALL_HOST}/memory/${id}`);
       if (result.status >= 200 && result.status < 300) {
         deleted++;
       } else {
