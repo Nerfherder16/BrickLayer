@@ -1472,6 +1472,8 @@ function toolSwarmInit(args) {
   try {
     fs.mkdirSync(autopilotDir, { recursive: true });
     fs.writeFileSync(path.join(autopilotDir, "progress.json"), JSON.stringify(progress, null, 2), "utf8");
+    // Write mode file so masonry-teammate-idle fires for this swarm
+    fs.writeFileSync(path.join(autopilotDir, "mode"), "build", "utf8");
   } catch (err) {
     return { initialized: false, error: `Failed to write progress.json: ${err.message}` };
   }

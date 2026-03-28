@@ -28,12 +28,11 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
-// These values trigger enforcement — anything else is a valid specialist type
+// Only block truly empty spawns — no intent specified at all.
+// general-purpose is a valid Claude Code agent type and must be allowed
+// (swarm workers, coordinators, and inline tasks all use it).
 const BLOCKED_TYPES = new Set([
   "",
-  "general-purpose",
-  "general_purpose",
-  "generalpurpose",
 ]);
 
 function readStdin() {
@@ -76,14 +75,14 @@ async function main() {
     logBlocked(subagentType, prompt);
 
     const reason = [
-      "⛔ Generic agent spawn blocked by masonry-mortar-enforcer.",
+      "⛔ Agent spawn blocked by masonry-mortar-enforcer: subagent_type is empty.",
       "",
-      "All agent dispatches must go through Mortar. Rewrite this Agent call with:",
-      "  subagent_type: \"mortar\"",
+      "Always specify a subagent_type. Use one of:",
+      "  general-purpose   — general work, swarm workers, inline tasks",
+      "  Explore           — codebase exploration and research",
+      "  Plan              — architecture and planning tasks",
       "",
-      "Mortar will route to the correct specialist automatically.",
-      "If you already know the right specialist, use that subagent_type directly",
-      "(e.g. \"developer\", \"research-analyst\", \"trowel\", \"karen\", etc.).",
+      "Example: Agent({ subagent_type: \"general-purpose\", prompt: \"...\" })",
     ].join("\n");
 
     process.stdout.write(JSON.stringify({ decision: "block", reason }));

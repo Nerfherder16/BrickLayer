@@ -42,13 +42,15 @@ async function main() {
   const cwd = input.cwd || process.cwd();
   const eventName = input.hook_event_name || "TeammateIdle";
 
-  // Only fire if .autopilot/mode is "build" or "fix"
+  // Fire for build, fix, or swarm mode — or if progress.json exists and is BUILDING
   const mode = tryRead(path.join(cwd, ".autopilot", "mode"));
-  if (!mode || !["build", "fix"].includes(mode)) {
+  const progressPath = path.join(cwd, ".autopilot", "progress.json");
+  const hasActiveProgress = fs.existsSync(progressPath);
+  if (!mode && !hasActiveProgress) process.exit(0);
+  if (mode && !["build", "fix", "swarm"].includes(mode) && !hasActiveProgress) {
     process.exit(0);
   }
 
-  const progressPath = path.join(cwd, ".autopilot", "progress.json");
   const progress = tryJSON(progressPath);
   if (!progress || !Array.isArray(progress.tasks)) process.exit(0);
 
