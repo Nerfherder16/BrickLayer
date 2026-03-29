@@ -19,6 +19,11 @@
             "type": "command",
             "command": "node ${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-register.js",
             "timeout": 8
+          },
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-prompt-inject.js",
+            "timeout": 5
           }
         ]
       }
@@ -116,6 +121,34 @@
           {
             "type": "command",
             "command": "node ${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-file-size-guard.js",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-checkpoint.js",
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "TeammateIdle": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-teammate-idle.js",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-teammate-idle.js",
             "timeout": 5
           }
         ]
