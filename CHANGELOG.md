@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `6f74cbc` chore: update hook-audit (3 files) (2026-03-29)
 - `ef031f3` refactor(stop-guard): split 466-line file into focused session/ modules (2026-03-29)
 - `bf55ae7` chore: update hook-audit routing log and questions (2026-03-29)
 - `f28707d` chore: auto-commit 10 session files on stop (2026-03-29)
