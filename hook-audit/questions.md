@@ -91,7 +91,7 @@
 
 ### D1.3-FU2: Does masonry-session-summary.js have a similar single-fire guard issue, or does it correctly deduplicate per session?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **H0**: masonry-session-summary.js reads session_id from stdin (not argv) and correctly writes per-session summaries to Recall.
@@ -104,7 +104,7 @@
 
 ### A1.3-FU1: Do orphaned wrong-domain Recall memories need migration, or are they benign dead entries?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: research
 **Priority**: MEDIUM
 **H0**: The wrong-domain Recall entries (e.g., system-recall summaries stored in "development") are benign orphans — no query path retrieves them, they'll be superseded once A1.3 is fixed, and no migration is needed.
@@ -116,7 +116,7 @@
 
 ### A1.3-FU2: Does a shared PROJECT_DOMAINS module exist in the Recall codebase, or is the table independently maintained in each hook?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: research
 **Priority**: MEDIUM
 **H0**: A shared domains module (e.g., `domains.js`) already exists in the Recall codebase and is meant to be imported by both hooks — the divergence is a failure to import it correctly.
@@ -291,3 +291,70 @@
 | FR1.1 | Failure cascade when session ID absent from all Stop hooks | frontier | LOW | frontier-analyst |
 
 **Total**: 16 questions | 5 HIGH priority | 8 MEDIUM priority | 3 HIGH overall (D1.1, A1.1, A1.2 are campaign-critical)
+
+---
+
+## Wave Mid — Follow-up Questions (generated at N=16)
+
+### WM1.1 — masonry-observe.js cross-session state corruption under concurrent multi-machine use
+
+**Status**: DONE
+**Mode**: monitor
+**Priority**: HIGH
+**H0**: masonry-observe.js correctly keys all mutable state to session_id. Under concurrent multi-machine use where session_id is absent or collides, the hook produces at worst a missed observe — no cross-session state mutation.
+**H1**: masonry-observe.js writes to a shared state location (temp file or campaign state file) keyed by something other than session_id. When two sessions run concurrently (casaclaude + proxyclaude), one session's observation can overwrite the other's, causing silent state corruption in the campaign running on that machine.
+**Prediction**: If H1 is true, concurrent /ultrawork runs across two machines would exhibit missing or interleaved observation records.
+**Agent**: diagnose-analyst
+**Success criterion**: Identifies what state masonry-observe.js mutates, what key it uses, and whether concurrent sessions from different machines can collide.
+
+---
+
+### WM1.2 — Temp-bus cold-start pollution from stale TTL-expired files
+
+**Status**: DONE
+**Mode**: monitor
+**Priority**: MEDIUM
+**H0**: The temp-bus (TMPDIR-based stop_hook_active flag files) is stateless between restarts. Any stale files from a prior session that failed to clean up are either ignored or expire within their TTL, producing no false positive.
+**H1**: Stale temp-bus files from a crashed or force-killed session survive restart. Because the TTL check is mtime-based and the file was not re-created this session, a new session may read a stale "active" flag and skip exit-2 blocking — silently degrading the stop guard for the first real stop event.
+**Prediction**: If H1 is true, a session started within 60 seconds of a force-killed prior session would have masonry-stop-guard skip the git dirty check.
+**Agent**: research-analyst
+**Success criterion**: Determines the TTL logic for temp-bus files and whether a cold-start can inherit a stale active flag from a prior crashed session.
+
+---
+
+### WM1.3 — /ultrawork throughput exceeds temp-bus 5s TTL
+
+**Status**: DONE
+**Mode**: monitor
+**Priority**: MEDIUM
+**H0**: The temp-bus TTL (5 seconds for stop_hook_active) is long enough that even under /ultrawork's maximum parallel agent throughput, the active flag survives between the exit-2 retry and the re-evaluation.
+**H1**: Under /ultrawork with 6-8 parallel workers, sub-agent Stop events arrive faster than the 5s TTL. The stop_hook_active flag written by one worker's exit-2 expires before the next worker's Stop hook reads it — causing the second worker to block when it should not.
+**Prediction**: If H1 is true, /ultrawork runs would exhibit spurious stop-guard blockage on some workers in high-parallelism builds.
+**Agent**: research-analyst
+**Success criterion**: Identifies the TTL value, the timing window between exit-2 and re-evaluation, and whether /ultrawork's throughput can exceed it.
+
+---
+
+### WD1.1 — masonry-subagent-tracker.js reads session_id from stdin or argv?
+
+**Status**: DONE
+**Mode**: diagnose
+**Priority**: MEDIUM
+**H0**: masonry-subagent-tracker.js reads session_id from stdin JSON (same pattern as masonry-session-summary.js), correctly keying subagent tracking entries to the parent session.
+**H1**: masonry-subagent-tracker.js reads session_id from process.argv, producing the same "unknown" or empty-string keying defect as masonry-handoff.js (D1.3). Subagent tracking entries would pile up under the wrong key, making fleet analytics unreliable.
+**Prediction**: If H1 is true, masonry-subagent-tracker.js has the same narrow async-timing window defect as D1.3-FU1 confirmed for masonry-handoff.js.
+**Agent**: diagnose-analyst
+**Success criterion**: Reads masonry-subagent-tracker.js source and confirms whether session_id is sourced from stdin JSON or argv. If argv, classifies as FAILURE with same severity as D1.3.
+
+---
+
+### WD1.2 — masonry-session-start.js queries Recall with stale domain list?
+
+**Status**: DONE
+**Mode**: diagnose
+**Priority**: HIGH
+**H0**: masonry-session-start.js derives the search domain for Recall rehydration from the current working directory using a correct, up-to-date domain map (matching recall-retrieve.js and masonry-session-summary.js).
+**H1**: masonry-session-start.js maintains its own PROJECT_DOMAINS map that has the same staleness defect as recall-session-summary.js (A1.3): broad-bucket mappings like "development" or "ai-ml" rather than per-project domains. Recall rehydration at session start queries the wrong domain — the session briefing is populated from the wrong memory pool.
+**Prediction**: If H1 is true, opening a Claude Code session in the recall/ or system-recall/ directory would rehydrate with "development" domain memories instead of "recall" domain memories, injecting wrong-project context at the most critical moment (session open).
+**Agent**: diagnose-analyst
+**Success criterion**: Reads masonry-session-start.js source (and any delegate files it calls) and compares its PROJECT_DOMAINS mapping against recall-retrieve.js lines 43-59. If maps diverge, classifies as FAILURE.
