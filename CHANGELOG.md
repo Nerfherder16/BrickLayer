@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `6781f36` chore(hook-audit): update routing_log from Wave 2 question generation session (2026-03-29)
 - `5b26491` feat(hook-audit): add Wave 2 verification questions (W2D1.1–W2R1.1) (2026-03-29)
 - `5ad0f75` chore: update _test_script.py (1 file) (2026-03-29)
 - `677685c` fix(hooks): apply warning-tier fixes from hook-audit campaign (2026-03-29)
