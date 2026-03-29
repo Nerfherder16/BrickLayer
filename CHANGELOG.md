@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `ba34411` docs(inline-execution-audit): retrospective report — peer-reviewer fabrication, 6 open issues, 4 skills (2026-03-29)
 - `ff37471` chore: update inline-execution-audit (1 file) (2026-03-29)
 - `cb9d890` chore(registry): auto-onboard new draft agents detected by hook (2026-03-29)
 - `77cf6e5` feat(inline-execution-audit): Wave 2 complete — R2.1 and R2.2 findings, all 9/9 questions done (2026-03-29)
