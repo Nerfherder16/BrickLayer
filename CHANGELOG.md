@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `dd38677` feat(template): RETRO-H3 — require Files to change in FAILURE/High findings (2026-03-29)
 - `458443d` fix(context-monitor): scope dirty-file check to current session only (2026-03-29)
 - `8916303` docs(hook-audit): add campaign retrospective (score 0.77) (2026-03-29)
 - `d3ed479` chore: update run_fix.sh (1 file) (2026-03-29)
