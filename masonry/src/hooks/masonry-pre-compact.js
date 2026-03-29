@@ -11,7 +11,7 @@
  * v3: Writes discrete snapshot files (.autopilot/pre-compact-snapshot.json,
  * masonry/pre-compact-campaign.json) and appends to build.log on pre-compact.
  *
- * Output: hookSpecificOutput with a brief state reminder that survives compaction.
+ * Output: systemMessage with a brief state reminder that survives compaction.
  */
 
 "use strict";

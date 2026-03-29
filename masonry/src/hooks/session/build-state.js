@@ -35,10 +35,7 @@ function addBuildState(lines, cwd, state) {
           `  Auto-resuming — run /build to continue.`,
         ].join("\n");
         process.stdout.write(JSON.stringify({
-          hookSpecificOutput: {
-            hookEventName: "SessionStart",
-            content: resumeMsg + "\n\nResume the interrupted build now. Invoke the /build skill to continue from where it left off.",
-          },
+          systemMessage: resumeMsg + "\n\nResume the interrupted build now. Invoke the /build skill to continue from where it left off.",
         }));
         process.exit(0);
       }

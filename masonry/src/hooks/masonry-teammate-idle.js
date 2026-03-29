@@ -68,10 +68,7 @@ async function main() {
       // All done
       process.stdout.write(
         JSON.stringify({
-          hookSpecificOutput: {
-            hookEventName: eventName,
-            content: `[Masonry] All ${done}/${total} tasks complete. Run /verify to validate.`,
-          },
+          systemMessage: `[Masonry] All ${done}/${total} tasks complete. Run /verify to validate.`,
         })
       );
     }
@@ -150,10 +147,7 @@ async function main() {
 
   process.stdout.write(
     JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: eventName,
-        content: assignment + strategyNote,
-      },
+      systemMessage: assignment + strategyNote,
     })
   );
 

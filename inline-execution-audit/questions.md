@@ -202,7 +202,7 @@
 
 ### F2.3: Implement the five-prerequisite atomic bundle required before the masonry-approver.js hard block can be enabled -- receipt writer, per-turn reset, trivial bypass, gate conversion, and MASONRY_ENFORCE_ROUTING flag
 
-**Status**: PENDING
+**Status**: IN_PROGRESS
 **Operational Mode**: Fix
 **Priority**: HIGH
 **Motivated by**: D2.1 (DIAGNOSIS_COMPLETE) + D2.2 (DIAGNOSIS_COMPLETE) + V1.1 (WARNING) -- the Mortar gate in masonry-approver.js lines 293-301 is advisory-only; the change to hard block is known; but V1.1 establishes that deploying the block without 5 prerequisites produces 100% false-positive rate; all five must be deployed atomically
@@ -214,7 +214,9 @@
 
 ### D2.3: Where exactly in Mortar's agent instructions should the receipt writer live, and what is the complete write specification to prevent the Mortar-before-file-write deadlock?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/D2.3.md
+**Completed**: 2026-03-29T11:10:00Z
 **Operational Mode**: Diagnose
 **Priority**: MEDIUM
 **Motivated by**: D2.2 (DIAGNOSIS_COMPLETE) -- Fix specification identifies the receipt writer as "Change B" needing to live in "Mortar's agent instructions or a dedicated hook," but the exact location is underspecified; the deadlock risk is real: if Mortar fails to write the receipt before the first tool call, the gate denies the tool call, blocking Mortar from completing; the write timing must be precise
@@ -238,7 +240,9 @@
 
 ### D2.4: Can the routing_keywords field in agent_registry.yml be auto-populated from agent .md files, and what extraction mechanism would cover 80+ dark fleet agents without manual annotation?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/D2.4.md
+**Completed**: 2026-03-29T11:15:00Z
 **Operational Mode**: Diagnose
 **Priority**: MEDIUM
 **Motivated by**: D4.2 (FAILURE) -- 86% of 114 agents (98 agents) are dark fleet with no routing path; routing_keywords field exists in agent_registry.yml but is unpopulated for 80+ agents; manual annotation of 80 agent files is not tractable; an automated extraction mechanism would close the dark fleet problem at scale
@@ -250,7 +254,9 @@
 
 ### D2.5: What does last_route persistence look like in masonry-state.json for multi-turn continuity, and which follow-up detection patterns would close the Turn 2+ routing signal gap?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/D2.5.md
+**Completed**: 2026-03-29T11:20:00Z
 **Operational Mode**: Diagnose
 **Priority**: MEDIUM
 **Motivated by**: D3.2 (FAILURE) -- router is stateless per-prompt; Turn 2+ of any multi-turn workflow produces complete routing silence; synthesis fix is "add last_route persistence field; implement follow-up detection patterns"; the exact schema and pattern set need to be specified before implementation

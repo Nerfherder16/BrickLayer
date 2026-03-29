@@ -19,7 +19,7 @@ const { readStdin } = require("./session/stop-utils");
 function hasUncommittedChanges(cwd, sessionId) {
   try {
     const status = execSync("git status --porcelain", {
-      encoding: "utf8", timeout: 5000, cwd,
+      encoding: "utf8", timeout: 2000, cwd,
     }).trim();
     if (!status) return false;
 
@@ -156,11 +156,11 @@ async function checkSemanticDegradation(messages, cwd) {
   // AbortSignal with 5-second timeout
   let signal;
   try {
-    signal = AbortSignal.timeout(5000);
+    signal = AbortSignal.timeout(3000);
   } catch {
     // AbortSignal.timeout may not exist in older Node; fall back to manual abort
     const controller = new AbortController();
-    setTimeout(() => controller.abort(), 5000);
+    setTimeout(() => controller.abort(), 3000);
     signal = controller.signal;
   }
 
@@ -249,16 +249,16 @@ async function checkSemanticDegradation(messages, cwd) {
 
 async function main() {
   const input = await readStdin();
-  if (!input) process.exit(0);
+  if (!input) return;
 
   let parsed;
-  try { parsed = JSON.parse(input); } catch { process.exit(0); }
+  try { parsed = JSON.parse(input); } catch { return; }
 
   // Don't block a second time — stop_hook_active is set after first block
-  if (parsed.stop_hook_active) process.exit(0);
+  if (parsed.stop_hook_active) return;
 
   const transcriptPath = parsed.transcript_path;
-  if (!transcriptPath) process.exit(0);
+  if (!transcriptPath) return;
 
   const cwd = parsed.cwd || process.cwd();
   const sessionId = parsed.session_id || parsed.sessionId || null;
@@ -287,8 +287,6 @@ async function main() {
 
   // --- Semantic degradation check (advisory, never blocks) ---
   await checkSemanticDegradation(parsed.messages || [], cwd);
-
-  process.exit(0);
 }
 
-main().catch(() => process.exit(0));
+main().catch(() => {});

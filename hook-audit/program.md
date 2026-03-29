@@ -25,7 +25,17 @@ To set up a new research session:
 5. **Verify the simulation runs**: `python simulate.py`
    - Confirm you see `verdict: HEALTHY` on the baseline run
 6. **Initialize results.tsv**: Create it with just the header row.
-7. **Session-start self-check** (run before any question):
+7. **Pre-flight scan** (run once after question bank is generated, before Wave 1 begins):
+   For each question in questions.md, read its target file(s) and assess whether the H1
+   hypothesis is *plausible* based on a surface read. Produce a one-line note:
+   - `NULL-GATE` — H0 is almost certainly true; deprioritize (run last)
+   - `HIGH-RISK` — H1 looks likely; run first and generate sub-hypotheses now
+   - `NORMAL` — unclear; run in default order
+   Record the pre-flight assessment as a comment in questions.md (e.g., `<!-- HIGH-RISK -->`).
+   This prevents reactive follow-up questions from stalling Wave 1 momentum.
+   *(RETRO-H2: skipping pre-flight costs ~4 unplanned follow-up questions per 25-question campaign.)*
+
+8. **Session-start self-check** (run before any question):
    - Confirm this file is fully read — verify the following sections are present:
      `## After writing each finding — spawn peer-reviewer in background` and `## NEVER STOP`.
      If either is missing, re-read program.md completely before continuing.
@@ -34,7 +44,7 @@ To set up a new research session:
      `peer_review_gap: N findings unreviewed` before running the first question.
    - Run `python simulate.py` to confirm the baseline verdict is HEALTHY.
      If WARNING or FAILURE on a clean run, stop and investigate before starting.
-8. **Confirm and go.**
+9. **Confirm and go.**
 
 ---
 
@@ -229,6 +239,7 @@ Write each finding to `findings/<question_id>.md` (flat directory, no wave subdi
 **Agent**: [name of specialist agent that produced this finding, e.g. quantitative-analyst]
 **Verdict**: FAILURE | WARNING | HEALTHY | INCONCLUSIVE
 **Severity**: Critical | High | Medium | Low | Info
+**Confidence**: 0.0–1.0 *(required; 0.9+ = strong evidence with line citations; 0.7 = reasonable inference; <0.5 = speculative)*
 
 ## Evidence
 [What the simulation output showed, or what your research found. Quote specific numbers.]
@@ -244,6 +255,15 @@ Write each finding to `findings/<question_id>.md` (flat directory, no wave subdi
 one file when two are required is a partial fix — Wave 2 will catch it, but that wastes
 a verification question. RETRO-H3: partial fixes are the #1 source of false-DONE verdicts
 in multi-file defects (proven by D1.4 / W2D1.4 in the hook-audit campaign).*
+
+## Peer Review
+*(Required for FAILURE and Critical/High severity findings. Omit for WARNING/HEALTHY/Low/Info.)*
+
+Re-read the source independently (do not re-use evidence already cited above). Confirm or
+deny the verdict. Append one of:
+- `CONFIRMED — [one-sentence independent evidence]`
+- `CONCERNS — [what differs from the primary finding]`
+- `OVERRIDE — [verdict should be X because ...]`
 
 ## Suggested Follow-ups
 [Required for Critical/High severity. Omit for Low/Info. Each line is a falsifiable

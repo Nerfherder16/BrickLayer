@@ -8,6 +8,7 @@ Maintained automatically by BrickLayer post-commit hook and synthesizer.
 ## [Unreleased]
 
 ---
+- `14d46b7` feat(program): RETRO-H1, H2, M3 — confidence field, pre-flight, peer review template (2026-03-29)
 - `c58a496` chore: add .gitignore for runtime artifacts (2026-03-29)
 - `6697e72` feat(program): RETRO-H3 — require Files to change in FAILURE/High findings (2026-03-29)
 - `28d7851` docs(hook-audit): Wave 2 retrospective + final cleanup (2026-03-29)
