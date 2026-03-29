@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `d3ed479` chore: update run_fix.sh (1 file) (2026-03-29)
 - `4526972` fix(agents): convert recall code blocks to imperative MCP tool calls (2026-03-29)
 - `602487d` fix(hook-audit): Wave 2 synthesis + W2D1.4 ppid fallback fix (2026-03-29)
 - `cf7a773` chore: update masonry, template, hook-audit (5 files) (2026-03-29)
