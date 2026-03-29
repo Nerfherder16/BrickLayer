@@ -230,7 +230,9 @@
 
 ### R2.1: Does the D1.1 "single-sentence factual lookup" boundary create over-delegation for interactive conversational queries, and what is the expected false-positive rate at the new trivial threshold?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/R2.1.md
+**Completed**: 2026-03-29T12:00:00Z
 **Operational Mode**: Research
 **Priority**: MEDIUM
 **Motivated by**: FR1.1 (FRONTIER_PARTIAL, VIABLE) + D1.1 (DIAGNOSIS_COMPLETE) -- FR1.1 recommends deploying minimum viable enforcement; D1.1's fix narrows "trivial" to "single-sentence factual lookups only"; before committing to this boundary, stress-test it: how many legitimate interactive queries exceed this threshold and would be routed through Mortar unnecessarily?
@@ -270,7 +272,9 @@
 
 ### R2.2: Which specific regex patterns would close the spec+build INTENT_RULES silent zone identified in D3.1, and do they risk first-match collisions with existing rules?
 
-**Status**: PENDING
+**Status**: DONE
+**Finding**: findings/R2.2.md
+**Completed**: 2026-03-29T12:10:00Z
 **Operational Mode**: Research
 **Priority**: MEDIUM
 **Motivated by**: D3.1 (FAILURE) -- "Spec+build" is the one Mortar work type with zero INTENT_RULES coverage; /plan exits before detection via slash-command guard; prompts like "plan this feature", "write a spec for", "blueprint the architecture of" have no router entry point; 6 other work types are degraded by verb gaps and first-match collisions
