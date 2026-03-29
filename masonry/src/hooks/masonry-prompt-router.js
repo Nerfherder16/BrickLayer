@@ -119,6 +119,21 @@ const INTENT_RULES = [
   },
 ];
 
+const FOLLOWUP_PATTERNS = [
+  /^(now|next|then|also|additionally)\s/i,
+  /\b(now\s+(also|do|update|add|fix|run|build|create|write|test|check))\b/i,
+  /\b(also\s+(update|add|fix|run|build|create|write|test|check|do))\b/i,
+  /\b(same\s+(for|thing|approach|pattern|way|treatment))\b/i,
+  /\b(do\s+the\s+same)\b/i,
+  /\b(repeat\s+(that|this|it)\s+(for|on|with))\b/i,
+  /\b(do\s+(that|it|this)\s+(again|too|as\s+well))\b/i,
+  /\b(continue|proceed|go\s+ahead|carry\s+on|keep\s+going|next\s+step)\b/i,
+  /\b(and\s+then|after\s+that|once\s+that.s\s+done|while\s+you.re\s+at\s+it)\b/i,
+  /\b(but\s+also|plus\s+(also\s+)?add|and\s+add|and\s+update|and\s+fix)\b/i,
+  /\b(don.t\s+forget\s+to|make\s+sure\s+(to\s+)?(also|you))\b/i,
+  /^(and\s+)?(update|fix|change|modify|refactor|test|check)\s+(it|that|those|them|this)\b/i,
+];
+
 function detectIntent(prompt) {
   for (const rule of INTENT_RULES) {
     for (const pat of rule.patterns) {
@@ -155,6 +170,17 @@ function classifyEffort(prompt) {
   return "medium";
 }
 
+function isFollowUp(prompt) {
+  if (prompt.length < 30) return false;
+  if (/^\s*(what|where|how|why|show|list|explain|who|when)\b/i.test(prompt)) return false;
+  return FOLLOWUP_PATTERNS.some((p) => p.test(prompt));
+}
+function isExpired(lastRoute) {
+  if (!lastRoute || !lastRoute.timestamp) return true;
+  if ((lastRoute.turn_count || 0) > 5) return true;
+  return Date.now() - new Date(lastRoute.timestamp).getTime() > 600000;
+}
+
 async function main() {
   const raw = await readStdin();
   let input = {};
@@ -175,7 +201,7 @@ async function main() {
   }
 
   // Skip: empty, slash commands, very short inputs
-  if (!prompt || prompt.startsWith("/") || prompt.length < 20) process.exit(0);
+  if (!prompt || prompt.startsWith("/") || prompt.length < 20) return;
 
   const cwd = input.cwd || process.cwd();
 
@@ -185,7 +211,7 @@ async function main() {
       fs.existsSync(path.join(cwd, "program.md")) &&
       fs.existsSync(path.join(cwd, "questions.md"))
     ) {
-      process.exit(0);
+      return;
     }
   } catch {}
 
@@ -194,7 +220,7 @@ async function main() {
     const state = JSON.parse(
       fs.readFileSync(path.join(cwd, "masonry-state.json"), "utf8")
     );
-    if (state && state.mode) process.exit(0);
+    if (state && state.mode) return;
   } catch {}
 
   // Reset Mortar routing receipt per-turn so stale receipts don't carry over
@@ -207,12 +233,34 @@ async function main() {
     }
   } catch {}
 
-  const intent = detectIntent(prompt);
+  let intent = detectIntent(prompt);
   const effort = classifyEffort(prompt);
+
+  const MASONRY_STATE_PATH = "C:/Users/trg16/Dev/Bricklayer2.0/masonry/masonry-state.json";
+  if (intent) {
+    try {
+      const st = fs.existsSync(MASONRY_STATE_PATH)
+        ? JSON.parse(fs.readFileSync(MASONRY_STATE_PATH, "utf8")) : {};
+      st.last_route = { agent: intent.route, effort, prompt_summary: prompt.slice(0, 80),
+        timestamp: new Date().toISOString(), turn_count: 1 };
+      fs.writeFileSync(MASONRY_STATE_PATH, JSON.stringify(st, null, 2), "utf8");
+    } catch {}
+  } else if (isFollowUp(prompt)) {
+    try {
+      const st = fs.existsSync(MASONRY_STATE_PATH)
+        ? JSON.parse(fs.readFileSync(MASONRY_STATE_PATH, "utf8")) : {};
+      if (st.last_route && !isExpired(st.last_route)) {
+        intent = { route: st.last_route.agent, note: "(inherited from prior turn)" };
+        st.last_route.turn_count = (st.last_route.turn_count || 1) + 1;
+        st.last_route.timestamp = new Date().toISOString();
+        fs.writeFileSync(MASONRY_STATE_PATH, JSON.stringify(st, null, 2), "utf8");
+      }
+    } catch {}
+  }
 
   // Emit only if we have something useful to say
   const hasSignal = intent || effort !== "medium";
-  if (!hasSignal) process.exit(0);
+  if (!hasSignal) return;
 
   const routeStr = intent ? `Route to: ${intent.route}` : null;
   const effortStr = `[effort:${effort}]`;
@@ -222,14 +270,15 @@ async function main() {
   if (intent && intent.note) parts.push(intent.note);
 
   const hintDetail = parts.join(" ");
-  const hintText =
-    `[ROUTING] You MUST route this request through Mortar before using Write, Edit, or Bash. ` +
-    `${hintDetail}. Invoke the mortar agent (subagent_type: "mortar") first. ` +
-    `Direct Write/Edit without a Mortar routing receipt will be blocked by the pre-tool hook.`;
+  const hintText = effort === "low"
+    ? `[ROUTING HINT] ${hintDetail}. Use Mortar only if this requires multi-file changes or Write/Edit/Bash.`
+    : `[ROUTING] You MUST route this request through Mortar before using Write, Edit, or Bash. ` +
+      `${hintDetail}. Invoke the mortar agent (subagent_type: "mortar") first. ` +
+      `Direct Write/Edit without a Mortar routing receipt will be blocked by the pre-tool hook.`;
 
   process.stdout.write(JSON.stringify({ additionalContext: hintText }));
 
-  process.exit(0);
+  return;
 }
 
-main().catch(() => process.exit(0));
+main().catch(() => {});

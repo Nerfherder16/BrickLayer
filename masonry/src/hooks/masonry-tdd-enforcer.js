@@ -50,6 +50,8 @@ const TEST_FILE_PATTERNS = [
   /^.*\.spec\.(ts|tsx|js|jsx)$/,
   // Node --test pattern: test_*.js (e.g. test_mas_core.js, test_pulse_hook.js)
   /^test_.*\.js$/,
+  // Hyphenated test files: test-*.js (e.g. test-prompt-router-followup.js)
+  /^test-.*\.js$/,
 ];
 
 function readStdin() {
@@ -98,116 +100,7 @@ function isImplementationFile(filePath) {
   return /\.(py|ts|tsx|js|jsx)$/.test(filePath);
 }
 
-/**
- * Search for a corresponding test file given an implementation file path.
- * Checks multiple common patterns:
- *   - tests/test_<name>.py, tests/<layer>/test_<name>.py
- *   - __tests__/<Name>.test.tsx
- *   - <name>.test.ts alongside the file
- */
-function findTestFile(filePath) {
-  const ext = path.extname(filePath);
-  const base = path.basename(filePath, ext);
-  const dir = path.dirname(filePath);
-  const normalized = filePath.replace(/\\/g, "/");
-
-  // Python files
-  if (ext === ".py") {
-    const candidates = [
-      path.join(dir, `test_${base}.py`),
-      path.join(dir, `${base}_test.py`),
-    ];
-
-    // Walk up to find all tests/ directories (do not break at first match —
-    // a project may have masonry/tests/ and a root tests/; check both)
-    let searchDir = dir;
-    for (let i = 0; i < 10; i++) {
-      const testsDir = path.join(searchDir, "tests");
-      if (existsSync(testsDir)) {
-        candidates.push(path.join(testsDir, `test_${base}.py`));
-        // Check subdirectories of tests/
-        try {
-          const { readdirSync, statSync } = require("fs");
-          const entries = readdirSync(testsDir);
-          for (const entry of entries) {
-            const full = path.join(testsDir, entry);
-            if (statSync(full).isDirectory()) {
-              candidates.push(path.join(full, `test_${base}.py`));
-            }
-          }
-        } catch {}
-        // Do NOT break — continue walking up to find higher-level tests/ dirs
-      }
-      const parent = path.dirname(searchDir);
-      if (parent === searchDir) break;
-      searchDir = parent;
-    }
-
-    return candidates.find((c) => existsSync(c)) || null;
-  }
-
-  // TypeScript/JavaScript files
-  if (/\.(ts|tsx|js|jsx)$/.test(ext)) {
-    const candidates = [
-      path.join(dir, `${base}.test${ext}`),
-      path.join(dir, `${base}.spec${ext}`),
-      path.join(dir, "__tests__", `${base}.test${ext}`),
-      path.join(dir, "__tests__", `${base}.spec${ext}`),
-    ];
-
-    // Walk up to find a tests/ or __tests__/ directory, searching subdirectories
-    let searchDir = dir;
-    for (let i = 0; i < 10; i++) {
-      // Check for tests/ directory (flat project root pattern)
-      const testsDir = path.join(searchDir, "tests");
-      if (existsSync(testsDir)) {
-        candidates.push(path.join(testsDir, `${base}.test${ext}`));
-        candidates.push(path.join(testsDir, `${base}.spec${ext}`));
-        // Node --test pattern: test_{base}.js
-        candidates.push(path.join(testsDir, `test_${base}.js`));
-        // Also check subdirectories of tests/
-        try {
-          const { readdirSync, statSync } = require("fs");
-          const entries = readdirSync(testsDir);
-          for (const entry of entries) {
-            const full = path.join(testsDir, entry);
-            if (statSync(full).isDirectory()) {
-              candidates.push(path.join(full, `${base}.test${ext}`));
-              candidates.push(path.join(full, `${base}.spec${ext}`));
-            }
-          }
-        } catch {}
-      }
-
-      // Check for src/__tests__/ directory (Vite/Electron project pattern)
-      const srcTestsDir = path.join(searchDir, "src", "__tests__");
-      if (existsSync(srcTestsDir)) {
-        candidates.push(path.join(srcTestsDir, `${base}.test${ext}`));
-        candidates.push(path.join(srcTestsDir, `${base}.spec${ext}`));
-        // Also check one level of subdirectories (e.g. src/__tests__/main/, src/__tests__/converters/)
-        try {
-          const { readdirSync, statSync } = require("fs");
-          const entries = readdirSync(srcTestsDir);
-          for (const entry of entries) {
-            const full = path.join(srcTestsDir, entry);
-            if (statSync(full).isDirectory()) {
-              candidates.push(path.join(full, `${base}.test${ext}`));
-              candidates.push(path.join(full, `${base}.spec${ext}`));
-            }
-          }
-        } catch {}
-      }
-
-      const parent = path.dirname(searchDir);
-      if (parent === searchDir) break;
-      searchDir = parent;
-    }
-
-    return candidates.find((c) => existsSync(c)) || null;
-  }
-
-  return null;
-}
+const { findTestFile } = require("../tdd-find-test-file");
 
 /**
  * Check if a test file actually imports the implementation module.
