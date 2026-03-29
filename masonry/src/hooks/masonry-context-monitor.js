@@ -248,7 +248,7 @@ async function checkSemanticDegradation(messages, cwd) {
 }
 
 async function main() {
-  const input = await readStdin();
+  const input = await readStdin(500); // 500ms — Stop hooks receive stdin immediately
   if (!input) return;
 
   let parsed;

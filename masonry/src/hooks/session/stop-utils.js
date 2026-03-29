@@ -7,13 +7,13 @@ const fs = require('fs');
 const path = require('path');
 const { readJson, writeJson, appendJsonl } = require('../../core/mas');
 
-function readStdin() {
+function readStdin(timeoutMs = 2000) {
   return new Promise((resolve) => {
     let data = '';
     process.stdin.setEncoding('utf8');
     process.stdin.on('data', (chunk) => (data += chunk));
     process.stdin.on('end', () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
+    setTimeout(() => resolve(data), timeoutMs);
   });
 }
 

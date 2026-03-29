@@ -41,7 +41,7 @@ function isResearchProject(dir) {
 
 async function main() {
   // Auto-detect BrickLayer research project — hooks are silent inside BL subprocesses
-  if (isResearchProject(process.cwd())) process.exit(0);
+  if (isResearchProject(process.cwd())) return;
 
   const raw = await readStdin();
   let input = {};
@@ -51,8 +51,9 @@ async function main() {
   const lines = [];
   const state = {}; // shared: autopilotMode, uiMode, campaign
 
-  // Phase 1: Build / UI / campaign / Karen state (may exit early for interrupted build)
+  // Phase 1: Build / UI / campaign / Karen state (may set earlyExit for interrupted build)
   addBuildState(lines, cwd, state);
+  if (state.earlyExit) return; // systemMessage already written by build-state
 
   // Phase 2: BL project detection, session init, lock, daemon
   addProjectContext(lines, cwd, input, state);
@@ -98,7 +99,6 @@ async function main() {
     );
   } catch {}
 
-  process.exit(0);
 }
 
-main().catch(() => process.exit(0));
+main().catch(() => {});

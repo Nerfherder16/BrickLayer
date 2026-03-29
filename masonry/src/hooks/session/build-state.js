@@ -14,7 +14,8 @@ function tryJSON(p) {
 /**
  * Adds autopilot, UI compose, campaign, and Karen maintenance context to lines.
  * Populates state.autopilotMode, state.uiMode, state.campaign.
- * May call process.exit(0) early for interrupted-build auto-resume.
+ * Sets state.earlyExit = true when an interrupted build is detected and the
+ * systemMessage has been written — caller should skip remaining phases.
  */
 function addBuildState(lines, cwd, state) {
   // --- Autopilot build state ---
@@ -37,7 +38,8 @@ function addBuildState(lines, cwd, state) {
         process.stdout.write(JSON.stringify({
           systemMessage: resumeMsg + "\n\nResume the interrupted build now. Invoke the /build skill to continue from where it left off.",
         }));
-        process.exit(0);
+        state.earlyExit = true;
+        return;
       }
 
       lines.push(`[Masonry] Autopilot ${autopilotMode.toUpperCase()} mode active — project: ${progress.project || "?"}, ${done}/${total} tasks done, ${pending.length} remaining.`);
