@@ -36,13 +36,28 @@ To set up a new research session:
    *(RETRO-H2: skipping pre-flight costs ~4 unplanned follow-up questions per 25-question campaign.)*
 
 8. **Session-start self-check** (run before any question):
-   - Confirm this file is fully read — verify the following sections are present:
-     `## After writing each finding — spawn peer-reviewer in background` and `## NEVER STOP`.
-     If either is missing, re-read program.md completely before continuing.
-   - Count findings in `findings/` that do NOT contain a `## Peer Review` section.
-     If > 50% of non-INCONCLUSIVE findings lack peer review, log a warning:
+   - **Marker check** — Read this file (program.md) fully into context. Verify ALL THREE
+     of the following substrings are present in what you just read:
+     1. `spawn peer-reviewer` (marker A — Live Discovery peer review spawn)
+     2. `spawn forge-check` (marker B — Live Discovery fleet gap spawn)
+     3. `agent-auditor` (marker C — Live Discovery audit spawn)
+
+     **If all three are present**: continue to the next checks.
+     **If any marker is absent**:
+     1. Re-read this file from disk using the Read file tool (do not rely on session cache).
+     2. Re-check all three markers.
+     3. If now present: continue.
+     4. If still absent: write `findings/SELF_CHECK_FAILURE.md` with the missing markers
+        listed, then STOP. Do not process any questions. Human action required.
+
+     *(Q7.6: these markers target operative spawn instructions, not section headers.
+     They survive header-level reformatting and detect the Session A failure mode where
+     Live Discovery was missing, causing 20+ waves of unreviewed findings.)*
+
+   - **Peer review gap** — Count findings in `findings/` that do NOT contain a `## Peer Review`
+     section. If > 50% of non-INCONCLUSIVE findings lack peer review, log a warning:
      `peer_review_gap: N findings unreviewed` before running the first question.
-   - Run `python simulate.py` to confirm the baseline verdict is HEALTHY.
+   - **Baseline run** — Run `python simulate.py` to confirm the baseline verdict is HEALTHY.
      If WARNING or FAILURE on a clean run, stop and investigate before starting.
 9. **Confirm and go.**
 
@@ -187,16 +202,57 @@ This takes <1 second and closes the async loop:
    → Insert a new PENDING re-examination question at the top of the next wave in
    `questions.md`. Continue — do not revert any commit without human confirmation.
 
-4. **HHI diversity sentinel** (after Wave 5 only — skip in earlier waves):
-   Count findings per category from `findings/`. If any single category accounts for
-   > 40% of all findings, it is over-concentrated. Before redirecting:
-   **Severity-exemption gate**: if the over-concentrated category contains a CRITICAL
-   or High-severity finding written in the **current wave**, suppress the diversity
-   redirect for that category for the next 3 waves. Only redirect when concentration
-   comes from Low/Info redundancy, not active critical investigation.
-   If redirection is warranted: insert a PENDING question targeting the category with
-   zero findings (any category with zero findings after Wave 10 = mandatory floor
-   redirect, higher priority than HHI threshold).
+4. **HHI diversity sentinel with severity-exemption gate** (skip until ≥ 10 WARNING/FAILURE
+   findings exist — early campaigns have too few data points for stable HHI):
+
+   **CRITICAL FAILURE definition** — a finding is CRITICAL FAILURE if **both**:
+   - Header contains: `**Verdict**: FAILURE`
+   - Title or first 30 lines contains at least one of:
+     `never surfaced` / `never retrieved` / `never injected` / `data loss` /
+     `silently drops` / `regression` / `split-brain confirmed` / `0 prefetch hits` /
+     `0 hits ever` / `memory never` / regex: `hit rate [0-9]\.`
+
+   **Exemption window** — when a CRITICAL FAILURE is recorded for category C in wave W:
+   - C is exempt from HHI redirect for waves W through W+4 (5 waves inclusive).
+   - Early expiry: exempt status clears if C transitions to WARNING/HEALTHY in 3 consecutive
+     findings AND no new FAILURE in C in the last 2 waves AND restricted-HHI < 0.40.
+
+   **HHI computation** (on restricted set):
+   1. Collect all WARNING+FAILURE findings.
+   2. Remove findings in currently-exempt categories from the denominator.
+   3. Compute HHI on the restricted set.
+   4. If restricted set has 0 categories: skip HHI entirely, emit AUDIT_REPORT advisory.
+   5. If restricted set has 1 category: advisory-only mode (no redirect useful).
+   6. If HHI > 0.40: identify the most-underrepresented non-exempt category.
+      Tie-break: fewer questions asked, then alphabetical.
+      Emit: inject 2 PENDING questions per wave toward that category.
+
+   **Zero-findings floor** — any category with zero findings after Wave 10 gets a mandatory
+   floor redirect (higher priority than HHI threshold).
+
+   *(Q7.5: per-category exemption prevents suppression of critical deep-dives like the
+   wave 13 retrieval cluster. Multi-CRITICAL case degrades gracefully — HHI narrows to
+   non-exempt categories, and suspends entirely when all categories are exempt.)*
+
+### SUBJECTIVE Verdict Handling (Model B Queue)
+
+A finding with `**Verdict**: SUBJECTIVE` means sufficient evidence was gathered but only
+a human can resolve the verdict. Mark the question DONE and annotate the Status line:
+
+    **Status**: DONE  <!-- SUBJECTIVE: awaiting human resolution -->
+
+**At each wave-start sentinel check**, count unresolved SUBJECTIVE annotations in the
+current wave. If backlog > 5, output a list of unresolved IDs to the terminal before
+continuing. If backlog > 10, append `<!-- ESCALATION: review debt >10 -->` to the wave
+header. Do not halt the campaign on either condition.
+
+**Resolution (Tim's action)**: Read the finding. Update `**Verdict**` to the actual
+verdict. Add `## Human Resolution` section (1-3 sentences). Remove the SUBJECTIVE
+annotation from the Status line. Campaign target: resolve ≥ 70% of SUBJECTIVE findings
+per wave before the next wave-start check.
+
+**SUBJECTIVE is not INCONCLUSIVE.** INCONCLUSIVE = insufficient evidence.
+SUBJECTIVE = evidence gathered, human judgment required to weigh it.
 
 ---
 
