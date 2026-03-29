@@ -162,3 +162,124 @@
 **Hypothesis**: A structurally enforced architecture would require: (1) a hook that can inject mandatory tool calls (not just text), (2) a routing receipt system where Mortar marks each request as "routed" before any other tool use is permitted, (3) a trivial-task classifier that operates before the enforcement gate, and (4) a conversation-aware router that maintains routing state across turns. The current system lacks all four prerequisites. The closest feasible path is a PreToolUse deny-gate combined with a file-based routing receipt, but this cannot force the Agent tool -- it can only block everything else until Claude "voluntarily" invokes Mortar.
 **Agent**: frontier-analyst
 **Success criterion**: A design sketch with (a) the ideal enforcement architecture (unconstrained by current limitations), (b) the minimum viable enforcement architecture (constrained to current hook capabilities), (c) a gap analysis between ideal and feasible, and (d) a recommendation on whether to pursue hook-based enforcement or a fundamentally different approach.
+
+---
+
+## Wave 2
+
+**Generated from findings**: D1.1, D1.3, D2.1, D2.2, D3.1, D3.2, D4.2, D5.1, D5.2, V1.1, FR1.1
+**Mode transitions applied**: D1.1 DIAGNOSIS_COMPLETE -> F2.1 Fix; D1.3 DIAGNOSIS_COMPLETE -> F2.2 Fix; D2.1+D2.2 DIAGNOSIS_COMPLETE -> F2.3 Fix (atomic prerequisite bundle); D2.2 DIAGNOSIS_COMPLETE (receipt writer location underspecified) -> D2.3 Diagnose; FR1.1 FRONTIER_PARTIAL+VIABLE -> R2.1+R2.2 Research; D3.1 FAILURE -> R2.2 Research (spec+build pattern narrowing); D3.2 FAILURE -> D2.5 Diagnose (last_route persistence design); D4.2 FAILURE -> D2.4 Diagnose (routing_keywords auto-population); D5.1+D5.2 WARNING -> M2.1 Monitor
+
+---
+
+### F2.1: Implement the CLAUDE.md line 68 escape hatch fix specified in D1.1 -- replace "direct action when trivial" with a scoped operational definition
+
+**Status**: DONE
+**Finding**: findings/F2.1.md
+**Completed**: 2026-03-29T10:45:00Z
+**Operational Mode**: Fix
+**Priority**: HIGH
+**Motivated by**: D1.1 (DIAGNOSIS_COMPLETE) -- CLAUDE.md line 68 phrase "direct action when trivial, agents when substantive" overrides the absolute Mortar directive via specificity-beats-general; "trivial" has no operational definition and defaults to the model's broad prior
+**Hypothesis**: Replacing the vague phrase with a scoped definition ("single-sentence factual lookups with no file changes required") will close the escape hatch that allows the model to justify inline execution for substantive work while preserving a narrow legitimate bypass for genuinely trivial responses
+**Method**: fix-implementer
+**Success criterion**: (a) CLAUDE.md line 68 changed from "direct action when trivial" to a scoped definition that includes concrete examples of what trivial means and what it excludes; (b) the new text does not contradict the "Every request -> Mortar" absolute directive elsewhere in CLAUDE.md; (c) verified by grep showing no remaining instance of undefined "trivial" near the routing directive; (d) change is minimal -- text edit only, no structural changes to CLAUDE.md
+
+---
+
+### F2.2: Implement the prompt router output channel fix specified in D1.3 -- switch masonry-prompt-router.js from hookSpecificOutput to additionalContext and rewrite hint as imperative
+
+**Status**: DONE
+**Finding**: findings/F2.2.md
+**Completed**: 2026-03-29T10:50:00Z
+**Operational Mode**: Fix
+**Priority**: HIGH
+**Motivated by**: D1.3 (DIAGNOSIS_COMPLETE) -- prompt router emits routing hint via hookSpecificOutput.content (wrong channel, treated as annotation) instead of additionalContext (model-visible context); hint uses arrow annotation format ("->") instead of imperative format; two independent reasons the hint carries no authority
+**Hypothesis**: Switching to additionalContext makes the routing hint visible to the model in the same context channel as CLAUDE.md instructions; rewriting the hint as an imperative with explicit consequence framing ("You MUST route this through Mortar -- direct Write/Edit without a routing receipt will be blocked") increases compliance by citing a real enforcement consequence
+**Method**: fix-implementer
+**Success criterion**: (a) masonry-prompt-router.js emits routing hint via additionalContext key, not hookSpecificOutput.content; (b) hint text is imperative ("You MUST..."), not annotation ("-> route to..."); (c) hint references the enforcement consequence ("Write/Edit will be blocked") to make it credible; (d) verified by reading the updated hook and confirming the output structure matches the additionalContext schema; (e) existing routing hint logic (intent detection, effort classification, skip conditions) is unchanged -- only the output channel and format change
+
+---
+
+### F2.3: Implement the five-prerequisite atomic bundle required before the masonry-approver.js hard block can be enabled -- receipt writer, per-turn reset, trivial bypass, gate conversion, and MASONRY_ENFORCE_ROUTING flag
+
+**Status**: PENDING
+**Operational Mode**: Fix
+**Priority**: HIGH
+**Motivated by**: D2.1 (DIAGNOSIS_COMPLETE) + D2.2 (DIAGNOSIS_COMPLETE) + V1.1 (WARNING) -- the Mortar gate in masonry-approver.js lines 293-301 is advisory-only; the change to hard block is known; but V1.1 establishes that deploying the block without 5 prerequisites produces 100% false-positive rate; all five must be deployed atomically
+**Hypothesis**: The five prerequisites (receipt writer in Mortar instructions, per-turn reset in prompt router, trivial bypass condition in approver, gate conversion to deny, MASONRY_ENFORCE_ROUTING env flag) together form a complete atomic unit; deploying them simultaneously behind the env flag allows measuring the real false-positive rate before making enforcement the default
+**Method**: fix-implementer
+**Success criterion**: (a) Mortar agent instructions contain explicit instruction to write mortar_consulted: true and mortar_session_id: <ISO> to masonry-state.json after routing a request; (b) masonry-prompt-router.js resets mortar_consulted: false at each UserPromptSubmit; (c) masonry-approver.js contains a trivial bypass condition that allows through when effort is "low" or prompt length is under a configurable threshold; (d) masonry-approver.js lines 293-301 emit permissionDecision: "deny" for Write/Edit when MASONRY_ENFORCE_ROUTING=1 AND !isMortarConsulted(); (e) Bash exemption is unchanged; (f) all existing approval paths (build mode, compose mode, research mode, subagent exemption) remain unaffected; (g) verified by starting a fresh session with MASONRY_ENFORCE_ROUTING=1, attempting a Write without Mortar consultation -- expect deny; then routing through Mortar -- expect allow
+
+---
+
+### D2.3: Where exactly in Mortar's agent instructions should the receipt writer live, and what is the complete write specification to prevent the Mortar-before-file-write deadlock?
+
+**Status**: PENDING
+**Operational Mode**: Diagnose
+**Priority**: MEDIUM
+**Motivated by**: D2.2 (DIAGNOSIS_COMPLETE) -- Fix specification identifies the receipt writer as "Change B" needing to live in "Mortar's agent instructions or a dedicated hook," but the exact location is underspecified; the deadlock risk is real: if Mortar fails to write the receipt before the first tool call, the gate denies the tool call, blocking Mortar from completing; the write timing must be precise
+**Hypothesis**: The receipt writer must be placed in Mortar's agent instructions as an explicit first-action step before any tool delegation -- not at session start, not post-dispatch, but before Mortar returns any response to Claude; the exact instruction text and the file write target (masonry-state.json path, field names, timestamp format) need to be fully specified to avoid the deadlock scenario
+**Method**: diagnose-analyst
+**Success criterion**: (a) exact location in mortar.md (or equivalent Mortar instruction file) where the receipt write instruction should be inserted; (b) the precise instruction text that causes Mortar to write the receipt (including which tool to use, which file path, which JSON fields); (c) analysis of whether the write must happen before or after Mortar dispatches specialist agents; (d) deadlock scenario analysis -- if the receipt write fails, what happens to the blocked session and how does it recover; (e) identification of whether masonry-state.json global singleton vs. per-session temp file matters for the deadlock case
+
+---
+
+### R2.1: Does the D1.1 "single-sentence factual lookup" boundary create over-delegation for interactive conversational queries, and what is the expected false-positive rate at the new trivial threshold?
+
+**Status**: PENDING
+**Operational Mode**: Research
+**Priority**: MEDIUM
+**Motivated by**: FR1.1 (FRONTIER_PARTIAL, VIABLE) + D1.1 (DIAGNOSIS_COMPLETE) -- FR1.1 recommends deploying minimum viable enforcement; D1.1's fix narrows "trivial" to "single-sentence factual lookups only"; before committing to this boundary, stress-test it: how many legitimate interactive queries exceed this threshold and would be routed through Mortar unnecessarily?
+**Hypothesis**: The "single-sentence factual lookup" boundary is too narrow for interactive use -- queries like "what does this function return?", "show me the git log", "explain this error" are not file-writing tasks and not multi-agent work, but they exceed the proposed trivial definition; the over-delegation rate at this threshold may be 30-50% of conversational queries, making enforcement oppressive for exploratory sessions
+**Method**: research-analyst
+**Success criterion**: (a) a taxonomy of common interactive conversational queries categorized as trivial-at-proposed-threshold vs. over-delegated-at-proposed-threshold; (b) estimated percentage of typical session prompts that fall into each category; (c) a refined trivial definition that reduces over-delegation without reopening the escape hatch for substantive file-writing work; (d) the key discriminating feature between "genuinely trivial, inline is fine" and "substantive, requires routing" -- is it file-write intent, multi-file scope, or something else?
+
+---
+
+### D2.4: Can the routing_keywords field in agent_registry.yml be auto-populated from agent .md files, and what extraction mechanism would cover 80+ dark fleet agents without manual annotation?
+
+**Status**: PENDING
+**Operational Mode**: Diagnose
+**Priority**: MEDIUM
+**Motivated by**: D4.2 (FAILURE) -- 86% of 114 agents (98 agents) are dark fleet with no routing path; routing_keywords field exists in agent_registry.yml but is unpopulated for 80+ agents; manual annotation of 80 agent files is not tractable; an automated extraction mechanism would close the dark fleet problem at scale
+**Hypothesis**: Each agent .md file contains a structured frontmatter section and a "When to invoke" or "Trigger" section that can be parsed to extract routing keywords; a script that reads agent .md files and extracts trigger conditions could auto-populate routing_keywords with reasonable quality; the same onboard_agent.py script that handles auto-onboarding is the natural place to add this extraction
+**Method**: diagnose-analyst
+**Success criterion**: (a) identification of which sections in agent .md files contain routing-relevant trigger keywords (frontmatter fields, trigger sections, capability descriptions); (b) feasibility assessment of automated extraction -- what percentage of agents have structured enough content to yield usable keywords without manual review; (c) a complete implementation sketch for extending onboard_agent.py (or a new script) to extract and write routing_keywords from .md content; (d) quality risk assessment -- what false-match rate would auto-extracted keywords introduce into the semantic routing layer, and how does it compare to the current 86% dark fleet baseline?
+
+---
+
+### D2.5: What does last_route persistence look like in masonry-state.json for multi-turn continuity, and which follow-up detection patterns would close the Turn 2+ routing signal gap?
+
+**Status**: PENDING
+**Operational Mode**: Diagnose
+**Priority**: MEDIUM
+**Motivated by**: D3.2 (FAILURE) -- router is stateless per-prompt; Turn 2+ of any multi-turn workflow produces complete routing silence; synthesis fix is "add last_route persistence field; implement follow-up detection patterns"; the exact schema and pattern set need to be specified before implementation
+**Hypothesis**: Adding a last_route field to masonry-state.json (written by the prompt router when it emits a hint) and a set of follow-up detection regexes (matching "now do", "also", "same for", "continue", "next", "and then", "additionally") would allow the router to inherit the prior turn's routing decision on continuation prompts; this would close the Turn 2+ gap for the majority of multi-turn workflows without requiring conversation history access
+**Method**: diagnose-analyst
+**Success criterion**: (a) the exact schema extension to masonry-state.json for last_route persistence (field names, data types, TTL/expiry logic); (b) a set of follow-up detection regexes covering the most common continuation patterns in development sessions; (c) the router code path that reads last_route when no INTENT_RULE matches and the current prompt matches a follow-up pattern; (d) the false-positive risk -- which prompts would incorrectly inherit a prior routing decision when they should be classified fresh; (e) identification of whether the same mechanism could handle campaign-mode blackout (D3.2 line 187 exit) without interfering with Trowel's dispatch
+
+---
+
+### R2.2: Which specific regex patterns would close the spec+build INTENT_RULES silent zone identified in D3.1, and do they risk first-match collisions with existing rules?
+
+**Status**: PENDING
+**Operational Mode**: Research
+**Priority**: MEDIUM
+**Motivated by**: D3.1 (FAILURE) -- "Spec+build" is the one Mortar work type with zero INTENT_RULES coverage; /plan exits before detection via slash-command guard; prompts like "plan this feature", "write a spec for", "blueprint the architecture of" have no router entry point; 6 other work types are degraded by verb gaps and first-match collisions
+**Hypothesis**: A small set of regex patterns (3-5 patterns covering "plan", "spec", "blueprint", "design a system for", "architect a solution") would close the spec+build silent zone; adding maintenance verbs ("fix|update|make|change|set|configure|apply|enable|disable|modify") to the existing build rule would close the majority of the verb-gap degradation; both changes can be made without creating new first-match collisions if spec patterns are placed after existing plan/build rules
+**Method**: research-analyst
+**Success criterion**: (a) the exact regex patterns to add for spec+build coverage, with justification for each pattern; (b) cross-reference showing no collision with existing INTENT_RULES entries -- every new pattern tested against all 10 existing rules for overlap; (c) the expanded verb set for the build rule, verified against the maintenance-verb prompts identified in D5.1 as falling into the silent zone; (d) the specific line numbers in masonry-prompt-router.js where each new/modified rule should be inserted; (e) an estimate of the percentage of previously-silent prompts that would now receive a routing hint after both changes
+
+---
+
+### M2.1: Add silent zone hit rate and multi-turn routing collapse rate to monitor-targets.md with WARNING and FAILURE thresholds calibrated to Wave 1 baseline measurements
+
+**Status**: DONE
+**Finding**: findings/M2.1.md
+**Completed**: 2026-03-29T11:00:00Z
+**Operational Mode**: Monitor
+**Priority**: LOW
+**Motivated by**: D5.1 (WARNING) + D5.2 (WARNING) -- 40-60% of developer prompts hit the medium+no-intent silent zone; multi-turn workflows collapse by Turn 2 on every session; both are quantified baselines that should be tracked as Wave 2 fixes are deployed; without a monitor target, there is no way to verify that F2.2 (channel fix) and R2.2 (INTENT_RULES expansion) reduce the silent zone rate
+**Hypothesis**: The silent zone rate will decrease measurably after F2.2 (prompt router channel fix) and R2.2 (INTENT_RULES expansion) are deployed; the multi-turn collapse rate will decrease after D2.5 (last_route persistence) is implemented; both metrics should be tracked with WARNING at the Wave 1 baseline and FAILURE above baseline
+**Method**: fix-implementer (monitor-targets.md update only -- no code changes)
+**Success criterion**: monitor-targets.md contains two new entries: (a) "silent-zone-hit-rate" with WARNING threshold at 50% (Wave 1 baseline upper bound) and FAILURE threshold at 60% (above baseline), measured by counting medium+no-intent exits in masonry-prompt-router.js logs per session; (b) "multi-turn-routing-signal-rate" with WARNING threshold at 40% (Turn 2+ signal coverage) and FAILURE threshold at 20% (near-zero coverage), measured by counting turns with non-empty routing hints vs. total turns in multi-step sessions; both entries include the Wave 1 source finding IDs as context

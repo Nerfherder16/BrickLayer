@@ -194,20 +194,20 @@ async function main() {
   const hasSignal = intent || effort !== "medium";
   if (!hasSignal) process.exit(0);
 
-  const routeStr = intent ? `routing to ${intent.route}` : null;
+  const routeStr = intent ? `Route to: ${intent.route}` : null;
   const effortStr = `[effort:${effort}]`;
-  const mainPart = routeStr ? `→ Mortar: ${routeStr} ${effortStr}` : `→ Mortar: ${effortStr}`;
-  const parts = [mainPart];
+  const parts = [];
+  if (routeStr) parts.push(routeStr);
+  parts.push(effortStr);
   if (intent && intent.note) parts.push(intent.note);
 
-  process.stdout.write(
-    JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: "UserPromptSubmit",
-        content: parts.join(" — "),
-      },
-    })
-  );
+  const hintDetail = parts.join(" ");
+  const hintText =
+    `[ROUTING] You MUST route this request through Mortar before using Write, Edit, or Bash. ` +
+    `${hintDetail}. Invoke the mortar agent (subagent_type: "mortar") first. ` +
+    `Direct Write/Edit without a Mortar routing receipt will be blocked by the pre-tool hook.`;
+
+  process.stdout.write(JSON.stringify({ additionalContext: hintText }));
 
   process.exit(0);
 }
