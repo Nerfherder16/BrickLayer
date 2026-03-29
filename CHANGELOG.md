@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `ec77169` chore: auto-commit 8 session files on stop (2026-03-29)
 - `23a8985` fix(hooks): create masonry-prompt-inject.js — was registered in settings but missing on disk (2026-03-29)
 - `6425b1f` chore: update .mcp.json (2026-03-29)
 - `eb07e77` chore: update mcp.json, .playwright-mcp (4 files) (2026-03-29)
