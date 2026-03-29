@@ -79,6 +79,13 @@ async function main() {
   }
 
   try {
+    // Clear stale index.lock before any git operations — prevents cascading lock failures
+    // when the stop hook fires concurrently with another git process or a prior failed hook run.
+    const lockFile = path.join(cwd, '.git', 'index.lock');
+    try {
+      if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile);
+    } catch { /* already gone or no permission — proceed anyway */ }
+
     const status = execSync('git status --porcelain', {
       encoding: 'utf8', timeout: 6000, cwd,
     }).trim();
