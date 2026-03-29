@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `749180e` chore: update masonry (15 files) (2026-03-29)
 - `47e7fcf` feat: add masonry_daemon + masonry_checkpoint MCP tools via extra-tools module (2026-03-28)
 - `80dc22a` chore: update .playwright-mcp, hero-final.png, hero-fixed.png (3 files) (2026-03-28)
 - `87a1c8f` chore: update docs (1 file) (2026-03-28)
