@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `ba89d1b` feat(phases13+15): BL structural gaps + session intelligence (2026-03-29)
 - `ec77169` chore: auto-commit 8 session files on stop (2026-03-29)
 - `23a8985` fix(hooks): create masonry-prompt-inject.js — was registered in settings but missing on disk (2026-03-29)
 - `6425b1f` chore: update .mcp.json (2026-03-29)
