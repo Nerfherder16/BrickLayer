@@ -42,6 +42,44 @@ async function main() {
     return;
   }
 
+  // Check rough-in-state.json first (wave-based dispatch takes priority)
+  const roughInPath = path.join(cwd, ".autopilot", "rough-in-state.json");
+  const roughIn = tryJSON(roughInPath);
+  if (roughIn && Array.isArray(roughIn.waves)) {
+    const allTasks = roughIn.waves.flatMap((w) => w.tasks || []);
+    const done = allTasks.filter((t) => t.status === "complete").length;
+    const total = allTasks.length;
+    const pending = allTasks.find((t) => t.status === "pending");
+
+    if (!pending) {
+      const inProgress = allTasks.filter((t) => t.status === "in_progress");
+      if (inProgress.length === 0 && done === total && total > 0) {
+        process.stdout.write(JSON.stringify({
+          systemMessage: `[Masonry] All ${done}/${total} wave tasks complete. Queen should report QUEEN_COMPLETE.`,
+        }));
+      }
+      return;
+    }
+
+    pending.status = "in_progress";
+    roughIn.last_updated = new Date().toISOString();
+    try { fs.writeFileSync(roughInPath, JSON.stringify(roughIn, null, 2), "utf8"); } catch { return; }
+
+    const assignment = [
+      `[Masonry] Auto-assigning wave task ${pending.id} (${done}/${total} done)`,
+      ``,
+      `Task: ${pending.description}`,
+      `Agent: ${pending.agent || "developer"}`,
+      ``,
+      `Follow TDD: write failing tests first, implement to pass tests, refactor.`,
+      `When complete: update .autopilot/rough-in-state.json — set task ${pending.id} status to "complete"`,
+    ].join("\n");
+
+    process.stdout.write(JSON.stringify({ systemMessage: assignment }));
+    return;
+  }
+
+  // Fall back to progress.json (flat task list)
   const progress = tryJSON(progressPath);
   if (!progress || !Array.isArray(progress.tasks)) return;
 

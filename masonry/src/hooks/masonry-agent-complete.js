@@ -95,47 +95,67 @@ async function main() {
     }
   } catch (_) {}
 
-  // Check progress.json for dependency unblocking
+  // Check progress.json for dependency unblocking (flat task list)
   const progressFile = path.join(autopilotDir, "progress.json");
-  if (!fs.existsSync(progressFile)) process.exit(0);
-
-  let progress = null;
-  try {
-    progress = JSON.parse(fs.readFileSync(progressFile, "utf8"));
-  } catch (_) {
-    process.exit(0);
-  }
-
-  if (!progress || !Array.isArray(progress.tasks)) process.exit(0);
-
-  // Build set of DONE task IDs (integers)
-  const doneTaskIds = new Set(
-    progress.tasks
-      .filter((t) => t.status === "DONE")
-      .map((t) => t.id)
-  );
-
-  // Find BLOCKED tasks whose all dependencies are now DONE — promote to PENDING
-  let modified = false;
-  for (const task of progress.tasks) {
-    if (
-      task.status === "BLOCKED" &&
-      Array.isArray(task.depends_on) &&
-      task.depends_on.length > 0 &&
-      task.depends_on.every((depId) => doneTaskIds.has(depId))
-    ) {
-      task.status = "PENDING";
-      modified = true;
-      process.stderr.write(
-        `[agent-complete] Task #${task.id} unblocked: all dependencies (${task.depends_on.join(", ")}) are DONE\n`
-      );
-    }
-  }
-
-  if (modified) {
-    progress.updated_at = new Date().toISOString();
+  if (fs.existsSync(progressFile)) {
     try {
-      fs.writeFileSync(progressFile, JSON.stringify(progress, null, 2), "utf8");
+      const progress = JSON.parse(fs.readFileSync(progressFile, "utf8"));
+      if (progress && Array.isArray(progress.tasks)) {
+        const doneTaskIds = new Set(
+          progress.tasks.filter((t) => t.status === "DONE").map((t) => t.id)
+        );
+        let modified = false;
+        for (const task of progress.tasks) {
+          if (
+            task.status === "BLOCKED" &&
+            Array.isArray(task.depends_on) &&
+            task.depends_on.length > 0 &&
+            task.depends_on.every((depId) => doneTaskIds.has(depId))
+          ) {
+            task.status = "PENDING";
+            modified = true;
+            process.stderr.write(
+              `[agent-complete] Task #${task.id} unblocked: all deps (${task.depends_on.join(", ")}) DONE\n`
+            );
+          }
+        }
+        if (modified) {
+          progress.updated_at = new Date().toISOString();
+          fs.writeFileSync(progressFile, JSON.stringify(progress, null, 2), "utf8");
+        }
+      }
+    } catch (_) {}
+  }
+
+  // Check rough-in-state.json for wave-based dependency unblocking
+  const roughInFile = path.join(autopilotDir, "rough-in-state.json");
+  if (fs.existsSync(roughInFile)) {
+    try {
+      const state = JSON.parse(fs.readFileSync(roughInFile, "utf8"));
+      if (state && Array.isArray(state.waves)) {
+        const completedIds = new Set();
+        for (const wave of state.waves) {
+          for (const task of wave.tasks || []) {
+            if (task.status === "complete") completedIds.add(task.id);
+          }
+        }
+        let modified = false;
+        for (const wave of state.waves) {
+          for (const task of wave.tasks || []) {
+            if (task.status === "blocked" && task.depends_on && completedIds.has(task.depends_on)) {
+              task.status = "pending";
+              modified = true;
+              process.stderr.write(
+                `[agent-complete] Wave task ${task.id} unblocked: dep ${task.depends_on} complete\n`
+              );
+            }
+          }
+        }
+        if (modified) {
+          state.last_updated = new Date().toISOString();
+          fs.writeFileSync(roughInFile, JSON.stringify(state, null, 2), "utf8");
+        }
+      }
     } catch (_) {}
   }
 
