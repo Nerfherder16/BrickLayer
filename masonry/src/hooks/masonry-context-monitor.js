@@ -14,23 +14,57 @@
 
 const { statSync, existsSync, readFileSync } = require("fs");
 const { execSync } = require("child_process");
+const { readStdin } = require("./session/stop-utils");
 
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (chunk) => (data += chunk));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
-
-function hasUncommittedChanges(cwd) {
+function hasUncommittedChanges(cwd, sessionId) {
   try {
     const status = execSync("git status --porcelain", {
       encoding: "utf8", timeout: 5000, cwd,
     }).trim();
-    return status.length > 0;
+    if (!status) return false;
+
+    // If we have a session ID, check the activity log to narrow to THIS session's
+    // files only — prevents sibling-session files (campaign, Playwright) from
+    // triggering a false block.
+    if (sessionId) {
+      const os = require("os");
+      const path = require("path");
+      const fs = require("fs");
+      const activityFile = path.join(os.tmpdir(), `masonry-activity-${sessionId}.ndjson`);
+      if (fs.existsSync(activityFile)) {
+        const lines = fs.readFileSync(activityFile, "utf8").trim().split("\n").filter(Boolean);
+        const normalCwd = cwd.replace(/\\/g, "/");
+        const sessionFiles = new Set();
+        for (const line of lines) {
+          try {
+            const entry = JSON.parse(line);
+            if (!entry.file) continue;
+            let f = entry.file.replace(/\\/g, "/");
+            if (f.startsWith(normalCwd + "/")) f = f.slice(normalCwd.length + 1);
+            sessionFiles.add(f);
+          } catch { /* skip */ }
+        }
+        if (sessionFiles.size > 0) {
+          // Only block if one of THIS session's files appears in git status
+          const dirtyFiles = status.split("\n").map(l => l.slice(3).trim());
+          return dirtyFiles.some(f => sessionFiles.has(f));
+        }
+      }
+
+      // Activity log missing — check snapshot for pre-existing files and exclude them
+      const snapPath = path.join(os.tmpdir(), `masonry-snap-${sessionId}.json`);
+      if (fs.existsSync(snapPath)) {
+        try {
+          const snap = JSON.parse(fs.readFileSync(snapPath, "utf8"));
+          const preExisting = new Set(snap.preExisting || []);
+          const dirtyFiles = status.split("\n").map(l => l.slice(3).trim());
+          return dirtyFiles.some(f => !preExisting.has(f));
+        } catch { /* fall through */ }
+      }
+    }
+
+    // No session context — fall back to any dirty files
+    return true;
   } catch {
     return false;
   }
@@ -227,6 +261,7 @@ async function main() {
   if (!transcriptPath) process.exit(0);
 
   const cwd = parsed.cwd || process.cwd();
+  const sessionId = parsed.session_id || parsed.sessionId || null;
 
   // --- Context size check (existing behaviour) ---
   try {
@@ -234,7 +269,7 @@ async function main() {
     const estimatedTokens = Math.round(stats.size / 4);
 
     if (estimatedTokens > 750000) {
-      const dirty = hasUncommittedChanges(cwd);
+      const dirty = hasUncommittedChanges(cwd, sessionId);
       const label = `~${Math.round(estimatedTokens / 1000)}K tokens (>750K) — commit + new session.`;
 
       if (dirty) {
