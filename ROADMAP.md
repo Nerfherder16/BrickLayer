@@ -365,19 +365,19 @@ in `~/.claude.json`. Does NOT replace masonry-mcp.js — both run in parallel.
 
 ---
 
-## Phase 13 — BL Structural Gaps 📋
+## Phase 13 — BL Structural Gaps ✅
 
 **Goal:** Close three structural gaps identified from campaign feedback: missing model design log, no model versioning to correlate findings with sim state, and no sweep validation gate.
 
 | ID | Task | Status |
 |----|------|--------|
-| 13.01 | `model_assumptions.md` pattern — Trowel writes/maintains a design decisions log per project; agents append when they change model logic; helps future agents understand why the model is structured the way it is | 📋 |
-| 13.02 | Model versioning — compute a hash of `simulate.py` + `constants.py` state at question time; embed in each finding as `**Model hash**:`; enables correlation between findings and the model version that produced them | 📋 |
-| 13.03 | Sweep validation gate — before running any sweep, verify the parameter exists in `simulate.py`'s SCENARIO PARAMETERS block; block with clear error if not found; prevents "finding" on a parameter that never wired up | 📋 |
+| 13.01 | `model_assumptions.md` pattern — Trowel writes/maintains a design decisions log per project; agents append when they change model logic; helps future agents understand why the model is structured the way it is | ✅ |
+| 13.02 | Model versioning — compute a hash of `simulate.py` + `constants.py` state at question time; embed in each finding as `**Model hash**:`; enables correlation between findings and the model version that produced them | ✅ |
+| 13.03 | Sweep validation gate — before running any sweep, verify the parameter exists in `simulate.py`'s SCENARIO PARAMETERS block; block with clear error if not found; prevents "finding" on a parameter that never wired up | ✅ |
 
 ---
 
-## Phase 14 — Campaign Working Memory 📋
+## Phase 14 — Campaign Working Memory ✅
 
 **Goal:** Close the context pressure and inter-agent communication gaps identified in research finding R-shared-scratchpad. BL 2.0's blackboard architecture is correct in shape but needs mid-wave compression, a typed signal board, and Recall enforcement to scale past ~30 questions per campaign without quality degradation.
 
@@ -387,21 +387,21 @@ in `~/.claude.json`. Does NOT replace masonry-mcp.js — both run in parallel.
 |----|------|--------|
 | 14.01 | `scratch.md` — typed signal board at project root; 4 signal types (WATCH, BLOCK, DATA, RESOLVED); rolling 15-entry cap; Trowel trims RESOLVED rows after each question completes | ✅ |
 | 14.02 | `pointer` agent (~80 lines) — mid-wave summarizer; reads findings since last checkpoint; produces `findings/checkpoints/wave{N}-q{K}.md` with verdicts table, failure boundaries, cross-domain conflicts, and priorities for remaining questions | ✅ |
-| 14.03 | Trowel sentinel: fire Pointer every 8 questions; subsequent agents receive latest checkpoint + last 3 full findings + domain findings — not the full corpus | 📋 |
+| 14.03 | Trowel sentinel: fire Pointer every 8 questions; subsequent agents receive latest checkpoint + last 3 full findings + domain findings — not the full corpus | ✅ |
 | 14.04 | File structure reorganization — wave-partitioned findings (`findings/wave{N}/`), `findings/checkpoints/`, `findings/synthesis/`; `brief/`, `sim/`, `campaign/` subdirs; enforced agent read order in Trowel spawn prompts | ✅ |
 | 14.05 | Recall as orchestrator hook — move `recall_store` out of agent prompts into Trowel post-finding sequence; store executes from parsed JSON block regardless of agent behavior | ✅ |
 | 14.06 | JSON output validation — Trowel parses JSON block before marking DONE; malformed → `INCONCLUSIVE-FORMAT-ERROR` + single re-invoke; prevents silent findings corpus corruption | ✅ |
 
 ---
 
-## Phase 15 — Session Intelligence 📋
+## Phase 15 — Session Intelligence ✅
 
 **Goal:** Close structural gaps identified in the OMC comparison (R-omc-structural-comparison.md). OMC's session-quality layer has two capabilities BL 2.0 lacks: hot-path awareness (which files are touched most, cross-session) and dead-reference hygiene. These are low-cost, high-signal additions that improve agent context quality.
 
 | ID | Task | Status |
 |----|------|--------|
-| 15.01 | Hot path tracker — `masonry-session-start.js` accumulates a file access frequency map across sessions to `~/.masonry/state/{slug}/hotpaths.json`; top-5 most-edited files injected into session context at startup; helps agents avoid re-discovering the same structural facts | 📋 |
-| 15.02 | Dead reference audit — scan all agent `.md` files, hooks, and CLAUDE.md for references to removed tools/agents/env vars (e.g. `oh-my-claudecode`, `DISABLE_OMC`); auto-flag on `masonry-session-start.js`; emit `[Masonry] STALE_REF:` warning | 📋 |
+| 15.01 | Hot path tracker — `masonry-session-start.js` accumulates a file access frequency map across sessions to `~/.masonry/state/{slug}/hotpaths.json`; top-5 most-edited files injected into session context at startup; helps agents avoid re-discovering the same structural facts | ✅ |
+| 15.02 | Dead reference audit — scan all agent `.md` files, hooks, and CLAUDE.md for references to removed tools/agents/env vars (e.g. `oh-my-claudecode`, `DISABLE_OMC`); auto-flag on `masonry-session-start.js`; emit `[Masonry] STALE_REF:` warning | ✅ |
 
 ---
 

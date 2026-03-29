@@ -60,6 +60,21 @@ async function main() {
   // Phase 3: Recall patterns, codebase map, swarm resume, ReasoningBank, skills
   await addContextData(lines, cwd, state);
 
+  // Phase 4: Hot path context — most-edited files this project
+  try {
+    const { injectContext } = require('./session/hotpaths');
+    const hotContext = injectContext(cwd);
+    if (hotContext) lines.push(hotContext);
+  } catch {}
+
+  // Phase 5: Dead reference audit — warn on stale tool/agent references
+  try {
+    const { scanAll, formatWarnings } = require('./session/dead-refs');
+    const globalAgents = path.join(os.homedir(), '.claude', 'agents');
+    const warnings = formatWarnings(scanAll(cwd, globalAgents));
+    if (warnings) process.stderr.write(warnings + '\n');
+  } catch {}
+
   if (lines.length > 0) {
     process.stdout.write(JSON.stringify({
       hookSpecificOutput: { hookEventName: "SessionStart", content: lines.join("\n") },
