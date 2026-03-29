@@ -83,10 +83,8 @@ async function main() {
   }
 
   // --- Session snapshot for stop-guard dirty-file diffing ---
-  // Use real session_id when available; fall back to a stable per-process ID so the
-  // activity log (masonry-observe.js) and stop-guard use the same key even when
-  // Claude Code doesn't include session_id in the SessionStart payload.
-  const sessionId = input.session_id || input.sessionId || `session-${process.ppid || null}`;
+  const { getSessionId } = require('./session/stop-utils');
+  const sessionId = getSessionId(input);
   try {
     const status = execSync("git status --porcelain", { encoding: "utf8", timeout: 5000, cwd }).trim();
     const preExisting = status

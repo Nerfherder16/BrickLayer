@@ -64,4 +64,16 @@ function tryJSON(p) {
   try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; }
 }
 
-module.exports = { readStdin, normalizeCwd, fileAgeDays, ageLabel, isResearchProject, closeSession, tryRead, tryJSON };
+/**
+ * Derive a stable session ID from the hook payload.
+ * All hooks MUST use this function to ensure consistent file naming
+ * for activity logs, snapshots, and lock files.
+ *
+ * Priority: explicit session_id > sessionId > ppid-based fallback
+ */
+function getSessionId(input) {
+  if (!input) return `session-${process.ppid || null}`;
+  return input.session_id || input.sessionId || `session-${process.ppid || null}`;
+}
+
+module.exports = { readStdin, normalizeCwd, fileAgeDays, ageLabel, isResearchProject, closeSession, tryRead, tryJSON, getSessionId };
