@@ -1,166 +1,98 @@
 # Project Status — BrickLayer Research HQ
 
-**Last updated**: 2026-03-21
+**Last updated**: 2026-03-29
 **Maintained by**: karen + Tim (update whenever something changes)
-**Current branch**: `bricklayer-meta/mar21`
+**Current branch**: `bricklayer-v2/mar24-parallel`
 
 > One place to see everything.
 
 ---
 
-## Active Branches
+## Branch Status
 
-| Branch | On GitHub | Purpose | Status |
-|--------|-----------|---------|--------|
-| `master` | Yes | BL engine + all merged work | Current |
-| `bricklayer-meta/mar21` | Yes | Masonry self-research campaign Wave 2 + docs update | Active |
-| `recall/design` | Yes | Recall 2.0 design workspace + frontier campaign | Pushed — safe |
-| `recall/mar14` | Yes | Recall 1.x campaign work (Wave 33+) | Pushed — safe |
+| Branch | Local | Remote | Notes |
+|--------|-------|--------|-------|
+| `bricklayer-v2/mar24-parallel` | ✅ | ✅ | Active — 66 commits ahead of remote, push needed |
+| `master` | ✅ | ✅ | 1152 commits behind this branch — merge pending |
+| `autopilot/signal-quality-20260323` | ✅ | ❌ | Local only — unpushed |
+| `autopilot/stop-hook-fixes-20260323` | ✅ | ❌ | Local only — unpushed |
+| `autopilot/mas-folder-20260323` | ✅ | ✅ | Pushed |
+| `bl-audit/mar22`, `bl-audit/mar21` | ✅ | ❌ | Audit branches, local only |
 
----
-
-## Projects
-
-### BrickLayer 2.0 Engine — `bl/`, `template/`, `masonry/`
-**Status**: ACTIVE — production-ready on `master`
-**What's built**:
-- 10-mode lifecycle (simulate/diagnose/fix/research/audit/validate/benchmark/evolve/monitor/predict/frontier)
-- Self-healing loop (`BRICKLAYER_HEAL_LOOP=1`)
-- Agent performance tracking (`bl/agent_db.py`) — score 0.0–1.0, underperformer threshold 0.40
-- Skill forge (`bl/skill_forge.py`) — distills findings into `~/.claude/skills/`
-- Masonry bridge: 22 hooks, four-layer routing, Pydantic v2 payload schemas
-- DSPy MIPROv2 prompt optimization pipeline — full-fleet training from campaign findings
-- MCP server with 7 tools (dual-transport: SDK + raw JSON-RPC 2.0 fallback)
-- Plugin pack architecture (`packs/masonry-core/`, `packs/masonry-frontier/`)
-- Agent registry (`masonry/agent_registry.yml`) with auto-onboarding via hook
-- 30+ agents in `.claude/agents/` covering research, dev workflow, meta-fleet, and utility roles
-
-**Recent completions (2026-03-21)**:
-- Phase 16: Full-fleet DSPy training pipeline (training extractor, MIPROv2 optimizer, drift detector, 60 DSPy stubs generated)
-- Hook kill switch wired (`DISABLE_OMC=1`) + auto-detection of BL project context
-- `masonry-agent-onboard.js` hook + `onboard_agent.py` auto-onboarding pipeline
-- MCP server expanded: 5 new tools (route, optimization_status, onboard, drift_check, registry_list)
-- Four-layer routing engine: deterministic + semantic (Ollama) + LLM (Haiku) + fallback
-- Pydantic v2 payload schemas: QuestionPayload, FindingPayload, RoutingDecision, DiagnosePayload, DiagnosisPayload, AgentRegistryEntry
-- Three-layer agent management architecture overhaul
-- **Agent** field now required in finding format for DSPy training attribution
+**Action**: Push `bricklayer-v2/mar24-parallel` — 66 commits are unsynced.
 
 ---
 
-### Masonry Campaign — `masonry/`
-**What it is**: BL research campaign researching Masonry's own agent management architecture.
-**Status**: Wave 2 COMPLETE — 28 findings, synthesis written
-**Branch**: `bricklayer-meta/mar21`
-**Synthesis verdict**: STOP — agent management overhaul complete, move to Phase 6
-**Key findings**: Agent tier system validated; DSPy pipeline working; routing accuracy confirmed;
-  hook kill switch required for campaign subprocess isolation
-**Next action**: Archive this campaign, start Phase 6 (Campaign Quality Intelligence) or Recall 2.0
+## Platform Health
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| `masonry/bin/masonry-mcp.js` | 🟢 | 171 lines (post-split), syntax clean |
+| `masonry/src/tools/` | 🟢 | 14 modules, all pass `node --check` |
+| Hooks (40 total) | 🟢 | All 4 new hooks wired in `~/.claude/settings.json` |
+| Agent registry | 🟢 | 101 entries: 26 trusted · 10 candidate · 65 draft |
+| Global agents (`~/.claude/agents/`) | 🟢 | 79 agents |
+| Project agents (`.claude/agents/`) | 🟢 | 37 agents |
+| Skills (`~/.claude/skills/`) | 🟢 | fork.md, status.md, + full catalog |
+| Pattern lifecycle | 🟢 | `masonry_pattern_use/quality/promote/demote` — 7 tests passing |
+| Extra tools | 🟢 | `masonry_daemon`, `masonry_checkpoint` — tests passing |
 
 ---
 
-### Recall 1.x Campaign — `recall/`
-**What it is**: BL research campaign against the deployed Recall memory system.
-**Status**: PAUSED — Wave 33-36 done, 2 PENDING questions remain
-**Branch**: `recall/mar14` (pushed to GitHub)
-**Key open issue**: double-decay bug (24 consecutive FAILUREs as of Wave 33)
-**Next action**: Either fix double-decay or close out this campaign
+## Campaign Projects
+
+| Project | PENDING | Status | Last Commit |
+|---------|---------|--------|-------------|
+| `adbp/` | **38** | 🟡 | Paused — large queue, ready to run |
+| `recall-arch-frontier/` | **9** | 🟡 | Paused — frontier questions queued |
+| `projects/bl2/` | **3** | 🟡 | Paused — 3 follow-up questions |
+| `recall/` | **2** | 🟡 | Near complete — 2 remaining |
+| `bricklayer-meta/` | **2** | 🟡 | Near complete — 2 remaining |
+| `recall-2.0/` | **0** | ⚪ | Complete or no questions.md |
+| `recall-competitive/` | **0** | ⚪ | Complete or no questions.md |
 
 ---
 
-### Recall 2.0 Design — `recall-2.0/`
-**What it is**: Full architecture design for Recall 2.0, built from first principles.
-**Status**: PRE-FRONTIER — design complete, ready for empirical research
-**Branch**: `recall/design` (safe on GitHub)
-**What's done**: Vision + 9 locked principles, full architecture docs, competitive analysis,
-  12 open decisions, 47 frontier questions + 18 research questions ready to run
-**Next action**: Fire `recall-arch-frontier/` Frontier campaign against the open decisions
+## Platform Phases
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1 | BL 2.0 Core + Masonry Foundation | ✅ |
+| Phase 2 | Ecosystem Expansion (HUD, fleet CLI, plugins) | ✅ |
+| Phase 3 | Runner Breadth (browser, benchmark, document, contract) | ✅ |
+| Phase 4 | Recall Integration | ✅ |
+| Phase 5 | Autonomy (NL entry, self-improving banks, Kiln, MCP) | ✅ |
+| Phase 6 | Dev Execution Loop Upgrades (agents, hooks, skills) | ✅ |
+| Phase 12 | Mortar/Trowel Split | ✅ |
+| Phase 16 | Full-Fleet DSPy Training | ✅ |
+| Phase 13 | BL Structural Gaps (model log, versioning, sweep gate) | 📋 |
+| Phase 14 | Campaign Working Memory (14.03 only remaining) | 🔄 |
+| Phase 15 | Session Intelligence (hot-path tracker, dead-ref audit) | 📋 |
+| Phase 6 (original) | Campaign Quality Intelligence | 📋 |
+| Phase 10 | FastMCP 3.1 Python MCP Tools | 💡 |
+| Phase 11 | ADBP Monte Carlo (Rust) | 💡 |
 
 ---
 
-### Recall Architecture Frontier — `recall-arch-frontier/`
-**What it is**: BL Frontier-mode campaign testing Recall architecture decisions empirically.
-**Status**: STOP (wave 34 complete) — build Recall 2.0 now
-**Branch**: `recall/design` (safe on GitHub)
-**Total questions**: 242 across 10 domains
+## What BL 2.0 Has (as of 2026-03-29)
+
+- **Research engine**: BL 2.0 campaign loop, 10 operational modes, adaptive follow-up, verdict history
+- **Dev execution**: `/build`, `/plan`, `/verify`, `/fix`, `/ultrawork`, `/pipeline`, `/masonry-team`
+- **Agent fleet**: 101 registry entries, 79 global agents, DSPy prompt optimization loop
+- **Hooks**: 40 hooks wired — session, checkpoint, prompt injection, pre-compact, style, TDD, file-size, etc.
+- **MCP server**: `masonry-mcp.js` 171 lines, 35+ tools across 11 focused modules
+- **Pattern lifecycle**: Usage tracking + quality-gated tier promotion (draft→promoted→stale)
+- **Recall integration**: Observe-edit, session summaries, cross-project memory, prompt injection
+- **Kiln (BrickLayerHub)**: Desktop app for campaign monitoring, agent registry UI
+- **Skills**: `/fork`, `/status`, `/build`, `/plan`, `/verify`, plus full catalog
 
 ---
 
-### ADBP — `adbp/`
-**What it is**: American Dream Benefits Program simulation and research (multi-session MC campaign).
-**Status**: Recent work 2026-03-21 — ADBP3 simulation expanded, Section 12 complete
-**Key deliverable**: `ADBP_Research_Findings.docx` with 9 campaign sections
-**Branch**: On `master` (recent commits)
-**Next action**: Review findings document for delivery
+## Cleanup Checklist
 
----
-
-### bricklayer-meta Campaign — `bricklayer-meta/`
-**What it is**: BL research campaign researching the BrickLayer/Masonry platform itself.
-**Status**: Wave 2 complete (28 findings, see Masonry Campaign above)
-**Next action**: Archive — superseded by Phase 16 implementation
-
----
-
-## What BL 2.0 Has (Quick Reference)
-
-### Core engine (`bl/`)
-`campaign.py` · `questions.py` · `findings.py` · `healloop.py` · `fixloop.py`
-`config.py` · `recall_bridge.py` · `agent_db.py` · `skill_forge.py`
-`runners/` (agent, http, subprocess, correctness, performance) · `synthesizer.py` · `hypothesis.py`
-`followup.py` · `crucible.py` · `goal.py` · `history.py`
-
-### 10 Modes (`template/modes/`)
-simulate · diagnose · fix · research · audit · validate · benchmark · evolve · monitor · predict · frontier
-
-### Agent Fleet (30+ agents in `.claude/agents/`)
-**Domain agents**: quantitative-analyst · regulatory-researcher · competitive-analyst ·
-benchmark-engineer · diagnose-analyst · fix-implementer · research-analyst · compliance-auditor ·
-design-reviewer · evolve-optimizer · health-monitor · cascade-analyst · frontier-analyst
-
-**Meta-agents**: overseer · skill-forge · mcp-advisor · synthesizer-bl2 · git-nerd ·
-planner · question-designer-bl2 · hypothesis-generator-bl2
-
-**Dev workflow**: spec-writer (trowel) · mortar · code-reviewer · peer-reviewer · agent-auditor ·
-forge-check · pointer · karen · kiln-engineer
-
-**Utility/BL 1.x**: question-designer · hypothesis-generator · synthesizer · retrospective
-
-### Masonry Layer
-- 22 hooks in `masonry/src/hooks/`
-- Four-layer routing engine in `masonry/src/routing/`
-- Pydantic v2 payload schemas in `masonry/src/schemas/`
-- DSPy pipeline in `masonry/src/dspy_pipeline/` (60 generated stubs)
-- MCP server in `masonry/mcp_server/server.py` (7 tools)
-- Agent registry `masonry/agent_registry.yml` with auto-onboarding
-- Plugin packs in `masonry/packs/`
-
-### What auto-runs at wave end
-1. `synthesizer-bl2` — writes synthesis.md + updates CHANGELOG/ARCHITECTURE/ROADMAP + commits
-2. `overseer` — audits agent scores, repairs underperformers
-3. `skill-forge` — distills findings → skills
-4. `mcp-advisor` — maps tooling gaps → MCP recommendations
-5. `git-nerd` — commits remaining changes + creates/updates PR + writes GITHUB_HANDOFF.md
-
----
-
-## What's NOT Built Yet
-
-| Item | Priority | Description |
-|------|----------|-------------|
-| **Phase 6.01** | High | Verdict confidence tiers — `confidence` field + `needs_human` flag |
-| **Phase 6.02** | High | LLM-as-Judge peer reviewer scoring, re-queue low-quality INCONCLUSIVEs |
-| **Phase 6.03** | Med | Question sharpening — retroactively narrow PENDING questions from INCONCLUSIVE findings |
-| **Phase 6.04** | Med | Shared campaign context injection (campaign-context.md at wave start) |
-| **Phase 6.05** | Med | Agent performance time-series in agent_db.json + Kiln sparklines |
-| **Phase 6.06** | Low | MCP Tool Manifest — canonical tool list, agent `tools:` declaration |
-| **Phase 10** | Future | FastMCP 3.1 Python MCP tools (masonry_karen, masonry_retrospective, etc.) |
-
----
-
-## Cleanup Needed
-
-- [ ] Delete or archive `bricklayer-v2/`, `template-frontier/` (superseded)
-- [ ] Fix `.omc/state/` files accidentally committed to git (see GITHUB_HANDOFF.md)
-- [ ] Commit `recall-arch-frontier/simulate.py` (excluded due to hook false-positive)
-- [ ] Decide fate of `adbp/` — deliver findings document, then archive or continue
-- [ ] Consider deleting legacy `dashboard/` (superseded by Kiln) or marking clearly as legacy
+- [ ] Push `bricklayer-v2/mar24-parallel` (66 commits unsynced)
+- [ ] Decide fate of `autopilot/signal-quality-20260323` and `autopilot/stop-hook-fixes-20260323` (local only)
+- [ ] Run `adbp` campaign (38 PENDING questions waiting)
+- [ ] Promote the 65 draft agents in registry via eval/optimize loop
+- [ ] Phase 14.03: wire Pointer agent into Trowel every-8-questions sentinel
+- [ ] Phase 15: hot-path tracker + dead-reference audit in session-start
