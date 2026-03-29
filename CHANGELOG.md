@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `c0a3803` feat(inline-execution-audit): Wave 2 — F2.3 enforcement bundle + D2.3/D2.4/D2.5 diagnoses (2026-03-29)
 - `01fd178` feat(inline-execution-audit): Wave 2 questions + F2.1/F2.2 fixes (2026-03-29)
 - `1e1280a` feat(template): RETRO-H1, H2, M3 — confidence field, pre-flight, peer review template (2026-03-29)
 - `ab53871` feat(inline-execution-audit): Wave 1 campaign scaffolding and question bank (2026-03-29)
