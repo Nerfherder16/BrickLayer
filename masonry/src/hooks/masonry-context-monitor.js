@@ -261,7 +261,7 @@ async function main() {
   if (!transcriptPath) return;
 
   const cwd = parsed.cwd || process.cwd();
-  const sessionId = parsed.session_id || parsed.sessionId || null;
+  const sessionId = parsed.session_id || parsed.sessionId || `session-${process.ppid || null}`;
 
   // --- Context size check (existing behaviour) ---
   try {

@@ -46,13 +46,13 @@ async function main() {
   const mode = tryRead(path.join(cwd, ".autopilot", "mode"));
   const progressPath = path.join(cwd, ".autopilot", "progress.json");
   const hasActiveProgress = fs.existsSync(progressPath);
-  if (!mode && !hasActiveProgress) process.exit(0);
+  if (!mode && !hasActiveProgress) return;
   if (mode && !["build", "fix", "swarm"].includes(mode) && !hasActiveProgress) {
-    process.exit(0);
+    return;
   }
 
   const progress = tryJSON(progressPath);
-  if (!progress || !Array.isArray(progress.tasks)) process.exit(0);
+  if (!progress || !Array.isArray(progress.tasks)) return;
 
   const tasks = progress.tasks;
   const done = tasks.filter((t) => t.status === "DONE").length;
@@ -72,7 +72,7 @@ async function main() {
         })
       );
     }
-    process.exit(0);
+    return;
   }
 
   // Atomically claim: mark IN_PROGRESS before outputting assignment
@@ -82,7 +82,7 @@ async function main() {
     fs.writeFileSync(progressPath, JSON.stringify(progress, null, 2), "utf8");
   } catch {
     // Failed to claim — exit silently to avoid double-assignment
-    process.exit(0);
+    return;
   }
 
   // Read spec.md for project context (first 600 chars)
@@ -151,7 +151,7 @@ async function main() {
     })
   );
 
-  process.exit(0);
+  return;
 }
 
-main().catch(() => process.exit(0));
+main().catch(() => {});
