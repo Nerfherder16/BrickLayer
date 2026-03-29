@@ -24,6 +24,7 @@ tools:
   - Glob
   - Grep
   - Bash
+triggers: []
 ---
 
 You are the **BL 2.0 Wave Synthesizer** — the agent that closes a research wave,
@@ -414,7 +415,7 @@ recall_store(
     content="Wave {N} synthesis for {project_name}: {summary}. Critical: {critical_findings}. Recommendation: {CONTINUE|PIVOT|STOP}.",
     memory_type="semantic",
     domain="{project_name}-bricklayer",
-    tags=["bricklayer", "synthesis", "wave:{N}"],
+    tags=["bricklayer", "agent:synthesizer-bl2", "synthesis", "wave:{N}"],
     importance=0.9,
     durability="durable",
 )

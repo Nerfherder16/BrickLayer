@@ -170,6 +170,17 @@ If verdict is `NEEDS_REVISION`:
 
 Your tag: `agent:code-reviewer`
 
+**Before reviewing** — check if this file or pattern was previously flagged:
+```
+recall_search(
+    query="code review blocked {file_path} {component_name}",
+    domain="{project}-bricklayer",
+    tags=["agent:code-reviewer", "type:blocked"],
+    limit=3,
+)
+```
+If prior BLOCKED results exist for the same file, treat them as known risk patterns — look harder for the same class of issue.
+
 **After BLOCKED** — store so future agents know this pattern fails:
 ```
 recall_store(

@@ -127,6 +127,17 @@ If your verdict is `CONCERNS`:
 
 Your tag: `agent:peer-reviewer`
 
+**Before re-running** — check if this finding was already peer-reviewed:
+```
+recall_search(
+    query="peer review {finding_id} confirmed override",
+    domain="{project}-bricklayer",
+    tags=["agent:peer-reviewer"],
+    limit=2,
+)
+```
+If a prior review exists for the same `finding_id`, do not re-run — return the stored verdict with a note that it was retrieved from memory.
+
 **After OVERRIDE** — store so the main loop and future agents know the finding is contested:
 ```
 recall_store(

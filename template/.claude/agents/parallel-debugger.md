@@ -186,8 +186,17 @@ Competing Hypotheses (rejected):
 
 ## Recall
 
-Store the outcome so future sessions can skip re-diagnosis:
+**Before spawning hypotheses** — check if this component was previously diagnosed:
+```
+recall_search(
+    query="parallel diagnosis root cause {component_or_file}",
+    tags=["agent:parallel-debugger", "type:parallel-diagnosis"],
+    limit=3,
+)
+```
+If a prior diagnosis exists for the same component, use it to bias hypothesis generation — skip hypotheses that were already ruled out.
 
+**After diagnosis** — store so future sessions can skip re-diagnosis:
 ```
 recall_store(
     content="PARALLEL_DIAGNOSIS_COMPLETE: [task] Winner: [hypothesis]. Root cause: [summary]. Fix: [file]:[line] [change].",
