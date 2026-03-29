@@ -43,7 +43,8 @@ function normalizeCwd(p) {
 
 /**
  * Derive a canonical domain string from the project directory name.
- * Mirrors the mapping used by recall-session-summary.js and recall-retrieve.js.
+ * Must be kept in sync with C:/Users/trg16/Dev/Recall/hooks/domains.js
+ * (cross-repo — cannot require() directly, so sync manually on changes).
  */
 function deriveDomain(cwdOrProjectName) {
   const name = path.basename(cwdOrProjectName).toLowerCase();

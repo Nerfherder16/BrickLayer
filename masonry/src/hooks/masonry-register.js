@@ -126,22 +126,8 @@ async function main() {
     }
   } catch (_err) { /* fresh session */ }
 
-  // --- Subsequent call: flush pending guard warnings then exit ---
+  // --- Subsequent call: skip re-hydration, context already injected ---
   if (sessionState && sessionState.firstCall === false) {
-    const guardFile = path.join(os.tmpdir(), `masonry-guard-${sessionId}.ndjson`);
-    if (fs.existsSync(guardFile)) {
-      try {
-        const lines = fs.readFileSync(guardFile, 'utf8').trim().split('\n').filter(Boolean);
-        if (lines.length > 0) {
-          const warnings = lines.map(l => {
-            try { return JSON.parse(l); } catch (_e) { return null; }
-          }).filter(Boolean);
-          const messages = warnings.map(w => `[MASONRY GUARD] ${w.message}`).join('\n');
-          if (messages) contextParts.push(messages);
-          fs.unlinkSync(guardFile);
-        }
-      } catch (_err) { /* non-fatal */ }
-    }
     emit(contextParts);
     return;
   }

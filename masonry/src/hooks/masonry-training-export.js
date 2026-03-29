@@ -17,7 +17,7 @@
  *   }
  */
 
-const { spawnSync } = require("child_process");
+const { spawn } = require("child_process");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
@@ -126,27 +126,26 @@ if (confKeys.length > 0) {
   args.push("--pattern-confidence", JSON.stringify(patternConfidence));
 }
 
-const result = spawnSync(python, args, {
+const child = spawn(python, args, {
   cwd: BL_ROOT,
   encoding: "utf8",
-  timeout: 60_000, // 60s max — export should be fast
   env: { ...process.env },
 });
 
-if (result.stdout) {
-  process.stdout.write(result.stdout);
-}
+child.stdout.on("data", (data) => process.stdout.write(data));
+child.stderr.on("data", (data) => process.stderr.write(data));
 
-if (result.stderr) {
-  process.stderr.write(result.stderr);
-}
-
-if (result.status !== 0 || result.error) {
-  const err = result.error ? result.error.message : `exit code ${result.status}`;
-  process.stderr.write(`[masonry-training-export] export failed: ${err}\n`);
-  // Non-fatal — don't block session stop on export failure
+child.on("close", (code) => {
+  if (code !== 0) {
+    process.stderr.write(`[masonry-training-export] export failed: exit code ${code}\n`);
+    // Non-fatal — don't block session stop on export failure
+  } else {
+    process.stdout.write("[masonry-training-export] done\n");
+  }
   process.exit(0);
-}
+});
 
-process.stdout.write("[masonry-training-export] done\n");
-process.exit(0);
+child.on("error", (err) => {
+  process.stderr.write(`[masonry-training-export] export failed: ${err.message}\n`);
+  process.exit(0);
+});

@@ -31,7 +31,15 @@ function findUiDir(startDir) {
   return null;
 }
 
+function isResearchProject(dir) {
+  return existsSync(path.join(dir, "program.md")) &&
+         existsSync(path.join(dir, "questions.md"));
+}
+
 async function main() {
+  // Auto-detect BrickLayer research project — hooks are silent inside BL subprocesses
+  if (isResearchProject(process.cwd())) process.exit(0);
+
   const input = await readStdin();
   if (!input) process.exit(0);
 

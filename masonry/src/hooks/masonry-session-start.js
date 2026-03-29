@@ -82,20 +82,21 @@ async function main() {
   }
 
   // --- Session snapshot for stop-guard dirty-file diffing ---
-  const sessionId = input.session_id || input.sessionId || null;
-  if (sessionId) {
-    try {
-      const status = execSync("git status --porcelain", { encoding: "utf8", timeout: 5000, cwd }).trim();
-      const preExisting = status
-        ? status.split("\n").filter(Boolean).map((l) => l.slice(3).trim())
-        : [];
-      fs.writeFileSync(
-        path.join(os.tmpdir(), `masonry-snap-${sessionId}.json`),
-        JSON.stringify({ sessionId, cwd, preExisting }),
-        "utf8"
-      );
-    } catch {}
-  }
+  // Use real session_id when available; fall back to a stable per-process ID so the
+  // activity log (masonry-observe.js) and stop-guard use the same key even when
+  // Claude Code doesn't include session_id in the SessionStart payload.
+  const sessionId = input.session_id || input.sessionId || `session-${process.ppid || Date.now()}`;
+  try {
+    const status = execSync("git status --porcelain", { encoding: "utf8", timeout: 5000, cwd }).trim();
+    const preExisting = status
+      ? status.split("\n").filter(Boolean).map((l) => l.slice(3).trim())
+      : [];
+    fs.writeFileSync(
+      path.join(os.tmpdir(), `masonry-snap-${sessionId}.json`),
+      JSON.stringify({ sessionId, cwd, preExisting }),
+      "utf8"
+    );
+  } catch {}
 
   process.exit(0);
 }
