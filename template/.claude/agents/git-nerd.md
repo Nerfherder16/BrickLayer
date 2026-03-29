@@ -410,18 +410,16 @@ Return a JSON object with exactly these fields:
 ## Recall
 
 **After completing git operations** — store the PR and branch state for future reference:
-```
-recall_store(
-    content="Git-nerd run [{date}] for {project}: branch={branch}, PR={pr_url}. Committed: {N} files. Status: {verdict}.",
-    memory_type="episodic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:git-nerd", "type:git-ops"],
-    importance=0.7,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Git-nerd run [{date}] for {project}: branch={branch}, PR={pr_url}. Committed: {N} files. Status: {verdict}."
+- `memory_type`: "episodic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:git-nerd", "type:git-ops"]
+- `importance`: 0.7
+- `durability`: "durable"
 
 **At session start** — check prior campaign PR state:
-```
-recall_search(query="PR branch git campaign", domain="{project}-bricklayer", tags=["agent:git-nerd"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "PR branch git campaign"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:git-nerd"]

@@ -126,33 +126,28 @@ Append to `monitor-log.tsv`:
 Your tag: `agent:health-monitor`
 
 **At session start** — check prior monitor runs and alert history:
-```
-recall_search(query="monitor alert DEGRADED metric threshold", domain="{project}-bricklayer", tags=["agent:health-monitor"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "monitor alert DEGRADED metric threshold"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:health-monitor"]
 
 **After ALERT** — store immediately for Diagnose and Predict to act on:
-```
-recall_store(
-    content="ALERT: [{question_id}] {metric_name} = {current_value} (threshold: {threshold}, baseline: {baseline}, delta: {delta}%). Finding seeded: {diagnose_question}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:health-monitor", "type:alert", "metric:{metric_name}"],
-    importance=0.95,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "ALERT: [{question_id}] {metric_name} = {current_value} (threshold: {threshold}, baseline: {baseline}, delta: {delta}%). Finding seeded: {diagnose_question}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:health-monitor", "type:alert", "metric:{metric_name}"]
+- `importance`: 0.95
+- `durability`: "durable"
 
 **After DEGRADED run** — store the trend for Predict mode:
-```
-recall_store(
-    content="DEGRADED: [{question_id}] {metric_name} = {current_value} (WARNING threshold: {warning_threshold}). Delta from baseline: {delta}%.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:health-monitor", "type:degraded"],
-    importance=0.75,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "DEGRADED: [{question_id}] {metric_name} = {current_value} (WARNING threshold: {warning_threshold}). Delta from baseline: {delta}%."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:health-monitor", "type:degraded"]
+- `importance`: 0.75
+- `durability`: "durable"
 
 ## Self-Nomination
 

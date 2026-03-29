@@ -121,12 +121,8 @@ def parse_call_to_bullets(call_text):
     return '\n'.join(lines)
 
 
-# Match a fenced code block whose body contains ONLY recall_ calls
-# (possibly with leading whitespace, possibly multi-line calls)
-BLOCK_PAT = re.compile(
-    r'```\n((?:(?!```)(?:recall_(?:store|search))[^\n]*\n?|[ \t]*[^\n]*\n?)*?)```',
-    re.DOTALL
-)
+_OPEN_PLAIN = re.compile(r'^```\s*$')  # opening fence with no language tag
+_CLOSE_FENCE = re.compile(r'^```\s*$')  # closing fence (same pattern)
 
 
 def block_has_only_recall_calls(body):
@@ -137,13 +133,8 @@ def block_has_only_recall_calls(body):
     return bool(re.match(r'^recall_(?:store|search)\b', stripped))
 
 
-def replace_block(m):
-    body = m.group(1)
-    if not block_has_only_recall_calls(body):
-        return m.group(0)
-
-    # A block may contain multiple consecutive recall_ calls
-    # Split on lines that begin a new recall_ call
+def replace_block_body(body):
+    """Convert a recall-only block body to imperative bullet text, or return None on failure."""
     chunks = re.split(r'(?=recall_(?:store|search)\()', body.strip())
     chunks = [c.strip() for c in chunks if c.strip()]
 
@@ -151,21 +142,75 @@ def replace_block(m):
     for chunk in chunks:
         bullet = parse_call_to_bullets(chunk)
         if bullet is None:
-            return m.group(0)  # can't parse — leave unchanged
+            return None
         results.append(bullet)
 
     return '\n\n'.join(results)
 
 
 def transform_file(path):
+    """Parse lines to find plain ``` blocks, replace recall-only blocks in-place."""
     path = pathlib.Path(path)
     original = path.read_text(encoding='utf-8')
-    updated = BLOCK_PAT.sub(replace_block, original)
+    lines = original.splitlines(keepends=True)
+
+    out = []
+    i = 0
+    blocks_converted = 0
+    in_lang_block = False  # inside a ```lang ... ``` block
+
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.rstrip('\r\n')
+
+        # Track language-tagged blocks so we don't confuse their closing ``` with an opener
+        if not in_lang_block and re.match(r'^```\S', stripped):
+            in_lang_block = True
+            out.append(line)
+            i += 1
+            continue
+
+        if in_lang_block:
+            out.append(line)
+            if stripped == '```':
+                in_lang_block = False
+            i += 1
+            continue
+
+        # Plain opening fence?
+        if stripped == '```':
+            # Collect body lines until the matching closing fence
+            body_lines = []
+            j = i + 1
+            while j < len(lines):
+                bline = lines[j].rstrip('\r\n')
+                if bline == '```':
+                    break
+                body_lines.append(lines[j])
+                j += 1
+
+            body = ''.join(body_lines)
+            if block_has_only_recall_calls(body) and j < len(lines):
+                replacement = replace_block_body(body)
+                if replacement is not None:
+                    # Emit replacement (no surrounding fences)
+                    out.append(replacement + '\n')
+                    blocks_converted += 1
+                    i = j + 1  # skip opening fence, body, closing fence
+                    continue
+
+            # Not a recall block or couldn't parse — emit unchanged
+            out.append(line)
+            i += 1
+            continue
+
+        out.append(line)
+        i += 1
+
+    updated = ''.join(out)
     if updated != original:
         path.write_text(updated, encoding='utf-8')
-        # Count how many blocks changed
-        n = len(BLOCK_PAT.findall(original)) - len(BLOCK_PAT.findall(updated))
-        return abs(n) or 1  # at least 1
+        return blocks_converted or 1
     return 0
 
 

@@ -240,33 +240,28 @@ Updated: {date} — {FIXED | FIX_FAILED} by fix-implementer. See {question_id}_f
 Your tag: `agent:fix-implementer`
 
 **At session start** — find the DIAGNOSIS_COMPLETE finding you are targeting:
-```
-recall_search(query="DIAGNOSIS_COMPLETE fix specification", domain="{project}-bricklayer", tags=["agent:diagnose-analyst", "type:diagnosis-complete"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "DIAGNOSIS_COMPLETE fix specification"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:diagnose-analyst", "type:diagnosis-complete"]
 
 **After FIXED** — store the resolution so Monitor knows what was repaired:
-```
-recall_store(
-    content="FIXED: [{original_finding_id}] {root cause summary}. Fix: {change made}. Verified by: {verification command result}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:fix-implementer", "type:fixed"],
-    importance=0.85,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "FIXED: [{original_finding_id}] {root cause summary}. Fix: {change made}. Verified by: {verification command result}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:fix-implementer", "type:fixed"]
+- `importance`: 0.85
+- `durability`: "durable"
 
 **After FIX_FAILED** — store the updated hypothesis so Diagnose can pick it up:
-```
-recall_store(
-    content="FIX_FAILED: [{question_id}] Original hypothesis was wrong. Updated hypothesis: {updated_hypothesis}. Recommended next step: {diagnose_question}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:fix-implementer", "type:fix-failed"],
-    importance=0.9,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "FIX_FAILED: [{question_id}] Original hypothesis was wrong. Updated hypothesis: {updated_hypothesis}. Recommended next step: {diagnose_question}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:fix-implementer", "type:fix-failed"]
+- `importance`: 0.9
+- `durability`: "durable"
 
 ## Self-Nomination
 

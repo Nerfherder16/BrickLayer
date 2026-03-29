@@ -93,10 +93,13 @@ Priority = Likelihood × Impact (max 9)
 ### Step 4 — Known landmines
 
 Query Recall for prior campaign findings on this project or related projects:
-```
-recall_search(query="bricklayer campaign failure critical finding", domain="{project}-bricklayer")
-recall_search(query="bricklayer override inconclusive warning", domain="{project}-bricklayer")
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "bricklayer campaign failure critical finding"
+- `domain`: "{project}-bricklayer"
+
+Use **`mcp__recall__recall_search`**:
+- `query`: "bricklayer override inconclusive warning"
+- `domain`: "{project}-bricklayer"
 
 List any recurring failure patterns so question-designer avoids re-asking settled questions and hypothesis-generator knows what's already been investigated.
 
@@ -179,16 +182,13 @@ Use the "BL 2.0 Mode Allocation" table above to set Mode fields — do not inven
 Your tag: `agent:planner`
 
 **After writing CAMPAIGN_PLAN.md**:
-```
-recall_store(
-    content="Campaign plan [{project}] {date}: domain priorities: {D1: X, D2: X, ...}. Highest risk: {domain}. Known landmines: {N}. Recommended waves: {N}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:planner", "type:campaign-plan"],
-    importance=0.8,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Campaign plan [{project}] {date}: domain priorities: {D1: X, D2: X, ...}. Highest risk: {domain}. Known landmines: {N}. Recommended waves: {N}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:planner", "type:campaign-plan"]
+- `importance`: 0.8
+- `durability`: "durable"
 
 ## Output contract
 

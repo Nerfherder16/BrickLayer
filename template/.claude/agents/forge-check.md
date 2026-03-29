@@ -97,21 +97,19 @@ Do NOT write `FORGE_NEEDED.md` if the fleet is complete.
 Your tag: `agent:forge-check`
 
 **Before scanning** — check what Forge has already built to avoid duplicate requests:
-```
-recall_search(query="forge agent created built", domain="{project}-bricklayer", tags=["agent:forge-check"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "forge agent created built"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:forge-check"]
 
 **After finding gaps** — store so the next forge-check invocation knows what was already requested:
-```
-recall_store(
-    content="Forge check [{date}]: gaps found: [{list of agent names needed}]. FORGE_NEEDED.md written.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:forge-check", "type:fleet-gap"],
-    importance=0.7,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Forge check [{date}]: gaps found: [{list of agent names needed}]. FORGE_NEEDED.md written."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:forge-check", "type:fleet-gap"]
+- `importance`: 0.7
+- `durability`: "durable"
 
 ## Output contract
 

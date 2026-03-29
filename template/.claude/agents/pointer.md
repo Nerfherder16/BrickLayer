@@ -119,16 +119,13 @@ blank. Priorities must be concrete directions, not generic statements.
 
 ## Step 6: Store to Recall
 
-```
-recall_store(
-    content="Wave {N} checkpoint at Q{question_count} for {project_name}: {brief summary of top findings and priorities}.",
-    memory_type="semantic",
-    domain="{project_name}-bricklayer",
-    tags=["agent:pointer", "type:checkpoint", "wave:{N}"],
-    importance=0.7,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Wave {N} checkpoint at Q{question_count} for {project_name}: {brief summary of top findings and priorities}."
+- `memory_type`: "semantic"
+- `domain`: "{project_name}-bricklayer"
+- `tags`: ["agent:pointer", "type:checkpoint", "wave:{N}"]
+- `importance`: 0.7
+- `durability`: "durable"
 
 ---
 

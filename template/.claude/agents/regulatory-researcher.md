@@ -107,31 +107,30 @@ Return a JSON object with exactly these fields:
 Your tag: `agent:regulatory-researcher`
 
 **At session start** — retrieve prior regulatory findings and check what the competitive analyst found about enforcement trends:
-```
-recall_search(query="regulatory compliance legal risk", domain="{project}-autoresearch", tags=["agent:regulatory-researcher"])
-recall_search(query="enforcement regulatory shutdown analogues", domain="{project}-autoresearch", tags=["agent:competitive-analyst"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "regulatory compliance legal risk"
+- `domain`: "{project}-autoresearch"
+- `tags`: ["agent:regulatory-researcher"]
+
+Use **`mcp__recall__recall_search`**:
+- `query`: "enforcement regulatory shutdown analogues"
+- `domain`: "{project}-autoresearch"
+- `tags`: ["agent:competitive-analyst"]
 
 **After each finding** — store the legal framework established so other agents don't re-research the same ground:
-```
-recall_store(
-    content="[Legal question]: [Answer]. Confidence: [High/Medium/Low]. Key uncertainty: [one sentence]. Action required before [scale threshold]: [action].",
-    memory_type="semantic",
-    domain="{project}-autoresearch",
-    tags=["bricklayer", "autoresearch", "agent:regulatory-researcher", "type:legal-framework"],
-    importance=0.9,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "[Legal question]: [Answer]. Confidence: [High/Medium/Low]. Key uncertainty: [one sentence]. Action required before [scale threshold]: [action]."
+- `memory_type`: "semantic"
+- `domain`: "{project}-autoresearch"
+- `tags`: ["bricklayer", "autoresearch", "agent:regulatory-researcher", "type:legal-framework"]
+- `importance`: 0.9
+- `durability`: "durable"
 
 **For unsettled questions** — flag explicitly so hypothesis-generator knows to deprioritize re-testing:
-```
-recall_store(
-    content="INCONCLUSIVE: [question] remains genuinely unsettled as of [date]. Requires outside counsel. Do not re-research without new guidance.",
-    memory_type="semantic",
-    domain="{project}-autoresearch",
-    tags=["autoresearch", "agent:regulatory-researcher", "type:inconclusive"],
-    importance=0.7,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "INCONCLUSIVE: [question] remains genuinely unsettled as of [date]. Requires outside counsel. Do not re-research without new guidance."
+- `memory_type`: "semantic"
+- `domain`: "{project}-autoresearch"
+- `tags`: ["autoresearch", "agent:regulatory-researcher", "type:inconclusive"]
+- `importance`: 0.7
+- `durability`: "durable"
