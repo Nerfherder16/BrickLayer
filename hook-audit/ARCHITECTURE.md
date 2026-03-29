@@ -58,28 +58,20 @@ masonry-session-summary.js, masonry-handoff.js, analytics triggers (score, pager
 | Frontier exploration (FR1.x) | 1 | COMPLETE |
 | Wave-mid monitor (WM1.x) | 3 | COMPLETE |
 | Wave-deep diagnose (WD1.x) | 2 | COMPLETE |
+| Wave 2 fix verification (W2*.x) | 8 | COMPLETE |
 
-All 25 questions resolved. No PENDING questions remain.
+All 35 questions resolved (27 Wave 1 + 8 Wave 2). No PENDING questions remain.
 
 ---
 
 ## Key Findings
 
-- **D1.3** [FAILURE] Wave 1: masonry-handoff.js reads session_id from argv; hook-runner has no template injection; de-dup guard fires once per machine lifetime
-- **A1.3** [FAILURE] Wave 1: recall-session-summary.js stale domain mapping sends ALL session summaries to wrong Recall domains; no shared JS domains module
-- **WM1.1** [FAILURE] Wave 1: masonry-observe.js non-atomic read-modify-write race loses counter increments under concurrent casaclaude+proxyclaude use
+- **D1.3** [FIXED] Wave 2: masonry-handoff.js rewritten to read session_id from stdin; de-dup guard now per-session (verified W2D1.1)
+- **A1.3** [FIXED] Wave 2: shared hooks/domains.js created; 57 orphaned memories remigrated; no stale broad-bucket entries (verified W2A1.1)
+- **WM1.1** [FIXED] Wave 2: state.js writeState() uses atomic temp-rename; no torn writes under concurrent use (verified W2WM1.1)
 
 ---
 
 ## Open Items
 
-| ID | Verdict | Summary |
-|----|---------|---------|
-| D1.3 | FAILURE | masonry-handoff.js reads session_id from argv not stdin; de-dup guard fires once per machine |
-| A1.3 | FAILURE | recall-session-summary.js stale domain mapping; session summaries in wrong Recall domains |
-| WM1.1 | FAILURE | masonry-observe.js non-atomic R-M-W race on masonry-state.json under concurrent use |
-| D1.4 | WARNING | Session snapshot absent on session-start timeout; mtime fallback cross-session imprecise |
-| A1.4 | WARNING | masonry-ui-compose-guard.js missing isResearchProject() guard |
-| R1.1 | WARNING | masonry-guard.js archived; guard warning flush is dead code |
-| R1.2 | WARNING | masonry-training-export.js spawnSync blocks 60s despite async:true |
-| R1.3 | WARNING | Analytics triggers require masonry/ dir in cwd; never fire from subdirs |
+*(none -- all questions resolved, all fixes verified)*

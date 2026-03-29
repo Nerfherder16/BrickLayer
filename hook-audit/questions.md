@@ -365,9 +365,7 @@
 
 ---
 
-### W2D1.1 — D1.3 fix: does masonry-handoff.js now read session_id from stdin and key the de-dup guard correctly?
-
-**Status**: PENDING
+: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **Wave**: 2
@@ -379,9 +377,7 @@
 
 ---
 
-### W2A1.1 — A1.3 fix: do recall-session-summary.js and recall-retrieve.js now share domains.js?
-
-**Status**: PENDING
+: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **Wave**: 2
@@ -393,9 +389,7 @@
 
 ---
 
-### W2WM1.1 — WM1.1 fix: is state.js writeState() now atomic?
-
-**Status**: PENDING
+: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **Wave**: 2
@@ -407,9 +401,7 @@
 
 ---
 
-### W2R1.2 — R1.2 fix: does masonry-training-export.js now use non-blocking spawn?
-
-**Status**: PENDING
+: DONE
 **Mode**: diagnose
 **Priority**: MEDIUM
 **Wave**: 2
@@ -421,9 +413,7 @@
 
 ---
 
-### W2R1.3 — R1.3 fix: does findMasonryDir() correctly resolve the masonry/ dir from all cwd positions?
-
-**Status**: PENDING
+: DONE
 **Mode**: diagnose
 **Priority**: MEDIUM
 **Wave**: 2
@@ -435,9 +425,7 @@
 
 ---
 
-### W2A1.4 — A1.4 fix: does masonry-ui-compose-guard.js isResearchProject() match masonry-build-guard.js exactly?
-
-**Status**: PENDING
+: DONE
 **Mode**: validate
 **Priority**: MEDIUM
 **Wave**: 2
@@ -449,9 +437,7 @@
 
 ---
 
-### W2D1.4 — D1.4 fix: does the session-{ppid} fallback produce a stable ID for the session lifetime?
-
-**Status**: PENDING
+: DONE
 **Mode**: diagnose
 **Priority**: MEDIUM
 **Wave**: 2
@@ -463,9 +449,7 @@
 
 ---
 
-### W2R1.1 — R1.1 fix: does removal of dead guard-flush code break the masonry-register subsequent-call path?
-
-**Status**: PENDING
+: DONE
 **Mode**: validate
 **Priority**: LOW
 **Wave**: 2
