@@ -236,6 +236,15 @@ Write each finding to `findings/<question_id>.md` (flat directory, no wave subdi
 ## Mitigation Recommendation
 [What should change in the model, the system design, or the legal/operational strategy]
 
+**Files to change** *(required for FAILURE and High severity findings; omit for Medium/Low/Info)*:
+- `path/to/file.js` — specific change and why it is required
+- `path/to/other.js` — specific change and why it is required
+
+*List EVERY file that must change for this fix to be complete. A fix that touches only
+one file when two are required is a partial fix — Wave 2 will catch it, but that wastes
+a verification question. RETRO-H3: partial fixes are the #1 source of false-DONE verdicts
+in multi-file defects (proven by D1.4 / W2D1.4 in the hook-audit campaign).*
+
 ## Suggested Follow-ups
 [Required for Critical/High severity. Omit for Low/Info. Each line is a falsifiable
 hypothesis that this finding directly implies — insert these into questions.md immediately.]
