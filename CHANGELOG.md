@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `6425b1f` chore: update .mcp.json (2026-03-29)
 - `eb07e77` chore: update mcp.json, .playwright-mcp (4 files) (2026-03-29)
 - `ca2c90c` chore: update PROJECT_STATUS.md — 2026-03-29 snapshot (2026-03-29)
 - `e840ddc` chore: update .mcp.json (1 file) (2026-03-29)
