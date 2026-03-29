@@ -17,18 +17,9 @@
 const { execSync, spawn } = require('child_process');
 const { existsSync, readFileSync } = require('fs');
 const path = require('path');
+const { readStdin } = require('./session/stop-utils');
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
-
-function readStdin() {
-  return new Promise(resolve => {
-    let data = '';
-    process.stdin.setEncoding('utf8');
-    process.stdin.on('data', c => (data += c));
-    process.stdin.on('end', () => resolve(data));
-    setTimeout(() => resolve(data), 3000);
-  });
-}
 
 function isResearchProject(dir) {
   return existsSync(path.join(dir, 'program.md')) && existsSync(path.join(dir, 'questions.md'));

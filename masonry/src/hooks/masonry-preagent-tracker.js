@@ -21,16 +21,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const crypto = require("crypto");
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
+const { readStdin } = require('./session/stop-utils');
 
 function ensureDir(p) {
   try { fs.mkdirSync(p, { recursive: true }); } catch (_) {}

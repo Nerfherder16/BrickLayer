@@ -15,16 +15,6 @@ const path = require("path");
 const os = require("os");
 const { getMasDir, appendJsonl, prunePulse, isResearchProject } = require("../core/mas");
 
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
-
 async function main() {
   const raw = await readStdin();
   if (!raw) process.exit(0);
@@ -36,7 +26,7 @@ async function main() {
     process.exit(0);
   }
 
-  const { getSessionId } = require('./session/stop-utils');
+  const { getSessionId, readStdin } = require('./session/stop-utils');
   const sessionId = getSessionId(input);
   const cwd = input.cwd || process.cwd();
   const toolName = input.tool_name || input.toolName || "unknown";

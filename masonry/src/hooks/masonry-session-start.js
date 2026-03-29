@@ -24,16 +24,6 @@ const { addBuildState } = require("./session/build-state");
 const { addProjectContext } = require("./session/project-detect");
 const { addContextData } = require("./session/context-data");
 
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 3000);
-  });
-}
-
 function isResearchProject(dir) {
   return fs.existsSync(path.join(dir, "program.md")) &&
          fs.existsSync(path.join(dir, "questions.md"));
@@ -92,7 +82,7 @@ async function main() {
   }
 
   // --- Session snapshot for stop-guard dirty-file diffing ---
-  const { getSessionId } = require('./session/stop-utils');
+  const { getSessionId, readStdin } = require('./session/stop-utils');
   const sessionId = getSessionId(input);
   try {
     const status = execSync("git status --porcelain", { encoding: "utf8", timeout: 5000, cwd }).trim();

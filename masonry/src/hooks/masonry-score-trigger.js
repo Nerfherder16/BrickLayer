@@ -13,6 +13,7 @@
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { readStdin } = require('./session/stop-utils');
 
 // ── DSPy optimization trigger constants ───────────────────────────────────────
 const DSPY_THRESHOLD = 50;
@@ -21,16 +22,6 @@ const DSPY_FLAG_FILE = path.join('.autopilot', 'TRIGGER_DSPY');
 const DSPY_DEFAULT_AGENT = 'research-analyst';
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = '';
-    process.stdin.setEncoding('utf8');
-    process.stdin.on('data', (chunk) => (data += chunk));
-    process.stdin.on('end', () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
 
 function normalizeCwd(p) {
   if (process.platform === 'win32' && /^\/[a-zA-Z]\//.test(p)) {

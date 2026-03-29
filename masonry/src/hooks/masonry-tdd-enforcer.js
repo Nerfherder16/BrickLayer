@@ -11,6 +11,7 @@
 
 const { existsSync, readFileSync } = require("fs");
 const path = require("path");
+const { readStdin } = require('./session/stop-utils');
 
 const EXEMPT_PATTERNS = [
   /\.config\.(ts|js|mjs|cjs)$/,
@@ -53,16 +54,6 @@ const TEST_FILE_PATTERNS = [
   // Hyphenated test files: test-*.js (e.g. test-prompt-router-followup.js)
   /^test-.*\.js$/,
 ];
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (chunk) => (data += chunk));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
 
 function getAutopilotMode(filePath) {
   let dir = path.dirname(filePath);

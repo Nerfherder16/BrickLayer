@@ -8,16 +8,6 @@ const { existsSync, readFileSync } = require("fs");
 const { execSync } = require("child_process");
 const path = require("path");
 
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (chunk) => (data += chunk));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
-
 function findAutopilotDir(startDir) {
   let dir = startDir;
   for (let i = 0; i < 10; i++) {
@@ -83,7 +73,7 @@ async function main() {
   // If the build already completed, don't warn about an interrupted build.
   if (progress.status === "COMPLETE") process.exit(0);
 
-  const { getSessionId } = require('./session/stop-utils');
+  const { getSessionId, readStdin } = require('./session/stop-utils');
   const buildSessionId = progress.session_id || null;
   const currentSessionId = getSessionId(parsed);
 

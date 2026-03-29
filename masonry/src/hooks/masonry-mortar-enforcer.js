@@ -27,6 +27,7 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { readStdin } = require('./session/stop-utils');
 
 // Only block truly empty spawns — no intent specified at all.
 // general-purpose is a valid Claude Code agent type and must be allowed
@@ -34,17 +35,6 @@ const os = require("os");
 const BLOCKED_TYPES = new Set([
   "",
 ]);
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    // Timeout safety — never hang the hook pipeline
-    setTimeout(() => resolve(data), 3000);
-  });
-}
 
 function logBlocked(subagentType, promptSnippet) {
   try {

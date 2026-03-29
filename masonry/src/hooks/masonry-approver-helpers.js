@@ -6,6 +6,7 @@
 
 const { existsSync, readFileSync, readdirSync, statSync } = require("fs");
 const { join, dirname } = require("path");
+const { readStdin } = require('./session/stop-utils');
 
 // A build is considered active if progress.json was written within this window.
 const BUILD_FRESHNESS_MS = 30 * 60 * 1000; // 30 minutes
@@ -14,16 +15,6 @@ const BUILD_FRESHNESS_MS = 30 * 60 * 1000; // 30 minutes
 const MORTAR_SESSION_FRESHNESS_MS = 4 * 60 * 60 * 1000; // 4 hours
 
 const MASONRY_STATE_PATH = "C:/Users/trg16/Dev/Bricklayer2.0/masonry/masonry-state.json";
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (chunk) => (data += chunk));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
 
 function isFresh(filePath) {
   try {

@@ -22,16 +22,6 @@ const { readState } = require("../core/state");
 // Helpers
 // ---------------------------------------------------------------------------
 
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (chunk) => (data += chunk));
-    process.stdin.on("end", () => resolve(data));
-    // Don't hold the process open longer than necessary
-    setTimeout(() => resolve(data), 2000);
-  });
-}
 
 function normalizeCwd(p) {
   // Convert POSIX /c/Users/... paths to Windows C:\Users\... so fs ops work
@@ -213,7 +203,7 @@ async function main() {
   // Avoid recursive firing when stop_hook_active is set
   if (parsed.stop_hook_active) process.exit(0);
 
-  const { getSessionId } = require('./session/stop-utils');
+  const { getSessionId, readStdin } = require('./session/stop-utils');
   const sessionId = getSessionId(parsed);
   const cwd = normalizeCwd(parsed.cwd || process.cwd());
   const projectName = path.basename(cwd);

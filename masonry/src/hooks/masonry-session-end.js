@@ -13,16 +13,6 @@ const path = require("path");
 const os = require("os");
 const { spawnSync } = require("child_process");
 
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
-
 function tryRead(p) {
   try { return fs.readFileSync(p, "utf8").trim(); } catch { return null; }
 }
@@ -37,7 +27,7 @@ async function main() {
   try { input = JSON.parse(raw); } catch {}
 
   const cwd = input.cwd || process.cwd();
-  const { getSessionId } = require('./session/stop-utils');
+  const { getSessionId, readStdin } = require('./session/stop-utils');
   const sessionId = getSessionId(input);
   const ts = new Date().toISOString();
 

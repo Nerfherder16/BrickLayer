@@ -21,6 +21,7 @@
 const fs = require('fs');
 const { existsSync, readFileSync } = fs;
 const path = require('path');
+const { readStdin } = require('./session/stop-utils');
 
 const LOCK_STALE_MS = 4 * 60 * 60 * 1000;
 
@@ -31,15 +32,6 @@ const SESSION_LOCK_PROTECTED = [
   /^findings[\\/].+\.md$/,
 ];
 
-function readStdin() {
-  return new Promise(resolve => {
-    let data = '';
-    process.stdin.setEncoding('utf8');
-    process.stdin.on('data', c => (data += c));
-    process.stdin.on('end', () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
 
 function isResearchProject(dir) {
   return existsSync(path.join(dir, 'program.md')) && existsSync(path.join(dir, 'questions.md'));

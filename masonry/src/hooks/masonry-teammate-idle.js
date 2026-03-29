@@ -15,16 +15,7 @@
 
 const fs = require("fs");
 const path = require("path");
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
+const { readStdin } = require('./session/stop-utils');
 
 function tryJSON(p) {
   try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; }

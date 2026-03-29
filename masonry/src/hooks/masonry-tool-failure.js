@@ -13,19 +13,10 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { appendJsonl } = require("../core/mas");
+const { readStdin } = require('./session/stop-utils');
 
 const MAX_RETRIES = 3;
 const RETRY_WINDOW_MS = 120_000; // 2 minutes
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
 
 function ensureDir(p) {
   try {
