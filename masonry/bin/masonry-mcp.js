@@ -685,6 +685,7 @@ const TOOLS = [
       required: ["votes", "task_id", "project_dir"],
     },
   },
+  ...require("../src/tools/extra-tools").schemas,
 ];
 
 // ---------------------------------------------------------------------------
@@ -2750,6 +2751,10 @@ async function dispatchTool(name, args) {
       return toolClaimResolve(args);
     case "masonry_claims_list":
       return toolClaimsList(args);
+
+    case "masonry_daemon":
+    case "masonry_checkpoint":
+      return require("../src/tools/extra-tools").handle(name, args);
 
     default:
       throw new Error(`Unknown tool: ${name}`);
