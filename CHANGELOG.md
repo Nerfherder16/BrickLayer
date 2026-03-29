@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `df93807` chore: update mcp.json, hook-audit, masonry (5 files) (2026-03-29)
 - `dd38677` feat(template): RETRO-H3 — require Files to change in FAILURE/High findings (2026-03-29)
 - `458443d` fix(context-monitor): scope dirty-file check to current session only (2026-03-29)
 - `8916303` docs(hook-audit): add campaign retrospective (score 0.77) (2026-03-29)
