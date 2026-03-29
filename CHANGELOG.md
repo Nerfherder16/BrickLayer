@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `1e1280a` feat(template): RETRO-H1, H2, M3 — confidence field, pre-flight, peer review template (2026-03-29)
 - `ab53871` feat(inline-execution-audit): Wave 1 campaign scaffolding and question bank (2026-03-29)
 - `b13684e` docs(inline-execution-audit): Wave 1 synthesis -- 14 questions, root cause chain mapped (2026-03-29)
 - `df93807` chore: update mcp.json, hook-audit, masonry (5 files) (2026-03-29)
