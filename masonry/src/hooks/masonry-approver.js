@@ -91,7 +91,7 @@ async function main() {
   // Mortar has not written a fresh routing receipt this turn.
   // Bash is unconditionally exempt — git ops and shell commands must not be gated.
   if (mortarGateApplicable && !buildActive && !isMortarConsulted()) {
-    if (toolName !== "bash") {
+    if (toolName !== "bash" && toolName !== "read") {
       if (process.env.MASONRY_ENFORCE_ROUTING === "1") {
         deny(
           "[Masonry] Mortar routing receipt missing or stale. " +
