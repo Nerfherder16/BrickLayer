@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `77cf6e5` feat(inline-execution-audit): Wave 2 complete — R2.1 and R2.2 findings, all 9/9 questions done (2026-03-29)
 - `b24e21a` docs(inline-execution-audit): Wave 2 synthesis -- 23 questions, 3 root cause nodes fixed (2026-03-29)
 
 ## [inline-execution-audit Wave 2] — 2026-03-29
