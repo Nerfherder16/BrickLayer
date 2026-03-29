@@ -358,3 +358,119 @@
 **Prediction**: If H1 is true, opening a Claude Code session in the recall/ or system-recall/ directory would rehydrate with "development" domain memories instead of "recall" domain memories, injecting wrong-project context at the most critical moment (session open).
 **Agent**: diagnose-analyst
 **Success criterion**: Reads masonry-session-start.js source (and any delegate files it calls) and compares its PROJECT_DOMAINS mapping against recall-retrieve.js lines 43-59. If maps diverge, classifies as FAILURE.
+
+---
+
+## Wave 2 — Fix Verification
+
+---
+
+### W2D1.1 — D1.3 fix: does masonry-handoff.js now read session_id from stdin and key the de-dup guard correctly?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: HIGH
+**Wave**: 2
+**H0**: masonry-handoff.js now reads session_id from stdin JSON (not argv) and keys the de-dup guard file as `handoff-triggered-{sessionId}.json` — the guard fires once per session, not once per machine lifetime.
+**H1**: The fix is incomplete — either session_id is still read from a wrong source, the guard key still uses a static identifier, or the fallback to 'unknown' re-introduces the stuck-guard defect.
+**Prediction**: If H0 is true, each session gets its own guard file and subsequent sessions are not blocked.
+**Agent**: diagnose-analyst
+**Success criterion**: Reads masonry-handoff.js source, confirms session_id sourced from stdin JSON, confirms guard key includes sessionId, and confirms the guard file path matches what masonry-stop-guard.js would check.
+
+---
+
+### W2A1.1 — A1.3 fix: do recall-session-summary.js and recall-retrieve.js now share domains.js?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: HIGH
+**Wave**: 2
+**H0**: Both recall-session-summary.js and recall-retrieve.js now require('./domains') and the shared module exports PROJECT_DOMAINS with correct per-project keys (no broad-bucket "development"/"ai-ml"/"infrastructure" entries). Session summaries will land in correct Recall domains.
+**H1**: The require() is present but the domains.js module still contains stale entries, or one of the two hooks still has an inline fallback table that overrides the shared module.
+**Prediction**: If H0 is true, a session in the recall/ directory produces summaries tagged domain="recall", not domain="development".
+**Agent**: diagnose-analyst
+**Success criterion**: Reads C:/Users/trg16/Dev/Recall/hooks/domains.js, recall-session-summary.js, and recall-retrieve.js. Confirms require('./domains') present in both hooks, confirms no stale broad-bucket keys in the shared module, and confirms no inline override tables remain.
+
+---
+
+### W2WM1.1 — WM1.1 fix: is state.js writeState() now atomic?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: HIGH
+**Wave**: 2
+**H0**: state.js writeState() now uses the temp-rename pattern: writes to `{stateFile}.tmp.{pid}`, then calls fs.renameSync to the final path. This is atomic on POSIX and effectively atomic on Windows NTFS. No lost-update race is possible between concurrent processes.
+**H1**: The fix has an edge case — either the tmp file is left behind on crash (no cleanup), the rename is not truly atomic on the Windows NTFS path used by Tim's machines, or the pid suffix does not prevent collisions under rapid re-entry.
+**Prediction**: If H0 is true, concurrent writes from casaclaude + proxyclaude always result in one full write winning, never a torn state file.
+**Agent**: diagnose-analyst
+**Success criterion**: Reads masonry/src/core/state.js writeState() implementation. Confirms tmp-rename pattern, assesses Windows NTFS atomicity guarantee, and checks for any remaining direct writeFileSync calls on the state file.
+
+---
+
+### W2R1.2 — R1.2 fix: does masonry-training-export.js now use non-blocking spawn?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: MEDIUM
+**Wave**: 2
+**H0**: masonry-training-export.js now uses spawn() (non-blocking) with stdout/stderr data listeners and a 'close' event handler. The hook exits via process.exit(0) in the close handler. spawnSync is no longer used anywhere in the file.
+**H1**: The spawn replacement is structurally correct but has a race — if the child process writes a lot of stdout and the 'close' event fires before all data events are flushed, some output is lost. Or the 'error' event path does not call process.exit(0), leaving the hook hanging.
+**Prediction**: If H0 is true, the hook process does not block the Node.js event loop during the 60s export window.
+**Agent**: diagnose-analyst
+**Success criterion**: Reads masonry-training-export.js. Confirms no spawnSync import or call, confirms spawn with close+error handlers, confirms process.exit(0) called in both success and error paths.
+
+---
+
+### W2R1.3 — R1.3 fix: does findMasonryDir() correctly resolve the masonry/ dir from all cwd positions?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: MEDIUM
+**Wave**: 2
+**H0**: masonry-observe-helpers.js exports findMasonryDir(startDir) which walks up the directory tree (up to 8 levels) checking for a masonry/ child dir or whether the dir itself IS masonry/. This correctly resolves from: (a) a project subdir like hook-audit/, (b) the BL2.0 root, (c) a self-research session where cwd is masonry/ itself.
+**H1**: The walk-up logic has an off-by-one or stops too early — specifically, it finds masonry/ as a sibling but not as an ancestor's child when cwd is 2+ levels deep inside a BL project.
+**Prediction**: If H0 is true, routing_log.jsonl entries are written from any cwd depth within a BL2.0 project tree.
+**Agent**: diagnose-analyst
+**Success criterion**: Reads masonry-observe-helpers.js findMasonryDir() implementation and traces the walk-up for: cwd=hook-audit/ (should find Bricklayer2.0/masonry/), cwd=Bricklayer2.0/ (should find Bricklayer2.0/masonry/), cwd=Bricklayer2.0/masonry/ (should return itself). Confirms all three cases resolve correctly.
+
+---
+
+### W2A1.4 — A1.4 fix: does masonry-ui-compose-guard.js isResearchProject() match masonry-build-guard.js exactly?
+
+**Status**: PENDING
+**Mode**: validate
+**Priority**: MEDIUM
+**Wave**: 2
+**H0**: masonry-ui-compose-guard.js isResearchProject() checks for both program.md AND questions.md in process.cwd(), matching masonry-build-guard.js exactly. The guard exits at the top of main() before any .ui/ state is read.
+**H1**: The guard checks only one sentinel file, or is placed after some .ui/ state is read (meaning BL project sessions still incur partial execution before silencing).
+**Prediction**: If H0 is true, running masonry-ui-compose-guard.js in a BL research project directory exits 0 immediately without touching .ui/ state.
+**Agent**: design-reviewer
+**Success criterion**: Reads masonry-ui-compose-guard.js and masonry-build-guard.js, diffs the isResearchProject() implementations and placement, confirms they are functionally identical.
+
+---
+
+### W2D1.4 — D1.4 fix: does the session-{ppid} fallback produce a stable ID for the session lifetime?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: MEDIUM
+**Wave**: 2
+**H0**: masonry-session-start.js now sets sessionId = input.session_id || input.sessionId || `session-${process.ppid}`. The ppid (parent process ID) is stable for the lifetime of the Claude Code session — all hooks spawned by the same session share the same ppid. This allows the activity log and stop-guard to correlate correctly even when Claude Code omits session_id.
+**H1**: process.ppid is not stable across hooks — each hook spawn may have a different ppid if Claude Code uses a process pool. The fallback ID would differ between masonry-session-start.js and masonry-stop-guard.js, breaking the correlation.
+**Prediction**: If H1 is true, the fallback still degrades to mtime mode (same as before the fix) because the snap file written by session-start uses ppid=X but stop-guard looks for ppid=Y.
+**Agent**: diagnose-analyst
+**Success criterion**: Reads masonry-session-start.js and masonry-stop-guard.js. Confirms whether stop-guard also uses process.ppid as its fallback session ID (or reads it from the snap file). Assesses whether ppid is stable across hook invocations from the same Claude Code session.
+
+---
+
+### W2R1.1 — R1.1 fix: does removal of dead guard-flush code break the masonry-register subsequent-call path?
+
+**Status**: PENDING
+**Mode**: validate
+**Priority**: LOW
+**Wave**: 2
+**H0**: Removing the guard-flush block from masonry-register.js leaves the subsequent-call path (sessionState.firstCall === false) correctly calling emit(contextParts) and returning. The removal is safe — no other code depended on the guard file being flushed here.
+**H1**: The guard-flush block was also responsible for populating contextParts with something useful on subsequent calls. Its removal means subsequent calls return an empty context injection, degrading session continuity.
+**Prediction**: If H0 is true, subsequent calls produce the same output as before (the guard file was always empty since masonry-guard.js was archived).
+**Agent**: diagnose-analyst
+**Success criterion**: Reads masonry-register.js lines around the subsequent-call path. Confirms contextParts is still populated (or intentionally empty) on subsequent calls. Confirms no reference to the guard file remains.
