@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from bl.config import cfg
+from bl.model_version import compute_model_hash, embed_in_finding
 from bl.local_inference import (
     classify_confidence_local,
     classify_failure_type_local,
