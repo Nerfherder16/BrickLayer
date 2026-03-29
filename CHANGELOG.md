@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `c3d126b` chore: remove hook-audit campaign directory (2026-03-29)
 - `051614a` chore: auto-commit 7 session files on stop (2026-03-29)
 - `8ee163e` fix(hooks): register prompt-inject, checkpoint, teammate-idle in hooks.json (2026-03-29)
 - `6b1cb8e` chore: stage bl/findings.py changes from phase13.02 (2026-03-29)
