@@ -53,25 +53,29 @@ User Prompt
 
 ### Layer 1: CLAUDE.md Instructions
 
-- **Absolute directive** (lines 37, 56): "Every request goes through Mortar"
-- **Escape hatch** (line 68): "direct action when trivial, agents when substantive"
-- **Effective outcome**: Escape hatch wins via specificity-beats-general. "Trivial" is undefined.
-- **Context weight**: 1,104 tokens (4.8% of 23,034-token auto-loaded context)
+- **Absolute directive** (lines 37, 56): "Every request goes through Mortar" with explicit exception cross-reference (fixed by F2.1)
+- **Escape hatch** (line 68): Replaced with operational definition -- "single-sentence factual lookups only, no tool use, no multi-step reasoning" (fixed by F2.1)
+- **Effective outcome**: Specificity-beats-general override prevented; exception is now narrow and scoped
+- **Open concern**: R2.1 found 8-15% over-delegation for question-form queries requiring file reads; effort:low classifier uses syntactic form not semantic intent
+- **Context weight**: 1,104 tokens (4.8% of 23,034-token auto-loaded context) -- D1.2 fix (conditional UI rules load) not yet deployed
 
 ### Layer 2: Prompt Router Hints (masonry-prompt-router.js)
 
-- **Output channel**: hookSpecificOutput.content (should be additionalContext)
-- **Format**: Annotation (`-> Mortar: routing to X [effort:Y]`) not imperative
-- **Coverage**: 10 INTENT_RULES covering 3/10 work types adequately, 6/10 degraded, 1/10 missing
-- **Silent zone**: 40-60% of prompts exit silently (medium+no-intent gate, line 194-195)
-- **Statefulness**: Zero. No conversation history, no routing persistence.
+- **Output channel**: `additionalContext` (fixed by F2.2; was `hookSpecificOutput`)
+- **Format**: Imperative with enforcement consequence (fixed by F2.2; was annotation)
+- **Coverage**: 10 INTENT_RULES covering 3/10 work types adequately, 6/10 degraded, 1/10 missing (R2.2 patterns ready but not deployed)
+- **Silent zone**: 40-60% of prompts exit silently (medium+no-intent gate); maintenance verb expansion specified (R2.2)
+- **Statefulness**: Zero. No conversation history, no routing persistence. D2.5 specifies `last_route` schema + 14 follow-up patterns (not yet deployed).
+- **Per-turn receipt reset**: Resets `mortar_consulted: false` on every UserPromptSubmit (added by F2.3)
 
-### Layer 3: Enforcement Gate (masonry-approver.js)
+### Layer 3: Enforcement Gate (masonry-approver.js + masonry-approver-helpers.js)
 
-- **Infrastructure**: `isMortarConsulted()` function, receipt schema, gate condition -- all present
-- **Status**: Advisory-only. Line 300: "Always allow through -- gate is advisory only."
-- **Receipt state**: `mortar_consulted` and `mortar_session_id` fields absent from live state file
-- **Bash**: Unconditionally exempt (line 294)
+- **Infrastructure**: `isMortarConsulted()` function, receipt schema, gate condition -- all present and active
+- **Status**: Hard deny when `MASONRY_ENFORCE_ROUTING=1` is set (deployed by F2.3); advisory-only otherwise
+- **Receipt writer**: Mortar stamps `mortar_consulted: true` via Bash one-liner (Bash is gate-exempt at line 294); D2.3 solved the deadlock
+- **Per-turn reset**: masonry-prompt-router.js resets `mortar_consulted: false` on every UserPromptSubmit
+- **Exemptions**: Bash (unconditional), subagent context (CLAUDE_SUBAGENT=1), build/fix/compose mode, BL research campaigns
+- **File split**: Main entry in masonry-approver.js (126 lines), helpers in masonry-approver-helpers.js (176 lines)
 
 ---
 
@@ -89,9 +93,9 @@ User Prompt
 
 ## Key Findings
 
-- **D1.1** [DIAGNOSIS_COMPLETE] Wave 1: CLAUDE.md line 68 escape hatch beats absolute Mortar directive via specificity; "trivial" undefined, defaults to broad model prior
-- **A1.1** [CONFIRMED] Wave 1: 0 of 23 hooks enforce delegation; enforcement infrastructure complete but advisory-only; safety pin still in
-- **D3.1** [FAILURE] Wave 1: 70% of routing surface dark or degraded; Spec+build has zero coverage; 3 first-match collisions verified
+- **F2.3** [FIXED] Wave 2: Five-prerequisite enforcement bundle deployed -- gate hardened behind MASONRY_ENFORCE_ROUTING=1; receipt writer via Bash solves deadlock
+- **F2.1** [FIXED] Wave 2: CLAUDE.md escape hatch replaced with operational "single-sentence factual lookup" definition; specificity override prevented
+- **R2.1** [WARNING] Wave 2: Trivial threshold over-delegates 8-15% of question-form queries; effort:low uses syntactic form not semantic intent
 
 ---
 
@@ -99,9 +103,10 @@ User Prompt
 
 | ID | Verdict | Summary |
 |----|---------|---------|
-| D3.1 | FAILURE | 1/10 Mortar work types zero coverage; 6/10 degraded; 70% routing surface dark |
-| D3.2 | FAILURE | Router stateless per-prompt; multi-turn collapse by Turn 2; campaign blackout |
-| D4.2 | FAILURE | 98/114 agents (86%) dark fleet; routing_keywords unpopulated for 80+ |
+| D3.1 | FAILURE | 1/10 Mortar work types zero coverage; 6/10 degraded; patterns A+B+C ready (R2.2) but not deployed |
+| D3.2 | FAILURE | Router stateless per-prompt; multi-turn collapse by Turn 2; last_route schema specified (D2.5) but not deployed |
+| D4.2 | FAILURE | 86% dark fleet; auto-extraction specified (D2.4) but not deployed |
+| R2.1 | WARNING | Trivial threshold over-delegates 8-15% of question-form queries at enforcement gate |
 
 ---
 
@@ -113,4 +118,4 @@ The hook system imposes three permanent constraints:
 2. **No forced tool invocation**: Hooks can block tools but cannot inject mandatory tool calls
 3. **No conversation state in hooks**: Per-prompt payload only; no history access
 
-The maximum achievable enforcement is a Write/Edit deny-gate backed by a per-session routing receipt. This is buildable in ~80 lines of code across 3 files (masonry-approver.js, masonry-prompt-router.js, Mortar agent instructions).
+The maximum achievable enforcement is a Write/Edit deny-gate backed by a per-turn routing receipt. This has been **built and deployed** by F2.3 across 3 files (masonry-approver.js, masonry-prompt-router.js, mortar.md), gated behind `MASONRY_ENFORCE_ROUTING=1`.

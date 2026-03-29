@@ -61,6 +61,35 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+
+## [inline-execution-audit Wave 2] — 2026-03-29
+
+9 questions completed; enforcement bundle deployed, 3 root cause nodes fixed, 4 fix specifications ready.
+
+### Fixed
+- `F2.1` — CLAUDE.md line 68 escape hatch replaced with operational "single-sentence factual lookup" definition (`~/.claude/CLAUDE.md`)
+- `F2.2` — Prompt router output switched from hookSpecificOutput to additionalContext; hint rewritten as imperative (`masonry/src/hooks/masonry-prompt-router.js`)
+- `F2.3` — Five-prerequisite enforcement bundle: Bash in Mortar tools, receipt write instruction, per-turn reset, gate hardened behind MASONRY_ENFORCE_ROUTING=1, file split (`mortar.md`, `masonry-approver.js`, `masonry-prompt-router.js`)
+
+### Added
+- `monitor-targets.md` — silent-zone-hit-rate and multi-turn-routing-signal-rate thresholds calibrated to Wave 1 baselines
+- `masonry-approver-helpers.js` — extracted from masonry-approver.js to satisfy 300-line guard
+
+### Changed
+- `mortar.md` — Bash added to tool list; Routing Receipt section added with gate-exempt write instruction
+- `masonry-approver.js` — advisory gate converted to hard deny behind MASONRY_ENFORCE_ROUTING=1 env flag
+
+### Found (open)
+- `D3.1` [FAILURE] — 70% routing surface dark or degraded; spec+build has zero INTENT_RULES coverage
+- `D3.2` [FAILURE] — Router stateless per-prompt; multi-turn workflows collapse by Turn 2
+- `D4.2` [FAILURE] — 86% of 114 agents dark fleet; routing_keywords unpopulated for 80+ agents
+- `R2.1` [WARNING] — Trivial threshold over-delegates 8-15% of question-form queries at enforcement gate
+- `R2.2` [WARNING] — Spec+build patterns A+B+C ready but not yet deployed; Pattern D hard collision
+
+### Healthy
+- F2.1, F2.2, F2.3 confirmed working; D2.3, D2.4, D2.5 fully specified; M2.1 monitor targets set; V1.1 prerequisites all deployed
+
+---
 - `c0a3803` feat(inline-execution-audit): Wave 2 — F2.3 enforcement bundle + D2.3/D2.4/D2.5 diagnoses (2026-03-29)
 - `01fd178` feat(inline-execution-audit): Wave 2 questions + F2.1/F2.2 fixes (2026-03-29)
 - `1e1280a` feat(template): RETRO-H1, H2, M3 — confidence field, pre-flight, peer review template (2026-03-29)

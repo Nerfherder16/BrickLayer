@@ -1,173 +1,121 @@
-# Wave 1 Synthesis -- inline-execution-audit
+# Wave 2 Synthesis -- inline-execution-audit
 
 **Date**: 2026-03-29
-**Questions**: 14 total -- 6 success (5 DIAGNOSIS_COMPLETE + 1 CONFIRMED), 4 partial (WARNING), 3 failed (FAILURE), 1 frontier (FRONTIER_PARTIAL)
+**Questions**: 23 total (14 Wave 1 + 9 Wave 2) -- 12 success, 6 partial (WARNING), 3 failure, 1 frontier, 1 monitor
+
+| Category | Count | IDs |
+|----------|-------|-----|
+| FIXED | 3 | F2.1, F2.2, F2.3 |
+| DIAGNOSIS_COMPLETE | 8 | D1.1, D1.2, D1.3, D2.1, D2.2, D2.3, D2.4, D2.5 |
+| CONFIRMED | 1 | A1.1 |
+| WARNING | 6 | D4.1, D5.1, D5.2, V1.1, R2.1, R2.2 |
+| FAILURE | 3 | D3.1, D3.2, D4.2 |
+| FRONTIER_PARTIAL | 1 | FR1.1 |
+| MONITOR_SET | 1 | M2.1 |
 
 ---
 
 ## Executive Summary
 
-1. **Claude defaults to inline execution because a vague escape hatch ("direct action when trivial") at CLAUDE.md line 68 overrides the absolute Mortar directive via specificity-beats-general, with no operational definition of "trivial."** The model's trained prior treats most text-answer tasks as trivial, swallowing the routing directive (D1.1).
+Wave 1 mapped a five-layer root cause chain explaining why Claude defaults to inline execution instead of routing through Mortar. Wave 2 **fixed the top three layers** and **fully specified fixes for two more**, shifting the campaign from diagnosis to implementation.
 
-2. **The routing signal is structurally drowned.** The Mortar routing section is 4.8% of 23K-token auto-context; UI-specific rules alone are 12.9x the routing signal volume, loaded unconditionally in every session including non-UI work (D1.2).
+### What Wave 2 Changed
 
-3. **Enforcement authority is exactly zero.** 0 of 23 active hooks check routing compliance. The Mortar gate in masonry-approver.js is advisory-only by deliberate design -- the enforcement infrastructure is fully built but the safety pin was never pulled (A1.1, D2.1).
+1. **Escape hatch closed (F2.1)**: CLAUDE.md line 68 "direct action when trivial" replaced with an operational definition -- "single-sentence factual lookups only, no tool use, no multi-step reasoning." Cross-reference added at line 37. The specificity-beats-general override identified in D1.1 is now structurally prevented.
 
-4. **40-60% of developer prompts receive no routing signal at all.** The prompt router's medium+no-intent gate silently drops prompts with maintenance verbs (fix, update, set, make, change), and multi-turn workflows collapse to inline by Turn 2 because the router is stateless per-prompt (D5.1, D5.2, D3.2).
+2. **Routing hint channel and format fixed (F2.2)**: masonry-prompt-router.js switched from `hookSpecificOutput` (annotation format, may not enter model context) to `additionalContext` (imperative format with enforcement consequence framing). The two structural reasons D1.3 identified for hints carrying no authority are both corrected.
 
-5. **86% of the agent fleet is dark.** 98 of 114 registered agents have no automatic routing path through Mortar. The "every request goes through Mortar" design goal is structurally contradicted by a fleet where only 16 agents are auto-routable (D4.2).
+3. **Five-prerequisite enforcement bundle deployed (F2.3)**: All five V1.1 prerequisites deployed atomically behind `MASONRY_ENFORCE_ROUTING=1`:
+   - Bash added to Mortar's tool list (gate-exempt write path)
+   - Receipt write instruction added to mortar.md (Bash one-liner stamps `mortar_consulted: true`)
+   - Per-turn receipt reset added to masonry-prompt-router.js (`mortar_consulted: false` on every UserPromptSubmit)
+   - Gate hardened in masonry-approver.js (deny when receipt missing, behind env flag)
+   - File split to satisfy 300-line guard (masonry-approver-helpers.js extracted)
+
+4. **Receipt writer deadlock solved (D2.3)**: The D2.2 recommendation ("add receipt writer to Mortar instructions") was structurally impossible -- Mortar has no Write/Edit tools. D2.3 identified the correct architecture: add Bash to Mortar's tool list and use a `node -e` one-liner (Bash is unconditionally exempt from the PreToolUse gate at line 294). F2.3 implemented this.
+
+5. **Dark fleet activation path specified (D2.4)**: 61 agents have rich descriptions but no `routing_keywords`. Three-strategy auto-extraction (quoted phrases, description noun-phrases, body section parsing) covers ~70-80% with estimated 5-10% false-match rate against the current 86% dark-fleet baseline.
+
+6. **Multi-turn persistence schema specified (D2.5)**: `last_route` schema for masonry-state.json with 5 fields (agent, effort, prompt_summary, timestamp, turn_count). 14 follow-up regex patterns covering 30+ surface forms. TTL of 10 minutes, max 5 inherited turns. Question-word filter and 30-char minimum mitigate false positives to ~5-10%.
+
+7. **Trivial threshold boundary stress-tested (R2.1)**: The F2.1 "single-sentence factual lookup" definition is semantically correct but structurally mismatched with effort:low classifier (syntactic question-word anchors). At MASONRY_ENFORCE_ROUTING=1, 8-15% of conversational queries would experience over-delegation. Key discriminating feature: whether the response requires tool use, not sentence form.
+
+8. **Spec+build INTENT_RULES patterns designed (R2.2)**: Patterns A+B+C are collision-free at ~75% coverage. Pattern D (architect+spec) has a hard collision with the architecture rule -- omit. Maintenance verb expansion (fix/update/set/change/configure) safe, ~40-60% build silent zone reduction.
+
+9. **Monitor targets set (M2.1)**: silent-zone-hit-rate (WARNING >50%, FAILURE >60%) and multi-turn-routing-signal-rate (WARNING <20%, FAILURE <5%) calibrated to Wave 1 baselines.
 
 ---
 
-## Root Cause Chain
+## Updated Root Cause Chain
 
-The inline execution default is not a single defect but a compounding chain of five structural failures:
+Wave 2 fixes are annotated on the original chain:
 
 ```
-D1.1  CLAUDE.md escape hatch ("trivial" undefined, specificity beats absolute)
+D1.1  CLAUDE.md escape hatch       --> [FIXED by F2.1] operational definition deployed
   |
-  +-- D1.2  Context dilution amplifies the escape hatch (routing = 4.8% of context)
+  +-- D1.2  Context dilution (4.8%)  --> [OPEN] UI rules still loaded unconditionally
   |
-  +-- D1.3  Prompt router hint in wrong channel (hookSpecificOutput vs additionalContext)
-        |     + annotation format ("->") vs imperative ("You MUST")
+  +-- D1.3  Wrong output channel     --> [FIXED by F2.2] additionalContext + imperative format
         |
-        +-- D5.1/D5.2  40-60% of prompts hit silent zone (medium+no-intent gate)
+        +-- D5.1/D5.2  40-60% silent zone --> [OPEN] maintenance verbs specified (R2.2) but not deployed
               |
-              +-- D3.1  70% of routing surface dark or collision-prone (verb gaps, first-match)
+              +-- D3.1  70% routing surface dark --> [OPEN] spec+build patterns ready (R2.2) but not deployed
               |
-              +-- D3.2  Multi-turn collapse: full signal Turn 1, silence Turn 2+
+              +-- D3.2  Multi-turn collapse     --> [OPEN] last_route schema specified (D2.5) but not deployed
                     |
-                    +-- A1.1  Zero enforcement at any layer (advisory-only gate)
+                    +-- A1.1  Zero enforcement   --> [FIXED by F2.3] gate hardened behind MASONRY_ENFORCE_ROUTING=1
                           |
-                          +-- D2.1/D2.2  Receipt pattern exists but writer absent + gate softened
+                          +-- D2.1/D2.2  Receipt absent --> [FIXED by F2.3] receipt writer via Bash, per-turn reset
 ```
 
-**The chain reads:** The escape hatch (D1.1) provides the model-level justification for inline execution. Context dilution (D1.2) lowers the activation threshold for the escape hatch. The prompt router's wrong channel and annotation format (D1.3) mean routing hints that do fire carry no authority. The silent zone (D5.1/D5.2) means 40-60% of prompts never even generate a hint. Coverage gaps (D3.1) and stateless routing (D3.2) mean the hints that do fire are often wrong or absent on follow-up turns. Zero enforcement (A1.1) means none of this is caught -- even correctly-routed hints are advisory suggestions Claude can ignore. The receipt pattern (D2.1/D2.2) that could enforce routing is architecturally present but deliberately softened.
-
-**Result:** Every layer of the routing system -- instruction, context weight, hint injection, intent detection, multi-turn continuity, enforcement -- independently fails to prevent inline execution. The layers compound rather than compensate.
-
----
-
-## Enforcement Gap Analysis (A1.1 + D2.1 + D2.2 + V1.1)
-
-The enforcement system is best described as **a completed feature with the safety pin still in**.
-
-**What exists:**
-- `isMortarConsulted()` function -- fully implemented, reads `mortar_consulted` + `mortar_session_id` from masonry-state.json with 4-hour freshness window
-- Gate condition in masonry-approver.js lines 293-301 -- fires correctly on every non-exempt Write/Edit
-- Receipt schema fields -- defined in the state file schema
-- 7 hooks with genuine hard-blocking capability (file protection, TDD, git hygiene, build continuity)
-
-**What is missing:**
-- The block decision: gate outputs `process.stderr.write()` (invisible to model) then allows through. Line 300 comment: "Always allow through -- gate is advisory only."
-- Receipt writer: nothing in the hook chain writes `mortar_consulted: true`. The field does not exist in the live state file. `isMortarConsulted()` returns false on every call.
-- Per-session isolation: masonry-state.json is a global singleton. Concurrent sessions share and corrupt receipt state.
-
-**Why it cannot be deployed today (V1.1):**
-Enabling the hard block without prerequisites produces 100% false-positive rate -- every Write/Edit blocked in every session. Five coordinated prerequisites are required:
-
-| # | Prerequisite | Status | Effort |
-|---|-------------|--------|--------|
-| 1 | Receipt writer (Mortar writes token after routing) | MISSING | ~15 lines |
-| 2 | Per-prompt reset (prompt router resets receipt each turn) | MISSING | ~5 lines |
-| 3 | Trivial bypass (effort:low skips the hard block) | MISSING | ~10 lines |
-| 4 | Bash scope decision (gate Bash or accept as ungated bypass) | UNRESOLVED | Architectural |
-| 5 | CLAUDE.md line 68 fix (operational definition of "trivial") | MISSING | Text change |
-
-**The fundamental constraint:** Claude Code's hook system is gate-based (PreToolUse can allow/deny tool calls) not directive-based (no hook can intercept text generation or force Agent tool invocation). No `PreTextGeneration` hook event exists. Inline text responses are permanently ungated.
-
----
-
-## Coverage Gap Analysis (D3.1 + D3.2 + D4.2 + D5.1 + D5.2)
-
-### Intent Detection Gaps
-
-The prompt router's INTENT_RULES cover 10 patterns against 10 Mortar work types. Cross-reference reveals:
-
-- **1 work type with ZERO coverage:** "Spec + build" (spec-writer pipeline) -- no INTENT_RULE for `spec`, `plan`, `blueprint`; `/plan` exits before detection via slash-command guard
-- **6 work types DEGRADED:** verb gaps (build rule missing `fix`/`update`/`make`/`change`/`set`), first-match collisions (changelog->git-nerd, architecture->architect over research-analyst, debug->diagnose over uiux-master)
-- **1 orphaned INTENT_RULE:** refactoring routes to `refactorer` which has no Mortar dispatch row
-- **70% of the routing surface (7/10 work types) is dark or collision-prone**
-
-### Silent Zone
-
-The medium+no-intent gate (lines 194-195) silently drops 40-60% of developer prompts. "Medium" effort is defined entirely by exclusion -- zero regex patterns, zero keyword matches. Any prompt >= 50 chars that avoids all trigger vocabulary returns "medium" by structural default.
-
-### Multi-Turn Collapse
-
-The router reads only `input.prompt` and `input.cwd`. Zero conversation history. Zero follow-up detection. Zero routing persistence. A 3-turn workflow produces: full signal (Turn 1) -> complete silence (Turn 2) -> effort-only noise (Turn 3). Campaign mode causes total router blackout (line 187 exit on `mode` set).
-
-### Dark Fleet
-
-114 registered agents. 16 auto-routable (14%). 98 dark (86%). 31 placeholder stubs. The `routing_keywords` field exists in agent_registry.yml specifically for semantic routing but is unpopulated for 80+ agents.
-
----
-
-## Architecture Ceiling (FR1.1)
-
-| Architecture Target | Feasibility | Gap Type |
-|----|----|----|
-| Force Agent tool invocation before any response | BLOCKED | No PreTextGeneration hook in Claude Code |
-| Intercept inline text responses | BLOCKED | No TextGeneration hook event |
-| Multi-turn routing continuity | BLOCKED | Hook payload is single-prompt only |
-| Write/Edit deny-gate with routing receipt | VIABLE | 6 incidental code changes (~80 lines) |
-| Per-session receipt isolation | VIABLE | Path change + schema update |
-| Trivial-task deterministic classifier | VIABLE | ~50 lines |
-| Full-fleet routing manifest | VIABLE | Registry population work |
-| Campaign-mode routing (remove line 187 exit) | VIABLE | One condition removal |
-
-**3 fundamental gaps** (hook system limits, outside Tim's control). **6 incidental gaps** (missing code, ~80 lines total). **1 architectural decision** (Bash exemption).
-
-The minimum viable architecture is a Write/Edit deny-gate backed by a routing receipt. This enforces file-write compliance but cannot enforce text-generation compliance. The text-generation gap is permanent given the current hook model.
+**Status after Wave 2**: 3 of 7 chain nodes fixed. 4 nodes have complete fix specifications but await implementation (D1.2, D5.1/D5.2, D3.1, D3.2). The enforcement path (bottom of chain) is now complete end-to-end.
 
 ---
 
 ## Critical Findings (must act)
 
-1. **D1.1** [DIAGNOSIS_COMPLETE] -- CLAUDE.md line 68 escape hatch overrides absolute Mortar directive; "trivial" undefined
-   Fix: Replace vague "direct action when trivial" with scoped definition: "single-sentence factual lookups only"
+1. **D3.1** [FAILURE, Wave 1] -- 70% routing surface dark or degraded; Spec+build has zero INTENT_RULES coverage
+   Fix: Deploy patterns A+B+C from R2.2 + maintenance verb expansion. ~75% spec+build coverage, ~40-60% silent zone reduction. Implementation: 3 new INTENT_RULES entries + 1 regex modification in masonry-prompt-router.js.
 
-2. **A1.1** [CONFIRMED] -- Zero routing enforcement across 23 hooks; advisory gate has safety pin in
-   Fix: Convert masonry-approver.js lines 293-301 from stderr advisory to hard block (after prerequisites)
+2. **D4.2** [FAILURE, Wave 1] -- 86% of 114 agents are dark fleet with no routing path
+   Fix: Run D2.4 three-part plan -- (1) backfill sync of 20 agents with existing frontmatter keywords, (2) auto-extract keywords for 61 agents via backfill script, (3) enrich semantic corpus. Implementation: `onboard_agent.py --resync` + new `backfill_routing_keywords.py` script.
 
-3. **D3.1** [FAILURE] -- 70% routing surface dark or degraded; "Spec+build" has zero coverage; 3 first-match collisions
-   Fix: Add spec-writer INTENT_RULE; expand build rule verb set; implement multi-intent detection
-
-4. **D4.2** [FAILURE] -- 86% of 114 agents are dark fleet with no routing path
-   Fix: Populate `routing_keywords` for 80+ agents; expand Mortar dispatch table beyond 10 categories
-
-5. **D3.2** [FAILURE] -- Router stateless per-prompt; multi-turn workflows collapse by Turn 2
-   Fix: Add `last_route` persistence field; implement follow-up detection patterns
+3. **D3.2** [FAILURE, Wave 1] -- Router stateless per-prompt; multi-turn workflows collapse by Turn 2
+   Fix: Deploy D2.5 last_route persistence + 14 follow-up regex patterns. Implementation: 3 additions to masonry-prompt-router.js (FOLLOWUP_PATTERNS array, isFollowUp function, inheritance logic between detectIntent and hasSignal).
 
 ---
 
 ## Significant Findings (important but not blocking)
 
-1. **D1.2** [DIAGNOSIS_COMPLETE] -- Routing signal is 4.8% of 23K context; UI rules 12.9x volume; context dilution amplifies escape hatch
-   Fix: Move 6 UI rules files to conditional load group (verify Claude Code subdirectory behavior first)
+1. **R2.1** [WARNING, Wave 2] -- Trivial threshold over-delegates 8-15% of question-form queries at MASONRY_ENFORCE_ROUTING=1
+   Fix: Augment effort:low classifier with tool-use intent check, OR add explicit Read tool exemption in gate alongside existing Bash exemption.
 
-2. **D1.3** [DIAGNOSIS_COMPLETE] -- Prompt router uses wrong output channel (hookSpecificOutput vs additionalContext) and annotation format
-   Fix: Switch to `additionalContext` channel; rewrite hint in imperative format
+2. **R2.2** [WARNING, Wave 2] -- Spec+build patterns A+B+C collision-free (~75% coverage); Pattern D hard collision (omit); maintenance verbs safe
+   Fix: Ready to deploy. 3 new INTENT_RULES entries + 1 in-place modification. No architectural changes.
 
-3. **D5.1** [WARNING] -- Build rule missing maintenance verbs; 30-45% of prompts in silent zone
-   Fix: Add `fix|update|make|change|set|configure|apply|enable|disable|modify` to build rule verb set
+3. **D1.2** [DIAGNOSIS_COMPLETE, Wave 1] -- Routing signal 4.8% of 23K context; UI rules 12.9x volume
+   Fix: Move 6 UI rules files to conditional load group. Requires verification of Claude Code subdirectory behavior.
 
-4. **D5.2** [WARNING] -- "Medium" effort is structural default with zero regex; 40-60% hit silent zone
-   Fix: Fix must be at INTENT_RULES coverage layer, not effort classification
+4. **D5.1/D5.2** [WARNING, Wave 1] -- 40-60% of prompts in silent zone; "medium" effort is structural default with zero regex
+   Fix: Covered by R2.2 maintenance verb expansion + D2.5 follow-up detection. No separate fix needed.
 
-5. **V1.1** [WARNING] -- Enforcement feasible but 5 prerequisites required; 100% false-positive without receipt writer
-   Fix: Deploy prerequisites atomically; use MASONRY_ENFORCE_ROUTING=1 env flag for rollout
-
-6. **D2.2** [DIAGNOSIS_COMPLETE] -- Receipt pattern architecturally present but writer absent and gate softened
-   Fix: Add receipt writer to Mortar agent + per-prompt reset in prompt router
+5. **V1.1** [WARNING, Wave 1] -- 5 prerequisites for enforcement deployment
+   Status: All 5 prerequisites deployed by F2.3. V1.1 is now resolved -- enforcement is available behind `MASONRY_ENFORCE_ROUTING=1`.
 
 ---
 
 ## Healthy / Verified
 
-- **D4.1** [WARNING, structurally healthy]: All 20 Mortar routing table agents have resolvable .md files (0 missing). bl-audit D2.6 finding is stale -- uiux-master and solana-specialist now present. WARNING only on lack of file-existence validation in the router.
-
-- **FR1.1** [FRONTIER_PARTIAL]: The minimum viable enforcement architecture (Write/Edit deny-gate + routing receipt) is confirmed buildable within existing hook capabilities. ~80 lines of code across 3 files. The text-generation enforcement gap is a permanent platform constraint, not a Masonry deficiency.
+- **F2.1** [FIXED]: CLAUDE.md escape hatch replaced with operational "single-sentence factual lookup" definition. Specificity-beats-general override prevented.
+- **F2.2** [FIXED]: Prompt router output channel corrected to additionalContext; hint format is imperative with enforcement consequence.
+- **F2.3** [FIXED]: Five-prerequisite enforcement bundle deployed atomically. Gate hardened behind env flag. Bash receipt writer solves D2.3 deadlock.
+- **D2.3** [DIAGNOSIS_COMPLETE]: Receipt writer architecture fully specified and implemented in F2.3.
+- **D2.4** [DIAGNOSIS_COMPLETE]: Dark fleet activation via auto-extracted routing_keywords fully specified with three-strategy approach.
+- **D2.5** [DIAGNOSIS_COMPLETE]: Multi-turn persistence schema, 14 follow-up regexes, expiry logic, false-positive mitigations all specified.
+- **M2.1** [MONITOR_SET]: Two monitor targets calibrated to Wave 1 baselines for post-deployment tracking.
+- **D4.1** [WARNING, structurally healthy]: All 20 Mortar routing table agents have resolvable .md files.
+- **FR1.1** [FRONTIER_PARTIAL]: Write/Edit deny-gate architecture confirmed viable. Text-generation gap is permanent platform constraint.
+- **A1.1** [CONFIRMED, now resolved by F2.3]: Enforcement infrastructure activated behind env flag.
 
 ---
 
@@ -175,28 +123,28 @@ The minimum viable architecture is a Write/Edit deny-gate backed by a routing re
 
 **STOP**
 
-All 14 questions are answered. The root cause chain is fully mapped from instruction ambiguity through enforcement absence. The campaign has produced a complete structural diagnosis with specific fix specifications for every identified gap. The next phase is implementation, not further investigation. The five-prerequisite deployment sequence (V1.1) provides the exact build order. No additional research questions are needed in this domain.
+All 23 questions across two waves are answered. The root cause chain is fully mapped and 3 of 7 nodes are fixed. The remaining 4 nodes have complete fix specifications with specific regex patterns, schemas, and code paths. The enforcement path (F2.1 + F2.2 + F2.3) is deployed and available behind `MASONRY_ENFORCE_ROUTING=1`. The next phase is implementation of the remaining fix specifications (D2.4 dark fleet backfill, D2.5 multi-turn persistence, R2.2 INTENT_RULES expansion), not further investigation.
 
 ---
 
 ## Next Wave Hypotheses (for future campaigns)
 
-1. **Behavioral validation after D1.1 fix**: Does narrowing the "trivial" definition to "single-sentence factual lookups" measurably increase Mortar consultation rate? What is the over-delegation rate?
+1. **Post-enforcement behavioral validation**: After enabling MASONRY_ENFORCE_ROUTING=1 in production, what is the actual false-positive rate? Does the R2.1 8-15% over-delegation estimate hold, or is it higher/lower with real developer prompts?
 
-2. **Receipt writer integration test**: After implementing the 5 prerequisites, what is the real false-positive rate of the Write/Edit hard block behind MASONRY_ENFORCE_ROUTING=1?
+2. **Dark fleet activation quality**: After running D2.4 backfill, what is the false-match rate for auto-extracted routing_keywords? Which agents receive the most mis-routed prompts?
 
-3. **Dark fleet activation impact**: After populating routing_keywords for 80+ agents, what percentage of previously-inline prompts now route to specialists? Does quality improve?
+3. **Multi-turn persistence effectiveness**: After deploying D2.5 last_route + follow-up patterns, does the Turn 2+ signal gap close from 40-60% to the <20% WARNING threshold set in M2.1?
 
-4. **Multi-turn routing persistence**: After implementing `last_route` persistence and follow-up detection, does the Turn 2+ routing signal gap close from 40-60% to < 10%?
+4. **Context dilution reduction**: After moving 6 UI rules to conditional load (D1.2), does routing compliance measurably improve in non-UI sessions?
 
-5. **Context dilution reduction**: After moving 6 UI rules to conditional load, does routing compliance measurably improve in non-UI sessions?
+5. **End-to-end routing compliance rate**: With all fixes deployed (F2.1-F2.3 + D2.4 + D2.5 + R2.2), what percentage of developer prompts are correctly routed through Mortar vs. executed inline?
 
 ---
 
 ## Cross-Domain Conflicts
 
-1. **Enforcement vs. usability (V1.1)**: Hard-blocking Write/Edit without a receipt will break legitimate trivial-task workflows. The Bash exemption creates an asymmetric bypass. The trivial-bypass classifier must be deployed simultaneously with the hard block.
+1. **Trivial threshold vs. enforcement gate (R2.1 + F2.3)**: The effort:low classifier uses syntactic form; the CLAUDE.md definition uses semantic intent. At MASONRY_ENFORCE_ROUTING=1, question-form prompts requiring file reads are incorrectly blocked. Must resolve before widespread enforcement enablement.
 
-2. **Dark fleet vs. routing noise (D4.2)**: Activating 98 dark-fleet agents without quality-gating their routing_keywords could flood Mortar's semantic layer with false matches. Activation should be staged: high-value specialists first (python-specialist, typescript-specialist, database-specialist, devops), then campaign agents, then stubs last.
+2. **Dark fleet activation vs. routing noise (D2.4 + D4.2)**: Auto-extracted keywords at 5-10% false-match rate could flood Mortar with incorrect dispatches. Stage activation: high-value specialists first, campaign agents second, stubs last. Manual review of top 20 keywords post-extraction recommended.
 
-3. **Campaign mode blackout (D3.2/D5.1)**: The line 187 early exit suppresses all routing during active campaigns. Removing it would cause routing hints to fire during BL research loops, potentially interfering with Trowel's dispatch. The fix should be conditional: suppress routing hints only for questions already assigned to agents by Trowel.
+3. **Campaign mode blackout (D3.2/D5.1)**: Line 187 early exit suppresses all routing during campaigns. D2.5 last_route persistence is unaffected (TTL expiry prevents stale inheritance). Removing the exit for non-campaign routing requires careful Trowel interaction testing.
