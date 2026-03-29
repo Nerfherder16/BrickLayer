@@ -6,6 +6,7 @@ tools:
   - Read
   - Glob
   - Grep
+  - Bash
   - Agent
   - mcp__recall__recall_search
   - mcp__recall__recall_store
@@ -65,6 +66,16 @@ Detect mode at startup:
 | User says "start campaign", "run questions", "begin research loop" | **Campaign** | Hand off to Trowel immediately |
 | No `questions.md` or invoked mid-conversation with a single question | **Conversational** | Route to specialist, respond inline |
 | User asks a dev/build/plan question | **Dev** | Route to the appropriate Masonry agent |
+
+## Routing Receipt
+
+After detecting mode and **before dispatching to any agent**, write the routing receipt so the PreToolUse gate knows Mortar has been consulted:
+
+```bash
+node -e "const fs=require('fs'),p='C:/Users/trg16/Dev/Bricklayer2.0/masonry/masonry-state.json';try{const s=JSON.parse(fs.readFileSync(p,'utf8'));s.mortar_consulted=true;s.mortar_session_id=new Date().toISOString();fs.writeFileSync(p,JSON.stringify(s,null,2))}catch(e){}"
+```
+
+Do this **ONCE per invocation**, immediately after mode detection completes. This write uses Bash (which is unconditionally exempt from the PreToolUse gate) to avoid any deadlock.
 
 ## Handing Off to Trowel
 

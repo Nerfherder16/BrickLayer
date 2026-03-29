@@ -48,6 +48,7 @@ BUILD_SKILL = CLAUDE / "skills/build/SKILL.md"
 EXEMPT_HOOKS = {
     "masonry-statusline.js": "registered from ~/.claude/hud/ path, not masonry/src/hooks/",
     "masonry-observe-helpers.js": "helper module required by masonry-observe.js, not a standalone hook",
+    "masonry-approver-helpers.js": "helper module required by masonry-approver.js, not a standalone hook",
 }
 
 

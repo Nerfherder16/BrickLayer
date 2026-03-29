@@ -202,7 +202,9 @@
 
 ### F2.3: Implement the five-prerequisite atomic bundle required before the masonry-approver.js hard block can be enabled -- receipt writer, per-turn reset, trivial bypass, gate conversion, and MASONRY_ENFORCE_ROUTING flag
 
-**Status**: IN_PROGRESS
+**Status**: DONE
+**Finding**: findings/F2.3.md
+**Completed**: 2026-03-29T11:45:00Z
 **Operational Mode**: Fix
 **Priority**: HIGH
 **Motivated by**: D2.1 (DIAGNOSIS_COMPLETE) + D2.2 (DIAGNOSIS_COMPLETE) + V1.1 (WARNING) -- the Mortar gate in masonry-approver.js lines 293-301 is advisory-only; the change to hard block is known; but V1.1 establishes that deploying the block without 5 prerequisites produces 100% false-positive rate; all five must be deployed atomically

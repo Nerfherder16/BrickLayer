@@ -187,6 +187,16 @@ async function main() {
     if (state && state.mode) process.exit(0);
   } catch {}
 
+  // Reset Mortar routing receipt per-turn so stale receipts don't carry over
+  try {
+    const receiptPath = "C:/Users/trg16/Dev/Bricklayer2.0/masonry/masonry-state.json";
+    if (fs.existsSync(receiptPath)) {
+      const rState = JSON.parse(fs.readFileSync(receiptPath, "utf8"));
+      rState.mortar_consulted = false;
+      fs.writeFileSync(receiptPath, JSON.stringify(rState, null, 2), "utf8");
+    }
+  } catch {}
+
   const intent = detectIntent(prompt);
   const effort = classifyEffort(prompt);
 
