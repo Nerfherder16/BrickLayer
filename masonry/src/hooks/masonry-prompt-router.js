@@ -223,14 +223,16 @@ async function main() {
     if (state && state.mode) return;
   } catch {}
 
-  // Reset Mortar routing receipt per-turn so stale receipts don't carry over
+  // Write Mortar gate file — reset per-turn so stale receipts don't carry over.
+  // Pre-protect reads this: if mortar_consulted=false when Write/Edit fires, it warns.
+  const os = require("os");
+  const gateFile = path.join(os.tmpdir(), "masonry-mortar-gate.json");
   try {
-    const receiptPath = "C:/Users/trg16/Dev/Bricklayer2.0/masonry/masonry-state.json";
-    if (fs.existsSync(receiptPath)) {
-      const rState = JSON.parse(fs.readFileSync(receiptPath, "utf8"));
-      rState.mortar_consulted = false;
-      fs.writeFileSync(receiptPath, JSON.stringify(rState, null, 2), "utf8");
-    }
+    fs.writeFileSync(gateFile, JSON.stringify({
+      mortar_consulted: false,
+      timestamp: new Date().toISOString(),
+      prompt_summary: prompt.slice(0, 100),
+    }), "utf8");
   } catch {}
 
   let intent = detectIntent(prompt);
@@ -270,11 +272,23 @@ async function main() {
   if (intent && intent.note) parts.push(intent.note);
 
   const hintDetail = parts.join(" ");
-  const hintText = effort === "low"
-    ? `[ROUTING HINT] ${hintDetail}. Use Mortar only if this requires multi-file changes or Write/Edit/Bash.`
-    : `[ROUTING] You MUST route this request through Mortar before using Write, Edit, or Bash. ` +
-      `${hintDetail}. Invoke the mortar agent (subagent_type: "mortar") first. ` +
-      `Direct Write/Edit without a Mortar routing receipt will be blocked by the pre-tool hook.`;
+  let hintText;
+  if (effort === "low") {
+    hintText = `[ROUTING HINT] ${hintDetail}. Use Mortar only if this requires multi-file changes or Write/Edit/Bash.`;
+  } else {
+    const routeTarget = intent ? intent.route : "appropriate specialist";
+    const escapedPrompt = prompt.slice(0, 200).replace(/"/g, '\\"').replace(/\n/g, ' ');
+    hintText =
+      `[MASONRY ROUTING — DO NOT SKIP]\n` +
+      `${hintDetail}\n\n` +
+      `You are an orchestrator. Do NOT read files and write code directly.\n` +
+      `Invoke Mortar to dispatch ${routeTarget} in parallel:\n\n` +
+      `  Task tool: subagent_type="mortar", prompt="${escapedPrompt}"\n\n` +
+      `WHY: Mortar dispatches specialists in parallel (developer + test-writer + code-reviewer). ` +
+      `Direct inline work skips code review, skips TDD, and uses your main context for implementation ` +
+      `instead of preserving it for orchestration. ` +
+      `The pre-tool hook will warn if you Write/Edit without routing through Mortar first.`;
+  }
 
   process.stdout.write(JSON.stringify({ additionalContext: hintText }));
 

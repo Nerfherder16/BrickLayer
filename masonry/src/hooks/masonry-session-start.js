@@ -51,6 +51,15 @@ async function main() {
   const lines = [];
   const state = {}; // shared: autopilotMode, uiMode, campaign
 
+  // Phase 0: Orchestrator role priming — Claude is an orchestrator, not a solo developer.
+  // This must be the FIRST line so Claude sees it before any state context.
+  lines.push(
+    "[Masonry] You are an orchestrator. For any task requiring Write, Edit, or Bash, " +
+    "route through Mortar first (subagent_type: \"mortar\"). Mortar dispatches specialist agents " +
+    "(developer, test-writer, code-reviewer) in parallel. Direct inline coding skips code review " +
+    "and TDD enforcement. Exception: single-sentence factual lookups and clarification questions."
+  );
+
   // Phase 1: Build / UI / campaign / Karen state (may set earlyExit for interrupted build)
   addBuildState(lines, cwd, state);
   if (state.earlyExit) return; // systemMessage already written by build-state

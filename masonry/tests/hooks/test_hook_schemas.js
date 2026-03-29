@@ -146,7 +146,7 @@ describe("masonry-prompt-router.js schema", () => {
     expect(result.exitCode).toBe(0);
     const parsed = parseOutput(result);
     expect(parsed).toHaveProperty("additionalContext");
-    expect(parsed.additionalContext).toContain("You MUST");
+    expect(parsed.additionalContext).toContain("MASONRY ROUTING");
   });
 
   it("silent for short prompts", () => {
