@@ -78,7 +78,7 @@
 
 ### D1.3-FU1: Does hook-runner.exe support template variable injection (e.g., {session_id}) in hook commands, and is this used anywhere in settings.json?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **H0**: hook-runner.exe supports template variable injection for session_id in hook commands, but masonry-handoff.js was not updated to use it.
