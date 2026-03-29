@@ -219,10 +219,7 @@ async function main() {
   if (lines.length > 0) {
     process.stdout.write(
       JSON.stringify({
-        hookSpecificOutput: {
-          hookEventName: "PreCompact",
-          content: lines.join("\n"),
-        },
+        systemMessage: lines.join("\n"),
       })
     );
   }
