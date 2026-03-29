@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `4852816` refactor: extract getSessionId to stop-utils, use it in session-start (2026-03-29)
 - `2880cef` chore: update masonry (4 files) (2026-03-29)
 - `3378186` chore: update masonry (1 file) (2026-03-29)
 - `6de1e3a` feat: backfill_routing_keywords.py dark fleet keyword backfill script (task 4/4) (2026-03-29)
