@@ -886,23 +886,24 @@ agents:
   runs_since_optimization: 0
 - name: rough-in
   file: .claude/agents/rough-in.md
-  model: sonnet
-  description: "Dev task orchestrator for BrickLayer 2.0. Receives dev tasks from\
-    \ Mortar, orchestrates the full workflow \u2014 spec \u2192 build \u2192 test\
-    \ \u2192 review \u2192 commit. Mirrors Trowel's loop structure but for development\
-    \ work."
+  model: opus
+  description: "Dev task conductor for BrickLayer 2.0. Reads codebase, decomposes\
+    \ work, selects specialists from the full 100+ agent fleet, builds wave plans,\
+    \ and hands dispatch to Queen Coordinator for parallel execution. Can invoke\
+    \ skills directly. Does not write code itself."
   modes:
   - build
   - fix
-  - plan
-  - verify
+  - diagnose
+  - audit
   capabilities:
-  - dev-orchestration
-  - task-decomposition
-  - agent-dispatch
-  - spec-writer delegation
-  - tdd-cycle management
-  - failure-recovery
+  - complex dev task decomposition and wave planning
+  - dynamic agent selection from full registry
+  - skill invocation for specialized workflows
+  - TDD orchestration (test-writer to developer to code-reviewer)
+  - parallel dispatch via queen-coordinator (up to 8 concurrent)
+  - diagnosis and fix cycles via diagnose-analyst + fix-implementer
+  - git hygiene handoff to git-nerd
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
@@ -1038,20 +1039,19 @@ agents:
 - name: queen-coordinator
   file: C:/Users/trg16/.claude/agents/queen-coordinator.md
   model: sonnet
-  description: "Hive-mind coordinator for parallel builds. Maintains a shared task\
-    \ queue in .autopilot/progress.json and assigns tasks to idle worker agents. Does\
-    \ not implement code \u2014 pure task dispatch and monitoring. Workers pull tasks\
-    \ and report back. Scales to 8 concurrent workers; monitors heartbeats and re-queues\
-    \ stale IN_PROGRESS tasks after 10 minutes."
+  description: "Parallel dispatch engine for BrickLayer builds. Receives wave plans\
+    \ from Rough-In (via .autopilot/rough-in-state.json), dispatches up to 8 workers\
+    \ per wave simultaneously, monitors heartbeats, re-queues stale tasks, and runs\
+    \ checkpoint tests between waves. Does not plan or write code."
   modes:
   - build
   - orchestrate
   capabilities:
-  - task queue management (FIFO with priority)
-  - idle worker detection and assignment
+  - wave-based task dispatch (up to 8 concurrent workers)
   - heartbeat monitoring (re-queue stale tasks >10min)
-  - wave-based parallelism for dependent task groups
+  - checkpoint test execution between waves
   - completion reporting with pass/fail summary
+  - reads .autopilot/rough-in-state.json wave plan
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted

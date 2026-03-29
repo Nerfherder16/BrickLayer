@@ -76,8 +76,8 @@ const INTENT_RULES = [
       /\b(build|implement|create|add.?feature|write.?code|develop|scaffold|fix|update|make|change|set|configure|apply|enable|disable|modify)\b.{0,40}\b(app|component|endpoint|api|service|function|class|module|page|route)\b/i,
       /\/build\b|\/ultrawork\b/i,
     ],
-    route: "developer + test-writer + code-reviewer",
-    note: "Use /plan first for multi-file tasks.",
+    route: "rough-in → queen-coordinator → workers",
+    note: "Rough-in decomposes, Queen dispatches up to 8 agents in parallel.",
   },
   // Spec + build pipeline
   {
