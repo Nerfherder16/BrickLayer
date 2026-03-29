@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `f28707d` chore: auto-commit 10 session files on stop (2026-03-29)
 - `cd75752` chore: update agent registry and hook-audit questions (2026-03-29)
 - `faba4e6` feat(agents): add cross-agent recall_search to write-only agents (2026-03-29)
 - `b5db4c0` chore: update hook-audit (2 files) (2026-03-29)
