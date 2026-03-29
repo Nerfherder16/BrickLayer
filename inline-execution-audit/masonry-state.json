@@ -4,16 +4,16 @@
   "wave": 2,
   "q_current": 9,
   "q_total": 9,
-  "wave_complete": false,
+  "wave_complete": true,
   "active_agent": null,
   "verdicts": {
     "HEALTHY": 0,
     "WARNING": 6,
-    "FAILURE": 6,
-    "CONFIRMED": 3,
+    "FAILURE": 3,
+    "CONFIRMED": 1,
     "FRONTIER_PARTIAL": 1,
     "FIXED": 3,
-    "DIAGNOSIS_COMPLETE": 3,
+    "DIAGNOSIS_COMPLETE": 8,
     "MONITOR_SET": 1
   },
   "wave1_complete": true,
@@ -22,5 +22,5 @@
   "active_agent_count": 0,
   "last_qid": "R2.2",
   "last_verdict": "WARNING",
-  "updated_at": "2026-03-29T12:10:00Z"
+  "updated_at": "2026-03-29T12:30:00Z"
 }
