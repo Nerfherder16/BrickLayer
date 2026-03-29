@@ -213,7 +213,8 @@ async function main() {
   // Avoid recursive firing when stop_hook_active is set
   if (parsed.stop_hook_active) process.exit(0);
 
-  const sessionId = parsed.session_id || "unknown";
+  const { getSessionId } = require('./session/stop-utils');
+  const sessionId = getSessionId(parsed);
   const cwd = normalizeCwd(parsed.cwd || process.cwd());
   const projectName = path.basename(cwd);
 

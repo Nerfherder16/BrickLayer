@@ -36,7 +36,8 @@ async function main() {
     process.exit(0);
   }
 
-  const sessionId = input.session_id || input.sessionId || "unknown";
+  const { getSessionId } = require('./session/stop-utils');
+  const sessionId = getSessionId(input);
   const cwd = input.cwd || process.cwd();
   const toolName = input.tool_name || input.toolName || "unknown";
 

@@ -79,9 +79,10 @@ function addProjectContext(lines, cwd, input, state) {
 
   // --- .mas/ session init + session lock ---
   try {
-    const sessionId = input.session_id || input.sessionId || null;
+    const { getSessionId } = require('./stop-utils');
+    const sessionId = getSessionId(input);
     const sessionObj = {
-      session_id: sessionId || "unknown",
+      session_id: sessionId,
       started_at: new Date().toISOString(),
       cwd,
       branch: null,

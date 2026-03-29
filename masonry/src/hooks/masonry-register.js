@@ -107,7 +107,8 @@ async function main() {
   let input = {};
   try { input = JSON.parse(raw); } catch (_err) { return; }
 
-  const sessionId = input.session_id || 'unknown';
+  const { getSessionId } = require('./session/stop-utils');
+  const sessionId = getSessionId(input);
   const ctx = detectBrickLayerContext(cwd);
   const project = (ctx.masonryMeta && ctx.masonryMeta.name)
     || (ctx.autopilotProgress && ctx.autopilotProgress.project)

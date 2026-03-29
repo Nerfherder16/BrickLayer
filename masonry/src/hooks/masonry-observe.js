@@ -45,7 +45,9 @@ async function main() {
   let input = {};
   try { input = JSON.parse(raw); } catch (_err) { process.exit(0); }
 
-  const { tool_name, tool_input = {}, session_id: sessionId = 'unknown', cwd = process.cwd() } = input;
+  const { getSessionId } = require('./session/stop-utils');
+  const { tool_name, tool_input = {}, cwd = process.cwd() } = input;
+  const sessionId = getSessionId(input);
 
   if (!WATCHED_TOOLS.has(tool_name)) process.exit(0);
 

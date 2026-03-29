@@ -88,7 +88,7 @@ async function main() {
 
   // ── Phase 1: Session lock check ──────────────────────────────────────────
   if (targetFile && isProtectedPath(cwd, targetFile)) {
-    const currentSessionId = input.session_id || input.sessionId || null;
+    const currentSessionId = require('./session/stop-utils').getSessionId(input);
     if (currentSessionId) {
       const lockPath = path.join(cwd, '.mas', 'session.lock');
       let lock = null;

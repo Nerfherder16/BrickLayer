@@ -163,7 +163,7 @@ async function main() {
     name: input.agent_name || input.agent_type || "agent",
     model: input.model || "?",
     startedAt: now,
-    sessionId: input.session_id || "",
+    sessionId: require('./session/stop-utils').getSessionId(input),
   };
 
   // Load existing agent state

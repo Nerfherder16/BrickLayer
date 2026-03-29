@@ -21,7 +21,7 @@ const path = require('path');
 const os = require('os');
 
 const {
-  readStdin, normalizeCwd, fileAgeDays, isResearchProject, closeSession, tryRead, tryJSON,
+  readStdin, normalizeCwd, fileAgeDays, isResearchProject, closeSession, tryRead, tryJSON, getSessionId,
 } = require('./session/stop-utils');
 
 const {
@@ -61,7 +61,7 @@ async function main() {
   if (parsed.stop_hook_active) process.exit(0);
 
   const cwd = normalizeCwd(parsed.cwd || process.cwd());
-  const sessionId = parsed.session_id || parsed.sessionId || `session-${process.ppid || null}`;
+  const sessionId = getSessionId(parsed);
   const snapPath = sessionId ? path.join(os.tmpdir(), `masonry-snap-${sessionId}.json`) : null;
 
   // Primary: files this session's Write/Edit tools actually touched.

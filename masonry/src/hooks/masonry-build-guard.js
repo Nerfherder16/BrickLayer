@@ -83,8 +83,9 @@ async function main() {
   // If the build already completed, don't warn about an interrupted build.
   if (progress.status === "COMPLETE") process.exit(0);
 
+  const { getSessionId } = require('./session/stop-utils');
   const buildSessionId = progress.session_id || null;
-  const currentSessionId = parsed.session_id || parsed.sessionId || null;
+  const currentSessionId = getSessionId(parsed);
 
   // Only block the session that owns this build.
   if (buildSessionId && currentSessionId && buildSessionId !== currentSessionId) {

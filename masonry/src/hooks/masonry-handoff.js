@@ -67,14 +67,15 @@ function countQuestions(dir) {
 
 async function main() {
   // Read session context from stdin JSON payload (Claude Code Stop hook protocol)
-  let sessionId = 'unknown';
   let cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+  let parsed = {};
   try {
     const raw = fs.readFileSync(0, 'utf-8');
-    const parsed = JSON.parse(raw);
-    if (parsed.session_id) sessionId = parsed.session_id;
+    parsed = JSON.parse(raw);
     if (parsed.cwd) cwd = parsed.cwd;
   } catch (_err) { /* use defaults */ }
+  const { getSessionId } = require('./session/stop-utils');
+  const sessionId = getSessionId(parsed);
 
   // Guard: don't re-trigger if already done this session
   const guardFile = path.join(os.tmpdir(), `masonry-handoff-triggered-${sessionId}.json`);

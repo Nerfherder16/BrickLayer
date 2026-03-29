@@ -261,7 +261,8 @@ async function main() {
   if (!transcriptPath) return;
 
   const cwd = parsed.cwd || process.cwd();
-  const sessionId = parsed.session_id || parsed.sessionId || `session-${process.ppid || null}`;
+  const { getSessionId } = require("./session/stop-utils");
+  const sessionId = getSessionId(parsed);
 
   // --- Context size check (existing behaviour) ---
   try {

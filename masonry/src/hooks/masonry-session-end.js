@@ -37,7 +37,8 @@ async function main() {
   try { input = JSON.parse(raw); } catch {}
 
   const cwd = input.cwd || process.cwd();
-  const sessionId = input.session_id || input.sessionId || null;
+  const { getSessionId } = require('./session/stop-utils');
+  const sessionId = getSessionId(input);
   const ts = new Date().toISOString();
 
   // --- Clean up session snapshot ---
