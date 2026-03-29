@@ -73,11 +73,21 @@ const INTENT_RULES = [
   // Build / implement
   {
     patterns: [
-      /\b(build|implement|create|add.?feature|write.?code|develop|scaffold)\b.{0,40}\b(app|component|endpoint|api|service|function|class|module|page|route)\b/i,
-      /\/build\b|\/ultrawork\b|\/plan\b/i,
+      /\b(build|implement|create|add.?feature|write.?code|develop|scaffold|fix|update|make|change|set|configure|apply|enable|disable|modify)\b.{0,40}\b(app|component|endpoint|api|service|function|class|module|page|route)\b/i,
+      /\/build\b|\/ultrawork\b/i,
     ],
     route: "developer + test-writer + code-reviewer",
     note: "Use /plan first for multi-file tasks.",
+  },
+  // Spec + build pipeline
+  {
+    patterns: [
+      /\b(write.?a.?spec|create.?a.?spec|spec.?out|product.?requirements|prd|requirements.?doc)\b/i,
+      /\b(plan.?out|plan.?this|blueprint.?the|blueprint.?a|design.?the.?architecture|write.?a.?plan.?for)\b/i,
+      /\b(spec.?to.?build|plan.?to.?implement|feature.?spec|feature.?plan)\b/i,
+    ],
+    route: "spec-writer → developer pipeline",
+    note: "Use /plan for full spec-to-build pipeline.",
   },
   // Git
   {
