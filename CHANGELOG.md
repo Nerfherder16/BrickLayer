@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `6de1e3a` feat: backfill_routing_keywords.py dark fleet keyword backfill script (task 4/4) (2026-03-29)
 - `2c59001` feat: last_route multi-turn persistence + FOLLOWUP_PATTERNS in prompt-router (task 3/4) (2026-03-29)
 - `90b18f9` feat: INTENT_RULES spec+build rule, verb expansion, dead code removal in prompt-router (task 2/4) (2026-03-29)
 - `b439eae` feat: add read tool to Mortar gate exemption in masonry-approver.js (task 1/4) (2026-03-29)
