@@ -8,6 +8,9 @@ Maintained automatically by BrickLayer post-commit hook and synthesizer.
 ## [Unreleased]
 
 ---
+- `c58a496` chore: add .gitignore for runtime artifacts (2026-03-29)
+- `6697e72` feat(program): RETRO-H3 — require Files to change in FAILURE/High findings (2026-03-29)
+- `28d7851` docs(hook-audit): Wave 2 retrospective + final cleanup (2026-03-29)
 - `e136b48` docs(hook-audit): Wave 2 synthesis -- 8 verifications, all 3 FAILUREs fixed, 0 open items (2026-03-29)
 
 ## [Wave 2] -- 2026-03-29
