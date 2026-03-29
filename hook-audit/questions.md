@@ -13,7 +13,7 @@
 
 ### D1.1: Does masonry-stop-guard.js correctly implement the stop_hook_active re-trigger prevention, and is exit code 2 unreachable once the flag is set?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **H0**: masonry-stop-guard.js correctly reads `stop_hook_active` from stdin payload and exits 0 immediately if set, making exit code 2 unreachable on re-trigger.
@@ -26,7 +26,7 @@
 
 ### D1.2: Is there a scenario where masonry-build-guard and masonry-ui-compose-guard both block Stop simultaneously, and does Claude Code handle chained exit-2 responses correctly?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **H0**: Claude Code correctly sequences the Stop hook chain — if hook 7 (masonry-build-guard) exits 2 and blocks, the user retries and stop_hook_active is set, causing both hooks to pass on retry. No infinite loop is possible.
@@ -39,7 +39,7 @@
 
 ### D1.3: Does masonry-handoff.js receive the session ID via process.argv[2] reliably, and what happens when it is invoked without a session ID argument?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **H0**: masonry-handoff.js is always invoked with the session ID as process.argv[2] by the Stop hook runner, and falls back to 'unknown' gracefully when absent.
@@ -52,7 +52,7 @@
 
 ### D1.4: Does the masonry-stop-guard session snapshot round-trip work end-to-end — is the snapshot always written before Stop hooks run?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: HIGH
 **H0**: masonry-session-start.js always writes `$TMPDIR/masonry-snap-{sessionId}.json` before any Stop hook fires, and masonry-stop-guard.js always reads a valid snapshot file for the current session.
@@ -65,7 +65,7 @@
 
 ### D1.5: Does masonry-context-monitor.js check stop_hook_active, and what is the blocking threshold behavior when context is high but the repo is clean?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: diagnose
 **Priority**: MEDIUM
 **H0**: masonry-context-monitor.js checks stop_hook_active and exits 0 when set. It only blocks (exit 2) when context > 750K tokens AND uncommitted changes exist. A clean repo never produces exit 2 regardless of context size.
@@ -76,9 +76,59 @@
 
 ---
 
-### A1.1: Do all Stop hooks that can exit with code 2 implement the stop_hook_active guard, and is coverage complete across the full Stop chain?
+### D1.3-FU1: Does hook-runner.exe support template variable injection (e.g., {session_id}) in hook commands, and is this used anywhere in settings.json?
 
 **Status**: PENDING
+**Mode**: diagnose
+**Priority**: HIGH
+**H0**: hook-runner.exe supports template variable injection for session_id in hook commands, but masonry-handoff.js was not updated to use it.
+**H1**: hook-runner.exe has no template injection support — session_id is never available via argv for async hooks, making the masonry-handoff.js design fundamentally flawed for session-scoped de-dup.
+**Prediction**: Searching settings.json for template patterns like `{session_id}` or `$SESSION_ID` will find zero instances, confirming no hooks use this pattern.
+**Agent**: diagnose-analyst
+**Success criterion**: Confirms whether hook-runner.exe supports template expansion; confirms whether any hook in settings.json passes session_id via argv.
+
+---
+
+### D1.3-FU2: Does masonry-session-summary.js have a similar single-fire guard issue, or does it correctly deduplicate per session?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: HIGH
+**H0**: masonry-session-summary.js reads session_id from stdin (not argv) and correctly writes per-session summaries to Recall.
+**H1**: masonry-session-summary.js has a similar or related deduplication issue — either it also fires only once, or its Recall writes are keyed incorrectly.
+**Prediction**: Reading masonry-session-summary.js will show it reads session_id from parsed stdin payload (not argv), so it correctly identifies each session.
+**Agent**: diagnose-analyst
+**Success criterion**: Confirms masonry-session-summary.js session ID sourcing and deduplication mechanism.
+
+---
+
+### A1.3-FU1: Do orphaned wrong-domain Recall memories need migration, or are they benign dead entries?
+
+**Status**: PENDING
+**Mode**: research
+**Priority**: MEDIUM
+**H0**: The wrong-domain Recall entries (e.g., system-recall summaries stored in "development") are benign orphans — no query path retrieves them, they'll be superseded once A1.3 is fixed, and no migration is needed.
+**H1**: The accumulated wrong-domain memories should be purged or migrated because they consume vector storage and may surface in unrelated domain searches, polluting results for other projects.
+**Agent**: research-analyst
+**Success criterion**: Confirms whether orphaned wrong-domain Recall entries are retrievable by any current query path; recommends migrate vs. abandon vs. purge.
+
+---
+
+### A1.3-FU2: Does a shared PROJECT_DOMAINS module exist in the Recall codebase, or is the table independently maintained in each hook?
+
+**Status**: PENDING
+**Mode**: research
+**Priority**: MEDIUM
+**H0**: A shared domains module (e.g., `domains.js`) already exists in the Recall codebase and is meant to be imported by both hooks — the divergence is a failure to import it correctly.
+**H1**: No shared module exists. Both hooks maintain independent copies of PROJECT_DOMAINS, making future divergence structurally likely. A shared module would need to be created as part of the A1.3 fix.
+**Agent**: research-analyst
+**Success criterion**: Confirms whether a shared domains module exists in the Recall hooks directory; recommends the minimal fix to prevent recurrence.
+
+---
+
+### A1.1: Do all Stop hooks that can exit with code 2 implement the stop_hook_active guard, and is coverage complete across the full Stop chain?
+
+**Status**: DONE
 **Mode**: audit
 **Priority**: HIGH
 **H0**: Every hook in the Stop chain that can produce exit code 2 (masonry-stop-guard, masonry-build-guard, masonry-ui-compose-guard, and masonry-context-monitor) checks `stop_hook_active` and exits 0 immediately when the flag is true.
@@ -91,7 +141,7 @@
 
 ### A1.2: Is the BL research project silence detection (program.md + questions.md sentinel) consistent across all hooks that implement it?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: audit
 **Priority**: HIGH
 **H0**: All hooks that implement BL silence detection use the same sentinel (program.md AND questions.md both present) and check the same directory (the effective cwd of the hook process).
@@ -104,7 +154,7 @@
 
 ### A1.3: Does recall-session-summary.js have divergent domain mapping that causes Recall writes to land in wrong domains compared to what recall-retrieve.js reads?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: audit
 **Priority**: MEDIUM
 **H0**: The PROJECT_DOMAINS table in recall-session-summary.js maps all projects to the same canonical domains as recall-retrieve.js, ensuring memories written at Stop are retrievable at UserPromptSubmit.
@@ -117,7 +167,7 @@
 
 ### A1.4: Does masonry-ui-compose-guard.js implement the BL research project silence guard that masonry-build-guard.js has?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: audit
 **Priority**: MEDIUM
 **H0**: masonry-ui-compose-guard.js implements the same `isResearchProject()` early exit as masonry-build-guard.js, silencing itself inside BL campaigns.
@@ -130,7 +180,7 @@
 
 ### R1.1: How does the masonry-register.js guard warning flush mechanism work in practice, and can a guard warning accumulate and never be delivered?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: research
 **Priority**: HIGH
 **H0**: masonry-register.js correctly writes guard warnings to `masonry-guard-{sessionId}.ndjson` during PreToolUse hooks, then flushes and deletes the file on the next UserPromptSubmit call, ensuring warnings are always delivered within one turn.
@@ -143,7 +193,7 @@
 
 ### R1.2: Does the masonry-training-export.js use spawnSync (blocking) despite being registered as async:true, and what is the actual behavior under the 65-second timeout?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: research
 **Priority**: MEDIUM
 **H0**: masonry-training-export.js uses async spawn (non-blocking) internally, making its 65-second timeout in settings.json irrelevant because the hook process exits quickly after spawning the background Python process.
@@ -156,7 +206,7 @@
 
 ### R1.3: Under what realistic daily development conditions do masonry-score-trigger, masonry-pagerank-trigger, and masonry-ema-collector actually fire, given their rate limits?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: research
 **Priority**: MEDIUM
 **H0**: The analytics triggers (score-trigger: 24h, pagerank: 60min, ema: 5min) fire reliably in normal development workflow — multiple daily Stop events ensure they execute at least once per day each.
@@ -169,7 +219,7 @@
 
 ### R1.4: Does masonry-session-summary.js (Masonry) produce a duplicate session summary alongside recall-session-summary.js (Recall), and how do their Recall payloads differ?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: research
 **Priority**: MEDIUM
 **H0**: masonry-session-summary.js and recall-session-summary.js serve different purposes — masonry writes a structured activity summary (from masonry-observe.js activity log) while recall writes an LLM-generated transcript summary. They complement each other without duplication.
@@ -182,7 +232,7 @@
 
 ### V1.1: Is the architecture of the temp file bus (shared state via $TMPDIR) sound for a multi-session, multi-machine environment?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: validate
 **Priority**: HIGH
 **H0**: The $TMPDIR-based temp file bus is architecturally sound for Tim's workflow — session IDs are unique per session, files are cleaned up correctly, and the system handles concurrent sessions (casaclaude + proxyclaude) without cross-contamination.
@@ -195,7 +245,7 @@
 
 ### V1.2: Is the Stop hook execution order correct — specifically, does running recall-session-summary (position 2) before masonry-stop-guard (position 3) introduce a race or correctness issue?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: validate
 **Priority**: MEDIUM
 **H0**: The Stop hook order (recall session-save → recall summary → masonry stop-guard → masonry session-summary → handoff → context-monitor → build-guard → ui-compose-guard → analytics triggers) is intentionally designed so non-blocking Recall writes complete before the potentially-blocking stop-guard runs. This is correct because the stop-guard may block, and Recall writes should not be lost.
@@ -208,7 +258,7 @@
 
 ### FR1.1: What failure modes emerge when the session ID is absent from ALL Stop hook inputs, and is there a safe degradation path?
 
-**Status**: PENDING
+**Status**: DONE
 **Mode**: frontier
 **Priority**: LOW
 **H0**: All Stop hooks degrade gracefully when session ID is absent — they either skip session-specific operations or use fallback identifiers, and no hook blocks or throws an unhandled exception.
