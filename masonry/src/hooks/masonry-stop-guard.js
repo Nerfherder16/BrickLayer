@@ -25,7 +25,7 @@ const {
 } = require('./session/stop-utils');
 
 const {
-  checkDocStaleness, checkOverseerTrigger, pruneOldBackups,
+  checkDocStaleness, checkOverseerTrigger,
 } = require('./session/stop-checks');
 
 const {
@@ -199,12 +199,6 @@ async function main() {
 
   closeSession(cwd);
   checkDocStaleness(cwd, snapPath);
-
-  // Prune stale backups (older than 7 days) from .autopilot/backups/
-  const autopilotDirForPrune = path.join(cwd, '.autopilot');
-  if (fs.existsSync(autopilotDirForPrune)) {
-    pruneOldBackups(autopilotDirForPrune);
-  }
 
   process.exit(0);
 }
