@@ -36,12 +36,10 @@ import random
 import sys
 
 from constants import (
-    BASE_GENERALIST_ACCURACY,
     BASE_SPECIALIST_ACCURACY,
     CAMPAIGN_YIELD_FAILURE,
     CAMPAIGN_YIELD_WARNING,
     FIX_REGRESSION_FAILURE,
-    PEER_REVIEW_CORRECTION_RATE,
     SYNTHESIS_COHERENCE_FAILURE,
     WAVE_NOVELTY_FLOOR_FAILURE,
     WAVE_SATURATION_RATE,
@@ -243,9 +241,9 @@ def _peer_correction(drift_rate: float) -> float:
 
     Recalibrations applied (Q6.1/Q6.7):
       Change 1: RECALIBRATED_PEER_REVIEW_CORRECTION_RATE = 0.40 (was 0.55)
-      Change 2: novelty_discount = max(0.05, 1.0 - DOMAIN_NOVELTY * 0.90) (was max(0.20, 1-DN*0.60))
+      Change 2: novelty_discount slope 0.90 → 1.20 (Q8.5 fix: moves cliff from DN≈0.857 to DN≈0.780)
     """
-    novelty_discount = max(0.05, 1.0 - DOMAIN_NOVELTY * 0.90)
+    novelty_discount = max(0.05, 1.0 - DOMAIN_NOVELTY * 1.20)
     return (
         PEER_REVIEW_RATE
         * drift_rate
