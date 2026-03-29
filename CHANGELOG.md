@@ -61,6 +61,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+- `80dc22a` chore: update .playwright-mcp, hero-final.png, hero-fixed.png (3 files) (2026-03-28)
 - `87a1c8f` chore: update docs (1 file) (2026-03-28)
 - `ae1ef6e` chore: update .playwright-mcp (6 files) (2026-03-28)
 - `1037f88` chore(registry): remove 13 zombies, add missing descriptions for 17 specialist agents (2026-03-28)
