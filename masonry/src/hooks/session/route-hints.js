@@ -64,6 +64,21 @@ function buildHintText(intent, effort, hintDetail, prompt) {
     );
   }
 
+  // UI/design tasks — inject design intelligence hint
+  const isUITask = intent && /uiux-master/.test(intent.route);
+  if (isUITask) {
+    return (
+      `[MASONRY ROUTING — DO NOT SKIP]\n` +
+      `${hintDetail}\n\n` +
+      `You are an orchestrator. Do NOT do this work inline.\n` +
+      `Spawn the uiux-master specialist directly:\n\n` +
+      `  Task tool: subagent_type="uiux-master", prompt="${escapedPrompt}"\n\n` +
+      `DESIGN INTELLIGENCE: The agent MUST run the design system search before making design decisions:\n` +
+      `  python3 masonry/uiux-pro-max/scripts/search.py "<product type>" --design-system -p "<name>" -f markdown\n` +
+      `This provides industry-specific style, palette, font, and pattern recommendations from 6,400+ curated data rows.`
+    );
+  }
+
   // Other specialist routes
   const agentType = getDirectAgentType(intent);
   return (
