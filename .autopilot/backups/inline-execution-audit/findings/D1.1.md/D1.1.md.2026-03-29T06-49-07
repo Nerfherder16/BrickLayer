@@ -1,0 +1,121 @@
+# D1.1: Why does the Mortar routing directive in CLAUDE.md lose authority against the "trivial vs. substantive" escape hatch, and what is the effective definition of "trivial" that Claude applies?
+
+**Status**: DIAGNOSIS_COMPLETE
+**Date**: 2026-03-29
+**Agent**: diagnose-analyst
+
+## Evidence
+
+### Exact Text Positions in CLAUDE.md
+
+**Absolute directive — line 37:**
+> `**Every request goes through Mortar.**`
+
+**Reinforcing absolute — line 56 (Core Behavior Rules):**
+> `**Every request** → Mortar routes it first`
+
+**Escape hatch — line 68 (Operating Principles):**
+> `Lightest path that preserves quality — direct action when trivial, agents when substantive`
+
+The absolute directive appears twice (lines 37 and 56) in structurally distinct positions: once as a standalone bold declaration under the section header "Mortar Is the Entry Point for Everything," and once as the first bullet in Core Behavior Rules.
+
+The escape hatch appears once at line 68 inside the Operating Principles section, which immediately follows Core Behavior Rules in document order.
+
+### Instruction Structure Hierarchy (observed in CLAUDE.md)
+
+The document organizes instructions in this order:
+
+1. **Lines 35–52**: Section "Mortar Is the Entry Point for Everything" — absolute declarative statements
+2. **Lines 54–61**: Subsection "Core Behavior Rules" — operationalization of the absolute rule
+3. **Lines 63–70**: Subsection "Operating Principles" — includes the escape hatch at line 68
+
+No scope qualification separates the escape hatch from the absolute directive. Both are at the same document depth (unnumbered bullet points within CLAUDE.md).
+
+### The Escape Hatch Phrase
+
+The exact phrase at line 68:
+> "Lightest path that preserves quality — direct action when trivial, agents when substantive"
+
+This sentence contains:
+- A positive statement ("Lightest path that preserves quality") — frames the principle as efficiency/quality optimization, not as a narrow carve-out
+- An operational definition ("direct action when trivial") — explicitly licenses inline execution for "trivial" tasks
+- A contrast ("agents when substantive") — implicitly restricts delegation to substantive tasks only
+
+No definition of "trivial" is provided anywhere in CLAUDE.md. The word appears exactly once (line 68). There is no example, threshold, or constraint on what counts as trivial.
+
+### Prior Campaign Evidence (bl-audit M1.4)
+
+From bl-audit Wave 2, finding M1.4 (HIGH — OPEN):
+> "Mortar directive is advisory, not enforced — design decision needed."
+
+The bl-audit team confirmed the enforcement gap in 2026-03-22 synthesis but did not trace _why_ the advisory nature manifests. The bl-audit finding noted the absence of any blocking hook for inline execution. The gap between "advisory" and "enforced" was identified as requiring a design decision from Tim — it was not diagnosed as a bug but as a structural gap.
+
+### Context Load Evidence (bl-audit E1.9)
+
+Auto-loaded context at session start: 22,587 tokens. The CLAUDE.md Mortar section spans approximately lines 17–78 (roughly 2,500–3,000 tokens). UI-specific rules (figma-designer-guide.md, figma-mcp-workflow.md, figma-workflow.md, frontend-design-philosophy.md, react-tailwind-standards.md) consume 12,423 tokens — roughly 4–5x the Mortar routing section. In a large context, the relative weight of the escape hatch phrase (1 bullet in a 22K-token context) is significant.
+
+## Analysis
+
+### Causal Chain
+
+**Step 1: The absolute directive and the escape hatch coexist without precedence rules.**
+
+CLAUDE.md declares "Every request goes through Mortar" (line 37, line 56) and then introduces "direct action when trivial" (line 68) with no qualification such as "these are not exceptions to the Mortar rule" or "trivial means only X." To the model reading this document, both instructions are equally authoritative text. There is no marker saying the escape hatch is subordinate.
+
+**Step 2: More specific beats more absolute in instruction-following.**
+
+When a language model encounters two instructions that appear to conflict, it resolves the conflict through specificity: the more specific, contextually triggered instruction takes precedence over the generic absolute. "Every request goes through Mortar" is a general rule. "Direct action when trivial" is a conditional rule that activates on a property of the current request. At the moment of processing a specific request, the conditional rule fires and overrides the general rule — not because it appears later (recency bias), but because it is structurally more specific.
+
+**Step 3: "Trivial" is undefined and defaults to the model's prior.**
+
+Without a definition, the model applies its trained prior for "trivial task." That prior is derived from general task complexity judgments: single-step, answerable from context, no external lookup required, no code generation needed. Under this prior, any question that can be answered from knowledge already in context counts as trivial. This is a very broad category.
+
+**Observed effective definition of "trivial" (inferred from behavior):**
+
+A task is treated as trivial — and thus executed inline — when ALL of the following hold:
+1. The answer can be composed from information already present in context (no tool use required)
+2. The task involves a single work type (not multi-domain)
+3. The task does not explicitly mention an agent by name (e.g., "ask git-nerd to...")
+4. The task does not use a slash command (e.g., `/build`, `/masonry-run`)
+5. The output is expected to be text (explanation, analysis, summary) rather than code or file changes
+
+Under this definition, a large fraction of research questions, architectural analyses, explanations, and status queries qualify as trivial. These are precisely the tasks the Mortar directive intends to route to specialist agents (research-analyst, competitive-analyst, diagnose-analyst, etc.).
+
+**Step 4: The escape hatch phrase is in the wrong section.**
+
+The phrase "Lightest path that preserves quality — direct action when trivial, agents when substantive" appears inside "Operating Principles," which reads as a more practical, session-level guide compared to the more declarative "Core Behavior Rules" section above it. The document structure inadvertently elevates the escape hatch: Operating Principles signals "how to act" rather than "what is forbidden." The absolute directives in Core Behavior Rules read as descriptive ("this is how the system works") rather than prescriptive ("this is what you must do").
+
+**Step 5: No enforcement mechanism closes the gap.**
+
+The hook system (15 active hooks) has no hook that blocks inline response. `masonry-pre-protect.js` and `masonry-approver.js` fire on Write/Edit/Bash tool use, not on text generation. If Claude decides to answer inline without using any tool, no hook fires. The gap is architectural: hooks can only intercept tool invocations, and inline text generation is not a tool invocation.
+
+### Root Cause
+
+The root cause is a **structural ambiguity in CLAUDE.md** between an absolute routing directive and an undefined conditional exception, combined with a **complete absence of enforcement at the text-generation layer**. The escape hatch is not a subordinate exception — it is a peer-level bullet that the model reads as equally authoritative, and its vague trigger condition ("trivial") defaults to a broad prior that swallows most text-answer tasks.
+
+The absolute directive loses authority not because of document position (recency bias) but because:
+1. The escape hatch is structurally equivalent (peer-level bullet) to the absolute directive's operationalizations
+2. "Trivial" is undefined and defaults to a broad trained prior
+3. No enforcement exists at the generation layer to correct the interpretation
+
+## Fix Specification
+
+- **File**: `C:/Users/trg16/.claude/CLAUDE.md`
+- **Line**: 68 (the escape hatch) and lines 37/56 (the absolute directives need qualification)
+- **Change**: Replace the vague escape hatch with a scoped exception that defines "trivial" operationally. The current text at line 68:
+  ```
+  Lightest path that preserves quality — direct action when trivial, agents when substantive
+  ```
+  Should become:
+  ```
+  Lightest path that preserves quality — direct action ONLY for single-sentence factual lookups (e.g., "what port does X run on?") and clarification questions that require no tool use and no multi-step reasoning. All other work, including analysis, code, research, debugging, and planning, routes through Mortar regardless of apparent simplicity.
+  ```
+  Additionally, the absolute directive at line 37 should be qualified:
+  ```
+  **Every request goes through Mortar** (exception: single-sentence factual lookups — see Operating Principles).
+  ```
+  This makes the exception explicitly subordinate and operationally defined, preventing the model from using its own "trivial" prior.
+- **Verification**: Behavioral — after the change, present Claude with 10 requests that were previously answered inline (research questions, multi-step analyses, architecture explanations) and verify the model initiates delegation via Agent tool calls rather than inline text. A runnable proxy check: `grep -n "trivial\|direct action" C:/Users/trg16/.claude/CLAUDE.md` should return the new scoped definition, not the vague original.
+- **Risk**: Narrowing "trivial" aggressively may cause over-delegation for genuinely simple queries (e.g., "what's the Tailscale IP for Recall?"), adding latency and agent overhead. The specific wording "single-sentence factual lookups" sets a conservative threshold that can be relaxed if over-delegation is observed. Adjacent behavior affected: the same "trivial" heuristic governs whether git-nerd, karen, and other proactive agents are invoked — tightening this definition also affects proactive routing.
+
+[RECOMMEND: fix-implementer — DIAGNOSIS_COMPLETE with exact CLAUDE.md change specified; trivial-definition ambiguity at line 68 is the structural root cause of Mortar routing bypass]

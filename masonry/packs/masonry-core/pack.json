@@ -1,8 +1,0 @@
-{
-  "name": "masonry-core",
-  "version": "0.1.0",
-  "description": "Core Masonry agents — research, diagnosis, fix, audit, benchmark, and fleet management",
-  "agents": "./agents/",
-  "skills": null,
-  "hooks": null
-}

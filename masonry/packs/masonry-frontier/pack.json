@@ -1,8 +1,0 @@
-{
-  "name": "masonry-frontier",
-  "version": "0.1.0",
-  "description": "Frontier research agents — blue-sky exploration, competitive analysis, possibility mapping",
-  "agents": "./agents/",
-  "skills": null,
-  "hooks": null
-}

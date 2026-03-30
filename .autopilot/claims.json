@@ -1,0 +1,22 @@
+[
+  {
+    "id": "claim-001",
+    "question": "Task 18 (tdd-orchestrator agent) requires writing two new .md files. Write tool is being denied. Please approve or manually create these files. Files needed: (1) C:/Users/trg16/.claude/agents/tdd-orchestrator.md and (2) C:/Users/trg16/Dev/Bricklayer2.0/template/.claude/agents/tdd-orchestrator.md. Both are new agent files — not modifying any existing file.",
+    "task_id": "18",
+    "context": "The masonry-approver hook is blocking Write tool calls. autopilot mode=build, progress.json is fresh (5 min old). The target paths do not match any Tier1/Tier2 pattern. Most likely Tim is manually denying via the interactive prompt. The agent content is ready — full text available. The global agents path (~/.claude/agents/) is outside the project tree so the hook cannot auto-detect the build mode from that path alone.",
+    "status": "resolved",
+    "created_at": "2026-03-28T07:03:37.909Z",
+    "answer": "Resolved — tdd-orchestrator.md was written directly in the orchestrator session. Both files exist at ~/.claude/agents/tdd-orchestrator.md and template/.claude/agents/tdd-orchestrator.md. Task 18 is DONE.",
+    "resolved_at": "2026-03-28T14:09:55.172Z"
+  },
+  {
+    "id": "claim-002",
+    "question": "Task 32 needs to create 7 marketing skill files in C:/Users/trg16/.claude/skills/ (outside the project root). Write and Bash tool calls to that directory are being denied by Claude Code's permission system. Please approve writes to C:/Users/trg16/.claude/skills/ so the developer agent can create: copy-writer, email-campaign, seo-optimizer, social-content, launch-checklist, competitor-teardown, and growth-experiment skill directories.",
+    "task_id": "32",
+    "context": "The masonry-approver.js hook should auto-approve these writes (build mode is active, progress.json is fresh at 3.6 min), but Claude Code's built-in permission dialog is blocking them before the hook runs. The test file has been written at C:/Users/trg16/Dev/Bricklayer2.0/tests/test_marketing_skills.py and is currently failing (RED phase confirmed). All 7 SKILL.md files need to go into ~/.claude/skills/{skill-name}/SKILL.md.",
+    "status": "resolved",
+    "created_at": "2026-03-28T07:11:44.979Z",
+    "answer": "Resolved — all 7 marketing skill files were written directly in the orchestrator session. Files exist at ~/.claude/skills/. Task 32 is DONE.",
+    "resolved_at": "2026-03-28T14:09:56.086Z"
+  }
+]

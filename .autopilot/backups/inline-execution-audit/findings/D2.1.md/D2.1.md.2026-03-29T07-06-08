@@ -1,0 +1,268 @@
+# D2.1: What enforcement mechanisms are structurally possible within the Claude Code hook system to make Mortar routing mandatory rather than advisory?
+
+**Status**: DIAGNOSIS_COMPLETE
+**Question**: What enforcement mechanisms are structurally possible within the Claude Code hook system to make Mortar routing mandatory rather than advisory?
+**Agent**: diagnose-analyst
+**Date**: 2026-03-29
+
+## Evidence
+
+### Source Files Read
+
+- `C:/Users/trg16/Dev/Bricklayer2.0/masonry/hooks/hooks.json` — full hook registry (all events and their registered hooks)
+- `C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-mortar-enforcer.js` — PreToolUse:Agent hook
+- `C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-approver.js` — PreToolUse:Write|Edit|Bash hook (auto-approval + Mortar gate)
+- `C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-prompt-router.js` — UserPromptSubmit routing hint hook
+- `C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-register.js` — UserPromptSubmit Mortar directive hook
+- `C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-context-safety.js` — PreToolUse:ExitPlanMode blocking hook
+- `C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-pre-protect.js` — PreToolUse:Write|Edit session lock hook
+- `C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-tdd-enforcer.js` — PostToolUse:Write|Edit TDD block hook
+- Prior finding D1.3 for hook output channel analysis
+
+### Full Hook Event Registry (from hooks.json)
+
+| Event | Hook(s) | Registered |
+|-------|---------|-----------|
+| `SessionStart` | masonry-session-start.js | Yes |
+| `UserPromptSubmit` | masonry-register.js, masonry-prompt-inject.js | Yes |
+| `PreToolUse` (Write\|Edit) | masonry-secret-scanner.js, masonry-session-lock.js | Yes |
+| `PreToolUse` (Write\|Edit\|Bash) | masonry-approver.js | Yes |
+| `PreToolUse` (ExitPlanMode) | masonry-context-safety.js | Yes |
+| `PreToolUse` (Agent) | masonry-preagent-tracker.js (async) | Yes |
+| `PostToolUse` (Write\|Edit) | masonry-observe.js, masonry-lint-check.js, masonry-tdd-enforcer.js, masonry-checkpoint.js, others | Yes |
+| `PostToolUseFailure` | masonry-tool-failure.js | Yes |
+| `SubagentStart` | masonry-subagent-tracker.js | Yes |
+| `TeammateIdle` | masonry-teammate-idle.js | Yes |
+| `TaskCompleted` | masonry-teammate-idle.js | Yes |
+| `SessionEnd` | masonry-session-end.js | Yes |
+| `PreCompact` | masonry-pre-compact.js | Yes |
+| `Stop` | masonry-stop-guard.js, masonry-build-guard.js, masonry-context-monitor.js, others | Yes |
+
+Note: No `TextGeneration` hook event exists in the registry or in Claude Code's documented hook taxonomy.
+
+### What Each Hook Event Can Do
+
+| Event | Can Allow | Can Deny/Block | Can Inject Context | Can Force Tool Use | Fires When |
+|-------|-----------|---------------|-------------------|-------------------|------------|
+| `SessionStart` | n/a | n/a | Yes (content injection) | No | Session opens |
+| `UserPromptSubmit` | n/a | n/a | Yes (`additionalContext`) | No | User sends a prompt |
+| `PreToolUse` | Yes (`permissionDecision: allow`) | Yes (`permissionDecision: block`, `decision: block`, exit 2) | Yes (via reason text) | No | Claude is about to invoke a tool |
+| `PostToolUse` | n/a | Yes (exit 2 triggers blocking re-prompt) | Yes (via output) | No | After a tool completes |
+| `PostToolUseFailure` | n/a | n/a | Yes | No | After a tool errors |
+| `SubagentStart` | n/a | n/a | Yes | No | Subagent is spawning |
+| `Stop` | n/a | Yes (non-zero exit blocks Stop) | Yes | No | Session about to stop |
+
+**Critical structural constraint confirmed**: No hook event fires at the text generation layer. Hooks fire at tool invocation boundaries (PreToolUse, PostToolUse), session boundaries (SessionStart, Stop), or prompt receipt (UserPromptSubmit). There is no `TextGeneration`, `PreResponse`, or `AssistantMessage` hook event. This means there is no hook that can intercept, modify, or block inline text responses — only tool use can be gated.
+
+### The Mortar Enforcer's Actual Scope (masonry-mortar-enforcer.js)
+
+The file named "mortar-enforcer" does NOT enforce Mortar routing in the sense of the Mortar directive. It is a `PreToolUse:Agent` hook that blocks Agent tool calls where `subagent_type` is empty (line 34: `const BLOCKED_TYPES = new Set([""])`). Its original comment block describes blocking "general-purpose" agents, but the implementation was softened — `general-purpose` was removed from `BLOCKED_TYPES` (line 34 comment says it "must be allowed"). The enforcer now only blocks `subagent_type: ""` (empty string), which is essentially a format guard, not a routing enforcement mechanism.
+
+This hook cannot enforce Mortar routing because:
+1. It only fires when Claude is already using the Agent tool — not when Claude is answering inline
+2. It only checks `subagent_type` completeness, not whether Mortar was consulted
+3. It allows `general-purpose` through, meaning Claude can spawn any unnamed agent
+
+### The "Mortar Gate" in masonry-approver.js (lines 289–301)
+
+`masonry-approver.js` has a `mortarGateApplicable` check (line 275) that fires when `toolName` is Write, Edit, Bash, or MultiEdit and we are NOT in a subagent context. When Mortar has NOT been consulted (checked via `isMortarConsulted()` reading `masonry-state.json`), the gate:
+
+- For Bash: silently allows through (line 297: "Bash is always allowed through")
+- For Write/Edit: writes a warning to **stderr** only (line 295–298) and then ALWAYS allows through
+
+The code at lines 293–301:
+```javascript
+if (mortarGateApplicable && !approve && !isMortarConsulted()) {
+  if (toolName !== "bash") {
+    process.stderr.write(
+      "[Masonry] Heads up: Mortar hasn't been consulted this session. " +
+      "For complex multi-file work, invoke the mortar agent first.\n"
+    );
+  }
+  // Always allow through — gate is advisory only.
+}
+```
+
+The comment says explicitly: "gate is advisory only." Stderr output does not enter Claude's context window at all — it goes to the terminal operator's console, not to the model. This gate produces zero enforcement.
+
+### The `isMortarConsulted()` Routing Receipt Pattern
+
+`masonry-approver.js` already implements a "routing receipt" concept: it reads `masonry-state.json` looking for `mortar_consulted: true` with a fresh `mortar_session_id` ISO timestamp (within 4 hours). This is the closest existing approximation to the receipt pattern described in the hypothesis.
+
+However, the check result is only used for the advisory stderr warning above — it is never used to actually block a tool call. The receipt exists; enforcement based on it does not.
+
+## Analysis
+
+### Hook Enforcement Taxonomy: Four Categories
+
+After exhaustive review of all registered hooks and the full event taxonomy, hook mechanisms fall into four structural categories:
+
+**Category 1 — True Hard Blocks (PreToolUse exits 2 or emits `decision: block`)**
+These reliably prevent tool execution. Examples:
+- `masonry-pre-protect.js`: `{ decision: "block", reason: "..." }` — blocks Write/Edit to locked files
+- `masonry-context-safety.js`: `{ permissionDecision: "block", permissionDecisionReason: "..." }` + exit 2 — blocks ExitPlanMode
+- `masonry-tdd-enforcer.js` in build mode: exit 2 on PostToolUse — signals non-compliance after the fact
+- `masonry-mortar-enforcer.js`: `{ decision: "block" }` — blocks Agent spawns with empty `subagent_type`
+
+**Category 2 — Conditional Auto-Approvals (PreToolUse emits `permissionDecision: allow`)**
+These bypass the human-approval prompt but do not enforce routing decisions.
+- `masonry-approver.js`: approves Write/Edit/Bash in active build/fix/compose modes
+
+**Category 3 — Advisory Context Injection (UserPromptSubmit emits `additionalContext`)**
+These inject text into the model's context window before it processes a prompt. The text is visible to Claude but cannot prevent any specific response.
+- `masonry-register.js`: injects `[MASONRY] Route this prompt through Mortar`
+- `masonry-prompt-inject.js`: injects Recall memory snippets
+- Note: `masonry-prompt-router.js` uses the WRONG channel (`hookSpecificOutput.content`) per D1.3
+
+**Category 4 — Observational / Logging (async or stderr-only)**
+These produce no behavior change at all.
+- `masonry-observe.js` (async PostToolUse)
+- `masonry-preagent-tracker.js` (async PreToolUse:Agent)
+- The Mortar gate warning in `masonry-approver.js` (stderr only)
+
+### What Structural Enforcement IS Possible
+
+Given the constraint that no TextGeneration hook event exists, the following enforcement patterns are structurally achievable using existing hook events:
+
+**Pattern A: PreToolUse:Write|Edit block unless routing receipt present**
+Block all Write and Edit tool calls unless `masonry-state.json` contains a fresh `mortar_consulted: true` token (the receipt already exists structurally in `isMortarConsulted()`). This would transform the advisory Mortar gate in `masonry-approver.js` into a hard block.
+
+- Structural feasibility: HIGH — `PreToolUse` can block (`decision: block` or `permissionDecision: block`)
+- False-positive rate: VERY HIGH — blocks every inline edit response, including single-line fixes, config updates, and documentation edits that legitimately do not require agent delegation
+- Breaking impact: Would block all direct tool use in non-build, non-research sessions unless Mortar token is present. Makes Claude useless for interactive work unless mortar.md is invoked first every session.
+
+**Pattern B: PreToolUse:Bash block for complex commands**
+Block `Bash` tool calls where the command pattern suggests substantive work (multi-step scripts, deployments, test runs) unless routing receipt present.
+
+- Structural feasibility: HIGH
+- False-positive rate: HIGH — "complex" bash commands cannot be reliably detected from text patterns
+- The current code explicitly exempts Bash: "Bash is always allowed through — git ops and simple commands must never be blocked in conversation"
+
+**Pattern C: PreToolUse:Agent block unless subagent_type targets a known specialist**
+Extend `masonry-mortar-enforcer.js` to block `general-purpose` agent spawns, forcing Claude to name a specialist (which requires routing intent to be explicit).
+
+- Structural feasibility: HIGH — the hook already exists; `general-purpose` was removed from BLOCKED_TYPES intentionally
+- False-positive rate: MEDIUM — legitimate swarm workers, inline tasks, and exploration queries use `general-purpose`; blocking it would prevent the exact agent pattern that Mortar itself uses for some delegations
+- This enforces explicit agent naming, not Mortar consultation
+
+**Pattern D: Stop-event block unless session produced agent invocations**
+Block session end unless the session log shows at least one Agent tool use (i.e., Claude invoked a specialist at some point).
+
+- Structural feasibility: MEDIUM — Stop hooks can block (masonry-stop-guard.js already does this for uncommitted git changes)
+- Enforcement timing: lagging — catches the session AFTER all inline execution has already occurred
+- False-positive rate: MEDIUM-HIGH — sessions with legitimate trivial-only work would be blocked
+
+**Pattern E: UserPromptSubmit context injection with imperative + consequence framing**
+The strongest advisory-layer option: change `masonry-prompt-router.js` to emit `additionalContext` (not `hookSpecificOutput`) with imperative language and explicit consequence framing ("Do NOT handle inline — if you do, subsequent Write/Edit calls will be blocked"). This makes the routing hint credible by referencing an enforcement mechanism that actually exists (Category 1 hooks).
+
+- Structural feasibility: HIGH
+- This does not add new enforcement but makes existing advisory hints more effective by citing real consequences
+- D1.3 already contains the exact Fix Specification for this change
+
+### The Routing Receipt Pattern: Feasibility Assessment
+
+The hypothesis asks whether a "routing receipt" (Mortar emits a token → downstream PreToolUse hooks check it → block if absent) is feasible. The infrastructure for this pattern is ALREADY PRESENT:
+
+- `masonry-approver.js` already calls `isMortarConsulted()` which reads `mortar_consulted: true` + `mortar_session_id` from `masonry-state.json`
+- Mortar presumably writes this token when consulted (the check assumes it does)
+- The `MORTAR_SESSION_FRESHNESS_MS` window (4 hours) is already calibrated
+
+What is absent is the enforcement step: the `if (!isMortarConsulted())` branch in `masonry-approver.js` currently outputs a stderr warning and then falls through to `process.exit(0)` (allow). Converting this to a hard block requires changing ONE line of code.
+
+**False-positive rate for the receipt pattern:**
+
+The receipt blocks ALL Write/Edit/Bash if Mortar has not been consulted in the current 4-hour window. In practice:
+- A new Claude Code session that opens to fix a single typo → blocked until mortar.md is invoked
+- A session that is already running inside a `/build` autopilot → exempted (`approve` is true)
+- A session running inside a BL research campaign → exempted (research project detection exits early)
+- Any subagent session (`CLAUDE_SUBAGENT=1`) → exempted
+- A session where the user already opened with "route through Mortar" → receipt fresh, no block
+
+For interactive conversational sessions (the primary failure mode this campaign is investigating), the false-positive rate would be high for the first tool use of any session — because the model must explicitly invoke mortar.md before writing anything. This is the intended behavior under the "Every request → Mortar routes it first" directive, but it would break any session where the user asks a simple question that Claude wants to answer with a quick file edit.
+
+### Root Cause: The Fundamental Constraint
+
+The core finding confirms the hypothesis with precision:
+
+**The Claude Code hook system is architecturally gate-based (PreToolUse: allow/deny on concrete tool calls) not directive-based (cannot intercept text generation and force a specific tool invocation).**
+
+The consequence:
+- Enforcement of "always use Agent tool" is impossible via hooks, because Agent tool use is initiated by Claude's text-generation — which no hook can intercept or redirect
+- Enforcement of "never do X without routing receipt" IS possible via PreToolUse blocks, but:
+  - "X" must be a specific tool call (Write, Edit, Bash, Agent)
+  - For Write/Edit: the receipt pattern in `masonry-approver.js` is structurally complete but deliberately set to advisory-only
+  - For inline text responses (the primary failure mode): there is no tool call to gate; Claude just outputs text and the hook system has no interception point
+
+The enforcement gap is not a configuration gap — it is a fundamental property of the hook event model. PreToolUse can enforce constraints on WHAT Claude does with tools after it decides to act, but cannot enforce HOW Claude decides to act in the first place.
+
+## Fix Specification
+
+The highest-leverage structurally feasible fix is converting the existing advisory Mortar gate in `masonry-approver.js` from stderr warning to hard block for Write/Edit (not Bash, due to the existing exemption rationale). This is the closest the hook system can get to mandatory routing enforcement.
+
+- **File**: `C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-approver.js`
+- **Line**: 293–301 (the `mortarGateApplicable` advisory warning block)
+- **Change**: For the non-build, non-research, non-subagent case where `toolName` is Write or Edit and `!isMortarConsulted()`, output a hard block decision instead of a stderr warning. Bash remains advisory-only (no change to Bash exemption). The block message should name mortar.md and explain how to proceed.
+
+  Current code (lines 293–301):
+  ```javascript
+  if (mortarGateApplicable && !approve && !isMortarConsulted()) {
+    if (toolName !== "bash") {
+      process.stderr.write(
+        "[Masonry] Heads up: Mortar hasn't been consulted this session. " +
+        "For complex multi-file work, invoke the mortar agent first.\n"
+      );
+    }
+    // Always allow through — gate is advisory only.
+  }
+  ```
+
+  Replacement:
+  ```javascript
+  if (mortarGateApplicable && !approve && !isMortarConsulted()) {
+    if (toolName === "write" || toolName === "edit" || toolName === "multiedit") {
+      process.stdout.write(JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "block",
+          permissionDecisionReason:
+            "[Masonry] Mortar routing required. No routing receipt found for this session.\n" +
+            "Invoke the mortar agent first: Agent({ subagent_type: \"mortar\", prompt: \"<your request>\" })\n" +
+            "Mortar will route the work to the appropriate specialist and write a session token.\n" +
+            "Bash tool use is unaffected — only Write/Edit requires a prior Mortar consultation.",
+        },
+      }));
+      process.exit(0);
+    }
+    // Bash: still advisory only
+    process.stderr.write(
+      "[Masonry] Heads up: Mortar hasn't been consulted this session. " +
+      "For complex multi-file work, invoke the mortar agent first.\n"
+    );
+  }
+  ```
+
+  Note: This fix converts the Mortar gate to enforced for Write/Edit. It does NOT fix the fundamental constraint (inline text responses are still ungated). It enforces routing at the file-write layer — Claude will be blocked from making file changes until it has routed through Mortar.
+
+- **Verification**:
+  ```bash
+  # Start a fresh Claude session (no prior masonry-state.json token)
+  # Attempt a direct Write tool call — should be blocked with the Mortar message
+  # Then invoke mortar.md → mortar writes mortar_consulted: true to masonry-state.json
+  # Attempt the Write again — should proceed
+
+  # Confirm the block path exists in the code:
+  grep -n "permissionDecision.*block\|Mortar routing required" \
+    "C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-approver.js"
+  # Should match the new block output
+  ```
+
+- **Risk**: This is a HIGH-IMPACT change. It blocks ALL Write/Edit in non-build, non-research interactive sessions unless `mortar_consulted: true` is present in `masonry-state.json`. Risks:
+  1. **Deadlock if Mortar itself cannot write the token**: If the mortar agent fails to update `masonry-state.json`, no file writes are possible in the session
+  2. **Over-blocking trivial edits**: Single-line typo fixes, config tweaks, README updates — all blocked until Mortar is consulted
+  3. **Token staleness**: The 4-hour window means a long session with a Mortar consult at T+0 and a file write at T+4h01m will be blocked
+  4. **Regression on all existing sessions**: Every active Claude Code session that does not start by routing through Mortar will immediately begin getting blocked on first file write
+  5. **Interaction with D1.1 escape hatch**: If CLAUDE.md still contains the "trivial" escape hatch, Claude may interpret the block as an error to route around rather than a constraint to respect
+
+  Recommended rollout: deploy behind an opt-in flag (`MASONRY_ENFORCE_ROUTING=1` env var) before making it the default, so Tim can test the false-positive rate in practice.
+
+[RECOMMEND: fix-implementer — DIAGNOSIS_COMPLETE; convert advisory stderr warning in masonry-approver.js lines 293-301 to hard block for Write/Edit when Mortar receipt absent; Bash exemption preserved; deploy behind MASONRY_ENFORCE_ROUTING flag first]

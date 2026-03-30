@@ -1,0 +1,14 @@
+{
+  "project": "bricklayer-meta",
+  "status": "COMPLETE",
+  "branch": "bricklayer-v2/mar24-parallel",
+  "session_id": null,
+  "tasks": [
+    { "id": 1, "description": "Session-start self-check in template/program.md (Q7.6)", "status": "DONE" },
+    { "id": 2, "description": "HHI severity-exemption gate in template/program.md (Q7.5)", "status": "DONE" },
+    { "id": 3, "description": "Novelty cliff fix in simulate.py (Q8.5)", "status": "DONE" },
+    { "id": 4, "description": "SUBJECTIVE verdict queue in template/program.md (Q8.2)", "status": "DONE" }
+  ],
+  "tests": { "total": 7, "passing": 7, "failing": 0 },
+  "updated_at": "2026-03-29T15:20:00Z"
+}

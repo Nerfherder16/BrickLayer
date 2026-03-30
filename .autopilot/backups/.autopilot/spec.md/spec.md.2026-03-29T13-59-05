@@ -1,0 +1,166 @@
+# Spec: Phase 6 — Dev Execution Loop + Infrastructure + Agents + Skills + UI Quality
+
+## Goal
+Implement 23 improvements sourced from the awesome-claude-plugins research (6 deep-research reports). Upgrades span the full BrickLayer stack: dev execution loop reliability, infrastructure hooks, new specialist agents, new skills, and UI quality gates.
+
+## Success Criteria
+- [ ] fix-implementer uses commit-before-verify+revert pattern (no silent failures)
+- [ ] /build uses Guard/Verify split (full suite vs task metric)
+- [ ] spec-reviewer agent exists and is wired into /build between developer and code-reviewer
+- [ ] /debug skill exists as an 8-step loop (not one-shot)
+- [ ] /aside skill exists (freeze task, read-only answer, resume)
+- [ ] masonry-pre-compact.js saves full build/campaign state before compaction
+- [ ] masonry-config-protection.js blocks writes to lint config sections
+- [ ] masonry-block-no-verify.js blocks --no-verify and --force in Bash commands
+- [ ] masonry-context-monitor.js detects semantic degradation via Ollama cosine similarity
+- [ ] 5 new agents exist in both ~/.claude/agents/ and template/.claude/agents/ and masonry/agent_registry.yml
+- [ ] 7 new skills exist in ~/.claude/skills/
+- [ ] uiux-master has 7-point slop gate and domain exploration forcing function
+- [ ] masonry/tests/test_wiring_completeness.py still passes after all changes
+
+---
+
+## Tasks
+
+- [ ] **Task 1** — Upgrade fix-implementer: commit-before-verify+revert pattern
+  **Files:** `~/.claude/agents/fix-implementer.md`, `template/.claude/agents/fix-implementer.md`
+  **What to build:** After each fix attempt, commit with `experiment: fix attempt N` prefix, run the Guard (full test suite) and Verify (task-specific metric). If Guard fails: `git revert HEAD --no-edit` and try next approach. If Guard passes but Verify fails: keep the commit but log "metric not improved" and escalate. Max 3 attempts before BLOCKED. This prevents silent regression creep and makes every fix auditable.
+  **Tests required:** Read the agent file and verify the commit-before-verify+revert workflow is documented with the `experiment:` prefix, Guard/Verify split, and 3-attempt cap.
+
+- [ ] **Task 2** — Add Guard/Verify split to /build skill
+  **Files:** `~/.claude/skills/build/SKILL.md`
+  **What to build:** In the Per-Task Loop Step 4 (Validate), split into two checks: Guard = full test suite (did anything break?), Verify = task-specific metric (did this task's goal improve?). Guard failing = spawn fix agent. Guard passes but Verify fails = log warning, continue. Document that Guard uses `-q --tb=short` and Verify uses the test file for that specific task. Add to Step 6 (Commit): commit message should use `feat:` for Guard+Verify pass, `experiment:` for Guard-pass-only commits.
+  **Tests required:** Read the skill file and verify Guard/Verify split is documented with distinct behaviors for each outcome.
+
+- [ ] **Task 3** — Create spec-reviewer agent
+  **Files:** `~/.claude/agents/spec-reviewer.md`, `template/.claude/agents/spec-reviewer.md`, `masonry/agent_registry.yml`
+  **What to build:** A new agent that sits between developer and code-reviewer in the /build pipeline. Reads the original spec task description + the files changed by the developer agent. Returns one of: COMPLIANT (implementation matches spec), OVER_BUILT (more than asked), UNDER_BUILT (less than asked), SCOPE_DRIFT (different direction than spec). Agent is read-only — no code changes. Structured output block: `## Spec Review\n**Verdict:** COMPLIANT|OVER_BUILT|UNDER_BUILT|SCOPE_DRIFT\n**Evidence:** ...\n**Required action:** ...`
+  **Tests required:** Both agent files exist. Registry entry exists in agent_registry.yml with tier: draft.
+
+- [ ] **Task 4** — Wire spec-reviewer into /build skill [depends:3]
+  **Files:** `~/.claude/skills/build/SKILL.md`
+  **What to build:** After Step 3 (developer returns) and before Step 5 (code-reviewer), add Step 4a — spec-reviewer gate. Spawn spec-reviewer with task description + files changed. If OVER_BUILT/UNDER_BUILT/SCOPE_DRIFT: spawn developer with feedback (1 correction cycle) before proceeding to code-reviewer. If COMPLIANT: proceed directly. Skip for [mode:security], [mode:architect], [mode:review-only] tasks.
+  **Tests required:** Read the skill file and verify spec-reviewer gate is in the pipeline between developer and code-reviewer with the skip conditions listed.
+
+- [ ] **Task 5** — Create /debug skill as a loop
+  **Files:** `~/.claude/skills/debug/SKILL.md`
+  **What to build:** A skill that runs diagnosis as a structured 8-step loop: (1) Binary search, (2) Differential, (3) Minimal repro, (4) Forward trace, (5) Pattern search, (6) Backward trace, (7) Rubber duck, (8) Hypothesis log. Loop continues until root cause found or all 8 exhausted. On exhaustion: write DIAGNOSIS_FAILED.md and escalate to user. Invoked as `/debug <error description or file>`.
+  **Tests required:** Skill file exists. Documents all 8 techniques with descriptions. Has loop structure with escalation condition.
+
+- [ ] **Task 6** — Create /aside skill
+  **Files:** `~/.claude/skills/aside/SKILL.md`
+  **What to build:** Freezes current /build task, answers a question read-only, then resumes. Invoked as `/aside <question>`. If .autopilot/mode = "build" and task IN_PROGRESS: save task state to .autopilot/aside-state.json, answer read-only, print "Aside complete. Run /build to resume task N." If no active build: answer normally. Aside-state.json cleared when /build resumes.
+  **Tests required:** Skill file exists. Documents freeze/answer/resume flow and aside-state.json schema.
+
+- [ ] **Task 7** — Upgrade masonry-pre-compact.js: full build/campaign state save
+  **Files:** `masonry/src/hooks/masonry-pre-compact.js`
+  **What to build:** Read the existing hook first. Extend to save: (1) If .autopilot/mode = "build" — snapshot progress.json to .autopilot/pre-compact-snapshot.json with timestamp and current task state, append to build.log: `[timestamp] PRE_COMPACT: Snapshot saved. Task N of M (STATUS). Resume with /build.` (2) If campaign active (questions.md with IN_PROGRESS questions) — write masonry/pre-compact-campaign.json with current question id, wave, timestamp. (3) Print to stdout so user sees it before compaction.
+  **Tests required:** Read the hook and verify it handles both build state and campaign state with distinct snapshot files and stdout output.
+
+- [ ] **Task 8** — Create masonry-config-protection.js hook
+  **Files:** `masonry/src/hooks/masonry-config-protection.js`, `~/.claude/settings.json`
+  **What to build:** PreToolUse Write|Edit hook blocking writes to lint config sections. Protected: `.eslintrc*`, `.prettierrc*`, `prettier.config.*`, `ruff.toml`, `[tool.ruff]` in pyproject.toml, `[tool.black]` in pyproject.toml. On block: exit code 2, print `[masonry-config-protection] BLOCKED: Write to lint config requires explicit override. Add # LINT_CONFIG_OVERRIDE to your message to proceed.` If user message contains `LINT_CONFIG_OVERRIDE`: allow. Wire in settings.json PreToolUse Write|Edit with timeout: 3, continueOnError: false.
+  **Tests required:** Hook file exists. Settings.json has the hook wired in PreToolUse Write|Edit section.
+
+- [ ] **Task 9** — Create masonry-block-no-verify.js hook
+  **Files:** `masonry/src/hooks/masonry-block-no-verify.js`, `~/.claude/settings.json`
+  **What to build:** PreToolUse Bash hook blocking dangerous git flags. Blocked: `--no-verify` in any git command, `--force` on `git push`, `-f` on `git push`. Allow `--force-with-lease`. On block: exit code 2, print `[masonry-block-no-verify] BLOCKED: {pattern} bypasses safety checks. Fix the underlying issue instead.` Wire in settings.json PreToolUse Bash BEFORE masonry-approver with timeout: 3, continueOnError: false.
+  **Tests required:** Hook file exists. Settings.json has the hook wired before masonry-approver. Logic distinguishes git push --force vs other --force usages.
+
+- [ ] **Task 10** — Extend masonry-context-monitor.js: semantic degradation detection
+  **Files:** `masonry/src/hooks/masonry-context-monitor.js`
+  **What to build:** Read the existing hook first. Add semantic degradation check at Stop time using Ollama nomic-embed-text embeddings (OLLAMA_HOST env or http://100.70.195.84:11434). 4 degradation patterns via cosine similarity: (1) Lost-in-middle — recent vs first assistant message similarity < 0.3, (2) Poisoning — consecutive similarity drop > 0.5, (3) Distraction — recent messages unrelated to progress.json task, (4) Clash — two recent messages similarity < 0.1. On detection: print `[masonry-context-monitor] WARNING: Semantic degradation detected — {pattern}. Consider /compact.` Ollama unreachable: skip silently.
+  **Tests required:** Read the hook and verify 4 degradation patterns with thresholds and graceful Ollama failure handling are present.
+
+- [ ] **Task 11** [phase_end:agents] — Create 5 new specialist agents
+  **Files:** `~/.claude/agents/verification-analyst.md`, `~/.claude/agents/mcp-developer.md`, `~/.claude/agents/chaos-engineer.md`, `~/.claude/agents/penetration-tester.md`, `~/.claude/agents/scientific-literature-researcher.md`, plus `template/.claude/agents/` copies and `masonry/agent_registry.yml` entries
+  **What to build:**
+  1. **verification-analyst** — Mandatory 6-gate verification for security/research findings: Process, Reachability, Real Impact, PoC, Math Bounds, Environment. Returns VERIFIED|UNVERIFIED|INCONCLUSIVE with gate-by-gate evidence. Includes 13-item Devil's Advocate checklist. Notes LLM-bias warning ("LLMs are biased toward seeing bugs and overrating severity").
+  2. **mcp-developer** — MCP server specialist. Knows MCP SDK, tool schema design, stdio/SSE transport, error handling. Scaffolds new servers, adds tools to existing ones, writes tests with the MCP test client.
+  3. **chaos-engineer** — Controlled failure injection: service failure, network partition, resource exhaustion, clock skew, slow dependencies. Proposes experiments with blast radius analysis. Read-only default; execution requires explicit user approval.
+  4. **penetration-tester** — Security testing with required authorization context. Tests: auth bypass, injection, privilege escalation, exposed secrets, SSRF, insecure deserialization. Returns CVSS-scored findings. Refuses without authorization context in prompt.
+  5. **scientific-literature-researcher** — Grounds findings in peer-reviewed literature. Searches arXiv, Semantic Scholar, PubMed. Extracts citation, abstract, key claims, methodology, sample size, effect size, CIs. Flags: predatory journals, unreviewed preprints, industry-funded studies.
+  All 5: frontmatter with name/description, entries in agent_registry.yml with tier: "draft".
+  **Tests required:** All 10 agent files exist (5 × 2 paths). All 5 entries in agent_registry.yml.
+
+- [ ] **Task 12** — Create /visual-diff skill
+  **Files:** `~/.claude/skills/visual-diff/SKILL.md`
+  **What to build:** Generates self-contained HTML showing before/after diff. Output: `~/.agent/diagrams/visual-diff-{timestamp}.html`. No external CDN. Contains: side-by-side panels, highlighted differences, change summary, confidence-tagged decision log, re-entry context note. Invoked as `/visual-diff <description of what changed>`.
+  **Tests required:** Skill file exists. Documents output path pattern, self-contained HTML requirement, and re-entry context note.
+
+- [ ] **Task 13** — Create /visual-plan skill
+  **Files:** `~/.claude/skills/visual-plan/SKILL.md`
+  **What to build:** Generates self-contained HTML showing plan as visual diagram. Reads .autopilot/spec.md or user description. Output: `~/.agent/diagrams/visual-plan-{timestamp}.html`. Contains: task dependency graph, status color coding (gray/yellow/green/red), phase markers, re-entry context note. Invoked as `/visual-plan` or `/visual-plan <description>`.
+  **Tests required:** Skill file exists. Documents spec.md reading, output path, color scheme, re-entry context note.
+
+- [ ] **Task 14** — Create /visual-recap skill
+  **Files:** `~/.claude/skills/visual-recap/SKILL.md`
+  **What to build:** Generates self-contained HTML summarizing current session. Reads: recent git log (last 10), .autopilot/build.log, masonry session summary. Output: `~/.agent/diagrams/visual-recap-{timestamp}.html`. Contains: action timeline, files changed, test results, open items, re-entry context note (what was done, what's next, what's blocked). Invoked as `/visual-recap`.
+  **Tests required:** Skill file exists. Documents all data sources, output path, re-entry context note structure.
+
+- [ ] **Task 15** — Create /spec-mine skill
+  **Files:** `~/.claude/skills/spec-mine/SKILL.md`
+  **What to build:** Inverse spec-writer — mines existing code into a spec. Reads target files/directory, analyzes: public API surface, data models, business logic flows, test coverage gaps, undocumented behaviors. Produces .autopilot/spec.md in standard format describing what the code DOES. Invoked as `/spec-mine <path or module>`.
+  **Tests required:** Skill file exists. Documents inverse-spec-writer concept, input/output, and sections produced.
+
+- [ ] **Task 16** — Create /release-manager skill
+  **Files:** `~/.claude/skills/release-manager/SKILL.md`
+  **What to build:** Automates semver + release notes. Reads conventional commits + current version + CHANGELOG.md. Determines next version: breaking → major, feat → minor, fix → patch. Generates: CHANGELOG.md entry, GitHub release notes, version bump in package.json/pyproject.toml. Prints all changes and asks confirmation before any writes. Invoked as `/release [patch|minor|major]`.
+  **Tests required:** Skill file exists. Documents semver detection, confirmation-before-action, supported version files.
+
+- [ ] **Task 17** — Create /discover skill
+  **Files:** `~/.claude/skills/discover/SKILL.md`
+  **What to build:** JTBD + experiment design discovery. Invoked as `/discover <feature or hypothesis>`. Phase 1 — JTBD: who hires this feature, what job, what are they firing. Phase 2 — Assumptions: top 5 assumptions ordered by importance × uncertainty. Phase 3 — Experiments: cheapest falsifiable test per assumption. Output: `.discover/{slug}/discovery.md` with JTBD canvas, assumption map, experiment backlog.
+  **Tests required:** Skill file exists. Documents all 3 phases, output path, experiment design format.
+
+- [ ] **Task 18** [phase_end:skills] — Create /parse-prd skill
+  **Files:** `~/.claude/skills/parse-prd/SKILL.md`
+  **What to build:** Parses PRD into .autopilot/spec.md. Reads file path or pasted text. Extracts: goal, user stories → success criteria, features → tasks, constraints → Notes, out-of-scope. Assigns SPARC mode annotations by feature type (UI → typescript, API → python, DB → database). Adds complexity estimates (1-10) as task comments. Invoked as `/parse-prd <file-path>` or `/parse-prd` (stdin).
+  **Tests required:** Skill file exists. Documents PRD extraction logic, mode annotation assignment, spec.md output.
+
+- [ ] **Task 19** — Add 7-point slop gate to uiux-master
+  **Files:** `~/.claude/agents/uiux-master.md`, `template/.claude/agents/uiux-master.md`
+  **What to build:** Read existing uiux-master first. Add mandatory self-evaluation BEFORE any UI output. 7-point slop gate: (1) Inter/Roboto/Open Sans font, (2) background-clip:text gradient headline, (3) Emoji headers, (4) Glowing cards on every surface, (5) Cyan-magenta-pink tri-color default, (6) Uniform grid (all cards same size), (7) Generic three-dot chrome. For each FAIL: must provide specific alternative used. Print gate results before code: `<!-- SLOP GATE: 7/7 PASS -->` or list failures.
+  **Tests required:** Read both agent files and verify all 7 checks are present with the output comment format.
+
+- [ ] **Task 20** [phase_end:ui] — Add domain exploration forcing function to uiux-master [depends:19]
+  **Files:** `~/.claude/agents/uiux-master.md`, `template/.claude/agents/uiux-master.md`
+  **What to build:** Read existing uiux-master (after Task 19). Add Phase 0 — Domain Exploration BEFORE any design decisions. Requires: (1) 5+ domain concepts from the project's actual domain, (2) 5+ colors from the physical world of that domain, (3) Explicitly name 3 default AI patterns being rejected, (4) WHY statement per major component. Output: Design Intent Document (100-200 words) referenced throughout the session.
+  **Tests required:** Read both agent files and verify Phase 0 with all 4 forcing function steps is present before design work sections.
+
+- [ ] **Task 21** — Update masonry wiring tests to cover new agents and hooks
+  **Files:** `masonry/tests/test_wiring_completeness.py`
+  **What to build:** Read existing test file first. Add assertions for: (1) All 5 new agents exist in both paths and agent_registry.yml, (2) New hooks (masonry-config-protection.js, masonry-block-no-verify.js) exist in masonry/src/hooks/ and are wired in ~/.claude/settings.json, (3) New skills (/visual-diff, /visual-plan, /visual-recap, spec-mine, release-manager, discover, parse-prd) have SKILL.md files in ~/.claude/skills/. Do NOT change existing tests.
+  **Tests required:** Existing tests still pass. New assertions target correct file paths.
+
+- [ ] **Task 22** — Run wiring completeness tests and fix any failures [depends:21]
+  **Files:** Any files missing from wiring test assertions
+  **What to build:** Run `python -m pytest masonry/tests/test_wiring_completeness.py -q --tb=short`. Fix any test failures by creating missing files or adding missing registry entries. Re-run until all pass.
+  **Tests required:** `python -m pytest masonry/tests/test_wiring_completeness.py -q` exits 0.
+
+- [ ] **Task 23** — Update ARCHITECTURE.md, ROADMAP.md, CHANGELOG.md for Phase 6
+  **Files:** `ARCHITECTURE.md`, `ROADMAP.md`, `CHANGELOG.md`
+  **What to build:** Read existing docs first. Update: (1) ARCHITECTURE.md — add Phase 6 items to agent fleet, hooks, skills sections; note Guard/Verify split in /build pipeline. (2) ROADMAP.md — mark Phase 6 items as complete. (3) CHANGELOG.md — add Phase 6 entry dated 2026-03-28 listing all 23 tasks completed.
+  **Tests required:** Read all three files and verify Phase 6 references are present. CHANGELOG has entry dated 2026-03-28.
+
+---
+
+## Out of Scope
+- promptfoo integration (requires Docker setup — Phase 7)
+- code-review-graph MCP server installation (requires Tree-sitter toolchain)
+- claude-task-master dependency graph integration (requires MCP server wiring)
+- worktrunk git worktree CLI (Phase 7)
+- HuggingFace skills integration (TBD)
+- Anthropic-Cybersecurity-Skills (734+ MITRE ATT&CK items — separate audit project)
+- Changes to simulate.py, constants.py, or any research campaign files
+- Changes to Kiln (BrickLayerHub)
+
+## Notes
+- Suggested strategy: `/build --strategy balanced`
+- **Dual-write rule**: All new agents must be written to BOTH `~/.claude/agents/{name}.md` AND `template/.claude/agents/{name}.md`
+- **Registry rule**: All new agents must have entries in `masonry/agent_registry.yml` with `tier: "draft"` and appropriate `modes` and `capabilities` fields
+- **Skills path**: New skills go to `~/.claude/skills/{skill-name}/SKILL.md`
+- **Hook wiring**: New hooks in masonry/src/hooks/ must be added to `~/.claude/settings.json` in the correct event section
+- **Read before modify**: masonry-pre-compact.js, masonry-context-monitor.js, and uiux-master.md already exist — always read before modifying
+- Phase tags on Tasks 11, 18, 20 — /build creates git tags at those points
+- This is a 23-task spec — /build will run Phase 0 with pseudocode-writer and architecture-writer before task 1

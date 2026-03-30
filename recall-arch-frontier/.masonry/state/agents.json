@@ -1,0 +1,22 @@
+{
+  "active": [
+    {
+      "id": "ad715016e4d8089f9",
+      "name": "general-purpose",
+      "model": "?",
+      "startedAt": 1773794207168,
+      "sessionId": "8fc5bc70-02ad-4b26-ad71-5d2f7e02b5c0"
+    }
+  ],
+  "history": [
+    {
+      "id": "ad715016e4d8089f9",
+      "name": "general-purpose",
+      "model": "?",
+      "startedAt": 1773794207168,
+      "sessionId": "8fc5bc70-02ad-4b26-ad71-5d2f7e02b5c0",
+      "event": "start"
+    }
+  ],
+  "updatedAt": 1773794207168
+}

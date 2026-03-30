@@ -1,0 +1,10 @@
+{
+  "last_qid": "MC-campaign-findings",
+  "last_verdict": "HEALTHY",
+  "verdicts": {
+    "HEALTHY": 1
+  },
+  "updated_at": "2026-03-20T20:21:13.320Z",
+  "active_agent": "Explore",
+  "active_agent_count": 4
+}

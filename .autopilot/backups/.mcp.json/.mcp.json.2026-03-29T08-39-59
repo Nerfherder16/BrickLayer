@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "recall": {
+      "command": "node",
+      "args": ["C:/Users/trg16/Dev/Recall/mcp-server/index.js"]
+    },
+    "figma-developer": {
+      "command": "figma-developer-mcp",
+      "args": ["--figma-api-key=figd_iMbPe7q9Hffvz7EB0EHoV5MOfLfvnfM8-b4r8kbD", "--stdio"]
+    }
+  }
+}

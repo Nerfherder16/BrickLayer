@@ -1,1 +1,0 @@
-{"wave": 1, "questions_total": 14, "verdict_summary": {"DIAGNOSIS_COMPLETE": 5, "CONFIRMED": 1, "WARNING": 4, "FAILURE": 3, "FRONTIER_PARTIAL": 1}, "recommendation": "STOP", "synthesis_path": "findings/synthesis.md", "timestamp": "2026-03-29T08:41:20.748828Z"}

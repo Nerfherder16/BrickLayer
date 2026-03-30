@@ -1,0 +1,174 @@
+{
+  "project": "bricklayer-2-build-queue-phases-1-5",
+  "status": "BUILDING",
+  "branch": "bricklayer-v2/mar24-parallel",
+  "tasks": [
+    {
+      "id": 1,
+      "description": "Fix Pre-existing Test Failures in test_schemas.py",
+      "status": "DONE"
+    },
+    {
+      "id": 2,
+      "description": "SKILL.md Frontmatter — Add triggers and tools Fields",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 3,
+      "description": "Karpathy Surgical Changes + Ambiguity Gate",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 4,
+      "description": "Anti-Pattern Detection in masonry-agent-onboard.js",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 5,
+      "description": "Secret Scanner Hook (masonry-secret-scanner.js)",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 6,
+      "description": "Dependency Audit + File Size Hooks",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 7,
+      "description": "Add MCP Servers to settings.json",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 8,
+      "description": "@claude GitHub Actions Responder",
+      "status": "DONE"
+    },
+    {
+      "id": 9,
+      "description": "H0/H1/Prediction Triad in question-designer-bl2",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 10,
+      "description": "GradeConfidence Enum in FindingPayload",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 11,
+      "description": "BL-PluginEval 3-Layer Scoring Infrastructure",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 12,
+      "description": "Eval-Driven Development — pass@N Metrics",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 13,
+      "description": "Constitutional AI Critique Loop",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 14,
+      "description": "Staged Agent Rollout",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 15,
+      "description": "Fail-Closed Defaults in code-reviewer and peer-reviewer",
+      "status": "DONE"
+    },
+    {
+      "id": 16,
+      "description": "Golden Examples in Agent Prompts",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 17,
+      "description": "parallel-debugger Agent",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 18,
+      "description": "tdd-orchestrator Agent",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 19,
+      "description": "pr-writer Agent",
+      "status": "DONE"
+    },
+    {
+      "id": 20,
+      "description": "Named Pipeline Templates",
+      "status": "DONE"
+    },
+    {
+      "id": 21,
+      "description": "Dual Verification — verifier Agent",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 22,
+      "description": "LOKI Reflect Phase + Competing Hypotheses",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 23,
+      "description": "repomix MCP Documentation + Context Compression Update",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 24,
+      "description": "CI/CD Templates (node-ci, python-ci, release-please)",
+      "status": "DONE"
+    },
+    {
+      "id": 25,
+      "description": "Charlie Proactive Playbooks",
+      "status": "DONE"
+    },
+    {
+      "id": 26,
+      "description": "Worktrunk Documentation",
+      "status": "DONE"
+    },
+    {
+      "id": 27,
+      "description": "uiux-master AI Slop Test + Nielsen + Personas",
+      "status": "DONE"
+    },
+    {
+      "id": 28,
+      "description": "code-reviewer 8 Interaction States Checklist",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 29,
+      "description": "Visual Report + Teach-BrickLayer Skills",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 30,
+      "description": "BrickLayer Claude Plugin Marketplace Entry",
+      "status": "DONE"
+    },
+    {
+      "id": 31,
+      "description": "22 Stack-Matched Domain Agents",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 32,
+      "description": "7 Marketing Skills",
+      "status": "IN_PROGRESS"
+    }
+  ],
+  "tests": {
+    "total": 0,
+    "passing": 0,
+    "failing": 0
+  },
+  "updated_at": "2026-03-28T07:20:58.848Z",
+  "_handoff_note": "Context overflow. Background agents still running. On resume: check which IN_PROGRESS tasks completed, then dispatch T6 (after T5 done), T11 (after T10 done), T13+T14 (after T12 done), T16 (after T3 done). Then run /verify + code quality + PR."
+}
