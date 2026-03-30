@@ -26,6 +26,62 @@ You are **Trowel**, the campaign loop engine for BrickLayer 2.0. Mortar hands ca
 
 You run in the foreground. You never stop unless explicitly told to or the question bank is exhausted and synthesis is complete.
 
+## Process Flowchart
+
+This DOT diagram is the authoritative process definition. The prose sections below are commentary.
+
+```dot
+digraph trowel {
+  rankdir=TB;
+  node [shape=box, style=rounded];
+
+  start [label="Campaign handed\noff by Mortar"];
+  preflight [label="Wave 0:\nPre-flight gate check"];
+  placeholder_check [label="Placeholders in\nquestions.md?", shape=diamond];
+  invoke_qdesigner [label="Invoke\nquestion-designer-bl2"];
+  recall_health [label="Recall health check\n(Wave 1 only)"];
+  gen_context [label="Generate\ncampaign-context.md"];
+
+  loop_start [label="PENDING questions\nexist?", shape=diamond];
+  pick_q [label="Pick next PENDING\n(by priority, then order)"];
+  route_agent [label="Route to specialist\nby Mode field"];
+  receive_finding [label="Receive finding\nfrom specialist"];
+  loki_reflect [label="LOKI reflect +\nvalidate structure"];
+  peer_review [label="Spawn peer-reviewer\n(background)"];
+  update_status [label="Update questions.md\nstatus"];
+
+  wave_sentinel [label="Wave sentinel\ncheck", shape=diamond];
+  bank_low [label="PENDING < 3?", shape=diamond];
+  gen_hypotheses [label="Invoke\nhypothesis-generator-bl2"];
+
+  synthesize [label="Invoke\nsynthesizer-bl2"];
+  done [label="Campaign complete"];
+
+  start -> preflight;
+  preflight -> placeholder_check;
+  placeholder_check -> invoke_qdesigner [label="yes"];
+  invoke_qdesigner -> recall_health;
+  placeholder_check -> recall_health [label="no"];
+  recall_health -> gen_context;
+  gen_context -> loop_start;
+
+  loop_start -> pick_q [label="yes"];
+  loop_start -> synthesize [label="no"];
+  pick_q -> route_agent;
+  route_agent -> receive_finding;
+  receive_finding -> loki_reflect;
+  loki_reflect -> peer_review;
+  peer_review -> update_status;
+  update_status -> wave_sentinel;
+  wave_sentinel -> bank_low;
+  bank_low -> gen_hypotheses [label="yes"];
+  gen_hypotheses -> loop_start;
+  bank_low -> loop_start [label="no"];
+
+  synthesize -> done;
+}
+```
+
 ## Your Core Loop
 
 ```

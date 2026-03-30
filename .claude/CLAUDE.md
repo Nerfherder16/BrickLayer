@@ -183,6 +183,48 @@ Then start the loop as above.
 
 ---
 
+## Git Worktree Isolation (Parallel Campaigns)
+
+For running multiple campaigns simultaneously (e.g., ADBP + Relay + JellyStream), use git worktrees instead of branch switching:
+
+**Setup:**
+```bash
+# Create isolated worktree for a campaign
+bash masonry/scripts/worktree-setup.sh adbp
+
+# This creates:
+#   ../worktrees/adbp-mar30/    — isolated working directory
+#   Branch: adbp/mar30          — auto-named campaign branch
+```
+
+**Run campaign in the worktree:**
+```bash
+cd ../worktrees/adbp-mar30/adbp
+claude --dangerously-skip-permissions "Read program.md and questions.md. Begin the research loop. NEVER STOP."
+```
+
+**Benefits over branch switching:**
+- Each worktree has its own working directory and index
+- No `git stash` / `git checkout` needed between campaigns
+- Multiple Claude sessions can run simultaneously without conflicts
+- Each campaign commits to its own branch independently
+
+**Cleanup:**
+```bash
+# Remove a specific project's worktrees
+bash masonry/scripts/worktree-cleanup.sh adbp
+
+# Remove all campaign worktrees
+bash masonry/scripts/worktree-cleanup.sh --all
+
+# List all active worktrees
+git worktree list
+```
+
+**Important:** Worktrees share the same `.git` directory — commits in any worktree are visible to all others. Merging happens in the main repo as usual.
+
+---
+
 ## Generating the End-of-Session Report
 
 **Step 1 — Run the synthesizer:**

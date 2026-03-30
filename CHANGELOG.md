@@ -61,6 +61,58 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
 ---
+
+## [obra/superpowers Integration] — 2026-03-30
+
+### Added
+
+**Five new features inspired by obra/superpowers analysis** (see `docs/FEATURES.md` for full documentation):
+
+1. **Brainstorming Gate** (`masonry/src/hooks/session/route-hints.js`)
+   - Shows advisory message when high-effort dev task detected without `.autopilot/spec.md`
+   - Suggests running `/plan` before `/build` to prevent rushed builds
+   - Bypass with "skip planning", "just build", "no spec needed", or "just do it" in prompt
+   - Prevents rework caused by implementing before designing
+
+2. **No-Placeholders Rule** (agent instructions: `question-designer-bl2.md`, `spec-writer.md`)
+   - Agents must use concrete, testable parameters — no vague terms like "high volume" or "at scale"
+   - Banned patterns: `[TBD]`, "appropriate X", "investigate" without parameters, "similar to Y"
+   - Forces specificity BEFORE questions/specs enter the queue
+   - Example fix: "test under high load" → "measure p99 latency under 10K concurrent users at 100 req/sec"
+
+3. **Inline Self-Review Checklists** (agent instructions: `question-designer-bl2.md`, `spec-writer.md`, `planner.md`)
+   - 30-second pre-output checklists replace expensive review agent spawns (25 min overhead)
+   - Proven effectiveness: same defect catch rate as multi-agent review loops in 2% of the time
+   - 6-item checklist per agent category (findings, code, ops, routing)
+   - Agents fix inline before presenting — no "needs review" deferrals
+
+4. **DOT Flowcharts** (agent instructions: `mortar.md`, `planner.md`, `trowel.md`)
+   - GraphViz DOT diagrams as authoritative process definitions
+   - Prose sections are commentary on flowchart, not instructions
+   - Prevents "Description Trap" — agents following short descriptions instead of detailed multi-phase instructions
+   - Used for: routing pipeline (mortar), pre-campaign planning (planner), research loop (trowel)
+
+5. **Git Worktree Isolation** (`masonry/scripts/worktree-setup.sh`, `masonry/scripts/worktree-cleanup.sh`)
+   - Create isolated git worktrees per campaign for parallel execution
+   - Prevents branch conflicts and working directory collisions between simultaneous campaigns
+   - Usage: `bash masonry/scripts/worktree-setup.sh <project>` creates `../worktrees/<project>-<date>/`
+   - Enables multiple Claude sessions running campaigns on same project without stepping on each other
+
+### Changed
+
+- `route-hints.js` — added brainstorming gate logic with bypass patterns and spec.md existence check
+- `question-designer-bl2.md`, `spec-writer.md` — added no-placeholders section and pre-output self-review checklists
+- `planner.md` — added DOT flowchart defining five-phase planning process
+- `mortar.md`, `trowel.md` — added DOT flowcharts for routing pipeline and research loop
+- `~/.claude/CLAUDE.md` — added "Git Worktree Isolation" section with setup/cleanup usage examples
+
+### Documentation
+
+- Created `docs/FEATURES.md` — comprehensive documentation of all five features with examples, philosophy, and comparison matrix
+- Updated `ROADMAP.md` — marked obra/superpowers integration tasks as complete
+- Research source: `docs/repo-research/obra-superpowers.md` — full analysis of source repository
+
+---
 - `1e9d1ef` chore: update masonry (1 file) (2026-03-29)
 - `5039de3` chore: update masonry (1 file) (2026-03-29)
 - `5c57df6` fix(stop-guard): clear stale index.lock before git operations (2026-03-29)

@@ -44,3 +44,4 @@ Older or one-time documents kept for reference.
 | [CHANGELOG.md](../CHANGELOG.md) | Version history |
 | [ROADMAP.md](../ROADMAP.md) | Current roadmap |
 | [PROJECT_STATUS.md](../PROJECT_STATUS.md) | Current project status |
+| [FEATURES.md](FEATURES.md) | Feature documentation — brainstorming gate, no-placeholders, inline self-review, DOT flowcharts, worktree isolation |

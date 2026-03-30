@@ -11,6 +11,12 @@
  */
 "use strict";
 
+const fs = require("fs");
+const path = require("path");
+
+// Phrases that bypass the brainstorming gate
+const SKIP_GATE_PATTERNS = /skip\s*plan|just\s*build|no\s*spec\s*needed|just\s*do\s*it|skip\s*brainstorm/i;
+
 // Map route strings to direct subagent_type values for non-dev, non-campaign routes
 const ROUTE_TO_AGENT = {
   "security agent": "security",
@@ -44,6 +50,24 @@ function buildHintText(intent, effort, hintDetail, prompt) {
   const isCampaign = intent && /Trowel|campaign/.test(intent.route);
 
   if (isDevTask) {
+    // Brainstorming gate: for complex tasks without a spec, suggest planning first
+    if (effort === "high" && !SKIP_GATE_PATTERNS.test(prompt)) {
+      const cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+      const specPath = path.join(cwd, ".autopilot", "spec.md");
+      if (!fs.existsSync(specPath)) {
+        return (
+          `[MASONRY ROUTING — BRAINSTORMING GATE]\n` +
+          `${hintDetail}\n\n` +
+          `This looks like a complex task, but no spec exists yet (.autopilot/spec.md not found).\n\n` +
+          `Before building, you should design first:\n` +
+          `1. Run /plan to create a spec — this forces you to think through the approach before writing code\n` +
+          `2. Or if this is truly simple, explain why and proceed\n\n` +
+          `Rushed builds without design create rework. The brainstorming gate exists to prevent this.\n\n` +
+          `To bypass: include "skip planning" or "just build" in your request.`
+        );
+      }
+    }
+
     return (
       `[MASONRY ROUTING — DO NOT SKIP]\n` +
       `${hintDetail}\n\n` +

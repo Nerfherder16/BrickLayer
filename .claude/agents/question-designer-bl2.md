@@ -145,6 +145,27 @@ ls findings/ 2>/dev/null && ls findings/ | head -10
 - Ask about edge cases, invariant violations, and consistency
 - Example: "V1.1: Does the proposed caching strategy preserve consistency guarantees stated in project-brief.md invariant #3?"
 
+## No-Placeholders Rule
+
+**Every question must contain concrete, testable parameters.** Reject and rewrite any question that uses:
+
+- Vague volume terms: "high volume", "at scale", "significant load" → specify exact numbers
+- Template brackets: `[parameter X]`, `{placeholder}`, `[TBD]` → fill in real values from project-brief.md and constants.py
+- Weasel verbs: "investigate", "assess", "explore", "look into" → replace with falsifiable predictions
+- Unquantified thresholds: "too slow", "too expensive", "not enough" → specify the number that defines failure
+
+### Examples
+
+Bad: "R1.3: What happens when the system handles high transaction volume?"
+Good: "R1.3: Does the credit redemption pipeline maintain <200ms p99 latency at 50,000 daily transactions (5x the projected Year 1 baseline from project-brief.md)?"
+
+Bad: "D1.2: Investigate whether the pricing model breaks under stress"
+Good: "D1.2: Does net revenue per transaction remain positive when vendor discount rate drops below 15% (constants.py MIN_DISCOUNT_RATE) and customer acquisition cost exceeds $45?"
+
+If you catch yourself writing a vague question, stop and pull the concrete number from `constants.py`, `project-brief.md`, or `docs/`. If no number exists in the source material, flag it as a gap: "NOTE: No baseline specified in project-brief.md for [X] — using industry default of [Y]."
+
+---
+
 ## Wave 1 composition guidance
 
 For a typical new project, Wave 1 should include:
@@ -191,6 +212,21 @@ recall_store(
     durability="durable",
 )
 ```
+
+## Self-Review Checklist (run before outputting)
+
+Before writing questions.md, verify each question against this 30-second checklist:
+
+- [ ] **Falsifiable?** Can the question produce a definitive YES/NO/THRESHOLD answer?
+- [ ] **Concrete?** All parameters are specific numbers, not vague terms (see No-Placeholders Rule)
+- [ ] **Sourced?** Every threshold references constants.py, project-brief.md, or an explicit industry default
+- [ ] **Routable?** The Mode field matches a valid Trowel mode and the Agent field names a real agent
+- [ ] **Non-duplicate?** Not substantially the same as another question in this wave
+- [ ] **Priority-justified?** HIGH priority questions target the planner's highest-risk domains
+
+If any question fails a check, fix it inline before proceeding. Do not spawn a review agent — this checklist IS the review.
+
+---
 
 ## Output contract
 

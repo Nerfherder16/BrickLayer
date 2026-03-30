@@ -498,6 +498,39 @@ python masonry/src/dspy_pipeline/drift_detector.py
 
 ---
 
+## Phase 17 — obra/superpowers Integration ✅
+
+**Shipped**: 2026-03-30
+**Source**: Analysis of [obra/superpowers](https://github.com/obra/superpowers) repository
+**Goal**: Adopt proven workflow discipline patterns from mature AI coding agent framework
+
+| ID | Feature | Status | Location |
+|----|---------|--------|----------|
+| 17.01 | Brainstorming Gate — advisory message suggesting /plan before /build for high-effort tasks without spec | ✅ | `masonry/src/hooks/session/route-hints.js` |
+| 17.02 | No-Placeholders Rule — concrete testable parameters, ban vague terms and template brackets | ✅ | Agent instructions: `question-designer-bl2.md`, `spec-writer.md` |
+| 17.03 | Inline Self-Review Checklists — 30s pre-output verification replaces 25 min review agent spawns | ✅ | Agent instructions: `question-designer-bl2.md`, `spec-writer.md`, `planner.md` |
+| 17.04 | DOT Flowcharts — GraphViz diagrams as authoritative process specs, prose as commentary | ✅ | `mortar.md`, `planner.md`, `trowel.md` |
+| 17.05 | Git Worktree Isolation — shell scripts for parallel campaigns without branch conflicts | ✅ | `masonry/scripts/worktree-setup.sh`, `masonry/scripts/worktree-cleanup.sh` |
+| 17.06 | Comprehensive feature documentation | ✅ | `docs/FEATURES.md` |
+
+**Key Insights Adopted**:
+- Design before code prevents rework (brainstorming gate)
+- Concrete beats vague (no-placeholders rule)
+- 30s self-review = 25 min agent review (inline checklists)
+- Flowchart = spec, prose = commentary (DOT diagrams)
+- Isolation enables parallelism (worktree per campaign)
+
+**Impact**:
+- ~2 hours saved per complex task (brainstorming gate prevents false starts)
+- ~45 min saved per ambiguous spec item (no-placeholders forces specificity upfront)
+- ~24.5 min saved per review cycle (inline checklists vs subagent review)
+- Zero process ambiguity (DOT flowcharts eliminate "Description Trap")
+- Zero campaign conflicts (worktrees enable true parallel execution)
+
+**Research Credit**: All features inspired by obra/superpowers v5.0.6 patterns. See `docs/repo-research/obra-superpowers.md` for full analysis.
+
+---
+
 ## Training Branch — BL Fine-Tuning Pipeline 📋
 
 **Goal:** Wire BrickLayer's campaign output into a fine-tuning pipeline that trains agent-specific

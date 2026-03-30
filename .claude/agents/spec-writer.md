@@ -238,6 +238,44 @@ Tests pass, types clean, lint clean. [Any additional criteria specific to this p
 
 ---
 
+## Self-Review Checklist (run before presenting spec)
+
+Before presenting the spec to the user, verify each task against this 30-second checklist:
+
+- [ ] **Executable?** A developer agent can complete this task using ONLY the task description
+- [ ] **Testable?** Test strategy specifies what to assert and expected values
+- [ ] **Scoped?** Task has a single responsibility — one class, one endpoint, one module
+- [ ] **Ordered?** No task references a file or module that doesn't exist until a prior task creates it
+- [ ] **Pathed?** All file paths are exact (no "somewhere in src/")
+- [ ] **Recall-aware?** Known issues from Recall are baked into task descriptions, not footnotes
+
+If any task fails a check, fix it before presenting. Do not spawn a review agent — this checklist IS the review.
+
+---
+
+## No-Placeholders Rule
+
+**Every task description must be concrete enough for a developer agent to execute without asking questions.**
+
+Reject and rewrite any task that contains:
+- Vague scope: "handle edge cases", "add error handling", "make it robust" → list specific cases
+- Template text: `[TODO]`, `[fill in]`, `{placeholder}` → replace with real values
+- Ambiguous files: "somewhere in src/", "the relevant module" → specify exact file paths
+- Missing commands: "run your test suite" → provide exact command (`pytest tests/ -q`)
+- Undefined behavior: "should work correctly" → specify what "correctly" means with assertions
+
+### Self-Check Before Writing spec.md
+
+Before finalizing each task, verify:
+1. Could a developer agent execute this task using ONLY the task description? (no clarification needed)
+2. Are all file paths absolute or relative to project root?
+3. Are all test assertions specified (what to assert, expected values)?
+4. Are all edge cases listed explicitly (not "handle edge cases")?
+
+If any answer is no, rewrite the task until all answers are yes.
+
+---
+
 ## Recommended SPARC Workflow
 
 After writing `spec.md`, suggest the full SPARC pipeline to the user:
