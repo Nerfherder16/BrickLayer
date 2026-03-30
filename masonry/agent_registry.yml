@@ -1305,6 +1305,7 @@ agents:
   - what can we learn from
   - compare this repo
   - repo research
+  - github.com
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -1656,9 +1657,9 @@ agents:
   tier: draft
   routing_keywords:
   - pull request
-  - pr
-  - github
-  - merge
+  - create a pr
+  - open a pr
+  - write pr description
   triggers: []
   tools: []
   dspy_status: not_optimized
