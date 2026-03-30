@@ -178,6 +178,9 @@ async function main() {
   const agentName = (parsed.agent_name || parsed.agent_type || "").toLowerCase();
   if (DEV_AGENT_TYPES.has(agentName)) {
     try {
+      // Clear stale index.lock before git status (WSL2/NTFS contention)
+      const lockFile = path.join(cwd, ".git", "index.lock");
+      try { if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile); } catch (_) {}
       const statusOutput = execSync("git status --porcelain", {
         cwd,
         encoding: "utf8",
@@ -223,12 +226,18 @@ async function main() {
             `Wrote git-nerd-needed.json.\n`
         );
 
-        // Output additionalContext for same-session dispatch
+        // Output imperative additionalContext for same-session dispatch.
+        // This must be strong enough that Claude acts on it, not advisory.
         process.stdout.write(
           JSON.stringify({
             additionalContext:
-              `Git-nerd and karen dispatch recommended — ` +
-              `${filesChanged.length} uncommitted change(s) detected after ${agentName} completed.`,
+              `[MASONRY POST-IMPL — MANDATORY] ${filesChanged.length} uncommitted file(s) after ${agentName}. ` +
+              `You MUST now dispatch two agents before doing anything else:\n` +
+              `1. Spawn git-nerd agent (defined in .claude/agents/git-nerd.md) — ` +
+              `task: commit all session changes with a descriptive message\n` +
+              `2. Spawn karen agent (defined in .claude/agents/karen.md) — ` +
+              `task: update CHANGELOG.md and any related docs for the changes just made\n` +
+              `These agents run in parallel. Do not skip this step.`,
           })
         );
       }
