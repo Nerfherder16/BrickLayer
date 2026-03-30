@@ -8,13 +8,11 @@ confirm HEALTHY. Max 2 attempts before giving up.
 Only active when cfg.fix_loop_enabled = True (set by --fix-loop flag).
 """
 
-import os
-import shutil
-import subprocess
 import sys
 from pathlib import Path
 
 from bl.config import cfg
+from bl.tmux import spawn_agent, wait_for_agent
 
 
 def _strip_frontmatter(text: str) -> str:
@@ -76,28 +74,27 @@ def _spawn_fix_agent(question: dict, result: dict, finding_path: Path) -> bool:
 
     full_prompt = f"{agent_body}\n\n---\n\n{assignment}"
 
-    claude_bin = shutil.which("claude") or "claude"
-    child_env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
-
     try:
-        proc = subprocess.run(
-            [claude_bin, "-p", "-", "--dangerously-skip-permissions"],
-            input=full_prompt,
+        fix_spawn = spawn_agent(
+            agent_name="fix-agent",
+            prompt=full_prompt,
+            dangerously_skip_permissions=True,
             capture_output=False,
-            text=True,
-            encoding="utf-8",
-            env=child_env,
-            timeout=600,
+            output_format=None,
         )
-        return proc.returncode == 0
     except FileNotFoundError:
         print(
             "[fix-loop] claude CLI not found — cannot spawn fix agent", file=sys.stderr
         )
         return False
-    except subprocess.TimeoutExpired:
+
+    fix_result = wait_for_agent(fix_spawn, timeout=600)
+
+    if fix_result.exit_code == -1:
         print("[fix-loop] Fix agent timed out after 10 minutes", file=sys.stderr)
         return False
+
+    return fix_result.exit_code == 0
 
 
 def run_fix_loop(

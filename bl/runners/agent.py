@@ -6,12 +6,11 @@ contract into a BrickLayer verdict envelope.
 """
 
 import json
-import os
 import re
-import shutil
-import subprocess
 
 from bl.config import cfg
+from bl.tmux import spawn_agent, wait_for_agent
+from bl.tmux.helpers import MODEL_MAP
 
 
 # ---------------------------------------------------------------------------
@@ -67,11 +66,7 @@ _ALL_VERDICTS: frozenset[str] = frozenset(
 # ---------------------------------------------------------------------------
 
 
-_MODEL_MAP: dict[str, str] = {
-    "opus": "claude-opus-4-6",
-    "sonnet": "claude-sonnet-4-6",
-    "haiku": "claude-haiku-4-5-20251001",
-}
+_MODEL_MAP = MODEL_MAP  # canonical source in bl.tmux.helpers
 
 
 def _strip_frontmatter(text: str) -> str:
@@ -396,69 +391,14 @@ This prevents applying ineffective patches that create false confidence.
 
 Begin your agent loop now. Output your JSON result contract in a ```json ... ``` block when complete."""
 
-    claude_bin = shutil.which("claude") or "claude"
-    child_env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
-
-    model_args = ["--model", agent_model] if agent_model else []
-
     try:
-        proc = subprocess.run(
-            [
-                claude_bin,
-                "-p",
-                "-",
-                "--output-format",
-                "json",
-                "--allowedTools",
-                "Read,Write,Edit,Bash,Glob,Grep",
-                *model_args,
-            ],
-            input=full_prompt,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=600,
+        spawn = spawn_agent(
+            agent_name=agent_name,
+            prompt=full_prompt,
+            model=agent_model,
+            allowed_tools=["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
             cwd=str(cfg.recall_src),
-            env=child_env,
         )
-        raw = proc.stdout
-
-        agent_text = raw
-        try:
-            wrapper = json.loads(raw)
-            if isinstance(wrapper, dict):
-                agent_text = wrapper.get("result", raw)
-        except json.JSONDecodeError:
-            pass
-
-        agent_output: dict = {}
-        json_match = re.search(r"```json\s*(\{.*?\})\s*```", agent_text, re.DOTALL)
-        if json_match:
-            try:
-                agent_output = json.loads(json_match.group(1))
-            except json.JSONDecodeError:
-                pass
-
-        if not agent_output and agent_text:
-            agent_output = _parse_text_output(agent_name, agent_text)
-
-        verdict = _verdict_from_agent_output(agent_name, agent_output)
-        summary = _summary_from_agent_output(agent_name, agent_output)
-
-        return {
-            "verdict": verdict,
-            "summary": summary,
-            "data": agent_output,
-            "details": agent_text[:4000],
-        }
-
-    except subprocess.TimeoutExpired:
-        return {
-            "verdict": "INCONCLUSIVE",
-            "summary": f"{agent_name} timed out after 600s",
-            "data": {},
-            "details": "Agent loop exceeded time limit — check for infinite loops or missing iteration bounds",
-        }
     except FileNotFoundError:
         return {
             "verdict": "INCONCLUSIVE",
@@ -466,6 +406,47 @@ Begin your agent loop now. Output your JSON result contract in a ```json ... ```
             "data": {},
             "details": "Install: https://claude.ai/download",
         }
+
+    agent_result = wait_for_agent(spawn, timeout=600)
+
+    if agent_result.exit_code == -1:
+        return {
+            "verdict": "INCONCLUSIVE",
+            "summary": f"{agent_name} timed out after 600s",
+            "data": {},
+            "details": "Agent loop exceeded time limit — check for infinite loops or missing iteration bounds",
+        }
+
+    raw = agent_result.stdout
+
+    agent_text = raw
+    try:
+        wrapper = json.loads(raw)
+        if isinstance(wrapper, dict):
+            agent_text = wrapper.get("result", raw)
+    except json.JSONDecodeError:
+        pass
+
+    agent_output: dict = {}
+    json_match = re.search(r"```json\s*(\{.*?\})\s*```", agent_text, re.DOTALL)
+    if json_match:
+        try:
+            agent_output = json.loads(json_match.group(1))
+        except json.JSONDecodeError:
+            pass
+
+    if not agent_output and agent_text:
+        agent_output = _parse_text_output(agent_name, agent_text)
+
+    verdict = _verdict_from_agent_output(agent_name, agent_output)
+    summary = _summary_from_agent_output(agent_name, agent_output)
+
+    return {
+        "verdict": verdict,
+        "summary": summary,
+        "data": agent_output,
+        "details": agent_text[:4000],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -514,25 +495,25 @@ def run_scout_for_project() -> None:
 
 Scan the target codebase now and output the complete questions.md content."""
 
-    claude_bin = shutil.which("claude") or "claude"
-    child_env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
-
     print("Running Scout — scanning codebase to generate questions...", flush=True)
     try:
-        proc = subprocess.run(
-            [claude_bin, "-p", "-", "--dangerously-skip-permissions"],
-            input=prompt,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            env=child_env,
-            timeout=300,
+        scout_spawn = spawn_agent(
+            agent_name="scout",
+            prompt=prompt,
+            dangerously_skip_permissions=True,
+            output_format=None,
         )
-    except (FileNotFoundError, subprocess.TimeoutExpired) as e:
-        print(json.dumps({"error": str(e)}))
+    except FileNotFoundError:
+        print(json.dumps({"error": "claude CLI not found"}))
         return
 
-    output = proc.stdout.strip()
+    scout_result = wait_for_agent(scout_spawn, timeout=300)
+
+    if scout_result.exit_code == -1:
+        print(json.dumps({"error": "Scout timed out after 300s"}))
+        return
+
+    output = scout_result.stdout.strip()
     idx = output.find("# BrickLayer Campaign Questions")
     if idx == -1:
         print(json.dumps({"error": "Scout output not recognized", "raw": output[:500]}))
