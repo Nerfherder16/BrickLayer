@@ -1,0 +1,154 @@
+"""Tests for bl.tmux.pane — tmux pane spawning, waiting, cleanup."""
+
+import subprocess
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+
+class TestSpawnTmuxPane:
+    @patch("bl.tmux.pane.subprocess.run")
+    def test_returns_pane_id(self, mock_run):
+        mock_run.return_value = MagicMock(stdout="%5\n", returncode=0)
+        from bl.tmux.pane import spawn_tmux_pane
+
+        pane_id = spawn_tmux_pane(
+            agent_id="abc",
+            agent_name="test-agent",
+            claude_bin="/usr/bin/claude",
+            claude_args=["-p", "-"],
+            prompt_file=Path("/tmp/bl-prompt-abc.txt"),
+            result_file=Path("/tmp/bl-result-abc.json"),
+            exit_file=Path("/tmp/bl-exit-abc.txt"),
+            cwd="/home/test",
+            env_overrides=None,
+        )
+        assert pane_id == "%5"
+
+    @patch("bl.tmux.pane.subprocess.run")
+    def test_includes_wait_for_signal(self, mock_run):
+        mock_run.return_value = MagicMock(stdout="%5\n", returncode=0)
+        from bl.tmux.pane import spawn_tmux_pane
+
+        spawn_tmux_pane(
+            agent_id="abc",
+            agent_name="test",
+            claude_bin="claude",
+            claude_args=["-p", "-"],
+            prompt_file=Path("/tmp/prompt.txt"),
+            result_file=Path("/tmp/result.json"),
+            exit_file=Path("/tmp/exit.txt"),
+            cwd="/tmp",
+            env_overrides=None,
+        )
+        cmd_str = mock_run.call_args_list[0][0][0][-1]
+        assert "tmux wait-for -S bl-done-abc" in cmd_str
+        assert "echo $?" in cmd_str
+
+    @patch("bl.tmux.pane.subprocess.run")
+    def test_no_stdout_redirect_when_no_capture(self, mock_run):
+        mock_run.return_value = MagicMock(stdout="%5\n", returncode=0)
+        from bl.tmux.pane import spawn_tmux_pane
+
+        spawn_tmux_pane(
+            agent_id="abc",
+            agent_name="test",
+            claude_bin="claude",
+            claude_args=["-p", "-"],
+            prompt_file=Path("/tmp/prompt.txt"),
+            result_file=None,
+            exit_file=Path("/tmp/exit.txt"),
+            cwd="/tmp",
+            env_overrides=None,
+        )
+        cmd_str = mock_run.call_args_list[0][0][0][-1]
+        # The redirect ">" should not appear before "echo"
+        before_echo = cmd_str.split("echo")[0]
+        assert "> " not in before_echo
+
+    @patch("bl.tmux.pane.subprocess.run")
+    def test_sets_pane_title(self, mock_run):
+        mock_run.return_value = MagicMock(stdout="%5\n", returncode=0)
+        from bl.tmux.pane import spawn_tmux_pane
+
+        spawn_tmux_pane(
+            agent_id="abc",
+            agent_name="my-agent",
+            claude_bin="claude",
+            claude_args=["-p", "-"],
+            prompt_file=Path("/tmp/prompt.txt"),
+            result_file=Path("/tmp/result.json"),
+            exit_file=Path("/tmp/exit.txt"),
+            cwd="/tmp",
+            env_overrides=None,
+        )
+        title_call = mock_run.call_args_list[1]
+        assert "select-pane" in title_call[0][0]
+        assert "agent:my-agent" in title_call[0][0]
+
+
+class TestTmuxWait:
+    @patch("bl.tmux.pane.subprocess.run")
+    def test_returns_true_on_success(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=0)
+        from bl.tmux.pane import tmux_wait_with_timeout
+
+        assert tmux_wait_with_timeout("bl-done-abc", 600) is True
+
+    @patch("bl.tmux.pane.subprocess.run")
+    def test_returns_false_on_timeout(self, mock_run):
+        mock_run.side_effect = subprocess.CalledProcessError(1, "timeout")
+        from bl.tmux.pane import tmux_wait_with_timeout
+
+        assert tmux_wait_with_timeout("bl-done-abc", 600) is False
+
+
+class TestCleanupPanes:
+    @patch("bl.tmux.pane.subprocess.run")
+    def test_kills_pane(self, mock_run):
+        from bl.tmux.core import SpawnResult
+        from bl.tmux.pane import cleanup_panes
+
+        spawn = SpawnResult(
+            agent_id="abc",
+            agent_name="test",
+            pane_id="%5",
+            result_file=Path("/tmp/bl-result-abc.json"),
+            exit_file=Path("/tmp/bl-exit-abc.txt"),
+            prompt_file=Path("/tmp/bl-prompt-abc.txt"),
+        )
+        cleanup_panes([spawn])
+        kill_calls = [c for c in mock_run.call_args_list if "kill-pane" in c[0][0]]
+        assert len(kill_calls) == 1
+
+    @patch("bl.tmux.pane.subprocess.run")
+    def test_preserves_when_env_set(self, mock_run, monkeypatch):
+        monkeypatch.setenv("BL_KEEP_PANES", "1")
+        from bl.tmux.core import SpawnResult
+        from bl.tmux.pane import cleanup_panes
+
+        spawn = SpawnResult(
+            agent_id="abc",
+            agent_name="test",
+            pane_id="%5",
+            result_file=Path("/tmp/nonexistent-r"),
+            exit_file=Path("/tmp/nonexistent-e"),
+            prompt_file=Path("/tmp/nonexistent-p"),
+        )
+        cleanup_panes([spawn])
+        kill_calls = [c for c in mock_run.call_args_list if "kill-pane" in str(c)]
+        assert len(kill_calls) == 0
+
+    def test_no_pane_skips_kill(self):
+        from bl.tmux.core import SpawnResult
+        from bl.tmux.pane import cleanup_panes
+
+        spawn = SpawnResult(
+            agent_id="abc",
+            agent_name="test",
+            pane_id=None,
+            result_file=Path("/tmp/nonexistent"),
+            exit_file=Path("/tmp/nonexistent"),
+            prompt_file=Path("/tmp/nonexistent"),
+        )
+        # Should not raise
+        cleanup_panes([spawn])
