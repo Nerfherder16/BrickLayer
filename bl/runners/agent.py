@@ -9,8 +9,8 @@ import json
 import re
 
 from bl.config import cfg
-from bl.tmux import spawn_agent, wait_for_agent
-from bl.tmux.helpers import MODEL_MAP
+from bl.frontmatter import read_frontmatter_model, strip_frontmatter
+from bl.tmux import collect_wave, spawn_agent, spawn_wave, wait_for_agent
 
 
 # ---------------------------------------------------------------------------
@@ -64,36 +64,6 @@ _ALL_VERDICTS: frozenset[str] = frozenset(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-_MODEL_MAP = MODEL_MAP  # canonical source in bl.tmux.helpers
-
-
-def _strip_frontmatter(text: str) -> str:
-    """Strip YAML frontmatter (--- ... ---) from a markdown file."""
-    if not text.startswith("---"):
-        return text
-    try:
-        end = text.index("---", 3)
-        return text[end + 3 :].strip()
-    except ValueError:
-        return text
-
-
-def _read_frontmatter_model(text: str) -> str | None:
-    """Extract the `model:` field from YAML frontmatter, if present."""
-    if not text.startswith("---"):
-        return None
-    try:
-        end = text.index("---", 3)
-        fm = text[3:end]
-    except ValueError:
-        return None
-    for line in fm.splitlines():
-        if line.strip().startswith("model:"):
-            value = line.split(":", 1)[1].strip().strip('"').strip("'")
-            return _MODEL_MAP.get(value, value) or None
-    return None
 
 
 def _verdict_from_agent_output(agent_name: str, output: dict) -> str:
@@ -266,44 +236,39 @@ def _summary_from_agent_output(agent_name: str, output: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Agent runner
+# Prompt building and output parsing — used by run_agent and run_agent_wave
 # ---------------------------------------------------------------------------
 
+_REMEDIATION_KEYWORDS = (
+    "amnesty",
+    "reconcile",
+    "backfill",
+    "rehabilitate",
+    "repair",
+    "boost",
+)
 
-def run_agent(question: dict) -> dict:
-    """
-    Invoke a specialist agent against a BrickLayer finding via Claude CLI.
 
-    The agent's system prompt is read from agents/{agent_name}.md.
-    The finding context is injected from findings/{finding_id}.md.
-    The agent runs non-interactively via `claude -p` and its JSON output
-    contract is parsed from the response to produce the verdict envelope.
+def build_agent_prompt(question: dict) -> tuple[str, str | None]:
+    """Build the full prompt for an agent invocation.
+
+    Returns (full_prompt, agent_model).
+    Raises ValueError if agent_name is missing or agent file not found.
     """
     agent_name = question.get("agent_name", "").strip()
-    finding_id = question.get("finding", "").strip()
-    source_file = question.get("source", "").strip()
-
     if not agent_name:
-        return {
-            "verdict": "INCONCLUSIVE",
-            "summary": "No agent specified — add **Agent**: <name> to question",
-            "data": {},
-            "details": f"Available: {[f.stem for f in cfg.agents_dir.glob('*.md') if f.stem != 'SCHEMA']}",
-        }
+        raise ValueError("No agent specified — add **Agent**: <name> to question")
 
     agent_path = cfg.agents_dir / f"{agent_name}.md"
     if not agent_path.exists():
-        available = [f.stem for f in cfg.agents_dir.glob("*.md") if f.stem != "SCHEMA"]
-        return {
-            "verdict": "INCONCLUSIVE",
-            "summary": f"Agent file not found: {agent_name}.md",
-            "data": {"available_agents": available},
-            "details": f"Expected at: {agent_path}",
-        }
+        raise ValueError(f"Agent file not found: {agent_name}.md")
 
     agent_raw = agent_path.read_text(encoding="utf-8")
-    agent_model = _read_frontmatter_model(agent_raw)
-    agent_prompt = _strip_frontmatter(agent_raw)
+    agent_model = read_frontmatter_model(agent_raw)
+    agent_prompt = strip_frontmatter(agent_raw)
+
+    finding_id = question.get("finding", "").strip()
+    source_file = question.get("source", "").strip()
 
     # C-27: inject project doctrine if present
     doctrine_prefix = ""
@@ -332,20 +297,12 @@ def run_agent(question: dict) -> dict:
     )
 
     # C-29: inject REMEDIATION GUARD when the question involves a corrective action
-    _REMEDIATION_KEYWORDS = (
-        "amnesty",
-        "reconcile",
-        "backfill",
-        "rehabilitate",
-        "repair",
-        "boost",
-    )
-    _question_text = (
+    question_text = (
         question.get("hypothesis", "") + " " + question.get("test", "")
     ).lower()
     remediation_guard = ""
     if question.get("mode") == "agent" and any(
-        kw in _question_text for kw in _REMEDIATION_KEYWORDS
+        kw in question_text for kw in _REMEDIATION_KEYWORDS
     ):
         remediation_guard = """
 ---
@@ -391,34 +348,11 @@ This prevents applying ineffective patches that create false confidence.
 
 Begin your agent loop now. Output your JSON result contract in a ```json ... ``` block when complete."""
 
-    try:
-        spawn = spawn_agent(
-            agent_name=agent_name,
-            prompt=full_prompt,
-            model=agent_model,
-            allowed_tools=["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
-            cwd=str(cfg.recall_src),
-        )
-    except FileNotFoundError:
-        return {
-            "verdict": "INCONCLUSIVE",
-            "summary": "claude CLI not found — ensure Claude Code is installed and on PATH",
-            "data": {},
-            "details": "Install: https://claude.ai/download",
-        }
+    return full_prompt, agent_model
 
-    agent_result = wait_for_agent(spawn, timeout=600)
 
-    if agent_result.exit_code == -1:
-        return {
-            "verdict": "INCONCLUSIVE",
-            "summary": f"{agent_name} timed out after 600s",
-            "data": {},
-            "details": "Agent loop exceeded time limit — check for infinite loops or missing iteration bounds",
-        }
-
-    raw = agent_result.stdout
-
+def parse_agent_raw(agent_name: str, raw: str) -> dict:
+    """Parse raw agent output (stdout) into a verdict envelope."""
     agent_text = raw
     try:
         wrapper = json.loads(raw)
@@ -450,80 +384,143 @@ Begin your agent loop now. Output your JSON result contract in a ```json ... ```
 
 
 # ---------------------------------------------------------------------------
-# Scout runner
+# Agent runner
 # ---------------------------------------------------------------------------
 
 
-def run_scout_for_project() -> None:
-    """Invoke the Scout agent to regenerate questions.md."""
-    scout_path = cfg.agents_dir / "scout.md"
-    if not scout_path.exists():
-        print(json.dumps({"error": "scout.md not found in agents/"}))
-        return
+def run_agent(question: dict) -> dict:
+    """
+    Invoke a specialist agent against a BrickLayer finding via Claude CLI.
 
-    body = _strip_frontmatter(scout_path.read_text(encoding="utf-8"))
+    The agent's system prompt is read from agents/{agent_name}.md.
+    The finding context is injected from findings/{finding_id}.md.
+    The agent runs non-interactively via `claude -p` and its JSON output
+    contract is parsed from the response to produce the verdict envelope.
+    """
+    agent_name = question.get("agent_name", "").strip()
 
-    project_cfg: dict = {}
-    cfg_path = cfg.project_root / "project.json"
-    if cfg_path.exists():
-        project_cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
-
-    docs_dir = cfg.project_root / "docs"
-    docs_content = ""
-    if docs_dir.exists():
-        for doc in sorted(docs_dir.iterdir()):
-            if doc.is_file():
-                try:
-                    docs_content += f"\n\n### {doc.name}\n{doc.read_text(encoding='utf-8', errors='ignore')[:3000]}"
-                except Exception as exc:  # noqa: BLE001
-                    import sys
-
-                    print(f"[scout] skipping {doc.name}: {exc}", file=sys.stderr)
-
-    prompt = f"""{body}
-
----
-
-## Your Assignment
-
-**Project**: {project_cfg.get("display_name", "Unknown")}
-**Target git**: {cfg.recall_src}
-**Stack**: {", ".join(project_cfg.get("stack", [])) or "unknown"}
-**Live service**: {project_cfg.get("target_live_url", "none")}
-**Docs folder**: {docs_dir}
-{f"**Supporting docs content**:{docs_content}" if docs_content else "**Docs folder**: empty — scan the codebase only"}
-
-Scan the target codebase now and output the complete questions.md content."""
-
-    print("Running Scout — scanning codebase to generate questions...", flush=True)
     try:
-        scout_spawn = spawn_agent(
-            agent_name="scout",
-            prompt=prompt,
-            dangerously_skip_permissions=True,
-            output_format=None,
+        full_prompt, agent_model = build_agent_prompt(question)
+    except ValueError as exc:
+        error_str = str(exc)
+        data: dict = {}
+        details = ""
+        if "not found" in error_str:
+            available = [
+                f.stem for f in cfg.agents_dir.glob("*.md") if f.stem != "SCHEMA"
+            ]
+            data = {"available_agents": available}
+            details = f"Expected at: {cfg.agents_dir / f'{agent_name}.md'}"
+        elif "No agent specified" in error_str:
+            details = (
+                f"Available: "
+                f"{[f.stem for f in cfg.agents_dir.glob('*.md') if f.stem != 'SCHEMA']}"
+            )
+        return {
+            "verdict": "INCONCLUSIVE",
+            "summary": error_str,
+            "data": data,
+            "details": details,
+        }
+
+    try:
+        spawn = spawn_agent(
+            agent_name=agent_name,
+            prompt=full_prompt,
+            model=agent_model,
+            allowed_tools=["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+            cwd=str(cfg.recall_src),
         )
     except FileNotFoundError:
-        print(json.dumps({"error": "claude CLI not found"}))
-        return
+        return {
+            "verdict": "INCONCLUSIVE",
+            "summary": "claude CLI not found — ensure Claude Code is installed and on PATH",
+            "data": {},
+            "details": "Install: https://claude.ai/download",
+        }
 
-    scout_result = wait_for_agent(scout_spawn, timeout=300)
+    agent_result = wait_for_agent(spawn, timeout=600)
 
-    if scout_result.exit_code == -1:
-        print(json.dumps({"error": "Scout timed out after 300s"}))
-        return
+    if agent_result.exit_code == -1:
+        return {
+            "verdict": "INCONCLUSIVE",
+            "summary": f"{agent_name} timed out after 600s",
+            "data": {},
+            "details": "Agent loop exceeded time limit — check for infinite loops or missing iteration bounds",
+        }
 
-    output = scout_result.stdout.strip()
-    idx = output.find("# BrickLayer Campaign Questions")
-    if idx == -1:
-        print(json.dumps({"error": "Scout output not recognized", "raw": output[:500]}))
-        return
+    return parse_agent_raw(agent_name, agent_result.stdout)
 
-    questions_md = output[idx:]
-    cfg.questions_md.write_text(questions_md, encoding="utf-8")
-    count = questions_md.count("## Q")
-    print(
-        json.dumps(
-            {"status": "ok", "questions_written": count, "path": str(cfg.questions_md)}
+
+# ---------------------------------------------------------------------------
+# Batch agent wave dispatch
+# ---------------------------------------------------------------------------
+
+
+def run_agent_wave(questions: list[dict], *, timeout: int = 600) -> list[dict]:
+    """Batch-dispatch agent questions via tmux wave for tiled layout.
+
+    Builds prompts for each question, spawns all agents at once via spawn_wave
+    (which applies tmux select-layout tiled), then collects all results.
+
+    Returns list of verdict envelopes, one per question, in input order.
+    """
+    results: list[dict | None] = [None] * len(questions)
+    spawn_specs: list[tuple[int, str, dict]] = []  # (index, agent_name, kwargs)
+
+    for i, question in enumerate(questions):
+        try:
+            prompt, model = build_agent_prompt(question)
+        except ValueError as exc:
+            results[i] = {
+                "verdict": "INCONCLUSIVE",
+                "summary": str(exc),
+                "data": {},
+                "details": "",
+            }
+            continue
+
+        agent_name = question.get("agent_name", "").strip()
+        spawn_specs.append(
+            (
+                i,
+                agent_name,
+                {
+                    "agent_name": agent_name,
+                    "prompt": prompt,
+                    "model": model,
+                    "allowed_tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+                    "cwd": str(cfg.recall_src),
+                },
+            )
         )
-    )
+
+    if not spawn_specs:
+        return [r for r in results if r is not None]
+
+    try:
+        wave_args = [spec_kwargs for _, _, spec_kwargs in spawn_specs]
+        spawns = spawn_wave(wave_args)
+        agent_results = collect_wave(spawns, timeout=timeout)
+    except FileNotFoundError:
+        for idx, name, _ in spawn_specs:
+            results[idx] = {
+                "verdict": "INCONCLUSIVE",
+                "summary": f"claude CLI not found — cannot spawn {name}",
+                "data": {},
+                "details": "Install: https://claude.ai/download",
+            }
+        return [r for r in results if r is not None]
+
+    for (idx, agent_name, _), ar in zip(spawn_specs, agent_results):
+        if ar.exit_code == -1:
+            results[idx] = {
+                "verdict": "INCONCLUSIVE",
+                "summary": f"{agent_name} timed out after {timeout}s",
+                "data": {},
+                "details": f"Agent exceeded timeout ({timeout}s)",
+            }
+        else:
+            results[idx] = parse_agent_raw(agent_name, ar.stdout)
+
+    return [r for r in results if r is not None]

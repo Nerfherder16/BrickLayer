@@ -4,14 +4,15 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from bl.frontmatter import read_frontmatter_model, strip_frontmatter
 from bl.runners.agent import (
     _parse_text_output,
-    _read_frontmatter_model,
-    _strip_frontmatter,
     _summary_from_agent_output,
     _verdict_from_agent_output,
+    build_agent_prompt,
+    parse_agent_raw,
     run_agent,
-    run_scout_for_project,
+    run_agent_wave,
 )
 
 
@@ -22,25 +23,25 @@ from bl.runners.agent import (
 
 class TestStripFrontmatter:
     def test_no_frontmatter(self):
-        assert _strip_frontmatter("hello world") == "hello world"
+        assert strip_frontmatter("hello world") == "hello world"
 
     def test_strips_yaml_block(self):
         text = "---\nmodel: opus\n---\nBody text"
-        assert _strip_frontmatter(text) == "Body text"
+        assert strip_frontmatter(text) == "Body text"
 
 
 class TestReadFrontmatterModel:
     def test_no_frontmatter(self):
-        assert _read_frontmatter_model("no frontmatter") is None
+        assert read_frontmatter_model("no frontmatter") is None
 
     def test_reads_model(self):
         text = '---\nmodel: "opus"\n---\nbody'
-        result = _read_frontmatter_model(text)
+        result = read_frontmatter_model(text)
         assert result == "claude-opus-4-6"
 
     def test_unknown_model_passthrough(self):
         text = "---\nmodel: custom-model-id\n---\nbody"
-        result = _read_frontmatter_model(text)
+        result = read_frontmatter_model(text)
         assert result == "custom-model-id"
 
 
@@ -173,54 +174,158 @@ class TestRunAgentTmuxIntegration:
 
 
 # ---------------------------------------------------------------------------
-# Integration: run_scout_for_project uses spawn_agent/wait_for_agent
+# Extracted helpers: build_agent_prompt, parse_agent_raw
 # ---------------------------------------------------------------------------
 
 
-class TestRunScoutTmuxIntegration:
-    @patch("bl.runners.agent.wait_for_agent")
-    @patch("bl.runners.agent.spawn_agent")
+def _mock_cfg_for_prompt():
+    """Return a mock cfg suitable for build_agent_prompt tests."""
+    mock_cfg = MagicMock()
+    agent_md = MagicMock()
+    agent_md.exists.return_value = True
+    agent_md.read_text.return_value = "---\nmodel: opus\n---\nDo the thing."
+    mock_cfg.agents_dir = MagicMock()
+    mock_cfg.agents_dir.__truediv__ = MagicMock(return_value=agent_md)
+    mock_cfg.project_root = MagicMock()
+    doctrine_path = MagicMock()
+    doctrine_path.exists.return_value = False
+    mock_cfg.project_root.__truediv__ = MagicMock(return_value=doctrine_path)
+    mock_cfg.recall_src = Path("/tmp/test-project")
+    mock_cfg.findings_dir = MagicMock()
+    finding_md = MagicMock()
+    finding_md.exists.return_value = False
+    mock_cfg.findings_dir.__truediv__ = MagicMock(return_value=finding_md)
+    return mock_cfg, agent_md
+
+
+class TestBuildAgentPrompt:
+    def test_raises_on_empty_agent_name(self):
+        import pytest
+
+        with pytest.raises(ValueError, match="No agent specified"):
+            build_agent_prompt({"agent_name": "", "finding": "", "source": ""})
+
     @patch("bl.runners.agent.cfg")
-    def test_scout_calls_spawn_agent(self, mock_cfg, mock_spawn, mock_wait):
-        scout_md = MagicMock()
-        scout_md.exists.return_value = True
-        scout_md.read_text.return_value = "Scout instructions"
+    def test_raises_on_missing_agent_file(self, mock_cfg):
+        import pytest
+
+        agent_md = MagicMock()
+        agent_md.exists.return_value = False
         mock_cfg.agents_dir = MagicMock()
-        mock_cfg.agents_dir.__truediv__ = MagicMock(return_value=scout_md)
+        mock_cfg.agents_dir.__truediv__ = MagicMock(return_value=agent_md)
 
-        # Use MagicMock for project_root so __truediv__ is settable
-        project_root = MagicMock()
-        cfg_path = MagicMock()
-        cfg_path.exists.return_value = False
-        project_root.__truediv__ = MagicMock(return_value=cfg_path)
-        mock_cfg.project_root = project_root
-        mock_cfg.recall_src = Path("/tmp/test-project")
+        with pytest.raises(ValueError, match="not found"):
+            build_agent_prompt(
+                {"agent_name": "missing-agent", "finding": "", "source": ""}
+            )
 
-        docs_dir = MagicMock()
-        docs_dir.exists.return_value = False
+    @patch("bl.runners.agent.cfg")
+    def test_returns_prompt_and_model(self, mock_cfg):
+        cfg_mock, _ = _mock_cfg_for_prompt()
+        mock_cfg.agents_dir = cfg_mock.agents_dir
+        mock_cfg.project_root = cfg_mock.project_root
+        mock_cfg.recall_src = cfg_mock.recall_src
+        mock_cfg.findings_dir = cfg_mock.findings_dir
 
-        mock_spawn.return_value = MagicMock()
-        mock_wait.return_value = MagicMock(
-            exit_code=0,
-            stdout="# BrickLayer Campaign Questions\n## Q1\nQuestion text",
+        prompt, model = build_agent_prompt(
+            {"agent_name": "test-agent", "finding": "F1", "source": ""}
         )
-        mock_cfg.questions_md = MagicMock()
+        assert "Do the thing" in prompt
+        assert model == "claude-opus-4-6"
 
-        run_scout_for_project()
-
-        mock_spawn.assert_called_once()
-        call_kwargs = mock_spawn.call_args
-        assert call_kwargs.kwargs.get("dangerously_skip_permissions") is True
-        assert call_kwargs.kwargs.get("output_format") is None
-        mock_wait.assert_called_once()
-
-    @patch("bl.runners.agent.spawn_agent")
     @patch("bl.runners.agent.cfg")
-    def test_scout_missing_md(self, mock_cfg, mock_spawn):
-        scout_md = MagicMock()
-        scout_md.exists.return_value = False
-        mock_cfg.agents_dir = MagicMock()
-        mock_cfg.agents_dir.__truediv__ = MagicMock(return_value=scout_md)
+    def test_includes_finding_context(self, mock_cfg):
+        cfg_mock, _ = _mock_cfg_for_prompt()
+        mock_cfg.agents_dir = cfg_mock.agents_dir
+        mock_cfg.project_root = cfg_mock.project_root
+        mock_cfg.recall_src = cfg_mock.recall_src
 
-        run_scout_for_project()
-        mock_spawn.assert_not_called()
+        finding_md = MagicMock()
+        finding_md.exists.return_value = True
+        finding_md.read_text.return_value = "## Finding F1\nSome issue found."
+        mock_cfg.findings_dir = MagicMock()
+        mock_cfg.findings_dir.__truediv__ = MagicMock(return_value=finding_md)
+
+        prompt, _ = build_agent_prompt(
+            {"agent_name": "test-agent", "finding": "F1", "source": ""}
+        )
+        assert "Some issue found" in prompt
+
+
+class TestParseAgentRaw:
+    def test_json_block_extraction(self):
+        raw = json.dumps(
+            {"result": '```json\n{"verdict": "HEALTHY", "summary": "all good"}\n```'}
+        )
+        result = parse_agent_raw("test-agent", raw)
+        assert result["verdict"] == "HEALTHY"
+        assert result["summary"] == "all good"
+
+    def test_text_fallback(self):
+        raw = "verdict: HEALTHY\nsummary: looks fine"
+        result = parse_agent_raw("custom-agent", raw)
+        assert result["verdict"] == "HEALTHY"
+        assert result["summary"] == "looks fine"
+
+    def test_empty_raw(self):
+        result = parse_agent_raw("test-agent", "")
+        assert result["verdict"] == "INCONCLUSIVE"
+
+
+# ---------------------------------------------------------------------------
+# Batch dispatch: run_agent_wave
+# ---------------------------------------------------------------------------
+
+
+class TestRunAgentWave:
+    @patch("bl.runners.agent.collect_wave")
+    @patch("bl.runners.agent.spawn_wave")
+    @patch("bl.runners.agent.cfg")
+    def test_wave_dispatches_and_parses(self, mock_cfg, mock_spawn, mock_collect):
+        cfg_mock, _ = _mock_cfg_for_prompt()
+        mock_cfg.agents_dir = cfg_mock.agents_dir
+        mock_cfg.project_root = cfg_mock.project_root
+        mock_cfg.recall_src = cfg_mock.recall_src
+        mock_cfg.findings_dir = cfg_mock.findings_dir
+
+        mock_spawn.return_value = [MagicMock()]
+        mock_collect.return_value = [
+            MagicMock(
+                exit_code=0,
+                stdout=json.dumps(
+                    {"result": '```json\n{"verdict": "HEALTHY"}\n```'}
+                ),
+                duration_ms=3000,
+            )
+        ]
+
+        questions = [{"agent_name": "test-agent", "finding": "F1", "source": ""}]
+        results = run_agent_wave(questions)
+
+        assert len(results) == 1
+        assert results[0]["verdict"] == "HEALTHY"
+        mock_spawn.assert_called_once()
+        mock_collect.assert_called_once()
+
+    def test_invalid_question_returns_inconclusive(self):
+        results = run_agent_wave(
+            [{"agent_name": "", "finding": "", "source": ""}]
+        )
+        assert len(results) == 1
+        assert results[0]["verdict"] == "INCONCLUSIVE"
+
+    @patch("bl.runners.agent.spawn_wave", side_effect=FileNotFoundError)
+    @patch("bl.runners.agent.cfg")
+    def test_cli_not_found(self, mock_cfg, mock_spawn):
+        cfg_mock, _ = _mock_cfg_for_prompt()
+        mock_cfg.agents_dir = cfg_mock.agents_dir
+        mock_cfg.project_root = cfg_mock.project_root
+        mock_cfg.recall_src = cfg_mock.recall_src
+        mock_cfg.findings_dir = cfg_mock.findings_dir
+
+        results = run_agent_wave(
+            [{"agent_name": "test-agent", "finding": "", "source": ""}]
+        )
+        assert len(results) == 1
+        assert results[0]["verdict"] == "INCONCLUSIVE"
+        assert "not found" in results[0]["summary"].lower()

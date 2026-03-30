@@ -12,18 +12,8 @@ import sys
 from pathlib import Path
 
 from bl.config import cfg
+from bl.frontmatter import strip_frontmatter
 from bl.tmux import spawn_agent, wait_for_agent
-
-
-def _strip_frontmatter(text: str) -> str:
-    """Strip YAML frontmatter between first two --- markers."""
-    lines = text.splitlines(keepends=True)
-    if not lines or lines[0].strip() != "---":
-        return text
-    for i, line in enumerate(lines[1:], start=1):
-        if line.strip() == "---":
-            return "".join(lines[i + 1 :])
-    return text
 
 
 def _append_fix_note(finding_path: Path, attempt: int, status: str, note: str) -> None:
@@ -49,7 +39,7 @@ def _spawn_fix_agent(question: dict, result: dict, finding_path: Path) -> bool:
         )
         return False
 
-    agent_body = _strip_frontmatter(agent_path.read_text(encoding="utf-8"))
+    agent_body = strip_frontmatter(agent_path.read_text(encoding="utf-8"))
 
     finding_content = ""
     try:
