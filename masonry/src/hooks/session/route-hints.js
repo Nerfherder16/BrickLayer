@@ -26,6 +26,8 @@ const ROUTE_TO_AGENT = {
 
 function getDirectAgentType(intent) {
   if (!intent) return "general-purpose";
+  // Registry matches use agent name directly as the route
+  if (intent.registryMatch) return intent.route;
   return ROUTE_TO_AGENT[intent.route] || "general-purpose";
 }
 
