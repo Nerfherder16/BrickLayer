@@ -1,0 +1,114 @@
+{
+  "agent": "research-analyst",
+  "description": "General research synthesis and evidence aggregation",
+  "capabilities": [
+    "research-synthesis",
+    "evidence-aggregation",
+    "literature-review"
+  ],
+  "accuracy": null,
+  "queries": 20,
+  "results": [
+    {
+      "query": "I need help with research-synthesis",
+      "expected_match": true,
+      "actual_match": false
+    },
+    {
+      "query": "I need help with evidence-aggregation",
+      "expected_match": true,
+      "actual_match": false
+    },
+    {
+      "query": "I need help with literature-review",
+      "expected_match": true,
+      "actual_match": false
+    },
+    {
+      "query": "Can you general research synthesis and evidence aggregation?",
+      "expected_match": true,
+      "actual_match": false
+    },
+    {
+      "query": "Help me general research synthesis and evidence aggregation",
+      "expected_match": true,
+      "actual_match": false
+    },
+    {
+      "query": "I need a research analyst",
+      "expected_match": true,
+      "actual_match": false
+    },
+    {
+      "query": "Run research analyst on this codebase",
+      "expected_match": true,
+      "actual_match": false
+    },
+    {
+      "query": "Activate research analyst for this task",
+      "expected_match": true,
+      "actual_match": false
+    },
+    {
+      "query": "What's the weather like today?",
+      "expected_match": false,
+      "actual_match": false
+    },
+    {
+      "query": "Help me write a poem about cats",
+      "expected_match": false,
+      "actual_match": false
+    },
+    {
+      "query": "Calculate the square root of 144",
+      "expected_match": false,
+      "actual_match": false
+    },
+    {
+      "query": "Translate this text to French",
+      "expected_match": false,
+      "actual_match": false
+    },
+    {
+      "query": "What are the best restaurants nearby?",
+      "expected_match": false,
+      "actual_match": false
+    },
+    {
+      "query": "Help me plan my vacation itinerary",
+      "expected_match": false,
+      "actual_match": false
+    },
+    {
+      "query": "Fix my CSS flexbox layout issues",
+      "expected_match": false,
+      "actual_match": false
+    },
+    {
+      "query": "Debug this Kubernetes deployment YAML",
+      "expected_match": false,
+      "actual_match": false
+    },
+    {
+      "query": "Optimize my SQL database queries",
+      "expected_match": false,
+      "actual_match": false
+    },
+    {
+      "query": "Write unit tests for my React component",
+      "expected_match": false,
+      "actual_match": false
+    },
+    {
+      "query": "Perform research analyst analysis on the project",
+      "expected_match": true,
+      "actual_match": false
+    },
+    {
+      "query": "Perform research analyst analysis on the project",
+      "expected_match": true,
+      "actual_match": false
+    }
+  ],
+  "live": false
+}

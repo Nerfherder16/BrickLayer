@@ -1,0 +1,112 @@
+"""Tests for validate_frontmatter in onboard_agent.py."""
+
+from __future__ import annotations
+
+
+class TestValidateFrontmatter:
+    """Test frontmatter validation warnings."""
+
+    def test_valid_frontmatter_returns_no_warnings(self) -> None:
+        from masonry.scripts.validate_frontmatter import validate_frontmatter
+
+        meta = {
+            "name": "research-analyst",
+            "description": "Stress-tests hypotheses against evidence using quantitative thresholds.",
+            "model": "sonnet",
+            "tier": "production",
+            "modes": ["research"],
+            "capabilities": ["evidence gathering"],
+        }
+        warnings = validate_frontmatter(meta)
+        assert warnings == []
+
+    def test_missing_name_warns(self) -> None:
+        from masonry.scripts.validate_frontmatter import validate_frontmatter
+
+        meta = {
+            "name": "",
+            "description": "A valid description that is long enough.",
+            "model": "sonnet",
+            "tier": "draft",
+            "modes": [],
+            "capabilities": [],
+        }
+        warnings = validate_frontmatter(meta)
+        assert any("name" in w.lower() for w in warnings)
+
+    def test_short_description_warns(self) -> None:
+        from masonry.scripts.validate_frontmatter import validate_frontmatter
+
+        meta = {
+            "name": "my-agent",
+            "description": "Too short",
+            "model": "sonnet",
+            "tier": "draft",
+            "modes": [],
+            "capabilities": [],
+        }
+        warnings = validate_frontmatter(meta)
+        assert any("description" in w.lower() for w in warnings)
+
+    def test_invalid_model_warns(self) -> None:
+        from masonry.scripts.validate_frontmatter import validate_frontmatter
+
+        meta = {
+            "name": "my-agent",
+            "description": "A valid description that is long enough for routing.",
+            "model": "gpt-4",
+            "tier": "draft",
+            "modes": [],
+            "capabilities": [],
+        }
+        warnings = validate_frontmatter(meta)
+        assert any("model" in w.lower() for w in warnings)
+
+    def test_invalid_tier_warns(self) -> None:
+        from masonry.scripts.validate_frontmatter import validate_frontmatter
+
+        meta = {
+            "name": "my-agent",
+            "description": "A valid description that is long enough for routing.",
+            "model": "sonnet",
+            "tier": "experimental",
+            "modes": [],
+            "capabilities": [],
+        }
+        warnings = validate_frontmatter(meta)
+        assert any("tier" in w.lower() for w in warnings)
+
+    def test_modes_not_list_warns(self) -> None:
+        from masonry.scripts.validate_frontmatter import validate_frontmatter
+
+        meta = {
+            "name": "my-agent",
+            "description": "A valid description that is long enough for routing.",
+            "model": "sonnet",
+            "tier": "draft",
+            "modes": "research",
+            "capabilities": [],
+        }
+        warnings = validate_frontmatter(meta)
+        assert any("modes" in w.lower() for w in warnings)
+
+    def test_missing_frontmatter_returns_multiple_warnings(self) -> None:
+        from masonry.scripts.validate_frontmatter import validate_frontmatter
+
+        meta: dict = {}
+        warnings = validate_frontmatter(meta)
+        assert len(warnings) >= 2  # at least name + description
+
+    def test_empty_description_warns(self) -> None:
+        from masonry.scripts.validate_frontmatter import validate_frontmatter
+
+        meta = {
+            "name": "my-agent",
+            "description": "",
+            "model": "sonnet",
+            "tier": "draft",
+            "modes": [],
+            "capabilities": [],
+        }
+        warnings = validate_frontmatter(meta)
+        assert any("description" in w.lower() for w in warnings)

@@ -1,7 +1,11 @@
 ---
 name: developer
 model: sonnet
-description: Activate for full-stack implementation, architecture decisions, code review, refactoring, debugging, API design, or database work — "implement this feature", "design this API", "refactor this module", "debug this error", "what's the right architecture here". Deep specialist in Tim's stack: Python/FastAPI, TypeScript/React, Rust, Docker. Applies TDD, OWASP security, and SOLID principles.
+description: >-
+  Activate for full-stack implementation, architecture decisions, code review,
+  refactoring, debugging, API design, or database work. Deep specialist in
+  Python/FastAPI, TypeScript/React, Rust, Docker. Applies TDD, OWASP security,
+  and SOLID principles.
 tools:
   - Read
   - Write
