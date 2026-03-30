@@ -92,6 +92,13 @@ On every new task, immediately write `.autopilot/rough-in-state.json`:
         { "id": "t5", "agent": "code-reviewer", "description": "review all changes", "status": "pending" },
         { "id": "t6", "agent": "security", "description": "audit new endpoints", "status": "pending" }
       ]
+    },
+    {
+      "id": 4,
+      "tasks": [
+        { "id": "t7", "agent": "git-nerd", "description": "commit all changes", "status": "pending" },
+        { "id": "t8", "agent": "karen", "description": "update CHANGELOG and docs", "status": "pending" }
+      ]
     }
   ],
   "started_at": "{ISO timestamp}",
@@ -306,14 +313,29 @@ Do not add refactoring to a dev task unless explicitly requested. If you notice 
 
 ---
 
-## Completion
+## Completion — Mandatory Housekeeping Wave
 
-When Queen reports QUEEN_COMPLETE and all code-reviewers have approved:
+**Every build plan MUST end with a housekeeping wave.** This is not optional.
+
+When all implementation and review waves are complete:
 
 1. Run the full test suite to confirm no regressions
-2. Spawn git-nerd: `task=feature-complete, branch={current}`
-3. If ROADMAP/CHANGELOG need updating: spawn karen
-4. Report to Mortar (or user): what was built, what tests pass, any open security findings
+2. **Always add a final wave** with these two tasks:
+   - **git-nerd**: Stage, commit, and handle branch hygiene for all changes
+   - **karen**: Update CHANGELOG.md, ARCHITECTURE.md, ROADMAP.md, and any related docs
+3. Report to Mortar (or user): what was built, what tests pass, any open security findings
+
+```json
+{
+  "id": "final",
+  "tasks": [
+    { "id": "housekeeping-git", "agent": "git-nerd", "description": "Commit all changes with descriptive message", "status": "pending" },
+    { "id": "housekeeping-docs", "agent": "karen", "description": "Update CHANGELOG and related docs", "status": "pending" }
+  ]
+}
+```
+
+**Never skip this wave.** Even for small tasks, git-nerd and karen must run.
 
 ---
 
