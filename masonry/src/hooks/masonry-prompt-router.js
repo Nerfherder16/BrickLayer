@@ -41,7 +41,11 @@ function classifyEffort(prompt) {
       /\b(performance|optimize|bottleneck|profil)\b/i.test(prompt) ||
       /\b(multiple.{0,20}files|across.{0,20}(all|the)|throughout)\b/i.test(prompt) ||
       /\b(traceback|stack.?trace|why.{0,30}(is|are|does|won.t).{0,40}(not|fail|broken|wrong))\b/i.test(prompt) ||
-      /\b(security.?audit|owasp)\b/i.test(prompt)) return "high";
+      /\b(security.?audit|owasp)\b/i.test(prompt) ||
+      // Scope/quantity signals: "build all 5", "implement the 3 features", etc.
+      /\b(build|implement|add|create|integrate)\b.{0,15}\b(all|both|every)\b/i.test(prompt) ||
+      /\b(all\s+\d+|(?:the\s+)?\d+\s+(?:features?|items?|recommendations?|changes?|gaps?))\b/i.test(prompt) ||
+      /\b(end.?to.?end|from.?scratch|ground.?up|new.?system|new.?subsystem)\b/i.test(prompt)) return "high";
   if (prompt.length < 50 ||
       /^\s*(what|where|how|why|show|list|explain|who|when)\b/i.test(prompt)) return "low";
   return "medium";
