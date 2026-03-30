@@ -79,18 +79,29 @@ Project root: {cwd}
 Wave: ${wave.id}
 State file: .autopilot/rough-in-state.json
 
+CRITICAL: You run in background isolation. Do NOT use Write/Edit tools for production/test files — your writes will not persist. Instead, return all file content in your output using the FILE_OUTPUT format:
+
+FILE_OUTPUT_START
+--- path: relative/path/to/file.ext ---
+[complete file content]
+--- end ---
+FILE_OUTPUT_END
+
 Instructions:
 1. Read the relevant files for this task
-2. Do the work described above
-3. Update your task status to "complete" in .autopilot/rough-in-state.json
-4. If you encounter a blocker, update status to "blocked" with a reason
+2. Design and produce the code
+3. Return all file content in FILE_OUTPUT blocks
+4. Update your task status to "complete" in .autopilot/rough-in-state.json
+5. If you encounter a blocker, update status to "blocked" with a reason
 
-Follow TDD: write tests first, implement, verify.`,
+Follow TDD: design tests first, then implement.`,
   run_in_background: true
 })
 ```
 
 **Max 8 concurrent workers per wave.** If a wave has more than 8 tasks, batch them in groups of 8.
+
+After each background worker finishes, use TaskOutput to get its response, then write the files from its FILE_OUTPUT blocks using your Write tool (which DOES persist since you run in the foreground).
 
 ### Model Selection
 
@@ -99,6 +110,42 @@ Follow TDD: write tests first, implement, verify.`,
 | `architect`, `diagnose-analyst`, `senior-developer` | opus |
 | Most agents (developer, test-writer, code-reviewer, etc.) | sonnet |
 | Simple lookups, file reads | haiku |
+
+---
+
+## Writing Files From Worker Output
+
+**Workers run in background isolation — their file writes do not persist.** When a worker completes, you must:
+
+1. Read the worker's output via `TaskOutput`
+2. Parse the `FILE_OUTPUT_START` ... `FILE_OUTPUT_END` block
+3. For each `--- path: {path} ---` ... `--- end ---` block:
+   - Write the content to `{project_root}/{path}` using the Write tool
+4. After all files are written, run the task's tests to verify
+
+### Parsing the output
+
+Worker output follows this structure:
+```
+WORKER_DONE
+Task: #N — [description]
+Tests: N passing, 0 failing
+
+FILE_OUTPUT_START
+--- path: src/module.ts ---
+[file content]
+--- end ---
+--- path: tests/test_module.test.ts ---
+[file content]
+--- end ---
+FILE_OUTPUT_END
+
+Commit message: feat: task #N — [description]
+```
+
+Extract each file path and content, write them, then verify tests pass before marking the task complete.
+
+**If a worker's output does NOT contain FILE_OUTPUT blocks** (e.g., review agents, security audits), skip the file-writing step — those agents produce reports, not code.
 
 ---
 

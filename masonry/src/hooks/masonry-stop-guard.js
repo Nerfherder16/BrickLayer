@@ -44,6 +44,30 @@ const BINARY_EXTS = new Set([
 // Exported for tests
 module.exports.checkOverseerTrigger = checkOverseerTrigger;
 
+/**
+ * Run `git status --porcelain` with retry logic.
+ * Clears stale index.lock before each attempt and retries up to 3 times
+ * with brief pauses to handle concurrent git operations.
+ */
+function gitStatusSafe(cwd, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    const lockFile = path.join(cwd, '.git', 'index.lock');
+    try {
+      if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile);
+    } catch { /* already gone or no permission */ }
+    try {
+      return execSync('git status --porcelain', {
+        encoding: 'utf8', timeout: 6000, cwd,
+      }).trim();
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      // Brief pause before retry (200ms)
+      try { execSync('sleep 0.2', { timeout: 1000 }); } catch { /* ignore */ }
+    }
+  }
+  return '';
+}
+
 async function main() {
   // Auto-detect BrickLayer research project — hooks are silent inside BL subprocesses
   if (isResearchProject(process.cwd())) process.exit(0);
@@ -78,17 +102,18 @@ async function main() {
     } catch { /* fall through to mtime fallback */ }
   }
 
-  try {
-    // Clear stale index.lock before any git operations — prevents cascading lock failures
-    // when the stop hook fires concurrently with another git process or a prior failed hook run.
-    const lockFile = path.join(cwd, '.git', 'index.lock');
-    try {
-      if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile);
-    } catch { /* already gone or no permission — proceed anyway */ }
+  // Debounce sentinel: prevents repeated "Stop blocked" messages from flooding context
+  const sentinelPath = sessionId
+    ? path.join(os.tmpdir(), `masonry-stop-blocked-${sessionId}`)
+    : null;
 
-    const status = execSync('git status --porcelain', {
-      encoding: 'utf8', timeout: 6000, cwd,
-    }).trim();
+  try {
+    // If we already blocked this session, exit silently
+    if (sentinelPath && fs.existsSync(sentinelPath)) {
+      process.exit(2);
+    }
+
+    const status = gitStatusSafe(cwd);
 
     if (!status) {
       closeSession(cwd);
@@ -166,6 +191,10 @@ async function main() {
 
     // Auto-commit session files rather than blocking — avoids token-expensive Claude intervention.
     try {
+      // Clear lock before staging/committing
+      const lockFile = path.join(cwd, '.git', 'index.lock');
+      try { if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile); } catch { /* ignore */ }
+
       const allSessionFiles = [...sessionModified, ...sessionUntracked];
       // Add files individually — one bad path won't abort the whole batch
       let staged = 0;
@@ -177,13 +206,19 @@ async function main() {
       }
       if (staged === 0) throw new Error('nothing staged');
       const msg = generateAutoCommitMessage(allSessionFiles, cwd);
+      // Clear lock again before commit in case staging created one
+      try { if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile); } catch { /* ignore */ }
       execFileSync('git', ['commit', '-m', msg], { encoding: 'utf8', timeout: 10000, cwd });
       process.stderr.write(
         `[Masonry] Auto-committed ${staged} session file${staged !== 1 ? 's' : ''}: "${msg}"\n`
       );
     } catch (commitErr) {
-      // Auto-commit failed — fall back to blocking so user knows
+      // Auto-commit failed — fall back to blocking so user knows.
+      // Write sentinel to prevent repeated messages on retry.
       const sessionCount = sessionModified.length + sessionUntracked.length;
+      if (sentinelPath) {
+        try { fs.writeFileSync(sentinelPath, Date.now().toString()); } catch { /* ignore */ }
+      }
       process.stderr.write(
         `\nStop blocked — ${sessionCount} uncommitted session file${sessionCount !== 1 ? 's' : ''} ` +
         `(git status). Commit before stopping.\n`
@@ -195,6 +230,11 @@ async function main() {
     checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
   } catch {
     // Not a git repo or git unavailable — allow stop
+  }
+
+  // Clean up debounce sentinel on successful stop
+  if (sentinelPath) {
+    try { if (fs.existsSync(sentinelPath)) fs.unlinkSync(sentinelPath); } catch { /* ignore */ }
   }
 
   closeSession(cwd);

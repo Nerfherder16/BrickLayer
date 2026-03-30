@@ -275,6 +275,8 @@ Queen handles the parallel dispatch mechanics. You handle the planning and valid
 
 For **small tasks** (3 or fewer sequential steps), skip Queen and dispatch agents directly — the overhead of wave coordination isn't worth it.
 
+**When dispatching workers directly** (without Queen), you are responsible for writing files from worker output. Workers return file content in `FILE_OUTPUT_START` / `FILE_OUTPUT_END` blocks — parse and write them using your Write tool before running verification tests.
+
 ---
 
 ## When to involve architect
