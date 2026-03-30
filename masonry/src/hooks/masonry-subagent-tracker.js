@@ -67,15 +67,19 @@ async function main() {
 
   const cwd = input.cwd || process.cwd();
 
-  // Update Mortar gate file when Mortar is spawned — pre-protect checks this.
+  // Update Mortar gate file when ANY recognized agent is spawned.
+  // The routing-gate PreToolUse hook checks mortar_consulted to decide
+  // whether to block Write/Edit operations on production code.
+  // Previously this only fired for mortar-type agents; now it fires for all
+  // recognized specialists so that direct agent dispatch also clears the gate.
   const subagentType = (input.subagent_type || "").trim().toLowerCase();
-  if (subagentType === "mortar" || subagentType === "masonry:mortar") {
+  {
     const gateFile = path.join(os.tmpdir(), "masonry-mortar-gate.json");
     try {
       fs.writeFileSync(gateFile, JSON.stringify({
         mortar_consulted: true,
         timestamp: new Date().toISOString(),
-        agent: subagentType,
+        agent: subagentType || input.agent_name || "unknown",
       }), "utf8");
     } catch {}
   }

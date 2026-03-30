@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 /**
- * SubagentStop hook (Masonry): Dependency-unblocking via task completion signaling.
+ * SubagentStop hook (Masonry): Dependency-unblocking + post-implementation dispatch.
  *
  * Fires when a subagent stops (SubagentStop) or when an Agent tool call completes
  * (PostToolUse/Agent). Writes a result cache to .autopilot/results/{agent_id}.json
  * and unblocks any progress.json tasks whose depends_on task IDs are all now DONE.
+ *
+ * Also detects when a dev-type agent completes and triggers post-implementation
+ * dispatch: writes git-nerd-needed.json if uncommitted changes exist, and outputs
+ * additionalContext to prompt git-nerd + karen dispatch in the same session.
  *
  * depends_on uses task IDs (integers), not agent IDs. When a task transitions to DONE,
  * this hook scans for BLOCKED tasks and promotes them to PENDING if all their upstream
@@ -15,7 +19,16 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { execSync } = require("child_process");
 const { readStdin } = require('./session/stop-utils');
+
+const DEV_AGENT_TYPES = new Set([
+  "rough-in",
+  "developer",
+  "worker-specialist",
+  "fix-implementer",
+  "senior-developer",
+]);
 
 function findAutopilotDir(startDir) {
   let dir = startDir;
@@ -157,6 +170,71 @@ async function main() {
         }
       }
     } catch (_) {}
+  }
+
+  // ── Post-implementation dispatch ────────────────────────────────────────
+  // When a dev-type agent completes, check for uncommitted changes and
+  // signal git-nerd + karen for same-session dispatch.
+  const agentName = (parsed.agent_name || parsed.agent_type || "").toLowerCase();
+  if (DEV_AGENT_TYPES.has(agentName)) {
+    try {
+      const statusOutput = execSync("git status --porcelain", {
+        cwd,
+        encoding: "utf8",
+        timeout: 5000,
+      }).trim();
+
+      // Filter out state/infra dirs that are not production code changes
+      const STATE_DIR_PATTERNS = [
+        /^\.autopilot\//,
+        /^\.ui\//,
+        /^\.mas\//,
+        /^\.claude\//,
+        /^node_modules\//,
+      ];
+
+      const allFiles = statusOutput
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .map((l) => l.replace(/^.{2}\s+/, ""));
+
+      const filesChanged = allFiles.filter(
+        (f) => !STATE_DIR_PATTERNS.some((p) => p.test(f))
+      );
+
+      if (filesChanged.length > 0) {
+
+        const gitNerdPayload = {
+          reason: "agent_complete",
+          agent: agentName,
+          files_changed: filesChanged,
+          timestamp: new Date().toISOString(),
+        };
+
+        fs.writeFileSync(
+          path.join(autopilotDir, "git-nerd-needed.json"),
+          JSON.stringify(gitNerdPayload, null, 2),
+          "utf8"
+        );
+
+        process.stderr.write(
+          `[agent-complete] Dev agent "${agentName}" finished with ${filesChanged.length} uncommitted file(s). ` +
+            `Wrote git-nerd-needed.json.\n`
+        );
+
+        // Output additionalContext for same-session dispatch
+        process.stdout.write(
+          JSON.stringify({
+            additionalContext:
+              `Git-nerd and karen dispatch recommended — ` +
+              `${filesChanged.length} uncommitted change(s) detected after ${agentName} completed.`,
+          })
+        );
+      }
+    } catch (_) {
+      // git not available or not a repo — skip dispatch silently
+    }
   }
 
   process.exit(0);
