@@ -60,6 +60,19 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 
 *Items in the working tree — committed but awaiting the next named release or wave.*
 
+### Fixed
+
+- **Git index.lock contention** (`ef43335`) — Stale lock clearing added to stop-guard.js and pre-commit bash wrapper; clears index.lock files older than 5 seconds before git operations to prevent WSL2/NTFS lock contention errors
+- **Worker persistence issue** (`ef43335`) — Workers now return file content as FILE_OUTPUT blocks instead of direct writes; Queen writes files in foreground session ensuring persistence
+- **Stop hook debounce** (`ef43335`) — Sentinel file prevents repeated "Stop blocked" messages from flooding context on retry cascade
+- **File size guard regression** (`ef43335`) — Allow shrinking Edit operations on oversized files (enables incremental refactoring); fixed migration regex anchoring
+
+### Changed
+
+- **Routing enforcement gate** (`8440e7e`) — `masonry-routing-gate.js` PreToolUse hook blocks Write/Edit on production code when prompt-router injected routing hint but no agent spawned yet; bypasses for state dirs, test dirs, /tmp, build/fix mode, research projects, expired gates (>10 min)
+- **Post-implementation auto-dispatch** (`8440e7e`) — `masonry-agent-complete.js` SubagentStop hook detects when dev agents complete with uncommitted changes; writes `git-nerd-needed.json` and injects imperative additionalContext mandating git-nerd + karen dispatch
+- **rough-in mandatory housekeeping** (`8440e7e`) — Every build plan now requires final housekeeping wave dispatching git-nerd (commit) and karen (docs update); closes loop on missing post-build hygiene
+
 ---
 
 ## [obra/superpowers Integration] — 2026-03-30
