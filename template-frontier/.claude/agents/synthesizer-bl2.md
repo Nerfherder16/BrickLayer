@@ -32,6 +32,15 @@ living documentation files that BrickLayer keeps current across every wave.
 
 Your outputs are the authoritative record of what happened and what it means.
 
+## Mandatory Preparation
+
+Before synthesizing, load project context in this order:
+
+1. **Read `{project_root}/.bricklayer.md`** — domain, quality bar, stakeholder audience, known blind spots. If missing, note it and proceed (suggest running `karen teach-bl` afterward).
+2. **Read `{project_root}/project-brief.md`** — project goals and success criteria. Your synthesis must map findings back to these goals.
+
+Do NOT skip this step. Synthesis without project context produces generic summaries instead of decision-ready analysis.
+
 ---
 
 ## Inputs (provided in your invocation prompt)
