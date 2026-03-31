@@ -45,29 +45,6 @@ class TestSpawnTmuxPane:
         assert "echo $?" in cmd_str
 
     @patch("bl.tmux.pane.subprocess.run")
-    def test_keep_panes_adds_hold(self, mock_run, monkeypatch):
-        monkeypatch.setenv("BL_KEEP_PANES", "1")
-        mock_run.return_value = MagicMock(stdout="%5\n", returncode=0)
-        from bl.tmux.pane import spawn_tmux_pane
-
-        spawn_tmux_pane(
-            agent_id="abc",
-            agent_name="test",
-            claude_bin="claude",
-            claude_args=["-p", "-"],
-            prompt_file=Path("/tmp/prompt.txt"),
-            result_file=Path("/tmp/result.json"),
-            exit_file=Path("/tmp/exit.txt"),
-            cwd="/tmp",
-            env_overrides=None,
-        )
-        cmd_str = mock_run.call_args_list[0][0][0][-1]
-        # After the signal, there should be a hold command
-        signal_idx = cmd_str.index("tmux wait-for -S")
-        after_signal = cmd_str[signal_idx:]
-        assert "read" in after_signal or "sleep" in after_signal
-
-    @patch("bl.tmux.pane.subprocess.run")
     def test_no_stdout_redirect_when_no_capture(self, mock_run):
         mock_run.return_value = MagicMock(stdout="%5\n", returncode=0)
         from bl.tmux.pane import spawn_tmux_pane

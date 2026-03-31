@@ -46,13 +46,6 @@ def spawn_tmux_pane(
 
     parts.append(f"echo $? > {shlex.quote(str(exit_file))}")
     parts.append(f"tmux wait-for -S bl-done-{agent_id}")
-
-    if os.environ.get("BL_KEEP_PANES", "0") == "1":
-        parts.append(
-            f"echo '\\n--- agent:{agent_name} finished (press Enter to close) ---'"
-        )
-        parts.append("read _hold")
-
     pane_cmd = "; ".join(parts)
 
     try:
