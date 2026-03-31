@@ -5,11 +5,14 @@ from __future__ import annotations
 import os
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from bl.tmux.core import SpawnResult
+
+_FORMATTER = Path(__file__).parent / "stream_format.py"
 
 
 def spawn_tmux_pane(
@@ -40,10 +43,22 @@ def spawn_tmux_pane(
     # Agent header visible at the top of the pane
     parts.append(f"printf '\\n── Agent: %s ──\\n\\n' {shlex.quote(agent_name)}")
 
-    # Run claude directly to the terminal — no pipe — so output streams in real-time
-    parts.append(f"{cmd_str} < {shlex.quote(str(prompt_file))}")
+    # Stream-json mode: pipe through formatter for real-time human-readable output.
+    # Otherwise: run claude directly to the terminal.
+    uses_stream = "stream-json" in claude_args
+    if uses_stream:
+        python_bin = shlex.quote(sys.executable)
+        formatter = shlex.quote(str(_FORMATTER))
+        parts.append(
+            f"{cmd_str} < {shlex.quote(str(prompt_file))}"
+            f" | {python_bin} -u {formatter}"
+        )
+        exit_code_var = "${PIPESTATUS[0]}"
+    else:
+        parts.append(f"{cmd_str} < {shlex.quote(str(prompt_file))}")
+        exit_code_var = "$?"
 
-    parts.append(f"echo $? > {shlex.quote(str(exit_file))}")
+    parts.append(f"echo {exit_code_var} > {shlex.quote(str(exit_file))}")
 
     if result_file:
         # Capture pane scrollback after claude finishes; -J joins wrapped lines

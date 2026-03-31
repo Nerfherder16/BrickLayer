@@ -91,8 +91,8 @@ class TestSpawnTmuxPane:
         assert "karen" in header_section
 
     @patch("bl.tmux.pane.subprocess.run")
-    def test_no_pipe_on_claude_command(self, mock_run):
-        """Claude should write directly to the terminal, not through a pipe."""
+    def test_no_pipe_without_stream_json(self, mock_run):
+        """Without stream-json, claude writes directly to terminal (no pipe)."""
         mock_run.return_value = MagicMock(stdout="%5\n", returncode=0)
         from bl.tmux.pane import spawn_tmux_pane
 
@@ -108,12 +108,32 @@ class TestSpawnTmuxPane:
             env_overrides=None,
         )
         cmd_str = mock_run.call_args_list[0][0][0][-1]
-        # Find the claude command segment — no pipe or redirect on it
         parts = cmd_str.split("; ")
         claude_parts = [p for p in parts if "claude" in p and "capture" not in p]
         assert len(claude_parts) == 1
         assert "| " not in claude_parts[0]
         assert "> " not in claude_parts[0]
+
+    @patch("bl.tmux.pane.subprocess.run")
+    def test_pipes_through_formatter_with_stream_json(self, mock_run):
+        """With stream-json, claude pipes through stream_format.py."""
+        mock_run.return_value = MagicMock(stdout="%5\n", returncode=0)
+        from bl.tmux.pane import spawn_tmux_pane
+
+        spawn_tmux_pane(
+            agent_id="abc",
+            agent_name="test",
+            claude_bin="claude",
+            claude_args=["-p", "-", "--output-format", "stream-json"],
+            prompt_file=Path("/tmp/prompt.txt"),
+            result_file=Path("/tmp/result.json"),
+            exit_file=Path("/tmp/exit.txt"),
+            cwd="/tmp",
+            env_overrides=None,
+        )
+        cmd_str = mock_run.call_args_list[0][0][0][-1]
+        assert "stream_format.py" in cmd_str
+        assert "${PIPESTATUS[0]}" in cmd_str
 
     @patch("bl.tmux.pane.subprocess.run")
     def test_captures_pane_scrollback_when_result_file(self, mock_run):

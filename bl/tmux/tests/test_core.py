@@ -115,7 +115,7 @@ class TestSpawnAgentTmux:
     @patch("bl.tmux.core.shutil.which", return_value="/usr/bin/claude")
     @patch("bl.tmux.core.in_tmux", return_value=True)
     @patch("bl.tmux.core.write_start_signal")
-    def test_tmux_pane_drops_output_format(
+    def test_tmux_pane_uses_stream_json(
         self,
         mock_signal,
         mock_tmux,
@@ -124,14 +124,15 @@ class TestSpawnAgentTmux:
         tmp_path,
         monkeypatch,
     ):
-        """Tmux panes should show human-readable output, not JSON."""
+        """Tmux panes should use stream-json for real-time formatted output."""
         monkeypatch.setattr("bl.tmux.core.TEMP_DIR", tmp_path)
         from bl.tmux.core import spawn_agent
 
         spawn_agent("test-agent", "prompt", output_format="json", cwd="/tmp")
         pane_call = mock_pane.call_args
         claude_args = pane_call.kwargs["claude_args"]
-        assert "--output-format" not in claude_args
+        idx = claude_args.index("--output-format")
+        assert claude_args[idx + 1] == "stream-json"
 
 
 class TestWaitSubprocess:

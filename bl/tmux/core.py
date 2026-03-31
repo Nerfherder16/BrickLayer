@@ -85,14 +85,14 @@ def spawn_agent(
     write_start_signal(agent_id, agent_name, effective_cwd, model, None)
 
     if in_tmux():
-        # In tmux panes, drop --output-format so the user sees human-readable
-        # streaming output. parse_agent_raw handles both JSON and plain text.
+        # In tmux panes, use stream-json piped through a formatter for
+        # real-time human-readable output. parse_agent_raw handles plain text.
         pane_claude_args = build_claude_args(
             model=model,
             allowed_tools=allowed_tools,
             disallowed_tools=disallowed_tools,
             dangerously_skip_permissions=dangerously_skip_permissions,
-            output_format=None,
+            output_format="stream-json",
             session_id=session_id,
         )
         pane_id = spawn_tmux_pane(
