@@ -111,6 +111,29 @@ class TestSpawnAgentTmux:
         mock_pane.assert_called_once()
 
 
+    @patch("bl.tmux.core.spawn_tmux_pane", return_value="%5")
+    @patch("bl.tmux.core.shutil.which", return_value="/usr/bin/claude")
+    @patch("bl.tmux.core.in_tmux", return_value=True)
+    @patch("bl.tmux.core.write_start_signal")
+    def test_tmux_pane_drops_output_format(
+        self,
+        mock_signal,
+        mock_tmux,
+        mock_which,
+        mock_pane,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Tmux panes should show human-readable output, not JSON."""
+        monkeypatch.setattr("bl.tmux.core.TEMP_DIR", tmp_path)
+        from bl.tmux.core import spawn_agent
+
+        spawn_agent("test-agent", "prompt", output_format="json", cwd="/tmp")
+        pane_call = mock_pane.call_args
+        claude_args = pane_call.kwargs["claude_args"]
+        assert "--output-format" not in claude_args
+
+
 class TestWaitSubprocess:
     def test_collects_stdout_and_exit_code(self):
         from bl.tmux.core import SpawnResult, _wait_subprocess
