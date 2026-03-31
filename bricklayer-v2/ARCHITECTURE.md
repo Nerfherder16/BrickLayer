@@ -71,6 +71,24 @@ bricklayer-v2/
 
 ---
 
+## BrickLayer Engine (bl/) — Recent Changes
+
+As of 2026-03-31, the `bl/` engine (at `../bl/` relative to this campaign) was refactored:
+
+| Module | Change |
+|--------|--------|
+| `bl/tmux/pane.py` | NEW — pane spawn/wait/cleanup extracted from `bl/tmux/core.py` |
+| `bl/frontmatter.py` | NEW — `strip_frontmatter()` and `read_frontmatter_model()` extracted from `runners/agent.py` |
+| `bl/runners/scout.py` | NEW — Scout agent runner (`run_scout_for_project`) |
+| `bl/runners/swarm.py` | NEW — Swarm meta-runner; parallel N-worker dispatch with `worst`/`majority`/`any_failure` aggregation; agent workers use tmux wave |
+| `bl/fixloop.py` | UPDATED — uses `bl.frontmatter` for agent file parsing |
+| `bl/runners/agent.py` | UPDATED — `read_frontmatter_model`/`strip_frontmatter` imported from `bl.frontmatter`; `run_agent_wave` uses `spawn_wave`/`collect_wave` |
+| `bl/tmux/helpers.py` | UPDATED — `MODEL_MAP` at module level; `in_tmux()` gains socket fallback |
+
+All new modules have test coverage under `bl/tmux/tests/` and `bl/runners/tests/`.
+
+---
+
 ## Open Items
 
 | ID | Verdict | Summary |

@@ -9,6 +9,23 @@ Maintained by BrickLayer synthesizer at each wave end.
 
 ---
 
+## [Engine] bl/ — tmux/pane + runners refactor — 2026-03-31
+
+BrickLayer engine changes (not campaign questions). Pane lifecycle extracted to `bl/tmux/pane.py`; frontmatter parsing extracted to `bl/frontmatter.py`; `fixloop.py` updated; runners refactored with new `scout.py` and full `swarm.py`, each with test coverage.
+
+### Added
+- `bl/tmux/pane.py` — extracted pane spawning (`spawn_tmux_pane`), wait (`tmux_wait_with_timeout`), and cleanup (`cleanup_panes`) from `bl/tmux/core.py`; tests in `bl/tmux/tests/test_pane.py` (8 tests covering pane title, wait signals, `BL_KEEP_PANES`, output redirect, cleanup)
+- `bl/frontmatter.py` — `strip_frontmatter()` and `read_frontmatter_model()` extracted from `runners/agent.py`; `MODEL_MAP` sourced from `bl/tmux/helpers.py`; tests in `bl/tests/test_frontmatter.py`
+- `bl/runners/scout.py` — Scout agent runner (`run_scout_for_project`) extracted to its own module; reads `scout.md`, injects docs, spawns via `spawn_agent`, writes `questions.md`; tests in `bl/runners/tests/test_scout.py`
+- `bl/runners/swarm.py` — Swarm meta-runner (`run_swarm`, mode `"swarm"`): parallel dispatch of N sub-runners via thread pool + tmux wave for agent-mode workers; aggregation strategies `worst`, `majority`, `any_failure`; tests in `bl/runners/tests/test_swarm.py`
+
+### Changed
+- `bl/fixloop.py` — updated to use `bl.frontmatter.strip_frontmatter` (was inline); `test_fixloop.py` added
+- `bl/runners/agent.py` — imports `read_frontmatter_model`/`strip_frontmatter` from `bl.frontmatter`; Scout entry point removed (moved to `scout.py`); `run_agent_wave` now uses `spawn_wave`/`collect_wave` for tiled tmux layout
+- `bl/tmux/helpers.py` — `MODEL_MAP` promoted to module-level constant; `in_tmux()` gains socket fallback (`_tmux_socket_active`) for environments where `$TMUX` is stripped
+
+---
+
 ## [Wave 14 Evolve] -- 2026-03-25
 
 9 evolve questions (E14.1-E14.9) + 1 verify (E13.5-verify): 5 IMPROVEMENT, 3 WARNING, 1 verify-IMPROVEMENT. Closed 3 Wave 13 blockers (E13.7, E13.8, E13.5). Full-corpus live eval exposed generalization gap.
