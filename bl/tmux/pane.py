@@ -37,16 +37,20 @@ def spawn_tmux_pane(
 
     parts.append(f"cd {shlex.quote(cwd)}")
 
-    if result_file:
-        parts.append(
-            f"{cmd_str} < {shlex.quote(str(prompt_file))} | tee {shlex.quote(str(result_file))}"
-        )
-        exit_code_var = "${PIPESTATUS[0]}"
-    else:
-        parts.append(f"{cmd_str} < {shlex.quote(str(prompt_file))}")
-        exit_code_var = "$?"
+    # Agent header visible at the top of the pane
+    parts.append(f"printf '\\n── Agent: %s ──\\n\\n' {shlex.quote(agent_name)}")
 
-    parts.append(f"echo {exit_code_var} > {shlex.quote(str(exit_file))}")
+    # Run claude directly to the terminal — no pipe — so output streams in real-time
+    parts.append(f"{cmd_str} < {shlex.quote(str(prompt_file))}")
+
+    parts.append(f"echo $? > {shlex.quote(str(exit_file))}")
+
+    if result_file:
+        # Capture pane scrollback after claude finishes; -J joins wrapped lines
+        parts.append(
+            f"tmux capture-pane -p -S - -J > {shlex.quote(str(result_file))}"
+        )
+
     parts.append(f"tmux wait-for -S bl-done-{agent_id}")
 
     if os.environ.get("BL_KEEP_PANES", "0") == "1":

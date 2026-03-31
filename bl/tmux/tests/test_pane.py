@@ -42,8 +42,7 @@ class TestSpawnTmuxPane:
         )
         cmd_str = mock_run.call_args_list[0][0][0][-1]
         assert "tmux wait-for -S bl-done-abc" in cmd_str
-        # With tee, exit code uses PIPESTATUS; without, plain $?
-        assert "echo ${PIPESTATUS[0]}" in cmd_str or "echo $?" in cmd_str
+        assert "echo $?" in cmd_str
 
     @patch("bl.tmux.pane.subprocess.run")
     def test_keep_panes_adds_hold(self, mock_run, monkeypatch):
@@ -63,14 +62,37 @@ class TestSpawnTmuxPane:
             env_overrides=None,
         )
         cmd_str = mock_run.call_args_list[0][0][0][-1]
-        # After the signal, there should be a hold command
         signal_idx = cmd_str.index("tmux wait-for -S")
         after_signal = cmd_str[signal_idx:]
         assert "read" in after_signal or "sleep" in after_signal
 
     @patch("bl.tmux.pane.subprocess.run")
-    def test_uses_tee_for_visible_output(self, mock_run):
-        """When result_file is set, output should use tee so the pane shows text."""
+    def test_shows_agent_header(self, mock_run):
+        """Pane command should print an agent label before running claude."""
+        mock_run.return_value = MagicMock(stdout="%5\n", returncode=0)
+        from bl.tmux.pane import spawn_tmux_pane
+
+        spawn_tmux_pane(
+            agent_id="abc",
+            agent_name="karen",
+            claude_bin="claude",
+            claude_args=["-p", "-"],
+            prompt_file=Path("/tmp/prompt.txt"),
+            result_file=Path("/tmp/result.json"),
+            exit_file=Path("/tmp/exit.txt"),
+            cwd="/tmp",
+            env_overrides=None,
+        )
+        cmd_str = mock_run.call_args_list[0][0][0][-1]
+        # Header should appear before the claude command
+        claude_idx = cmd_str.index("claude")
+        header_section = cmd_str[:claude_idx]
+        assert "Agent:" in header_section
+        assert "karen" in header_section
+
+    @patch("bl.tmux.pane.subprocess.run")
+    def test_no_pipe_on_claude_command(self, mock_run):
+        """Claude should write directly to the terminal, not through a pipe."""
         mock_run.return_value = MagicMock(stdout="%5\n", returncode=0)
         from bl.tmux.pane import spawn_tmux_pane
 
@@ -86,11 +108,37 @@ class TestSpawnTmuxPane:
             env_overrides=None,
         )
         cmd_str = mock_run.call_args_list[0][0][0][-1]
-        assert "| tee " in cmd_str
-        assert "${PIPESTATUS[0]}" in cmd_str
+        # Find the claude command segment — no pipe or redirect on it
+        parts = cmd_str.split("; ")
+        claude_parts = [p for p in parts if "claude" in p and "capture" not in p]
+        assert len(claude_parts) == 1
+        assert "| " not in claude_parts[0]
+        assert "> " not in claude_parts[0]
 
     @patch("bl.tmux.pane.subprocess.run")
-    def test_no_stdout_redirect_when_no_capture(self, mock_run):
+    def test_captures_pane_scrollback_when_result_file(self, mock_run):
+        """After claude finishes, pane scrollback is captured to result_file."""
+        mock_run.return_value = MagicMock(stdout="%5\n", returncode=0)
+        from bl.tmux.pane import spawn_tmux_pane
+
+        spawn_tmux_pane(
+            agent_id="abc",
+            agent_name="test",
+            claude_bin="claude",
+            claude_args=["-p", "-"],
+            prompt_file=Path("/tmp/prompt.txt"),
+            result_file=Path("/tmp/result.json"),
+            exit_file=Path("/tmp/exit.txt"),
+            cwd="/tmp",
+            env_overrides=None,
+        )
+        cmd_str = mock_run.call_args_list[0][0][0][-1]
+        assert "tmux capture-pane" in cmd_str
+        assert "/tmp/result.json" in cmd_str
+
+    @patch("bl.tmux.pane.subprocess.run")
+    def test_no_capture_when_no_result_file(self, mock_run):
+        """No capture-pane when result_file is None."""
         mock_run.return_value = MagicMock(stdout="%5\n", returncode=0)
         from bl.tmux.pane import spawn_tmux_pane
 
@@ -106,10 +154,7 @@ class TestSpawnTmuxPane:
             env_overrides=None,
         )
         cmd_str = mock_run.call_args_list[0][0][0][-1]
-        # No redirect or tee when no result file
-        before_echo = cmd_str.split("echo")[0]
-        assert "> " not in before_echo
-        assert "tee" not in before_echo
+        assert "capture-pane" not in cmd_str
 
     @patch("bl.tmux.pane.subprocess.run")
     def test_sets_pane_title(self, mock_run):
