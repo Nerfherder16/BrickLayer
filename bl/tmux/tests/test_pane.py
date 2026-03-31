@@ -42,7 +42,8 @@ class TestSpawnTmuxPane:
         )
         cmd_str = mock_run.call_args_list[0][0][0][-1]
         assert "tmux wait-for -S bl-done-abc" in cmd_str
-        assert "echo $?" in cmd_str
+        # With tee, exit code uses PIPESTATUS; without, plain $?
+        assert "echo ${PIPESTATUS[0]}" in cmd_str or "echo $?" in cmd_str
 
     @patch("bl.tmux.pane.subprocess.run")
     def test_keep_panes_adds_hold(self, mock_run, monkeypatch):
@@ -68,6 +69,27 @@ class TestSpawnTmuxPane:
         assert "read" in after_signal or "sleep" in after_signal
 
     @patch("bl.tmux.pane.subprocess.run")
+    def test_uses_tee_for_visible_output(self, mock_run):
+        """When result_file is set, output should use tee so the pane shows text."""
+        mock_run.return_value = MagicMock(stdout="%5\n", returncode=0)
+        from bl.tmux.pane import spawn_tmux_pane
+
+        spawn_tmux_pane(
+            agent_id="abc",
+            agent_name="test",
+            claude_bin="claude",
+            claude_args=["-p", "-"],
+            prompt_file=Path("/tmp/prompt.txt"),
+            result_file=Path("/tmp/result.json"),
+            exit_file=Path("/tmp/exit.txt"),
+            cwd="/tmp",
+            env_overrides=None,
+        )
+        cmd_str = mock_run.call_args_list[0][0][0][-1]
+        assert "| tee " in cmd_str
+        assert "${PIPESTATUS[0]}" in cmd_str
+
+    @patch("bl.tmux.pane.subprocess.run")
     def test_no_stdout_redirect_when_no_capture(self, mock_run):
         mock_run.return_value = MagicMock(stdout="%5\n", returncode=0)
         from bl.tmux.pane import spawn_tmux_pane
@@ -84,9 +106,10 @@ class TestSpawnTmuxPane:
             env_overrides=None,
         )
         cmd_str = mock_run.call_args_list[0][0][0][-1]
-        # The redirect ">" should not appear before "echo"
+        # No redirect or tee when no result file
         before_echo = cmd_str.split("echo")[0]
         assert "> " not in before_echo
+        assert "tee" not in before_echo
 
     @patch("bl.tmux.pane.subprocess.run")
     def test_sets_pane_title(self, mock_run):

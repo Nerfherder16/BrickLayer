@@ -39,12 +39,14 @@ def spawn_tmux_pane(
 
     if result_file:
         parts.append(
-            f"{cmd_str} < {shlex.quote(str(prompt_file))} > {shlex.quote(str(result_file))}"
+            f"{cmd_str} < {shlex.quote(str(prompt_file))} | tee {shlex.quote(str(result_file))}"
         )
+        exit_code_var = "${PIPESTATUS[0]}"
     else:
         parts.append(f"{cmd_str} < {shlex.quote(str(prompt_file))}")
+        exit_code_var = "$?"
 
-    parts.append(f"echo $? > {shlex.quote(str(exit_file))}")
+    parts.append(f"echo {exit_code_var} > {shlex.quote(str(exit_file))}")
     parts.append(f"tmux wait-for -S bl-done-{agent_id}")
 
     if os.environ.get("BL_KEEP_PANES", "0") == "1":
