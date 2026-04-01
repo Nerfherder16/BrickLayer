@@ -8,6 +8,7 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    "masonry/src/hooks/masonry-routing-gate.js",
     "bl/tmux/core.py",
     "masonry/src/hooks/masonry-mortar-enforcer.js",
     "masonry/src/hooks/masonry-prompt-router.js",
@@ -1064,5 +1065,5 @@
     "masonry/tests/engine/training-export.test.js",
     "masonry/tests/engine/training-schema.test.js"
   ],
-  "timestamp": "2026-04-01T14:17:08.601Z"
+  "timestamp": "2026-04-01T14:27:36.553Z"
 }
