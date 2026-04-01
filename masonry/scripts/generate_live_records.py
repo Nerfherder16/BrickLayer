@@ -15,13 +15,11 @@ from __future__ import annotations
 import argparse
 import json
 import platform
-import re
 import subprocess
 import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from types import SimpleNamespace
 
 _CLAUDE_CMD = ["claude.cmd" if platform.system() == "Windows" else "claude"]
 

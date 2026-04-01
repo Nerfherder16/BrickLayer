@@ -158,9 +158,9 @@ class TestProgramMdWavePaths:
         """
         content = PROGRAM_MD.read_text(encoding="utf-8")
         assert "findings/wave" in content, (
-            f"program.md does not contain 'findings/wave'. "
-            f"The file must be updated to reference wave-partitioned paths "
-            f"(e.g., findings/wave{{N}}/ or findings/wave1/)."
+            "program.md does not contain 'findings/wave'. "
+            "The file must be updated to reference wave-partitioned paths "
+            "(e.g., findings/wave{N}/ or findings/wave1/)."
         )
 
 

@@ -1,6 +1,4 @@
 """Tests for bl/model_assumptions.py"""
-import pytest
-from pathlib import Path
 from datetime import date
 
 

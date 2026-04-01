@@ -4,7 +4,6 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
 
 _MASONRY = Path(__file__).resolve().parents[2]
 if str(_MASONRY) not in sys.path:

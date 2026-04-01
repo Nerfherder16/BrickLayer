@@ -1,4 +1,5 @@
-import pathlib, re
+import pathlib
+import re
 
 BLOCK_PAT = re.compile(
     r'```\n((?:(?!```)(?:recall_(?:store|search))[^\n]*\n?|[ \t]*[^\n]*\n?)*?)```',

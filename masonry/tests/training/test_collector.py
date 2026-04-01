@@ -2,10 +2,8 @@
 
 import json
 import sys
-import tempfile
 from pathlib import Path
 
-import pytest
 
 # Make src importable
 _MASONRY = Path(__file__).resolve().parents[2]

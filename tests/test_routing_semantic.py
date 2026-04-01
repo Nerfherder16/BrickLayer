@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import math
 from typing import Any
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
-import pytest
 
 from masonry.src.routing.semantic import route_semantic, _cosine_similarity
 from masonry.src.schemas import AgentRegistryEntry, RoutingDecision

@@ -8,7 +8,6 @@ Covers:
 - --dry-run: exits 0, writes nothing
 """
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest

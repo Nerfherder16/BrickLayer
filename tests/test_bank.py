@@ -1,7 +1,6 @@
 """Tests for masonry.src.reasoning.bank.ReasoningBank."""
 
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest

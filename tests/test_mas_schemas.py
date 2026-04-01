@@ -20,7 +20,6 @@ from masonry.src.schemas.mas_schemas import (
     ErrorEntry,
     KilnIdentity,
     OpenIssue,
-    OpenIssuesFile,
     PulseEntry,
     RecallLogEntry,
     SessionRecord,

@@ -6,7 +6,6 @@ import json
 import textwrap
 from pathlib import Path
 
-import pytest
 
 from masonry.scripts.score_findings import (
     discover_findings,

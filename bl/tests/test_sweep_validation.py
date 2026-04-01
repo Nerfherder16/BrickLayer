@@ -1,6 +1,4 @@
 """Tests for validate_sweep_parameter in bl/sweep.py"""
-import pytest
-from pathlib import Path
 
 
 SCENARIO_BLOCK = """\

@@ -22,7 +22,6 @@ After:
 
 import re
 import pathlib
-import sys
 
 
 def split_top_level_commas(s):

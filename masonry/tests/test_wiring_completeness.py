@@ -139,7 +139,7 @@ class TestHookWiring:
                 orphans.append(f"{hook.name}  (reason: new file never wired to settings.json)")
 
         assert not orphans, (
-            f"\n\nORPHAN HOOKS — exist but not registered in settings.json:\n"
+            "\n\nORPHAN HOOKS — exist but not registered in settings.json:\n"
             + "\n".join(f"  ✗ {o}" for o in sorted(orphans))
             + "\n\nFix: add to settings.json PreToolUse/PostToolUse/Stop hooks."
         )
@@ -164,7 +164,7 @@ class TestHookWiring:
                         missing.append(f"{event}: {file_path}")
 
         assert not missing, (
-            f"\n\nBROKEN HOOK PATHS — registered but file missing:\n"
+            "\n\nBROKEN HOOK PATHS — registered but file missing:\n"
             + "\n".join(f"  ✗ {m}" for m in sorted(missing))
         )
 
@@ -219,7 +219,7 @@ class TestAgentRegistryWiring:
             and name not in self.REGISTRY_ONLY_PLANNED
         ]
         assert not missing_md, (
-            f"\n\nREGISTRY ENTRIES WITH NO .md FILE (not in planned backlog):\n"
+            "\n\nREGISTRY ENTRIES WITH NO .md FILE (not in planned backlog):\n"
             + "\n".join(f"  ✗ {n}" for n in missing_md)
             + "\n\nFix: create agent .md in ~/.claude/agents/ or template/.claude/agents/"
             + f"\n\n(Acknowledged planned-but-not-built: {len(self.REGISTRY_ONLY_PLANNED)} agents)"
@@ -234,7 +234,7 @@ class TestAgentRegistryWiring:
 
         orphan_mds = sorted(all_agent_mds - registry_names)
         assert not orphan_mds, (
-            f"\n\nORPHAN AGENT .md FILES — not in registry:\n"
+            "\n\nORPHAN AGENT .md FILES — not in registry:\n"
             + "\n".join(f"  ✗ {n}" for n in orphan_mds)
             + "\n\nFix: run masonry_onboard or add entry to agent_registry.yml"
         )
@@ -292,7 +292,7 @@ class TestBuildSkillAgentReferences:
         ]
         missing = [n for n in required if not _agent_exists(n)]
         assert not missing, (
-            f"\n\nCORE BUILD PIPELINE AGENTS MISSING:\n"
+            "\n\nCORE BUILD PIPELINE AGENTS MISSING:\n"
             + "\n".join(f"  ✗ {n}" for n in missing)
         )
 

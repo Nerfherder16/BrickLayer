@@ -40,6 +40,6 @@ jobs:
           pip install -r requirements.txt || pip install -r masonry/requirements.txt || true
           pip install pytest ruff
       - name: Lint with ruff
-        run: ruff check . --select E,F,W --ignore E501
+        run: ruff check .
       - name: Test with pytest
         run: python -m pytest masonry/tests/ -v --tb=short

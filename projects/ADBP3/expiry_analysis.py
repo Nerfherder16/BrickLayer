@@ -400,13 +400,13 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    print(f"ADBP v3 — Expiry & Velocity Analysis")
+    print("ADBP v3 — Expiry & Velocity Analysis")
     print(f"  Months:          {args.months}")
     print(f"  Expiry windows:  {args.expiry} months")
     print(f"  Breakage rates:  {[f'{r:.0%}' for r in args.breakage]}")
     print(f"  Burn strategy:   trigger={BURN_TRIGGER_RATIO:.1%}  burn={BURN_PCT:.1%}  "
           f"cooldown={BURN_MIN_COOLDOWN}mo  first={BURN_FIRST_ELIGIBLE}")
-    print(f"  Velocity note:   12x/yr -> ~6% breakage (research baseline)")
+    print("  Velocity note:   12x/yr -> ~6% breakage (research baseline)")
 
     run_scenario_table(args.months, args.expiry, args.breakage)
     run_velocity_breakage_analysis(args.months)

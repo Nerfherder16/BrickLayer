@@ -22,9 +22,8 @@ import json
 import subprocess
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
 
 # This import will fail (ImportError) until the developer creates the module.
 from masonry.scripts.eval_agent import run_eval

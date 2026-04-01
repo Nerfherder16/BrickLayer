@@ -30,7 +30,7 @@ _SCRIPT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_SCRIPT_ROOT) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_ROOT))
 
-from masonry.src.metrics import build_karen_metric, build_metric  # noqa: E402
+from masonry.src.metrics import build_metric  # noqa: E402
 from masonry.scripts.export_sharegpt import (  # noqa: E402
     _format_human_turn,
     _find_agent_md,
@@ -256,7 +256,7 @@ def main() -> None:
     if args.compare:
         print("\n--- Baseline: Qwen2.5-3B (untuned) ---")
         base_result = run_eval(args.agent, args.eval_size, "qwen2.5:3b")
-        print(f"\n=== Comparison ===")
+        print("\n=== Comparison ===")
         print(f"  bricklayer-sft : {sft_result['score']:.2f} ({sft_result['passed']}/{sft_result['eval_size']})")
         print(f"  qwen2.5:3b     : {base_result['score']:.2f} ({base_result['passed']}/{base_result['eval_size']})")
         delta = sft_result["score"] - base_result["score"]
