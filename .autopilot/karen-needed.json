@@ -8,6 +8,11 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    "bricklayer-meta/project-brief.md",
+    "projects/bl2/project-brief.md",
+    "projects/kiln-os/project-brief.md",
+    "CLAUDE.md",
+    "bricklayer-v2/project-brief.md",
     "docs/repo-research/pbakaus-impeccable.md",
     "bricklayer-v2/.claude/agents/hypothesis-generator-bl2.md",
     "bricklayer-v2/.claude/agents/question-designer-bl2.md",
@@ -36,5 +41,5 @@
     "bl/tmux/pane.py",
     "bl/tmux/tests/test_pane.py"
   ],
-  "timestamp": "2026-04-01T03:25:37.217Z"
+  "timestamp": "2026-04-01T03:59:16.554Z"
 }
