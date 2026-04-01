@@ -118,8 +118,20 @@ async function main() {
     process.exit(0);
   }
 
+  // Build/fix mode bypass — but only when a specialist is active.
+  // Orchestrators (mortar, rough-in, trowel) must still delegate even in build mode.
   if (isBuildOrFixMode(cwd)) {
-    process.exit(0);
+    const gateForMode = readGate();
+    if (!gateForMode || !gateForMode.chain || gateForMode.chain.length === 0) {
+      process.exit(0); // no chain info — legacy bypass
+    } else {
+      const { ORCHESTRATORS: ORCH } = require("./session/mortar-gate");
+      const tip = gateForMode.chain[gateForMode.chain.length - 1];
+      if (!ORCH.has(tip) || gateForMode.specialist_spawned) {
+        process.exit(0); // specialist active — allow
+      }
+      // orchestrator in build mode — fall through to gate enforcement below
+    }
   }
 
   const toolInput = input.tool_input || {};
