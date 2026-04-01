@@ -8,6 +8,7 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    "masonry/src/hooks/session/mortar-gate.js",
     "masonry/src/hooks/masonry-routing-gate.js",
     "masonry/src/hooks/session/build-state.js",
     "masonry/src/hooks/session/context-data.js",
@@ -1079,5 +1080,5 @@
     "masonry/tests/engine/training-export.test.js",
     "masonry/tests/engine/training-schema.test.js"
   ],
-  "timestamp": "2026-04-01T15:35:47.300Z"
+  "timestamp": "2026-04-01T15:39:21.949Z"
 }
