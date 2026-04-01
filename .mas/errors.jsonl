@@ -64,3 +64,5 @@
 {"timestamp":"2026-04-01T16:20:12.474Z","tool":"Agent","error":"Agent type 'rough-in' not found. Available agents: general-purpose, statusline-setup, Explore, Plan","retries":1,"fingerprint":"Agent:Agent type 'rough-in' not found. Available agents: general-purpose, statusline-s"}
 {"timestamp":"2026-04-01T18:05:28.481Z","tool":"Bash","error":"Exit code 1","retries":1,"fingerprint":"Bash:Exit code 1"}
 {"timestamp":"2026-04-01T18:05:31.372Z","tool":"Bash","error":"Exit code 1","retries":2,"fingerprint":"Bash:Exit code 1"}
+{"timestamp":"2026-04-01T18:27:19.985Z","tool":"Grep","error":"spawn /home/nerfherder/.nvm/versions/node/v24.14.1/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg EACCES","retries":1,"fingerprint":"Grep:spawn /home/nerfherder/.nvm/versions/node/v24.14.1/lib/node_modules/@anthropic-a"}
+{"timestamp":"2026-04-01T18:37:33.196Z","tool":"Bash","error":"Exit code 1","retries":1,"fingerprint":"Bash:Exit code 1"}
