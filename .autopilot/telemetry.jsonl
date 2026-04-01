@@ -254,3 +254,13 @@
 {"task_id":"t-1775075846774","phase":"post","timestamp":"2026-04-01T20:37:26.903Z","duration_ms":123,"success":true,"agent":"general-purpose"}
 {"task_id":"t-1775075846774","phase":"post","timestamp":"2026-04-01T20:37:26.959Z","duration_ms":179,"success":true,"agent":"general-purpose"}
 {"task_id":"t-1775075846774","phase":"post","timestamp":"2026-04-01T20:37:26.962Z","duration_ms":183,"success":true,"agent":"general-purpose"}
+{"task_id":"t-1775077330236","phase":"pre","timestamp":"2026-04-01T21:02:10.236Z","agent_type":"general-purpose","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775077330236","phase":"pre","timestamp":"2026-04-01T21:02:10.236Z","agent_type":"general-purpose","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775077330237","phase":"pre","timestamp":"2026-04-01T21:02:10.237Z","agent_type":"general-purpose","task_type":"test","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775077330238","phase":"pre","timestamp":"2026-04-01T21:02:10.238Z","agent_type":"general-purpose","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775077330263","phase":"pre","timestamp":"2026-04-01T21:02:10.263Z","agent_type":"general-purpose","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775077330263","phase":"post","timestamp":"2026-04-01T21:02:10.433Z","duration_ms":165,"success":true,"agent":"general-purpose"}
+{"task_id":"t-1775077330263","phase":"post","timestamp":"2026-04-01T21:02:10.437Z","duration_ms":165,"success":true,"agent":"general-purpose"}
+{"task_id":"t-1775077330263","phase":"post","timestamp":"2026-04-01T21:02:10.440Z","duration_ms":166,"success":true,"agent":"general-purpose"}
+{"task_id":"t-1775077330263","phase":"post","timestamp":"2026-04-01T21:02:10.457Z","duration_ms":188,"success":true,"agent":"general-purpose"}
+{"task_id":"t-1775077330263","phase":"post","timestamp":"2026-04-01T21:02:10.505Z","duration_ms":236,"success":true,"agent":"general-purpose"}
