@@ -135,6 +135,68 @@ Bricklayer2.0/
 | Tier 2 | `program.md`, `modes/*.md`, config | Human + agent |
 | Tier 3 | `bl/` engine code, `findings/`, agents | Agent — implementation |
 
+## MANDATORY: Agent Delegation via BrickLayer tmux Dispatch
+
+**You are an orchestrator. You do NOT work alone.**
+
+All agent dispatch goes through BrickLayer's tmux layer (`bl/tmux/core.py`). This spawns agents in visible tmux panes with `stream-json` output piped through `stream_format.py` — the user watches agents work in real time. When not in tmux, it falls back to subprocess.
+
+**NEVER use Claude Code's built-in `Task` tool for agent work.** It spawns invisible child processes with no tmux panes, no signal files, no lifecycle hooks, and no masonry tracking.
+
+### How to Spawn Agents
+
+```python
+from bl.tmux.core import spawn_agent, wait_for_agent
+
+handle = spawn_agent(
+    "rough-in",
+    "Task: <user request>\nProject root: /path/to/project",
+    cwd="/path/to/project",
+    dangerously_skip_permissions=True,
+)
+result = wait_for_agent(handle)
+```
+
+This opens a tmux pane where the agent streams live. The user sees every step as it happens.
+
+For parallel dispatch (multiple agents at once), use `bl/tmux/wave.py:spawn_wave()`.
+
+### Delegation Rules
+
+1. **Dev tasks** (build, fix, refactor, add feature): Spawn `rough-in`. It decomposes and dispatches to specialists. You do NOT write production code directly.
+2. **Research/investigation** (why is X broken, explore Z): Spawn `mortar`. It routes to the right specialist.
+3. **Planning** (design, architect, plan): Spawn `planner` or `design-reviewer`.
+4. **Documentation** (changelog, docs, roadmap): Spawn `karen`.
+5. **Code review**: Spawn `code-reviewer` after code changes.
+6. **Bug diagnosis**: Spawn `diagnose-analyst`. Do NOT guess at fixes.
+
+### When You May Work Directly (Exceptions)
+
+- Simple questions (< 1 paragraph, no code changes)
+- Reading files to understand context before delegating
+- Read-only git operations (status, log, diff)
+- Trivial one-line fixes the user explicitly dictates verbatim
+
+### Available Core Agents
+
+| Agent | When to Use |
+|-------|------------|
+| `rough-in` | Any dev task — owns the full build workflow |
+| `mortar` | Session routing — decides which specialist handles a request |
+| `developer` | Implementation (spawned by rough-in, not directly) |
+| `code-reviewer` | Post-implementation review |
+| `planner` | Design and planning |
+| `design-reviewer` | Validate architecture before building |
+| `fix-implementer` | Apply a known fix (after diagnosis) |
+| `diagnose-analyst` | Root cause analysis |
+| `tdd-orchestrator` | Test-driven development enforcement |
+| `karen` | Documentation maintenance |
+| `trowel` | Campaign conductor (research loops) |
+| `spec-reviewer` | Spec compliance checking |
+| `verifier` | Post-build verification |
+
+83+ agents available globally in `~/.claude/agents/`.
+
 ## What NOT to Assume
 
 - BrickLayer is NOT just research — it orchestrates builds, fixes, and maintenance

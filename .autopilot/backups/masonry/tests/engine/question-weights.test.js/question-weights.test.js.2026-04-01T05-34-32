@@ -1,0 +1,113 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+
+describe('engine/question-weights', () => {
+  let mod, tmpDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bl-weights-'));
+    const modPath = path.resolve(process.cwd(), 'src', 'engine', 'question-weights.js');
+    delete require.cache[modPath];
+    mod = require(modPath);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  describe('computeWeight', () => {
+    it('should return 1.0 for zero runs', () => {
+      expect(mod.computeWeight({ runs: 0, failures: 0, warnings: 0, healthys: 0, inconclusives: 0 })).toBe(1.0);
+    });
+
+    it('should add 0.5 per failure capped at +2.0', () => {
+      expect(mod.computeWeight({ runs: 3, failures: 3, warnings: 0, healthys: 0, inconclusives: 0 })).toBe(2.5);
+    });
+
+    it('should cap total at 3.0', () => {
+      expect(mod.computeWeight({ runs: 10, failures: 10, warnings: 5, healthys: 0, inconclusives: 0 })).toBe(3.0);
+    });
+
+    it('should deprioritize all-healthy after 3 runs', () => {
+      expect(mod.computeWeight({ runs: 3, failures: 0, warnings: 0, healthys: 3, inconclusives: 0 })).toBe(0.3);
+    });
+
+    it('should prune-priority all-healthy after 5 runs', () => {
+      expect(mod.computeWeight({ runs: 5, failures: 0, warnings: 0, healthys: 5, inconclusives: 0 })).toBe(0.1);
+    });
+
+    it('should deprioritize all-inconclusive after 3 runs', () => {
+      expect(mod.computeWeight({ runs: 3, failures: 0, warnings: 0, healthys: 0, inconclusives: 3 })).toBe(0.2);
+    });
+  });
+
+  describe('recordResult', () => {
+    it('should create and update weight record', () => {
+      const qw = mod.recordResult(tmpDir, 'Q1', 'FAILURE');
+      expect(qw.runs).toBe(1);
+      expect(qw.failures).toBe(1);
+      expect(qw.weight).toBe(1.5);
+
+      const qw2 = mod.recordResult(tmpDir, 'Q1', 'FAILURE');
+      expect(qw2.runs).toBe(2);
+      expect(qw2.failures).toBe(2);
+      expect(qw2.weight).toBe(2.0);
+    });
+
+    it('should give low-quality INCONCLUSIVE a +0.3 nudge', () => {
+      const qw = mod.recordResult(tmpDir, 'Q1', 'INCONCLUSIVE', 0.2);
+      // base weight for 1 inconclusive < 3 runs = normal (1.0 + 0 bonus) = 1.0
+      // then +0.3 for low quality → 1.3
+      expect(qw.weight).toBe(1.3);
+    });
+  });
+
+  describe('getSortedQuestions', () => {
+    it('should sort by weight descending', () => {
+      mod.recordResult(tmpDir, 'Q1', 'FAILURE');
+      mod.recordResult(tmpDir, 'Q1', 'FAILURE');
+      mod.recordResult(tmpDir, 'Q2', 'HEALTHY');
+
+      const sorted = mod.getSortedQuestions(tmpDir, ['Q1', 'Q2', 'Q3']);
+      expect(sorted[0]).toBe('Q1'); // weight 2.0
+      expect(sorted[1]).toBe('Q3'); // weight 1.0 (unknown)
+      expect(sorted[2]).toBe('Q2'); // weight 1.0 but only 1 run
+    });
+  });
+
+  describe('pruneCandidates', () => {
+    it('should return low-weight questions', () => {
+      // 5+ HEALTHY runs → weight 0.1
+      for (let i = 0; i < 5; i++) mod.recordResult(tmpDir, 'Q1', 'HEALTHY');
+      mod.recordResult(tmpDir, 'Q2', 'FAILURE');
+
+      const prune = mod.pruneCandidates(tmpDir, 0.15);
+      expect(prune).toContain('Q1');
+      expect(prune).not.toContain('Q2');
+    });
+  });
+
+  describe('weightReport', () => {
+    it('should return formatted report', () => {
+      mod.recordResult(tmpDir, 'Q1', 'FAILURE');
+      mod.recordResult(tmpDir, 'Q2', 'HEALTHY');
+      const report = mod.weightReport(tmpDir);
+      expect(report).toContain('Question Weights');
+      expect(report).toContain('Q1');
+      expect(report).toContain('Q2');
+    });
+
+    it('should handle empty weights', () => {
+      expect(mod.weightReport(tmpDir)).toContain('0 tracked');
+    });
+  });
+
+  describe('shouldFlagHuman', () => {
+    it('should flag when confidence < 0.35', () => {
+      expect(mod.shouldFlagHuman(0.2)).toBe(true);
+      expect(mod.shouldFlagHuman(0.5)).toBe(false);
+    });
+  });
+});

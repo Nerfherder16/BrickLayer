@@ -148,5 +148,10 @@
     "confidence": 0.76,
     "last_used": "2026-03-30T02:45:15.801Z",
     "uses": 1
+  },
+  "unknown": {
+    "confidence": 0.76,
+    "last_used": "2026-04-01T04:25:46.815Z",
+    "uses": 1
   }
 }

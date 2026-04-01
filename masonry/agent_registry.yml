@@ -1,0 +1,2207 @@
+version: 1
+agents:
+- name: quantitative-analyst
+  file: .claude/agents/quantitative-analyst.md
+  model: sonnet
+  description: Runs simulations, parameter sweeps, and boundary-finding for BL2.0
+    campaigns
+  modes:
+  - simulate
+  capabilities:
+  - simulation
+  - parameter-sweep
+  - boundary-finding
+  - sensitivity-analysis
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+- name: peer-reviewer
+  file: .claude/agents/peer-reviewer.md
+  model: haiku
+  description: Reviews agent findings for quality, consistency, and logic errors
+  modes:
+  - audit
+  capabilities:
+  - review
+  - quality-check
+  - finding-validation
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+- name: agent-auditor
+  file: .claude/agents/agent-auditor.md
+  model: sonnet
+  description: Audits agent performance, scoring, and behavioral drift
+  modes:
+  - audit
+  capabilities:
+  - agent-scoring
+  - behavioral-audit
+  - performance-review
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+- name: forge-check
+  file: .claude/agents/forge-check.md
+  model: haiku
+  description: 'Pre-flight checks before forge runs: validates inputs and configuration'
+  modes:
+  - validate
+  capabilities:
+  - pre-flight
+  - config-validation
+  - input-checking
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+- name: retrospective
+  file: .claude/agents/retrospective.md
+  model: sonnet
+  description: Analyzes campaign retrospectives for process improvements and pattern
+    extraction
+  modes:
+  - research
+  - evolve
+  capabilities:
+  - retrospective-analysis
+  - pattern-extraction
+  - process-improvement
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+- name: test-writer
+  file: ~/.claude/agents/test-writer.md
+  model: sonnet
+  description: Writes failing tests following TDD RED-GREEN-REFACTOR discipline
+  modes:
+  - validate
+  capabilities:
+  - test-writing
+  - tdd
+  - test-strategy
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+- name: mortar
+  file: ~/.claude/agents/mortar.md
+  model: sonnet
+  description: "Build orchestrator \u2014 manages state, spawns worker agents, validates\
+    \ results, commits"
+  modes:
+  - agent
+  capabilities:
+  - orchestration
+  - build-management
+  - state-tracking
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+- name: spec-writer
+  file: ~/.claude/agents/spec-writer.md
+  model: opus
+  description: Explores codebase and writes detailed autopilot spec.md for build campaigns
+  modes:
+  - agent
+  capabilities:
+  - spec-writing
+  - codebase-analysis
+  - task-decomposition
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+- name: developer
+  file: ~/.claude/agents/developer.md
+  model: sonnet
+  description: Implements code to pass tests in TDD RED-GREEN-REFACTOR cycle
+  modes:
+  - fix
+  - agent
+  capabilities:
+  - implementation
+  - tdd
+  - debugging
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+- name: karen
+  file: ~/.claude/agents/karen.md
+  model: sonnet
+  description: Roadmaps, changelogs, folder audits, and documentation organization
+  modes:
+  - agent
+  - audit
+  capabilities:
+  - roadmap-management
+  - changelog-generation
+  - docs-organization
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+- name: prompt-engineer
+  file: ~/.claude/agents/prompt-engineer.md
+  model: opus
+  description: Transforms vague ideas into sharp, direct, structured prompts
+  modes:
+  - agent
+  - evolve
+  capabilities:
+  - prompt-optimization
+  - instruction-writing
+  - dspy-integration
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+- name: refactorer
+  file: ~/.claude/agents/refactorer.md
+  model: sonnet
+  description: Cleans up code structure without changing behavior
+  modes:
+  - agent
+  - validate
+  capabilities:
+  - refactoring
+  - code-cleanup
+  - structure-improvement
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+- name: self-host
+  file: ~/.claude/agents/self-host.md
+  model: sonnet
+  description: 'Self-hosted infrastructure management: Docker, CasaOS, Proxmox, Tailscale'
+  modes:
+  - agent
+  - benchmark
+  capabilities:
+  - infrastructure
+  - docker
+  - self-hosting
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+- name: architect
+  file: ~/.claude/agents/architect.md
+  model: opus
+  description: System architecture design and deep structural analysis
+  modes:
+  - agent
+  - research
+  capabilities:
+  - architecture-design
+  - system-analysis
+  - design-patterns
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+- name: devops
+  file: ~/.claude/agents/devops.md
+  model: sonnet
+  description: DevOps automation, CI/CD pipelines, Docker Compose, deployment workflows
+  modes:
+  - agent
+  - validate
+  capabilities:
+  - devops
+  - ci-cd
+  - deployment
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+- name: security
+  file: ~/.claude/agents/security.md
+  model: sonnet
+  description: Security audits, OWASP Top 10, vulnerability assessment
+  modes:
+  - audit
+  - agent
+  capabilities:
+  - security-audit
+  - owasp
+  - vulnerability-assessment
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+- name: spreadsheet-wizard
+  file: ~/.claude/agents/spreadsheet-wizard.md
+  model: sonnet
+  description: Excel/CSV data analysis, formula generation, and data transformation
+  modes:
+  - agent
+  - research
+  capabilities:
+  - spreadsheet-analysis
+  - data-transformation
+  - excel
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+- name: rust-analyst
+  file: ~/.claude/agents/rust-analyst.md
+  model: sonnet
+  description: Rust code analysis, performance profiling, and idiomatic review
+  modes:
+  - audit
+  - agent
+  capabilities:
+  - rust-analysis
+  - performance-review
+  - idiomatic-rust
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+- name: rust-developer
+  file: ~/.claude/agents/rust-developer.md
+  model: sonnet
+  description: 'Implements Rust code: systems utilities, CLI tools, performance-critical
+    components'
+  modes:
+  - fix
+  - agent
+  capabilities:
+  - rust-development
+  - systems-programming
+  - cli-tools
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+- name: diagnose-analyst
+  file: .claude/agents/diagnose-analyst.md
+  model: opus
+  description: Root cause analysis for complex failures and escalations
+  modes:
+  - diagnose
+  capabilities:
+  - root-cause-analysis
+  - failure-diagnosis
+  - escalation-handling
+  input_schema: DiagnosePayload
+  output_schema: DiagnosisPayload
+  tier: draft
+- name: compliance-auditor
+  file: .claude/agents/compliance-auditor.md
+  model: sonnet
+  description: Regulatory and compliance auditing for financial and legal requirements
+  modes:
+  - audit
+  capabilities:
+  - compliance-checking
+  - regulatory-analysis
+  - legal-review
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+- name: regulatory-researcher
+  file: .claude/agents/regulatory-researcher.md
+  model: sonnet
+  description: Research into regulatory, legal, and compliance landscapes
+  modes:
+  - research
+  capabilities:
+  - regulatory-research
+  - legal-research
+  - compliance-mapping
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+- name: competitive-analyst
+  file: .claude/agents/competitive-analyst.md
+  model: sonnet
+  description: Competitive landscape analysis and market analogue identification
+  modes:
+  - research
+  capabilities:
+  - competitive-analysis
+  - market-research
+  - analogue-finding
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+- name: research-analyst
+  file: .claude/agents/research-analyst.md
+  model: sonnet
+  description: General research synthesis and evidence aggregation
+  modes:
+  - research
+  capabilities:
+  - research-synthesis
+  - evidence-aggregation
+  - literature-review
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+- name: benchmark-engineer
+  file: .claude/agents/benchmark-engineer.md
+  model: sonnet
+  description: Performance benchmarking against live services and external APIs
+  modes:
+  - benchmark
+  capabilities:
+  - benchmarking
+  - performance-testing
+  - api-testing
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+- name: design-reviewer
+  file: .claude/agents/design-reviewer.md
+  model: sonnet
+  description: Validates design and architecture against project invariants
+  modes:
+  - validate
+  - agent
+  capabilities:
+  - design-review
+  - architecture-validation
+  - invariant-checking
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+- name: evolve-optimizer
+  file: .claude/agents/evolve-optimizer.md
+  model: opus
+  description: Evolves agent prompts and strategies based on campaign performance
+    data
+  modes:
+  - evolve
+  capabilities:
+  - prompt-evolution
+  - strategy-optimization
+  - performance-improvement
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+- name: health-monitor
+  file: .claude/agents/health-monitor.md
+  model: haiku
+  description: Continuous health monitoring of simulation results and agent performance
+  modes:
+  - monitor
+  capabilities:
+  - health-monitoring
+  - metric-tracking
+  - alert-generation
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+- name: cascade-analyst
+  file: .claude/agents/cascade-analyst.md
+  model: sonnet
+  description: Predicts cascade failures and downstream effects from parameter changes
+  modes:
+  - predict
+  capabilities:
+  - cascade-prediction
+  - failure-propagation
+  - scenario-modeling
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+- name: frontier-analyst
+  file: .claude/agents/frontier-analyst.md
+  model: sonnet
+  description: Blue-sky exploration, possibility mapping, and ceiling estimation
+  modes:
+  - frontier
+  - research
+  capabilities:
+  - frontier-analysis
+  - possibility-mapping
+  - ceiling-estimation
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+- name: code-reviewer
+  file: .claude/agents/code-reviewer.md
+  model: sonnet
+  description: "Pre-commit code quality gate. Runs after fix-implementer produces\
+    \ a fix \u2014 reviews the diff for correctness, style, lint issues, and regression\
+    \ risk before the commit is made. Returns APPROVED, NEEDS_REVISION, or BLOCKED.\
+    \ Fix-implementer must not commit until this agent returns APPROVED."
+  modes:
+  - review
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+  registrySource: frontmatter
+- name: fix-implementer
+  file: .claude/agents/fix-implementer.md
+  model: sonnet
+  description: "Activate when a root cause is known and a specific fix needs to be\
+    \ implemented and verified. Requires a DIAGNOSIS_COMPLETE specification \u2014\
+    \ will not attempt fixes without one. Use after diagnose-analyst has run, in campaign\
+    \ mode (F-prefix questions) or directly in conversation when a diagnosis is already\
+    \ in hand."
+  modes:
+  - diagnose
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: 60.0
+  runs_since_optimization: 0
+  registrySource: frontmatter
+- name: git-nerd
+  file: .claude/agents/git-nerd.md
+  model: haiku
+  description: 'Autonomous GitHub operations agent for BrickLayer 2.0 projects. Reads
+    current repo state, executes appropriate git/gh operations (branch, stage, commit,
+    PR create/update), and writes GITHUB_HANDOFF.md with any remaining steps Tim needs
+    to take. Spawned automatically at wave end and invokable on demand for any GitHub
+    task.
+
+    '
+  modes:
+  - agent
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: optimized
+  drift_status: ok
+  last_score: 100.0
+  runs_since_optimization: 0
+  registrySource: frontmatter
+- name: hypothesis-generator
+  file: .claude/agents/hypothesis-generator.md
+  model: sonnet
+  description: Reads all completed findings and generates new falsifiable research
+    questions. Invoke when questions.md has no PENDING questions remaining, or when
+    the main loop needs fresh questions derived from discovered failure modes. Keeps
+    the research loop alive without the orchestrator guessing.
+  modes:
+  - hypothesis-bl1
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+  registrySource: frontmatter
+- name: hypothesis-generator-bl2
+  file: .claude/agents/hypothesis-generator-bl2.md
+  model: sonnet
+  description: Generates follow-up questions after findings are complete. Use this
+    instead of hypothesis-generator.md for BL 2.0 projects. Reads recent findings,
+    applies mode-transition rules, and generates questions with correct operational
+    modes and ID prefixes based on what was found.
+  modes:
+  - hypothesis
+  - hypothesis-bl2
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+  registrySource: frontmatter
+- name: kiln-engineer
+  file: .claude/agents/kiln-engineer.md
+  model: sonnet
+  description: "Activate for any changes to Kiln \u2014 the BrickLayer Hub Electron\
+    \ desktop app. \"Change this in the Hub\", \"add this feature to Kiln\", \"fix\
+    \ this UI in the Hub\". Knows the full file structure, IPC data flow, component\
+    \ conventions, and build/deploy process. Works in campaign mode or directly in\
+    \ conversation."
+  modes:
+  - agent
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+  registrySource: frontmatter
+- name: mcp-advisor
+  file: .claude/agents/mcp-advisor.md
+  model: sonnet
+  description: 'Post-campaign agent that analyzes failure patterns and INCONCLUSIVE
+    verdicts to identify missing MCP server capabilities. Maps failure signals to
+    specific MCP servers with install instructions. Writes MCP_RECOMMENDATIONS.md.
+
+    '
+  modes:
+  - meta
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+  registrySource: frontmatter
+- name: overseer
+  file: ~/.claude/agents/overseer.md
+  model: sonnet
+  description: "Agent health monitor \u2014 evaluates, improves, and rolls back agents"
+  modes:
+  - agent
+  - audit
+  capabilities:
+  - agent-health
+  - prompt-optimization
+  - regression-detection
+  - rollback
+  tier: trusted
+- name: planner
+  file: .claude/agents/planner.md
+  model: opus
+  description: "Pre-campaign strategic planner. Runs once at campaign init \u2014\
+    \ reads project-brief.md and docs/, ranks research domains by risk, produces a\
+    \ campaign targeting brief for question-designer, and estimates wave count. Call\
+    \ before question-designer on any new project."
+  modes:
+  - meta
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+  registrySource: frontmatter
+- name: pointer
+  file: .claude/agents/pointer.md
+  model: sonnet
+  description: 'Mid-wave summarizer. Reads findings since last checkpoint, produces
+    a compact checkpoint file with verdicts table, failure boundaries, cross-domain
+    conflicts, and priorities for remaining questions. Fired by Trowel every 8 questions.
+    Named after the masonry pointing tool that finishes mortar joints.
+
+    '
+  modes:
+  - meta
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+  registrySource: frontmatter
+- name: question-designer-bl2
+  file: .claude/agents/question-designer-bl2.md
+  model: opus
+  description: Designs the initial question bank for a BrickLayer 2.0 campaign. Use
+    this instead of question-designer.md for BL 2.0 projects. Reads project-brief.md
+    and docs/, selects the appropriate operational modes, and generates questions
+    with correct ID prefixes and Mode fields (lowercase, Trowel-compatible).
+  modes:
+  - question-design
+  - question-design-bl2
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+  registrySource: frontmatter
+- name: skill-forge
+  file: .claude/agents/skill-forge.md
+  model: haiku
+  description: 'Post-campaign agent that distills synthesis findings into reusable
+    Claude Code skills (~/.claude/skills/). Identifies recurring patterns, encodes
+    them as executable procedures, and registers them in skill_registry.json for overseer
+    review. Also repairs existing skills that are stale or incorrect.
+
+    '
+  modes:
+  - meta
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+  registrySource: frontmatter
+- name: synthesizer
+  file: .claude/agents/synthesizer.md
+  model: opus
+  description: Integrates findings from all domains into a coherent "best way forward"
+    narrative. Invoke after the research loop completes, before running analyze.py.
+    Identifies cross-domain dependencies, conflicting constraints, and the minimum
+    viable set of changes.
+  modes:
+  - synthesis-bl1
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+  registrySource: frontmatter
+- name: synthesizer-bl2
+  file: .claude/agents/synthesizer-bl2.md
+  model: opus
+  description: 'BL 2.0 wave-end synthesizer. Reads all findings, writes synthesis.md,
+    then maintains CHANGELOG.md, ARCHITECTURE.md, and ROADMAP.md (creates them if
+    absent). Stages and commits all three docs plus synthesis.md. Replaces the BL
+    1.x synthesizer for BL 2.0 projects.
+
+    '
+  modes:
+  - synthesis
+  - synthesis-bl2
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: optimized
+  drift_status: ok
+  last_score: 69.3
+  runs_since_optimization: 0
+  registrySource: frontmatter
+- name: tools-manifest
+  file: .claude/agents/tools-manifest.md
+  model: sonnet
+  description: Canonical catalog of all MCP tools available to BrickLayer agents.
+    Reference when writing new agents or checking tool coverage.
+  modes:
+  - meta
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+  registrySource: frontmatter
+- name: trowel
+  file: .claude/agents/trowel.md
+  model: sonnet
+  description: "BrickLayer 2.0 campaign conductor. Owns the full research loop \u2014\
+    \ question routing, finding validation, wave sentinels, agent performance tracking,\
+    \ and wave-end synthesis. Invoked by Mortar when a campaign is active. Named after\
+    \ the masonry tool that applies mortar."
+  modes:
+  - campaign
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+  registrySource: frontmatter
+- name: bug-catcher
+  file: .claude/agents/bug-catcher.md
+  model: sonnet
+  description: Proactive hook and script health auditor. Runs syntax checks, exit-code
+    tests, output-format validation, and Windows-specific runtime probes against all
+    Claude Code hook scripts registered in settings.json. Surfaces bugs BEFORE they
+    cause "hook error" banners. Activate when hooks behave unexpectedly or as a routine
+    health sweep.
+  modes:
+  - audit
+  - diagnose
+  capabilities:
+  - Node.js hook syntax validation
+  - Hook output envelope format verification
+  - Exit-code testing with live payloads
+  - Windows libuv process.exit() safety analysis
+  - Duplicate variable declaration detection
+  - Timeout budget analysis (internal timeouts vs hook budget)
+  - Cross-repo hook path verification
+  - Recall memory cross-reference (flags intentional removals and known issues)
+  input_schema: DiagnosePayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: solana-specialist
+  file: C:/Users/trg16/.claude/agents/solana-specialist.md
+  model: opus
+  description: Solana blockchain specialist. Handles Anchor programs, DeFi integration,
+    Token-2022, SPL tokens, Solana security audits, and ADBP (employee utility token)
+    development. Invoked by Mortar for all Solana/blockchain tasks.
+  modes:
+  - audit
+  - research
+  - fix
+  capabilities:
+  - Anchor framework program development and debugging
+  - Solana program security audits (reentrancy, integer overflow, signer checks, PDA
+    validation)
+  - Token-2022 and SPL token integration
+  - DeFi protocol integration (Jupiter, Raydium, Orca swap routing)
+  - ADBP discount-credit platform development
+  - on-chain account validation and PDA derivation
+  - Solana RPC and web3.js / @solana/web3.js integration
+  - Metaplex NFT programs
+  - cross-program invocations (CPI)
+  - devnet / mainnet deployment and upgrade authority management
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: uiux-master
+  file: C:/Users/trg16/.claude/agents/uiux-master.md
+  model: sonnet
+  description: UI/UX design and implementation specialist. Handles dark dashboard
+    design, component builds, Figma token extraction, design system work, and the
+    full /ui-* workflow (ui-init, ui-compose, ui-review, ui-fix). Invoked by Mortar
+    for all UI and design tasks.
+  modes:
+  - compose
+  - review
+  - fix
+  capabilities:
+  - dark-first dashboard design (bento grid, glass cards, KPI rows)
+  - React + Tailwind component implementation
+  - Figma MCP token extraction and design-to-code translation
+  - design system setup (tokens.json, CSS custom properties)
+  - ui-init / ui-compose / ui-review / ui-fix workflow orchestration
+  - Lucide + Phosphor icon integration
+  - Nivo chart implementation (line, area, bar, donut)
+  - "responsive layout (mobile-first, breakpoints, icon sidebar \u2192 bottom tab)"
+  - accessibility (WCAG AA contrast, focus management, touch targets)
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: adbp-model-analyst
+  file: .claude/agents/adbp-model-analyst.md
+  model: sonnet
+  description: 'ADBP economic model analyst. Stress-tests the 40-year geographic hybrid
+    simulation for ADBP benefit credit economics: spend dynamics, vendor adoption,
+    credit flywheel velocity, admin fee sustainability, and Token-2022 NonTransferable
+    invariant compliance.'
+  modes:
+  - quantitative
+  - research
+  capabilities:
+  - ADBP simulation scenario analysis
+  - Solana Token-2022 NonTransferable economics
+  - spend cap adequacy modeling (daily $500 / monthly $2000)
+  - vendor adoption dynamics and network effects
+  - credit flywheel velocity and churn modeling
+  - admin fee sustainability with C/M-ratio multiplier
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: economizer
+  file: C:/Users/trg16/.claude/agents/economizer.md
+  model: sonnet
+  description: "Whole-codebase efficiency analyst. Scans for dead code, duplication,\
+    \ over-engineering, bloated dependencies, and context overhead. Read-only \u2014\
+    \ produces a prioritized reduction report with effort/impact estimates. Requires\
+    \ human verification before handing off to refactorer or developer."
+  modes:
+  - audit
+  - research
+  capabilities:
+  - dead code and unused import detection
+  - near-duplicate logic identification
+  - over-abstraction and YAGNI violation detection
+  - dependency bloat and native-replacement analysis
+  - agent/hook/prompt context overhead analysis
+  - complexity hotspot mapping with effort/impact scoring
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords:
+  - dead code
+  - unused imports
+  - over-engineering
+  - bloated dependencies
+  - codebase efficiency
+  - reduce complexity
+  - economizer
+  - context overhead
+  - duplicate logic
+  - YAGNI
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: bl-verifier
+  file: C:/Users/trg16/.claude/agents/bl-verifier.md
+  model: sonnet
+  description: "BrickLayer installation verifier. Checks that all system components\
+    \ are properly wired and working \u2014 hooks syntax + registration, MCP server\
+    \ tools, routing pipeline, session lock, agent registry file coverage, and training\
+    \ data. Returns a PASS/FAIL table. Invoke after any major change to the BL infrastructure\
+    \ or to diagnose mysterious failures."
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: e2e
+  file: C:/Users/trg16/.claude/agents/e2e.md
+  model: sonnet
+  description: "BrickLayer end-to-end verifier. Runs the full pytest suite for each\
+    \ component, then does live wiring checks \u2014 hooks syntax, MCP server, routing\
+    \ pipeline, session lock, agent registry, training data. Returns a PASS/FAIL table.\
+    \ Invoke after any infrastructure change to confirm nothing is broken."
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: rough-in
+  file: .claude/agents/rough-in.md
+  model: opus
+  description: "Dev task conductor for BrickLayer 2.0. Reads codebase, decomposes\
+    \ work, selects specialists from the full 100+ agent fleet, builds wave plans,\
+    \ and hands dispatch to Queen Coordinator for parallel execution. Can invoke\
+    \ skills directly. Does not write code itself."
+  modes:
+  - build
+  - fix
+  - diagnose
+  - audit
+  capabilities:
+  - complex dev task decomposition and wave planning
+  - dynamic agent selection from full registry
+  - skill invocation for specialized workflows
+  - TDD orchestration (test-writer to developer to code-reviewer)
+  - parallel dispatch via queen-coordinator (up to 8 concurrent)
+  - diagnosis and fix cycles via diagnose-analyst + fix-implementer
+  - git hygiene handoff to git-nerd
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords:
+  - build
+  - implement
+  - code
+  - develop
+  - fix
+  - refactor
+  - test
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: python-specialist
+  file: C:/Users/trg16/.claude/agents/python-specialist.md
+  model: sonnet
+  description: "Deep Python domain expert. Invoked by Mortar for Python/FastAPI/Pydantic/asyncio\
+    \ tasks that require specialized knowledge beyond what the general developer agent\
+    \ covers. Handles: async patterns, FastAPI router/middleware/dependency injection,\
+    \ Pydantic v2 models, pytest fixtures, SQLAlchemy/asyncpg, subprocess/OS interaction,\
+    \ performance profiling. Does NOT replace the TDD cycle \u2014 it extends the\
+    \ developer agent for Python-specific depth."
+  modes:
+  - build
+  - fix
+  - code
+  capabilities:
+  - FastAPI routing, middleware, lifespan, dependency injection
+  - Pydantic v2 model design, validators, discriminated unions
+  - asyncio concurrency patterns (gather, TaskGroup, semaphores)
+  - pytest fixtures, parametrize, monkeypatch, async test patterns
+  - PostgreSQL with asyncpg or SQLAlchemy async
+  - subprocess, OS, pathlib, tempfile on Windows and Linux
+  - type annotations, ruff/mypy compliance
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: typescript-specialist
+  file: C:/Users/trg16/.claude/agents/typescript-specialist.md
+  model: sonnet
+  description: "Deep TypeScript/React domain expert. Invoked by Mortar for frontend\
+    \ tasks requiring React 19, Tailwind v4, Vite, Vitest, and TypeScript strict-mode\
+    \ expertise. Handles: hooks design, context patterns, React Query, cva component\
+    \ variants, animation with Framer Motion, Playwright tests, bundle optimization.\
+    \ Uses Tim's dark dashboard aesthetic. Never hardcodes hex values \u2014 always\
+    \ uses design tokens."
+  modes:
+  - build
+  - fix
+  - code
+  - ui
+  capabilities:
+  - React 19 hooks, context, Suspense, Server Components awareness
+  - TypeScript strict mode, generics, discriminated unions, satisfies operator
+  - Tailwind v4 utility-first, CSS custom properties, dark mode
+  - cva (class-variance-authority) component variants
+  - Vite config, code splitting, dynamic imports
+  - Vitest + React Testing Library + Playwright
+  - Framer Motion spring animations, reduced-motion compliance
+  - Nivo charts (dark theme), Lucide icons
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: database-specialist
+  file: C:/Users/trg16/.claude/agents/database-specialist.md
+  model: sonnet
+  description: "Deep database expert for Tim's stack: PostgreSQL (asyncpg/SQLAlchemy),\
+    \ Qdrant (vector search), Neo4j (graph queries), Redis (caching/pub-sub). Invoked\
+    \ by Mortar for schema design, query optimization, migration writing, vector embedding\
+    \ pipelines, graph traversal, and cache strategy. Does NOT replace the developer\
+    \ agent \u2014 it handles the data layer with production-quality patterns."
+  modes:
+  - build
+  - fix
+  - code
+  capabilities:
+  - '{''PostgreSQL'': ''schema design, indexes, CTEs, window functions, JSONB, partitioning''}'
+  - '{''SQLAlchemy 2.x async'': ''mapped_column, relationship, select/scalars, migrations
+    via Alembic''}'
+  - '{''Qdrant'': ''collection design, vector upsert, filter payload, HNSW tuning,
+    hybrid search''}'
+  - '{''Neo4j'': ''Cypher queries, MERGE patterns, relationship traversal, graph schema''}'
+  - '{''Redis'': ''key naming conventions, TTL strategy, pub/sub, sorted sets for
+    leaderboards''}'
+  - '{''Migration safety'': ''zero-downtime patterns, nullable-first, backfill strategy''}'
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: production-validator
+  file: C:/Users/trg16/.claude/agents/production-validator.md
+  model: sonnet
+  description: 'Production readiness validator. Invoked after /build completes, before
+    merging to main. Validates that the built code would survive production: runs
+    tests in prod-like environment, checks for common production failure patterns
+    (blocking I/O in async, hardcoded localhost, missing env validation, Docker build
+    success, migration safety). Returns PROD_PASS or PROD_FAIL with a prioritized
+    fix list.'
+  modes:
+  - verify
+  capabilities:
+  - async/sync production failure pattern detection
+  - environment variable validation audit
+  - Docker build smoke test
+  - database migration dry-run check
+  - hardcoded host/port/secret detection
+  - dependency version pinning audit
+  - performance smoke test (startup time, first request latency)
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: queen-coordinator
+  file: C:/Users/trg16/.claude/agents/queen-coordinator.md
+  model: sonnet
+  description: "Parallel dispatch engine for BrickLayer builds. Receives wave plans\
+    \ from Rough-In (via .autopilot/rough-in-state.json), dispatches up to 8 workers\
+    \ per wave simultaneously, monitors heartbeats, re-queues stale tasks, and runs\
+    \ checkpoint tests between waves. Does not plan or write code."
+  modes:
+  - build
+  - orchestrate
+  capabilities:
+  - wave-based task dispatch (up to 8 concurrent workers)
+  - heartbeat monitoring (re-queue stale tasks >10min)
+  - checkpoint test execution between waves
+  - completion reporting with pass/fail summary
+  - reads .autopilot/rough-in-state.json wave plan
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: worker-specialist
+  file: C:/Users/trg16/.claude/agents/worker-specialist.md
+  model: sonnet
+  description: 'Autonomous worker agent for hive builds. Pulls a single task from
+    the queen or progress.json, implements it with TDD, commits, and reports DONE.
+    Never spawns sub-workers. Designed to run in background (run_in_background: true)
+    as part of a swarm. Reports DEV_ESCALATE if blocked after 3 attempts.'
+  modes:
+  - build
+  - code
+  capabilities:
+  - TDD implementation (RED-GREEN-REFACTOR)
+  - atomic task claiming from progress.json
+  - per-task git commit
+  - escalation via DEV_ESCALATE output signal
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: adaptive-coordinator
+  file: C:/Users/trg16/.claude/agents/adaptive-coordinator.md
+  model: sonnet
+  description: "Topology-switching coordinator. Analyzes the task list and selects\
+    \ the optimal agent topology: hierarchical (coordinator\u2192workers) for large\
+    \ independent task lists, mesh (peer review between workers) for quality-critical\
+    \ tasks, ring (sequential pipeline) for dependent chains. Delegates to the appropriate\
+    \ coordinator after topology selection."
+  modes:
+  - build
+  - orchestrate
+  capabilities:
+  - '{''topology analysis'': ''hierarchical vs mesh vs ring vs hybrid''}'
+  - task dependency graph construction from spec.md
+  - delegation to hierarchical-coordinator for parallel work
+  - ring sequencing for strictly dependent task chains
+  - topology switch mid-build if task count or conditions change
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: quorum-manager
+  file: C:/Users/trg16/.claude/agents/quorum-manager.md
+  model: sonnet
+  description: Consensus gate for destructive operations. Before any agent executes
+    a destructive action (drop table, force push, delete branch, truncate data, remove
+    migration), it must check with quorum-manager. Requires majority approval (2/3
+    agents or explicit human approval) before allowing the action. Stores approvals
+    in .autopilot/consensus.json.
+  modes:
+  - verify
+  - build
+  capabilities:
+  - destructive action classification
+  - consensus.json read/write for pre-approvals
+  - approval request formatting for human review
+  - automatic approval for pre-approved actions
+  - audit log of all destructive action decisions
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: tdd-london-swarm
+  file: C:/Users/trg16/.claude/agents/tdd-london-swarm.md
+  model: sonnet
+  description: "Parallel TDD agents using London-school (outside-in, mockist) methodology.\
+    \ Invoked when [mode:tdd] tasks require strict boundary isolation. Spawns: 1 interface-designer\
+    \ (defines contracts/mocks), N implementers (one per class/module), 1 integration-tester\
+    \ (end-to-end contract verification). All unit tests use mock objects \u2014 no\
+    \ real dependencies at unit level."
+  modes:
+  - build
+  - tdd
+  capabilities:
+  - '{''London-school TDD'': ''outside-in, mockist approach''}'
+  - interface contract design before implementation
+  - parallel unit test + implementation (one agent per module)
+  - mock generation with pytest-mock / vitest vi.fn()
+  - integration test layer after all units pass
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: mutation-tester
+  file: C:/Users/trg16/.claude/agents/mutation-tester.md
+  model: sonnet
+  description: 'Test quality validator using mutation testing. After /build or /verify,
+    runs mutation testing to verify tests actually catch bugs (not just achieve coverage).
+    Uses mutmut (Python) or stryker (TypeScript/JavaScript). Reports mutation score:
+    % of mutants killed. Score < 60% = test suite is weak. Identifies specific untested
+    code paths and recommends concrete tests to add.'
+  modes:
+  - verify
+  capabilities:
+  - '{''Python'': ''mutmut integration''}'
+  - '{''TypeScript/JS'': ''Stryker integration''}'
+  - mutation score reporting (killed/survived/timeout)
+  - '{''survival analysis'': ''which code paths have no effective tests''}'
+  - '{''concrete recommendations'': ''specific test cases to add per survivor''}'
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: verification
+  file: C:/Users/trg16/.claude/agents/verification.md
+  model: sonnet
+  description: Build-time truth enforcement agent. Cross-checks developer agent claims
+    against git state, test results, and file existence after each /build task. Returns
+    VERIFIED/SUSPICIOUS/REJECT verdict. Invoke after every developer task completes,
+    before marking DONE.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: senior-developer
+  file: C:/Users/trg16/.claude/agents/senior-developer.md
+  model: opus
+  description: Senior escalation tier for failed developer tasks. Reads broader context,
+    classifies failure type, attempts fix with deeper analysis. Invoked after developer
+    fails 3 times (DEV_ESCALATE). Returns SENIOR_DONE or SENIOR_ESCALATE.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: architecture-writer
+  file: C:/Users/trg16/.claude/agents/architecture-writer.md
+  model: sonnet
+  description: "SPARC Phase 3 \u2014 writes architecture.md from spec.md + pseudocode.md\
+    \ before /build. Component boundaries, interface contracts, data flows, out-of-scope\
+    \ list."
+  modes:
+  - agent
+  capabilities:
+  - codebase exploration and dependency mapping
+  - component boundary definition
+  - interface contract authoring
+  - data flow documentation
+  - out-of-scope boundary enforcement
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: consensus-builder
+  file: C:/Users/trg16/.claude/agents/consensus-builder.md
+  model: sonnet
+  description: Resolves conflicting review verdicts via weighted majority vote. Invoked
+    when reviewers disagree. Returns final APPROVED/BLOCKED verdict with vote breakdown.
+  modes:
+  - review
+  capabilities:
+  - weighted majority vote across reviewer verdicts
+  - confidence-weighted verdict aggregation
+  - tie-breaking with conservative BLOCKED default
+  - audit trail logging to .autopilot/consensus-log.jsonl
+  - escalation to senior-developer on ties
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords:
+  - consensus
+  - conflicting verdicts
+  - review conflict
+  - majority vote
+  - resolve reviewer disagreement
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: pseudocode-writer
+  file: C:/Users/trg16/.claude/agents/pseudocode-writer.md
+  model: sonnet
+  description: "SPARC Phase 2 \u2014 writes pseudocode.md from spec.md before /build.\
+    \ Per-task plain-English logic covering flow, edge cases, and failure modes."
+  modes:
+  - agent
+  capabilities:
+  - spec analysis and task decomposition
+  - plain-English algorithmic blueprinting
+  - edge case and failure mode enumeration
+  - interface contract extraction
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: repo-researcher
+  file: C:/Users/trg16/.claude/agents/repo-researcher.md
+  model: sonnet
+  description: "Deep GitHub repository analyst. Given a repo URL, reads the ENTIRE\
+    \ repo \u2014 every file, README section, component, agent definition, hook, workflow,\
+    \ MCP config, and code path \u2014 then produces a full file inventory, architecture\
+    \ overview, feature gap analysis vs BrickLayer 2.0, and prioritized recommendations.\
+    \ Saves output to docs/repo-research/{repo-name}.md in the BrickLayer project\
+    \ directory. Use when Tim wants to research a GitHub repo for patterns to incorporate\
+    \ into BrickLayer."
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords:
+  - research this repo
+  - analyze this repo
+  - explore this github
+  - what can we learn from
+  - compare this repo
+  - repo research
+  - github.com
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: parallel-debugger
+  file: C:/Users/trg16/.claude/agents/parallel-debugger.md
+  model: sonnet
+  description: Parallel debugging orchestrator that spawns 3 competing diagnose-analyst
+    subagents with different root cause hypotheses when developer escalates 3 times.
+    Synthesizes competing diagnoses into single highest-confidence fix specification.
+  modes:
+  - fix
+  - debug
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers:
+  - DEV_ESCALATE (3rd occurrence)
+  - parallel debug
+  - competing hypotheses
+  tools:
+  - Agent
+  - Read
+  - Bash
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: bash-specialist
+  file: C:/Users/trg16/.claude/agents/bash-specialist.md
+  model: sonnet
+  description: Bash/shell scripting expert. Writes robust scripts, handles portability,
+    error trapping, and CLI tooling for Linux/macOS/WSL environments.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: chaos-engineer
+  file: C:/Users/trg16/.claude/agents/chaos-engineer.md
+  model: sonnet
+  description: "Controlled failure injection for resilience testing \u2014 read-only\
+    \ default, execution requires approval"
+  modes:
+  - security
+  - architect
+  capabilities:
+  - chaos-engineering
+  - blast-radius
+  - resilience-testing
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: docker-specialist
+  file: C:/Users/trg16/.claude/agents/docker-specialist.md
+  model: sonnet
+  description: Docker specialist. Writes optimized Dockerfiles, multi-stage builds,
+    compose stacks, healthchecks, and debugging container runtime issues.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: embedded-developer
+  file: C:/Users/trg16/.claude/agents/embedded-developer.md
+  model: sonnet
+  description: Embedded systems developer for microcontrollers, RTOS, ESPHome, firmware,
+    and hardware-adjacent code. Low-level, resource-constrained environments.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: fastapi-specialist
+  file: C:/Users/trg16/.claude/agents/fastapi-specialist.md
+  model: sonnet
+  description: FastAPI deep expert. Designs async endpoints, dependency injection,
+    Pydantic v2 models, background tasks, OpenAPI schemas, and middleware.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: game-developer
+  file: C:/Users/trg16/.claude/agents/game-developer.md
+  model: sonnet
+  description: Game development specialist. Handles game loops, physics, ECS patterns,
+    rendering pipelines, and engine-specific tooling.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: geospatial-developer
+  file: C:/Users/trg16/.claude/agents/geospatial-developer.md
+  model: sonnet
+  description: Geospatial/GIS developer. PostGIS, spatial queries, coordinate systems,
+    map tile pipelines, and location-based data modeling.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: github-actions-specialist
+  file: C:/Users/trg16/.claude/agents/github-actions-specialist.md
+  model: sonnet
+  description: GitHub Actions CI/CD specialist. Workflow syntax, matrix builds, secrets
+    management, reusable workflows, and self-hosted runners.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: go-specialist
+  file: C:/Users/trg16/.claude/agents/go-specialist.md
+  model: sonnet
+  description: Deep Go domain expert. Use for Go services, CLIs, goroutines, channels,
+    interfaces, testing with testify, HTTP handlers, gRPC, database access with sqlx/pgx,
+    and idiomatic Go patterns. Applies standard project layout and Go's error-handling
+    philosophy.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: kafka-specialist
+  file: C:/Users/trg16/.claude/agents/kafka-specialist.md
+  model: sonnet
+  description: Apache Kafka specialist. Topic design, consumer groups, schema registry,
+    exactly-once semantics, stream processing with Kafka Streams or Faust.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: kotlin-specialist
+  file: C:/Users/trg16/.claude/agents/kotlin-specialist.md
+  model: sonnet
+  description: Deep Kotlin domain expert. Use for Android development (Jetpack Compose,
+    ViewModel, Room, Retrofit), Kotlin coroutines, Flow, Spring Boot with Kotlin,
+    and idiomatic Kotlin patterns.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: legacy-modernizer
+  file: C:/Users/trg16/.claude/agents/legacy-modernizer.md
+  model: sonnet
+  description: "Legacy code modernization specialist. Safely refactors aged codebases\
+    \ \u2014 strangler fig, characterization tests, incremental extraction."
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: neo4j-specialist
+  file: C:/Users/trg16/.claude/agents/neo4j-specialist.md
+  model: sonnet
+  description: Neo4j graph database expert. Cypher queries, graph schema design, relationship
+    traversal, APOC procedures, and graph analytics.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: nextjs-specialist
+  file: C:/Users/trg16/.claude/agents/nextjs-specialist.md
+  model: sonnet
+  description: Next.js specialist. App Router, RSC, streaming SSR, API routes, image
+    optimization, ISR, and deployment on Vercel or self-hosted.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: opentelemetry-specialist
+  file: C:/Users/trg16/.claude/agents/opentelemetry-specialist.md
+  model: sonnet
+  description: OpenTelemetry observability specialist. Traces, metrics, logs, OTLP
+    exporters, instrumentation, and Grafana/Jaeger/Tempo integration.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: postgres-specialist
+  file: C:/Users/trg16/.claude/agents/postgres-specialist.md
+  model: sonnet
+  description: PostgreSQL expert. Schema design, advanced queries, CTEs, window functions,
+    JSONB, indexing strategy, VACUUM tuning, and asyncpg patterns.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: tdd-orchestrator
+  file: C:/Users/trg16/.claude/agents/tdd-orchestrator.md
+  model: sonnet
+  description: 'Deep TDD agent: mutation testing, property-based (Hypothesis/QuickCheck),
+    chaos, ATDD/BDD. Triggered by [mode:tdd-deep].'
+  modes:
+  - tdd-deep
+  capabilities:
+  - mutation_testing
+  - property_based
+  - chaos
+  - bdd
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords:
+  - tdd
+  - mutation
+  - property-based
+  - chaos
+  - bdd
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: pr-writer
+  file: C:/Users/trg16/.claude/agents/pr-writer.md
+  model: sonnet
+  description: Writes PR description, review checklist, and linked issues at /build
+    completion.
+  modes: []
+  capabilities:
+  - pr_description
+  - review_checklist
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords:
+  - pull request
+  - create a pr
+  - open a pr
+  - write pr description
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: verifier
+  file: C:/Users/trg16/.claude/agents/verifier.md
+  model: sonnet
+  description: Build-time truth enforcement agent. Cross-checks developer claims against
+    git state, test results, and file existence.
+  modes: []
+  capabilities:
+  - verification
+  - spec_compliance
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords:
+  - verify
+  - spec compliance
+  - check
+  - validate
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: rust-specialist
+  file: C:/Users/trg16/.claude/agents/rust-specialist.md
+  model: sonnet
+  description: Senior Rust developer. Implements Rust code, refactoring, tests and
+    benchmarks. Understands ownership, async, lifetimes, unsafe.
+  modes: []
+  capabilities:
+  - rust
+  - systems
+  - performance
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords:
+  - rust
+  - ownership
+  - lifetimes
+  - async
+  - cargo
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: redis-specialist
+  file: C:/Users/trg16/.claude/agents/redis-specialist.md
+  model: sonnet
+  description: Redis specialist. Data structure selection, caching patterns, pub/sub,
+    Lua scripting, cluster mode, and Redis Streams.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: reinforcement-learning-engineer
+  file: C:/Users/trg16/.claude/agents/reinforcement-learning-engineer.md
+  model: sonnet
+  description: Reinforcement learning engineer. Policy gradient methods, reward shaping,
+    environment design, PPO/SAC/DQN, and simulation pipelines.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: scientific-computing-specialist
+  file: C:/Users/trg16/.claude/agents/scientific-computing-specialist.md
+  model: sonnet
+  description: Scientific computing specialist. NumPy, SciPy, numerical methods, HPC
+    patterns, Jupyter workflows, and data pipeline optimization.
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: vector-db-specialist
+  file: C:/Users/trg16/.claude/agents/vector-db-specialist.md
+  model: sonnet
+  description: "Vector database specialist. Qdrant, Pinecone, Weaviate \u2014 embedding\
+    \ pipelines, ANN search, hybrid retrieval, and RAG architecture."
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: spec-reviewer
+  file: ~/.claude/agents/spec-reviewer.md
+  model: sonnet
+  description: "Read-only spec compliance reviewer \u2014 returns COMPLIANT/OVER_BUILT/UNDER_BUILT/SCOPE_DRIFT\
+    \ between developer and code-reviewer in /build"
+  modes:
+  - build
+  capabilities:
+  - spec-compliance
+  - scope-detection
+  - drift-detection
+  - code-review
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: verification-analyst
+  file: C:/Users/trg16/.claude/agents/verification-analyst.md
+  model: sonnet
+  description: 6-gate false positive verification pipeline for security and research
+    findings
+  modes:
+  - research
+  - security
+  capabilities:
+  - verification
+  - false-positive-detection
+  - cvss-scoring
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: mcp-developer
+  file: C:/Users/trg16/.claude/agents/mcp-developer.md
+  model: sonnet
+  description: "MCP server specialist \u2014 scaffolds, adds tools, handles transport,\
+    \ writes tests"
+  modes:
+  - developer
+  capabilities:
+  - mcp-servers
+  - tool-schema
+  - stdio-transport
+  - sse-transport
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: penetration-tester
+  file: C:/Users/trg16/.claude/agents/penetration-tester.md
+  model: sonnet
+  description: "Authorized security pen testing \u2014 CVSS-scored findings, refuses\
+    \ without authorization context"
+  modes:
+  - security
+  capabilities:
+  - penetration-testing
+  - cvss
+  - owasp
+  - injection
+  - auth-bypass
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: scientific-literature-researcher
+  file: C:/Users/trg16/.claude/agents/scientific-literature-researcher.md
+  model: sonnet
+  description: "Grounds findings in peer-reviewed literature \u2014 extracts methodology,\
+    \ effect sizes, flags weak evidence"
+  modes:
+  - research
+  capabilities:
+  - literature-search
+  - evidence-quality
+  - meta-analysis
+  - citation-extraction
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: hierarchical-coordinator
+  file: C:/Users/trg16/.claude/agents/hierarchical-coordinator.md
+  model: sonnet
+  description: "Swarm coordinator for complex multi-agent builds. Invoked by Mortar\
+    \ for tasks that require more than 3 independent workers. Maintains coordinator\u2192\
+    worker topology: assigns tasks from .autopilot/progress.json to worker agents,\
+    \ monitors completion, handles escalations, and prevents drift. Uses run_in_background:\
+    \ true for non-blocking parallel worker dispatch. Max 6 concurrent workers."
+  modes:
+  - build
+  - orchestrate
+  capabilities:
+  - parallel worker dispatch via Agent tool with run_in_background
+  - task queue management from progress.json
+  - '{''anti-drift'': ''topology enforcement, max agent cap, post-task checkpoints''}'
+  - '{''worker failure handling'': ''re-queue failed tasks, escalate to diagnose-analyst''}'
+  - consensus gate before destructive operations
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: commit-reviewer
+  file: agents/commit-reviewer.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: crucible
+  file: agents/crucible.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: fix-agent
+  file: agents/fix-agent.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: forge
+  file: agents/forge.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: lint-guard
+  file: agents/lint-guard.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: perf-optimizer
+  file: agents/perf-optimizer.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: probe-runner
+  file: agents/probe-runner.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: regression-guard
+  file: agents/regression-guard.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: scope-analyzer
+  file: agents/scope-analyzer.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: scout
+  file: agents/scout.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: security-hardener
+  file: agents/security-hardener.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: triage
+  file: agents/triage.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: type-strictener
+  file: agents/type-strictener.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: AUDIT_REPORT
+  file: C:/Users/trg16/.claude/agents/AUDIT_REPORT.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: go-developer
+  file: C:/Users/trg16/.claude/agents/go-developer.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: kotlin-developer
+  file: C:/Users/trg16/.claude/agents/kotlin-developer.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: python-debugger
+  file: C:/Users/trg16/.claude/agents/python-debugger.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: rust-debugger
+  file: C:/Users/trg16/.claude/agents/rust-debugger.md
+  model: sonnet
+  description: ''
+  modes: []
+  capabilities: []
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0

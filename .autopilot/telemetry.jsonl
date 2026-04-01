@@ -222,3 +222,5 @@
 {"task_id":"t-1774838665208","phase":"post","timestamp":"2026-03-30T02:45:15.871Z","duration_ms":50592,"success":true,"agent":"claude-code-guide"}
 {"task_id":"t-1774839302218","phase":"pre","timestamp":"2026-03-30T02:55:02.218Z","agent_type":"Explore","task_type":"frontend","complexity":"medium","strategy":"balanced"}
 {"task_id":"t-1774839302218","phase":"post","timestamp":"2026-03-30T02:55:22.717Z","duration_ms":20419,"success":true,"agent":"Explore"}
+{"task_id":"t-1774839302218","phase":"post","timestamp":"2026-04-01T04:25:46.837Z","duration_ms":178244596,"success":true,"agent":"unknown"}
+{"task_id":"t-1775017548913","phase":"pre","timestamp":"2026-04-01T04:25:48.913Z","agent_type":"general-purpose","task_type":"backend","complexity":"low","strategy":"balanced"}

@@ -1,0 +1,30 @@
+{
+  "mcpServers": {
+    "uplink": {
+      "type": "stdio",
+      "command": "/mnt/c/Users/trg16/Dev/uplink/venv/Scripts/python.exe",
+      "args": ["/mnt/c/Users/trg16/Dev/uplink/server.py"],
+      "description": "Uplink MCP — browser bridge + Figma REST API"
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest", "--browser-url=http://172.17.240.1:9222"],
+      "description": "Chrome DevTools MCP — 29 tools: click/fill/navigate, console, network, performance traces, lighthouse, screenshots"
+    },
+    "bgpt": {
+      "type": "sse",
+      "url": "https://bgpt.pro/mcp/sse",
+      "description": "BGPT MCP — academic paper search with 25+ fields for research campaigns"
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-sequential-thinking"],
+      "description": "Sequential thinking MCP — structured step-by-step reasoning"
+    },
+    "repomix": {
+      "command": "npx",
+      "args": ["repomix-mcp"],
+      "description": "Repomix MCP — pack codebase, grep packed output, generate skills from repo analysis"
+    }
+  }
+}
