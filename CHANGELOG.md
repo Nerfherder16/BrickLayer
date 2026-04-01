@@ -74,6 +74,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - **rough-in mandatory housekeeping** (`8440e7e`) — Every build plan now requires final housekeeping wave dispatching git-nerd (commit) and karen (docs update); closes loop on missing post-build hygiene
 
 ---
+- `f12965c` chore: clean up pre-PR state (2026-03-31)
 
 ## [obra/superpowers Integration] — 2026-03-30
 
