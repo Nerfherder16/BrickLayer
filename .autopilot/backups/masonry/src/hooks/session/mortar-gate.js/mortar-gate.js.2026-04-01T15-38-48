@@ -16,7 +16,7 @@ const ORCHESTRATORS = new Set(["mortar", "rough-in", "trowel"]);
 // What each orchestrator is allowed to spawn.
 // null = any recognized specialist (from MORTAR_DISPATCHED_TYPES).
 const ORCHESTRATOR_ALLOWED_CHILDREN = {
-  "mortar": new Set(["rough-in", "trowel", "karen", "explore"]),
+  "mortar": new Set(["rough-in", "trowel", "karen", "explore", "general-purpose"]),
   "rough-in": null,
   "trowel": null,
 };
