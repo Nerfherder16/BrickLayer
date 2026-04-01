@@ -7,7 +7,7 @@ Last updated: 2026-03-19
 
 ## What Kiln OS Is
 
-Kiln OS is the emergent AI Operating System of the 22 Collective ecosystem. It was not designed top-down — it was discovered. Tim built tools that needed to exist: a research engine, a memory system, a collaboration platform, a desktop monitor, an agent platform layer. When those tools were laid side by side, they mapped cleanly onto OS primitives. That convergence is Kiln OS.
+Kiln OS is the emergent AI Operating System of the 22 Collective ecosystem. It was not designed top-down — it was discovered. Tim built tools that needed to exist: a project lifecycle engine, a memory system, a collaboration platform, a desktop monitor, an agent platform layer. When those tools were laid side by side, they mapped cleanly onto OS primitives. That convergence is Kiln OS.
 
 It is not a product yet. It is a structural reality — a recognition that the stack already behaves like an OS, and that naming it as such unlocks a clearer development path, a cleaner integration story, and a compelling narrative for the NVIDIA enterprise AI ecosystem.
 
@@ -70,7 +70,7 @@ These must remain true as Kiln OS evolves:
 
 | Component | Role in Kiln OS | Status |
 |-----------|-----------------|--------|
-| BrickLayer 2.0 | Kernel — research engine, autonomous agent loop | Production |
+| BrickLayer 2.0 | Kernel — project lifecycle engine, autonomous agent loop | Production |
 | Masonry | Platform layer — agent/skill/profile distribution, hooks | Production (`masonry-mcp` v0.1.0) |
 | Recall | Memory manager — semantic memory, Qdrant + Neo4j + PG | Deployed (VM, Tailscale) |
 | Kiln / BrickLayerHub | System monitor — Electron desktop, campaign UI | Active development |
