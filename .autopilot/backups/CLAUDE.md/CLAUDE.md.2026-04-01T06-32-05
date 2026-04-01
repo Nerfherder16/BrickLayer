@@ -163,13 +163,12 @@ For parallel dispatch (multiple agents at once), use `bl/tmux/wave.py:spawn_wave
 
 ### Delegation Rules
 
-**ALL tasks route through Mortar.** Do NOT bypass Mortar to spawn specialists directly.
-
-1. **Any task**: Spawn `mortar`. It classifies the request and delegates:
-   - **Dev tasks** (build, fix, refactor, feature) → `rough-in`
-   - **Campaigns/research** (investigate, frontier, audit) → `trowel`
-   - **Documentation only** (changelog, docs, roadmap) → `karen`
-2. You do NOT spawn specialists (`planner`, `code-reviewer`, `diagnose-analyst`, etc.) directly. Mortar and its coordinators handle specialist selection via the routing system.
+1. **Dev tasks** (build, fix, refactor, add feature): Spawn `rough-in`. It decomposes and dispatches to specialists. You do NOT write production code directly.
+2. **Research/investigation** (why is X broken, explore Z): Spawn `mortar`. It routes to the right specialist.
+3. **Planning** (design, architect, plan): Spawn `planner` or `design-reviewer`.
+4. **Documentation** (changelog, docs, roadmap): Spawn `karen`.
+5. **Code review**: Spawn `code-reviewer` after code changes.
+6. **Bug diagnosis**: Spawn `diagnose-analyst`. Do NOT guess at fixes.
 
 ### When You May Work Directly (Exceptions)
 
@@ -178,31 +177,25 @@ For parallel dispatch (multiple agents at once), use `bl/tmux/wave.py:spawn_wave
 - Read-only git operations (status, log, diff)
 - Trivial one-line fixes the user explicitly dictates verbatim
 
-### Agent Hierarchy
+### Available Core Agents
 
-```
-mortar (coordinator)
-├── trowel (campaigns/research)
-│   └── Selects specialists via registry: quantitative-analyst, research-analyst, etc.
-├── rough-in (dev tasks)
-│   ├── Queen Coordinator → parallel dispatch: developer, test-writer, code-reviewer, security, etc.
-│   ├── diagnose-analyst → fix-implementer (fix cycles)
-│   └── git-nerd (on completion)
-└── karen (documentation)
-```
+| Agent | When to Use |
+|-------|------------|
+| `rough-in` | Any dev task — owns the full build workflow |
+| `mortar` | Session routing — decides which specialist handles a request |
+| `developer` | Implementation (spawned by rough-in, not directly) |
+| `code-reviewer` | Post-implementation review |
+| `planner` | Design and planning |
+| `design-reviewer` | Validate architecture before building |
+| `fix-implementer` | Apply a known fix (after diagnosis) |
+| `diagnose-analyst` | Root cause analysis |
+| `tdd-orchestrator` | Test-driven development enforcement |
+| `karen` | Documentation maintenance |
+| `trowel` | Campaign conductor (research loops) |
+| `spec-reviewer` | Spec compliance checking |
+| `verifier` | Post-build verification |
 
-**Authoritative agent source:** `masonry/agent_registry.yml` (100+ agents). Do NOT maintain a static agent list here — the registry and routing layers handle discovery.
-
-### Agent Routing (4-Layer Similarity System)
-
-| Layer | Method | Details |
-|-------|--------|---------|
-| 1. Deterministic | Slash commands, regex, `routing_keywords` from registry | Confidence 1.0 |
-| 2. Semantic | Ollama embeddings (`qwen3-embedding:0.6b`), cosine similarity vs agent description + capabilities | Threshold 0.60, margin gap 0.05 |
-| 3. LLM | Claude Haiku picks from registry when layers 1-2 fail | Confidence 0.6 |
-| 4. Fallback | Escalates to user | — |
-
-Routing is handled automatically by Mortar. You never need to pick agents manually.
+83+ agents available globally in `~/.claude/agents/`.
 
 ## What NOT to Assume
 

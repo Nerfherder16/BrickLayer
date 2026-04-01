@@ -1,0 +1,55 @@
+'use strict';
+/**
+ * core/recall.js — Recall memory service client.
+ */
+
+const { loadConfig } = require('./config');
+
+function isAvailable() {
+  const cfg = loadConfig();
+  return !!(cfg.recallHost && cfg.recallApiKey);
+}
+
+async function searchMemory(query, opts = {}) {
+  const cfg = loadConfig();
+  if (!cfg.recallHost || !cfg.recallApiKey) return [];
+  try {
+    const url = `${cfg.recallHost}/search/query`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${cfg.recallApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, ...opts }),
+      signal: AbortSignal.timeout(cfg.requestTimeout || 10000),
+    });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return data.results || data.memories || [];
+  } catch {
+    return [];
+  }
+}
+
+async function storeMemory(content, metadata = {}) {
+  const cfg = loadConfig();
+  if (!cfg.recallHost || !cfg.recallApiKey) return false;
+  try {
+    const url = `${cfg.recallHost}/memory/store`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${cfg.recallApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content, metadata }),
+      signal: AbortSignal.timeout(cfg.requestTimeout || 10000),
+    });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
+module.exports = { isAvailable, searchMemory, storeMemory };

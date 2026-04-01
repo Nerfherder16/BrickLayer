@@ -1,0 +1,21 @@
+'use strict';
+/**
+ * core/skill-surface.js — Discover and surface available skills.
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+function surfaceSkills(projectDir) {
+  const skillsDir = path.join(projectDir, '.claude', 'skills');
+  try {
+    if (!fs.existsSync(skillsDir)) return [];
+    return fs.readdirSync(skillsDir)
+      .filter(f => fs.statSync(path.join(skillsDir, f)).isDirectory())
+      .map(name => ({ name, path: path.join(skillsDir, name) }));
+  } catch {
+    return [];
+  }
+}
+
+module.exports = { surfaceSkills };

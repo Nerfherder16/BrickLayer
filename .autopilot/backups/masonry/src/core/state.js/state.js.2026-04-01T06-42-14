@@ -1,0 +1,16 @@
+'use strict';
+/**
+ * core/state.js — Session/agent state management via .mas/ directory.
+ */
+
+const { readJson, writeJson } = require('./mas');
+
+function readState(projectDir) {
+  return readJson(projectDir, 'state.json') || {};
+}
+
+function writeState(projectDir, state) {
+  writeJson(projectDir, 'state.json', state);
+}
+
+module.exports = { readState, writeState };
