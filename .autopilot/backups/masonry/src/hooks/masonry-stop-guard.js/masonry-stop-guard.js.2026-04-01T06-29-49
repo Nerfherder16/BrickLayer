@@ -118,22 +118,9 @@ async function main() {
     : null;
 
   try {
-    // If we already blocked this session recently, suppress repeated messages
-    // but still provide stderr output so Claude Code doesn't report "No stderr output".
-    // Sentinel expires after 60s to avoid stale files blocking future sessions.
+    // If we already blocked this session, exit silently
     if (sentinelPath && fs.existsSync(sentinelPath)) {
-      try {
-        const sentinelAge = Date.now() - Number(fs.readFileSync(sentinelPath, 'utf8').trim());
-        if (sentinelAge < 60000) {
-          process.stderr.write('[Masonry] Stop still blocked — uncommitted session files.\n');
-          process.exit(2);
-        }
-        // Sentinel expired — remove it and re-evaluate
-        fs.unlinkSync(sentinelPath);
-      } catch {
-        // Corrupt sentinel — remove and continue
-        try { fs.unlinkSync(sentinelPath); } catch { /* ignore */ }
-      }
+      process.exit(2);
     }
 
     const status = gitStatusSafe(cwd);

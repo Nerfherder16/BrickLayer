@@ -84,17 +84,7 @@ async function main() {
 
   if (parsed.stop_hook_active) process.exit(0);
 
-  const rawCwd = normalizeCwd(parsed.cwd || process.cwd());
-  // Always use git toplevel as cwd so paths from `git status --porcelain`
-  // (which are repo-root-relative) align with `git add` path resolution.
-  let cwd;
-  try {
-    cwd = execSync('git rev-parse --show-toplevel', {
-      encoding: 'utf8', timeout: 3000, cwd: rawCwd,
-    }).trim();
-  } catch {
-    cwd = rawCwd;
-  }
+  const cwd = normalizeCwd(parsed.cwd || process.cwd());
   const sessionId = getSessionId(parsed);
   const snapPath = sessionId ? path.join(os.tmpdir(), `masonry-snap-${sessionId}.json`) : null;
 
@@ -118,22 +108,9 @@ async function main() {
     : null;
 
   try {
-    // If we already blocked this session recently, suppress repeated messages
-    // but still provide stderr output so Claude Code doesn't report "No stderr output".
-    // Sentinel expires after 60s to avoid stale files blocking future sessions.
+    // If we already blocked this session, exit silently
     if (sentinelPath && fs.existsSync(sentinelPath)) {
-      try {
-        const sentinelAge = Date.now() - Number(fs.readFileSync(sentinelPath, 'utf8').trim());
-        if (sentinelAge < 60000) {
-          process.stderr.write('[Masonry] Stop still blocked — uncommitted session files.\n');
-          process.exit(2);
-        }
-        // Sentinel expired — remove it and re-evaluate
-        fs.unlinkSync(sentinelPath);
-      } catch {
-        // Corrupt sentinel — remove and continue
-        try { fs.unlinkSync(sentinelPath); } catch { /* ignore */ }
-      }
+      process.exit(2);
     }
 
     const status = gitStatusSafe(cwd);
