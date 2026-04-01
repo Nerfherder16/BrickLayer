@@ -160,26 +160,24 @@ async function main() {
   })();
 
   // Multi-stage gate: check chain depth, not just mortar_consulted boolean.
-  // Write/Edit is only allowed when a specialist (non-orchestrator) is active.
+  // Write/Edit is only allowed when the chain tip is a specialist (non-orchestrator).
+  // Even if specialist_spawned is true, orchestrators themselves cannot edit.
   const { ORCHESTRATORS } = require("./session/mortar-gate");
   const chain = gate.chain || [];
-
-  if (gate.specialist_spawned) {
-    // A specialist is active — allow Write/Edit
-    process.exit(0);
-  }
 
   if (gate.mortar_consulted && chain.length > 0) {
     const currentAgent = chain[chain.length - 1];
     if (!ORCHESTRATORS.has(currentAgent)) {
-      // Current agent is a specialist — allow
+      // Chain tip is a specialist — allow Write/Edit
       process.exit(0);
     }
-    // Orchestrator is active but no specialist yet
+    // Orchestrator is the chain tip — block even if specialist_spawned is true.
+    // Orchestrators must delegate via Agent tool and let the specialist edit.
     process.stderr.write(
       `[masonry-routing-gate] BLOCKED: Write/Edit to "${relPath}" rejected.\n` +
-        `  Current agent "${currentAgent}" is an orchestrator — it must delegate to a specialist.\n` +
-        `  Spawn the appropriate specialist agent: Agent({ subagent_type: "developer", prompt: "..." })\n`
+        `  "${currentAgent}" is an orchestrator — it must NOT edit production code.\n` +
+        `  Delegate to a specialist: Agent({ subagent_type: "kiln-engineer", prompt: "..." })\n` +
+        `  The specialist will do the edit. You wait for it to return. Do NOT retry the edit yourself.\n`
     );
     process.exit(2);
   }
