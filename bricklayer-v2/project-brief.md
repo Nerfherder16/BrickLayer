@@ -57,7 +57,7 @@ PRE-BUILD
   └─ Validate ──────────────────────────────── "Is the design right?"
   └─ Benchmark ─────────────────────────────── "What's the baseline?"
        ↓
-BUILD (Claude Code / autopilot — outside BrickLayer)
+BUILD (agent orchestration, swarm runners, code generation via BrickLayer)
        ↓
 POST-BUILD QUALITY
   └─ Audit ─────────────────────────────────── "Does it meet standards?"
