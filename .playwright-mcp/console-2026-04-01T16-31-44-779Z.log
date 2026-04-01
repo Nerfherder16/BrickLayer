@@ -1,0 +1,7 @@
+[     152ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/chunk-YQ5BCTVV.js?v=1442179c:21608
+[     177ms] [LOG] [AuthContext] useEffect running, initialized: false @ http://localhost:5173/src/contexts/AuthContext.tsx:149
+[     177ms] [LOG] [AuthContext] Cleaning up subscription @ http://localhost:5173/src/contexts/AuthContext.tsx:204
+[     178ms] [LOG] [AuthContext] useEffect running, initialized: true @ http://localhost:5173/src/contexts/AuthContext.tsx:149
+[     191ms] [LOG] [AuthContext] Initial session: none @ http://localhost:5173/src/contexts/AuthContext.tsx:155
+[     216ms] [LOG] [checkAccessStatus] session user: undefined @ http://localhost:5173/src/contexts/AuthContext.tsx:35
+[     216ms] [LOG] [checkAccessStatus] No session, setting hasAccess to false @ http://localhost:5173/src/contexts/AuthContext.tsx:37
