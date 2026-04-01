@@ -74,6 +74,7 @@ Versions follow campaign waves and milestone builds, not semver — this is a re
 - **rough-in mandatory housekeeping** (`8440e7e`) — Every build plan now requires final housekeeping wave dispatching git-nerd (commit) and karen (docs update); closes loop on missing post-build hygiene
 
 ---
+- `cd35450` ci: drop Node 18 (ESM incompatible), skip build-queue verification tests (2026-03-31)
 - `3a4b732` ci: fix Python and Node CI workflows; add ruff.toml (2026-03-31)
 - `f12965c` chore: clean up pre-PR state (2026-03-31)
 
