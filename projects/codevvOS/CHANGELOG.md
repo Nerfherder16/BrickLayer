@@ -1,0 +1,16 @@
+# CodeVV OS — Changelog
+
+All notable changes to this project will be documented in this file.
+
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+---
+
+## [Unreleased]
+
+### Added
+- Project brief defining CodeVV OS as a boot-to-browser development OS
+- Architecture document covering system layers, kiosk boot chain, network topology, and Proxmox resource allocation
+- Server build hardware specification ($14,332 parts list with Threadripper PRO 9975WX)
+- CLAUDE.md session context for Claude Code agents
+- questions.md research question bank (25 questions across 5 domains)

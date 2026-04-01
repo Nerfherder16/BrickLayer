@@ -1,0 +1,58 @@
+# CodeVV OS — Session Context
+
+## What This Is
+
+CodeVV OS is a boot-to-browser operating system built on top of [CodeVV](https://github.com/Nerfherder16/Codevv). It wraps CodeVV — a collaborative AI-assisted software design platform — in a minimal Alpine Linux distribution that boots directly into a kiosk-mode browser. Multiple users access the same deployment via any web browser on the LAN.
+
+Key references:
+- Project brief: `project-brief.md`
+- Architecture: `ARCHITECTURE.md`
+- Server hardware: `docs/server-build.md`
+
+## Architecture Summary
+
+```
+Alpine Linux → Docker Compose → {PostgreSQL, Redis, Yjs, FastAPI, Nginx}
+  → Cage/Sway compositor → Chromium --kiosk → CodeVV React frontend
+```
+
+Target deployment: Proxmox VM on Threadripper PRO 9975WX server. GPU inference via separate Ollama VM (2x RTX 3090).
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 19, TypeScript, Tailwind v4, Vite |
+| Backend | FastAPI, SQLAlchemy (async), Pydantic |
+| Database | PostgreSQL 16 + pgvector |
+| Cache | Redis 7 |
+| Real-time | Yjs (collab), LiveKit (video) |
+| AI | Claude (OAuth PKCE + SSE), Ollama (local LLM) |
+| OS Base | Alpine Linux |
+| Orchestration | Docker Compose |
+| Kiosk | Cage (Wayland compositor) + Chromium |
+
+## Development Commands
+
+```bash
+# CodeVV upstream
+git clone https://github.com/Nerfherder16/Codevv
+cd Codevv && docker-compose up -d
+
+# ISO build (when available)
+# TBD — Phase 1 deliverable
+```
+
+## Source Authority
+
+| Tier | Source | Who Edits |
+|------|--------|-----------|
+| Tier 1 | `project-brief.md`, `ARCHITECTURE.md` | Human — ground truth |
+| Tier 2 | `ROADMAP.md`, config files | Human + agent |
+| Tier 3 | Build scripts, ISO tooling, docs | Agent — implementation |
+
+## Current Phase
+
+**Phase 1: Proof of Concept** — Boot Alpine into Docker Compose running CodeVV, validate multi-user access, package as bootable ISO.
+
+See `ROADMAP.md` for full phase breakdown.
