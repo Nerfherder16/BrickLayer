@@ -8,6 +8,25 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    "docs/repo-research/pbakaus-impeccable.md",
+    "bricklayer-v2/.claude/agents/hypothesis-generator-bl2.md",
+    "bricklayer-v2/.claude/agents/question-designer-bl2.md",
+    "bricklayer-v2/.claude/agents/research-analyst.md",
+    "template-frontier/.claude/agents/benchmark-engineer.md",
+    "template-frontier/.claude/agents/competitive-analyst.md",
+    "template-frontier/.claude/agents/hypothesis-generator-bl2.md",
+    "template-frontier/.claude/agents/karen.md",
+    "template-frontier/.claude/agents/quantitative-analyst.md",
+    "template-frontier/.claude/agents/question-designer-bl2.md",
+    "template-frontier/.claude/agents/regulatory-researcher.md",
+    "template-frontier/.claude/agents/research-analyst.md",
+    "template-frontier/.claude/agents/synthesizer-bl2.md",
+    "bl/tmux/core.py",
+    "bl/tmux/pane.py",
+    "bl/tmux/stream_format.py",
+    "bl/tmux/tests/test_core.py",
+    "bl/tmux/tests/test_pane.py",
+    "bl/tmux/tests/test_stream_format.py",
     "bl/tmux/pane.py",
     "bl/tmux/tests/test_pane.py",
     "bl/tmux/core.py",
@@ -17,5 +36,5 @@
     "bl/tmux/pane.py",
     "bl/tmux/tests/test_pane.py"
   ],
-  "timestamp": "2026-03-31T06:31:35.447Z"
+  "timestamp": "2026-03-31T17:16:28.108Z"
 }
