@@ -9,6 +9,7 @@
   ],
   "source_files_changed": [
     "bl/tmux/core.py",
+    "bl/tmux/core.py",
     "bl/tmux/helpers.py",
     "masonry/src/hooks/session/mortar-gate.js",
     "masonry/src/hooks/masonry-routing-gate.js",
@@ -1082,5 +1083,5 @@
     "masonry/tests/engine/training-export.test.js",
     "masonry/tests/engine/training-schema.test.js"
   ],
-  "timestamp": "2026-04-01T17:53:25.022Z"
+  "timestamp": "2026-04-01T18:05:17.985Z"
 }
