@@ -8,6 +8,19 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    "masonry/src/hooks/session/build-state.js",
+    "masonry/src/hooks/session/context-data.js",
+    "masonry/src/hooks/session/dead-refs.js",
+    "masonry/src/hooks/session/dead-refs.test.js",
+    "masonry/src/hooks/session/hotpaths.js",
+    "masonry/src/hooks/session/hotpaths.test.js",
+    "masonry/src/hooks/session/mortar-gate.js",
+    "masonry/src/hooks/session/project-detect.js",
+    "masonry/src/hooks/session/registry-router.js",
+    "masonry/src/hooks/session/route-hints.js",
+    "masonry/src/hooks/session/stop-checks.js",
+    "masonry/src/hooks/session/stop-git.js",
+    "masonry/src/hooks/session/stop-utils.js",
     "masonry/src/hooks/masonry-routing-gate.js",
     "bl/tmux/core.py",
     "masonry/src/hooks/masonry-mortar-enforcer.js",
@@ -1065,5 +1078,5 @@
     "masonry/tests/engine/training-export.test.js",
     "masonry/tests/engine/training-schema.test.js"
   ],
-  "timestamp": "2026-04-01T15:17:58.515Z"
+  "timestamp": "2026-04-01T15:20:48.028Z"
 }
