@@ -110,35 +110,14 @@ def spawn_agent(
     prompt_file = TEMP_DIR / f"bl-prompt-{agent_id}.txt"
     _ = prompt_file.write_text(prompt, encoding="utf-8")
 
-    # Orchestrators get Edit/Write stripped and a system prompt reinforcing
-    # delegation.  This is the hard enforcement — they physically cannot
-    # edit production code, so they MUST delegate to specialists.
-    effective_disallowed = list(disallowed_tools) if disallowed_tools else []
-    system_prompt: str | None = None
-    if agent_name.lower() in _ORCHESTRATORS:
-        for tool in ("Edit", "Write", "NotebookEdit"):
-            if tool not in effective_disallowed:
-                effective_disallowed.append(tool)
-        system_prompt = (
-            f"You are {agent_name}, an ORCHESTRATOR in the BrickLayer hierarchy. "
-            "You CANNOT edit or write files — those tools have been removed. "
-            "Your ONLY job is to delegate to the next agent in the chain via the Agent tool. "
-            "For dev tasks: Agent({{ subagent_type: \"rough-in\", prompt: \"...\" }}). "
-            "For research: Agent({{ subagent_type: \"trowel\", prompt: \"...\" }}). "
-            "For docs: Agent({{ subagent_type: \"karen\", prompt: \"...\" }}). "
-            "Rough-in then selects the specialist (kiln-engineer, developer, etc). "
-            "Do NOT attempt to read code and solve the task yourself. Delegate immediately."
-        )
-
     claude_bin = shutil.which("claude") or "claude"
     claude_args = build_claude_args(
         model=model,
         allowed_tools=allowed_tools,
-        disallowed_tools=effective_disallowed or None,
+        disallowed_tools=disallowed_tools,
         dangerously_skip_permissions=dangerously_skip_permissions,
         output_format=output_format if capture_output else None,
         session_id=session_id,
-        append_system_prompt=system_prompt,
     )
     effective_cwd = cwd or os.getcwd()
     write_start_signal(agent_id, agent_name, effective_cwd, model, None)
@@ -154,11 +133,10 @@ def spawn_agent(
         pane_claude_args = build_claude_args(
             model=model,
             allowed_tools=allowed_tools,
-            disallowed_tools=effective_disallowed or None,
+            disallowed_tools=disallowed_tools,
             dangerously_skip_permissions=dangerously_skip_permissions,
             output_format="stream-json",
             session_id=session_id,
-            append_system_prompt=system_prompt,
         )
         pane_id = spawn_tmux_pane(
             agent_id=agent_id,
