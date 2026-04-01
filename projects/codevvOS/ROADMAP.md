@@ -154,11 +154,51 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 
 ## Phase 6: Production Deployment
 
-- [ ] Deploy on Proxmox Threadripper PRO server
-- [ ] GPU passthrough for Ollama LLM inference (2x RTX 3090)
-- [ ] ZFS storage pools configured (boot mirror, AI mirror, data)
+### 6a. Proxmox Setup
+- [ ] Verify IOMMU groups with enumeration script before committing slot layout
+- [ ] BIOS: enable SVM, IOMMU, Above 4G Decoding. Disable ReBAR, CSM, Secure Boot
+- [ ] Kernel params: `amd_iommu=on iommu=pt video=efifb:off`
+- [ ] Bind GPUs to vfio-pci at boot (blacklist nouveau/nvidia)
+- [ ] Prepare VBIOS ROM dump for RTX 3090 Ampere reset bug workaround
+
+### 6b. GPU Passthrough
+- [ ] GPU VM: q35 machine type, OVMF UEFI, `cpu: host`, `balloon: 0`
+- [ ] Pass both RTX 3090s with `pcie=1,rombar=1`
+- [ ] Install NVIDIA driver with `--dkms` inside VM
+- [ ] Install `nvidia-container-toolkit` for Docker GPU access
+- [ ] Buy and install NVLink bridge ($30-50) — 50% inference improvement
+
+### 6c. AI Inference Stack
+- [ ] GPU 0: Ollama → Qwen 2.5 Coder 32B Q4 (~20GB) for FIM autocomplete (port 11434)
+- [ ] GPU 1: vLLM → Qwen 3.5 27B Q4 (~16GB) for chat with continuous batching (port 8000)
+- [ ] FastAPI routes autocomplete requests to Ollama, chat requests to vLLM
+- [ ] Both expose OpenAI-compatible APIs with same SSE streaming format
+- [ ] `OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q8_0` for VRAM efficiency
+
+### 6d. ZFS Storage Pools
+- [ ] Boot mirror: 2x NVMe, ashift=12, lz4, recordsize=128K
+- [ ] AI pool mirror: 2x NVMe, ashift=12, lz4, recordsize=1M, primarycache=metadata
+- [ ] Data pool: 1x NVMe 8TB, lz4, copies=2 (single-drive protection)
+- [ ] Limit ARC to 16GB (`zfs_arc_max=17179869184`)
+- [ ] WARNING: Monitor Samsung 990 PRO 4TB SMART health — documented reliability issues
+
+### 6e. Backup & DR
+- [ ] Proxmox Backup Server for incremental VM snapshots
+- [ ] pgBackRest for PostgreSQL PITR
+- [ ] Sanoid for automated ZFS snapshots (hourly/daily/weekly/monthly)
+- [ ] Pre-snapshot PostgreSQL CHECKPOINT hook
+- [ ] Syncoid for offsite replication
+
+### 6f. Thermal & Power
+- [ ] CPU: sTR5 full-coverage 360mm AIO (SilverStone XE360-TR5 or Enermax LIQTECH XTR)
+- [ ] GPUs: Water cooling recommended for 700W in 12U rack (or source blower RTX 3090s)
+- [ ] PSU: 1600W minimum (1800W recommended) with 4x PCIe 8-pin connectors
+- [ ] Target: < 25C ambient in rack room
+
+### 6g. Networking & Access
+- [ ] mkcert for LAN SSL (generate CA, distribute to devices)
 - [ ] Apache Guacamole for remote access fallback
-- [ ] Monitoring stack (Grafana + Prometheus)
+- [ ] Monitoring: Grafana + Prometheus + dcgm-exporter (GPU metrics from VM)
 
 ---
 
@@ -174,7 +214,7 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 
 | Component | Choice | Rationale |
 |-----------|--------|-----------|
-| Panel manager | `dockview-react` | Zero deps, React 19, tabs+dock+float+serialize, most actively maintained |
+| Panel manager | `dockview-react` v5.2.0 | Zero deps, React 19, tabs+dock+float+serialize, most actively maintained |
 | File tree | `@headless-tree/react` | 9.5kB, virtualized, accessible, successor to react-complex-tree |
 | Terminal PTY | Node.js + `node-pty` | Production standard (VS Code, Theia, Gitpod). Python pty lacks flow control |
 | Terminal frontend | xterm.js v6 + WebGL addon | Production standard, GPU-accelerated rendering |
@@ -183,9 +223,33 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 | Toast notifications | Sonner | Zero deps, simplest API, smallest footprint |
 | Notification transport | SSE (separate from Yjs WebSocket) | Auto-reconnect, one-way fits notifications, don't multiplex on Yjs |
 | PostgreSQL multi-tenant | Row-Level Security (RLS) | DB-enforced isolation, simpler than schema-per-user |
+| Collab code editor | CodeMirror 6 + `y-codemirror.next` | For pair sessions. code-server stays for individual work |
+| Yjs persistence | `y-postgresql` (update-row pattern) | Replace single-blob with per-update rows + periodic compaction |
+| Offline resilience | `y-indexeddb` | Browser-side persistence for offline editing and instant page reload |
+| LLM inference (chat) | vLLM | Continuous batching, 3-19x throughput over Ollama for concurrent users |
+| LLM inference (autocomplete) | Ollama | Simple model management, fine for low-concurrency FIM |
+| LLM models | Qwen 2.5 Coder 32B + Qwen 3.5 27B | Best local coding models 2025-2026. CodeLlama superseded |
+| Secrets management | Docker Compose file-based secrets + Pydantic `SecretsSettingsSource` | `/run/secrets/` with env var fallback. No wrapper needed |
+| SSL (LAN) | mkcert | Generate CA once, distribute to devices, zero browser warnings |
+| Container security | `read_only: true` + tmpfs + `no-new-privileges` | All services can run read-only. PostgreSQL needs `user: "999:999"` to bypass gosu |
+| WebSocket auth | JWT in first message + in-band refresh | Not in query params (appears in logs). Refresh before expiry on long-lived connections |
 | OS base | Alpine Linux | Smallest footprint (~235MB), Docker-native, proven kiosk use |
-| Kiosk compositor | Cage | Purpose-built single-app Wayland compositor |
+| Kiosk compositor | Cage | Purpose-built single-app Wayland compositor, VT switching blocked by default |
 | ISO build | Alpine mkimage | Most maintainable for small team, CI-friendly |
 | Update mechanism | Container-based | OS immutable, only containers change |
 | Orchestration | Docker Compose | Right level for single-server 5-20 users |
 | WebSocket transport | Raw WebSocket (not Socket.IO) | Lowest latency, production standard for terminals |
+| ZFS tuning | ashift=12, lz4, ARC capped at 16GB | No SLOG/L2ARC needed for all-NVMe. Monitor 990 PRO health |
+| Backup | PBS + pgBackRest + Sanoid | ZFS rollback < 30s, PITR in minutes, automated snapshots |
+
+---
+
+## Hardware Warnings (From Research)
+
+| Item | Risk | Mitigation |
+|------|------|-----------|
+| Samsung 990 PRO 4TB | Documented rapid health degradation, drives disappearing under load | Monitor SMART weekly. Consider enterprise NVMe (Micron 7450, Samsung PM9A3) |
+| RTX 3090 passthrough | Ampere reset bug — GPU fails to reset after VM shutdown | Bind to vfio-pci at boot, dump VBIOS ROM, disable ReBAR |
+| RTX 3090 cooling in rack | 700W open-air heat in 12U enclosure | Water-cool GPUs or source rare blower variants |
+| Enermax LIQTECH XTR | History of pump clogging/failure | Alternative: SilverStone XE360-TR5 (purpose-built sTR5) |
+| Memory ballooning | Breaks with GPU passthrough | Disable ballooning on all passthrough VMs (`balloon: 0`) |
