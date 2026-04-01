@@ -94,7 +94,30 @@ Run the verification command from the Fix Specification:
 
 Capture output. If it fails: BLOCKED.
 
-### Step 6 — Issue verdict
+### Step 6 — Consensus gate (destructive operations only)
+
+Before issuing your verdict, check whether the diff contains a **destructive or irreversible operation**:
+- Database migration that drops columns, tables, or indexes
+- Deletion of 5+ files
+- `git push --force`, branch deletion, or `git reset --hard`
+- Truncation of data or irreversible infrastructure changes
+
+If any destructive operation is detected, spawn the consensus-builder agent:
+
+```
+Invoke consensus-builder with:
+  action: "{brief description of the destructive operation}"
+  project_path: "{target_git}"
+  votes: [
+    {reviewer: "code-reviewer", verdict: "{your draft verdict}", confidence: {0.0-1.0}, summary: "{one-line rationale}"}
+  ]
+  context: "{diff summary}"
+```
+
+Use the consensus-builder's final verdict instead of your own for the output section.
+If consensus-builder returns NEEDS_REVISION, pass it through as NEEDS_REVISION.
+
+### Step 7 — Issue verdict
 
 | Verdict | Criteria |
 |---------|---------|
@@ -181,6 +204,23 @@ recall_store(
     durability="standard",
 )
 ```
+
+## Consensus resolution — multi-reviewer conflicts
+
+If you are aware that a peer-reviewer or design-reviewer has also reviewed the same task and produced a different verdict than yours, do not simply defer to the last reviewer's output. Instead, call `masonry_review_consensus` with all known verdicts to obtain a final ruling:
+
+```json
+masonry_review_consensus({
+  "votes": [
+    {"reviewer": "code-reviewer", "verdict": "<your verdict>", "confidence": 0.0-1.0, "summary": "<your notes>"},
+    {"reviewer": "peer-reviewer",  "verdict": "<their verdict>", "confidence": <0.0-1.0>, "summary": "<their summary>"}
+  ],
+  "task_id": "{finding_id}",
+  "project_dir": "{target_git}"
+})
+```
+
+Use the `final_verdict` from the response as the authoritative outcome. If `escalate` is true, output `ESCALATE: {task_id} — tied or BLOCKED, routing to senior-developer.` and stop — do not commit.
 
 ## Output contract
 

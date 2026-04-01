@@ -169,6 +169,18 @@ def extract_agent_metadata(agent_path: Path) -> dict[str, Any]:
     if isinstance(fm_keywords, list):
         routing_keywords = [str(k) for k in fm_keywords if k]
 
+    # Triggers: frontmatter only
+    triggers: list[str] = []
+    fm_triggers = frontmatter.get("triggers", [])
+    if isinstance(fm_triggers, list):
+        triggers = [str(t) for t in fm_triggers if t]
+
+    # Tools: frontmatter only
+    tools: list[str] = []
+    fm_tools = frontmatter.get("tools", [])
+    if isinstance(fm_tools, list):
+        tools = [str(t) for t in fm_tools if t]
+
     # Compute relative file path (best-effort)
     try:
         rel = agent_path.relative_to(Path.cwd())
@@ -186,6 +198,8 @@ def extract_agent_metadata(agent_path: Path) -> dict[str, Any]:
         "output_schema": output_schema,
         "tier": tier,
         "routing_keywords": routing_keywords,
+        "triggers": triggers,
+        "tools": tools,
         "file": file_str,
     }
 
@@ -224,6 +238,8 @@ def generate_registry_entry(meta: dict[str, Any]) -> AgentRegistryEntry:
     kwargs["modes"] = meta.get("modes") or []
     kwargs["capabilities"] = meta.get("capabilities") or []
     kwargs["routing_keywords"] = meta.get("routing_keywords") or []
+    kwargs["triggers"] = meta.get("triggers") or []
+    kwargs["tools"] = meta.get("tools") or []
 
     return AgentRegistryEntry(**kwargs)
 

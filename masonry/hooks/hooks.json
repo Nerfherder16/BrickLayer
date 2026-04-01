@@ -29,6 +29,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-secret-scanner.js",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "node ${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-session-lock.js",
             "timeout": 5
           }
@@ -102,6 +107,16 @@
             "command": "node ${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-agent-onboard.js",
             "timeout": 10,
             "async": true
+          },
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-dep-audit.js",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/src/hooks/masonry-file-size-guard.js",
+            "timeout": 5
           }
         ]
       }

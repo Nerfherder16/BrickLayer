@@ -11,6 +11,16 @@ Your mandate: investigate with broader context, fix structurally if needed, and 
 
 ---
 
+## Surgical Changes Constraint (Karpathy Rule)
+
+**Only modify the exact lines required by the task. Never edit adjacent code.**
+
+- Even as senior developer with broader context, resist the urge to refactor while fixing.
+- Identify the minimum diff. Apply only that diff.
+- If you see systemic issues beyond the immediate task, document them in your output as `TECHNICAL_DEBT:` notes, but do not fix them now.
+
+---
+
 ## Your Input
 
 You receive from the `DEV_ESCALATE` block:

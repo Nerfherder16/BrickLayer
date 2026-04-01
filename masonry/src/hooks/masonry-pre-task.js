@@ -77,6 +77,19 @@ async function main() {
   const complexity = estimateComplexity(prompt);
   const agent_type = (parsed.tool_input && parsed.tool_input.subagent_type) || "general-purpose";
 
+  // --- Read strategy (may already exist from prior selector run or masonry_set_strategy) ---
+  const strategyFile = path.join(autopilotDir, "strategy");
+  const VALID_STRATEGIES = ["conservative", "balanced", "aggressive"];
+  let strategy = "balanced";
+  if (fs.existsSync(strategyFile)) {
+    try {
+      const raw_strategy = fs.readFileSync(strategyFile, "utf8").trim().toLowerCase();
+      if (VALID_STRATEGIES.includes(raw_strategy)) {
+        strategy = raw_strategy;
+      }
+    } catch (_) { /* non-fatal — keep default */ }
+  }
+
   const record = JSON.stringify({
     task_id,
     phase: "pre",
@@ -84,6 +97,7 @@ async function main() {
     agent_type,
     task_type,
     complexity,
+    strategy,
   });
 
   try {
@@ -94,9 +108,21 @@ async function main() {
     fs.writeFileSync(path.join(autopilotDir, "current-task-id"), task_id, "utf8");
   } catch (_) { /* non-fatal */ }
 
+  // --- Emit strategy systemMessage for conservative/aggressive ---
+  let strategyMsg = null;
+  if (strategy === "conservative") {
+    strategyMsg = "Strategy: conservative — run extra verification after each step";
+  } else if (strategy === "aggressive") {
+    strategyMsg = "Strategy: aggressive — skip redundant checks, maximize parallelism";
+  }
+  if (strategyMsg) {
+    try {
+      process.stdout.write(JSON.stringify({ systemMessage: strategyMsg }));
+    } catch (_) { /* non-fatal */ }
+  }
+
   // --- Strategy injection (EMA-based selector) ---
   // Skip if user already set .autopilot/strategy manually.
-  const strategyFile = path.join(autopilotDir, "strategy");
   if (!fs.existsSync(strategyFile)) {
     try {
       const inferredTaskType =

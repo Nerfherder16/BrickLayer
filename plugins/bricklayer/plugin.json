@@ -1,0 +1,34 @@
+{
+  "name": "bricklayer",
+  "version": "2.0.0",
+  "install_steps": [
+    {
+      "action": "copy_agents",
+      "source": "template/.claude/agents/",
+      "destination": "~/.claude/agents/",
+      "strategy": "merge"
+    },
+    {
+      "action": "copy_skills",
+      "source": "template/.claude/skills/",
+      "destination": "~/.claude/skills/",
+      "strategy": "merge"
+    },
+    {
+      "action": "register_hooks",
+      "source": "masonry/hooks/hooks.json",
+      "target": "~/.claude/settings.json",
+      "merge_key": "hooks"
+    },
+    {
+      "action": "install_mcp",
+      "server": "masonry",
+      "command": "node masonry/bin/masonry-mcp.js"
+    }
+  ],
+  "post_install": [
+    "Run /teach-bricklayer to set up project context",
+    "Run /masonry-init to initialize a new research project",
+    "Or run /plan to start building immediately"
+  ]
+}

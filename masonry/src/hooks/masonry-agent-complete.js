@@ -1,17 +1,20 @@
 #!/usr/bin/env node
 /**
- * PostToolUse hook (Masonry): Agent-complete result cache.
+ * SubagentStop hook (Masonry): Dependency-unblocking via task completion signaling.
  *
- * Fires when an Agent tool call completes (SubagentStop equivalent via PostToolUse).
- * Writes result to .autopilot/results/{agent_id}.json for dependency signaling.
- * Checks progress.json for tasks with depends_on — logs when blocked tasks unblock.
+ * Fires when a subagent stops (SubagentStop) or when an Agent tool call completes
+ * (PostToolUse/Agent). Writes a result cache to .autopilot/results/{agent_id}.json
+ * and unblocks any progress.json tasks whose depends_on task IDs are all now DONE.
  *
- * Ruflo equivalent: agent-complete hook for real-time result streaming
+ * depends_on uses task IDs (integers), not agent IDs. When a task transitions to DONE,
+ * this hook scans for BLOCKED tasks and promotes them to PENDING if all their upstream
+ * task IDs are in the DONE set.
  */
 
 "use strict";
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -60,9 +63,9 @@ async function main() {
   const autopilotDir = findAutopilotDir(cwd);
   if (!autopilotDir) process.exit(0);
 
-  // Extract agent_id and result details from PostToolUse payload
-  const agent_id = parsed.tool_use_id || ("a-" + Date.now());
-  const resultStr = JSON.stringify(parsed.tool_result || "");
+  // Extract agent_id and result details from payload
+  const agent_id = parsed.tool_use_id || parsed.agent_id || ("a-" + Date.now());
+  const resultStr = JSON.stringify(parsed.tool_result || parsed.output || "");
   const summary = resultStr.slice(0, 200);
   const success = !/\b(ERROR|FAILED|DEV_ESCALATE)\b/i.test(resultStr);
 
@@ -84,45 +87,65 @@ async function main() {
     fs.writeFileSync(resultFile, JSON.stringify(resultPayload, null, 2), "utf8");
   } catch (_) {}
 
-  // Check progress.json for dependency unblocking
-  const progressFile = path.join(autopilotDir, "progress.json");
-  if (fs.existsSync(progressFile)) {
-    let progress = null;
-    try {
-      progress = JSON.parse(fs.readFileSync(progressFile, "utf8"));
-    } catch (_) {}
-
-    if (progress && Array.isArray(progress.tasks)) {
-      // Get all completed agent IDs from results/
-      let completedIds = new Set();
-      try {
-        const resultFiles = fs.readdirSync(resultsDir);
-        for (const f of resultFiles) {
-          if (f.endsWith(".json")) {
-            try {
-              const r = JSON.parse(fs.readFileSync(path.join(resultsDir, f), "utf8"));
-              if (r.agent_id) completedIds.add(r.agent_id);
-            } catch (_) {}
-          }
-        }
-      } catch (_) {}
-
-      // Find tasks that have depends_on and check if all deps are now complete
-      for (const task of progress.tasks) {
-        if (
-          task.status === "PENDING" &&
-          Array.isArray(task.depends_on) &&
-          task.depends_on.length > 0
-        ) {
-          const allDone = task.depends_on.every((dep) => completedIds.has(dep));
-          if (allDone) {
-            process.stderr.write(
-              `[agent-complete] Task #${task.id} unblocked: all dependencies complete\n`
-            );
-          }
-        }
+  // Remove completed agent from ~/.masonry/state/agents.json active list
+  try {
+    const agentsFile = path.join(os.homedir(), ".masonry", "state", "agents.json");
+    if (fs.existsSync(agentsFile)) {
+      const data = JSON.parse(fs.readFileSync(agentsFile, "utf8"));
+      const before = (data.active || []).length;
+      data.active = (data.active || []).filter(
+        (a) => a.id !== agent_id && a.id !== parsed.agent_id
+      );
+      if (data.active.length !== before) {
+        const tmp = `${agentsFile}.tmp.${process.pid}`;
+        fs.writeFileSync(tmp, JSON.stringify(data, null, 2), "utf8");
+        fs.renameSync(tmp, agentsFile);
       }
     }
+  } catch (_) {}
+
+  // Check progress.json for dependency unblocking
+  const progressFile = path.join(autopilotDir, "progress.json");
+  if (!fs.existsSync(progressFile)) process.exit(0);
+
+  let progress = null;
+  try {
+    progress = JSON.parse(fs.readFileSync(progressFile, "utf8"));
+  } catch (_) {
+    process.exit(0);
+  }
+
+  if (!progress || !Array.isArray(progress.tasks)) process.exit(0);
+
+  // Build set of DONE task IDs (integers)
+  const doneTaskIds = new Set(
+    progress.tasks
+      .filter((t) => t.status === "DONE")
+      .map((t) => t.id)
+  );
+
+  // Find BLOCKED tasks whose all dependencies are now DONE — promote to PENDING
+  let modified = false;
+  for (const task of progress.tasks) {
+    if (
+      task.status === "BLOCKED" &&
+      Array.isArray(task.depends_on) &&
+      task.depends_on.length > 0 &&
+      task.depends_on.every((depId) => doneTaskIds.has(depId))
+    ) {
+      task.status = "PENDING";
+      modified = true;
+      process.stderr.write(
+        `[agent-complete] Task #${task.id} unblocked: all dependencies (${task.depends_on.join(", ")}) are DONE\n`
+      );
+    }
+  }
+
+  if (modified) {
+    progress.updated_at = new Date().toISOString();
+    try {
+      fs.writeFileSync(progressFile, JSON.stringify(progress, null, 2), "utf8");
+    } catch (_) {}
   }
 
   process.exit(0);

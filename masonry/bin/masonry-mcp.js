@@ -29,6 +29,7 @@
  *   - masonry_wave_validate   — validate all tasks in a wave are DONE before advancing
  *   - masonry_swarm_init      — initialize .autopilot/progress.json for a swarm build
  *   - masonry_consensus_check — quorum gate: read/write .autopilot/consensus.json
+ *   - masonry_review_consensus — weighted majority vote across reviewer verdicts; logs to .autopilot/consensus-log.jsonl
  *   - masonry_doctor          — system health check: Recall, daemons, hooks, registry
  *   - masonry_verify_7point   — 7-point quality gate: unit tests, coverage, integration, e2e, security, perf, docker
  *   - masonry_pattern_decay   — apply time decay to pattern confidence scores and prune below 0.2 threshold
@@ -37,6 +38,7 @@
  *   - masonry_reasoning_store — store a new pattern in ReasoningBank
  *   - masonry_graph_record     — record pattern co-citations as CITES edges in Neo4j after task success
  *   - masonry_pagerank_run     — run PageRank on pattern graph, update confidence scores
+ *   - masonry_set_strategy     — write execution strategy ("conservative"|"balanced"|"aggressive") to .autopilot/strategy
  */
 
 const fs = require("fs");
@@ -515,21 +517,16 @@ const TOOLS = [
   },
   {
     name: "masonry_pattern_decay",
-    description: "Apply time decay to pattern confidence scores and prune patterns below the 0.2 threshold. Reads .autopilot/pattern-confidence.json, applies -0.005/hr decay since last_used, removes entries below 0.2. Returns pruned count and surviving entries.",
+    description: "Apply time decay to pattern confidence scores and prune patterns below 0.2 threshold. Run periodically to keep the pattern store healthy.",
     inputSchema: {
       type: "object",
       properties: {
-        project_path: {
+        project_dir: {
           type: "string",
-          description: "Absolute path to the project directory (where .autopilot/ lives)"
-        },
-        dry_run: {
-          type: "boolean",
-          description: "If true, report what would be pruned without modifying the file",
-          default: false
+          description: "Absolute path to project directory"
         }
       },
-      required: ["project_path"]
+      required: ["project_dir"]
     }
   },
   {
@@ -593,6 +590,101 @@ const TOOLS = [
       required: ["project"]
     }
   },
+  {
+    name: "masonry_set_strategy",
+    description: "Set the execution strategy for the active autopilot build. Writes to .autopilot/strategy and is read by masonry-pre-task.js on every agent spawn.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: {
+          type: "string",
+          description: "Absolute path to the project directory containing .autopilot/",
+        },
+        strategy: {
+          type: "string",
+          enum: ["conservative", "balanced", "aggressive"],
+          description: "conservative: extra verification after each step | balanced: default | aggressive: skip redundant checks, maximize parallelism",
+        },
+      },
+      required: ["project_path", "strategy"],
+    },
+  },
+  // Claims Board
+  {
+    name: "masonry_claim_add",
+    description: "File a human-input claim to .autopilot/claims.json and continue the build. Use when you need human input but can proceed with independent tasks. The build does NOT stop.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: { type: "string", description: "Absolute path to the project directory" },
+        question: { type: "string", description: "The question or decision that requires human input" },
+        task_id: { type: "string", description: "The task ID this claim is associated with (optional)" },
+        context: { type: "string", description: "Additional context to help Tim answer quickly (optional)" },
+      },
+      required: ["project_path", "question"],
+    },
+  },
+  {
+    name: "masonry_claim_resolve",
+    description: "Resolve a pending claim in .autopilot/claims.json with an answer. Tim calls this to unblock a waiting task.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: { type: "string", description: "Absolute path to the project directory" },
+        claim_id: { type: "string", description: "The claim ID to resolve (e.g. claim-001)" },
+        answer: { type: "string", description: "The answer or decision that resolves this claim" },
+      },
+      required: ["project_path", "claim_id", "answer"],
+    },
+  },
+  {
+    name: "masonry_claims_list",
+    description: "List claims from .autopilot/claims.json, filtered by status. Use to see what questions are awaiting human input.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: { type: "string", description: "Absolute path to the project directory" },
+        status: {
+          type: "string",
+          enum: ["pending", "resolved", "all"],
+          description: "Filter by status. Defaults to 'pending'.",
+        },
+      },
+      required: ["project_path"],
+    },
+  },
+  {
+    name: "masonry_review_consensus",
+    description: "Resolve conflicting review verdicts via weighted majority vote. When code-reviewer, peer-reviewer, or design-reviewer disagree on the same task, call this to get a final APPROVED/BLOCKED verdict with audit trail. Appends to .autopilot/consensus-log.jsonl.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        votes: {
+          type: "array",
+          description: "List of reviewer verdicts. Each item: {reviewer: string, verdict: 'APPROVED'|'BLOCKED'|'NEEDS_REVISION', confidence: number (0-1), summary: string}",
+          items: {
+            type: "object",
+            properties: {
+              reviewer: { type: "string" },
+              verdict: { type: "string", enum: ["APPROVED", "BLOCKED", "NEEDS_REVISION"] },
+              confidence: { type: "number" },
+              summary: { type: "string" },
+            },
+            required: ["reviewer", "verdict", "confidence", "summary"],
+          },
+        },
+        task_id: {
+          type: "string",
+          description: "Task or finding identifier (e.g. 'Q3.2', 'task-5')",
+        },
+        project_dir: {
+          type: "string",
+          description: "Absolute path to the project directory. Consensus log written to {project_dir}/.autopilot/consensus-log.jsonl",
+        },
+      },
+      required: ["votes", "task_id", "project_dir"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -633,11 +725,38 @@ function toolStatus(args) {
     };
   }
 
-  return {
+  const result = {
     project: (masonryConfig && masonryConfig.name) || projectName,
     ...(masonryConfig ? { mode: masonryConfig.mode } : {}),
     ...state,
   };
+
+  // Inject mid-build recall patterns if recall-injection.json is fresh (<30 min)
+  const recallInjectionPath = path.join(project_path, ".autopilot", "recall-injection.json");
+  try {
+    if (fs.existsSync(recallInjectionPath)) {
+      const injection = JSON.parse(fs.readFileSync(recallInjectionPath, "utf8"));
+      const ageMs = Date.now() - new Date(injection.timestamp || 0).getTime();
+      const THIRTY_MIN_MS = 30 * 60 * 1000;
+      if (
+        ageMs < THIRTY_MIN_MS &&
+        Array.isArray(injection.patterns) &&
+        injection.patterns.length > 0
+      ) {
+        result.recall_patterns = injection.patterns;
+        result.recall_query = injection.query;
+        result.recall_synced_at = injection.timestamp;
+      }
+    }
+  } catch (_) { /* non-fatal — ignore missing or malformed file */ }
+
+  // Inject active swarm topology if set
+  const topoFile = path.join(project_path, ".autopilot", "topology");
+  if (fs.existsSync(topoFile)) {
+    result.topology = fs.readFileSync(topoFile, "utf8").trim();
+  }
+
+  return result;
 }
 
 function toolFindings(args) {
@@ -1348,16 +1467,25 @@ function toolTaskAssign(args) {
     return { task: null, error: `Failed to parse progress.json: ${err.message}` };
   }
 
+  // Only pick PENDING tasks — skip BLOCKED (waiting on depends_on)
   const pending = (progress.tasks || []).find((t) => t.status === "PENDING");
 
   if (!pending) {
     const inProgress = (progress.tasks || []).filter((t) => t.status === "IN_PROGRESS");
     const done = (progress.tasks || []).filter((t) => t.status === "DONE");
+    const blocked = (progress.tasks || []).filter((t) => t.status === "BLOCKED");
+    const reason = inProgress.length > 0
+      ? "all_in_progress"
+      : blocked.length > 0
+        ? "waiting_on_dependencies"
+        : "all_done";
     return {
       task: null,
-      reason: inProgress.length > 0 ? "all_in_progress" : "all_done",
+      reason,
       in_progress_count: inProgress.length,
       done_count: done.length,
+      blocked_count: blocked.length,
+      blocked_tasks: blocked.map((t) => ({ id: t.id, description: t.description, depends_on: t.depends_on })),
       total: (progress.tasks || []).length,
     };
   }
@@ -1374,10 +1502,15 @@ function toolTaskAssign(args) {
     return { task: null, error: `Failed to write progress.json: ${err.message}` };
   }
 
+  const blocked = (progress.tasks || []).filter((t) => t.status === "BLOCKED");
   return {
     task: pending,
     total_tasks: (progress.tasks || []).length,
     pending_remaining: (progress.tasks || []).filter((t) => t.status === "PENDING").length,
+    blocked_count: blocked.length,
+    note: blocked.length > 0
+      ? `${blocked.length} task(s) are BLOCKED waiting on depends_on — they will become PENDING when upstream tasks complete`
+      : undefined,
   };
 }
 
@@ -1577,6 +1710,18 @@ function toolSwarmInit(args) {
     return { initialized: false, error: "No tasks found in spec. Expected '- [ ] **Task N** — description' format." };
   }
 
+  // Set initial status: tasks with unresolved depends_on start as BLOCKED
+  const taskIds = new Set(tasks.map((t) => t.id));
+  for (const task of tasks) {
+    if (
+      Array.isArray(task.depends_on) &&
+      task.depends_on.length > 0 &&
+      task.depends_on.some((depId) => taskIds.has(depId))
+    ) {
+      task.status = "BLOCKED";
+    }
+  }
+
   const name = project_name || path.basename(project_path);
   const dateSuffix = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const progress = {
@@ -1625,6 +1770,143 @@ function toolSwarmInit(args) {
   }
 
   return { initialized: true, tasks, task_count: tasks.length, project: name, branch: progress.branch, topology };
+}
+
+function toolReviewConsensus(args) {
+  const { votes, task_id, project_dir } = args;
+  const VALID_VERDICTS = ["APPROVED", "BLOCKED", "NEEDS_REVISION"];
+
+  // Step 1 — validate votes
+  const skipped = [];
+  const valid = [];
+  for (const v of Array.isArray(votes) ? votes : []) {
+    if (
+      typeof v.reviewer === "string" &&
+      VALID_VERDICTS.includes(v.verdict) &&
+      typeof v.confidence === "number" &&
+      v.confidence >= 0 &&
+      v.confidence <= 1 &&
+      typeof v.summary === "string"
+    ) {
+      valid.push(v);
+    } else {
+      skipped.push(v.reviewer || "(unknown)");
+    }
+  }
+
+  if (valid.length < 2) {
+    const result = {
+      final_verdict: "BLOCKED",
+      vote_breakdown: [],
+      reasoning: `Insufficient valid votes (${valid.length} valid, ${skipped.length} skipped). Minimum 2 required.`,
+      escalate: true,
+      task_id,
+      timestamp: new Date().toISOString(),
+    };
+    _appendConsensusLog(project_dir, task_id, valid, "BLOCKED", true);
+    return result;
+  }
+
+  // Step 2 — compute weighted scores
+  const scores = { APPROVED: 0, BLOCKED: 0, NEEDS_REVISION: 0 };
+  const reviewersByVerdict = { APPROVED: [], BLOCKED: [], NEEDS_REVISION: [] };
+  let totalWeight = 0;
+  for (const v of valid) {
+    scores[v.verdict] += v.confidence;
+    reviewersByVerdict[v.verdict].push(v.reviewer);
+    totalWeight += v.confidence;
+  }
+
+  // Step 3 — determine winner (check for tie)
+  const share = {};
+  for (const verdict of VALID_VERDICTS) {
+    share[verdict] = totalWeight > 0 ? scores[verdict] / totalWeight : 0;
+  }
+
+  const sorted = VALID_VERDICTS.slice().sort((a, b) => scores[b] - scores[a]);
+  const top = sorted[0];
+  const second = sorted[1];
+  const isTie = Math.abs(scores[top] - scores[second]) < 0.001;
+
+  let winner;
+  let escalate;
+  if (isTie) {
+    winner = "BLOCKED";
+    escalate = true;
+  } else {
+    winner = top;
+    escalate = winner === "BLOCKED";
+  }
+
+  // Step 4 — map to binary output
+  let final_verdict;
+  if (winner === "APPROVED") {
+    final_verdict = "APPROVED";
+    escalate = false;
+  } else if (winner === "BLOCKED") {
+    final_verdict = "BLOCKED";
+    escalate = true;
+  } else {
+    // NEEDS_REVISION -> soft BLOCKED, no escalation unless tie forced it
+    final_verdict = "BLOCKED";
+    if (!isTie) escalate = false;
+  }
+
+  // Step 5 — build breakdown
+  const vote_breakdown = VALID_VERDICTS.filter((v) => scores[v] > 0 || reviewersByVerdict[v].length > 0).map((v) => ({
+    verdict: v,
+    weighted_score: Math.round(scores[v] * 1000) / 1000,
+    share: Math.round(share[v] * 1000) / 1000,
+    reviewers: reviewersByVerdict[v],
+  }));
+
+  const winnerShare = Math.round(share[winner] * 100);
+  const winnerScore = Math.round(scores[winner] * 100) / 100;
+  const reasonParts = vote_breakdown
+    .sort((a, b) => b.share - a.share)
+    .map((b) => `${b.verdict}: ${Math.round(b.share * 100)}%`);
+
+  let reasoning;
+  if (isTie) {
+    reasoning = `Tie between ${top} and ${second} (both at ${Math.round(scores[top] * 100) / 100}). Conservative default: BLOCKED. Escalating.`;
+  } else {
+    reasoning = `${winner} won with ${winnerShare}% weighted share (${winnerScore}/${Math.round(totalWeight * 100) / 100}). ${reasonParts.join(". ")}.`;
+  }
+  if (skipped.length > 0) {
+    reasoning += ` Skipped malformed votes from: ${skipped.join(", ")}.`;
+  }
+
+  const result = {
+    final_verdict,
+    vote_breakdown,
+    reasoning,
+    escalate,
+    task_id,
+    timestamp: new Date().toISOString(),
+  };
+
+  _appendConsensusLog(project_dir, task_id, valid, final_verdict, escalate);
+  return result;
+}
+
+function _appendConsensusLog(project_dir, task_id, votes, final_verdict, escalated) {
+  try {
+    const autopilotDir = path.join(project_dir, ".autopilot");
+    if (!fs.existsSync(autopilotDir)) {
+      fs.mkdirSync(autopilotDir, { recursive: true });
+    }
+    const logFile = path.join(autopilotDir, "consensus-log.jsonl");
+    const entry = JSON.stringify({
+      timestamp: new Date().toISOString(),
+      task_id,
+      votes,
+      final_verdict,
+      escalated,
+    });
+    fs.appendFileSync(logFile, entry + "\n", "utf8");
+  } catch (_err) {
+    // log write failure is non-fatal
+  }
 }
 
 function toolConsensusCheck(args) {
@@ -2144,51 +2426,159 @@ function toolVerify7point(args) {
 // ---------------------------------------------------------------------------
 
 function toolPatternDecay(args) {
-  const { project_path, dry_run = false } = args;
-  const confPath = path.join(project_path, '.autopilot', 'pattern-confidence.json');
+  const { project_dir } = args;
+  const confPath = path.join(project_dir, '.autopilot', 'pattern-confidence.json');
 
   let store = {};
   try {
     store = JSON.parse(fs.readFileSync(confPath, 'utf8'));
   } catch {
-    return { pruned: 0, surviving: 0, message: 'No pattern-confidence.json found' };
+    return { decayed: 0, pruned: 0, remaining: 0, pruned_ids: [] };
   }
 
   const now = Date.now();
   const DECAY_PER_HOUR = 0.005;
   const PRUNE_THRESHOLD = 0.2;
 
-  const pruned = [];
+  const prunedIds = [];
   const surviving = {};
+  let decayedCount = 0;
 
   for (const [key, entry] of Object.entries(store)) {
     const lastUsed = entry.last_used ? new Date(entry.last_used).getTime() : now;
-    const hoursElapsed = (now - lastUsed) / (1000 * 60 * 60);
-    const decayed = Math.max(0, entry.confidence - DECAY_PER_HOUR * hoursElapsed);
+    const hoursElapsed = (now - lastUsed) / 3600000;
+    const decayed = Math.max(0.0, entry.confidence - DECAY_PER_HOUR * hoursElapsed);
+
+    if (decayed !== entry.confidence) {
+      decayedCount++;
+    }
 
     if (decayed < PRUNE_THRESHOLD) {
-      pruned.push({ key, confidence: decayed, hours_since_use: Math.round(hoursElapsed) });
+      prunedIds.push(key);
     } else {
       surviving[key] = { ...entry, confidence: decayed };
     }
   }
 
-  if (!dry_run && pruned.length > 0) {
-    try {
-      fs.writeFileSync(confPath, JSON.stringify(surviving, null, 2), 'utf8');
-    } catch (err) {
-      return { error: err.message };
-    }
+  try {
+    fs.writeFileSync(confPath, JSON.stringify(surviving, null, 2), 'utf8');
+  } catch (err) {
+    return { error: err.message };
   }
 
   return {
-    pruned: pruned.length,
-    surviving: Object.keys(surviving).length,
-    dry_run,
-    pruned_entries: pruned,
-    message: dry_run
-      ? `Dry run: ${pruned.length} patterns would be pruned`
-      : `Pruned ${pruned.length} patterns below ${PRUNE_THRESHOLD} threshold`
+    decayed: decayedCount,
+    pruned: prunedIds.length,
+    remaining: Object.keys(surviving).length,
+    pruned_ids: prunedIds,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Claims Board
+// ---------------------------------------------------------------------------
+
+function _claimsFile(project_path) {
+  return path.join(project_path, ".autopilot", "claims.json");
+}
+
+function _loadClaims(claimsPath) {
+  if (!fs.existsSync(claimsPath)) return [];
+  try {
+    const data = JSON.parse(fs.readFileSync(claimsPath, "utf8"));
+    return Array.isArray(data) ? data : [];
+  } catch (_err) {
+    return [];
+  }
+}
+
+function _saveClaims(claimsPath, claims) {
+  const dir = path.dirname(claimsPath);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(claimsPath, JSON.stringify(claims, null, 2), "utf8");
+}
+
+function _nextClaimId(claims) {
+  const nums = claims
+    .map((c) => parseInt((c.id || "").replace("claim-", ""), 10))
+    .filter((n) => !isNaN(n));
+  const max = nums.length > 0 ? Math.max(...nums) : 0;
+  return `claim-${String(max + 1).padStart(3, "0")}`;
+}
+
+function toolClaimAdd(args) {
+  const { project_path, question, task_id, context } = args;
+  const claimsPath = _claimsFile(project_path);
+  const claims = _loadClaims(claimsPath);
+
+  const id = _nextClaimId(claims);
+  const claim = {
+    id,
+    question,
+    ...(task_id ? { task_id } : {}),
+    ...(context ? { context } : {}),
+    status: "pending",
+    created_at: new Date().toISOString(),
+  };
+  claims.push(claim);
+
+  try {
+    _saveClaims(claimsPath, claims);
+  } catch (err) {
+    return { error: `Failed to write claims.json: ${err.message}` };
+  }
+
+  return {
+    claim_id: id,
+    message: "Claim filed. Build continues on independent tasks.",
+  };
+}
+
+function toolClaimResolve(args) {
+  const { project_path, claim_id, answer } = args;
+  const claimsPath = _claimsFile(project_path);
+  const claims = _loadClaims(claimsPath);
+
+  const claim = claims.find((c) => c.id === claim_id);
+  if (!claim) {
+    return { error: `Claim not found: ${claim_id}` };
+  }
+  if (claim.status === "resolved") {
+    return { error: `Claim ${claim_id} is already resolved` };
+  }
+
+  claim.status = "resolved";
+  claim.answer = answer;
+  claim.resolved_at = new Date().toISOString();
+
+  try {
+    _saveClaims(claimsPath, claims);
+  } catch (err) {
+    return { error: `Failed to write claims.json: ${err.message}` };
+  }
+
+  const pending = claims.filter((c) => c.status === "pending").length;
+  return {
+    resolved: claim_id,
+    pending_remaining: pending,
+    message: pending === 0 ? "All claims resolved." : `${pending} claim(s) still pending.`,
+  };
+}
+
+function toolClaimsList(args) {
+  const { project_path, status = "pending" } = args;
+  const claimsPath = _claimsFile(project_path);
+  const claims = _loadClaims(claimsPath);
+
+  const filtered =
+    status === "all"
+      ? claims
+      : claims.filter((c) => c.status === status);
+
+  return {
+    claims: filtered,
+    count: filtered.length,
+    status_filter: status,
   };
 }
 
@@ -2241,6 +2631,8 @@ async function dispatchTool(name, args) {
       return toolSwarmInit(args);
     case "masonry_consensus_check":
       return toolConsensusCheck(args);
+    case "masonry_review_consensus":
+      return toolReviewConsensus(args);
     case "masonry_doctor":
       return await toolDoctor(args);
     case "masonry_verify_7point":
@@ -2331,6 +2723,33 @@ async function dispatchTool(name, args) {
         return { success: false, error: e.message, skipped: "neo4j likely unavailable" };
       }
     }
+
+    case "masonry_set_strategy": {
+      const { project_path, strategy } = args;
+      const VALID_STRATEGIES = ["conservative", "balanced", "aggressive"];
+      if (!VALID_STRATEGIES.includes(strategy)) {
+        return { success: false, error: `Invalid strategy: "${strategy}". Must be one of: ${VALID_STRATEGIES.join(", ")}` };
+      }
+      const autopilotDir = path.join(project_path, ".autopilot");
+      if (!fs.existsSync(autopilotDir)) {
+        return { success: false, error: `No .autopilot/ directory found at ${project_path}` };
+      }
+      const strategyFile = path.join(autopilotDir, "strategy");
+      try {
+        fs.writeFileSync(strategyFile, strategy, "utf8");
+        return { success: true, strategy, path: strategyFile };
+      } catch (e) {
+        return { success: false, error: e.message };
+      }
+    }
+
+    // Claims Board
+    case "masonry_claim_add":
+      return toolClaimAdd(args);
+    case "masonry_claim_resolve":
+      return toolClaimResolve(args);
+    case "masonry_claims_list":
+      return toolClaimsList(args);
 
     default:
       throw new Error(`Unknown tool: ${name}`);

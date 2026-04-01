@@ -17,6 +17,7 @@ from masonry.src.schemas import (
     DiagnosePayload,
     DiagnosisPayload,
     AgentRegistryEntry,
+    GradeConfidence,
 )
 
 
@@ -476,3 +477,92 @@ class TestAgentRegistryEntry:
         )
         restored = AgentRegistryEntry.model_validate(a.model_dump())
         assert restored.modes == ["simulate", "research"]
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# GradeConfidence enum + FindingPayload auto-population
+# ──────────────────────────────────────────────────────────────────────────
+
+
+_FINDING_DEFAULTS = dict(
+    question_id="Q1.1",
+    verdict="HEALTHY",
+    severity="Info",
+    summary="ok",
+    evidence="ok",
+)
+
+
+class TestGradeConfidence:
+    def test_enum_values(self):
+        assert GradeConfidence.HIGH == "HIGH"
+        assert GradeConfidence.MODERATE == "MODERATE"
+        assert GradeConfidence.LOW == "LOW"
+        assert GradeConfidence.VERY_LOW == "VERY_LOW"
+
+    def test_auto_populate_high(self):
+        f = FindingPayload(**_FINDING_DEFAULTS, confidence=0.9)
+        assert f.grade_confidence == GradeConfidence.HIGH
+
+    def test_auto_populate_high_boundary(self):
+        f = FindingPayload(**_FINDING_DEFAULTS, confidence=0.8)
+        assert f.grade_confidence == GradeConfidence.HIGH
+
+    def test_auto_populate_moderate(self):
+        f = FindingPayload(**_FINDING_DEFAULTS, confidence=0.7)
+        assert f.grade_confidence == GradeConfidence.MODERATE
+
+    def test_auto_populate_moderate_boundary(self):
+        f = FindingPayload(**_FINDING_DEFAULTS, confidence=0.6)
+        assert f.grade_confidence == GradeConfidence.MODERATE
+
+    def test_auto_populate_low(self):
+        f = FindingPayload(**_FINDING_DEFAULTS, confidence=0.5)
+        assert f.grade_confidence == GradeConfidence.LOW
+
+    def test_auto_populate_low_boundary(self):
+        f = FindingPayload(**_FINDING_DEFAULTS, confidence=0.4)
+        assert f.grade_confidence == GradeConfidence.LOW
+
+    def test_auto_populate_very_low(self):
+        f = FindingPayload(**_FINDING_DEFAULTS, confidence=0.3)
+        assert f.grade_confidence == GradeConfidence.VERY_LOW
+
+    def test_auto_populate_very_low_zero(self):
+        f = FindingPayload(**_FINDING_DEFAULTS, confidence=0.0)
+        assert f.grade_confidence == GradeConfidence.VERY_LOW
+
+    def test_explicit_grade_not_overridden(self):
+        # Explicitly setting LOW should not be overridden by confidence=0.9
+        f = FindingPayload(**_FINDING_DEFAULTS, confidence=0.9, grade_confidence=GradeConfidence.LOW)
+        assert f.grade_confidence == GradeConfidence.LOW
+
+    def test_explicit_very_low_not_overridden_by_high_confidence(self):
+        f = FindingPayload(**_FINDING_DEFAULTS, confidence=1.0, grade_confidence=GradeConfidence.VERY_LOW)
+        assert f.grade_confidence == GradeConfidence.VERY_LOW
+
+    def test_backward_compat_no_grade(self):
+        # Old code that doesn't set grade_confidence still works
+        f = FindingPayload(**_FINDING_DEFAULTS, confidence=0.75)
+        assert f.grade_confidence == GradeConfidence.MODERATE  # auto-populated
+
+    def test_grade_confidence_none_when_confidence_none(self):
+        # If somehow confidence is not set but grade is not set either,
+        # grade_confidence stays None — but confidence has a ge=0.0 constraint
+        # so we test with explicit None via model_construct (bypass validation)
+        f = FindingPayload.model_construct(
+            question_id="Q1.1",
+            verdict="HEALTHY",
+            severity="Info",
+            summary="ok",
+            evidence="ok",
+            confidence=None,
+            grade_confidence=None,
+        )
+        # model_construct skips validators — just confirm field exists
+        assert f.grade_confidence is None
+
+    def test_round_trip_preserves_grade(self):
+        f = FindingPayload(**_FINDING_DEFAULTS, confidence=0.5, grade_confidence=GradeConfidence.HIGH)
+        restored = FindingPayload.model_validate(f.model_dump())
+        assert restored.grade_confidence == GradeConfidence.HIGH

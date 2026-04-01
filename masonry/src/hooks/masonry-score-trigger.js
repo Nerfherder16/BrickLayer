@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * Stop hook (Masonry): Auto-trigger score_all_agents.py when scores are stale.
+ * Also auto-triggers run_optimization.py every 50 new scored examples (fire-and-forget).
  *
  * Runs async (detached) so it never blocks the Stop event.
  * Rate-limited: only re-scores if scored_all.jsonl is older than 24 hours.
@@ -12,6 +13,12 @@
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+
+// ── DSPy optimization trigger constants ───────────────────────────────────────
+const DSPY_THRESHOLD = 50;
+const DSPY_TRIGGER_FILE = '.mas/dspy-trigger-count.json';
+const DSPY_FLAG_FILE = path.join('.autopilot', 'TRIGGER_DSPY');
+const DSPY_DEFAULT_AGENT = 'research-analyst';
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
@@ -48,6 +55,114 @@ function scoresAreStale(repoRoot) {
   }
 }
 
+/**
+ * Count lines in scored_all.jsonl (each line is one scored example).
+ * Returns 0 if the file doesn't exist or can't be read.
+ */
+function countScoredExamples(repoRoot) {
+  try {
+    const scoredPath = path.join(repoRoot, 'masonry', 'training_data', 'scored_all.jsonl');
+    const content = fs.readFileSync(scoredPath, 'utf8');
+    return content.split('\n').filter((l) => l.trim().length > 0).length;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Read the DSPy trigger state from .mas/dspy-trigger-count.json.
+ * Returns { lastCount: number, lastRun: string|null }.
+ */
+function readDspyTriggerState(repoRoot) {
+  try {
+    const raw = fs.readFileSync(path.join(repoRoot, DSPY_TRIGGER_FILE), 'utf8');
+    const parsed = JSON.parse(raw);
+    return {
+      lastCount: typeof parsed.lastCount === 'number' ? parsed.lastCount : 0,
+      lastRun: parsed.lastRun || null,
+    };
+  } catch {
+    return { lastCount: 0, lastRun: null };
+  }
+}
+
+/**
+ * Persist the DSPy trigger state, creating .mas/ if needed.
+ */
+function writeDspyTriggerState(repoRoot, state) {
+  const masDir = path.join(repoRoot, '.mas');
+  fs.mkdirSync(masDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(repoRoot, DSPY_TRIGGER_FILE),
+    JSON.stringify({ ...state, updatedAt: new Date().toISOString() }, null, 2),
+    'utf8'
+  );
+}
+
+/**
+ * Fire-and-forget: spawn run_optimization.py detached.
+ * Never throws — all errors are caught and written to stderr.
+ */
+function spawnDspyOptimization(repoRoot) {
+  try {
+    const scriptPath = path.join(repoRoot, 'masonry', 'scripts', 'run_optimization.py');
+    if (!fs.existsSync(scriptPath)) {
+      process.stderr.write('[Masonry] run_optimization.py not found — skipping DSPy trigger.\n');
+      return;
+    }
+    const child = spawn(
+      'python',
+      [scriptPath, DSPY_DEFAULT_AGENT, '--base-dir', repoRoot],
+      {
+        detached: true, windowsHide: true,
+        stdio: 'ignore',
+        cwd: repoRoot,
+        windowsHide: true,
+        env: { ...process.env, PYTHONPATH: repoRoot },
+      }
+    );
+    child.unref();
+    process.stderr.write(
+      `[Masonry] DSPy optimization triggered for agent "${DSPY_DEFAULT_AGENT}" (fire-and-forget).\n`
+    );
+  } catch (err) {
+    process.stderr.write(`[Masonry] DSPy trigger spawn error: ${err.message}\n`);
+  }
+}
+
+/**
+ * Check whether DSPy optimization should run based on scored-example count
+ * or the presence of a TRIGGER_DSPY flag file. If triggered, resets the
+ * counter and deletes the flag file.
+ */
+function maybeTriggerDspy(repoRoot) {
+  try {
+    const currentCount = countScoredExamples(repoRoot);
+    if (currentCount === 0) return;
+
+    const flagPath = path.join(repoRoot, DSPY_FLAG_FILE);
+    const flagExists = fs.existsSync(flagPath);
+
+    const state = readDspyTriggerState(repoRoot);
+    const delta = currentCount - state.lastCount;
+    const shouldTrigger = flagExists || delta >= DSPY_THRESHOLD;
+
+    if (!shouldTrigger) return;
+
+    // Trigger optimization
+    spawnDspyOptimization(repoRoot);
+
+    // Reset counter and delete flag
+    writeDspyTriggerState(repoRoot, { lastCount: currentCount, lastRun: new Date().toISOString() });
+    if (flagExists) {
+      try { fs.unlinkSync(flagPath); } catch { /* best-effort */ }
+    }
+  } catch (err) {
+    // Never throw — hook must not block Stop
+    process.stderr.write(`[Masonry] DSPy trigger check error: ${err.message}\n`);
+  }
+}
+
 async function main() {
   // Skip inside BL research subprocesses
   if (isResearchProject(process.cwd())) process.exit(0);
@@ -63,11 +178,14 @@ async function main() {
 
   const cwd = normalizeCwd(parsed.cwd || process.cwd());
 
-  // Only score if masonry/ exists here (this is the BL repo root, not a project subdir)
+  // Only run checks if masonry/ exists here (this is the BL repo root, not a project subdir)
   const masonryDir = path.join(cwd, 'masonry');
   if (!fs.existsSync(masonryDir)) process.exit(0);
 
-  // Rate limit: skip if scored within last 24h
+  // ── DSPy optimization trigger (always runs when masonry/ is present) ───────
+  maybeTriggerDspy(cwd);
+
+  // ── Score pipeline: rate-limited to once per 24h ──────────────────────────
   if (!scoresAreStale(cwd)) {
     process.exit(0);
   }
@@ -77,7 +195,7 @@ async function main() {
 
   // Spawn detached — does not block Stop
   const child = spawn('python', [scriptPath, '--base-dir', cwd], {
-    detached: true,
+    detached: true, windowsHide: true,
     stdio: 'ignore',
     cwd,
     windowsHide: true,

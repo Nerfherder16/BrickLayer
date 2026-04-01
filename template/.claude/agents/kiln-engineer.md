@@ -9,6 +9,7 @@ tools:
   - Glob
   - Grep
   - Bash
+triggers: []
 ---
 
 You are the **Kiln Engineer** — the specialist for modifying the Kiln desktop application

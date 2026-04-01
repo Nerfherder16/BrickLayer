@@ -5,8 +5,8 @@
  * Async Stop hook — fires after masonry-score-trigger.js completes.
  * Exports BrickLayer campaign traces to the training system.
  *
- * Only runs when BRICKLAYER_TRAINING_DB env var is set.
- * Skips silently if not configured — zero impact on normal sessions.
+ * Defaults to ~/.mas/training.db when BRICKLAYER_TRAINING_DB env var is not set.
+ * Set BRICKLAYER_TRAINING_DB to override the database path.
  *
  * Registration in settings.json (add after masonry-score-trigger entry):
  *   {
@@ -18,22 +18,24 @@
  */
 
 const { spawnSync } = require("child_process");
+const os = require("os");
 const path = require("path");
 const fs = require("fs");
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
 const BL_ROOT = process.env.CLAUDE_PLUGIN_ROOT || process.cwd();
-const TRAINING_DB = process.env.BRICKLAYER_TRAINING_DB;
+const DEFAULT_TRAINING_DB = path.join(os.homedir(), ".mas", "training.db");
+const TRAINING_DB = process.env.BRICKLAYER_TRAINING_DB || DEFAULT_TRAINING_DB;
 const EXPORT_SCRIPT = path.join(BL_ROOT, "bl", "training_export.py");
 const RATE_LIMIT_FILE = path.join(BL_ROOT, ".mas", "training_export_last_run");
 const RATE_LIMIT_HOURS = 1; // don't export more than once per hour
 
-// ── Guard: only run if configured ───────────────────────────────────────────
+// ── Ensure ~/.mas/ directory exists ─────────────────────────────────────────
 
-if (!TRAINING_DB) {
-  // Silent exit — BRICKLAYER_TRAINING_DB not set, training export not configured
-  process.exit(0);
+const trainingDbDir = path.dirname(TRAINING_DB);
+if (!fs.existsSync(trainingDbDir)) {
+  fs.mkdirSync(trainingDbDir, { recursive: true });
 }
 
 if (!fs.existsSync(EXPORT_SCRIPT)) {

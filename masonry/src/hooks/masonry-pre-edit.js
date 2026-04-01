@@ -3,9 +3,14 @@
  * PreToolUse hook: Back up the target file before Write|Edit tool calls
  * when Masonry build or fix mode is active.
  *
- * Backups are written to .autopilot/backups/ and cleaned up after 7 days
- * by masonry-build-guard.js on Stop.
+ * Backup path structure:
+ *   .autopilot/backups/{relative_dir}/{filename}/{filename}.{ISO-timestamp}
  *
+ * Example:
+ *   src/api/users.py → .autopilot/backups/src/api/users/users.py.2026-03-28T04-00-00
+ *
+ * Backups older than 7 days are pruned by masonry-stop-guard.js on Stop.
+ * Skips new files (not yet on disk — nothing to restore).
  * Always exits 0 — never blocks writes.
  */
 
@@ -23,11 +28,15 @@ function readStdin() {
   });
 }
 
+/**
+ * Walk up from startDir to find the .autopilot directory.
+ * Returns the .autopilot directory path and its parent (project root), or null.
+ */
 function findAutopilotDir(startDir) {
   let dir = startDir;
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 15; i++) {
     const autopilotDir = path.join(dir, ".autopilot");
-    if (existsSync(autopilotDir)) return autopilotDir;
+    if (existsSync(autopilotDir)) return { autopilotDir, projectRoot: dir };
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;
@@ -42,56 +51,73 @@ function isResearchProject(dir) {
   );
 }
 
+/**
+ * Build a filename-safe ISO timestamp with colons replaced by hyphens.
+ * e.g. 2026-03-28T04-00-00
+ */
+function safeTimestamp() {
+  return new Date().toISOString().replace(/:/g, "-").replace(/\.\d{3}Z$/, "");
+}
+
 async function main() {
-  const cwd = process.cwd();
-
-  // Research projects skip this hook entirely
-  if (isResearchProject(cwd)) process.exit(0);
-
-  const input = await readStdin();
-  if (!input) process.exit(0);
-
-  let parsed;
   try {
-    parsed = JSON.parse(input);
-  } catch {
-    process.exit(0);
-  }
+    const cwd = process.cwd();
 
-  const sessionCwd = parsed.cwd || cwd;
+    // Research projects skip this hook entirely
+    if (isResearchProject(cwd)) process.exit(0);
 
-  // Only run during build or fix modes
-  const autopilotDir = findAutopilotDir(sessionCwd);
-  if (!autopilotDir) process.exit(0);
+    const input = await readStdin();
+    if (!input) process.exit(0);
 
-  const modeFile = path.join(autopilotDir, "mode");
-  if (!existsSync(modeFile)) process.exit(0);
-
-  const mode = readFileSync(modeFile, "utf8").trim();
-  if (mode !== "build" && mode !== "fix") process.exit(0);
-
-  // Extract the file path from the tool input
-  const filePath = (parsed.tool_input || {}).file_path;
-  if (!filePath) process.exit(0);
-
-  // Only back up existing files — new files have nothing to restore
-  if (!existsSync(filePath)) process.exit(0);
-
-  // Build backup filename: relative path with slashes → underscores + ISO timestamp
-  const relPath = path.relative(sessionCwd, filePath);
-  const safeRel = relPath.replace(/[/\\]/g, "_");
-  const isoTs = new Date().toISOString().replace(/:/g, "-").replace(/\..+/, "");
-  const backupName = `${safeRel}.${isoTs}`;
-
-  const backupsDir = path.join(autopilotDir, "backups");
-  try {
-    if (!existsSync(backupsDir)) {
-      fs.mkdirSync(backupsDir, { recursive: true });
+    let parsed;
+    try {
+      parsed = JSON.parse(input);
+    } catch {
+      process.exit(0);
     }
-    fs.copyFileSync(filePath, path.join(backupsDir, backupName));
-  } catch (err) {
-    // Never block a write due to backup failure — log and continue
-    process.stderr.write(`[masonry-pre-edit] Backup failed for ${relPath}: ${err.message}\n`);
+
+    const sessionCwd = parsed.cwd || cwd;
+
+    // Extract the file path from the tool input
+    const filePath = (parsed.tool_input || {}).file_path;
+    if (!filePath) process.exit(0);
+
+    // Resolve to absolute path
+    const absPath = path.isAbsolute(filePath)
+      ? filePath
+      : path.resolve(sessionCwd, filePath);
+
+    // Only back up existing files — new files have nothing to restore
+    if (!existsSync(absPath)) process.exit(0);
+
+    // Find .autopilot walking up from the file's directory, then from cwd
+    const fileDir = path.dirname(absPath);
+    const found = findAutopilotDir(fileDir) || findAutopilotDir(sessionCwd);
+    if (!found) process.exit(0);
+
+    const { autopilotDir, projectRoot } = found;
+
+    // Only active in build or fix mode
+    const modeFile = path.join(autopilotDir, "mode");
+    if (!existsSync(modeFile)) process.exit(0);
+
+    const mode = readFileSync(modeFile, "utf8").trim();
+    if (mode !== "build" && mode !== "fix") process.exit(0);
+
+    // Build backup path:
+    //   .autopilot/backups/{relative_dir}/{filename}/{filename}.{timestamp}
+    const relPath = path.relative(projectRoot, absPath);
+    const relDir = path.dirname(relPath);
+    const filename = path.basename(absPath);
+    const timestamp = safeTimestamp();
+
+    const backupDir = path.join(autopilotDir, "backups", relDir, filename);
+    const backupFile = path.join(backupDir, `${filename}.${timestamp}`);
+
+    fs.mkdirSync(backupDir, { recursive: true });
+    fs.copyFileSync(absPath, backupFile);
+  } catch {
+    // Never block a write due to backup failure — swallow all errors silently
   }
 
   process.exit(0);

@@ -12,6 +12,7 @@ tools:
   - Glob
   - Grep
   - Bash
+triggers: []
 ---
 
 You are the **Pointer** — the BrickLayer 2.0 mid-wave summarizer. Like the masonry
