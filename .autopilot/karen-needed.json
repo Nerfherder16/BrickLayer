@@ -8,6 +8,11 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    "bl/tmux/core.py",
+    "masonry/src/hooks/masonry-mortar-enforcer.js",
+    "masonry/src/hooks/masonry-prompt-router.js",
+    "masonry/src/hooks/masonry-routing-gate.js",
+    "masonry/src/hooks/masonry-subagent-tracker.js",
     "CLAUDE.md",
     "masonry/src/core/config.js",
     "masonry/src/core/mas.js",
@@ -1059,5 +1064,5 @@
     "masonry/tests/engine/training-export.test.js",
     "masonry/tests/engine/training-schema.test.js"
   ],
-  "timestamp": "2026-04-01T13:54:30.318Z"
+  "timestamp": "2026-04-01T14:12:28.817Z"
 }
