@@ -119,36 +119,15 @@ def spawn_agent(
         for tool in ("Edit", "Write", "NotebookEdit"):
             if tool not in effective_disallowed:
                 effective_disallowed.append(tool)
-        # Map orchestrator → what it dispatches to
-        _NEXT_AGENT = {
-            "mortar": "rough-in",
-            "rough-in": "kiln-engineer",
-            "trowel": "research-analyst",
-        }
-        next_agent = _NEXT_AGENT.get(agent_name.lower(), "developer")
         system_prompt = (
             f"You are {agent_name}, an ORCHESTRATOR in the BrickLayer hierarchy. "
             "You CANNOT edit or write files — those tools have been removed. "
-            "Your job is to delegate to the next agent via Bash using spawn_agent(). "
-            "Claude Code's Agent tool does NOT support custom agents — you MUST use Bash.\n\n"
-            "DISPATCH METHOD (copy this pattern exactly):\n"
-            "```\n"
-            "python3 -c \"\n"
-            "import sys; sys.path.insert(0, '/home/nerfherder/Dev/Bricklayer2.0')\n"
-            "from bl.tmux.core import spawn_agent, wait_for_agent\n"
-            f"handle = spawn_agent('{next_agent}', '''"
-            "Task: <PASTE THE FULL USER REQUEST HERE>\n"
-            f"Project root: <CWD>''', cwd='<CWD>', dangerously_skip_permissions=True)\n"
-            "result = wait_for_agent(handle)\n"
-            "print('RESULT:', result.stdout[-500:] if result.stdout else '(empty)')\n"
-            "\"\n"
-            "```\n\n"
-            "RULES:\n"
-            f"- For dev tasks: dispatch to '{next_agent}'\n"
-            "- Pass the FULL user request in the prompt\n"
-            "- Wait for the result and report back\n"
-            "- Do NOT read code yourself, do NOT use sed/awk, do NOT solve the task\n"
-            "- If the spawned agent fails, report the failure — do NOT retry yourself"
+            "Your ONLY job is to delegate to the next agent in the chain via the Agent tool. "
+            "For dev tasks: Agent({{ subagent_type: \"rough-in\", prompt: \"...\" }}). "
+            "For research: Agent({{ subagent_type: \"trowel\", prompt: \"...\" }}). "
+            "For docs: Agent({{ subagent_type: \"karen\", prompt: \"...\" }}). "
+            "Rough-in then selects the specialist (kiln-engineer, developer, etc). "
+            "Do NOT attempt to read code and solve the task yourself. Delegate immediately."
         )
 
     claude_bin = shutil.which("claude") or "claude"
