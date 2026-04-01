@@ -18,44 +18,6 @@ from bl.tmux.pane import spawn_tmux_pane, tmux_wait_with_timeout
 from bl.tmux.signals import write_start_signal, write_stop_signal
 
 TEMP_DIR = Path("/tmp")
-_GATE_FILE = TEMP_DIR / "masonry-mortar-gate.json"
-
-# Orchestrators that coordinate but don't write production code.
-_ORCHESTRATORS = {"mortar", "rough-in", "trowel"}
-
-
-def _seed_gate(agent_name: str) -> None:
-    """Pre-seed the masonry gate file when an agent is spawned via tmux.
-
-    The SubagentStart hook only fires for Claude Code's Agent tool, not
-    for tmux-dispatched agents. This bridges the gap so the enforcer and
-    routing-gate hooks see the correct chain state.
-    """
-    import json
-    from datetime import datetime, timezone
-
-    existing: dict = {}
-    try:
-        if _GATE_FILE.exists():
-            existing = json.loads(_GATE_FILE.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        pass
-
-    chain: list[str] = existing.get("chain", [])
-    chain.append(agent_name.lower())
-    is_specialist = agent_name.lower() not in _ORCHESTRATORS
-
-    gate = {
-        "mortar_consulted": True,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "agent": agent_name.lower(),
-        "chain": chain,
-        "specialist_spawned": is_specialist or existing.get("specialist_spawned", False),
-    }
-    try:
-        _GATE_FILE.write_text(json.dumps(gate), encoding="utf-8")
-    except OSError:
-        pass
 
 
 @dataclass
@@ -121,11 +83,6 @@ def spawn_agent(
     )
     effective_cwd = cwd or os.getcwd()
     write_start_signal(agent_id, agent_name, effective_cwd, model, None)
-
-    # Seed the masonry gate file so hooks know which agent is active.
-    # Without this, the mortar-enforcer treats tmux-spawned agents as
-    # "main session" and blocks their subagent dispatches.
-    _seed_gate(agent_name)
 
     if in_tmux():
         # In tmux panes, use stream-json piped through a formatter for
