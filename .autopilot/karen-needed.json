@@ -8,6 +8,10 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    "projects/codevvOS/CLAUDE.md",
+    "projects/codevvOS/docs/server-build.md",
+    "projects/codevvOS/project-brief.md",
+    "projects/codevvOS/questions.md",
     "bl/tmux/core.py",
     "bl/tmux/core.py",
     "bl/tmux/helpers.py",
@@ -1083,5 +1087,5 @@
     "masonry/tests/engine/training-export.test.js",
     "masonry/tests/engine/training-schema.test.js"
   ],
-  "timestamp": "2026-04-01T20:22:04.343Z"
+  "timestamp": "2026-04-01T20:34:04.779Z"
 }
