@@ -20,9 +20,9 @@
     "uses": 2
   },
   "general-purpose": {
-    "confidence": 0.9990933056352891,
-    "last_used": "2026-03-29T07:26:01.621Z",
-    "uses": 26
+    "confidence": 0.9992746445082312,
+    "last_used": "2026-04-01T14:34:40.610Z",
+    "uses": 27
   },
   "statusline-setup": {
     "confidence": 0.76,
