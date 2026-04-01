@@ -8,6 +8,21 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    "CLAUDE.md",
+    "masonry/src/core/config.js",
+    "masonry/src/core/mas.js",
+    "masonry/src/core/recall.js",
+    "masonry/src/core/registry.js",
+    "masonry/src/core/skill-surface.js",
+    "masonry/src/core/state.js",
+    "masonry/tests/test_backfill_keywords_extractor.py",
+    "masonry/tests/test_backfill_routing_keywords.py",
+    "masonry/tests/test_bl_plugin_eval.py",
+    "masonry/tests/test_llm_router.py",
+    "masonry/tests/test_optimize_with_claude.py",
+    "masonry/tests/test_wiring_completeness.py",
+    "masonry/src/hooks/masonry-stop-guard.js",
+    "masonry/src/hooks/masonry-stop-guard.js",
     ".claude/commands/btw.md",
     "CLAUDE.md",
     "masonry/node_modules/@esbuild/linux-x64/README.md",
@@ -1044,5 +1059,5 @@
     "masonry/tests/engine/training-export.test.js",
     "masonry/tests/engine/training-schema.test.js"
   ],
-  "timestamp": "2026-04-01T06:22:00.941Z"
+  "timestamp": "2026-04-01T06:44:44.312Z"
 }
