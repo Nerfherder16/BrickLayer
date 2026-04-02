@@ -157,6 +157,7 @@ Applied via `class="theme-light"` on `:root`. Override the same tokens:
   --color-text-muted:     #C0B8D5;   /* Very light, decorative only */
   --color-text-inverse:   #FAF6FF;   /* Near-white — text on dark surfaces in light mode */
 }
+```
 
 ---
 
