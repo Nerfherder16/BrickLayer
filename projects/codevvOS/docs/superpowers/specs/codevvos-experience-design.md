@@ -427,23 +427,33 @@ Admin configures which projector URL maps to which physical display.
 ## 19. BrickLayer & Masonry Integration
 
 ### Integration Approach
-BrickLayer and Masonry ship as npm packages:
 
+**Masonry** ships as an npm package — it's Node.js and that's legitimate:
 ```
-npm install bricklayer
 npm install masonry-mcp
 ```
+Installed in the CodeVV Docker image. Version-pinned in `package.json`.
 
-Version-pinned in `package.json`. When a new BrickLayer release drops, teams bump the version and rebuild.
+**BrickLayer** is a Python engine. It runs as a **Docker sidecar service** — the same pattern as Recall. Tim adds `bl/server.py`, a thin FastAPI wrapper (~100 lines) that exposes BrickLayer's core dispatch functions over HTTP:
+
+| Endpoint | Maps to |
+|----------|---------|
+| `POST /agent/spawn` | `spawn_agent(name, prompt, cwd)` |
+| `GET /agent/{id}` | agent status / wait |
+| `POST /wave/spawn` | parallel multi-agent dispatch |
+| `GET /crucible/scores` | agent benchmark scores |
+| `POST /sim/run` | simulate runner |
+
+CodeVV's backend calls `http://bricklayer:8300/` — no direct Python import, clean separation. Version updates are a Docker image tag bump + `docker compose pull`. BrickLayer's image includes tmux + the Claude CLI so agents still dispatch into visible panes.
 
 ### What They Provide Inside CodeVV OS
 - **Masonry MCP server:** agent routing, hooks, registry, Ollama embeddings for semantic routing
-- **BrickLayer engine:** campaign runners, agent dispatch, crucible benchmarking, heal loop
+- **BrickLayer engine:** campaign runners, agent dispatch via tmux, crucible benchmarking, heal loop, simulation runners
 - **Agent fleet:** 100+ specialized agents accessible from within any CodeVV workspace
 - **Custom agents:** teams build agents that run through BrickLayer's routing and crucible
 
 ### Availability
-BrickLayer/Masonry features are available once the npm packages are installed in the Docker image. The AI Agent Mode panel (live log + live diffs + interruptible) is the primary CodeVV surface for BrickLayer.
+BrickLayer features surface through the AI Agent Mode panel (live log + live diffs + interruptible). Masonry MCP is available to Claude as a tool server once the npm package is installed.
 
 ---
 
@@ -667,7 +677,8 @@ Pulled from real data — Recall, git, tasks. Not manually written. Keeps the te
 | Personal assistant | Per-user, persistent, open MCP, trigger automation, proxy mode optional |
 | Custom agents | BrickLayer crucible — benchmarked, scored, promoted/retired |
 | GitHub | Optional, full when connected. git-nerd agent |
-| BrickLayer/Masonry | npm packages, version-pinned in Docker image |
+| BrickLayer | Docker sidecar service + `bl/server.py` FastAPI wrapper. Version via image tag |
+| Masonry | `npm install masonry-mcp` in CodeVV Docker image |
 | Notifications | Per-type user preferences. Urgent → toast, rest → drawer |
 | Connectivity | Recall is local. Claude API graceful degrade + queue |
 | Keyboard | Command palette + opinionated defaults + per-workspace profiles |

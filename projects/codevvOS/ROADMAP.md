@@ -184,10 +184,18 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 - [ ] Admin configures projector URL → physical display mapping
 
 ### 3.5-BL: BrickLayer & Masonry Integration
-- [ ] Package Masonry as `masonry-mcp` npm package
-- [ ] Package BrickLayer engine as `bricklayer` npm package
-- [ ] Version-pin both in Docker image `package.json`
-- [ ] Update mechanism: bump version, rebuild container
+- [ ] **Masonry:** `npm install masonry-mcp` in CodeVV Docker image (Node.js — legitimate npm package)
+- [ ] **BrickLayer:** Docker sidecar service — same pattern as Recall
+  - [ ] Add `bl/server.py` — thin FastAPI wrapper (~100 lines) exposing:
+    - `POST /agent/spawn` → `spawn_agent(name, prompt, cwd)`
+    - `GET /agent/{id}` → agent status / wait
+    - `POST /wave/spawn` → parallel multi-agent dispatch
+    - `GET /crucible/scores` → agent benchmark scores
+    - `POST /sim/run` → simulate runner
+  - [ ] Add `Dockerfile` for BrickLayer image (Python + tmux + claude CLI)
+  - [ ] Add `bricklayer` service to CodeVV Docker Compose (version-pinned image tag)
+  - [ ] CodeVV backend calls `http://bricklayer:8300/` — no direct Python import
+  - [ ] Version updates: bump image tag in `docker-compose.yml` + `docker compose pull`
 - [ ] AI Agent Mode panel surfaces BrickLayer: live log + live diff + interruptible
 - [ ] Custom agents run through BrickLayer routing and crucible
 
@@ -447,8 +455,8 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 | Environment clone sandbox | Docker container snapshot | Full project clone for risky experiments |
 | Simulation engine | BrickLayer simulate runner + Artifact Panel | Data sims + system sims, results as interactive charts |
 | Interactive charts | recharts / D3 / Chart.js (Claude selects) | Claude picks library based on data shape |
-| Agent orchestration | BrickLayer (`npm install bricklayer`) | Version-pinned in Docker image; bump + rebuild to update |
-| MCP orchestration | Masonry (`npm install masonry-mcp`) | Node.js MCP server — agent routing, hooks, registry |
+| BrickLayer integration | Docker sidecar service + `bl/server.py` FastAPI wrapper | Python engine — same pattern as Recall. Version via image tag. CodeVV calls `http://bricklayer:8300/` |
+| Masonry integration | `npm install masonry-mcp` in CodeVV Docker image | Node.js MCP server — legitimate npm. Agent routing, hooks, registry |
 | Personal AI assistant | Per-user Recall-scoped memory + open MCP tool loadout | Persistent personality, grows over time, proxy mode optional |
 | Custom agents | BrickLayer crucible | Benchmarked, scored, promoted/retired based on performance |
 | Knowledge graph | Recall (Neo4j) + AI-maintained | Live map of project — navigable, manually editable |
