@@ -214,6 +214,56 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 - [ ] Layered: user overrides system defaults; admin sets org-wide defaults
 - [ ] Export/import: portable JSON config file
 
+### 3.5-AP: Artifact Panel
+- [ ] Sandboxed iframe panel (dockview) with strict CSP + postMessage communication
+- [ ] Claude-generated HTML/JSX/React renders live alongside chat
+- [ ] Inline code editing → re-render on save
+- [ ] Interactive output (click, hover, input on rendered content)
+- [ ] Artifact persistence: saved to project + ingested into Recall
+- [ ] Supports: charts (recharts/D3/Chart.js), React components, data tables, architecture diagrams, simulation outputs
+
+### 3.5-SB: Sandbox (Three Modes)
+- [ ] **Mode 1 — Code Scratchpad:** isolated execution (Node.js, Python, bash), results inline, zero project file access
+- [ ] **Mode 2 — Environment Clone:** Docker container snapshot of current project, promote or discard changes
+- [ ] **Mode 3 — Artifact Sandbox:** Claude generates runnable code → executes in sandbox → output to Artifact Panel
+- [ ] Language runtime containers: Node.js, Python pre-built sandbox images
+- [ ] Sandbox panel switchable between modes via tab
+
+### 3.5-SIM: Simulation Sandbox
+- [ ] **Data simulations:** feed dataset (CSV/JSON/DB query) + define variables → Claude generates sim code → runs in sandbox → charts in Artifact Panel
+- [ ] **System simulations:** describe architecture → BrickLayer simulate runner models behavior → latency curves, failure rates, bottleneck identification
+- [ ] Tweak inputs, re-run, compare outputs side by side
+- [ ] Simulation results stored in Recall as project findings
+
+### 3.5-FV: File Viewers & Editors
+- [ ] **PDF:** PDF.js dockview panel, annotation support (highlights/comments → Recall), text extraction for global search
+- [ ] **DOCX:** `docx-preview` for viewing, mammoth.js + TipTap for editing, DOCX export round-trip
+- [ ] **Excel:** Univer editor (formulas, charts, formatting), SheetJS for .xlsx import/export, Yjs live collaboration in cells
+- [ ] Excel data readable by Claude as conversation context
+- [ ] Excel charts render to Artifact Panel
+- [ ] All document types: text extracted on open → indexed in Recall → searchable globally
+- [ ] Optional: ONLYOFFICE Docker service for full native DOCX/Excel fidelity
+
+### 3.5-TI: Team Intelligence
+- [ ] **Ambient terminal watching:** Claude observes terminal output, proactively explains errors inline, dismissable
+- [ ] **Session handoff:** on session end, Claude writes handoff note to Recall; next login surfaces "welcome back" context
+- [ ] **Decision archaeology:** before decisions, Claude searches Recall across all projects for relevant past decisions
+- [ ] **Architecture drift detection:** BrickLayer diffs codebase vs. approved spec post-build; drift → task
+- [ ] **Cross-project intelligence:** Claude detects duplicate work across projects, suggests shared modules
+- [ ] **Impact analysis:** before PR merge/task completion, Claude surfaces downstream risk (imports, tests, shared projects)
+- [ ] **Live module documentation:** BrickLayer maintains living prose doc per module in Recall; auto-updates on change
+- [ ] **Sprint retrospective:** AI-generated from git + task + Recall data, delivered as digest at sprint end
+
+### 3.5-II: Ideation Intelligence
+- [ ] **Idea backlog:** dedicated idea bank separate from tasks; Claude resurfaces contextually when relevant
+- [ ] **Assumption tracker:** Claude captures assumptions explicitly; tracks validation status; surfaces before build
+- [ ] **Pre-mortem:** structured failure-mode session before every build triggers; outputs → risk tracking in knowledge graph
+- [ ] **Parallel spike dispatch:** BrickLayer runs throwaway parallel implementations; benchmarks reported back; decision + results stored in Recall
+- [ ] **Code archaeology:** full provenance panel — code → task → brainstorm → meeting, via Recall + git
+- [ ] **Rubber duck mode:** Claude listens + asks only (no suggestions); user switches to "give me your take" explicitly
+- [ ] **Constraint-aware ideation:** during brainstorm, Claude surfaces buildable minimal version of each idea given real team constraints
+- [ ] **Weekly brief:** Monday morning dashboard digest — shipped, planned, blockers, decisions needed, velocity trend
+
 ---
 
 ## Phase 3.5: Collaboration & Intelligence (extends existing CodeVV features)
@@ -388,6 +438,15 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 
 | Component | Choice | Rationale |
 |-----------|--------|-----------|
+| Excel editor | Univer + SheetJS | Open-source, full formula/chart support, Yjs collab, xlsx import/export |
+| DOCX viewer/editor | docx-preview + mammoth.js + TipTap | View + edit + export round-trip. ONLYOFFICE optional for full fidelity |
+| PDF viewer | PDF.js (already in Chromium) | Zero-overhead, annotations stored in Recall |
+| Full office suite (optional) | ONLYOFFICE Docker service | Self-hosted, handles DOCX/Excel/PDF natively if needed |
+| Artifact Panel | Sandboxed iframe + CSP + postMessage | Claude-generated content renders live. Same surface as simulation output |
+| Code sandbox runtime | Docker container (Node.js + Python images) | Isolated execution, zero project file access |
+| Environment clone sandbox | Docker container snapshot | Full project clone for risky experiments |
+| Simulation engine | BrickLayer simulate runner + Artifact Panel | Data sims + system sims, results as interactive charts |
+| Interactive charts | recharts / D3 / Chart.js (Claude selects) | Claude picks library based on data shape |
 | Agent orchestration | BrickLayer (`npm install bricklayer`) | Version-pinned in Docker image; bump + rebuild to update |
 | MCP orchestration | Masonry (`npm install masonry-mcp`) | Node.js MCP server — agent routing, hooks, registry |
 | Personal AI assistant | Per-user Recall-scoped memory + open MCP tool loadout | Persistent personality, grows over time, proxy mode optional |

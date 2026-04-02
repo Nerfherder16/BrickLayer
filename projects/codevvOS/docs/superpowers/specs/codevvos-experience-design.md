@@ -491,6 +491,165 @@ Claude API (external internet) is the only true external dependency:
 
 ---
 
+## 23. Artifact Panel
+
+The Artifact Panel is a sandboxed iframe renderer that lives as a dockview panel alongside the AI chat. When Claude generates interactive content — charts, graphs, React components, data visualizations, simulations — it renders live in this panel.
+
+### How It Works
+- Claude generates HTML / JSX / React code in the chat
+- Content is injected into a sandboxed iframe (CSP-restricted, postMessage communication)
+- Renders immediately alongside the conversation — no copy-paste, no separate tab
+- User can interact with the rendered output (click, hover, input)
+- Code is editable inline — change a value, re-render instantly
+- All artifacts are saved to the project and stored in Recall
+
+### What Renders Here
+- Charts and graphs (recharts, D3, Chart.js — Claude picks based on data)
+- Interactive React components and UI prototypes
+- Data tables and pivot views
+- Simulation outputs (see Sandbox section)
+- Mathematical visualizations
+- Architecture diagrams generated from code analysis
+
+---
+
+## 24. Sandbox (Three Modes)
+
+A unified "Sandbox" panel with three distinct modes, switchable via tab.
+
+### Mode 1: Code Scratchpad
+Isolated code execution — paste or write a snippet, run it safely, see output. Completely isolated from the main project. Supports multiple languages (Node.js, Python, bash). Results appear inline. No project files are touched.
+
+Use cases: test a regex, prototype a function, verify an algorithm, explore an API response.
+
+### Mode 2: Environment Clone
+Spin up a full isolated copy of the current project environment. Try something risky — a major refactor, a dependency upgrade, an architectural experiment — without touching the main branch. When done: promote changes to main or discard. Backed by Docker — each clone is a container snapshot.
+
+Use cases: test a destructive migration, experiment with replacing a library, validate a build change before committing.
+
+### Mode 3: Artifact Sandbox (connected to Artifact Panel)
+Claude generates runnable code. It executes in the sandbox and output renders in the Artifact Panel. This is the bridge between the AI chat and live interactive output. The sandbox handles execution; the Artifact Panel handles display.
+
+---
+
+## 25. Simulation Sandbox
+
+Built on top of Sandbox Mode 3 and the Artifact Panel. BrickLayer's simulate runner is surfaced visually here.
+
+### Data Simulations
+Run what-if scenarios against project data:
+- Feed in a dataset (CSV, JSON, database query result)
+- Define variables and constraints
+- Claude generates the simulation code
+- Results render as interactive charts/graphs in the Artifact Panel
+- Tweak inputs, re-run, compare outputs
+
+Use cases: revenue projections, load testing projections, user growth models, A/B test outcome modeling.
+
+### System Simulations
+Model how architecture will behave before building it:
+- Describe the system (components, load, interactions)
+- BrickLayer's simulate runner models the behavior
+- Output: latency curves, failure rates, bottleneck identification, capacity recommendations
+- Results rendered as diagrams and charts in the Artifact Panel
+
+Use cases: "How does this queue design handle 10x traffic?", "Where does this architecture break under load?", "Is this database schema going to hold up?"
+
+Both simulation types feed results back into Recall as project findings.
+
+---
+
+## 26. File Viewers & Editors
+
+All file types open as dockview panels. Documents ingested into projects (uploaded or referenced) open in the appropriate viewer.
+
+### PDF
+- PDF.js renderer in a dockview panel
+- Annotation support (highlight, comment) — comments stored in Recall
+- Searchable text extraction for global search indexing
+
+### DOCX
+- `docx-preview` for read-only viewing (renders to clean HTML in-browser)
+- Editing: `mammoth.js` converts DOCX to rich text → editable in TipTap rich text editor → export back to DOCX
+- Full ONLYOFFICE integration available as optional Docker service for teams needing native DOCX fidelity
+
+### Excel / Spreadsheets
+- **Univer** — open-source Excel-like editor, full formula support, charts, formatting
+- SheetJS underneath for `.xlsx` read/write
+- Live collaboration via Yjs (same as code editor — multiple cursors in spreadsheet cells)
+- Claude can read spreadsheet data as context and generate formulas, pivot tables, or charts
+- Charts from spreadsheet data render in the Artifact Panel
+
+### All Document Types
+- Imported documents are ingested into Recall on open (text extracted, semantically indexed)
+- Global search finds content inside PDFs, DOCX, and spreadsheets
+- Documents link to knowledge graph nodes (which project, which decision, which task)
+
+---
+
+## 27. Team Intelligence Features
+
+### Ambient Terminal Watching
+Claude observes the terminal alongside the editor. When an error appears, it proactively offers an explanation and fix suggestion inline — no copy-pasting required. The user can dismiss or engage. Claude already has full ambient context (open file, canvas, current task) — terminal is the final piece.
+
+### Session Handoff
+When a user ends their session, Claude writes a handoff note to Recall: what they were working on, where they stopped, what the next step is. Next login surfaces it immediately: *"Welcome back — you were in the middle of X, next step is Y."* Personal assistant picks up exactly where the session ended.
+
+### Decision Archaeology
+Before a decision is made, Claude searches Recall across all projects for similar past decisions. Surfaces relevant history: *"Six months ago on Project X you ruled out Redis pub/sub for this reason — still applies?"* Prevents repeating solved problems and learning the same lesson twice.
+
+### Architecture Drift Detection
+After a spec is approved and build begins, BrickLayer periodically diffs the actual codebase against the spec and all ADRs. Drift surfaces proactively before it compounds: *"Spec says PostgreSQL for sessions, code is using Redis."* Flagged as a task — not a blocker, but visible.
+
+### Cross-Project Intelligence
+Claude monitors patterns across all projects in Recall. When a team is solving a problem that's already been solved in another project, it surfaces the existing solution: *"This rate-limiting logic is nearly identical to what's in Project X — want to extract a shared module?"* Prevents duplicate work across projects.
+
+### Impact Analysis ("What Would This Break?")
+Before a PR merges or a task is marked complete, Claude analyzes downstream impact: files that import the changed module, tests likely affected, other projects sharing this code. Surfaces as a brief risk panel — one click to review, one click to dismiss.
+
+### Live Module Documentation
+As BrickLayer writes code, Claude maintains a living prose explanation per module — not docstrings, actual human-readable narrative: what it does, why it exists, how it connects to other parts. Stored in Recall. Updated automatically when the module changes. When you open a file you haven't touched in months, the explanation is there.
+
+### Sprint Retrospective
+At the end of each sprint or week, Claude generates a data-driven retrospective: task completion rates, git velocity, what got blocked, how long tasks actually took vs. estimates, patterns in what got deferred. Delivered as a digest panel. Stored in Recall. Informs next sprint's planning automatically.
+
+---
+
+## 28. Ideation Intelligence Features
+
+### Idea Backlog
+A dedicated idea bank — separate from the task board — for ideas that aren't ready to become tasks yet. Ideas captured during brainstorms land here automatically. Claude periodically resurfaces relevant ideas when project context matches: *"You brainstormed a caching approach three months ago that's directly relevant to what you're building now."* Nothing gets lost.
+
+### Assumption Tracker
+Every project runs on assumptions. Claude captures them explicitly as they surface in conversations and brainstorms. Tracks validation status: confirmed, unconfirmed, invalidated. Before a build triggers, Claude surfaces the assumption audit: *"You're building on 3 unvalidated assumptions — here they are."* Teams decide to validate or accept the risk consciously.
+
+### Pre-Mortem Before Build
+Before BrickLayer triggers a build, Claude runs a structured pre-mortem: *"Imagine this shipped and failed. What are the 3 most likely reasons?"* Five minutes of structured failure-mode thinking before the team is invested. Outputs become tracked risks in the project knowledge graph.
+
+### Parallel Spike Dispatch
+For uncertain technical decisions, BrickLayer spins up small parallel throwaway spikes — quick real implementations of each option — and reports back with actual benchmarks, not opinions. You choose the approach with data. Spikes are discarded after the decision is made; the decision and benchmark results are stored in Recall.
+
+### Code Archaeology
+"Why does this code exist?" Claude traces any piece of code back through its full lineage: the task that created it, the brainstorm session that spawned the idea, the meeting or conversation where the decision was made. Full provenance from code back to original intent, powered by Recall + git history. Surfaces in a side panel when you hover over a module or function.
+
+### Rubber Duck Mode
+A dedicated conversation mode where Claude listens and asks questions only — no suggestions, no code, no answers. Pure Socratic dialogue. Devs talk through a problem and usually solve it themselves in the process. Claude monitors the conversation and asks one clarifying question at a time. User can explicitly switch to "give me your take" when ready.
+
+### Constraint-Aware Ideation
+During brainstorming, Claude knows the team's actual constraints: stack, team size, open tasks, runway, current velocity. When ideas are generated, it surfaces the *buildable* version alongside the full vision: *"Here's the minimal version of that idea with 2 devs in 3 weeks."* Keeps ideation grounded without killing ambition.
+
+### The Weekly Brief
+Every Monday morning, a team-wide AI-generated brief appears in the dashboard digest:
+- What shipped last week (git + task data)
+- What's planned this week (task board)
+- Active blockers
+- Decisions that need to be made this week
+- Team velocity trend
+
+Pulled from real data — Recall, git, tasks. Not manually written. Keeps the team aligned without a sync meeting.
+
+---
+
 ## Decisions Summary Table
 
 | Area | Decision |
@@ -522,7 +681,29 @@ Claude API (external internet) is the only true external dependency:
 | Theming | Dark/light + per-workspace accent colors |
 | Roles | Admin + Member (equal). Fractional hires scoped by admin |
 | Project creation | Import existing docs → Recall ingestion → Claude drafts brief |
+| Artifact Panel | Sandboxed iframe + postMessage. Claude-generated charts/sims/components render live |
+| Sandbox | Three modes: code scratchpad + environment clone + artifact sandbox |
+| Simulation | Data simulations + system simulations, both render to Artifact Panel |
+| PDF viewer | PDF.js in dockview panel + annotation stored in Recall |
+| DOCX viewer/editor | docx-preview + mammoth.js/TipTap. ONLYOFFICE optional for full fidelity |
+| Excel editor | Univer + SheetJS. Yjs live collaboration. Claude reads data as context |
+| Terminal watching | Claude observes terminal, proactively explains errors inline |
+| Session handoff | Claude writes handoff note to Recall on session end. Surfaces on next login |
+| Decision archaeology | Claude searches Recall across all projects before decisions are made |
+| Architecture drift | BrickLayer diffs codebase vs. spec after build starts. Drift surfaced as tasks |
+| Cross-project intelligence | Claude surfaces duplicate work across projects via Recall |
+| Impact analysis | Claude surfaces downstream risk before PR merge / task completion |
+| Live module docs | BrickLayer maintains living prose explanation per module in Recall |
+| Sprint retrospective | AI-generated from real data (git, tasks, Recall). Delivered as digest |
+| Idea backlog | Separate from task board. Claude resurfaces contextually relevant ideas |
+| Assumption tracker | Captured explicitly. Validation status tracked. Surfaced before build |
+| Pre-mortem | Structured failure-mode session before every build. Outputs → risk tracking |
+| Parallel spikes | BrickLayer runs throwaway parallel implementations. Choose with real benchmarks |
+| Code archaeology | Full provenance: code → task → brainstorm → meeting. Via Recall + git |
+| Rubber duck mode | Claude listens and asks only. No suggestions until user switches mode |
+| Constraint-aware ideation | Claude surfaces buildable version of each idea given real constraints |
+| Weekly brief | Monday AI digest: shipped, planned, blockers, decisions needed, velocity |
 
 ---
 
-*Spec approved: 2026-04-01. All decisions made by Tim via Superpowers Socratic session.*
+*Spec opened: 2026-04-01. Last updated: 2026-04-02. All decisions made by Tim via Superpowers Socratic session.*
