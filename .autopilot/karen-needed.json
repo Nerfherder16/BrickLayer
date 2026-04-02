@@ -8,6 +8,8 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    "masonry/src/hooks/masonry-approver-helpers.js",
+    "masonry/src/hooks/masonry-prompt-router.js",
     ".claude/agents/AGENTS.md",
     ".claude/agents/AUDIT_REPORT.md",
     ".claude/agents/adaptive-coordinator.md",
@@ -1197,5 +1199,5 @@
     "masonry/tests/engine/training-export.test.js",
     "masonry/tests/engine/training-schema.test.js"
   ],
-  "timestamp": "2026-04-02T01:58:17.617Z"
+  "timestamp": "2026-04-02T02:46:01.973Z"
 }

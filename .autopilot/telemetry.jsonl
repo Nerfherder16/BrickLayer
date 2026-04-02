@@ -273,3 +273,12 @@
 {"task_id":"t-1775090175028","phase":"pre","timestamp":"2026-04-02T00:36:15.028Z","agent_type":"general-purpose","task_type":"frontend","complexity":"high","strategy":"balanced"}
 {"task_id":"t-1775090175051","phase":"pre","timestamp":"2026-04-02T00:36:15.051Z","agent_type":"general-purpose","task_type":"frontend","complexity":"high","strategy":"balanced"}
 {"task_id":"t-1775093741166","phase":"pre","timestamp":"2026-04-02T01:35:41.167Z","agent_type":"claude-code-guide","task_type":"frontend","complexity":"medium","strategy":"balanced"}
+{"task_id":"t-1775096981407","phase":"pre","timestamp":"2026-04-02T02:29:41.408Z","agent_type":"architect","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775097103093","phase":"pre","timestamp":"2026-04-02T02:31:43.094Z","agent_type":"mortar","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775097259319","phase":"pre","timestamp":"2026-04-02T02:34:19.319Z","agent_type":"general-purpose","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775097971856","phase":"pre","timestamp":"2026-04-02T02:46:11.857Z","agent_type":"Explore","task_type":"fix","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775097971904","phase":"pre","timestamp":"2026-04-02T02:46:11.904Z","agent_type":"Explore","task_type":"fix","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775097971933","phase":"pre","timestamp":"2026-04-02T02:46:11.934Z","agent_type":"Explore","task_type":"backend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775097971933","phase":"post","timestamp":"2026-04-02T02:47:33.201Z","duration_ms":81259,"success":true,"agent":"Explore"}
+{"task_id":"t-1775097971933","phase":"post","timestamp":"2026-04-02T02:47:33.054Z","duration_ms":81107,"success":true,"agent":"Explore"}
+{"task_id":"t-1775097971933","phase":"post","timestamp":"2026-04-02T02:47:54.208Z","duration_ms":102259,"success":true,"agent":"Explore"}
