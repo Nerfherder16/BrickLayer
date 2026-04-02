@@ -6,3 +6,4 @@ pydantic-settings>=2.0
 httpx>=0.25
 sqlalchemy>=2.0
 asyncpg>=0.29
+PyJWT>=2.8
