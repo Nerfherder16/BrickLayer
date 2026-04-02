@@ -119,6 +119,103 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 
 ---
 
+## Phase 3.5: Experience Design & Product (from Superpowers spec 2026-04-01)
+
+> Full design decisions in `docs/superpowers/specs/codevvos-experience-design.md`
+
+### 3.5-UX: Team Dashboard
+- [ ] Team-wide panel: all active projects, per-member presence, project health indicators
+- [ ] Personal panel: assigned projects, tasks, personal AI assistant quick-access, catch-up digest
+- [ ] Activity feed: recent commits, decisions, AI conversations, canvas changes — filterable
+- [ ] Panels open alongside dashboard, never replace it (dashboard stays anchored)
+- [ ] Admin-configurable visibility restrictions for fractional hires
+
+### 3.5-WS: Workspace Type System
+- [ ] Five workspace templates: Brainstorm, Planning, Development, Review, Meeting
+- [ ] Each template: default dockview panel layout + keyboard shortcut profile + accent color
+- [ ] Users pick templates manually; work type suggests but never auto-switches
+- [ ] Admin-defined team-wide templates
+- [ ] Template customization and save per user
+
+### 3.5-KG: Knowledge Graph
+- [ ] Graph model: people, projects, tasks, decisions, files, canvas nodes, conversations, Recall memories
+- [ ] AI-maintained: Claude + Recall update graph continuously as work happens
+- [ ] Navigable: click node → open related item (file, canvas, task, conversation)
+- [ ] Manually editable: add nodes, draw connections, annotate relationships
+- [ ] Dedicated Knowledge Graph panel (launchable from dock)
+- [ ] Inline citations: when Claude references a decision, it links to the graph node
+
+### 3.5-PA: Personal AI Assistant (Per User)
+- [ ] Per-user named assistant with persistent personality and memory (Recall user-scoped)
+- [ ] Learns working style, preferences, domain knowledge over time — grows every session
+- [ ] Configurable tool loadout: Recall, file system, GitHub, canvas, BrickLayer, open MCP
+- [ ] Open MCP: user connects any MCP server (email, calendar, Slack, home automation, etc.)
+- [ ] Dev tasks: code assist, debugging, code review, BrickLayer agent invocation
+- [ ] Managerial tasks: email (read/draft/send), calendar, task tracking, standup summaries
+- [ ] Trigger-based automation: new PR → draft review email, build failed → notify team, task overdue → reassign suggestion
+- [ ] Scheduled automation: daily/weekly jobs (summaries, nudges, reports)
+- [ ] Public invocation: owner @mentions assistant in team contexts
+- [ ] Proxy mode (opt-in): teammates can ask assistant about owner's work when owner is away
+- [ ] Personality persists across sessions and machines via Recall sync
+
+### 3.5-CA: Custom Team Agents
+- [ ] Build from presets (researcher, coder, reviewer, security auditor) or from scratch
+- [ ] System prompt + tool loadout configuration per agent
+- [ ] Shareable with team or kept private — stored in project (version-controlled)
+- [ ] All custom agents run through BrickLayer crucible: benchmarked, scored, promoted/retired
+- [ ] Team builds living, improving agent fleet over time
+
+### 3.5-AM: AI Agent Mode (BrickLayer Build Panel)
+- [ ] Live log stream panel: terminal-style output of agent activity in real time
+- [ ] Live diff preview panel: code changes appear as agents write them
+- [ ] Interruptible: any team member can pause agent run, redirect Claude, resume
+- [ ] Build status visible on dashboard (project health indicator)
+
+### 3.5-OB: Onboarding & Offboarding
+- [ ] New user onboarding: Claude-guided tour (project history, decisions, progress, team)
+- [ ] Tour is Recall-backed — accurate from real project history, not generic copy
+- [ ] Offboarding: admin revokes access → Claude generates knowledge transfer summary
+- [ ] Claude suggests task reassignment for departing member's open tasks
+- [ ] Recall purge option: admin can remove personal memories while keeping project contributions
+
+### 3.5-PJ: Projector Casting
+- [ ] W3C Presentation API integration for browser-native casting
+- [ ] Dedicated `/projector` route: stripped-down canvas view mirrored live via Yjs
+- [ ] Admin configures projector URL → physical display mapping
+
+### 3.5-BL: BrickLayer & Masonry Integration
+- [ ] Package Masonry as `masonry-mcp` npm package
+- [ ] Package BrickLayer engine as `bricklayer` npm package
+- [ ] Version-pin both in Docker image `package.json`
+- [ ] Update mechanism: bump version, rebuild container
+- [ ] AI Agent Mode panel surfaces BrickLayer: live log + live diff + interruptible
+- [ ] Custom agents run through BrickLayer routing and crucible
+
+### 3.5-GS: Global Search
+- [ ] Single search bar with scope filter: this file / this project / all projects / Recall memory
+- [ ] File/code: ripgrep-backed
+- [ ] Canvas + docs: index canvas nodes and uploaded project documents
+- [ ] Recall: semantic search across all conversations, decisions, meetings, findings
+
+### 3.5-EX: Export & Backup
+- [ ] Manual export: canvas (PNG/SVG), documents (PDF/Markdown), full project archive (zip)
+- [ ] Scheduled automated backups to configurable destination (local path, S3, mounted storage)
+- [ ] Backup scope: code + canvas + docs + task history + AI conversation logs + DB snapshots
+
+### 3.5-TH: Theming & UX Polish
+- [ ] Dark mode + light mode toggle
+- [ ] Per-workspace accent colors (part of workspace template definition)
+- [ ] Command palette (`Cmd+K`) — single entry point for all actions
+- [ ] Opinionated default keyboard shortcuts + full remapping (VS Code-style)
+- [ ] Per-workspace shortcut profiles defined in workspace templates
+
+### 3.5-ST: Settings & Preferences
+- [ ] Settings stored in PostgreSQL — sync across all machines on login
+- [ ] Layered: user overrides system defaults; admin sets org-wide defaults
+- [ ] Export/import: portable JSON config file
+
+---
+
 ## Phase 3.5: Collaboration & Intelligence (extends existing CodeVV features)
 
 ### 3.5a. Shared AI Sessions (Group Claude Chat)
@@ -291,6 +388,19 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 
 | Component | Choice | Rationale |
 |-----------|--------|-----------|
+| Agent orchestration | BrickLayer (`npm install bricklayer`) | Version-pinned in Docker image; bump + rebuild to update |
+| MCP orchestration | Masonry (`npm install masonry-mcp`) | Node.js MCP server — agent routing, hooks, registry |
+| Personal AI assistant | Per-user Recall-scoped memory + open MCP tool loadout | Persistent personality, grows over time, proxy mode optional |
+| Custom agents | BrickLayer crucible | Benchmarked, scored, promoted/retired based on performance |
+| Knowledge graph | Recall (Neo4j) + AI-maintained | Live map of project — navigable, manually editable |
+| Global search | ripgrep (code) + Recall semantic (memory/docs) | Scoped: file / project / all / Recall |
+| Projector casting | W3C Presentation API + dedicated /projector Yjs-mirrored URL | Both modes — native cast + fallback URL |
+| Canvas | tldraw (existing) + AI placement (ask-before-place) | Structured templates + freeform + code-linked diagrams |
+| Workspace templates | dockview layouts + shortcut profiles + accent colors | Five templates: Brainstorm / Planning / Dev / Review / Meeting |
+| Personal assistant automation | Trigger-based + scheduled MCP jobs | New PR, build failures, overdue tasks, daily/weekly digests |
+| Settings persistence | PostgreSQL user settings + JSON export/import | Sync across machines on login |
+| Mobile access | Responsive web via Tailscale + push notifications | No native app needed |
+| Offboarding | Claude knowledge transfer summary + Recall purge option | Clean handoff, optional memory removal |
 | Panel manager | `dockview-react` v5.2.0 | Zero deps, React 19, tabs+dock+float+serialize, most actively maintained |
 | File tree | `@headless-tree/react` | 9.5kB, virtualized, accessible, successor to react-complex-tree |
 | Terminal PTY | Node.js + `node-pty` | Production standard (VS Code, Theia, Gitpod). Python pty lacks flow control |
