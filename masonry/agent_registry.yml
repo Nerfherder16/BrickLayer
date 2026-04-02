@@ -2205,3 +2205,134 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
+- name: stack-validator
+  file: .claude/agents/stack-validator.md
+  model: opus
+  description: Per-service language and runtime validation agent. Reviews a multi-service
+    architecture and recommends the optimal language, runtime, and framework for each
+    service based on performance requirements, team constraints, ecosystem maturity,
+    and operational complexity.
+  modes:
+  - validate
+  - research
+  capabilities:
+  - per-service language and runtime recommendation
+  - framework selection and trade-off analysis
+  - polyglot architecture risk assessment
+  - ecosystem maturity and maintenance evaluation
+  - operational complexity vs performance trade-off
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+  routing_keywords:
+  - stack validation
+  - language selection
+  - runtime choice
+  - which language
+  - what framework
+  - polyglot
+  - service language
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: build-bible
+  file: .claude/agents/build-bible.md
+  model: opus
+  description: Definitive build process guide generator. Produces a comprehensive,
+    project-specific build bible covering TDD strategy per service type, testing pyramid,
+    CI/CD pipeline design, performance budgets, branch strategy, and BrickLayer orchestration
+    guidance.
+  modes:
+  - validate
+  - research
+  capabilities:
+  - TDD strategy per service type
+  - testing pyramid design
+  - CI/CD pipeline architecture
+  - performance budget definition
+  - branch and PR strategy
+  - BrickLayer build orchestration guidance
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+  routing_keywords:
+  - build process
+  - build guide
+  - build bible
+  - TDD strategy
+  - testing pyramid
+  - CI/CD
+  - branch strategy
+  - performance budget
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: migration-strategist
+  file: .claude/agents/migration-strategist.md
+  model: sonnet
+  description: Safe migration planning agent. Analyzes an existing codebase and produces
+    a concrete migration strategy to a new architecture — identifying what to keep,
+    what to rewrite, what to port, and what order to do it in.
+  modes:
+  - validate
+  - research
+  capabilities:
+  - existing codebase inventory and assessment
+  - migration path ordering and dependency mapping
+  - risk identification and mitigation per migration step
+  - strangler fig and parallel-run pattern design
+  - rollback strategy per migration phase
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+  routing_keywords:
+  - migration strategy
+  - migration plan
+  - migrate from
+  - port to
+  - refactor existing
+  - strangler fig
+  - rewrite vs refactor
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: pre-flight
+  file: .claude/agents/pre-flight.md
+  model: sonnet
+  description: Pre-build gate validation agent. Validates that all Phase 0 architectural
+    and security requirements are actually resolved before coding begins. Produces
+    a pass/fail checklist with blocking items clearly flagged.
+  modes:
+  - validate
+  - audit
+  capabilities:
+  - Phase 0 requirement validation
+  - architectural decision completeness check
+  - security pre-requisite audit
+  - ADR gap detection
+  - build blocker identification
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  tier: candidate
+  routing_keywords:
+  - pre-flight
+  - pre-build check
+  - ready to build
+  - phase 0
+  - build gate
+  - architectural decisions
+  triggers: []
+  tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
