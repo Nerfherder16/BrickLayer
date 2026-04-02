@@ -10,11 +10,11 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 
 ### 0a. Security Pre-Requirements (CRITICAL — resolve before coding)
 - [ ] **Non-superuser Postgres role:** Create `codevv_app` role with `NOBYPASSRLS NOINHERIT`. All FastAPI connections use this role. Superuser bypasses all RLS — never use it for app queries.
-- [ ] **Internal-only ports:** Use `expose:` (Docker-internal) not `ports:` for Postgres, Redis, Yjs, FastAPI. Only Nginx exposes `:80`/`:443` to the LAN. Nothing else.
+- [ ] **Internal-only ports:** Use `expose:` (Docker-internal) not `ports:` for Postgres, Redis, Yjs, FastAPI. Only Nginx exposes `:443` to the LAN. Nothing else. _(ARCHITECTURE.md updated to match — was showing all ports as LAN-exposed)_
 - [ ] **BrickLayer sidecar auth:** Internal shared secret (`BL_INTERNAL_SECRET` env var) required on all `bl/server.py` endpoints. Network-isolated to `backend` Docker network only.
 - [ ] **Shared JWT auth library:** Single `auth.js` / `auth.py` used identically by backend, Yjs server, and ptyHost. No service implements its own JWT logic. Validate JWT on connection AND on a 60s expiry timer.
-- [ ] **Recall API auth:** Confirm `http://gpu-vm:8200` requires authentication. If not, add API key before production. Do not assume it's safe on LAN.
-- [ ] **Claude API key encryption:** Decide encryption scheme for per-user API keys in PostgreSQL before implementing key storage. Use `pgcrypto` (`pgp_sym_encrypt`) with a key derived from a Docker secret.
+- [ ] **Recall API auth:** Confirm `http://gpu-vm:8200` requires authentication. If not, add API key before production. Do not assume it's safe on LAN. _Action: test call to `http://gpu-vm:8200` before Phase 1, record result in ARCHITECTURE.md._
+- [ ] **Claude API key encryption:** Decided — `pgcrypto` (`pgp_sym_encrypt`) with key from Docker secret.
 - [ ] **Path traversal dependency:** Create `verify_path_in_workspace(path, user_workspace_root)` FastAPI dependency using `os.path.realpath()`. Apply to ALL file endpoints — not just the tree endpoint.
 
 ### 0b. Architecture Pre-Requirements
@@ -22,12 +22,24 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 - [ ] **tldraw sync decision:** tldraw v2 uses `@tldraw/sync-core` (not Yjs). Two options:
   - Use tldraw's native sync: add `tldraw-sync` Docker service
   - Use community `tldraw-yjs` adapter (unofficial, unsupported)
-  - **Recommended:** tldraw native sync + `tldraw-sync` service. Record decision in ADR.
+  - **Decided:** tldraw native sync + `tldraw-sync` service. ADR still needed. _Data migration risk: existing tldraw documents stored as Yjs blobs are incompatible with tldraw-sync format — decide at Phase 3.5-d: wipe or build export tool via `getSnapshot()` API._
 - [ ] **Univer collab decision:** Univer does NOT use Yjs. Its collab stack requires `univer-server` Docker service. **V1 decision: single-user Univer only** (no `univer-server`). Multi-user Excel collab is V2.
 - [ ] **Pydantic v2 → JSONForms adapter:** `GET /api/settings/schema` must post-process Pydantic v2 output (draft 2020-12) to JSON Schema draft 7 before returning. Write `to_draft7()` utility: `$defs` → `definitions`, rewrite `$ref` paths, flatten `Optional` `anyOf`.
 - [ ] **Artifact Panel CSP:** Use `srcdoc` iframe (null origin) with `sandbox="allow-scripts"` — NO `allow-same-origin`. Server-side compile Claude output to `React.createElement()` calls (no JSX, no `unsafe-eval`). Bundle React UMD + charting libraries into the iframe runtime.
-- [ ] **ARQ worker service:** Add `worker` service to Docker Compose (same backend image, `command: arq app.worker.WorkerSettings`). Without it, all background jobs enqueue to Redis but never execute.
+- [ ] **ARQ worker service:** Add `worker` service to Docker Compose (same backend image, `command: arq app.worker.WorkerSettings`). Without it, all background jobs enqueue to Redis but never execute. _ARQ scope: short/medium jobs only (notifications, digests, polling). Never route long-running BrickLayer agent runs through ARQ — use `POST /agent/spawn` on bricklayer sidecar directly. ARQ default `job_timeout=300s` will kill 30-60min agent runs._
 - [ ] **`pydantic-settings` package:** Add `pip install pydantic-settings` to requirements. Pydantic v2 split settings into a separate package — easy miss.
+
+### 0c. Baseline Docker Compose (author before Phase 1 coding starts)
+- [ ] Write `docker-compose.yml` encoding all Phase 0 decisions: `expose:` vs `ports:`, Docker secrets, `codevv_app` role env, named networks (`frontend`/`backend`), resource limits, `depends_on: condition: service_healthy`, `restart: unless-stopped`
+- [ ] This is the single source of truth for service topology — developers modify it, agents reference it
+
+### 0d. Known Time Bombs (from stack-validator analysis — prevent before they bite)
+- [ ] **bricklayer container entrypoint:** Must start tmux daemon before uvicorn (`tmux new-session -d -s main`). Add health check that verifies tmux is running. `spawn_agent()` fails silently if tmux server is not up.
+- [ ] **sandbox-manager:** Use `aiodocker` (async) or Go for Docker API calls. Do NOT use `docker-py` (sync) in an async FastAPI service — every container operation blocks the event loop.
+- [ ] **livekit-agents base image:** Use `python:3.12-slim-bookworm`, NOT Alpine. `opuslib` and audio codec deps fail to compile against Alpine musl libc.
+- [ ] **yjs-server / tldraw-sync:** Lock to `node:22-alpine` base image. Do NOT switch to Bun or Deno — tldraw-sync has no published Bun compatibility guarantees and y-websocket has edge cases at scale.
+- [ ] **`spawn_agent()` in async routes:** Enforce `asyncio.to_thread()` wrapping everywhere. Consider a linter rule or wrapper function that makes the sync-to-async boundary explicit.
+- [ ] **dockview layout versioning:** Store `{ version: 1, layout: {...} }` from day one. No layout schema versioning = painful migration when users have saved layouts.
 
 ---
 
@@ -476,6 +488,38 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] Layout persistence stress testing (10+ panels, page refresh, reconnection)
 - [ ] Performance profiling: memory per terminal, panel mount/unmount leaks
 - [ ] Security audit: path traversal, RLS bypass, WebSocket auth, RBAC enforcement
+- [ ] BrickLayer Audit campaign: `bl run --project codevvOS --mode audit --questions phase4-compliance.md`
+
+**Parallelism note:** Phase 5 (ISO build) can run in parallel with Phase 4. ISO work is OS-level and independent of feature completeness — assign to a separate track.
+
+---
+
+## Phase 4.5: Migration Checklist (from existing CodeVV codebase)
+
+> Apply these decisions when porting from `https://github.com/Nerfherder16/Codevv`
+
+### Frontend Migration
+- [ ] **REUSE:** React 19 setup, Tailwind v4, Vite config, LiveKit client
+- [ ] **PORT:** AIChatContext + /api/ai routes (extend for multi-participant), Yjs client, SharedTerminal (reconnect to ptyHost), login screen
+- [ ] **REWRITE:** Sidebar → dockview (largest single UI change — feature branch, not incremental refactor), OAuth PKCE UI → API key input, file browser → @headless-tree/react + @tanstack/react-virtual v3
+- [ ] dockview replacement is **incompatible** with existing navigation model — do on a dedicated `feat/dockview-shell` branch
+
+### Backend Migration
+- [ ] **REUSE:** FastAPI scaffold, middleware, CORS, SSE streaming, 8 AI tools, Recall integration
+- [ ] **PORT:** SQLAlchemy async sessions (add `expire_on_commit=False`), Pydantic models (add multi-tenant fields), file endpoints (add `verify_path_in_workspace`)
+- [ ] **DELETE:** `claude_auth.py` OAuth PKCE module — remove entirely, do not patch. Purge all stored OAuth tokens before deploying.
+- [ ] **REWRITE:** PostgreSQL schema (multi-tenant RLS, new tables, composite indexes, remove pgvector)
+
+### Auth Migration
+- [ ] **KEEP:** `/auth/login` JWT user auth — correct and working
+- [ ] **DELETE:** `claude_auth.py` — entire file. The `claude_credentials` table: repurpose for encrypted API keys or drop.
+- [ ] JWT secret: if moving to Docker secret, all active sessions invalidate — plan maintenance window
+
+### Data Migration Risks
+- [ ] **tldraw documents:** Yjs blob format → tldraw-sync format incompatible. Decide before Phase 3.5-d: wipe canvas data at cutover OR build one-time export tool via `tldraw.getSnapshot()`
+- [ ] **pgvector:** Drop columns + extension cleanly. Verify with `\dx` before dropping.
+- [ ] **OAuth tokens:** Purge `claude_credentials` table before deploying auth migration
+- [ ] **dockview layout:** No existing layouts to migrate at launch, but version from day one
 
 ---
 
@@ -581,7 +625,7 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 | Full office suite (optional) | ONLYOFFICE Docker service (isolated network) | Isolated, JWT secret required, pinned version. Never LAN-exposed. |
 | Virtualized tree | `@tanstack/react-virtual` v3 | Replaces react-window (unmaintained, no React 19). Native pairing with @headless-tree/react |
 | Artifact Panel | `srcdoc` null-origin iframe + `allow-scripts` only | Server-side compile to React.createElement(). No unsafe-eval. No allow-same-origin. |
-| Code sandbox runtime | Docker container (Node.js + Python) via sandbox-manager | sandbox-manager owns docker.sock. Backend never touches Docker directly. |
+| Code sandbox runtime | Docker container (Node.js + Python) via sandbox-manager | sandbox-manager owns docker.sock. Backend never touches Docker directly. Go preferred for sandbox-manager; Python with `aiodocker` (async) acceptable. Never `docker-py` sync. |
 | Environment clone sandbox | Docker container snapshot via sandbox-manager | Auto-triggered per branch (branch auto-environments) or manual |
 | Simulation engine | BrickLayer simulate runner + Artifact Panel | Data sims + system sims, results as interactive charts |
 | Interactive charts | recharts / D3 / Chart.js (Claude selects) | Claude picks library based on data shape |

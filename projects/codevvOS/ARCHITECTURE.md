@@ -1,7 +1,7 @@
 # CodeVV OS — Architecture
 
 **Authority: Tier 1 — Human Only**
-Last updated: 2026-04-01
+Last updated: 2026-04-02
 
 ---
 
@@ -13,13 +13,14 @@ Last updated: 2026-04-01
 │  → https://codevv.local                         │
 ├─────────────────────────────────────────────────┤
 │  Nginx (reverse proxy, SSL termination)         │
+│  :443 only — sole externally-exposed port       │
 ├──────────┬──────────┬──────────┬────────────────┤
 │ React 19 │ FastAPI  │ Yjs      │ LiveKit        │
 │ Frontend │ Backend  │ Server   │ (video collab) │
 │ (Vite)   │ (Python) │ (Node)   │                │
 ├──────────┴──────────┴──────────┴────────────────┤
-│  PostgreSQL + pgvector  │  Redis  │  Ollama API │
-├─────────────────────────┴─────────┴─────────────┤
+│  PostgreSQL 16  │  Redis 7  │  (no pgvector)   │
+├─────────────────┴───────────┴───────────────────┤
 │  Docker Compose (service orchestration)         │
 ├─────────────────────────────────────────────────┤
 │  Alpine Linux (minimal base OS)                 │
@@ -28,15 +29,19 @@ Last updated: 2026-04-01
 └─────────────────────────────────────────────────┘
 ```
 
+**Note:** pgvector has been removed — no vector use case in CodeVV. Recall uses Qdrant (on GPU VM).
+
 ## Kiosk Boot Chain (local console only)
 
 ```
-BIOS/UEFI → GRUB → Alpine Linux kernel
+BIOS/UEFI → [Phase 1 PoC: GRUB] → Alpine Linux kernel
   → OpenRC init
-    → docker-compose up -d (all services)
-    → wait-for-healthy.sh (poll service health)
+    → docker compose up -d (all services)
+    → service healthchecks (depends_on: service_healthy)
     → cage -- chromium --kiosk https://localhost
 ```
+
+**Boot note:** GRUB is used for Phase 1 proof-of-concept. Phase 5 target is `systemd-boot` (UEFI direct, no GRUB, faster boot). Do not build Phase 5 ISO pipeline assuming GRUB.
 
 The kiosk boot chain is only for the local console (e.g., a monitor plugged into the server). Remote users simply open a browser to the server's IP/hostname.
 
@@ -44,25 +49,32 @@ The kiosk boot chain is only for the local console (e.g., a monitor plugged into
 
 ```
 ┌──────────────────────────────┐
-│  Office LAN / VPN            │
+│  Office LAN / Tailscale VPN  │
 │                              │
 │  ┌─────────┐  ┌─────────┐   │
-│  │ Laptop  │  │ Tablet  │   │     ┌─────────────────────┐
-│  │ Browser │  │ Browser │   │────▶│  CodeVV-OS VM       │
-│  └─────────┘  └─────────┘   │     │  :443 (Nginx)       │
-│                              │     │  :5432 (Postgres)   │
-│  ┌─────────┐  ┌─────────┐   │     │  :6379 (Redis)      │
-│  │ Phone   │  │ Desktop │   │     │  :1234 (Yjs)        │
-│  │ Browser │  │ Browser │   │────▶│  :8000 (FastAPI)    │
-│  └─────────┘  └─────────┘   │     └────────┬────────────┘
-│                              │              │
-└──────────────────────────────┘              │ API call
-                                    ┌────────▼────────────┐
-                                    │  GPU VM             │
-                                    │  Ollama :11434      │
-                                    │  2x RTX 3090 (48GB) │
-                                    └─────────────────────┘
+│  │ Laptop  │  │ Tablet  │   │     ┌──────────────────────────┐
+│  │ Browser │  │ Browser │   │────▶│  CodeVV-OS VM            │
+│  └─────────┘  └─────────┘   │     │  :443 (Nginx) ← LAN only │
+│                              │     │                          │
+│  ┌─────────┐  ┌─────────┐   │     │  All other ports are     │
+│  │ Phone   │  │ Desktop │   │     │  Docker-internal only    │
+│  │ Browser │  │ Browser │   │────▶│  (expose:, not ports:)   │
+│  └─────────┘  └─────────┘   │     └────────┬─────────────────┘
+│                              │              │ Recall API call
+└──────────────────────────────┘              │ (not Ollama directly)
+                                    ┌────────▼─────────────────┐
+                                    │  GPU VM                  │
+                                    │  Recall :8200            │
+                                    │  Ollama :11434 (internal)│
+                                    │  2x RTX 3090 (48GB)      │
+                                    └──────────────────────────┘
 ```
+
+**Port isolation rule:** Only Nginx `:443` is published to the LAN (`ports:`). Postgres `:5432`, Redis `:6379`, Yjs `:1234`, FastAPI `:8000`, and all other internal services use Docker `expose:` only — reachable within the Docker network, not from the host or LAN.
+
+**Recall API auth:** Recall at `http://gpu-vm:8200` — auth status TBD (see open question below). CodeVV backend uses `RECALL_API_KEY` Docker secret when making Recall API calls. Do not assume LAN isolation is sufficient.
+
+**Open question (must resolve before Phase 1):** Confirm whether Recall API requires auth headers. If not, add API key middleware before production. Record the decision in this document once confirmed.
 
 ## Storage Layout (Proxmox Host)
 
@@ -85,42 +97,62 @@ Data Pool (WD Black SN850X 8TB)
 
 ## Docker Compose Services
 
-| Service | Image | Port | Purpose |
-|---------|-------|------|---------|
-| `frontend` | Custom (Vite build) | 3000 | React 19 UI |
-| `backend` | Custom (FastAPI) | 8000 | API, AI tools, Recall |
-| `postgres` | postgres:16 + pgvector | 5432 | Primary database |
-| `redis` | redis:7-alpine | 6379 | Session cache, pub/sub |
-| `yjs` | Custom (Node) | 1234 | Real-time document sync |
-| `livekit` | livekit/livekit-server | 7880 | Video collaboration |
-| `nginx` | nginx:alpine | 443 | Reverse proxy, SSL |
+All internal services use `expose:` (Docker-internal only). Only Nginx uses `ports:` (LAN-accessible).
+
+| Service | Image | Expose | Purpose |
+|---------|-------|--------|---------|
+| `nginx` | nginx:alpine | `ports: 443:443` | Reverse proxy, SSL — **sole LAN port** |
+| `frontend` | Custom (Vite build) | `expose: 3000` | React 19 UI (served via Nginx) |
+| `backend` | Custom (FastAPI) | `expose: 8000` | API, AI tools, Recall integration |
+| `postgres` | postgres:16 | `expose: 5432` | Primary database |
+| `redis` | redis:7-alpine | `expose: 6379` | Session cache, pub/sub, ARQ queue |
+| `yjs` | Custom (Node.js) | `expose: 1234` | Real-time document sync (Yjs) |
+| `tldraw-sync` | Custom (Node.js) | `expose: 1235` | tldraw v2 native sync |
+| `livekit` | livekit/livekit-server | `expose: 7880`, `ports: 50000-60000/udp` | Video/audio SFU |
+| `livekit-agents` | Custom (Python 3.12-slim) | `expose: 8081` | LiveKit AI agent runner |
+| `ptyhost` | Custom (Node.js) | `expose: 3001` | Terminal PTY WebSocket bridge |
+| `sandbox-manager` | Custom | `expose: 3002` | Docker sandbox orchestration (owns docker.sock via socket-proxy) |
+| `worker` | Custom (same as backend) | — | ARQ background job worker |
+| `bricklayer` | Custom (Python) | `expose: 8300` | BrickLayer research engine sidecar |
+| `masonry-mcp` | Custom (Node.js) | `expose: 3003` | Masonry MCP server |
+
+**LiveKit UDP note:** UDP `50000-60000` must be published (`ports:`) for WebRTC media. Without this, media falls back to TURN relay and video quality degrades significantly.
+
+**livekit-agents base image:** Must use `python:3.12-slim-bookworm` (glibc-based). Do NOT use Alpine — `opuslib` and audio codec dependencies fail to compile against musl libc.
+
+**sandbox-manager docker.sock:** Accessed only via `tecnativa/docker-socket-proxy` scoped to `exec` operations. No other service mounts docker.sock.
 
 ## Authentication Flow
 
 ```
 User opens browser → https://codevv.local
   → Nginx serves React app
-  → Login screen (OS-style)
+  → Login screen (OS-style full-screen)
   → FastAPI /auth/login → JWT issued
-  → WebSocket established (Yjs sync)
+  → WebSocket established (Yjs sync, ptyHost, tldraw-sync)
   → User enters collaborative workspace
 ```
+
+**Claude AI authentication:** Per-user API keys stored encrypted via `pgcrypto` (`pgp_sym_encrypt`) with key from Docker secret. No OAuth PKCE — Anthropic banned third-party OAuth PKCE for non-Console apps in Jan 2026.
+
+**JWT shared library:** Single `auth.py` (backend) and `auth.js` (Node services) used by all services. No service implements its own JWT parse logic.
 
 ## GPU Access Pattern
 
 CodeVV-OS VM does NOT have direct GPU access. Instead:
 
 1. User triggers AI action in CodeVV UI
-2. FastAPI backend calls Ollama API (`http://gpu-vm:11434`)
-3. GPU VM processes with RTX 3090s
-4. Response streamed back via SSE to frontend
+2. FastAPI backend calls **Recall API** (`http://gpu-vm:8200`)
+3. Recall routes to Ollama (`http://localhost:11434`) on the GPU VM
+4. GPU VM processes with RTX 3090s
+5. Response streamed back via SSE to frontend
 
-This keeps GPU resources shared across all users without passthrough complexity in the CodeVV VM.
+**CodeVV backend does NOT call Ollama directly.** All LLM inference goes through Recall's API. This keeps Ollama an implementation detail of the GPU VM, not a direct CodeVV dependency.
 
 ## Resource Allocation (Proxmox)
 
 | VM | vCPU | RAM | Storage | GPU |
 |----|------|-----|---------|-----|
 | CodeVV-OS | 16 threads | 64GB | 100GB (boot) + NFS mounts | None |
-| GPU / Ollama | 8 threads | 32GB | 50GB + AI pool mount | 2x RTX 3090 |
+| GPU / Ollama + Recall | 8 threads | 32GB | 50GB + AI pool mount | 2x RTX 3090 |
 | Remaining | 8 threads | 160GB | — | For future VMs/LXCs |

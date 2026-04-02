@@ -1,7 +1,7 @@
 # CodeVV OS — Project Brief
 
 **Authority: Tier 1 — Human Only**
-Last updated: 2026-04-01
+Last updated: 2026-04-02
 
 ---
 
@@ -27,12 +27,12 @@ The target deployment is a Threadripper PRO 9975WX server running Proxmox, where
 
 - **Frontend:** React 19, TypeScript, Tailwind v4, Vite
 - **Backend:** FastAPI, SQLAlchemy (async), Pydantic
-- **Database:** PostgreSQL + pgvector
-- **Cache:** Redis
+- **Database:** PostgreSQL 16 (no pgvector — removed, no use case)
+- **Cache:** Redis 7
 - **Real-time collaboration:** Yjs (multi-user document sync)
 - **Video collaboration:** LiveKit
-- **AI integration:** Claude via OAuth PKCE with SSE streaming
-- **Semantic memory:** Recall integration
+- **AI integration:** Claude via Console API key with SSE streaming (OAuth PKCE removed — banned by Anthropic Jan 2026)
+- **Semantic memory:** Recall integration (on GPU VM at `http://gpu-vm:8200`)
 - **8 project-aware AI tools**
 - **Deployment:** Docker Compose (already containerized)
 
@@ -42,14 +42,22 @@ The target deployment is a Threadripper PRO 9975WX server running Proxmox, where
 
 | Feature | Priority | Description |
 |---------|----------|-------------|
-| Built-in terminal | P0 | xterm.js component with WebSocket to backend shell |
-| System file browser | P0 | Extend existing file browser to show system files |
-| Login screen | P0 | Leverage existing auth — add OS-style login UI |
-| App launcher / dock | P1 | React component to launch tools as panels/tabs |
-| System settings panel | P1 | User management, network, display settings |
-| Boot-to-CodeVV ISO | P1 | Alpine Linux + Docker Compose + Chromium kiosk |
+| dockview shell | P0 | Replace sidebar with dockview-react v5.2.0 tiling panel manager |
+| Built-in terminal | P0 | xterm.js v6 + WebSocket to ptyHost Node.js service |
+| System file browser | P0 | @headless-tree/react + @tanstack/react-virtual v3 |
+| OS-style login screen | P0 | Full-screen login wrapping existing JWT auth |
+| Multi-tenant schema + RLS | P0 | New PostgreSQL schema with codevv_app non-superuser role |
+| Claude API key auth | P0 | Per-user encrypted key (pgcrypto) replacing OAuth PKCE |
+| App dock | P1 | React component to launch tools as dockview panels |
+| System settings panel | P1 | JSONForms auto-rendered from Pydantic settings schema |
+| Notification system | P1 | PostgreSQL-backed, SSE-delivered notification center |
+| tldraw native sync | P1 | @tldraw/sync-core + tldraw-sync Docker service |
+| BrickLayer sidecar | P1 | bl/server.py FastAPI wrapper at http://bricklayer:8300 |
+| Personal AI assistant | P2 | Per-user persistent Recall-scoped assistant |
+| Knowledge graph | P2 | AI-maintained via Claude + Recall Neo4j |
+| Sandbox | P2 | Three modes: scratchpad, environment clone, artifact execution |
+| Boot-to-CodeVV ISO | P2 | Alpine Linux + Docker Compose + Chromium kiosk (Phase 5) |
 | Notification system | P2 | System-level notifications (build status, collab, AI) |
-| Peripheral management | P2 | Printer, display, audio routing |
 
 ---
 
@@ -58,11 +66,15 @@ The target deployment is a Threadripper PRO 9975WX server running Proxmox, where
 ```
 Boot → Alpine Linux (minimal, ~50MB)
   → Docker Compose (auto-start on boot)
-    → PostgreSQL + pgvector
-    → Redis
+    → PostgreSQL 16 (multi-tenant, RLS)
+    → Redis 7
     → Yjs server (real-time collab)
+    → tldraw-sync (canvas sync)
     → FastAPI backend (+ Recall + Claude AI)
-    → Nginx (reverse proxy + SSL)
+    → ptyHost (terminal WebSocket bridge)
+    → sandbox-manager (Docker sandbox orchestration)
+    → BrickLayer sidecar (research engine)
+    → Nginx (reverse proxy + SSL) ← sole LAN-exposed port
   → Cage/Sway (Wayland kiosk compositor)
     → Chromium --kiosk → https://localhost
       → CodeVV React frontend IS the desktop
@@ -73,12 +85,13 @@ Boot → Alpine Linux (minimal, ~50MB)
 ```
 Proxmox (Threadripper PRO 9975WX)
 ├── CodeVV-OS VM (runs all Docker services)
-│   ├── PostgreSQL (shared state)
-│   ├── Redis (sessions)
-│   ├── Yjs (real-time sync)
-│   ├── FastAPI + Recall + Ollama API
-│   └── Nginx
-├── GPU VM (Ollama + 2x RTX 3090, 48GB VRAM)
+│   ├── PostgreSQL 16 (multi-tenant, RLS)
+│   ├── Redis 7 (sessions, ARQ queue)
+│   ├── Yjs + tldraw-sync (real-time sync)
+│   ├── FastAPI backend (Claude AI via API key)
+│   └── Nginx (:443 only)
+├── GPU VM (Recall :8200 + Ollama :11434 + 2x RTX 3090)
+│   └── CodeVV backend calls Recall API → Recall calls Ollama
 └── Users open browser → https://codevv.local
     → Login → Full collaborative IDE
     → Multiple users, same project, real-time
@@ -103,31 +116,57 @@ No per-user VMs needed. CodeVV already supports multi-user via Yjs. Everyone hit
 
 ## Phases
 
-### Phase 1: Proof of Concept (1-2 weeks)
-- Boot Alpine Linux → Docker Compose → CodeVV
-- Chromium kiosk mode as sole UI
-- Validate multi-user access from external browsers
-- Package as bootable ISO
+### Phase 0: Pre-Build Gate (before any code)
+- Resolve all security and architecture decisions
+- Update Tier 1 docs to match ROADMAP decisions
+- Confirm Recall API auth status
+- Author baseline docker-compose.yml
 
-### Phase 2: OS Features (2-3 weeks)
-- xterm.js integrated terminal
-- System file browser
-- App launcher / dock UI
+### Phase 1: Infrastructure (1 week)
+- Docker hardening (security, secrets, healthchecks)
+- ptyHost terminal service
+- Nginx configuration
+- Backend API extensions
+- Full multi-tenant PostgreSQL schema with RLS
+- Claude API key auth (replace OAuth PKCE)
+
+### Phase 2: OS Shell (1 week)
+- dockview tiling shell
+- OS-style dock
 - OS-style login screen
-- System settings panel
 
-### Phase 3: Production Deployment (1 week)
-- Deploy on Proxmox Threadripper server
-- GPU passthrough for Ollama LLM inference
-- ZFS storage pools configured
-- Apache Guacamole for remote access fallback
+### Phase 3: Core Features (1-2 weeks)
+- File browser, terminal upgrade, settings panel
+- Notification center
+- Inline AI editing (Cmd+K)
+- Live preview panel
+
+### Phase 3.5: Product Features (2-3 weeks)
+- Workspace templates, theming
+- Collaborative canvas (tldraw + projector mode)
+- BrickLayer sidecar integration
+- Personal AI assistant + custom agents
+- Knowledge graph
+- File viewers (Univer spreadsheet, docx, PDF)
+- Artifact panel + sandbox
+- GitHub integration + branch auto-environments
+
+### Phase 4: Integration & Polish
+- Full E2E validation, audit campaign
+- Performance optimization
+
+### Phase 5: Boot-to-Browser ISO
+- Alpine Linux ISO build (systemd-boot, not GRUB)
+- Cage/Wayland kiosk setup
+- CI ISO build pipeline
+
+### Phase 6: Production Deployment
+- Proxmox deployment
+- ZFS storage pools
 - Monitoring (Grafana/Prometheus)
 
-### Phase 4: Polish & Distribution
-- Custom branding / boot splash
-- Auto-update mechanism
-- Installer for bare-metal deployment
-- Documentation
+### Phase 7: Polish & Distribution
+- Custom branding, auto-update, installer docs
 
 ---
 
@@ -144,3 +183,5 @@ No per-user VMs needed. CodeVV already supports multi-user via Yjs. Everyone hit
 - Not a kernel fork
 - Not replacing Proxmox — runs as a VM or bare-metal appliance
 - Not supporting arbitrary desktop applications (CodeVV IS the app)
+- Not using pgvector (no vector use case — Recall handles embeddings via Qdrant)
+- Not using OAuth PKCE for Claude (banned by Anthropic Jan 2026)
