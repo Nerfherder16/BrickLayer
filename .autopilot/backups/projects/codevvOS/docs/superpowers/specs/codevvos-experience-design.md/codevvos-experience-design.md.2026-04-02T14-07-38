@@ -1,0 +1,734 @@
+# CodeVV OS — Experience Design Spec
+
+**Session:** Superpowers Socratic Brainstorming  
+**Date:** 2026-04-01  
+**Method:** 9-step structured ideation with hard gate before implementation  
+**Status:** APPROVED — ready for implementation planning
+
+---
+
+## Overview
+
+CodeVV OS is a boot-to-browser collaborative development platform. This spec captures every UX and product decision made during the design session. It covers the full user journey from first login through brainstorming, planning, building, and team management.
+
+This document is the ground truth for all experience decisions. The ROADMAP drives implementation sequence. This drives what gets built.
+
+---
+
+## 1. Team & Project Dashboard
+
+### Entry Point
+When a user logs in, they land on the **Team Dashboard** — a single unified view of the entire team's work across all projects.
+
+### What the Dashboard Shows
+
+**Team-wide panel (top):**
+- All active projects with status indicators
+- What each team member is currently working on (live presence)
+- Overall health per project (tasks done, tasks in progress, tasks blocked)
+
+**Personal panel (primary):**
+- Projects the user is assigned to
+- Their assigned tasks (current + upcoming)
+- Their personal AI assistant quick-access
+- Catch-up digest (if they've been away)
+
+**Activity feed (side):**
+- Recent commits, decisions, AI conversations, canvas changes
+- Filterable by project, person, or type
+
+### Dashboard Behavior
+- Projects are not siloed — every team member sees everything by default
+- Admin can restrict visibility for fractional hires (see Roles section)
+- Panels open alongside the dashboard rather than replacing it — dashboard stays anchored
+
+---
+
+## 2. Workspace Types
+
+Work type determines the workspace layout. Users are offered the appropriate workspace template based on what they're doing, but always pick manually.
+
+| Workspace | Default Layout | When Used |
+|-----------|---------------|-----------|
+| **Brainstorm** | Canvas (primary) + AI chat | Ideation, design exploration |
+| **Planning** | Task board + AI chat + canvas (secondary) | Sprint planning, spec writing |
+| **Development** | Code editor + terminal + file tree + AI chat | Active coding |
+| **Review** | Diff view + AI explanation panel | Code review, PR inspection |
+| **Meeting** | LiveKit video + canvas + shared terminal | Pair sessions, mob programming |
+
+### Workspace Templates
+- Each template has its own default panel layout, keyboard shortcut profile, and accent color
+- Users can customize any template and save it
+- Admins can define team-wide templates
+- Templates load into dockview — fully tiling with floating panel escape hatch
+
+---
+
+## 3. AI Brainstorming Sessions
+
+### Driver Model
+One user is the **driver** — they control the AI conversation. Other team members observe the session in real time (Yjs-synced) and can interject via @mention toasts. The driver decides when to acknowledge or ignore interjections.
+
+### Canvas-First Brainstorming
+- Brainstorm sessions open the canvas as the primary surface
+- Canvas supports: freeform sticky notes, structured templates, AI-generated diagrams
+- Claude asks before placing objects on the canvas — no surprise mutations
+- Canvas persists after the session ends — it's a permanent project artifact
+
+### The Hard Gate (Spec Before Build)
+When a brainstorm session reaches a decision point:
+
+1. Claude drafts a structured spec from the canvas and conversation
+2. The spec is presented to the driver for review
+3. **Hard gate:** the driver must explicitly approve the spec before any implementation begins
+4. Approved spec is stored in the project's `docs/` and ingested into Recall
+5. BrickLayer build is only triggered after spec approval
+
+No code is written until a human approves the spec. This is non-negotiable.
+
+### Brainstorm Session Flow
+```
+Open Brainstorm Workspace
+  → Canvas opens (blank or from template)
+  → AI chat panel alongside canvas
+  → Team joins as observers
+  → Driver leads conversation
+  → Claude assists: sticky notes, clusters, diagrams (asks before placing)
+  → Ideas accumulate on canvas
+  → Driver signals "ready to spec"
+  → Claude drafts spec from canvas + conversation
+  → Driver reviews and approves
+  → Spec saved → Recall ingested → BrickLayer build triggered
+```
+
+---
+
+## 4. Task Management
+
+### How Tasks Are Created
+- Claude suggests task breakdowns after spec approval
+- Humans make final assignment decisions
+- Tasks can be created manually at any time
+- Tasks linked to specs, canvas nodes, and git commits
+
+### Task Completion
+Tasks are completed with a mini-PR-style gate:
+1. Developer marks task done
+2. Tests must pass (automated check)
+3. Claude reviews the implementation first
+4. Team member confirms (lightweight approval, not a full code review unless flagged)
+
+This creates accountability without bureaucratic overhead.
+
+### Task Visibility
+- All tasks visible on dashboard
+- Per-user task list in personal panel
+- Tasks linked to knowledge graph nodes
+
+---
+
+## 5. Catch-Up & Digest
+
+When a user logs in after being away, a **pre-generated digest** is presented as a dismissable panel:
+
+- What was decided
+- What was built
+- What changed on canvas
+- New tasks assigned to them
+- Commits and PRs merged
+
+Claude is available on demand for deeper catch-up ("explain this decision to me"). The digest is powered by Recall + activity feed — it's accurate, not summarized from logs.
+
+---
+
+## 6. AI in Agent Mode (BrickLayer Build)
+
+When BrickLayer is running an agent build inside CodeVV:
+
+- **Live log stream** — terminal-style panel shows what agents are doing in real time
+- **Live diff preview** — as agents write code, diffs appear in a side panel in real time
+- **Interruptible** — any team member can pause the agent run, direct Claude, then resume
+- Build status visible on dashboard (project health indicator)
+
+The team watches the build happen. Nothing is hidden.
+
+---
+
+## 7. Knowledge Graph
+
+The knowledge graph is the live brain of the project.
+
+### What It Contains
+- People (team members, their roles, contributions)
+- Projects and their relationships
+- Tasks (current, completed, blocked)
+- Decisions (what was decided, when, in what context)
+- Files and code modules
+- Canvas nodes and brainstorm artifacts
+- AI conversations and meeting transcripts
+- Recall memories
+
+### How It Works
+- **AI-maintained:** Claude and Recall continuously update the graph as work happens
+- **Navigable:** click any node to open the related item (file, canvas, task, conversation)
+- **Manually editable:** team members can add nodes, draw connections, annotate relationships
+- **Live:** the graph reflects the project's actual state at all times
+
+### Where It Appears
+- Dedicated Knowledge Graph panel (launchable from dock)
+- Inline: when Claude references a decision, it links to the graph node
+- Search: global search scoped to graph nodes
+
+---
+
+## 8. Personal AI Assistant (Per User)
+
+Every user builds and owns their own AI assistant. This is not a shared tool — it is genuinely theirs.
+
+### What It Is
+- Named by the user
+- Has a persistent personality and memory that grows over time
+- Learns the user's working style, preferences, communication patterns, and domain knowledge
+- Remembers past sessions, decisions, and things the user has taught it
+- Runs through BrickLayer's routing layer — it can invoke BrickLayer agents on the user's behalf
+
+### What It Can Do
+**Development tasks:**
+- Code assistance, debugging, code review
+- Invoking BrickLayer agents (researcher, developer, reviewer)
+- GitHub: PRs, issues, code review inside CodeVV
+
+**Managerial & daily tasks:**
+- Email: read, draft, send (Gmail + SMTP)
+- Calendar management
+- Task tracking
+- Daily standup summaries
+- Weekly digest emails
+
+**Automation (trigger-based + scheduled):**
+- New GitHub PR → draft review email
+- Build failed → notify team
+- Task overdue → reassignment suggestion
+- Daily/weekly scheduled jobs (summaries, nudges, reports)
+- Any trigger the user configures
+
+### Tool Access
+Users configure their assistant's tool loadout:
+- Recall (always available — scoped to that user's memory)
+- File system (CodeVV project files)
+- GitHub
+- Canvas
+- BrickLayer agents
+- Any MCP server the user connects (email, calendar, Slack, home automation, etc.)
+- **Open MCP:** if an MCP server exists for it, the assistant can use it
+
+### Persistence & Growth
+The assistant builds a model of the user over time:
+- Every session it learns something new about how the user works
+- Preferences are stored in Recall (user-scoped)
+- Personality persists across sessions, machines, and reinstalls (synced via Recall)
+
+### Team Interaction
+- **Public invocation:** owner can @mention their assistant in team contexts — team sees the response
+- **Proxy mode (optional):** when the user is away, teammates can ask the assistant questions about their work
+- Proxy mode is opt-in per user, toggled in settings
+
+---
+
+## 9. Custom Team Agents
+
+Beyond personal assistants, teams can build specialized agents for project work.
+
+### How They're Built
+- Start from presets (researcher, coder, reviewer, security auditor, etc.) or from scratch
+- Write a system prompt describing the agent's role and expertise
+- Configure tool access (same MCP tool loadout system as personal assistants)
+- Name the agent and assign it to the project
+
+### Sharing
+- Agents are shareable with the team or kept private
+- Stored in the project (version-controlled)
+- Team agents appear in the BrickLayer agent registry
+
+### BrickLayer Integration
+Custom agents run through BrickLayer's crucible:
+- They are benchmarked on real tasks
+- Performance scored over time
+- Promoted when they perform well, flagged or retired when they don't
+- The team builds a living, improving agent fleet over time
+
+---
+
+## 10. Git & GitHub Integration
+
+Git is always available. GitHub features activate when a remote is connected.
+
+### Always Available (Git)
+- Git panel: status, stage, commit, push, branch management
+- Diff view in Review workspace
+- Commit history linked to knowledge graph
+
+### When GitHub Remote Is Connected
+- PR creation, review, and merge inside CodeVV
+- Issues: view, create, link to tasks
+- Code review: inline comments, approval
+- `git-nerd` agent handles automation (PR summaries, review emails, issue triage)
+- GitHub is optional — local-only projects work without it
+
+---
+
+## 11. Project Creation
+
+### Creating a New Project
+1. Name the project, set a description
+2. **Import existing docs** (PDF, DOCX, Excel, etc.) — all ingested into Recall
+3. Connect a GitHub repo (optional)
+4. Claude drafts an initial project brief from the imported documents
+5. Brief is stored in `docs/project-brief.md` and Recall
+
+### Loading an Existing Project
+- Connect a GitHub repo → project populates from the codebase
+- Claude analyzes the codebase and generates a brief
+- Team is onboarded via the Claude-guided tour
+
+---
+
+## 12. Roles & Permissions
+
+### Core Roles
+Lightweight role system — two tiers:
+
+| Role | Capabilities |
+|------|-------------|
+| **Admin** | Everything: user management, permissions, project settings, data export, Recall purge |
+| **Member** | Full project access: code, canvas, brainstorm, build, tasks |
+
+Members are equal. There is no "read-only team member" — everyone can contribute.
+
+### Fractional Hires
+- Scoped access — admin defines what projects and panels they can see
+- Sandboxed — limited tool access by default
+- AI onboarding — Claude walks them through their scoped project context
+- Admin can expand permissions as trust is established
+
+### Workspace Templates by Role
+- Role-based defaults: admins see the budget/progress/resource dashboard by default, members see development workspace
+- Everyone can access all templates — defaults are just starting points
+- Admin sets team-wide template defaults
+
+---
+
+## 13. Collaboration Features
+
+### Real-Time Presence
+- Collaborator avatars on file tree items (who has this file open)
+- Collaborator cursors in code editor (CodeMirror 6 + Yjs awareness)
+- "N people viewing" badges on canvas
+- Who's in which terminal session
+- Who's in which AI conversation
+- User status: online, away, focused, in meeting, do not disturb
+
+### Follow Mode
+- Click a teammate's avatar → your panel layout mirrors theirs in real-time (Figma-style)
+- Presentation mode: one driver, team follows
+- Unfollow returns you to your own layout
+
+### Shared Terminal (Mob Programming)
+- Multi-user input in SharedTerminal
+- Driver types, others observe with live cursor
+- "Pass the keyboard" via click or shortcut
+- Session recording for async review
+
+### LiveKit Video
+- Full video calls embedded in the workspace (voice + screenshare + video)
+- AI meeting assistant joins as a participant
+- Real-time transcription with speaker attribution
+- Auto-generated meeting summaries → action items, decisions, code references → stored in Recall
+- Push-to-talk AI in meetings: voice question → Claude responds in text
+
+### Notifications
+- Per-type preferences: each user configures what's urgent vs. quiet
+- Urgent (build failed, @mention, task assigned) → toast (bottom corner, auto-dismiss)
+- Everything else → notification drawer (bell icon, accumulates)
+- Push notifications on mobile (see Mobile section)
+
+---
+
+## 14. Mobile Access
+
+CodeVV OS is a desktop platform, but team members can access it remotely:
+
+- **Responsive web app** — full CodeVV accessible from any browser via Tailscale
+- Limited on small screens but functional (read code, check tasks, review diffs, chat with AI)
+- **Push notifications** — @mentions and task assignments delivered to mobile
+
+---
+
+## 15. Global Search
+
+One search bar, everything:
+
+| Scope | What It Searches |
+|-------|-----------------|
+| This file | ripgrep-backed content search |
+| This project | All files + canvas nodes + project docs |
+| All projects | Cross-project file and canvas search |
+| Recall memory | Semantic search across all conversations, decisions, meetings, findings |
+
+Scoped via filter toggle. Default scope is current project.
+
+---
+
+## 16. Onboarding
+
+### New User to an Existing Project
+1. User logs in, lands on dashboard
+2. Claude delivers a **guided tour**:
+   - What the project is
+   - Key decisions that have been made (cited from Recall)
+   - What's currently in progress
+   - Who the team members are and what they own
+3. Tour is accurate — drawn from real project history in Recall, not generic copy
+
+---
+
+## 17. Offboarding
+
+When a team member leaves:
+1. Admin revokes access
+2. Claude generates a **knowledge transfer summary**:
+   - What they owned and built
+   - Open tasks they had
+   - Key context only they held
+3. Claude suggests who should pick up their open tasks
+4. **Recall purge option:** admin can remove their personal Recall memories while keeping all project contributions and attribution intact
+
+---
+
+## 18. Canvas & Projector
+
+### Canvas Capabilities
+- tldraw-based freeform canvas
+- Structured templates (brainstorm grids, architecture diagrams, sprint boards)
+- AI-generated sticky notes, clusters, and diagrams (Claude asks before placing)
+- Architecture diagrams linked to actual code modules (bidirectional)
+- All canvas output stored in Recall
+
+### Wireless Projector Casting
+Two modes for sharing canvas to the office projector:
+
+1. **W3C Presentation API** — browser-native, works with any display connected to a presentation receiver
+2. **Dedicated projector URL** — a stripped-down `/projector` route served from CodeVV that the projector's browser loads; mirrored live via Yjs
+
+Admin configures which projector URL maps to which physical display.
+
+---
+
+## 19. BrickLayer & Masonry Integration
+
+### Integration Approach
+
+**Masonry** ships as an npm package — it's Node.js and that's legitimate:
+```
+npm install masonry-mcp
+```
+Installed in the CodeVV Docker image. Version-pinned in `package.json`.
+
+**BrickLayer** is a Python engine. It runs as a **Docker sidecar service** — the same pattern as Recall. Tim adds `bl/server.py`, a thin FastAPI wrapper (~100 lines) that exposes BrickLayer's core dispatch functions over HTTP:
+
+| Endpoint | Maps to |
+|----------|---------|
+| `POST /agent/spawn` | `spawn_agent(name, prompt, cwd)` |
+| `GET /agent/{id}` | agent status / wait |
+| `POST /wave/spawn` | parallel multi-agent dispatch |
+| `GET /crucible/scores` | agent benchmark scores |
+| `POST /sim/run` | simulate runner |
+
+CodeVV's backend calls `http://bricklayer:8300/` — no direct Python import, clean separation. Version updates are a Docker image tag bump + `docker compose pull`. BrickLayer's image includes tmux + the Claude CLI so agents still dispatch into visible panes.
+
+### What They Provide Inside CodeVV OS
+- **Masonry MCP server:** agent routing, hooks, registry, Ollama embeddings for semantic routing
+- **BrickLayer engine:** campaign runners, agent dispatch via tmux, crucible benchmarking, heal loop, simulation runners
+- **Agent fleet:** 100+ specialized agents accessible from within any CodeVV workspace
+- **Custom agents:** teams build agents that run through BrickLayer's routing and crucible
+
+### Availability
+BrickLayer features surface through the AI Agent Mode panel (live log + live diffs + interruptible). Masonry MCP is available to Claude as a tool server once the npm package is installed.
+
+---
+
+## 20. Settings, Keyboard Shortcuts & Theming
+
+### Settings
+- Stored in PostgreSQL — synced across all machines automatically on login
+- Export/import: portable JSON config file for backup or migration
+- Layered: user settings override system defaults; admin can set org-wide defaults
+
+### Keyboard Shortcuts
+- Command palette (`Cmd+K`) — access everything
+- Opinionated defaults for common actions
+- Fully remappable (VS Code-style)
+- **Per-workspace shortcut profiles** — each workspace template can define its own shortcut set
+
+### Theming
+- Dark mode + light mode toggle
+- **Per-workspace accent colors** — brainstorm workspace feels visually distinct from dev workspace
+- Accent color is part of the workspace template definition
+
+---
+
+## 21. Export & Backup
+
+### Manual Export
+- Canvas: PNG / SVG
+- Documents: PDF / Markdown
+- Full project archive: code + canvas + docs + task history + AI conversation logs (zip)
+
+### Automated Backups
+- Scheduled exports to a configured location (local path, S3, or any mounted storage)
+- Schedule is configurable per project
+- Backup includes everything in the manual export plus database snapshots
+
+---
+
+## 22. Connectivity
+
+CodeVV OS and Recall run on the same Proxmox machine. Recall calls are loopback/local — always available when the machine is up.
+
+Claude API (external internet) is the only true external dependency:
+- **Graceful degrade:** if Claude API is unreachable, local features stay fully operational (editor, terminal, git, canvas, file tree)
+- **Queue pending AI requests:** buffer requests, replay automatically when connection restores
+
+---
+
+## 23. Artifact Panel
+
+The Artifact Panel is a sandboxed iframe renderer that lives as a dockview panel alongside the AI chat. When Claude generates interactive content — charts, graphs, React components, data visualizations, simulations — it renders live in this panel.
+
+### How It Works
+- Claude generates HTML / JSX / React code in the chat
+- Content is injected into a sandboxed iframe (CSP-restricted, postMessage communication)
+- Renders immediately alongside the conversation — no copy-paste, no separate tab
+- User can interact with the rendered output (click, hover, input)
+- Code is editable inline — change a value, re-render instantly
+- All artifacts are saved to the project and stored in Recall
+
+### What Renders Here
+- Charts and graphs (recharts, D3, Chart.js — Claude picks based on data)
+- Interactive React components and UI prototypes
+- Data tables and pivot views
+- Simulation outputs (see Sandbox section)
+- Mathematical visualizations
+- Architecture diagrams generated from code analysis
+
+---
+
+## 24. Sandbox (Three Modes)
+
+A unified "Sandbox" panel with three distinct modes, switchable via tab.
+
+### Mode 1: Code Scratchpad
+Isolated code execution — paste or write a snippet, run it safely, see output. Completely isolated from the main project. Supports multiple languages (Node.js, Python, bash). Results appear inline. No project files are touched.
+
+Use cases: test a regex, prototype a function, verify an algorithm, explore an API response.
+
+### Mode 2: Environment Clone
+Spin up a full isolated copy of the current project environment. Try something risky — a major refactor, a dependency upgrade, an architectural experiment — without touching the main branch. When done: promote changes to main or discard. Backed by Docker — each clone is a container snapshot.
+
+Use cases: test a destructive migration, experiment with replacing a library, validate a build change before committing.
+
+### Mode 3: Artifact Sandbox (connected to Artifact Panel)
+Claude generates runnable code. It executes in the sandbox and output renders in the Artifact Panel. This is the bridge between the AI chat and live interactive output. The sandbox handles execution; the Artifact Panel handles display.
+
+---
+
+## 25. Simulation Sandbox
+
+Built on top of Sandbox Mode 3 and the Artifact Panel. BrickLayer's simulate runner is surfaced visually here.
+
+### Data Simulations
+Run what-if scenarios against project data:
+- Feed in a dataset (CSV, JSON, database query result)
+- Define variables and constraints
+- Claude generates the simulation code
+- Results render as interactive charts/graphs in the Artifact Panel
+- Tweak inputs, re-run, compare outputs
+
+Use cases: revenue projections, load testing projections, user growth models, A/B test outcome modeling.
+
+### System Simulations
+Model how architecture will behave before building it:
+- Describe the system (components, load, interactions)
+- BrickLayer's simulate runner models the behavior
+- Output: latency curves, failure rates, bottleneck identification, capacity recommendations
+- Results rendered as diagrams and charts in the Artifact Panel
+
+Use cases: "How does this queue design handle 10x traffic?", "Where does this architecture break under load?", "Is this database schema going to hold up?"
+
+Both simulation types feed results back into Recall as project findings.
+
+---
+
+## 26. File Viewers & Editors
+
+All file types open as dockview panels. Documents ingested into projects (uploaded or referenced) open in the appropriate viewer.
+
+### PDF
+- PDF.js renderer in a dockview panel
+- Annotation support (highlight, comment) — comments stored in Recall
+- Searchable text extraction for global search indexing
+
+### DOCX
+- `docx-preview` for read-only viewing (renders to clean HTML in-browser)
+- Editing: `mammoth.js` converts DOCX to rich text → editable in TipTap rich text editor → export back to DOCX
+- Full ONLYOFFICE integration available as optional Docker service for teams needing native DOCX fidelity
+
+### Excel / Spreadsheets
+- **Univer** — open-source Excel-like editor, full formula support, charts, formatting
+- `@univerjs/sheets-import-xlsx` for `.xlsx` import/export — **not SheetJS** (Univer has its own xlsx engine; SheetJS would conflict)
+- **V1: single-user only.** Univer multi-user collab requires `univer-server` Docker service which is not in the V1 compose. Do NOT add Yjs collab for Excel — Univer does not use Yjs. Multi-user Excel collaboration is a V2 feature when `univer-server` is deployed.
+- Claude can read spreadsheet data as context and generate formulas, pivot tables, or charts
+- Charts from spreadsheet data render in the Artifact Panel
+
+### All Document Types
+- Imported documents are ingested into Recall on open (text extracted, semantically indexed)
+- Global search finds content inside PDFs, DOCX, and spreadsheets
+- Documents link to knowledge graph nodes (which project, which decision, which task)
+
+---
+
+## 27. Team Intelligence Features
+
+### Ambient Terminal Watching
+Claude observes the terminal alongside the editor. When an error appears, it proactively offers an explanation and fix suggestion inline — no copy-pasting required. The user can dismiss or engage. Claude already has full ambient context (open file, canvas, current task) — terminal is the final piece.
+
+### Session Handoff
+When a user ends their session, Claude writes a handoff note to Recall: what they were working on, where they stopped, what the next step is. Next login surfaces it immediately: *"Welcome back — you were in the middle of X, next step is Y."* Personal assistant picks up exactly where the session ended.
+
+### Decision Archaeology
+Before a decision is made, Claude searches Recall across all projects for similar past decisions. Surfaces relevant history: *"Six months ago on Project X you ruled out Redis pub/sub for this reason — still applies?"* Prevents repeating solved problems and learning the same lesson twice.
+
+### Architecture Drift Detection
+After a spec is approved and build begins, BrickLayer periodically diffs the actual codebase against the spec and all ADRs. Drift surfaces proactively before it compounds: *"Spec says PostgreSQL for sessions, code is using Redis."* Flagged as a task — not a blocker, but visible.
+
+### Cross-Project Intelligence
+Claude monitors patterns across all projects in Recall. When a team is solving a problem that's already been solved in another project, it surfaces the existing solution: *"This rate-limiting logic is nearly identical to what's in Project X — want to extract a shared module?"* Prevents duplicate work across projects.
+
+### Impact Analysis ("What Would This Break?")
+Before a PR merges or a task is marked complete, Claude analyzes downstream impact: files that import the changed module, tests likely affected, other projects sharing this code. Surfaces as a brief risk panel — one click to review, one click to dismiss.
+
+### Live Module Documentation
+As BrickLayer writes code, Claude maintains a living prose explanation per module — not docstrings, actual human-readable narrative: what it does, why it exists, how it connects to other parts. Stored in Recall. Updated automatically when the module changes. When you open a file you haven't touched in months, the explanation is there.
+
+### Sprint Retrospective
+At the end of each sprint or week, Claude generates a data-driven retrospective: task completion rates, git velocity, what got blocked, how long tasks actually took vs. estimates, patterns in what got deferred. Delivered as a digest panel. Stored in Recall. Informs next sprint's planning automatically.
+
+---
+
+## 28. Ideation Intelligence Features
+
+### Idea Backlog
+A dedicated idea bank — separate from the task board — for ideas that aren't ready to become tasks yet. Ideas captured during brainstorms land here automatically. Claude periodically resurfaces relevant ideas when project context matches: *"You brainstormed a caching approach three months ago that's directly relevant to what you're building now."* Nothing gets lost.
+
+### Assumption Tracker
+Every project runs on assumptions. Claude captures them explicitly as they surface in conversations and brainstorms. Tracks validation status: confirmed, unconfirmed, invalidated. Before a build triggers, Claude surfaces the assumption audit: *"You're building on 3 unvalidated assumptions — here they are."* Teams decide to validate or accept the risk consciously.
+
+### Pre-Mortem Before Build
+Before BrickLayer triggers a build, Claude runs a structured pre-mortem: *"Imagine this shipped and failed. What are the 3 most likely reasons?"* Five minutes of structured failure-mode thinking before the team is invested. Outputs become tracked risks in the project knowledge graph.
+
+### Parallel Spike Dispatch
+For uncertain technical decisions, BrickLayer spins up small parallel throwaway spikes — quick real implementations of each option — and reports back with actual benchmarks, not opinions. You choose the approach with data. Spikes are discarded after the decision is made; the decision and benchmark results are stored in Recall.
+
+### Code Archaeology
+"Why does this code exist?" Claude traces any piece of code back through its full lineage: the task that created it, the brainstorm session that spawned the idea, the meeting or conversation where the decision was made. Full provenance from code back to original intent, powered by Recall + git history. Surfaces in a side panel when you hover over a module or function.
+
+### Rubber Duck Mode
+A dedicated conversation mode where Claude listens and asks questions only — no suggestions, no code, no answers. Pure Socratic dialogue. Devs talk through a problem and usually solve it themselves in the process. Claude monitors the conversation and asks one clarifying question at a time. User can explicitly switch to "give me your take" when ready.
+
+### Constraint-Aware Ideation
+During brainstorming, Claude knows the team's actual constraints: stack, team size, open tasks, runway, current velocity. When ideas are generated, it surfaces the *buildable* version alongside the full vision: *"Here's the minimal version of that idea with 2 devs in 3 weeks."* Keeps ideation grounded without killing ambition.
+
+### The Weekly Brief
+Every Monday morning, a team-wide AI-generated brief appears in the dashboard digest:
+- What shipped last week (git + task data)
+- What's planned this week (task board)
+- Active blockers
+- Decisions that need to be made this week
+- Team velocity trend
+
+Pulled from real data — Recall, git, tasks. Not manually written. Keeps the team aligned without a sync meeting.
+
+---
+
+## Decisions Summary Table
+
+| Area | Decision |
+|------|----------|
+| Dashboard | Team-wide + personal panels, all projects visible, open alongside don't replace |
+| Workspace selection | Work type suggests template, user always picks manually |
+| Brainstorm driver | One driver, observers interject via @mention toast |
+| Spec hard gate | Claude drafts → driver approves → build triggers. No code before approval |
+| Canvas | Freeform + structured + AI-generated. Claude asks before placing objects |
+| Projector | Presentation API + dedicated /projector URL |
+| Tasks | AI suggests breakdown, humans assign. Mini-PR gate on completion |
+| Catch-up | Pre-generated digest on login + Claude on demand |
+| Agent mode | Live log + live diff + interruptible by any team member |
+| Knowledge graph | AI-maintained, navigable, manually editable, live |
+| Personal assistant | Per-user, persistent, open MCP, trigger automation, proxy mode optional |
+| Custom agents | BrickLayer crucible — benchmarked, scored, promoted/retired |
+| GitHub | Optional, full when connected. git-nerd agent |
+| BrickLayer | Docker sidecar + `bl/server.py`. SSE streaming + interrupt/kill endpoints. asyncio.to_thread(). |
+| Masonry | `npm install masonry-mcp` in CodeVV Docker image |
+| Inline AI editing | Cmd+K inline diff in CodeMirror. Accept/Reject/Regenerate. Distinct from chat. |
+| Live preview | Hot-reload iframe panel proxied through Nginx. Viewport simulator. Error overlay. |
+| Branch auto-environments | Auto Docker snapshot per branch (extends Sandbox Mode 2). TTL-based cleanup. |
+| PR descriptions | git-nerd agent drafts from diff + tasks + Recall context. One-click accept/edit. |
+| Guest links | Read-only scoped links (canvas/spec/dashboard). No account. Configurable expiry. |
+| Spec gate UI | One-click Linear-style approval. Rejected spec returns to canvas with annotation. |
+| Dependency scanning | npm/pip audit on save. Severity tiers. Claude suggests fix. CRITICAL/HIGH → tasks. |
+| Univer collab | V1 single-user only. V2 adds univer-server. |
+| tldraw sync | tldraw native sync (not Yjs). Requires tldraw-sync Docker service. |
+| Artifact Panel | srcdoc null-origin iframe. allow-scripts only. Server-side compile. No unsafe-eval. |
+| docker.sock | Removed from backend. sandbox-manager owns it via socket-proxy (exec scope only). |
+| ARQ worker | Separate worker service. Required for all background jobs. Same backend image. |
+| pgvector | Removed — no use case. Recall uses Qdrant. |
+| react-window | Replaced with @tanstack/react-virtual v3 throughout. |
+| Notifications | Per-type user preferences. Urgent → toast, rest → drawer |
+| Connectivity | Recall is local. Claude API graceful degrade + queue |
+| Keyboard | Command palette + opinionated defaults + per-workspace profiles |
+| Settings | PostgreSQL sync + export/import |
+| LiveKit | Full video + screenshare + AI meeting assistant |
+| Mobile | Responsive web via Tailscale + push notifications |
+| Global search | Files + canvas + docs + Recall, scoped |
+| Onboarding | Claude-guided tour from real Recall history |
+| Offboarding | Revoke + knowledge transfer + reassignment + Recall purge option |
+| Export | Manual (PNG/SVG/PDF/zip) + scheduled automated backups |
+| Theming | Dark/light + per-workspace accent colors |
+| Roles | Admin + Member (equal). Fractional hires scoped by admin |
+| Project creation | Import existing docs → Recall ingestion → Claude drafts brief |
+| Artifact Panel | Sandboxed iframe + postMessage. Claude-generated charts/sims/components render live |
+| Sandbox | Three modes: code scratchpad + environment clone + artifact sandbox |
+| Simulation | Data simulations + system simulations, both render to Artifact Panel |
+| PDF viewer | PDF.js in dockview panel + annotation stored in Recall |
+| DOCX viewer/editor | docx-preview + mammoth.js/TipTap. ONLYOFFICE optional for full fidelity |
+| Excel editor | Univer + SheetJS. Yjs live collaboration. Claude reads data as context |
+| Terminal watching | Claude observes terminal, proactively explains errors inline |
+| Session handoff | Claude writes handoff note to Recall on session end. Surfaces on next login |
+| Decision archaeology | Claude searches Recall across all projects before decisions are made |
+| Architecture drift | BrickLayer diffs codebase vs. spec after build starts. Drift surfaced as tasks |
+| Cross-project intelligence | Claude surfaces duplicate work across projects via Recall |
+| Impact analysis | Claude surfaces downstream risk before PR merge / task completion |
+| Live module docs | BrickLayer maintains living prose explanation per module in Recall |
+| Sprint retrospective | AI-generated from real data (git, tasks, Recall). Delivered as digest |
+| Idea backlog | Separate from task board. Claude resurfaces contextually relevant ideas |
+| Assumption tracker | Captured explicitly. Validation status tracked. Surfaced before build |
+| Pre-mortem | Structured failure-mode session before every build. Outputs → risk tracking |
+| Parallel spikes | BrickLayer runs throwaway parallel implementations. Choose with real benchmarks |
+| Code archaeology | Full provenance: code → task → brainstorm → meeting. Via Recall + git |
+| Rubber duck mode | Claude listens and asks only. No suggestions until user switches mode |
+| Constraint-aware ideation | Claude surfaces buildable version of each idea given real constraints |
+| Weekly brief | Monday AI digest: shipped, planned, blockers, decisions needed, velocity |
+
+---
+
+*Spec opened: 2026-04-01. Last updated: 2026-04-02. All decisions made by Tim via Superpowers Socratic session.*
