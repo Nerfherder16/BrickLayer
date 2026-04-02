@@ -5,6 +5,9 @@ networks:
     driver: bridge
   backend:
     driver: bridge
+  sandbox:
+    driver: bridge
+    internal: true
 
 secrets:
   jwt_secret:
@@ -218,6 +221,58 @@ services:
       resources:
         limits:
           memory: 1g
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy
+    expose:
+      - "2375"
+    environment:
+      CONTAINERS: 1
+      EXEC: 1
+      IMAGES: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - sandbox
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  sandbox-manager:
+    build:
+      context: .
+      dockerfile: docker/sandbox-manager/Dockerfile
+    expose:
+      - "3002"
+    depends_on:
+      - docker-socket-proxy
+    environment:
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
+    networks:
+      - backend
+      - sandbox
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
     logging:
       driver: "json-file"
       options:

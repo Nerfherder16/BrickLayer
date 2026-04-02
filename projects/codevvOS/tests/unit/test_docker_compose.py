@@ -46,16 +46,19 @@ def test_secrets_section_exists(compose):
 
 
 def test_only_sandbox_manager_mounts_docker_sock(compose):
-    """No service other than sandbox-manager may reference docker.sock."""
+    """Only sandbox-manager and its socket-proxy sidecar may reference docker.sock."""
+    # docker-socket-proxy is the designated sidecar that holds the raw socket;
+    # sandbox-manager connects to it over TCP — no other service may touch the socket.
+    allowed = {"sandbox-manager", "docker-socket-proxy"}
     services = compose["services"]
     for name, svc in services.items():
-        if name == "sandbox-manager":
+        if name in allowed:
             continue
         volumes = svc.get("volumes", [])
         for vol in volumes:
             vol_str = str(vol)
             assert "docker.sock" not in vol_str, (
-                f"Service '{name}' references docker.sock — only sandbox-manager may do this"
+                f"Service '{name}' references docker.sock — only sandbox-manager/docker-socket-proxy may do this"
             )
 
 
