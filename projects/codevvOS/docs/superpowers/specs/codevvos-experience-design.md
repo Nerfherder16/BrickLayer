@@ -677,8 +677,22 @@ Pulled from real data — Recall, git, tasks. Not manually written. Keeps the te
 | Personal assistant | Per-user, persistent, open MCP, trigger automation, proxy mode optional |
 | Custom agents | BrickLayer crucible — benchmarked, scored, promoted/retired |
 | GitHub | Optional, full when connected. git-nerd agent |
-| BrickLayer | Docker sidecar service + `bl/server.py` FastAPI wrapper. Version via image tag |
+| BrickLayer | Docker sidecar + `bl/server.py`. SSE streaming + interrupt/kill endpoints. asyncio.to_thread(). |
 | Masonry | `npm install masonry-mcp` in CodeVV Docker image |
+| Inline AI editing | Cmd+K inline diff in CodeMirror. Accept/Reject/Regenerate. Distinct from chat. |
+| Live preview | Hot-reload iframe panel proxied through Nginx. Viewport simulator. Error overlay. |
+| Branch auto-environments | Auto Docker snapshot per branch (extends Sandbox Mode 2). TTL-based cleanup. |
+| PR descriptions | git-nerd agent drafts from diff + tasks + Recall context. One-click accept/edit. |
+| Guest links | Read-only scoped links (canvas/spec/dashboard). No account. Configurable expiry. |
+| Spec gate UI | One-click Linear-style approval. Rejected spec returns to canvas with annotation. |
+| Dependency scanning | npm/pip audit on save. Severity tiers. Claude suggests fix. CRITICAL/HIGH → tasks. |
+| Univer collab | V1 single-user only. V2 adds univer-server. |
+| tldraw sync | tldraw native sync (not Yjs). Requires tldraw-sync Docker service. |
+| Artifact Panel | srcdoc null-origin iframe. allow-scripts only. Server-side compile. No unsafe-eval. |
+| docker.sock | Removed from backend. sandbox-manager owns it via socket-proxy (exec scope only). |
+| ARQ worker | Separate worker service. Required for all background jobs. Same backend image. |
+| pgvector | Removed — no use case. Recall uses Qdrant. |
+| react-window | Replaced with @tanstack/react-virtual v3 throughout. |
 | Notifications | Per-type user preferences. Urgent → toast, rest → drawer |
 | Connectivity | Recall is local. Claude API graceful degrade + queue |
 | Keyboard | Command palette + opinionated defaults + per-workspace profiles |

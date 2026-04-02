@@ -4,6 +4,33 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 
 ---
 
+## Phase 0: Pre-Build Security & Architecture Requirements
+
+> These must be resolved in design before Phase 1 build starts. No code until these are decided.
+
+### 0a. Security Pre-Requirements (CRITICAL — resolve before coding)
+- [ ] **Non-superuser Postgres role:** Create `codevv_app` role with `NOBYPASSRLS NOINHERIT`. All FastAPI connections use this role. Superuser bypasses all RLS — never use it for app queries.
+- [ ] **Internal-only ports:** Use `expose:` (Docker-internal) not `ports:` for Postgres, Redis, Yjs, FastAPI. Only Nginx exposes `:80`/`:443` to the LAN. Nothing else.
+- [ ] **BrickLayer sidecar auth:** Internal shared secret (`BL_INTERNAL_SECRET` env var) required on all `bl/server.py` endpoints. Network-isolated to `backend` Docker network only.
+- [ ] **Shared JWT auth library:** Single `auth.js` / `auth.py` used identically by backend, Yjs server, and ptyHost. No service implements its own JWT logic. Validate JWT on connection AND on a 60s expiry timer.
+- [ ] **Recall API auth:** Confirm `http://gpu-vm:8200` requires authentication. If not, add API key before production. Do not assume it's safe on LAN.
+- [ ] **Claude API key encryption:** Decide encryption scheme for per-user API keys in PostgreSQL before implementing key storage. Use `pgcrypto` (`pgp_sym_encrypt`) with a key derived from a Docker secret.
+- [ ] **Path traversal dependency:** Create `verify_path_in_workspace(path, user_workspace_root)` FastAPI dependency using `os.path.realpath()`. Apply to ALL file endpoints — not just the tree endpoint.
+
+### 0b. Architecture Pre-Requirements
+- [ ] **docker.sock resolution:** Remove from `backend`. Mount **only** on `sandbox-manager` service via `tecnativa/docker-socket-proxy` scoped to `exec` operations only. ptyHost calls sandbox-manager API for container ops — never touches Docker directly.
+- [ ] **tldraw sync decision:** tldraw v2 uses `@tldraw/sync-core` (not Yjs). Two options:
+  - Use tldraw's native sync: add `tldraw-sync` Docker service
+  - Use community `tldraw-yjs` adapter (unofficial, unsupported)
+  - **Recommended:** tldraw native sync + `tldraw-sync` service. Record decision in ADR.
+- [ ] **Univer collab decision:** Univer does NOT use Yjs. Its collab stack requires `univer-server` Docker service. **V1 decision: single-user Univer only** (no `univer-server`). Multi-user Excel collab is V2.
+- [ ] **Pydantic v2 → JSONForms adapter:** `GET /api/settings/schema` must post-process Pydantic v2 output (draft 2020-12) to JSON Schema draft 7 before returning. Write `to_draft7()` utility: `$defs` → `definitions`, rewrite `$ref` paths, flatten `Optional` `anyOf`.
+- [ ] **Artifact Panel CSP:** Use `srcdoc` iframe (null origin) with `sandbox="allow-scripts"` — NO `allow-same-origin`. Server-side compile Claude output to `React.createElement()` calls (no JSX, no `unsafe-eval`). Bundle React UMD + charting libraries into the iframe runtime.
+- [ ] **ARQ worker service:** Add `worker` service to Docker Compose (same backend image, `command: arq app.worker.WorkerSettings`). Without it, all background jobs enqueue to Redis but never execute.
+- [ ] **`pydantic-settings` package:** Add `pip install pydantic-settings` to requirements. Pydantic v2 split settings into a separate package — easy miss.
+
+---
+
 ## Phase 1: Infrastructure & Backend (no frontend dependency)
 
 ### 1a. Docker Compose Hardening
@@ -18,34 +45,68 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 
 ### 1b. Node.js ptyHost Service (NEW)
 - [ ] Dedicated Node.js + `node-pty` microservice for per-user terminal PTY
-- [ ] WebSocket transport with ACK-based flow control
-- [ ] ReconnectingPTY pattern: session persistence via replay buffer per session
-- [ ] Per-user container sandboxing (Docker exec into user container)
+- [ ] WebSocket transport with ACK-based flow control — define message schema upfront: `{type:"data",id,data}` / `{type:"ack",id}` / `{type:"resize",cols,rows}`
+- [ ] ReconnectingPTY pattern: session persistence via replay buffer per session (cap at 100KB — VS Code pattern)
+- [ ] Per-user container sandboxing via **sandbox-manager API** (not direct docker.sock)
 - [ ] Shell cleanup on disconnect: SIGHUP -> timeout -> SIGKILL -> waitpid -> close FDs
 - [ ] Heartbeat monitoring with crash recovery (VS Code ptyHost pattern)
+- [ ] JWT validation on WebSocket connection using shared `auth.js` library (see Phase 0a)
 
 ### 1c. Nginx Reverse Proxy (NEW)
-- [ ] Per-service WebSocket location blocks (Yjs, terminal, LiveKit, SSE)
+- [ ] Per-service WebSocket location blocks: Yjs (`/yjs`), ptyHost (`/pty`), LiveKit (`/livekit`), SSE (`/api/stream`, `/api/files/watch`), BrickLayer agent streams (`/bl/agent/*/stream`)
 - [ ] `proxy_read_timeout 3600s` + ping/pong every 30s for long-lived WebSocket
 - [ ] SSL termination (self-signed for LAN; Let's Encrypt optional)
 - [ ] `proxy_buffering off` for WebSocket and SSE paths
 - [ ] HTTP/2 for static assets (WebSocket falls back to HTTP/1.1 automatically)
+- [ ] Artifact Panel iframe: `X-Frame-Options SAMEORIGIN` + CSP header with `sandbox` attribute on iframe responses
+- [ ] LiveKit UDP port range `50000-60000` published (required for WebRTC media — fallback to TURN relay otherwise)
 
 ### 1d. Backend API Extensions (FastAPI)
-- [ ] `GET /api/files/tree?path=` — Lazy-load directory listing with `os.path.realpath()` path traversal prevention
-- [ ] `PATCH /api/files/{path}` — File operations (rename, delete, move) scoped to user workspace
-- [ ] File watch via `watchfiles` (Rust-backed) pushing changes over SSE
-- [ ] `GET /api/settings/schema` — JSON Schema auto-generated from Pydantic models
+- [ ] `GET /api/files/tree?path=` — Lazy-load directory listing with `verify_path_in_workspace` dependency (Phase 0a)
+- [ ] `PATCH /api/files/{path:path}` — File operations scoped to user workspace. Use `{path:path}` for slash-containing paths. Apply `verify_path_in_workspace` dependency.
+- [ ] File watch via `watchfiles` (Rust-backed) pushing changes over SSE — fan-out via async generator, not per-connection watcher (inotify exhaustion risk)
+- [ ] `GET /api/settings/schema` — JSON Schema from Pydantic models, post-processed to draft 7 via `to_draft7()` (see Phase 0b)
 - [ ] `GET/PUT /api/settings/user` — Per-user settings CRUD
 - [ ] `GET/PUT /api/admin/settings` — Admin-only settings with `require_role("admin")` dependency
-- [ ] `GET /api/notifications` — Notification history with read/unread tracking (PostgreSQL-backed)
+- [ ] `GET /api/notifications?limit=50&before_id=` — Cursor-paginated notification history
 - [ ] `PATCH /api/notifications/{id}/read` — Mark notification read
+- [ ] Add `slowapi` rate limiting on all `/api/ai` and assistant endpoints (per-user limits — prevent trigger automation exhausting org API key)
+- [ ] Use `expire_on_commit=False` on all SQLAlchemy async sessions to prevent `MissingGreenlet` errors
+- [ ] Wrap all `spawn_agent()` calls in `asyncio.to_thread()` — blocking tmux dispatch must not block FastAPI event loop
+- [ ] System metrics endpoints: read from cgroup v2 (`/sys/fs/cgroup/memory.current` etc.) not `psutil` — Docker containers report misleading host-level data via psutil
 
-### 1e. PostgreSQL Multi-Tenant
-- [ ] Enable Row-Level Security (RLS) on shared tables
-- [ ] Add `tenant_id` column + B-tree index on tenant-scoped tables
-- [ ] Create non-superuser application role (superusers bypass RLS)
+### 1e. PostgreSQL Multi-Tenant & Schema
+- [ ] Enable Row-Level Security (RLS) on all shared tables
+- [ ] Create `codevv_app` role: `NOLOGIN NOBYPASSRLS NOINHERIT` — all app connections use this role
+- [ ] Composite indexes on tenant-scoped tables: `(tenant_id, id)`, `(tenant_id, created_at DESC)` — bare `(tenant_id)` alone is insufficient
 - [ ] Add admin role to user model
+- [ ] Remove `pgvector` extension — no defined use case in CodeVV (Recall uses Qdrant for vector search)
+
+#### Core tables (must exist before any feature work):
+```
+tenants           id, name, created_at
+users             id, tenant_id, email, role, display_name, ...
+projects          id, tenant_id, name, description, status, github_repo, created_by, ...
+workspace_templates id, tenant_id, name, base_type, layout_json, shortcut_profile, accent_color, is_system, is_team_default, created_by
+activity_events   id, tenant_id, project_id, user_id, type, title, payload, recall_ref, created_at
+```
+
+#### Feature tables (add per phase as features are built):
+```
+tasks             id, tenant_id, project_id, title, status, assignee_id, spec_ref, git_commit_sha, ...
+task_assignments  task_id, user_id, assigned_at
+ideas             id, tenant_id, project_id, title, description, source, status, promoted_task_id, recall_node_id
+assumptions       id, tenant_id, project_id, statement, status (unconfirmed/confirmed/invalidated/accepted_risk), ...
+premortem_sessions id, tenant_id, project_id, trigger_ref, conducted_at, summary
+premortem_risks   id, session_id, description, likelihood, impact, mitigation, status
+custom_agents     id, tenant_id, project_id, name, system_prompt, tool_loadout, crucible_score, ...
+session_handoffs  id, user_id, tenant_id, summary, recall_ref, dismissed, created_at
+push_subscriptions id, user_id, tenant_id, endpoint, p256dh, auth, created_at
+backup_configs    id, tenant_id, project_id, destination, schedule_cron, scope, enabled, last_run_at
+projector_configs id, tenant_id, name, url_slug, doc_id, created_at
+yjs_updates       doc_id, clock (BIGSERIAL), data (BYTEA), ts
+yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
+```
 
 ### 1f. Claude AI Auth Migration (CRITICAL)
 - [ ] **Remove OAuth PKCE flow** — Anthropic bans third-party apps from using subscription OAuth tokens (enforced server-side since Jan 2026)
@@ -86,7 +147,7 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 ## Phase 3: Frontend Features (depends on Phase 2)
 
 ### 3a. Code File Browser
-- [ ] `@headless-tree/react` + `react-window` for virtualized tree
+- [ ] `@headless-tree/react` + `@tanstack/react-virtual` v3 for virtualized tree (NOT react-window — unmaintained, no React 19 support)
 - [ ] Lazy-load children on directory expand (never full tree fetch)
 - [ ] Connected to `GET /api/files/tree?path=` backend API
 - [ ] Real-time updates via SSE file watch channel
@@ -96,13 +157,14 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 
 ### 3b. Terminal Upgrade
 - [ ] Connect `SharedTerminal.tsx` to new ptyHost WebSocket service
+- [ ] Addon loading order (critical): `new Terminal()` → `terminal.open(domEl)` → `loadAddon(webgl)` → `loadAddon(fit)` → `fitAddon.fit()`. Must call `open()` first — WebGL requires a DOM node.
 - [ ] Add xterm.js addons: `@xterm/addon-webgl` (primary renderer), `@xterm/addon-fit`, `@xterm/addon-serialize`, `@xterm/addon-web-links`, `@xterm/addon-search`
 - [ ] Remove deprecated canvas addon (deprecated in xterm.js v6)
 - [ ] Debounce `fitAddon.fit()` 150-200ms with `ResizeObserver`
 - [ ] Per-user terminal sessions with reconnection (session ID-based)
 - [ ] Multiple terminal tabs within dockview panel
-- [ ] WebGL context loss fallback to DOM renderer
-- [ ] Always call `terminal.dispose()` on unmount
+- [ ] WebGL context loss fallback: `webglAddon.onContextLoss(() => { webglAddon.dispose(); terminal.loadAddon(new CanvasAddon()); })`
+- [ ] Always call `terminal.dispose()` on unmount (dispose addons first, then terminal)
 
 ### 3c. Settings Panel
 - [ ] `@jsonforms/react` auto-rendered from Pydantic-generated JSON Schema
@@ -110,6 +172,23 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 - [ ] Admin-only section for user management, network info, system metrics
 - [ ] Network info via `/proc/net/`, system metrics via `psutil`
 - [ ] Display/resolution via browser `window.screen` API
+
+### 3e. Inline AI Editing (Cmd+K) — NEW
+- [ ] Inline AI edit shortcut: `Cmd+K` / `Ctrl+K` opens inline prompt above current selection in CodeMirror
+- [ ] Claude receives: selected code + surrounding context (±20 lines) + active file path + current task
+- [ ] Returns a unified diff applied inline with `+`/`-` highlighting (not a full rewrite)
+- [ ] Accept (`Tab`) / Reject (`Esc`) / Regenerate (`Cmd+Enter`) actions on the inline diff
+- [ ] Prompt history: up/down arrow cycles recent inline prompts
+- [ ] Works without selection: cursor position used as insertion point
+- [ ] Distinct from chat panel — inline edits do not appear in AI chat history
+
+### 3f. Live Preview Panel — NEW
+- [ ] Hot-reload iframe panel (dockview) for web project output
+- [ ] Auto-detects dev server port from `package.json` scripts or `vite.config.ts`
+- [ ] Proxied through Nginx to avoid CORS issues
+- [ ] Refresh on file save (debounced 300ms)
+- [ ] Mobile viewport simulator: toggle between desktop / tablet / mobile breakpoints
+- [ ] Error overlay: compilation errors render in the preview panel, not just the terminal
 
 ### 3d. Notification Center Upgrade
 - [ ] Swap toast implementation to Sonner (zero deps, simplest API)
@@ -127,8 +206,10 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 - [ ] Team-wide panel: all active projects, per-member presence, project health indicators
 - [ ] Personal panel: assigned projects, tasks, personal AI assistant quick-access, catch-up digest
 - [ ] Activity feed: recent commits, decisions, AI conversations, canvas changes — filterable
-- [ ] Panels open alongside dashboard, never replace it (dashboard stays anchored)
+- [ ] **Dashboard must be non-closable:** place `TeamDashboard` outside the main dockview layout tree as a fixed-width left panel. Panels to the right represent open workspaces. This makes "always anchored" structural, not a policy that can be overridden by drag.
+- [ ] Workspace switcher: `WorkspaceChip` in dock opens `WorkspaceSwitcherModal` (5 template cards with accent swatch, layout preview, default shortcuts)
 - [ ] Admin-configurable visibility restrictions for fractional hires
+- [ ] Catch-up digest gate: only show if `(time since last login > 2h) AND (feed has > 5 new events)`. Store `last_seen_digest_at` server-side.
 
 ### 3.5-WS: Workspace Type System
 - [ ] Five workspace templates: Brainstorm, Planning, Development, Review, Meeting
@@ -186,12 +267,19 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 ### 3.5-BL: BrickLayer & Masonry Integration
 - [ ] **Masonry:** `npm install masonry-mcp` in CodeVV Docker image (Node.js — legitimate npm package)
 - [ ] **BrickLayer:** Docker sidecar service — same pattern as Recall
-  - [ ] Add `bl/server.py` — thin FastAPI wrapper (~100 lines) exposing:
-    - `POST /agent/spawn` → `spawn_agent(name, prompt, cwd)`
-    - `GET /agent/{id}` → agent status / wait
-    - `POST /wave/spawn` → parallel multi-agent dispatch
+  - [ ] Add `bl/server.py` — thin FastAPI wrapper exposing:
+    - `POST /agent/spawn` → `asyncio.to_thread(spawn_agent, name, prompt, cwd)` — returns `{agent_id}` immediately
+    - `GET /agent/{id}/stream` → **SSE stream** of stdout from tmux pane (required for live log panel — polling is wrong)
+    - `GET /agent/{id}` → one-shot status check (running/complete/failed)
+    - `POST /agent/{id}/interrupt` → SIGINT to agent pane (required for interruptible builds)
+    - `POST /agent/{id}/kill` → SIGKILL
+    - `GET /agent/list` → active agents (required for dashboard build status)
+    - `POST /wave/spawn` → parallel multi-agent dispatch, returns `{wave_id}`
+    - `POST /wave/{id}/abort` → abort all agents in a wave
     - `GET /crucible/scores` → agent benchmark scores
-    - `POST /sim/run` → simulate runner
+    - `POST /sim/run` → returns `{run_id}` immediately (simulations are long-running)
+    - `GET /sim/{run_id}/stream` → SSE stream of simulation progress + result
+    - All endpoints require `BL_INTERNAL_SECRET` header (see Phase 0a)
   - [ ] Add `Dockerfile` for BrickLayer image (Python + tmux + claude CLI)
   - [ ] Add `bricklayer` service to CodeVV Docker Compose (version-pinned image tag)
   - [ ] CodeVV backend calls `http://bricklayer:8300/` — no direct Python import
@@ -223,12 +311,16 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 - [ ] Export/import: portable JSON config file
 
 ### 3.5-AP: Artifact Panel
-- [ ] Sandboxed iframe panel (dockview) with strict CSP + postMessage communication
-- [ ] Claude-generated HTML/JSX/React renders live alongside chat
-- [ ] Inline code editing → re-render on save
+- [ ] `srcdoc` null-origin iframe with `sandbox="allow-scripts"` only — NO `allow-same-origin` (would let iframe access parent DOM)
+- [ ] Server-side compile Claude output to `React.createElement()` calls — eliminates `unsafe-eval` requirement entirely
+- [ ] Bundle React UMD + recharts/D3/Chart.js into the iframe runtime as a local static bundle
+- [ ] postMessage communication: parent → iframe (inject content), iframe → parent (resize, events). Validate `event.origin` on all messages.
+- [ ] Inline code editing (CodeMirror strip, collapsed by default) → re-render on save
 - [ ] Interactive output (click, hover, input on rendered content)
+- [ ] `RenderChip` in chat messages: after Claude generates renderable content, chip appears → click to render in panel
 - [ ] Artifact persistence: saved to project + ingested into Recall
-- [ ] Supports: charts (recharts/D3/Chart.js), React components, data tables, architecture diagrams, simulation outputs
+- [ ] Type badges: Chart / React / Table / Diagram / Simulation (content-type colors, not workspace accent)
+- [ ] CSP `connect-src 'none'` — artifact iframes cannot make network requests
 
 ### 3.5-SB: Sandbox (Three Modes)
 - [ ] **Mode 1 — Code Scratchpad:** isolated execution (Node.js, Python, bash), results inline, zero project file access
@@ -246,11 +338,12 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 ### 3.5-FV: File Viewers & Editors
 - [ ] **PDF:** PDF.js dockview panel, annotation support (highlights/comments → Recall), text extraction for global search
 - [ ] **DOCX:** `docx-preview` for viewing, mammoth.js + TipTap for editing, DOCX export round-trip
-- [ ] **Excel:** Univer editor (formulas, charts, formatting), SheetJS for .xlsx import/export, Yjs live collaboration in cells
+- [ ] **Excel:** Univer editor (formulas, charts, formatting), `@univerjs/sheets-import-xlsx` for .xlsx import/export (**not SheetJS** — Univer has its own xlsx engine)
+- [ ] **Excel collab: V1 = single-user only.** Univer multi-user collab requires `univer-server` Docker service → deferred to V2
 - [ ] Excel data readable by Claude as conversation context
 - [ ] Excel charts render to Artifact Panel
 - [ ] All document types: text extracted on open → indexed in Recall → searchable globally
-- [ ] Optional: ONLYOFFICE Docker service for full native DOCX/Excel fidelity
+- [ ] Optional: ONLYOFFICE Docker service for full native DOCX/Excel fidelity — if deployed, isolate to its own Docker network, set JWT secret, pin image version, never expose to LAN directly
 
 ### 3.5-TI: Team Intelligence
 - [ ] **Ambient terminal watching:** Claude observes terminal output, proactively explains errors inline, dismissable
@@ -261,6 +354,41 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 - [ ] **Impact analysis:** before PR merge/task completion, Claude surfaces downstream risk (imports, tests, shared projects)
 - [ ] **Live module documentation:** BrickLayer maintains living prose doc per module in Recall; auto-updates on change
 - [ ] **Sprint retrospective:** AI-generated from git + task + Recall data, delivered as digest at sprint end
+
+### 3.5-CI: Competitive Feature Additions (from competitive analysis 2026-04-02)
+
+#### Branch Auto-Environments
+- [ ] Auto-spin an isolated Docker container snapshot when a new git branch is created
+- [ ] Each branch gets its own environment (extends Sandbox Mode 2 to be automatic)
+- [ ] Branch environment destroyed on branch delete or after configurable TTL
+- [ ] Switch between branch environments from the git panel without manual clone
+
+#### AI-Generated PR Descriptions & Commit Messages
+- [ ] `git-nerd` agent drafts PR description from: diff, related tasks, spec, Recall context
+- [ ] Inline commit message suggestion in git panel (one-click accept/edit)
+- [ ] PR description includes: what changed, why, related decisions cited from Recall, test summary
+- [ ] Configurable template per project
+
+#### Guest / Shareable Links
+- [ ] Admin can generate a shareable read-only link for a canvas, spec, or project dashboard
+- [ ] Guest access: no account required, scoped to a single document or canvas
+- [ ] Guest link has configurable expiry (1h / 24h / 7d / permanent)
+- [ ] Guest sees: canvas view, spec view, or dashboard (read-only). No code access, no terminal.
+- [ ] Guest activity not stored in Recall
+
+#### Lightweight Spec Gate UI
+- [ ] Spec approval must feel like Linear (one-click), not JIRA (5 required fields)
+- [ ] Driver sees: spec preview + `[Approve & Build]` button + optional comment field
+- [ ] Approval recorded in Recall with timestamp and approver identity
+- [ ] Rejected spec goes back to canvas with driver's comment visible as a canvas annotation
+- [ ] No workflow configuration required — gate is always single-click approval
+
+#### Dependency Vulnerability Scanning
+- [ ] Integrated npm/pip dependency audit in the development workspace
+- [ ] Triggered on: `package.json` / `requirements.txt` save, manual scan from dock
+- [ ] Results panel: severity (CRITICAL/HIGH/MEDIUM/LOW), package, version, CVE link
+- [ ] Claude suggests fix: `npm update X` or pinned safe version
+- [ ] Findings stored as project tasks (auto-create task for CRITICAL/HIGH)
 
 ### 3.5-II: Ideation Intelligence
 - [ ] **Idea backlog:** dedicated idea bank separate from tasks; Claude resurfaces contextually when relevant
@@ -314,8 +442,9 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 
 ### 3.5e. Follow Mode & Rich Presence
 - [ ] Click teammate's avatar → your panel layout mirrors theirs in real-time (Figma-style follow)
+- [ ] Before entering follow mode: call `dockviewApi.toJSON()` and store snapshot in a ref. On unfollow: restore from snapshot. Follow mode must not destroy unsaved panel state.
 - [ ] Opt-in presentation mode: one person drives, team follows
-- [ ] "Unfollow" to return to your own layout
+- [ ] "Unfollow" to return to your own layout — guaranteed by snapshot restore
 - [ ] Cross-panel presence indicators via Yjs awareness:
   - Collaborator avatars on file tree items (who has this file open)
   - Collaborator cursors in code editor (CodeMirror 6 + Yjs awareness)
@@ -446,17 +575,57 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 
 | Component | Choice | Rationale |
 |-----------|--------|-----------|
-| Excel editor | Univer + SheetJS | Open-source, full formula/chart support, Yjs collab, xlsx import/export |
+| Excel editor | Univer + `@univerjs/sheets-import-xlsx` | Open-source, full formula/chart support. V1 single-user only. V2 adds univer-server collab. |
 | DOCX viewer/editor | docx-preview + mammoth.js + TipTap | View + edit + export round-trip. ONLYOFFICE optional for full fidelity |
 | PDF viewer | PDF.js (already in Chromium) | Zero-overhead, annotations stored in Recall |
-| Full office suite (optional) | ONLYOFFICE Docker service | Self-hosted, handles DOCX/Excel/PDF natively if needed |
-| Artifact Panel | Sandboxed iframe + CSP + postMessage | Claude-generated content renders live. Same surface as simulation output |
-| Code sandbox runtime | Docker container (Node.js + Python images) | Isolated execution, zero project file access |
-| Environment clone sandbox | Docker container snapshot | Full project clone for risky experiments |
+| Full office suite (optional) | ONLYOFFICE Docker service (isolated network) | Isolated, JWT secret required, pinned version. Never LAN-exposed. |
+| Virtualized tree | `@tanstack/react-virtual` v3 | Replaces react-window (unmaintained, no React 19). Native pairing with @headless-tree/react |
+| Artifact Panel | `srcdoc` null-origin iframe + `allow-scripts` only | Server-side compile to React.createElement(). No unsafe-eval. No allow-same-origin. |
+| Code sandbox runtime | Docker container (Node.js + Python) via sandbox-manager | sandbox-manager owns docker.sock. Backend never touches Docker directly. |
+| Environment clone sandbox | Docker container snapshot via sandbox-manager | Auto-triggered per branch (branch auto-environments) or manual |
 | Simulation engine | BrickLayer simulate runner + Artifact Panel | Data sims + system sims, results as interactive charts |
 | Interactive charts | recharts / D3 / Chart.js (Claude selects) | Claude picks library based on data shape |
-| BrickLayer integration | Docker sidecar service + `bl/server.py` FastAPI wrapper | Python engine — same pattern as Recall. Version via image tag. CodeVV calls `http://bricklayer:8300/` |
+| Inline AI editing | CodeMirror 6 + Cmd+K inline prompt | Diff applied inline. Accept/Reject/Regenerate. Distinct from chat panel. |
+| Live preview | Hot-reload iframe panel proxied through Nginx | Auto-detects dev server port. Viewport simulator. Error overlay. |
+| BrickLayer integration | Docker sidecar service + `bl/server.py` FastAPI wrapper | SSE streaming endpoints + interrupt/kill. asyncio.to_thread() wrapping. |
 | Masonry integration | `npm install masonry-mcp` in CodeVV Docker image | Node.js MCP server — legitimate npm. Agent routing, hooks, registry |
+| Background jobs | ARQ worker service (same backend image, separate command) | Required for digests, scheduled automation, notifications, polling |
+| GitHub webhooks | Polling-first (ARQ, 60s interval) + Tailscale Funnel opt-in | LAN-only: GitHub can't reach the server. Polling is correct default. |
+| tldraw sync | `@tldraw/sync-core` + `tldraw-sync` Docker service | tldraw v2 uses its own sync, not Yjs. Add tldraw-sync service. |
+| Push notifications | pywebpush in worker service + VAPID keys in Docker secrets | No separate service for V1. Promote to push-notifier service if volume grows. |
+| Pydantic settings | `pip install pydantic-settings` (separate package) | Pydantic v2 split settings into a separate PyPI package |
+
+#### Complete Docker Compose Service List
+
+```
+Phase 0/1 (Core):
+  postgres          postgres:16-alpine (no pgvector — not needed)
+  redis             redis:7-alpine
+  backend           codevv/backend:{version}
+  frontend          codevv/frontend:{version}  (static, served via nginx)
+  yjs               codevv/yjs:{version}
+  nginx             nginx:alpine
+  worker            codevv/backend:{version}   (ARQ, different command)
+
+Phase 1b:
+  sandbox-manager   codevv/sandbox-manager:{version}  (owns docker.sock via socket-proxy)
+  ptyhost           codevv/ptyhost:{version}
+
+Phase 3.5:
+  livekit           livekit/livekit-server        (UDP 50000-60000 published)
+  livekit-agents    codevv/livekit-agents:{version}
+  tldraw-sync       codevv/tldraw-sync:{version}
+  bricklayer        codevv/bricklayer:{version}   (port 8300, internal only)
+
+Optional (Compose profiles):
+  onlyoffice        onlyoffice/documentserver     (profile: onlyoffice, isolated network)
+  univer-server     univer/collaboration-server   (profile: univer-collab, V2)
+
+External (not in Compose):
+  Recall            http://gpu-vm:8200
+  Ollama            http://gpu-vm:11434  (Recall uses internally; CodeVV never calls directly)
+```
+**Total: 13 services core + 2 optional profiles**
 | Personal AI assistant | Per-user Recall-scoped memory + open MCP tool loadout | Persistent personality, grows over time, proxy mode optional |
 | Custom agents | BrickLayer crucible | Benchmarked, scored, promoted/retired based on performance |
 | Knowledge graph | Recall (Neo4j) + AI-maintained | Live map of project — navigable, manually editable |
