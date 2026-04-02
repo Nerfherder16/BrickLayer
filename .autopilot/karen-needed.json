@@ -8,6 +8,11 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    ".claude/agents/bl-verifier.md",
+    ".claude/agents/e2e.md",
+    "masonry/src/hooks/masonry-mortar-enforcer.js",
+    "masonry/src/hooks/masonry-routing-gate.js",
+    "projects/codevvOS/docs/superpowers/specs/codevvos-experience-design.md",
     "bl/recall_bridge.py",
     "bl/tmux/core.py",
     "masonry/src/hooks/masonry-pre-protect.js",
@@ -1210,5 +1215,5 @@
     "masonry/tests/engine/training-export.test.js",
     "masonry/tests/engine/training-schema.test.js"
   ],
-  "timestamp": "2026-04-02T03:57:35.871Z"
+  "timestamp": "2026-04-02T03:59:12.318Z"
 }

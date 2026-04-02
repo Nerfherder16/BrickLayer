@@ -63,7 +63,7 @@ def spawn_tmux_pane(
     if result_file:
         # Capture pane scrollback after claude finishes; -J joins wrapped lines
         parts.append(
-            f"tmux capture-pane -t \"$TMUX_PANE\" -p -S - -J > {shlex.quote(str(result_file))}"
+            f"tmux capture-pane -p -S - -J > {shlex.quote(str(result_file))}"
         )
 
     parts.append(f"tmux wait-for -S bl-done-{agent_id}")
