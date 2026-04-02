@@ -1,6 +1,0 @@
-Resolved 5 packages in 241ms
-Prepared 3 packages in 69ms
-Installed 3 packages in 10ms
- + arq==0.27.0
- + hiredis==3.3.1
- + redis==5.3.1

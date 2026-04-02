@@ -1,6 +1,0 @@
-Resolved 4 packages in 148ms
-Downloading asyncpg (3.4MiB)
- Downloaded asyncpg
-Prepared 1 package in 142ms
-Installed 1 package in 6ms
- + asyncpg==0.31.0
