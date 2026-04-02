@@ -73,7 +73,26 @@ bricklayer-v2/
 
 ## BrickLayer Engine (bl/) — Recent Changes
 
-As of 2026-03-31, the `bl/` engine (at `../bl/` relative to this campaign) was refactored:
+### 2026-04-02 — Cross-platform portability + per-spawn gate
+
+| Module | Change |
+|--------|--------|
+| `bl/tmux/core.py` | `_seed_gate()` now per-spawn; each `spawn_agent()` gets its own `/tmp/masonry-gate-{agent_id}.json`; `BL_GATE_FILE` injected into child env |
+| `bl/tmux/pane.py` | `capture-pane` uses `-t "$TMUX_PANE"` instead of hardcoded target; fixes result capture in multi-window tmux sessions |
+| `bl/recall_bridge.py` | Removed dead `decay_conflicting_memories()` (unreachable, no callers) |
+| `bl/config.py` | `recall_src` default reads `RECALL_SRC` env var or `None` (was hardcoded Windows path) |
+| `bl/runners/correctness.py` | pytest path regex matches Linux paths in addition to Windows paths |
+
+**Masonry hooks** — all gate file references updated to use `BL_GATE_FILE` env var:
+`masonry-mortar-enforcer.js`, `masonry-routing-gate.js`, `masonry-pre-protect.js`, `masonry-subagent-tracker.js`, `masonry-prompt-router.js`
+
+`session/mortar-gate.js` — whitelist replaced with dynamic loader from `agent_registry.yml` + `.claude/agents/*.md` frontmatter; no more manual drift.
+
+`masonry-session-end.js` — removed dead `decay_conflicting_memories` invocation block.
+
+**Agents** — `mortar.md`, `trowel.md`, `bl-verifier.md`, `e2e.md` ported from hardcoded Windows paths to env-var-driven / WSL paths.
+
+### 2026-03-31 — tmux/pane + runners refactor
 
 | Module | Change |
 |--------|--------|

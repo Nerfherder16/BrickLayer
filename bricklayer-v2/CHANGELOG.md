@@ -9,6 +9,36 @@ Maintained by BrickLayer synthesizer at each wave end.
 
 ---
 
+## [Engine + Masonry + Agents] — cross-platform portability + per-spawn gate — 2026-04-02
+
+BrickLayer engine, Masonry hooks, and agent files ported from hardcoded Windows paths to Linux/WSL-portable configuration.
+
+### Changed
+
+**Engine (`bl/`)**
+- `bl/tmux/core.py` — `_seed_gate()` now per-spawn: each `spawn_agent()` call writes its own `/tmp/masonry-gate-{agent_id}.json` and injects `BL_GATE_FILE` into the child process env; parallel wave dispatches no longer share a single gate file
+- `bl/tmux/pane.py` — `capture-pane` now uses `-t "$TMUX_PANE"` instead of a hardcoded pane target; fixes result file capture bug in tmux sessions with multiple windows
+- `bl/recall_bridge.py` — removed dead `decay_conflicting_memories()` function (was implemented but unreachable; no callers existed)
+- `bl/config.py` — `recall_src` default changed from hardcoded Windows path to `Path(os.environ["RECALL_SRC"])` when env var is set, `None` otherwise; `import os` added
+- `bl/runners/correctness.py` — pytest path regex updated to match Linux paths (e.g. `/home/...`) in addition to Windows paths (`C:\...`)
+
+**Masonry hooks (`masonry/src/hooks/`)**
+- `session/mortar-gate.js` — agent whitelist replaced with dynamic loader: reads `agent_registry.yml` + `.claude/agents/*.md` frontmatter at runtime; eliminates manual drift between registry and gate
+- `masonry-mortar-enforcer.js` — gate file path reads `BL_GATE_FILE` env var (was hardcoded)
+- `masonry-routing-gate.js` — same
+- `masonry-pre-protect.js` — same
+- `masonry-subagent-tracker.js` — same
+- `masonry-prompt-router.js` — same
+- `masonry-session-end.js` — removed dead `decay_conflicting_memories` invocation block (matched `recall_bridge.py` removal)
+
+**Agents (`.claude/agents/`)**
+- `mortar.md` — routing receipt path uses `process.cwd()` or `BL_MASONRY_STATE` env var (was hardcoded Windows path)
+- `trowel.md` — Recall health check uses `RECALL_HOST` env var (was hardcoded IP)
+- `bl-verifier.md` — WSL paths (was Windows paths)
+- `e2e.md` — WSL paths (was Windows paths)
+
+---
+
 ## [Engine] bl/ — tmux/pane + runners refactor — 2026-03-31
 
 BrickLayer engine changes (not campaign questions). Pane lifecycle extracted to `bl/tmux/pane.py`; frontmatter parsing extracted to `bl/frontmatter.py`; `fixloop.py` updated; runners refactored with new `scout.py` and full `swarm.py`, each with test coverage.
