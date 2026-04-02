@@ -71,7 +71,7 @@ def test_require_role_rejects_wrong_role():
     creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
     with pytest.raises(HTTPException) as exc_info:
-        asyncio.get_event_loop().run_until_complete(dep(creds))
+        asyncio.run(dep(creds))
 
     assert exc_info.value.status_code == 403
 
