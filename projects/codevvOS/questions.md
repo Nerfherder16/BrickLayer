@@ -81,3 +81,15 @@ Status values: PENDING | IN_PROGRESS | DONE | INCONCLUSIVE
 | 7.1 | DONE | How to migrate from React Router page navigation to dockview panels? | Keep React Router for full-screen pages (login, onboarding) and deep links. `/app/*` route renders DockviewShell. Migrate pages to panels incrementally. Panel state in `toJSON()`/`fromJSON()`, NOT in URLs. |
 | 7.2 | DONE | Do dockview panels inherit React context providers? | Yes — dockview uses React portals, not separate roots. All 5 CodeVV contexts work as-is. Disable popout windows (context breaks in separate browser windows). |
 | 7.3 | DONE | What collaborative code editor approach works with existing Yjs? | Hybrid: code-server for individual work + shared CodeMirror 6 (`y-codemirror.next`) for pair sessions. y-monaco binding is ~200 lines. Do NOT try to make code-server itself collaborative. |
+
+---
+
+## Domain 8 — Claude AI Integration (NEW — from research)
+
+| ID | Status | Question | Finding |
+|----|--------|---------|---------|
+| 8.1 | DONE | Can CodeVV use Claude subscription OAuth tokens (Pro/Max/Teams) for its AI features? | **NO.** Anthropic bans third-party apps from using subscription OAuth tokens. Server-side enforced since Jan 2026. CodeVV's current OAuth PKCE flow must be removed. |
+| 8.2 | DONE | What authentication method should CodeVV use for Claude AI? | Anthropic Console API keys (`sk-ant-api03-*`). Either org-level shared key (`ANTHROPIC_API_KEY` env var — already works) or per-user keys stored encrypted in PostgreSQL. |
+| 8.3 | DONE | Should CodeVV use the Claude Agent SDK instead of raw Anthropic SDK? | Strong candidate. Agent SDK (`claude-agent-sdk`) gives Claude Code's full tool suite (Read, Write, Edit, Bash, Grep, Glob) built-in, plus session management, subagents, and MCP support. Native Python async, streaming via async iterators. Auth via API key (compliant). |
+| 8.4 | DONE | How do Claude Code Teams accounts relate to API access? | Teams is a subscription plan (claude.ai) — separate from Console/API billing. Teams Premium ($100/seat/mo) includes Claude Code CLI access but the OAuth tokens are restricted to Claude Code only. For third-party apps, use Console API keys with per-token billing. |
+| 8.5 | DONE | What changes in CodeVV's SSE streaming when switching from OAuth to API key? | Nothing. The `anthropic` Python SDK streaming works identically with API keys. Just change `AsyncAnthropic(auth_token=...)` to `AsyncAnthropic(api_key=...)`. |

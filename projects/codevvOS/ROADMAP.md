@@ -47,6 +47,16 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 - [ ] Create non-superuser application role (superusers bypass RLS)
 - [ ] Add admin role to user model
 
+### 1f. Claude AI Auth Migration (CRITICAL)
+- [ ] **Remove OAuth PKCE flow** — Anthropic bans third-party apps from using subscription OAuth tokens (enforced server-side since Jan 2026)
+- [ ] Remove `claude_auth.py` OAuth PKCE logic (authorize URL, token exchange, refresh)
+- [ ] Repurpose `claude_credentials` table for encrypted per-user API keys (or remove if using org key only)
+- [ ] Keep shared API key path (`ANTHROPIC_API_KEY` env var) — already works, compliant
+- [ ] Add per-user API key option: user provides Console API key via Settings panel, stored encrypted in PostgreSQL
+- [ ] Evaluate Claude Agent SDK (`pip install claude-agent-sdk`) — gives Claude Code's full tool suite (Read, Write, Edit, Bash, Grep, Glob) built-in alongside CodeVV's 19 custom tools
+- [ ] SSE streaming: no change needed — works identically with API key auth
+- [ ] Frontend: remove "Connect Claude" OAuth redirect, replace with API key input in Settings
+
 ---
 
 ## Phase 2: Frontend Shell (depends on Phase 1)
@@ -227,7 +237,8 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 | Collab code editor | CodeMirror 6 + `y-codemirror.next` | For pair sessions. code-server stays for individual work |
 | Yjs persistence | `y-postgresql` (update-row pattern) | Replace single-blob with per-update rows + periodic compaction |
 | Offline resilience | `y-indexeddb` | Browser-side persistence for offline editing and instant page reload |
-| Primary AI | Claude Code (Teams account) | Cloud-based, multi-user, handles all coding chat/autocomplete |
+| Primary AI | Claude via Console API key (NOT subscription OAuth) | Org-level or per-user API keys. OAuth PKCE flow must be removed — banned for third-party apps since Jan 2026 |
+| AI SDK | Claude Agent SDK (`claude-agent-sdk`) or raw `anthropic` SDK | Agent SDK recommended — gives Claude Code tools built-in. Both use API key auth |
 | Local LLM | Ollama (GPU VM) | Serves Recall 1.0 only — `nomic-embed-text` + `qwen3:14b`. Light workload, 1x RTX 3090 sufficient |
 | Semantic memory | Recall 1.0 (GPU VM) | Qdrant + Neo4j + PostgreSQL + Redis + ARQ. CodeVV calls Recall API, not Ollama directly |
 | Secrets management | Docker Compose file-based secrets + Pydantic `SecretsSettingsSource` | `/run/secrets/` with env var fallback. No wrapper needed |
