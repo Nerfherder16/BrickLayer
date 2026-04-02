@@ -113,7 +113,7 @@ async function main() {
   let intent = detectIntent(prompt);
   const effort = classifyEffort(prompt);
 
-  const MASONRY_STATE_PATH = "C:/Users/trg16/Dev/Bricklayer2.0/masonry/masonry-state.json";
+  const MASONRY_STATE_PATH = path.join(cwd, "masonry", "masonry-state.json");
   if (intent) {
     try {
       const st = fs.existsSync(MASONRY_STATE_PATH) ? JSON.parse(fs.readFileSync(MASONRY_STATE_PATH, "utf8")) : {};
