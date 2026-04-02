@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "rough-in",
-    "effort": "high",
-    "prompt_summary": "ok build all 4 and then run them",
-    "timestamp": "2026-04-02T05:27:59.616Z",
-    "turn_count": 1
+    "agent": "git-nerd",
+    "effort": "low",
+    "prompt_summary": "ok do you have anything you need to commit",
+    "timestamp": "2026-04-02T05:45:43.393Z",
+    "turn_count": 3
   }
 }
