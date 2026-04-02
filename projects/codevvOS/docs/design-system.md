@@ -31,35 +31,49 @@
 
 All tokens are CSS custom properties declared in a `@layer base` block. Dark mode is primary. Light mode is an alternative theme class applied to `:root`.
 
+The entire palette is genetically derived from five source colors:
+`#0D160B` (warm green near-black) · `#655560` (muted mauve-purple) · `#FCF7FF` (lavender near-white) · `#4F87B3` (steel blue) · `#ED474A` (coral red)
+
 ### 2.1 Base Surfaces (Dark Mode)
 
 ```css
-/* Background layers — from deepest to shallowest */
---color-base:       #08080B;   /* App chrome, behind all panels */
---color-surface-1:  #0F0F14;   /* Primary panel backgrounds */
---color-surface-2:  #151519;   /* Panel headers, sidebar background */
---color-surface-3:  #1C1C23;   /* Hover states, row highlights, active items */
---color-surface-4:  #23232C;   /* Tooltips, popovers, command palette */
---color-surface-5:  #2A2A35;   /* Menus, nested dropdowns */
+/* Background layers — from deepest to shallowest.
+   All steps pulled from #0D160B, advancing in lightness while
+   preserving its warm green character (G channel leads R by ~10, R leads B by ~3–5). */
+--color-base:       #0D160B;   /* Source color itself — app chrome, behind all panels */
+--color-surface-1:  #111B0E;   /* Primary panel backgrounds — +4 lightness, same family */
+--color-surface-2:  #162013;   /* Panel headers, sidebar — another +5 step up */
+--color-surface-3:  #1C2618;   /* Hover states, row highlights, active items */
+--color-surface-4:  #222D1E;   /* Tooltips, popovers, command palette */
+--color-surface-5:  #293524;   /* Menus, nested dropdowns — lightest surface, still same family */
 ```
 
 ### 2.2 Borders
 
 ```css
---color-border-subtle:  #1A1A22;   /* Nearly invisible — panel interior dividers */
---color-border-muted:   #262630;   /* Default panel border, sidebar separator */
---color-border-default: #333340;   /* Input fields, focused ring outer */
---color-border-strong:  #444455;   /* Active element borders, selection outline */
+/* Four tiers of visibility, all derived from the surface stack.
+   Subtle → barely visible; Strong → unambiguous selection indicator. */
+--color-border-subtle:  #192510;   /* Nearly invisible — panel interior dividers */
+--color-border-muted:   #212E16;   /* Default panel border, sidebar separator */
+--color-border-default: #2C3D1F;   /* Input fields, focused ring outer */
+--color-border-strong:  #3A4D2A;   /* Active element borders, selection outline */
 ```
 
 ### 2.3 Text Tiers
 
 ```css
---color-text-primary:   #EEEEF5;   /* Primary content, labels, headings */
---color-text-secondary: #8A8A9A;   /* Secondary labels, metadata, timestamps */
---color-text-tertiary:  #55556A;   /* Placeholder text, disabled labels */
---color-text-muted:     #36364A;   /* Very dim — decorative text only */
---color-text-inverse:   #0F0F14;   /* Text on accent/white backgrounds */
+/* Primary: #FCF7FF muted down ~6% — preserves the cool lavender undertone
+   but comfortable for long-form reading on dark backgrounds. */
+--color-text-primary:   #EDE9F4;   /* Primary content, labels, headings */
+
+/* Secondary/Tertiary: #655560 (mauve-purple) lifted to readable contrast.
+   Secondary at ~57% lightness; Tertiary at ~44% — visible placeholder level. */
+--color-text-secondary: #9088A0;   /* Secondary labels, metadata, timestamps */
+--color-text-tertiary:  #5F5570;   /* Placeholder text, disabled labels */
+--color-text-muted:     #3D3350;   /* Very dim — decorative text only */
+
+/* Inverse: dark green-tinted, for text on accent/light surfaces. */
+--color-text-inverse:   #111B0E;   /* Text on accent/white backgrounds */
 ```
 
 ### 2.4 Workspace Accent System
@@ -67,37 +81,50 @@ All tokens are CSS custom properties declared in a `@layer base` block. Dark mod
 Each workspace template swaps `--color-accent-*` via a CSS class on the workspace container. The rest of the shell is unaffected.
 
 ```css
-/* Default accent — used when no workspace is active (dashboard) */
---color-accent:           #4F87B3;   /* Steel blue */
---color-accent-muted:     #4F87B320; /* 12% opacity — subtle fills */
---color-accent-dim:       #4F87B340; /* 25% opacity — hover fills */
---color-accent-fg:        #EEEEF5;   /* Text on accent backgrounds */
+/* Default accent — steel blue source color, confirmed identity color */
+--color-accent:       #4F87B3;   /* Steel blue — primary accent, default workspace */
+--color-accent-muted: #4F87B320; /* 12% opacity — subtle fills */
+--color-accent-dim:   #4F87B340; /* 25% opacity — hover fills */
+--color-accent-fg:    #EDE9F4;   /* Near-white from text-primary — contrasts against #4F87B3 */
 
-/* Workspace-specific accent classes */
-.workspace-dev       { --color-accent: #4B9EF5; --color-accent-muted: #4B9EF520; --color-accent-dim: #4B9EF540; }
-.workspace-brainstorm{ --color-accent: #9B5CF6; --color-accent-muted: #9B5CF620; --color-accent-dim: #9B5CF640; }
-.workspace-planning  { --color-accent: #22C55E; --color-accent-muted: #22C55E20; --color-accent-dim: #22C55E40; }
-.workspace-review    { --color-accent: #F59E0B; --color-accent-muted: #F59E0B20; --color-accent-dim: #F59E0B40; }
-.workspace-meeting   { --color-accent: #EC4899; --color-accent-muted: #EC489920; --color-accent-dim: #EC489940; }
+/* Workspace-specific accent classes.
+   dev:        #4F87B3 — the source steel blue, literal match
+   brainstorm: #8E6AAF — #655560 lifted in lightness and pushed violet (ideation energy)
+   review:     #ED474A — the source coral red; urgency reads naturally as "review/alert"
+   planning:   #4E9E7A — forest sage green pulled from #0D160B's warm green character,
+                          lifted to an accent-usable brightness
+   meeting:    #C47A52 — warm amber-copper between coral warmth and earth tones */
+.workspace-dev        { --color-accent: #4F87B3; --color-accent-muted: #4F87B320; --color-accent-dim: #4F87B340; }
+.workspace-brainstorm { --color-accent: #8E6AAF; --color-accent-muted: #8E6AAF20; --color-accent-dim: #8E6AAF40; }
+.workspace-review     { --color-accent: #ED474A; --color-accent-muted: #ED474A20; --color-accent-dim: #ED474A40; }
+.workspace-planning   { --color-accent: #4E9E7A; --color-accent-muted: #4E9E7A20; --color-accent-dim: #4E9E7A40; }
+.workspace-meeting    { --color-accent: #C47A52; --color-accent-muted: #C47A5220; --color-accent-dim: #C47A5240; }
 ```
 
 ### 2.5 Semantic Status Colors
 
 ```css
---color-success:      #22C55E;
---color-success-muted:#22C55E20;
---color-warning:      #F59E0B;
---color-warning-muted:#F59E0B20;
---color-error:        #EF4444;
---color-error-muted:  #EF444420;
---color-info:         #4B9EF5;
---color-info-muted:   #4B9EF520;
+/* Error: #ED474A directly — the coral red source IS the natural error signal in this palette.
+   Warning: #C98A30 — warm amber that harmonizes with the mauve/coral family; avoids generic orange.
+   Success: #4DA862 — forest green derived from the warm green undertone of #0D160B, lifted to
+             accent brightness; feels native to this palette rather than a generic #22C55E import.
+   Info: #4F87B3 — same as default accent; information blue is already established. */
+--color-success:       #4DA862;
+--color-success-muted: #4DA86220;
+--color-warning:       #C98A30;
+--color-warning-muted: #C98A3020;
+--color-error:         #ED474A;
+--color-error-muted:   #ED474A20;
+--color-info:          #4F87B3;
+--color-info-muted:    #4F87B320;
 
-/* Severity — dependency scanner, agent verdicts */
---color-severity-critical: #EF4444;
---color-severity-high:     #F97316;
---color-severity-medium:   #F59E0B;
---color-severity-low:      #6B7280;
+/* Severity — dependency scanner, agent verdicts.
+   Critical = error source; High = coral-orange between red and amber;
+   Medium = warning amber; Low = text-tertiary mauve (muted, not alarming). */
+--color-severity-critical: #ED474A;   /* Same as error — coral red source */
+--color-severity-high:     #C9614A;   /* Coral-orange between error and warning */
+--color-severity-medium:   #C98A30;   /* Same as warning amber */
+--color-severity-low:      #5F5570;   /* Muted mauve — same as text-tertiary */
 ```
 
 ### 2.6 Light Mode (Secondary Theme)
@@ -106,23 +133,30 @@ Applied via `class="theme-light"` on `:root`. Override the same tokens:
 
 ```css
 .theme-light {
-  --color-base:           #F0F0F5;
-  --color-surface-1:      #FFFFFF;
-  --color-surface-2:      #F5F5FA;
-  --color-surface-3:      #EBEBF3;
-  --color-surface-4:      #E2E2EE;
-  --color-surface-5:      #D8D8E8;
-  --color-border-subtle:  #E8E8F0;
-  --color-border-muted:   #D8D8E8;
-  --color-border-default: #C0C0D4;
-  --color-border-strong:  #9090AA;
-  --color-text-primary:   #111118;
-  --color-text-secondary: #55556A;
-  --color-text-tertiary:  #9090A8;
-  --color-text-muted:     #C0C0D0;
-  --color-text-inverse:   #FFFFFF;
+  /* Surfaces: #FCF7FF as the base. Each step slightly less lavender-cool.
+     Surface-1 is pure white (maximum legibility); the faint character
+     of #FCF7FF lives in the outer background and nested layers. */
+  --color-base:           #FAF6FF;   /* #FCF7FF pulled slightly neutral — outermost background */
+  --color-surface-1:      #FFFFFF;   /* Pure white primary panels */
+  --color-surface-2:      #F4F0FA;   /* Panel headers — faint lavender, from #FCF7FF family */
+  --color-surface-3:      #EDE8F5;   /* Hover states — one step deeper */
+  --color-surface-4:      #E4DEEE;   /* Tooltips, popovers */
+  --color-surface-5:      #DAD3E7;   /* Menus, nested dropdowns */
+
+  /* Borders: warm-neutral, pulling from the mauve-purple family at light tints. */
+  --color-border-subtle:  #ECE7F5;
+  --color-border-muted:   #DDD7ED;
+  --color-border-default: #C5BDD9;
+  --color-border-strong:  #9E94BA;
+
+  /* Text: primary derived from #0D160B — the deep source, lightened one step for warmth.
+     Secondary/tertiary are #655560 darkened for light-mode contrast ratios. */
+  --color-text-primary:   #0F1A0C;   /* #0D160B +2 lightness — warm green near-black */
+  --color-text-secondary: #4A4265;   /* #655560 darkened for light-mode readability */
+  --color-text-tertiary:  #8279A0;   /* #655560 midpoint — tertiary labels */
+  --color-text-muted:     #C0B8D5;   /* Very light, decorative only */
+  --color-text-inverse:   #FAF6FF;   /* Near-white — text on dark surfaces in light mode */
 }
-```
 
 ---
 

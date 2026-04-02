@@ -824,7 +824,7 @@ dockview remains active at tablet widths. Behavioral changes:
 
 The login screen is full-viewport, rendered before the main app shell loads. It has three visual layers:
 
-**Layer 1 — Background:** The base color (`#08080B`) with a very subtle animated gradient. Not a screensaver, not a video — a slow-moving, low-opacity radial gradient in the workspace-default accent color (`#4F87B3` at 4% opacity), drifting across the screen at 20-second intervals. On a second monitor or projector, this looks like a lit wall. On a laptop, it reads as "powered on, waiting."
+**Layer 1 — Background:** The base color (`#0D160B`) with a very subtle animated gradient. Not a screensaver, not a video — a slow-moving, low-opacity radial gradient in the workspace-default accent color (`#4F87B3` at 4% opacity), drifting across the screen at 20-second intervals. On a second monitor or projector, this looks like a lit wall. On a laptop, it reads as "powered on, waiting."
 
 **Layer 2 — Center card:** A floating panel (480px wide, 8px radius, `--shadow-5`) centered vertically and horizontally. Background: `--color-surface-1`. Contains the user picker.
 
@@ -1113,8 +1113,8 @@ Columns: link label (auto-generated from the shared item's name), type badge, cr
 
 After Claude responds, the inline prompt bar is replaced by the diff view directly in the CodeMirror editor:
 
-- **Removed lines** (`-`): red background (`#EF444415`), red gutter marker, text in `--color-text-secondary` with strikethrough
-- **Added lines** (`+`): green background (`#22C55E15`), green gutter marker, text in `--color-text-primary`
+- **Removed lines** (`-`): red background (`#ED474A15`), red gutter marker, text in `--color-text-secondary` with strikethrough
+- **Added lines** (`+`): green background (`#4DA86215`), green gutter marker, text in `--color-text-primary`
 - **Unchanged context lines**: shown at normal opacity (±3 lines of context around each change)
 - Gutter markers: `-` in `--color-error`, `+` in `--color-success`, both at 10px
 
@@ -1339,7 +1339,7 @@ When the driver clicks "Reject", a **rejection reason field** appears (a simple 
 On confirm:
 - The full-screen overlay closes
 - A sticky note is placed on the canvas at the top-left empty area (or near the most relevant existing nodes if Claude can determine relevance)
-- Sticky note style: red background (`#3A1515`), white text, header "Spec rejected" in `--color-error`, body shows the rejection reason and timestamp
+- Sticky note style: red background (`#3A1212`), white text, header "Spec rejected" in `--color-error`, body shows the rejection reason and timestamp
 - The spec state changes to "In Revision" (badge visible on canvas sticky note)
 
 ### Multiple Pending Specs
