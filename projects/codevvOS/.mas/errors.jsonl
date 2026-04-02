@@ -8,3 +8,8 @@
 {"timestamp":"2026-04-01T21:07:56.362Z","tool":"Grep","error":"spawn /home/nerfherder/.nvm/versions/node/v24.14.1/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg EACCES","retries":1,"fingerprint":"Grep:spawn /home/nerfherder/.nvm/versions/node/v24.14.1/lib/node_modules/@anthropic-a"}
 {"timestamp":"2026-04-02T00:17:34.160Z","tool":"Grep","error":"spawn /home/nerfherder/.nvm/versions/node/v24.14.1/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg EACCES","retries":1,"fingerprint":"Grep:spawn /home/nerfherder/.nvm/versions/node/v24.14.1/lib/node_modules/@anthropic-a"}
 {"timestamp":"2026-04-02T00:17:34.252Z","tool":"Grep","error":"spawn /home/nerfherder/.nvm/versions/node/v24.14.1/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg EACCES","retries":2,"fingerprint":"Grep:spawn /home/nerfherder/.nvm/versions/node/v24.14.1/lib/node_modules/@anthropic-a"}
+{"timestamp":"2026-04-02T00:24:14.133Z","tool":"Bash","error":"Exit code 2","retries":1,"fingerprint":"Bash:Exit code 2"}
+{"timestamp":"2026-04-02T00:24:30.204Z","tool":"WebFetch","error":"Request failed with status code 404","retries":1,"fingerprint":"WebFetch:Request failed with status code 404"}
+{"timestamp":"2026-04-02T00:24:30.245Z","tool":"WebFetch","error":"Request failed with status code 404","retries":2,"fingerprint":"WebFetch:Request failed with status code 404"}
+{"timestamp":"2026-04-02T00:24:30.268Z","tool":"WebFetch","error":"Request failed with status code 404","retries":3,"fingerprint":"WebFetch:Request failed with status code 404"}
+{"timestamp":"2026-04-02T00:24:30.374Z","tool":"WebFetch","error":"Request failed with status code 404","retries":4,"fingerprint":"WebFetch:Request failed with status code 404"}
