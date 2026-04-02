@@ -824,7 +824,7 @@ dockview remains active at tablet widths. Behavioral changes:
 
 The login screen is full-viewport, rendered before the main app shell loads. It has three visual layers:
 
-**Layer 1 — Background:** The base color (`#08080B`) with a very subtle animated gradient. Not a screensaver, not a video — a slow-moving, low-opacity radial gradient in the workspace-default accent color (`#6B66F8` at 4% opacity), drifting across the screen at 20-second intervals. On a second monitor or projector, this looks like a lit wall. On a laptop, it reads as "powered on, waiting."
+**Layer 1 — Background:** The base color (`#08080B`) with a very subtle animated gradient. Not a screensaver, not a video — a slow-moving, low-opacity radial gradient in the workspace-default accent color (`#4F87B3` at 4% opacity), drifting across the screen at 20-second intervals. On a second monitor or projector, this looks like a lit wall. On a laptop, it reads as "powered on, waiting."
 
 **Layer 2 — Center card:** A floating panel (480px wide, 8px radius, `--shadow-5`) centered vertically and horizontally. Background: `--color-surface-1`. Contains the user picker.
 

@@ -68,9 +68,9 @@ Each workspace template swaps `--color-accent-*` via a CSS class on the workspac
 
 ```css
 /* Default accent — used when no workspace is active (dashboard) */
---color-accent:           #6B66F8;   /* Periwinkle violet */
---color-accent-muted:     #6B66F820; /* 12% opacity — subtle fills */
---color-accent-dim:       #6B66F840; /* 25% opacity — hover fills */
+--color-accent:           #4F87B3;   /* Steel blue */
+--color-accent-muted:     #4F87B320; /* 12% opacity — subtle fills */
+--color-accent-dim:       #4F87B340; /* 25% opacity — hover fills */
 --color-accent-fg:        #EEEEF5;   /* Text on accent backgrounds */
 
 /* Workspace-specific accent classes */
@@ -582,9 +582,9 @@ Tailwind v4 uses CSS-first configuration. All design tokens declared above are c
     --color-text-inverse:   #0F0F14;
 
     /* Accent (overridden per workspace) */
-    --color-accent:       #6B66F8;
-    --color-accent-muted: #6B66F820;
-    --color-accent-dim:   #6B66F840;
+    --color-accent:       #4F87B3;
+    --color-accent-muted: #4F87B320;
+    --color-accent-dim:   #4F87B340;
     --color-accent-fg:    #EEEEF5;
 
     /* Status */
