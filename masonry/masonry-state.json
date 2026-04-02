@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "git-nerd",
-    "effort": "low",
-    "prompt_summary": "ok do you have anything you need to commit",
-    "timestamp": "2026-04-02T05:45:43.393Z",
-    "turn_count": 3
+    "agent": "rough-in",
+    "effort": "high",
+    "prompt_summary": "a new recall is going to be ran from scratch on this build, not my existing",
+    "timestamp": "2026-04-02T13:47:10.100Z",
+    "turn_count": 1
   }
 }
