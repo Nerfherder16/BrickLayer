@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "rough-in",
-    "effort": "medium",
-    "prompt_summary": "before we plan, are there any other genuinly useful ideas we could implement now",
-    "timestamp": "2026-04-02T03:58:23.136Z",
+    "agent": "architect + design-reviewer",
+    "effort": "high",
+    "prompt_summary": "ok now use the agent architect to read through the roadmap to see its opinion",
+    "timestamp": "2026-04-02T04:29:02.554Z",
     "turn_count": 1
   }
 }
