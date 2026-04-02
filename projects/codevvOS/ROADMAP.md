@@ -34,6 +34,14 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 - [ ] **ARQ worker service:** Add `worker` service to Docker Compose (same backend image, `command: arq app.worker.WorkerSettings`). Without it, all background jobs enqueue to Redis but never execute. _ARQ scope: short/medium jobs only (notifications, digests, polling). Never route long-running BrickLayer agent runs through ARQ — use `POST /agent/spawn` on bricklayer sidecar directly. ARQ default `job_timeout=300s` will kill 30-60min agent runs._
 - [ ] **`pydantic-settings` package:** Add `pip install pydantic-settings` to requirements. Pydantic v2 split settings into a separate package — easy miss.
 
+### 0e. Design System (reference before any frontend work)
+- [ ] **Authority document:** `docs/design-system.md` is the Tier 2 UI ground truth. All frontend builders reference it before writing any component.
+- [ ] **Palette:** Derived from 5 source colors — `#0D160B` (warm green near-black), `#655560` (muted mauve), `#FCF7FF` (lavender near-white), `#4F87B3` (steel blue accent), `#ED474A` (coral red). "Obsidian Shell" aesthetic.
+- [ ] **Tailwind v4:** Implement `@layer base` CSS custom properties from design-system.md §9 before Phase 2 frontend shell starts. All components use token names — never hardcode hex values.
+- [ ] **Self-host fonts:** Inter + JetBrains Mono in `/public/fonts/` — LAN kiosk has no Google Fonts CDN access.
+- [ ] **Per-workspace accent:** Apply `.workspace-dev`, `.workspace-brainstorm`, `.workspace-review`, `.workspace-planning`, `.workspace-meeting` classes on the workspace container. Shell chrome is unaffected by accent changes.
+- [ ] **UX specs:** `docs/superpowers/specs/codevvos-experience-design.md` sections §29–§38 cover all previously-unspecced features (mobile, login, dock, branch environments, guest links, inline AI edit, live preview, dep scanner, spec gate, KG first-run). Read before building those features.
+
 ### 0c. Baseline Docker Compose (author before Phase 1 coding starts)
 - [ ] Write `docker-compose.yml` encoding all Phase 0 decisions: `expose:` vs `ports:`, Docker secrets, `codevv_app` role env, named networks (`frontend`/`backend`), resource limits, `depends_on: condition: service_healthy`, `restart: unless-stopped`
 - [ ] This is the single source of truth for service topology — developers modify it, agents reference it
