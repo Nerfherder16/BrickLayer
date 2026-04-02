@@ -72,7 +72,7 @@ async function main() {
   // whether to allow Write/Edit on production code.
   const subagentType = (input.subagent_type || "").trim().toLowerCase();
   {
-    const gateFile = path.join(os.tmpdir(), "masonry-mortar-gate.json");
+    const gateFile = process.env.BL_GATE_FILE || path.join(os.tmpdir(), "masonry-mortar-gate.json");
     const agentName = subagentType || (input.agent_name || "unknown").toLowerCase();
     const isSpecialist = !ORCHESTRATORS.has(agentName);
 

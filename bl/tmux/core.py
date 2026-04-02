@@ -18,44 +18,46 @@ from bl.tmux.pane import spawn_tmux_pane, tmux_wait_with_timeout
 from bl.tmux.signals import write_start_signal, write_stop_signal
 
 TEMP_DIR = Path("/tmp")
-_GATE_FILE = TEMP_DIR / "masonry-mortar-gate.json"
 
 # Orchestrators that coordinate but don't write production code.
 _ORCHESTRATORS = {"mortar", "rough-in", "trowel"}
 
 
-def _seed_gate(agent_name: str) -> None:
-    """Pre-seed the masonry gate file when an agent is spawned via tmux.
+def _gate_path(agent_id: str) -> Path:
+    """Return the per-spawn gate file path for an agent_id."""
+    return TEMP_DIR / f"masonry-gate-{agent_id}.json"
 
-    The SubagentStart hook only fires for Claude Code's Agent tool, not
-    for tmux-dispatched agents. This bridges the gap so the enforcer and
-    routing-gate hooks see the correct chain state.
+
+def _seed_gate(agent_name: str, agent_id: str) -> Path:
+    """Write a per-spawn gate file for a tmux-dispatched agent.
+
+    Each spawn gets its own file at /tmp/masonry-gate-{agent_id}.json so
+    parallel wave dispatches never share a file and cannot corrupt each
+    other's chain. The SubagentStart hook only fires for Claude Code's
+    Agent tool; this bridges the gap for tmux-spawned agents.
+
+    Returns the gate file path so the caller can inject BL_GATE_FILE
+    into the spawned process's environment.
     """
     import json
     from datetime import datetime, timezone
 
-    existing: dict = {}
-    try:
-        if _GATE_FILE.exists():
-            existing = json.loads(_GATE_FILE.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        pass
-
-    chain: list[str] = existing.get("chain", [])
-    chain.append(agent_name.lower())
+    gate_file = _gate_path(agent_id)
     is_specialist = agent_name.lower() not in _ORCHESTRATORS
 
     gate = {
         "mortar_consulted": True,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "agent": agent_name.lower(),
-        "chain": chain,
-        "specialist_spawned": is_specialist or existing.get("specialist_spawned", False),
+        "agent_id": agent_id,
+        "chain": [agent_name.lower()],
+        "specialist_spawned": is_specialist,
     }
     try:
-        _GATE_FILE.write_text(json.dumps(gate), encoding="utf-8")
+        gate_file.write_text(json.dumps(gate), encoding="utf-8")
     except OSError:
         pass
+    return gate_file
 
 
 def _build_orchestrator_prompt(agent_name: str) -> str:
@@ -219,10 +221,12 @@ def spawn_agent(
     effective_cwd = cwd or os.getcwd()
     write_start_signal(agent_id, agent_name, effective_cwd, model, None)
 
-    # Seed the masonry gate file so hooks know which agent is active.
-    # Without this, the mortar-enforcer treats tmux-spawned agents as
-    # "main session" and blocks their subagent dispatches.
-    _seed_gate(agent_name)
+    # Seed a per-spawn gate file so hooks know which agent is active.
+    # Each spawn gets its own file; BL_GATE_FILE in the child env points
+    # to it so JS hooks read the right file without any shared-file race.
+    gate_file = _seed_gate(agent_name, agent_id)
+    env_overrides = dict(env_overrides or {})
+    env_overrides["BL_GATE_FILE"] = str(gate_file)
 
     if in_tmux():
         # In tmux panes, use stream-json piped through a formatter for

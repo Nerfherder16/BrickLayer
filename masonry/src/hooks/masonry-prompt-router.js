@@ -97,7 +97,7 @@ async function main() {
   // Write Mortar gate file — but preserve existing chain if agents are active.
   // spawn_agent() seeds the gate with chain state; don't overwrite it.
   const os = require("os");
-  const gateFile = path.join(os.tmpdir(), "masonry-mortar-gate.json");
+  const gateFile = process.env.BL_GATE_FILE || path.join(os.tmpdir(), "masonry-mortar-gate.json");
   try {
     let existingGate = null;
     try { existingGate = JSON.parse(fs.readFileSync(gateFile, "utf8")); } catch {}
