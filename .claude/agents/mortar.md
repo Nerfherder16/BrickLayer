@@ -73,7 +73,7 @@ Detect mode at startup:
 After detecting mode and **before dispatching to any agent**, write the routing receipt so the PreToolUse gate knows Mortar has been consulted:
 
 ```bash
-node -e "const fs=require('fs'),p='C:/Users/trg16/Dev/Bricklayer2.0/masonry/masonry-state.json';try{const s=JSON.parse(fs.readFileSync(p,'utf8'));s.mortar_consulted=true;s.mortar_session_id=new Date().toISOString();fs.writeFileSync(p,JSON.stringify(s,null,2))}catch(e){}"
+node -e "const fs=require('fs'),path=require('path'),p=process.env.BL_MASONRY_STATE||path.join(process.cwd(),'masonry','masonry-state.json');try{const s=JSON.parse(fs.readFileSync(p,'utf8'));s.mortar_consulted=true;s.mortar_session_id=new Date().toISOString();fs.writeFileSync(p,JSON.stringify(s,null,2))}catch(e){}"
 ```
 
 Do this **ONCE per invocation**, immediately after mode detection completes. This write uses Bash (which is unconditionally exempt from the PreToolUse gate) to avoid any deadlock.

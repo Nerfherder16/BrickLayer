@@ -6,6 +6,7 @@ the singleton before any runner runs, so all modules see the updated values.
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -31,7 +32,7 @@ cfg = SimpleNamespace(
     request_timeout=10.0,
     local_ollama_url="http://192.168.50.62:11434",
     local_model="qwen2.5:7b",
-    recall_src=Path("C:/Users/trg16/Dev/Recall"),
+    recall_src=Path(os.environ["RECALL_SRC"]) if os.environ.get("RECALL_SRC") else None,
     autosearch_root=_autosearch_root,
     project_root=_autosearch_root,
     findings_dir=_autosearch_root / "findings",

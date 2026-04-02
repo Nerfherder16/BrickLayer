@@ -80,9 +80,9 @@ Prepend `"Read campaign-context.md before proceeding.\n\n"` to every specialist 
 **Run once at the very start of Wave 1. Skip on Wave 2+ resume.**
 
 ```bash
-python -c "import urllib.request; urllib.request.urlopen('http://100.70.195.84:8200/health', timeout=2)" 2>/dev/null \
+python -c "import urllib.request,os; h=os.environ.get('RECALL_HOST','http://100.70.195.84:8200'); urllib.request.urlopen(h+'/health', timeout=2)" 2>/dev/null \
   && echo "[Trowel] ✓ Recall reachable" \
-  || echo "[Trowel] ⚠️ Recall unreachable (100.70.195.84:8200) — memory writes will be silently skipped this campaign."
+  || echo "[Trowel] ⚠️ Recall unreachable — memory writes will be silently skipped this campaign."
 ```
 
 Append the result to `campaign-context.md` (create if absent):
