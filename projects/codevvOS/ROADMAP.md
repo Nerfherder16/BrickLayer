@@ -13,7 +13,7 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 - [ ] **Internal-only ports:** Use `expose:` (Docker-internal) not `ports:` for Postgres, Redis, Yjs, FastAPI. Only Nginx exposes `:443` to the LAN. Nothing else. _(ARCHITECTURE.md updated to match — was showing all ports as LAN-exposed)_
 - [ ] **BrickLayer sidecar auth:** Internal shared secret (`BL_INTERNAL_SECRET` env var) required on all `bl/server.py` endpoints. Network-isolated to `backend` Docker network only.
 - [ ] **Shared JWT auth library:** Single `auth.js` / `auth.py` used identically by backend, Yjs server, and ptyHost. No service implements its own JWT logic. Validate JWT on connection AND on a 60s expiry timer.
-- [ ] **Recall API auth:** Confirm `http://gpu-vm:8200` requires authentication. If not, add API key before production. Do not assume it's safe on LAN. _Action: test call to `http://gpu-vm:8200` before Phase 1, record result in ARCHITECTURE.md._
+- [ ] **Recall API auth:** Fresh Recall instance deployed from scratch on GPU VM — configure API key auth at deployment time. Store as `RECALL_API_KEY` Docker secret. No pre-existing instance to audit.
 - [ ] **Claude API key encryption:** Decided — `pgcrypto` (`pgp_sym_encrypt`) with key from Docker secret.
 - [ ] **Path traversal dependency:** Create `verify_path_in_workspace(path, user_workspace_root)` FastAPI dependency using `os.path.realpath()`. Apply to ALL file endpoints — not just the tree endpoint.
 
@@ -573,10 +573,12 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] NVLink bridge optional — only needed if both GPUs are passed through later
 
 ### 6c. GPU VM Services (Recall + Ollama)
+- [ ] Deploy fresh Recall instance from scratch (not migrated from existing personal Recall)
 - [ ] Ollama with `nomic-embed-text` (embeddings) + `qwen3:14b` (NL tasks) — light workload, 1x RTX 3090 sufficient
-- [ ] Recall 1.0 Docker stack: Qdrant, Neo4j, PostgreSQL, Redis, ARQ — all in GPU VM
+- [ ] Recall Docker stack: Qdrant, Neo4j, PostgreSQL, Redis, ARQ — all in GPU VM
 - [ ] Recall talks to Ollama locally within VM (localhost:11434)
-- [ ] CodeVV-OS VM talks to Recall via network (http://gpu-vm:8200)
+- [ ] Configure Recall API key auth on first deploy — store `RECALL_API_KEY` as Docker secret in CodeVV compose
+- [ ] CodeVV-OS VM talks to Recall via network (http://gpu-vm:8200) using API key header
 - [ ] Claude Code (Teams account) is the primary AI — cloud-based, no local GPU needed
 - [ ] CodeVV backend does NOT call Ollama directly — only through Recall's API
 
@@ -696,7 +698,7 @@ External (not in Compose):
 | Primary AI | Claude via Console API key (NOT subscription OAuth) | Org-level or per-user API keys. OAuth PKCE flow must be removed — banned for third-party apps since Jan 2026 |
 | AI SDK | Claude Agent SDK (`claude-agent-sdk`) or raw `anthropic` SDK | Agent SDK recommended — gives Claude Code tools built-in. Both use API key auth |
 | Local LLM | Ollama (GPU VM) | Serves Recall 1.0 only — `nomic-embed-text` + `qwen3:14b`. Light workload, 1x RTX 3090 sufficient |
-| Semantic memory | Recall 1.0 (GPU VM) | Qdrant + Neo4j + PostgreSQL + Redis + ARQ. CodeVV calls Recall API, not Ollama directly |
+| Semantic memory | Recall (GPU VM, fresh deploy) | Qdrant + Neo4j + PostgreSQL + Redis + ARQ. Fresh instance built for this project. CodeVV calls Recall API, not Ollama directly |
 | Secrets management | Docker Compose file-based secrets + Pydantic `SecretsSettingsSource` | `/run/secrets/` with env var fallback. No wrapper needed |
 | SSL (LAN) | mkcert | Generate CA once, distribute to devices, zero browser warnings |
 | Container security | `read_only: true` + tmpfs + `no-new-privileges` | All services can run read-only. PostgreSQL needs `user: "999:999"` to bypass gosu |

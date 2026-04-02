@@ -72,9 +72,7 @@ The kiosk boot chain is only for the local console (e.g., a monitor plugged into
 
 **Port isolation rule:** Only Nginx `:443` is published to the LAN (`ports:`). Postgres `:5432`, Redis `:6379`, Yjs `:1234`, FastAPI `:8000`, and all other internal services use Docker `expose:` only — reachable within the Docker network, not from the host or LAN.
 
-**Recall API auth:** Recall at `http://gpu-vm:8200` — auth status TBD (see open question below). CodeVV backend uses `RECALL_API_KEY` Docker secret when making Recall API calls. Do not assume LAN isolation is sufficient.
-
-**Open question (must resolve before Phase 1):** Confirm whether Recall API requires auth headers. If not, add API key middleware before production. Record the decision in this document once confirmed.
+**Recall:** Fresh Recall instance deployed from scratch on the GPU VM as part of this build (not the existing personal Recall). CodeVV backend calls it at `http://gpu-vm:8200`. API key auth configured at deployment time — `RECALL_API_KEY` stored as Docker secret in CodeVV's compose stack.
 
 ## Storage Layout (Proxmox Host)
 
