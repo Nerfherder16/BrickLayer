@@ -1,9 +1,9 @@
 {
   "last_route": {
     "agent": "rough-in",
-    "effort": "medium",
-    "prompt_summary": "just go through the agent list and see if there are any we should call now befor",
-    "timestamp": "2026-04-02T04:47:59.800Z",
+    "effort": "high",
+    "prompt_summary": "ok build all 4 and then run them",
+    "timestamp": "2026-04-02T05:27:59.616Z",
     "turn_count": 1
   }
 }
