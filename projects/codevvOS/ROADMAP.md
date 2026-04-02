@@ -10,15 +10,20 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 
 ### 0a. Security Pre-Requirements (CRITICAL — resolve before coding)
 - [ ] **Non-superuser Postgres role:** Create `codevv_app` role with `NOBYPASSRLS NOINHERIT`. All FastAPI connections use this role. Superuser bypasses all RLS — never use it for app queries.
+- [ ] **SET ROLE per connection:** Explicitly execute `SET ROLE codevv_app` at the start of every SQLAlchemy session via an `@event.listens_for(engine, "connect")` hook. Do NOT rely on the connection string user alone — RLS is bypassed if SET ROLE is omitted.
 - [ ] **Internal-only ports:** Use `expose:` (Docker-internal) not `ports:` for Postgres, Redis, Yjs, FastAPI. Only Nginx exposes `:443` to the LAN. Nothing else. _(ARCHITECTURE.md updated to match — was showing all ports as LAN-exposed)_
 - [ ] **BrickLayer sidecar auth:** Internal shared secret (`BL_INTERNAL_SECRET` env var) required on all `bl/server.py` endpoints. Network-isolated to `backend` Docker network only.
-- [ ] **Shared JWT auth library:** Single `auth.js` / `auth.py` used identically by backend, Yjs server, and ptyHost. No service implements its own JWT logic. Validate JWT on connection AND on a 60s expiry timer.
+- [ ] **Masonry MCP auth:** Even within the Docker network, masonry-mcp endpoints must validate `BL_INTERNAL_SECRET`. Backend sets this header on all masonry-mcp calls.
+- [ ] **Shared JWT auth library:** Single `auth.js` / `auth.py` used identically by backend, Yjs server, ptyHost, **and tldraw-sync**. No service implements its own JWT logic. Validate JWT on connection AND on a 60s expiry timer.
+- [ ] **JWT algorithm pinning:** Explicitly pin to `HS256` (or `RS256` if asymmetric keys). Reject tokens with `alg: none` or any algorithm not in the allowlist. Configure `algorithms=["HS256"]` in PyJWT / `jose` — never omit this parameter, which would allow alg:none attacks.
+- [ ] **Brute force protection on /auth/login:** Apply `slowapi` rate limiting to `POST /auth/login` specifically — e.g., 10 attempts per user per minute. Return `429 Too Many Requests`. Without this, credential stuffing hits an unlimited endpoint.
+- [ ] **Redis session store decision:** Explicitly define whether JWTs are independently verifiable (signature-only validation, no Redis lookup per request) or Redis-required per request. If Redis is required for every auth check, Redis downtime = all users logged out instantly. Recommended: verify by signature; Redis only for explicit revocation (logout, admin force-signout).
 - [ ] **Recall API auth:** Fresh Recall instance deployed from scratch on GPU VM — configure API key auth at deployment time. Store as `RECALL_API_KEY` Docker secret. No pre-existing instance to audit.
 - [ ] **Claude API key encryption:** Decided — `pgcrypto` (`pgp_sym_encrypt`) with key from Docker secret.
 - [ ] **Path traversal dependency:** Create `verify_path_in_workspace(path, user_workspace_root)` FastAPI dependency using `os.path.realpath()`. Apply to ALL file endpoints — not just the tree endpoint.
 
 ### 0b. Architecture Pre-Requirements
-- [ ] **docker.sock resolution:** Remove from `backend`. Mount **only** on `sandbox-manager` service via `tecnativa/docker-socket-proxy` scoped to `exec` operations only. ptyHost calls sandbox-manager API for container ops — never touches Docker directly.
+- [ ] **docker.sock resolution:** Remove from `backend`. Mount **only** on `sandbox-manager` service via `tecnativa/docker-socket-proxy`. Scope must allow full container lifecycle: `containers` (create/start/stop/rm), `exec` (exec into running containers), `images` (pull sandbox images). `exec`-only scope is insufficient — sandbox-manager must create and destroy containers. ptyHost calls sandbox-manager API for container ops — never touches Docker directly.
 - [ ] **tldraw sync decision:** tldraw v2 uses `@tldraw/sync-core` (not Yjs). Two options:
   - Use tldraw's native sync: add `tldraw-sync` Docker service
   - Use community `tldraw-yjs` adapter (unofficial, unsupported)
@@ -32,6 +37,8 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 ### 0c. Baseline Docker Compose (author before Phase 1 coding starts)
 - [ ] Write `docker-compose.yml` encoding all Phase 0 decisions: `expose:` vs `ports:`, Docker secrets, `codevv_app` role env, named networks (`frontend`/`backend`), resource limits, `depends_on: condition: service_healthy`, `restart: unless-stopped`
 - [ ] This is the single source of truth for service topology — developers modify it, agents reference it
+- [ ] Write CI/CD workflow files (GitHub Actions): `fast-check.yml` (lint + unit tests, runs on every push), `integration.yml` (integration tests, runs on PR), `build-check.yml` (Docker build verification). See BUILD_BIBLE.md §4 for full pipeline spec. These are Phase 0 deliverables — without them the build loop has no gate.
+- [ ] **Masonry-MCP architecture decision (resolve before writing compose):** ARCHITECTURE.md previously listed masonry-mcp as a separate container (`expose: 3003`). ROADMAP Technology Decisions says `npm install masonry-mcp` inside the CodeVV Docker image. **Decided: npm install masonry-mcp inside the backend image.** No separate masonry-mcp container. Masonry MCP server runs as a subprocess within the backend container, communicated via the MCP protocol over stdio. Update ARCHITECTURE.md service list to remove masonry-mcp as a standalone service (13 core services, not 14).
 
 ### 0d. Known Time Bombs (from stack-validator analysis — prevent before they bite)
 - [ ] **bricklayer container entrypoint:** Must start tmux daemon before uvicorn (`tmux new-session -d -s main`). Add health check that verifies tmux is running. `spawn_agent()` fails silently if tmux server is not up.
@@ -59,13 +66,15 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 - [ ] Dedicated Node.js + `node-pty` microservice for per-user terminal PTY
 - [ ] WebSocket transport with ACK-based flow control — define message schema upfront: `{type:"data",id,data}` / `{type:"ack",id}` / `{type:"resize",cols,rows}`
 - [ ] ReconnectingPTY pattern: session persistence via replay buffer per session (cap at 100KB — VS Code pattern)
-- [ ] Per-user container sandboxing via **sandbox-manager API** (not direct docker.sock)
+- [ ] **Per-user container sandboxing via sandbox-manager API (HARD DEPENDENCY on sandbox-manager):** Terminal sessions must run shells INSIDE per-user sandbox containers, NOT on the ptyHost container filesystem. ptyHost calls `POST /sandbox/exec` on sandbox-manager to get a PTY inside a sandboxed container. Phase 1b is NOT done until this integration is working — a ptyHost that spawns shells on its own filesystem is a security hole.
 - [ ] Shell cleanup on disconnect: SIGHUP -> timeout -> SIGKILL -> waitpid -> close FDs
 - [ ] Heartbeat monitoring with crash recovery (VS Code ptyHost pattern)
 - [ ] JWT validation on WebSocket connection using shared `auth.js` library (see Phase 0a)
+- [ ] Add HEALTHCHECK to ptyHost service in Docker Compose: `curl --fail http://localhost:PORT/health || exit 1`
 
 ### 1c. Nginx Reverse Proxy (NEW)
-- [ ] Per-service WebSocket location blocks: Yjs (`/yjs`), ptyHost (`/pty`), LiveKit (`/livekit`), SSE (`/api/stream`, `/api/files/watch`), BrickLayer agent streams (`/bl/agent/*/stream`)
+- [ ] Per-service WebSocket location blocks: Yjs (`/yjs`), ptyHost (`/pty`), LiveKit (`/livekit`), **tldraw-sync (`/tldraw`)**, SSE (`/api/stream`, `/api/files/watch`), BrickLayer agent streams (`/bl/agent/*/stream`)
+- [ ] tldraw-sync location block requires `proxy_buffering off` and `proxy_read_timeout 3600s` — long-idle canvas connections time out without it
 - [ ] `proxy_read_timeout 3600s` + ping/pong every 30s for long-lived WebSocket
 - [ ] SSL termination (self-signed for LAN; Let's Encrypt optional)
 - [ ] `proxy_buffering off` for WebSocket and SSE paths
@@ -93,6 +102,8 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 - [ ] Composite indexes on tenant-scoped tables: `(tenant_id, id)`, `(tenant_id, created_at DESC)` — bare `(tenant_id)` alone is insufficient
 - [ ] Add admin role to user model
 - [ ] Remove `pgvector` extension — no defined use case in CodeVV (Recall uses Qdrant for vector search)
+- [ ] **Split Alembic migrations into two revisions:** (1) core tables only (`tenants`, `users`, `projects`, `workspace_templates`, `activity_events`, `agent_runs`) — must pass CI before any feature work starts; (2) feature tables in a separate revision. Monolithic initial migrations fail in unexpected ways and are hard to roll back.
+- [ ] Add Redis AOF persistence: set `appendonly yes` + `appendfsync everysec` in redis.conf. Without persistence, all ARQ job queues and session data are lost on Redis restart. Mount redis.conf via Docker bind mount.
 
 #### Core tables (must exist before any feature work):
 ```
@@ -101,6 +112,7 @@ users             id, tenant_id, email, role, display_name, ...
 projects          id, tenant_id, name, description, status, github_repo, created_by, ...
 workspace_templates id, tenant_id, name, base_type, layout_json, shortcut_profile, accent_color, is_system, is_team_default, created_by
 activity_events   id, tenant_id, project_id, user_id, type, title, payload, recall_ref, created_at
+agent_runs        id, tenant_id, project_id, agent_id (BrickLayer agent_id), status, started_at, finished_at, output_ref
 ```
 
 #### Feature tables (add per phase as features are built):
@@ -182,11 +194,11 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] `@jsonforms/react` auto-rendered from Pydantic-generated JSON Schema
 - [ ] Layered: user settings override system defaults
 - [ ] Admin-only section for user management, network info, system metrics
-- [ ] Network info via `/proc/net/`, system metrics via `psutil`
+- [ ] Network info via `/proc/net/`, system metrics via **cgroup v2** (`/sys/fs/cgroup/memory.current`, `/sys/fs/cgroup/cpu.stat`) — **NOT psutil**. psutil reads host-level data from `/proc`; inside a Docker container this reports the entire host's memory/CPU, not the container's limits. This contradicts Phase 1d which correctly specifies cgroup v2 — keep them consistent.
 - [ ] Display/resolution via browser `window.screen` API
 
 ### 3e. Inline AI Editing (Cmd+K) — NEW
-- [ ] Inline AI edit shortcut: `Cmd+K` / `Ctrl+K` opens inline prompt above current selection in CodeMirror
+- [ ] Inline AI edit shortcut: `Cmd+K` / `Ctrl+K` opens inline prompt above current selection in CodeMirror — **fires only when CodeMirror has focus**. Command palette is `Cmd+Shift+K` (global). This resolves the shortcut collision with 3.5-TH.
 - [ ] Claude receives: selected code + surrounding context (±20 lines) + active file path + current task
 - [ ] Returns a unified diff applied inline with `+`/`-` highlighting (not a full rewrite)
 - [ ] Accept (`Tab`) / Reject (`Esc`) / Regenerate (`Cmd+Enter`) actions on the inline diff
@@ -231,14 +243,23 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] Template customization and save per user
 
 ### 3.5-KG: Knowledge Graph
+
+> **Phase 3.5 ordering dependency:** 3.5-KG must ship before 3.5-TI (team intelligence features that link to graph nodes) and 3.5-II (decision archaeology, assumption tracker).
+
 - [ ] Graph model: people, projects, tasks, decisions, files, canvas nodes, conversations, Recall memories
 - [ ] AI-maintained: Claude + Recall update graph continuously as work happens
 - [ ] Navigable: click node → open related item (file, canvas, task, conversation)
 - [ ] Manually editable: add nodes, draw connections, annotate relationships
 - [ ] Dedicated Knowledge Graph panel (launchable from dock)
 - [ ] Inline citations: when Claude references a decision, it links to the graph node
+- [ ] **First-run / empty state:** On a brand-new project with empty Recall, the graph is empty. Define what a new user sees: skeleton nodes for each team member + the project itself, placeholder "start brainstorming to populate" prompt, and a "seed from codebase" action that runs an initial Recall ingestion of the existing git repo. Without this, the graph panel is a blank screen on day one.
+- [ ] **Visualization library decision (must choose before build):** Select one: D3-force, react-force-graph, Cytoscape.js, or VisX. Each has different trade-offs (bundle size, WebGL support, interaction model). Document the choice in the Technology Decisions table.
+- [ ] **Multi-tenant Recall isolation:** CodeVV is multi-tenant (RLS). Recall is a shared instance. Verify that Recall namespaces memories by tenant_id before 3.5-KG build starts. A query for "project decisions" must not return results from another tenant. For single-team deployments this doesn't matter; for multi-tenant SaaS it's a critical data leak.
 
 ### 3.5-PA: Personal AI Assistant (Per User)
+
+> **Phase 3.5 ordering dependency:** 3.5-PA (BrickLayer agent invocation) depends on 3.5-BL.
+
 - [ ] Per-user named assistant with persistent personality and memory (Recall user-scoped)
 - [ ] Learns working style, preferences, domain knowledge over time — grows every session
 - [ ] Configurable tool loadout: Recall, file system, GitHub, canvas, BrickLayer, open MCP
@@ -246,12 +267,15 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] Dev tasks: code assist, debugging, code review, BrickLayer agent invocation
 - [ ] Managerial tasks: email (read/draft/send), calendar, task tracking, standup summaries
 - [ ] Trigger-based automation: new PR → draft review email, build failed → notify team, task overdue → reassign suggestion
-- [ ] Scheduled automation: daily/weekly jobs (summaries, nudges, reports)
+- [ ] Scheduled automation: daily/weekly jobs (summaries, nudges, reports). **Scheduled job auth:** scheduled jobs run when the user is offline. User JWTs are session-scoped and may be expired. Implement as ARQ jobs using a long-lived service account token (not the user's JWT). Store service token as Docker secret. Session handoff (`POST /auth/logout` → write to Recall) must fire as ARQ fire-and-forget, not synchronously during logout response.
 - [ ] Public invocation: owner @mentions assistant in team contexts
 - [ ] Proxy mode (opt-in): teammates can ask assistant about owner's work when owner is away
 - [ ] Personality persists across sessions and machines via Recall sync
 
 ### 3.5-CA: Custom Team Agents
+
+> **Phase 3.5 ordering dependency:** 3.5-CA depends on 3.5-BL (BrickLayer sidecar must expose `/crucible/scores` endpoint).
+
 - [ ] Build from presets (researcher, coder, reviewer, security auditor) or from scratch
 - [ ] System prompt + tool loadout configuration per agent
 - [ ] Shareable with team or kept private — stored in project (version-controlled)
@@ -259,6 +283,9 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] Team builds living, improving agent fleet over time
 
 ### 3.5-AM: AI Agent Mode (BrickLayer Build Panel)
+
+> **Phase 3.5 ordering dependency:** 3.5-AM depends on 3.5-BL.
+
 - [ ] Live log stream panel: terminal-style output of agent activity in real time
 - [ ] Live diff preview panel: code changes appear as agents write them
 - [ ] Interruptible: any team member can pause agent run, redirect Claude, resume
@@ -277,7 +304,11 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] Admin configures projector URL → physical display mapping
 
 ### 3.5-BL: BrickLayer & Masonry Integration
-- [ ] **Masonry:** `npm install masonry-mcp` in CodeVV Docker image (Node.js — legitimate npm package)
+
+> **Phase 3.5 ordering dependency:** 3.5-BL must ship before 3.5-AM, 3.5-CA, 3.5-PA, and 3.5-SIM. All four depend on BrickLayer endpoints. Do not decompose these as parallel tasks.
+
+- [ ] **Masonry:** `npm install masonry-mcp` in CodeVV Docker image (Node.js — legitimate npm package). Runs as subprocess within backend container — no separate masonry-mcp service.
+- [ ] **BrickLayer shared volume:** Add a named Docker volume `project_files` shared between `backend` and `bricklayer` services. BrickLayer `spawn_agent(cwd="/projects/...")` requires access to the same filesystem the backend manages. Without this shared volume, all agent spawns run against an empty directory — hard blocker.
 - [ ] **BrickLayer:** Docker sidecar service — same pattern as Recall
   - [ ] Add `bl/server.py` — thin FastAPI wrapper exposing:
     - `POST /agent/spawn` → `asyncio.to_thread(spawn_agent, name, prompt, cwd)` — returns `{agent_id}` immediately
@@ -296,7 +327,10 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
   - [ ] Add `bricklayer` service to CodeVV Docker Compose (version-pinned image tag)
   - [ ] CodeVV backend calls `http://bricklayer:8300/` — no direct Python import
   - [ ] Version updates: bump image tag in `docker-compose.yml` + `docker compose pull`
+  - [ ] Add HEALTHCHECK to bricklayer service: verify tmux is running AND uvicorn is responding
+  - [ ] Security review: bricklayer container runs `claude` CLI (executes arbitrary code). Verify it cannot reach Postgres, Redis, or any internal service other than its designated endpoints. Network isolation is critical.
 - [ ] AI Agent Mode panel surfaces BrickLayer: live log + live diff + interruptible
+- [ ] **BrickLayer crash semantics:** Frontend must distinguish "agent died" (SSE EOF with no graceful close) from "network drop" (WebSocket reconnect). A retry on agent died would spawn a duplicate agent — implement `{type:"agent_died",agent_id}` close event so frontend can show "Build failed" rather than attempting reconnect.
 - [ ] Custom agents run through BrickLayer routing and crucible
 
 ### 3.5-GS: Global Search
@@ -313,7 +347,7 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 ### 3.5-TH: Theming & UX Polish
 - [ ] Dark mode + light mode toggle
 - [ ] Per-workspace accent colors (part of workspace template definition)
-- [ ] Command palette (`Cmd+K`) — single entry point for all actions
+- [ ] **Command palette shortcut: `Cmd+Shift+K` (not `Cmd+K`)** — `Cmd+K` is reserved for inline AI editing in CodeMirror (Phase 3e). Resolved: command palette uses `Cmd+Shift+K` everywhere; `Cmd+K` is CodeMirror-context-only (fires only when CodeMirror has focus). Document both in keyboard shortcuts reference.
 - [ ] Opinionated default keyboard shortcuts + full remapping (VS Code-style)
 - [ ] Per-workspace shortcut profiles defined in workspace templates
 
@@ -326,8 +360,9 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] `srcdoc` null-origin iframe with `sandbox="allow-scripts"` only — NO `allow-same-origin` (would let iframe access parent DOM)
 - [ ] Server-side compile Claude output to `React.createElement()` calls — eliminates `unsafe-eval` requirement entirely
 - [ ] Bundle React UMD + recharts/D3/Chart.js into the iframe runtime as a local static bundle
-- [ ] postMessage communication: parent → iframe (inject content), iframe → parent (resize, events). Validate `event.origin` on all messages.
-- [ ] Inline code editing (CodeMirror strip, collapsed by default) → re-render on save
+- [ ] **postMessage nonce:** srcdoc null-origin iframes have `event.origin === "null"` — any other null-origin iframe on the page could spoof postMessage. Include a cryptographic nonce in every postMessage payload, generated on iframe create and embedded in the srcdoc at compile time. Validate nonce in both directions.
+- [ ] postMessage communication: parent → iframe (inject content), iframe → parent (resize, events). Validate `event.origin` AND nonce on all messages.
+- [ ] Inline code editing (CodeMirror strip, collapsed by default) → **re-run server-side compiler on save** (not just re-render — inline edits change JSX source that must be re-compiled to React.createElement() before injection)
 - [ ] Interactive output (click, hover, input on rendered content)
 - [ ] `RenderChip` in chat messages: after Claude generates renderable content, chip appears → click to render in panel
 - [ ] Artifact persistence: saved to project + ingested into Recall
@@ -342,6 +377,9 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] Sandbox panel switchable between modes via tab
 
 ### 3.5-SIM: Simulation Sandbox
+
+> **Phase 3.5 ordering dependency:** 3.5-SIM depends on 3.5-BL.
+
 - [ ] **Data simulations:** feed dataset (CSV/JSON/DB query) + define variables → Claude generates sim code → runs in sandbox → charts in Artifact Panel
 - [ ] **System simulations:** describe architecture → BrickLayer simulate runner models behavior → latency curves, failure rates, bottleneck identification
 - [ ] Tweak inputs, re-run, compare outputs side by side
@@ -358,8 +396,13 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] Optional: ONLYOFFICE Docker service for full native DOCX/Excel fidelity — if deployed, isolate to its own Docker network, set JWT secret, pin image version, never expose to LAN directly
 
 ### 3.5-TI: Team Intelligence
+
+> **Phase 3.5 ordering dependency:** 3.5-TI team intelligence features that link to graph nodes depend on 3.5-KG.
+
+> **Recall availability:** GPU VM going down = Recall unavailable. Features that hard-depend on Recall (session handoff, catch-up digest, decision archaeology, all team intelligence features) must have graceful degrade: show a dismissable "Recall unavailable — some features are offline" banner rather than silently hanging or throwing 500 errors. Implement via a `recall_available` health flag checked on each Recall call.
+
 - [ ] **Ambient terminal watching:** Claude observes terminal output, proactively explains errors inline, dismissable
-- [ ] **Session handoff:** on session end, Claude writes handoff note to Recall; next login surfaces "welcome back" context
+- [ ] **Session handoff:** on session end, Claude writes handoff note to Recall via ARQ fire-and-forget (not synchronous during logout). `POST /auth/logout` enqueues the ARQ job immediately and returns 200 — the write to Recall happens asynchronously.
 - [ ] **Decision archaeology:** before decisions, Claude searches Recall across all projects for relevant past decisions
 - [ ] **Architecture drift detection:** BrickLayer diffs codebase vs. approved spec post-build; drift → task
 - [ ] **Cross-project intelligence:** Claude detects duplicate work across projects, suggests shared modules
@@ -403,6 +446,9 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] Findings stored as project tasks (auto-create task for CRITICAL/HIGH)
 
 ### 3.5-II: Ideation Intelligence
+
+> **Phase 3.5 ordering dependency:** 3.5-II (code archaeology, decision archaeology) depends on 3.5-KG (knowledge graph).
+
 - [ ] **Idea backlog:** dedicated idea bank separate from tasks; Claude resurfaces contextually when relevant
 - [ ] **Assumption tracker:** Claude captures assumptions explicitly; tracks validation status; surfaces before build
 - [ ] **Pre-mortem:** structured failure-mode session before every build triggers; outputs → risk tracking in knowledge graph
@@ -410,7 +456,7 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] **Code archaeology:** full provenance panel — code → task → brainstorm → meeting, via Recall + git
 - [ ] **Rubber duck mode:** Claude listens + asks only (no suggestions); user switches to "give me your take" explicitly
 - [ ] **Constraint-aware ideation:** during brainstorm, Claude surfaces buildable minimal version of each idea given real team constraints
-- [ ] **Weekly brief:** Monday morning dashboard digest — shipped, planned, blockers, decisions needed, velocity trend
+- [ ] **Weekly brief:** Monday morning dashboard digest — shipped, planned, blockers, decisions needed, velocity trend. **ARQ timeout risk:** weekly brief generation (Recall query across all projects + Claude synthesis) may approach or exceed ARQ's default 300s `job_timeout`. Set `job_timeout=600` in `WorkerSettings` specifically for the weekly brief job, OR route it through BrickLayer (no timeout constraint). Do not leave this at ARQ default.
 
 ---
 
@@ -419,6 +465,7 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 ### 3.5a. Shared AI Sessions (Group Claude Chat)
 - [ ] Multiple users participate in the same Claude conversation in real-time
 - [ ] Yjs shared type for conversation messages — all connected clients see messages, tool calls, responses live
+- [ ] **SSE fan-out design (must be spec'd before building):** The backend receives an Anthropic SSE stream (token by token). For shared sessions, each token must be written as a Yjs update and broadcast to all participants via yjs-server. Design the fan-out bridge: `anthropic_sse_stream → yjs_doc_writer → yjs-server → all clients`. This component does not exist in the current architecture and must be designed before 3.5a build starts.
 - [ ] User attribution on each message (who asked, who followed up)
 - [ ] Context injection: AI sees what each user has open (active file, terminal, canvas) via Yjs awareness
 - [ ] Recall integration: AI cites past team decisions, meetings, and conversations
@@ -443,7 +490,12 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] Decision detection: Claude flags "we decided to..." moments, drafts ADR for team review
 - [ ] ADRs stored in Recall with metadata tags, cited in future AI conversations
 
-### 3.5d. AI-Powered Canvas Brainstorming
+### 3.5d. AI-Powered Canvas Brainstorming (tldraw-sync persistence required)
+
+> **Pre-condition:** Define tldraw-sync persistence store before any canvas work. tldraw-sync needs a PostgreSQL persistence layer (custom `IRecord`-based store writing to a `tldraw_records` table, or the official `@tldraw/sync-core` server-side store). Without it, canvas state is lost on container restart. This is distinct from Recall — Recall gets semantic content; tldraw-sync persists operational state (shape positions, connections).
+>
+> **Data migration decision:** Existing tldraw Yjs-blob documents are incompatible with tldraw-sync format. Decide before any Phase 3.5 canvas development: wipe canvas data at cutover OR build a one-time export tool via `tldraw.getSnapshot()`. Making this decision after canvas features are built means discarding all test data.
+
 - [ ] Claude generates sticky notes, diagrams, and clusters directly on tldraw canvas
 - [ ] Structured brainstorming protocols: SCAMPER, Six Thinking Hats, brainwriting with AI facilitation
 - [ ] "Organize these ideas" → AI clusters sticky notes by theme on canvas
@@ -494,9 +546,11 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 
 ---
 
-## Phase 4.5: Migration Checklist (from existing CodeVV codebase)
+## Phase 4.5: Migration Checklist — Apply During Phases 1–3
 
-> Apply these decisions when porting from `https://github.com/Nerfherder16/Codevv`
+> **IMPORTANT:** This checklist must be worked through during Phases 1–3, not after Phase 4. The numbered placement here is for reference only. Building Phase 1+ against the wrong baseline from the existing CodeVV codebase will result in incorrect assumptions throughout the project. Cross-reference this section at the start of each Phase 1, 2, and 3 task.
+>
+> Source: `https://github.com/Nerfherder16/Codevv`
 
 ### Frontend Migration
 - [ ] **REUSE:** React 19 setup, Tailwind v4, Vite config, LiveKit client
@@ -573,6 +627,7 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] NVLink bridge optional — only needed if both GPUs are passed through later
 
 ### 6c. GPU VM Services (Recall + Ollama)
+- [ ] **Hostname resolution strategy:** `http://gpu-vm:8200` requires that `gpu-vm` resolves to the GPU VM's IP from inside the backend Docker container. Two separate Proxmox VMs cannot rely on Docker DNS. Options: (a) add static `extra_hosts: ["gpu-vm:192.168.x.x"]` to the backend service in docker-compose.yml, or (b) configure Proxmox/LAN DNS. Choose one and document it — without this, all Recall calls fail at deployment time even if Recall is running.
 - [ ] Deploy fresh Recall instance from scratch (not migrated from existing personal Recall)
 - [ ] Ollama with `nomic-embed-text` (embeddings) + `qwen3:14b` (NL tasks) — light workload, 1x RTX 3090 sufficient
 - [ ] Recall Docker stack: Qdrant, Neo4j, PostgreSQL, Redis, ARQ — all in GPU VM
@@ -631,10 +686,10 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 | Environment clone sandbox | Docker container snapshot via sandbox-manager | Auto-triggered per branch (branch auto-environments) or manual |
 | Simulation engine | BrickLayer simulate runner + Artifact Panel | Data sims + system sims, results as interactive charts |
 | Interactive charts | recharts / D3 / Chart.js (Claude selects) | Claude picks library based on data shape |
-| Inline AI editing | CodeMirror 6 + Cmd+K inline prompt | Diff applied inline. Accept/Reject/Regenerate. Distinct from chat panel. |
+| Inline AI editing | CodeMirror 6 + `Cmd+K` inline prompt (CodeMirror focus only) | Fires only when CodeMirror is focused. Elsewhere, `Cmd+Shift+K` opens command palette. Resolved Cmd+K collision. |
 | Live preview | Hot-reload iframe panel proxied through Nginx | Auto-detects dev server port. Viewport simulator. Error overlay. |
 | BrickLayer integration | Docker sidecar service + `bl/server.py` FastAPI wrapper | SSE streaming endpoints + interrupt/kill. asyncio.to_thread() wrapping. |
-| Masonry integration | `npm install masonry-mcp` in CodeVV Docker image | Node.js MCP server — legitimate npm. Agent routing, hooks, registry |
+| Masonry integration | `npm install masonry-mcp` in CodeVV Docker image (no separate container) | Node.js MCP server — subprocess within backend container. No masonry-mcp service in compose. 13 core services, not 14. |
 | Background jobs | ARQ worker service (same backend image, separate command) | Required for digests, scheduled automation, notifications, polling |
 | GitHub webhooks | Polling-first (ARQ, 60s interval) + Tailscale Funnel opt-in | LAN-only: GitHub can't reach the server. Polling is correct default. |
 | tldraw sync | `@tldraw/sync-core` + `tldraw-sync` Docker service | tldraw v2 uses its own sync, not Yjs. Add tldraw-sync service. |

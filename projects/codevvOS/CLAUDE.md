@@ -24,10 +24,10 @@ Target deployment: Proxmox VM on Threadripper PRO 9975WX server. GPU inference v
 |-------|-----------|
 | Frontend | React 19, TypeScript, Tailwind v4, Vite |
 | Backend | FastAPI, SQLAlchemy (async), Pydantic |
-| Database | PostgreSQL 16 + pgvector |
-| Cache | Redis 7 |
-| Real-time | Yjs (collab), LiveKit (video) |
-| AI | Claude (OAuth PKCE + SSE), Ollama (local LLM) |
+| Database | PostgreSQL 16 (no pgvector — Recall uses Qdrant) |
+| Cache | Redis 7 (AOF persistence required) |
+| Real-time | Yjs (collab), tldraw-sync (canvas), LiveKit (video) |
+| AI | Claude (Console API key + SSE), Ollama via Recall (local LLM) |
 | OS Base | Alpine Linux |
 | Orchestration | Docker Compose |
 | Kiosk | Cage (Wayland compositor) + Chromium |
@@ -53,6 +53,6 @@ cd Codevv && docker-compose up -d
 
 ## Current Phase
 
-**Phase 1: Proof of Concept** — Boot Alpine into Docker Compose running CodeVV, validate multi-user access, package as bootable ISO.
+**Pre-build / Phase 0** — All swarm reviews complete. ROADMAP, ARCHITECTURE.md, and experience design updated with all findings. Ready for `/plan` on Phase 0 + Phase 1.
 
-See `ROADMAP.md` for full phase breakdown.
+See `ROADMAP.md` for full phase breakdown and `BUILD_BIBLE.md` for build process guide.

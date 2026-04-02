@@ -112,13 +112,14 @@ All internal services use `expose:` (Docker-internal only). Only Nginx uses `por
 | `sandbox-manager` | Custom | `expose: 3002` | Docker sandbox orchestration (owns docker.sock via socket-proxy) |
 | `worker` | Custom (same as backend) | — | ARQ background job worker |
 | `bricklayer` | Custom (Python) | `expose: 8300` | BrickLayer research engine sidecar |
-| `masonry-mcp` | Custom (Node.js) | `expose: 3003` | Masonry MCP server |
+
+**masonry-mcp:** Runs as an `npm install masonry-mcp` subprocess inside the `backend` container — NOT a separate service. No `masonry-mcp` container in compose. Total core services: 13.
 
 **LiveKit UDP note:** UDP `50000-60000` must be published (`ports:`) for WebRTC media. Without this, media falls back to TURN relay and video quality degrades significantly.
 
 **livekit-agents base image:** Must use `python:3.12-slim-bookworm` (glibc-based). Do NOT use Alpine — `opuslib` and audio codec dependencies fail to compile against musl libc.
 
-**sandbox-manager docker.sock:** Accessed only via `tecnativa/docker-socket-proxy` scoped to `exec` operations. No other service mounts docker.sock.
+**sandbox-manager docker.sock:** Accessed only via `tecnativa/docker-socket-proxy` scoped to full container lifecycle (`containers`, `exec`, `images`). No other service mounts docker.sock. `exec`-only scope is insufficient — sandbox-manager creates and destroys containers.
 
 ## Authentication Flow
 

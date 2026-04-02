@@ -585,8 +585,8 @@ All file types open as dockview panels. Documents ingested into projects (upload
 
 ### Excel / Spreadsheets
 - **Univer** — open-source Excel-like editor, full formula support, charts, formatting
-- SheetJS underneath for `.xlsx` read/write
-- Live collaboration via Yjs (same as code editor — multiple cursors in spreadsheet cells)
+- `@univerjs/sheets-import-xlsx` for `.xlsx` import/export — **not SheetJS** (Univer has its own xlsx engine; SheetJS would conflict)
+- **V1: single-user only.** Univer multi-user collab requires `univer-server` Docker service which is not in the V1 compose. Do NOT add Yjs collab for Excel — Univer does not use Yjs. Multi-user Excel collaboration is a V2 feature when `univer-server` is deployed.
 - Claude can read spreadsheet data as context and generate formulas, pivot tables, or charts
 - Charts from spreadsheet data render in the Artifact Panel
 
@@ -711,7 +711,7 @@ Pulled from real data — Recall, git, tasks. Not manually written. Keeps the te
 | Simulation | Data simulations + system simulations, both render to Artifact Panel |
 | PDF viewer | PDF.js in dockview panel + annotation stored in Recall |
 | DOCX viewer/editor | docx-preview + mammoth.js/TipTap. ONLYOFFICE optional for full fidelity |
-| Excel editor | Univer + SheetJS. Yjs live collaboration. Claude reads data as context |
+| Excel editor | Univer + `@univerjs/sheets-import-xlsx`. V1 single-user only (no univer-server, no Yjs). Claude reads data as context |
 | Terminal watching | Claude observes terminal, proactively explains errors inline |
 | Session handoff | Claude writes handoff note to Recall on session end. Surfaces on next login |
 | Decision archaeology | Claude searches Recall across all projects before decisions are made |
