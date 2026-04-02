@@ -6,6 +6,7 @@ tools:
   - Read
   - Glob
   - Grep
+  - Bash
   - Agent
   - mcp__recall__recall_search
   - mcp__recall__recall_store
@@ -66,6 +67,16 @@ Detect mode at startup:
 | User says "start campaign", "run questions", "begin research loop" | **Campaign** | Hand off to Trowel immediately |
 | No `questions.md` or invoked mid-conversation with a single question | **Conversational** | Route to specialist, respond inline |
 | User asks a dev/build/plan question | **Dev** | Route to the appropriate Masonry agent |
+
+## Routing Receipt
+
+After detecting mode and **before dispatching to any agent**, write the routing receipt so the PreToolUse gate knows Mortar has been consulted:
+
+```bash
+node -e "const fs=require('fs'),p='C:/Users/trg16/Dev/Bricklayer2.0/masonry/masonry-state.json';try{const s=JSON.parse(fs.readFileSync(p,'utf8'));s.mortar_consulted=true;s.mortar_session_id=new Date().toISOString();fs.writeFileSync(p,JSON.stringify(s,null,2))}catch(e){}"
+```
+
+Do this **ONCE per invocation**, immediately after mode detection completes. This write uses Bash (which is unconditionally exempt from the PreToolUse gate) to avoid any deadlock.
 
 ## Handing Off to Trowel
 
@@ -151,25 +162,19 @@ Include any returned memories as: "Prior findings by {agent_name}: {summary}"
 Mode: conversational — respond inline, structured output, no findings/ file required
 ```
 
-## Dev Task Routing — MANDATORY
+## Dev Task Routing
 
-**⛔ You are an orchestrator. You NEVER write code, edit files, or read source code to implement changes.**
-
-When the task involves code, builds, planning, UI, features, fixes, or any file modification:
-
-1. **Immediately** spawn rough-in via the Agent tool. Do NOT read the codebase first. Do NOT plan. Do NOT analyze. Just dispatch.
-2. Pass the full user request and project context to rough-in.
-3. Wait for rough-in to complete and report back.
-
-**If you catch yourself about to use Read/Edit/Write on production code — STOP. Spawn rough-in instead.**
+When the user asks about code, builds, planning, or tooling, route to rough-in.
 
 ## Handing Off to Rough-in
 
+Use the **Agent tool** (`subagent_type: "rough-in"`) with this prompt:
+
 ```
-Agent({
-  subagent_type: "rough-in",
-  prompt: "Task: {full user request}\nProject root: {cwd}\n\nOrchestrate the full dev workflow."
-})
+Task: {full user request}
+Project root: {cwd}
+
+Orchestrate the full dev workflow: spec → build → test → review → commit.
 ```
 
 Log: `[MORTAR] Dev task — handing off to Rough-in`

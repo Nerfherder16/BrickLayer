@@ -13,3 +13,8 @@
 {"timestamp":"2026-04-02T00:24:30.245Z","tool":"WebFetch","error":"Request failed with status code 404","retries":2,"fingerprint":"WebFetch:Request failed with status code 404"}
 {"timestamp":"2026-04-02T00:24:30.268Z","tool":"WebFetch","error":"Request failed with status code 404","retries":3,"fingerprint":"WebFetch:Request failed with status code 404"}
 {"timestamp":"2026-04-02T00:24:30.374Z","tool":"WebFetch","error":"Request failed with status code 404","retries":4,"fingerprint":"WebFetch:Request failed with status code 404"}
+{"timestamp":"2026-04-02T00:28:55.402Z","tool":"Grep","error":"spawn /home/nerfherder/.nvm/versions/node/v24.14.1/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg EACCES","retries":1,"fingerprint":"Grep:spawn /home/nerfherder/.nvm/versions/node/v24.14.1/lib/node_modules/@anthropic-a"}
+{"timestamp":"2026-04-02T00:53:28.807Z","tool":"Bash","error":"Exit code 4","retries":1,"fingerprint":"Bash:Exit code 4"}
+{"timestamp":"2026-04-02T00:53:29.428Z","tool":"Bash","error":"Exit code 4","retries":2,"fingerprint":"Bash:Exit code 4"}
+{"timestamp":"2026-04-02T00:53:39.880Z","tool":"Bash","error":"Exit code 4 ---","retries":1,"fingerprint":"Bash:Exit code 4 ---"}
+{"timestamp":"2026-04-02T00:53:44.542Z","tool":"Bash","error":"Exit code 4","retries":1,"fingerprint":"Bash:Exit code 4"}
