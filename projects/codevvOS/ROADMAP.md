@@ -119,6 +119,72 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 
 ---
 
+## Phase 3.5: Collaboration & Intelligence (extends existing CodeVV features)
+
+### 3.5a. Shared AI Sessions (Group Claude Chat)
+- [ ] Multiple users participate in the same Claude conversation in real-time
+- [ ] Yjs shared type for conversation messages — all connected clients see messages, tool calls, responses live
+- [ ] User attribution on each message (who asked, who followed up)
+- [ ] Context injection: AI sees what each user has open (active file, terminal, canvas) via Yjs awareness
+- [ ] Recall integration: AI cites past team decisions, meetings, and conversations
+- [ ] Extend existing `AIChatContext.tsx` + `/api/ai` routes for multi-participant mode
+- [ ] Driver/observer roles: one user can "drive" the AI, others observe and can interject
+
+### 3.5b. LiveKit AI Meeting Assistant
+- [ ] AI agent joins LiveKit rooms as a participant (LiveKit Agents framework)
+- [ ] Real-time transcription via Deepgram/Whisper STT plugin
+- [ ] Speaker attribution on transcripts with timestamps
+- [ ] Auto-generated meeting summaries: action items, decisions, code references
+- [ ] Summaries auto-stored in Recall via existing `push_to_recall` tool
+- [ ] Push-to-talk AI: voice question → Claude processes → text response in chat panel
+- [ ] Searchable meeting history integrated with existing knowledge graph
+
+### 3.5c. Recall Institutional Memory
+- [ ] Auto-capture: every AI conversation, meeting transcript, decision, brainstorm → Recall
+- [ ] Extend existing `get_knowledge_context` tool to synthesize across all interaction types
+- [ ] AI onboarding assistant: "I'm new to this project, what should I know?" → answer from accumulated team memory
+- [ ] "Why did we choose X?" → AI cites the meeting, ADR, and conversation where it was decided
+- [ ] Auto-generated Architecture Decision Records (ADRs) from conversation patterns
+- [ ] Decision detection: Claude flags "we decided to..." moments, drafts ADR for team review
+- [ ] ADRs stored in Recall with metadata tags, cited in future AI conversations
+
+### 3.5d. AI-Powered Canvas Brainstorming
+- [ ] Claude generates sticky notes, diagrams, and clusters directly on tldraw canvas
+- [ ] Structured brainstorming protocols: SCAMPER, Six Thinking Hats, brainwriting with AI facilitation
+- [ ] "Organize these ideas" → AI clusters sticky notes by theme on canvas
+- [ ] "Draw the architecture for X" → AI generates diagram shapes via tldraw API
+- [ ] Architecture diagrams linked to actual code modules (bidirectional: diagram ↔ codebase)
+- [ ] AI devil's advocate mode: challenges assumptions, suggests alternatives
+- [ ] All canvas brainstorm outputs captured in Recall for future reference
+
+### 3.5e. Follow Mode & Rich Presence
+- [ ] Click teammate's avatar → your panel layout mirrors theirs in real-time (Figma-style follow)
+- [ ] Opt-in presentation mode: one person drives, team follows
+- [ ] "Unfollow" to return to your own layout
+- [ ] Cross-panel presence indicators via Yjs awareness:
+  - Collaborator avatars on file tree items (who has this file open)
+  - Collaborator cursors in code editor (CodeMirror 6 + Yjs awareness)
+  - "N people viewing" badges on canvas rooms
+  - Who's in which terminal session
+  - Who's in which AI conversation
+- [ ] User status: online, away, focused, in meeting, do not disturb
+- [ ] Throttle awareness updates to 5-10 FPS to prevent network spam
+
+### 3.5f. "What Happened While I Was Away" Digest
+- [ ] AI-generated summary of team activity since last login
+- [ ] Covers: commits, AI conversations, decisions made, canvas changes, new tasks, meetings
+- [ ] Powered by Recall + existing activity feed
+- [ ] Presented on login as a dismissable panel
+- [ ] Extend existing `EventStreamContext.tsx` for digest delivery
+
+### 3.5g. Shared Terminal Sessions (Mob Programming)
+- [ ] Extend existing `SharedTerminal.tsx` for multi-user input
+- [ ] Driver/navigator roles: one person types, others observe with live cursor
+- [ ] Role switching: "pass the keyboard" via click or shortcut
+- [ ] Session recording for async review
+
+---
+
 ## Phase 4: Integration & Polish
 
 - [ ] End-to-end testing across all panel types
