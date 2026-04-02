@@ -8,6 +8,12 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    ".claude/agents/AGENTS.md",
+    ".claude/agents/AUDIT_REPORT.md",
+    ".claude/agents/adaptive-coordinator.md",
+    ".claude/agents/agent-auditor.md",
+    ".claude/agents/architect.md",
+    ".claude/agents/architecture-writer.md",
     ".claude/agents/bash-specialist.md",
     ".claude/agents/benchmark-engineer.md",
     ".claude/agents/bl-verifier.md",
@@ -1191,5 +1197,5 @@
     "masonry/tests/engine/training-export.test.js",
     "masonry/tests/engine/training-schema.test.js"
   ],
-  "timestamp": "2026-04-02T01:36:22.699Z"
+  "timestamp": "2026-04-02T01:39:51.311Z"
 }
