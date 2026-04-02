@@ -24,7 +24,7 @@ const os = require("os");
 const { readStdin } = require('./session/stop-utils');
 const { ORCHESTRATORS, ORCHESTRATOR_ALLOWED_CHILDREN, MORTAR_DISPATCHED_TYPES } = require('./session/mortar-gate');
 
-const GATE_FILE = path.join(os.tmpdir(), "masonry-mortar-gate.json");
+const GATE_FILE = process.env.BL_GATE_FILE || path.join(os.tmpdir(), 'masonry-mortar-gate.json');
 
 function readGate() {
   try {

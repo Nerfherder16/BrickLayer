@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "Trowel (campaign conductor)",
-    "effort": "high",
-    "prompt_summary": "-\nReview the BrickLayer 2.0 system architecture as it stands today.\n\nRead CLAUDE",
-    "timestamp": "2026-04-02T02:45:51.116Z",
+    "agent": "rough-in",
+    "effort": "medium",
+    "prompt_summary": "before we plan, are there any other genuinly useful ideas we could implement now",
+    "timestamp": "2026-04-02T03:58:23.136Z",
     "turn_count": 1
   }
 }

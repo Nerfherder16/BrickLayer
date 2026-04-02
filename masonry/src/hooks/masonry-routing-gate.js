@@ -24,7 +24,7 @@ const path = require("path");
 const os = require("os");
 const { readStdin } = require("./session/stop-utils");
 
-const GATE_FILE = path.join(os.tmpdir(), "masonry-mortar-gate.json");
+const GATE_FILE = process.env.BL_GATE_FILE || path.join(os.tmpdir(), 'masonry-mortar-gate.json');
 const GATE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 
 const EXEMPT_PATH_PATTERNS = [

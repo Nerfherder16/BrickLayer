@@ -14,7 +14,7 @@ You are a diagnostic agent. Your job is to verify that a BrickLayer 2.0 installa
 
 ```
 Act as the e2e agent in .claude/agents/e2e.md.
-BL root: C:/Users/trg16/Dev/Bricklayer2.0
+BL root: /home/nerfherder/Dev/Bricklayer2.0
 ```
 
 ---
@@ -31,7 +31,7 @@ Run all checks in order. Mark each PASS / FAIL / WARN. Emit results as you go, t
 
 **How:**
 ```bash
-cd C:/Users/trg16/Dev/Bricklayer2.0
+cd /home/nerfherder/Dev/Bricklayer2.0
 python -m pytest masonry/tests/test_llm_router.py -v --tb=short 2>&1
 ```
 
@@ -80,7 +80,7 @@ Report the individual test names and their pass/fail status.
 
 **How:**
 ```bash
-cd C:/Users/trg16/Dev/Bricklayer2.0
+cd /home/nerfherder/Dev/Bricklayer2.0
 python -c "
 import sys
 sys.path.insert(0, '.')
@@ -109,7 +109,7 @@ else:
 
 **How:**
 ```bash
-cd C:/Users/trg16/Dev/Bricklayer2.0
+cd /home/nerfherder/Dev/Bricklayer2.0
 python -c "
 import sys
 sys.path.insert(0, '.')
@@ -149,7 +149,7 @@ else:
 
 **How:**
 ```bash
-cd C:/Users/trg16/Dev/Bricklayer2.0
+cd /home/nerfherder/Dev/Bricklayer2.0
 python -c "
 import sys, os, shutil
 sys.path.insert(0, '.')
@@ -198,7 +198,7 @@ print('Both checks PASS')
 
 **How:**
 ```bash
-cd C:/Users/trg16/Dev/Bricklayer2.0
+cd /home/nerfherder/Dev/Bricklayer2.0
 python -c "
 import yaml, os
 with open('masonry/agent_registry.yml') as f:
@@ -230,7 +230,7 @@ else:
 
 **How:**
 ```bash
-cd C:/Users/trg16/Dev/Bricklayer2.0
+cd /home/nerfherder/Dev/Bricklayer2.0
 python -c "
 import os, time
 path = 'masonry/training_data/scored_all.jsonl'
@@ -307,7 +307,7 @@ After all checks, print this table:
 
 ## Notes
 
-- Run from the BL root directory (`C:/Users/trg16/Dev/Bricklayer2.0`)
+- Run from the BL root directory (`/home/nerfherder/Dev/Bricklayer2.0`)
 - Read-only — does not modify any files or start campaigns
 - Check 1 runs real pytest (mocked subprocess, no real LLM calls)
 - Check 6 does live CLI detection — WARN if claude not on PATH is expected on fresh installs

@@ -8,6 +8,17 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    "bl/recall_bridge.py",
+    "bl/tmux/core.py",
+    "masonry/src/hooks/masonry-pre-protect.js",
+    "masonry/src/hooks/masonry-prompt-router.js",
+    "masonry/src/hooks/masonry-session-end.js",
+    "masonry/src/hooks/masonry-subagent-tracker.js",
+    "bl/runners/correctness.py",
+    "masonry/src/hooks/session/mortar-gate.js",
+    ".claude/agents/mortar.md",
+    ".claude/agents/trowel.md",
+    "bl/config.py",
     "masonry/src/hooks/masonry-approver-helpers.js",
     "masonry/src/hooks/masonry-prompt-router.js",
     ".claude/agents/AGENTS.md",
@@ -1199,5 +1210,5 @@
     "masonry/tests/engine/training-export.test.js",
     "masonry/tests/engine/training-schema.test.js"
   ],
-  "timestamp": "2026-04-02T02:46:01.973Z"
+  "timestamp": "2026-04-02T03:57:35.871Z"
 }

@@ -14,7 +14,7 @@ You are a diagnostic agent. Your job is to verify that a BrickLayer 2.0 installa
 
 ```
 Act as the bl-verifier agent in .claude/agents/bl-verifier.md.
-BL root: C:/Users/trg16/Dev/Bricklayer2.0
+BL root: /home/nerfherder/Dev/Bricklayer2.0
 ```
 
 ---
@@ -62,7 +62,7 @@ Run all checks in order. Mark each PASS / FAIL / WARN. Emit results as you go, t
 **What:** The Python MCP server must import cleanly and expose the expected tools.
 
 **How:**
-1. Run: `python -c "import sys; sys.path.insert(0,'C:/Users/trg16/Dev/Bricklayer2.0'); from masonry.mcp_server import server; print('OK'); print(list(server._TOOL_REGISTRY.keys()) if hasattr(server, '_TOOL_REGISTRY') else 'no registry attr')"`
+1. Run: `python -c "import sys; sys.path.insert(0,'/home/nerfherder/Dev/Bricklayer2.0'); from masonry.mcp_server import server; print('OK'); print(list(server._TOOL_REGISTRY.keys()) if hasattr(server, '_TOOL_REGISTRY') else 'no registry attr')"`
 2. Verify the key tools are present: `masonry_status`, `masonry_questions`, `masonry_fleet`, `masonry_recall`, `masonry_nl_generate`, `masonry_weights`, `masonry_git_hypothesis`, `masonry_run_question`, `masonry_findings`
 
 **Pass:** Import succeeds, all key tools registered
@@ -77,7 +77,7 @@ Run all checks in order. Mark each PASS / FAIL / WARN. Emit results as you go, t
 **How:** Run this Python snippet:
 ```python
 import sys
-sys.path.insert(0, 'C:/Users/trg16/Dev/Bricklayer2.0')
+sys.path.insert(0, '/home/nerfherder/Dev/Bricklayer2.0')
 from masonry.src.routing.deterministic import route_deterministic
 cases = [
     ("/build implement auth", "developer"),
@@ -126,7 +126,7 @@ print(f"claude CLI: {result}")
 **How:**
 ```python
 import sys, os
-sys.path.insert(0, 'C:/Users/trg16/Dev/Bricklayer2.0')
+sys.path.insert(0, '/home/nerfherder/Dev/Bricklayer2.0')
 os.environ['MASONRY_LLM_MODEL'] = 'test-model-override'
 if 'masonry.src.routing.llm_router' in sys.modules:
     del sys.modules['masonry.src.routing.llm_router']
@@ -240,7 +240,7 @@ After all checks, print this table:
 
 ## Notes
 
-- Run from the BL root directory (`C:/Users/trg16/Dev/Bricklayer2.0`)
+- Run from the BL root directory (`/home/nerfherder/Dev/Bricklayer2.0`)
 - Does not modify any files — read-only diagnostic
 - Does not start a real campaign or invoke the LLM router for real (all LLM checks are preflight/import only)
 - If MCP server check fails with ImportError, run `pip install -e .` from BL root first
