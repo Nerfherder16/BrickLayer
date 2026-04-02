@@ -18,3 +18,5 @@
 {"timestamp":"2026-04-02T00:53:29.428Z","tool":"Bash","error":"Exit code 4","retries":2,"fingerprint":"Bash:Exit code 4"}
 {"timestamp":"2026-04-02T00:53:39.880Z","tool":"Bash","error":"Exit code 4 ---","retries":1,"fingerprint":"Bash:Exit code 4 ---"}
 {"timestamp":"2026-04-02T00:53:44.542Z","tool":"Bash","error":"Exit code 4","retries":1,"fingerprint":"Bash:Exit code 4"}
+{"timestamp":"2026-04-02T04:53:33.374Z","tool":"Glob","error":"spawn /home/nerfherder/.nvm/versions/node/v24.14.1/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg EACCES","retries":1,"fingerprint":"Glob:spawn /home/nerfherder/.nvm/versions/node/v24.14.1/lib/node_modules/@anthropic-a"}
+{"timestamp":"2026-04-02T04:53:33.374Z","tool":"Glob","error":"spawn /home/nerfherder/.nvm/versions/node/v24.14.1/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg EACCES","retries":1,"fingerprint":"Glob:spawn /home/nerfherder/.nvm/versions/node/v24.14.1/lib/node_modules/@anthropic-a"}
