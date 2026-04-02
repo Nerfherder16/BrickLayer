@@ -163,17 +163,18 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 
 ### 6b. GPU Passthrough
 - [ ] GPU VM: q35 machine type, OVMF UEFI, `cpu: host`, `balloon: 0`
-- [ ] Pass both RTX 3090s with `pcie=1,rombar=1`
+- [ ] Pass 1x RTX 3090 with `pcie=1,rombar=1` (second GPU reserved for future use)
 - [ ] Install NVIDIA driver with `--dkms` inside VM
 - [ ] Install `nvidia-container-toolkit` for Docker GPU access
-- [ ] Buy and install NVLink bridge ($30-50) — 50% inference improvement
+- [ ] NVLink bridge optional — only needed if both GPUs are passed through later
 
-### 6c. AI Inference Stack
-- [ ] GPU 0: Ollama → Qwen 2.5 Coder 32B Q4 (~20GB) for FIM autocomplete (port 11434)
-- [ ] GPU 1: vLLM → Qwen 3.5 27B Q4 (~16GB) for chat with continuous batching (port 8000)
-- [ ] FastAPI routes autocomplete requests to Ollama, chat requests to vLLM
-- [ ] Both expose OpenAI-compatible APIs with same SSE streaming format
-- [ ] `OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q8_0` for VRAM efficiency
+### 6c. GPU VM Services (Recall + Ollama)
+- [ ] Ollama with `nomic-embed-text` (embeddings) + `qwen3:14b` (NL tasks) — light workload, 1x RTX 3090 sufficient
+- [ ] Recall 1.0 Docker stack: Qdrant, Neo4j, PostgreSQL, Redis, ARQ — all in GPU VM
+- [ ] Recall talks to Ollama locally within VM (localhost:11434)
+- [ ] CodeVV-OS VM talks to Recall via network (http://gpu-vm:8200)
+- [ ] Claude Code (Teams account) is the primary AI — cloud-based, no local GPU needed
+- [ ] CodeVV backend does NOT call Ollama directly — only through Recall's API
 
 ### 6d. ZFS Storage Pools
 - [ ] Boot mirror: 2x NVMe, ashift=12, lz4, recordsize=128K
@@ -226,9 +227,9 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 | Collab code editor | CodeMirror 6 + `y-codemirror.next` | For pair sessions. code-server stays for individual work |
 | Yjs persistence | `y-postgresql` (update-row pattern) | Replace single-blob with per-update rows + periodic compaction |
 | Offline resilience | `y-indexeddb` | Browser-side persistence for offline editing and instant page reload |
-| LLM inference (chat) | vLLM | Continuous batching, 3-19x throughput over Ollama for concurrent users |
-| LLM inference (autocomplete) | Ollama | Simple model management, fine for low-concurrency FIM |
-| LLM models | Qwen 2.5 Coder 32B + Qwen 3.5 27B | Best local coding models 2025-2026. CodeLlama superseded |
+| Primary AI | Claude Code (Teams account) | Cloud-based, multi-user, handles all coding chat/autocomplete |
+| Local LLM | Ollama (GPU VM) | Serves Recall 1.0 only — `nomic-embed-text` + `qwen3:14b`. Light workload, 1x RTX 3090 sufficient |
+| Semantic memory | Recall 1.0 (GPU VM) | Qdrant + Neo4j + PostgreSQL + Redis + ARQ. CodeVV calls Recall API, not Ollama directly |
 | Secrets management | Docker Compose file-based secrets + Pydantic `SecretsSettingsSource` | `/run/secrets/` with env var fallback. No wrapper needed |
 | SSL (LAN) | mkcert | Generate CA once, distribute to devices, zero browser warnings |
 | Container security | `read_only: true` + tmpfs + `no-new-privileges` | All services can run read-only. PostgreSQL needs `user: "999:999"` to bypass gosu |
