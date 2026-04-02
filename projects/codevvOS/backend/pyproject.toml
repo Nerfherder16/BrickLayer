@@ -6,3 +6,14 @@ build-backend = "setuptools.backends.legacy:build"
 name = "codevvos-backend"
 version = "0.1.0"
 requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "S", "ASYNC"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"

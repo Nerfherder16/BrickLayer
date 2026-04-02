@@ -1,0 +1,3 @@
+JWT_ALGORITHM = "HS256"
+RATE_LIMIT_LOGIN = "10/minute"
+DB_APP_ROLE = "codevv_app"
