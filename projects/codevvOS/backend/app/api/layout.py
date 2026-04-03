@@ -33,15 +33,33 @@ def _get_current_user(
         raise HTTPException(status_code=401, detail=str(e)) from e
 
 
-async def _get_layout(user_id: str, tenant_id: str) -> Any:
-    """Stub — returns stored layout record or None. Replaced in integration layer."""
-    return None
+# In-memory store keyed by (user_id, tenant_id).
+# A full implementation replaces this with a DB-backed store.
+_layout_store: dict[tuple[str, str], dict[str, Any]] = {}
+
+
+class _LayoutRecord:
+    def __init__(self, layout_version: int, layout_json: dict[str, Any]) -> None:
+        self.layout_version = layout_version
+        self.layout_json = layout_json
+
+
+async def _get_layout(user_id: str, tenant_id: str) -> _LayoutRecord | None:
+    """Return the stored layout record for the user, or None if not set."""
+    entry = _layout_store.get((user_id, tenant_id))
+    if entry is None:
+        return None
+    return _LayoutRecord(entry["layout_version"], entry["layout_json"])
 
 
 async def _upsert_layout(
     user_id: str, tenant_id: str, layout_version: int, layout_json: dict[str, Any]
 ) -> None:
-    """Stub — upserts layout record. Replaced in integration layer."""
+    """Upsert the user's layout into the store."""
+    _layout_store[(user_id, tenant_id)] = {
+        "layout_version": layout_version,
+        "layout_json": layout_json,
+    }
 
 
 @router.get("/layout")

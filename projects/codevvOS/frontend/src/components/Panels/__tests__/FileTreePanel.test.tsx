@@ -1,3 +1,4 @@
+import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import FileTreePanel from '../FileTreePanel'
@@ -19,13 +20,8 @@ const populatedTree: TreeNode = {
 }
 
 function renderPanel() {
-  // FileTreePanel accepts IDockviewPanelProps — pass minimal stub
-  const props = {
-    api: {} as never,
-    containerApi: {} as never,
-    params: {},
-  } as never
-  return render(<FileTreePanel {...props} />)
+  const AnyPanel = FileTreePanel as React.FC
+  return render(<AnyPanel />)
 }
 
 beforeEach(() => {

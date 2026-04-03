@@ -51,7 +51,8 @@ vi.mock('dockview-react', () => ({
 // Lazy import AFTER vi.mock() — prevents hoisting issues
 // -------------------------------------------------------------------
 const { LayoutContextProvider, LayoutContext } = await import('../../../contexts/LayoutContext')
-const { default: DockviewShell } = await import('../DockviewShell')
+const { default: DockviewShell, COMPONENTS } = await import('../DockviewShell')
+const { APP_REGISTRY } = await import('../../Dock/appRegistry')
 
 // -------------------------------------------------------------------
 // MSW server
@@ -180,5 +181,110 @@ describe('DockviewShell', () => {
     await waitFor(() => {
       expect(capturedContext?.dockviewApi).not.toBeNull()
     })
+  })
+
+  it('should have all APP_REGISTRY componentKeys present in COMPONENTS', () => {
+    APP_REGISTRY.forEach(app => {
+      expect(
+        app.componentKey in COMPONENTS,
+        `COMPONENTS is missing key "${app.componentKey}" (from APP_REGISTRY entry id="${app.id}")`,
+      ).toBe(true)
+    })
+  })
+
+  it('should call fromJSON when layout object is returned and not throw', async () => {
+    const savedLayout = {
+      grid: {
+        root: {
+          type: 'branch',
+          data: [
+            {
+              type: 'leaf',
+              data: {
+                views: ['panel-terminal', 'panel-files'],
+                activeView: 'panel-terminal',
+                id: 'group-1',
+              },
+              size: 100,
+            },
+          ],
+          size: 100,
+        },
+        width: 800,
+        height: 600,
+        orientation: 'HORIZONTAL',
+      },
+      panels: {
+        'panel-terminal': {
+          id: 'panel-terminal',
+          contentComponent: 'TerminalPanel',
+          title: 'Terminal',
+        },
+        'panel-files': {
+          id: 'panel-files',
+          contentComponent: 'FileTreePanel',
+          title: 'Files',
+        },
+      },
+      floatingGroups: [],
+      popoutGroups: [],
+    }
+
+    server.use(
+      http.get('/api/layout', () =>
+        HttpResponse.json({ layout_version: 1, layout: savedLayout }),
+      ),
+    )
+
+    expect(() =>
+      render(
+        <LayoutContextProvider>
+          <DockviewShell />
+        </LayoutContextProvider>,
+      ),
+    ).not.toThrow()
+
+    await waitFor(() => {
+      expect(mockFromJSON).toHaveBeenCalledWith(savedLayout)
+    })
+  })
+
+  it('should fall back to DEFAULT_LAYOUT (WelcomePanel) when fromJSON throws', async () => {
+    const badLayout = {
+      grid: { root: null, width: 0, height: 0, orientation: 'HORIZONTAL' },
+      panels: {
+        'panel-unknown': {
+          id: 'panel-unknown',
+          contentComponent: 'NonExistentPanel',
+          title: 'Unknown',
+        },
+      },
+      floatingGroups: [],
+      popoutGroups: [],
+    }
+
+    server.use(
+      http.get('/api/layout', () =>
+        HttpResponse.json({ layout_version: 1, layout: badLayout }),
+      ),
+    )
+
+    mockFromJSON.mockImplementationOnce(() => {
+      throw new Error('Unknown component: NonExistentPanel')
+    })
+
+    render(
+      <LayoutContextProvider>
+        <DockviewShell />
+      </LayoutContextProvider>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/Welcome to CodeVV OS/i)).toBeDefined()
+    })
+
+    expect(mockAddPanel).toHaveBeenCalledWith(
+      expect.objectContaining({ component: 'WelcomePanel' }),
+    )
   })
 })

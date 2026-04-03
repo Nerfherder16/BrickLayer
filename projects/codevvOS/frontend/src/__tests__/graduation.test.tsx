@@ -33,7 +33,10 @@ const mockDockviewApi = {
   fromJSON: vi.fn(),
   toJSON: vi.fn(() => ({ panels: {}, grid: {}, floatingGroups: [], popoutGroups: [] })),
   addPanel: vi.fn(),
+  getPanel: vi.fn().mockReturnValue(null),
+  panels: [],
   onDidLayoutChange: vi.fn().mockReturnValue({ dispose: vi.fn() }),
+  onDidActivePanelChange: vi.fn().mockReturnValue({ dispose: vi.fn() }),
 }
 
 vi.mock('dockview-react', () => ({
@@ -89,6 +92,8 @@ afterEach(() => {
   sessionStorage.clear()
   vi.clearAllMocks()
   mockDockviewApi.onDidLayoutChange.mockReturnValue({ dispose: vi.fn() })
+  mockDockviewApi.onDidActivePanelChange.mockReturnValue({ dispose: vi.fn() })
+  mockDockviewApi.getPanel.mockReturnValue(null)
   mockDockviewApi.toJSON.mockReturnValue({
     panels: {},
     grid: {},
