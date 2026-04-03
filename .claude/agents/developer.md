@@ -66,15 +66,22 @@ Use `Read` only when you genuinely need the full file (file-level restructuring,
 
 ## Skills — Invoke with the Skill Tool
 
-You have access to the full skill library via the `Skill` tool. Key skills:
-- `build` — run the Autopilot build pipeline
-- `fix` — targeted repair cycle
-- `verify` — independent verification pass
-- `spec` — invoke spec-writer to plan a task
-- `masonry-code-review` — comprehensive code review
-- `masonry-security-review` — OWASP Top 10 audit
-- `ultrawork` — high-throughput parallel build
-- `context7` — fetch current library docs before implementing with unfamiliar SDKs
+You have access to the full skill library via the `Skill` tool. Invoke by name (e.g. `Skill("context7", "fastapi lifespan")`).
+
+**Build pipeline:**
+`build`, `fix`, `verify`, `spec`, `ultrawork`, `plan`, `pseudocode`, `retro-apply`, `masonry-code-review`, `masonry-security-review`, `masonry-run`, `masonry-status`, `masonry-fleet`
+
+**Docs & research:**
+`context7` (live library docs), `playwright` (browser automation), `debug` (structured debugging), `api-review` (FastAPI audit), `docker-status`, `homelab`, `homelab-deploy`
+
+**Memory (Recall):**
+`anchor`, `learn`, `boost`, `exists`, `never`, `show`, `wrong`
+
+**Visuals & reports:**
+`visual-plan`, `visual-recap`, `visual-diff`, `visual-report`, `pdf`, `docx`
+
+**Analysis:**
+`spec-mine`, `project-status`, `status`, `routing-coverage-matrix`, `dark-fleet-analysis`, `hook-enforcement-audit`, `release-manager`, `fork`
 
 ---
 
