@@ -1,120 +1,66 @@
-# Spec: anthropics/skills Integration — 5 Features
+# Spec: Fix qwen3:14b LLM Timeout Instability in Recall
 
 ## Overview
-Adopt 5 patterns from the anthropics/skills repo analysis to improve BrickLayer's agent packaging, routing accuracy, creation workflow, and verification quality. Features build on each other: frontmatter standardization enables progressive disclosure which enables routing optimization.
+Recall's LLM pipeline (qwen3:14b via Ollama) is timing out at 74% — 71 of 96 recent calls timed out.
+This degrades the observer, signal detector, and consolidation pipeline, causing partial/stub memories and fail-open writes.
+The fix requires: diagnosing root cause (GPU memory, concurrency, timeout config), then implementing targeted remediations.
 
-## Acceptance Criteria
-- [ ] All 107 agent .md files have valid YAML frontmatter with: name, description, model, tier, modes, capabilities, tools
-- [ ] `onboard_agent.py` validates frontmatter completeness on onboard (warns on missing fields)
-- [ ] Router's semantic layer uses frontmatter-only corpus (no body parsing) — already true, just formalize
-- [ ] `masonry/scripts/optimize_routing.py` exists and can evaluate routing accuracy per agent
-- [ ] Fresh-eyes verification pattern integrated into synthesizer-bl2 as optional step
-- [ ] `/forge` skill creates, tests, and onboards a new agent in a guided workflow
-- [ ] All existing tests pass, no regressions in routing or onboarding
+## Source Location
+- Local source: `/mnt/c/Users/trg16/Dev/Recall/src`
+- jcodemunch repo: `local/src-3944fe64`
+- VM: `sshpass -p 'lacetimcat1216' ssh nerfherder@100.70.195.84`
+- Deploy: scp file to VM /tmp, sudo cp to /opt/recall/app/src/<path>, then sudo docker compose restart worker api
 
 ## Tasks
 
-### Task 1: Backfill YAML frontmatter on 53 remaining agents
-**Files**: `.claude/agents/*.md` (53 files without frontmatter), `masonry/scripts/backfill_frontmatter.py`
-**Description**: Write a script that reads each agent .md file, detects if YAML frontmatter exists, and if not, generates it by:
-1. Using the filename stem as `name`
-2. Extracting the first sentence/paragraph as `description`
-3. Defaulting `model: sonnet`, `tier: draft`
-4. Setting `modes: []`, `capabilities: []`, `tools: []` as empty (to be filled by optimize_routing later)
-5. Writing the frontmatter block (`---\n...\n---`) at the top, preserving all existing content below
+### T1: Diagnose — Ollama GPU/memory and timeout config [INDEPENDENT]
+- SSH into VM, check Ollama logs for model load/unload events, OOM errors, queue depth
+- Check GPU memory: nvidia-smi or docker stats
+- Check current LLM timeout value in src/core/config.py and src/core/llm.py
+- Check keepalive worker is actually running: look for ollama_keepalive_sent in worker logs
+- Check Ollama concurrency: how many simultaneous requests does it handle?
+- Output: root cause diagnosis
 
-The script must be idempotent — running twice produces the same result. After running, re-run `onboard_agent.py` to sync registry.
+### T2: Diagnose — LLM call concurrency in the application [INDEPENDENT]
+- Use jcodemunch to trace all call sites of get_llm() in the codebase
+- Map which workers/routes call LLM and whether they are serialized or concurrent
+- Check if ARQ worker concurrency allows N workers to each make LLM calls simultaneously
+- Output: concurrency map — max simultaneous LLM calls possible under normal load
 
-**Test Strategy**: Run the script, then verify: (a) all 107 files start with `---`, (b) `yaml.safe_load` parses every frontmatter block without error, (c) no file content below frontmatter was modified, (d) `onboard_agent.py` runs clean with 0 new warnings.
-**Dependencies**: None
+### T3: Fix — LLM timeout and retry config [BLOCKED BY T1]
+- Raise LLM timeout if current value is too short for qwen3:14b (14B models need 15-45s)
+- Add exponential backoff retry (2-3 attempts) for timeout errors
+- Add llm_timeout_seconds config setting if not already tunable
+- Update src/core/llm.py to use new timeout
 
-### Task 2: Add frontmatter validation to onboard_agent.py
-**Files**: `masonry/scripts/onboard_agent.py`, `masonry/tests/test_onboard_agent.py`
-**Description**: Add a `validate_frontmatter(meta: dict) -> list[str]` function that checks:
-- `name` is non-empty string
-- `description` is non-empty and >= 20 chars (too short = useless for semantic routing)
-- `model` is one of: opus, sonnet, haiku
-- `tier` is one of: production, candidate, draft
-- `modes` is a list (can be empty)
-- `capabilities` is a list (can be empty)
+### T4: Fix — LLM concurrency semaphore [BLOCKED BY T2]
+- Add a global asyncio semaphore to cap simultaneous Ollama calls (max 2-3 concurrent)
+- Place in src/core/llm.py as module-level semaphore
+- All LLM call sites acquire the semaphore
 
-Return list of warning strings (empty = valid). Call this in `extract_agent_metadata` and print warnings to stderr. Do NOT block onboarding on validation failures — warnings only.
+### T5: Fix — Observer fail-closed on LLM unavailable [INDEPENDENT]
+- In src/workers/observer.py _run_extraction: skip storage on LLM timeout after retries
+- Currently stores partial/empty memories on LLM failure
+- Change: log observer_skipped_llm_unavailable and return without storing
 
-**Test Strategy**: Test with valid frontmatter (0 warnings), missing name (1 warning), short description (1 warning), invalid model (1 warning), missing frontmatter entirely (multiple warnings).
-**Dependencies**: None (can run in parallel with Task 1)
+### T6: Fix — Keepalive interval tuning [INDEPENDENT]
+- Verify keepalive worker is hitting correct Ollama endpoint
+- Reduce keepalive interval from 5min to 2min for qwen3:14b to prevent model eviction
+- Verify in worker logs
 
-### Task 3: Build routing description optimizer
-**Files**: `masonry/scripts/optimize_routing.py`
-**Description**: Port the skill-creator's eval loop pattern for routing descriptions. The script:
-1. Takes an agent name as argument
-2. Loads agent's current description + capabilities from registry
-3. Generates 20 test queries: 10 "should-route-here" and 10 "should-NOT-route-here"
-   - Use Claude (via `claude -p`) to generate test queries based on agent description and capabilities
-4. Runs each query through `masonry.src.routing.semantic.route_semantic` (Python import, not MCP)
-5. Scores accuracy: correct routes / total queries
-6. If accuracy < 80%, use Claude to propose an improved description based on failure cases
-7. Re-test with improved description
-8. If improved, update the agent .md frontmatter and re-run onboard to sync registry
-9. Save results to `masonry/agent_snapshots/{agent}/routing_eval.json`
+### T7: Deploy and verify [BLOCKED BY T3, T4, T5, T6]
+- Deploy all changed files to VM
+- Monitor recall_llm_requests_total metric for 10 minutes
+- Verify timeout rate drops below 20%
 
-**Test Strategy**: Run against a known agent (e.g., `research-analyst`). Verify: (a) 20 queries generated, (b) routing accuracy is a number 0-1, (c) results saved to routing_eval.json, (d) if description changed, frontmatter updated and registry synced.
-**Dependencies**: Task 1 (all agents need frontmatter for meaningful eval)
+## Success Criteria
+- LLM timeout rate < 20% (from current 74%)
+- Observer no longer stores stub/partial memories on LLM failure
+- No more than 3 concurrent LLM calls to Ollama at once
+- Keepalive confirmed working with appropriate interval
 
-### Task 4: Implement fresh-eyes verification pattern
-**Files**: `masonry/scripts/fresh_eyes_verify.py`, `.claude/agents/synthesizer-bl2.md`
-**Description**: Create a verification script that:
-1. Takes a path to synthesis.md as input
-2. Reads ONLY the synthesis (no findings, no questions, no project-brief)
-3. Generates 5-8 comprehension questions about the synthesis content using Claude
-4. Spawns a fresh Claude instance (`claude -p`) with ONLY the synthesis as context
-5. Asks each question and captures answers
-6. Compares answers against expected answers (from the question generation step)
-7. Outputs a verification report: questions, answers, correctness scores, and flagged sections
-
-Also add a section to `synthesizer-bl2.md` noting that after writing synthesis.md, the fresh-eyes verifier can be invoked as an optional quality gate.
-
-**Test Strategy**: Create a mock synthesis.md with known content. Run the verifier. Verify: (a) questions are generated, (b) answers are captured, (c) correctness scores are 0-1, (d) output report is valid JSON or markdown.
-**Dependencies**: None (independent of other tasks)
-
-### Task 5: Create /forge agent creation workflow
-**Files**: `.claude/skills/forge/SKILL.md`
-**Description**: Create a new skill at `.claude/skills/forge/SKILL.md` that guides the creation of a new BrickLayer agent:
-
-**Phase 1 — Interview**: Ask the user:
-- Agent name and one-line description
-- What modes it operates in (diagnose, research, validate, etc.)
-- What capabilities it has
-- What model tier (opus/sonnet/haiku)
-- Example prompts it should handle (3-5)
-
-**Phase 2 — Draft**: Generate the agent .md file with:
-- Complete YAML frontmatter (validated per Task 2's schema)
-- Structured instructions following the BrickLayer agent pattern
-- DOT process flowchart
-- Inline self-review checklist
-- Output contract
-
-**Phase 3 — Test Routing**: Run the example prompts through `masonry_route` MCP tool to verify the agent would be correctly routed to. Report accuracy.
-
-**Phase 4 — Onboard**: Save the .md file to `.claude/agents/`, which triggers `masonry-agent-onboard.js` hook automatically.
-
-**Phase 5 — Optimize** (optional): Run `optimize_routing.py` (Task 3) to tune the routing description.
-
-**Test Strategy**: Invoke /forge and create a test agent "test-dummy". Verify: (a) .md file created with valid frontmatter, (b) onboard hook fires and registers in agent_registry.yml, (c) routing test shows > 0% accuracy for the example prompts.
-**Dependencies**: Task 1 (frontmatter standard), Task 2 (validation), Task 3 (routing optimizer)
-
-## Dependency Graph
-```
-Task 1 (frontmatter backfill) ─┬─→ Task 3 (routing optimizer) ─→ Task 5 (/forge skill)
-                                │
-Task 2 (validation)       ──────┘
-Task 4 (fresh-eyes)       ──── independent
-```
-
-Tasks 1, 2, 4 can run in parallel. Task 3 needs Task 1. Task 5 needs Tasks 1, 2, 3.
-
-## Out of Scope
-- Plugin marketplace integration (future — requires Claude Code plugin system)
-- HTML eval viewer for Kiln (future — Kiln enhancement)
-- Token/timing capture on subagent completion (future — separate hook change)
-- Description "pushiness" tuning (addressed naturally by Task 3's optimizer)
+## Files Likely Changed
+- src/core/llm.py
+- src/core/config.py
+- src/workers/observer.py
+- src/workers/main.py
