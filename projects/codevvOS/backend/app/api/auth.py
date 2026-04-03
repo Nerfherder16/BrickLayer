@@ -1,4 +1,4 @@
-"""Auth endpoints: login with rate limiting, logout with token blacklist."""
+"""Auth endpoints: login with rate limiting, logout with token blacklist, user list."""
 from __future__ import annotations
 
 import bcrypt
@@ -10,6 +10,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 router = APIRouter(prefix="/auth")
+api_router = APIRouter(prefix="/api/auth")
 limiter = Limiter(key_func=get_remote_address)
 
 
@@ -29,6 +30,41 @@ async def _get_user_by_email(email: str) -> dict | None:
 
 async def _blacklist_token(token: str) -> None:
     """Add token to Redis blacklist. Stub — implemented in integration layer."""
+
+
+async def _get_all_users() -> list[dict]:
+    """Return all users in the tenant. Stub — real implementation queries the DB."""
+    return []
+
+
+def _compute_initials(display_name: str) -> str:
+    """Compute avatar initials from display name (e.g. 'Tim Green' → 'TG')."""
+    parts = display_name.strip().split()
+    if not parts:
+        return "?"
+    if len(parts) == 1:
+        return parts[0][0].upper()
+    return (parts[0][0] + parts[-1][0]).upper()
+
+
+class UserSummary(BaseModel):
+    id: str
+    display_name: str
+    avatar_initials: str
+
+
+@api_router.get("/users")
+async def list_users() -> list[UserSummary]:
+    """Return all users for the login screen picker. Unauthenticated."""
+    users = await _get_all_users()
+    return [
+        UserSummary(
+            id=str(u["id"]),
+            display_name=u["display_name"],
+            avatar_initials=_compute_initials(u["display_name"]),
+        )
+        for u in users
+    ]
 
 
 @router.post("/login")

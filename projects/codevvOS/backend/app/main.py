@@ -1,4 +1,5 @@
 from backend.app.api.ai import router as ai_router
+from backend.app.api.auth import api_router as auth_api_router
 from backend.app.api.auth import limiter
 from backend.app.api.auth import router as auth_router
 from backend.app.api.claude_settings import router as claude_settings_router
@@ -19,6 +20,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(auth_api_router)
 app.include_router(ai_router)
 app.include_router(claude_settings_router)
 app.include_router(system_router)
