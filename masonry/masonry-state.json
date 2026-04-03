@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "rough-in",
-    "effort": "high",
-    "prompt_summary": "-\nGit commit and branch hygiene for CodeVV OS Phase 0 + Phase 1 build\n\nProject r",
-    "timestamp": "2026-04-02T16:31:57.671Z",
+    "agent": "repo-researcher",
+    "effort": "medium",
+    "prompt_summary": "i want to look into this mcp https://github.com/opentabs-dev/opentabs",
+    "timestamp": "2026-04-03T03:19:15.278Z",
     "turn_count": 1
   }
 }
