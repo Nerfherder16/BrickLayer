@@ -1,0 +1,5 @@
+Run the **Autopilot /fix** targeted repair cycle for: $ARGUMENTS
+
+Invoke Mortar to dispatch diagnose-analyst → fix-implementer. Reads the verify-report or failure description, diagnoses root cause, implements the minimal fix, re-verifies. Max 3 cycles before escalating.
+
+If a verify-report exists at `.autopilot/verify-report.md`, use it. Otherwise diagnose from the provided description.

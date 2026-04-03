@@ -1,6 +1,6 @@
 import { getStoredToken } from './auth'
 
-export type ChatMessage = { role: 'user' | 'assistant'; content: string }
+export type ChatMessage = { role: 'user' | 'assistant'; content: string; artifact?: { id: string; title: string } }
 
 /** Stream an AI chat response via SSE from POST /api/ai/chat. */
 export async function* streamChat(

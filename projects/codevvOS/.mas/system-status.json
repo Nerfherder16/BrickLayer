@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-03T04:37:59.707Z",
+  "generated_at": "2026-04-03T14:00:20.307Z",
   "campaign": {
     "active": false,
     "project": null,
@@ -16,7 +16,10 @@
   },
   "agents": {},
   "rough_in": {
-    "active_task": null
+    "active_task": "phase5-20260403",
+    "description": "Phase 5: CodeMirror 6, inline AI, live preview, BL sidecar, artifact renderer, knowledge graph",
+    "pending_steps": 0,
+    "last_updated": null
   },
   "skills": {
     "count": 0

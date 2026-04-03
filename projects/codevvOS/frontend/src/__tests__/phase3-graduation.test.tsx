@@ -22,7 +22,7 @@
  *   Step 4: Click Files   → FileTreePanel renders, tree items visible
  *   Step 5: Click AI Chat → AIChatPanel renders, empty state visible
  *   Step 6: Click Terminal again (already open) → no duplicate, panel focused
- *   Step 7: Click Settings → "Settings — Coming in Phase 3c" text renders
+ *   Step 7: Click Settings → SettingsPanel renders (data-testid="settings-panel")
  */
 import React, { useState } from 'react'
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest'
@@ -74,6 +74,27 @@ vi.mock('@/hooks/usePtyWebSocket', () => ({
     sendResize: vi.fn(),
   })),
 }))
+
+vi.mock('@jsonforms/react', () => ({
+  JsonForms: () => React.createElement('form', { role: 'form', 'data-testid': 'jsonforms-form' }),
+}))
+vi.mock('@jsonforms/vanilla-renderers', () => ({ vanillaRenderers: [] }))
+vi.mock('@react-sigma/core', () => ({
+  SigmaContainer: ({ children }: { children: React.ReactNode }) => (
+    React.createElement('div', { 'data-testid': 'sigma-container' }, children)
+  ),
+  useLoadGraph: () => () => undefined,
+  useRegisterEvents: () => () => undefined,
+}))
+vi.mock('graphology', () => {
+  class MockMultiGraph {
+    addNode(): void {}
+    addEdge(): void {}
+    nodes(): string[] { return [] }
+  }
+  return { default: MockMultiGraph, MultiGraph: MockMultiGraph }
+})
+vi.mock('graphology-layout-forceatlas2', () => ({ default: () => undefined }))
 
 // ---------------------------------------------------------------------------
 // Stateful dockview-react mock
@@ -229,6 +250,12 @@ const server = setupServer(
       headers: { 'Content-Type': 'text/event-stream' },
     }),
   ),
+  http.get('/api/settings/schema', () =>
+    HttpResponse.json({ type: 'object', properties: {} }),
+  ),
+  http.get('/api/settings/user', () =>
+    HttpResponse.json({ theme: 'dark' }),
+  ),
 )
 
 beforeAll(() => {
@@ -291,7 +318,7 @@ describe('Phase 3 Graduation', () => {
 
     const dock = screen.getByTestId('dock')
     const buttons = dock.querySelectorAll('button')
-    expect(buttons.length).toBe(4)
+    expect(buttons.length).toBe(9)
   })
 
   it('Step 3: clicking Terminal opens TerminalPanel (data-testid="terminal-panel")', async () => {
@@ -381,7 +408,7 @@ describe('Phase 3 Graduation', () => {
     expect(panels.length).toBe(1)
   })
 
-  it('Step 7: clicking Settings renders "Settings — Coming in Phase 3c"', async () => {
+  it('Step 7: clicking Settings renders the settings panel', async () => {
     const user = userEvent.setup()
 
     await act(async () => {
@@ -397,7 +424,5 @@ describe('Phase 3 Graduation', () => {
     await waitFor(() => {
       expect(screen.getByTestId('settings-panel')).toBeDefined()
     })
-
-    expect(screen.getByText('Settings — Coming in Phase 3c')).toBeDefined()
   })
 })

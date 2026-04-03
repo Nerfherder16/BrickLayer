@@ -1,9 +1,12 @@
 import { useContext, useEffect, useState } from 'react'
+import { Sun, Moon } from 'lucide-react'
 import { LayoutContext } from '../../contexts/LayoutContext'
+import { useTheme } from '../../contexts/ThemeContext'
 import { APP_REGISTRY } from './appRegistry'
 
 export default function Dock(): JSX.Element {
   const { dockviewApi } = useContext(LayoutContext)
+  const { theme, toggleTheme } = useTheme()
   const [activePanelId, setActivePanelId] = useState<string | null>(null)
   const [openPanelIds, setOpenPanelIds] = useState<Set<string>>(new Set())
 
@@ -51,6 +54,25 @@ export default function Dock(): JSX.Element {
         gap: '4px',
       }}
     >
+      <button
+        type="button"
+        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        data-testid="theme-toggle"
+        onClick={toggleTheme}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          color: 'var(--color-text-secondary)',
+          marginLeft: 'auto',
+        }}
+      >
+        {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+      </button>
       {APP_REGISTRY.map((app) => {
         const Icon = app.icon
         const isActive = activePanelId === app.id

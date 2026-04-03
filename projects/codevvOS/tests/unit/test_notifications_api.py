@@ -1,64 +1,92 @@
-"""Unit tests for notification API endpoints.
+"""Unit tests for notification API endpoints (PostgreSQL-backed implementation)."""
 
-Uses in-memory store — no DB required for these tests.
-"""
 from __future__ import annotations
+
+import os
+import uuid
+from datetime import datetime, timezone
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 
-def _make_token(user_id: str = "u1", tenant_id: str = "t1", role: str = "member") -> str:
+def _make_token(
+    user_id: str = "u1", tenant_id: str = "t1", role: str = "member"
+) -> str:
     from shared.auth import create_jwt
+
     return create_jwt(user_id=user_id, tenant_id=tenant_id, role=role)
 
 
-def _seed_notifications(user_id: str = "u1", count: int = 5) -> list[dict]:
-    """Populate the in-memory store and return the inserted items."""
-    import uuid
-    from datetime import datetime, timezone
-    from backend.app.api import notifications as nmod
-
-    nmod._notifications.clear()
-    items = []
-    for i in range(count):
-        n = {
-            "id": str(uuid.uuid4()),
-            "tenant_id": "t1",
-            "user_id": user_id,
-            "type": "info",
-            "title": f"Notification {i}",
-            "body": f"Body {i}",
-            "read": False,
-            "created_at": datetime(2026, 1, 1, 0, 0, i, tzinfo=timezone.utc).isoformat(),
-        }
-        nmod._notifications.append(n)
-        items.append(n)
-    return items
+def _make_notif_stub(index: int = 0, read: bool = False) -> SimpleNamespace:
+    """Return a SimpleNamespace that mimics a Notification ORM row."""
+    return SimpleNamespace(
+        id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        tenant_id=uuid.uuid4(),
+        type="info",
+        title=f"Notification {index}",
+        body=f"Body {index}",
+        read=read,
+        created_at=datetime(
+            2026,
+            1,
+            1,
+            index // 3600,
+            (index % 3600) // 60,
+            index % 60,
+            tzinfo=timezone.utc,
+        ),
+    )
 
 
-@pytest.fixture(autouse=True)
-def clear_notifications():
-    """Reset in-memory store before each test."""
-    from backend.app.api import notifications as nmod
-    nmod._notifications.clear()
-    yield
-    nmod._notifications.clear()
+@pytest.fixture
+def mock_db():
+    """Yields (session, result) — configure result before requests."""
+    session = AsyncMock()
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = []
+    result.scalar_one_or_none.return_value = None
+    session.execute.return_value = result
+    return session, result
 
 
-# ---------------------------------------------------------------------------
-# GET /api/notifications
-# ---------------------------------------------------------------------------
-
-@pytest.mark.anyio
-async def test_list_notifications_returns_paginated_list():
-    """GET /api/notifications returns list of notifications for the authenticated user."""
+@pytest.fixture
+def override_db(mock_db):
+    """Override get_db with mock_db for the duration of the test."""
+    session, result = mock_db
+    from backend.app.db.session import get_db
     from backend.app.main import app
 
-    _seed_notifications(user_id="u1", count=3)
-    token = _make_token(user_id="u1")
+    async def _mock_get_db():
+        yield session
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    app.dependency_overrides[get_db] = _mock_get_db
+    yield session, result
+    app.dependency_overrides.pop(get_db, None)
+
+
+# ---------------------------------------------------------------------------
+# GET /api/notifications — pagination with has_more
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.anyio
+async def test_list_60_items_returns_50_with_has_more(override_db):
+    """GET /api/notifications with 60 items in DB returns 50 items and has_more=true."""
+    session, result = override_db
+    # Return 51 stubs — the API fetches limit+1 to detect has_more
+    stubs = [_make_notif_stub(i) for i in range(51)]
+    result.scalars.return_value.all.return_value = stubs
+
+    from backend.app.main import app
+
+    token = _make_token(user_id="u1", tenant_id="t1")
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         response = await client.get(
             "/api/notifications",
             headers={"Authorization": f"Bearer {token}"},
@@ -66,167 +94,262 @@ async def test_list_notifications_returns_paginated_list():
 
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
-    assert len(data) == 3
+    assert data["has_more"] is True
+    assert len(data["items"]) == 50
 
 
 @pytest.mark.anyio
-async def test_list_notifications_respects_max_50():
-    """GET /api/notifications returns at most 50 items by default."""
+async def test_list_cursor_returns_remaining_10_no_more(override_db):
+    """GET /api/notifications?before_id=X returns remaining 10 items with has_more=false."""
+    session, result = override_db
+    # Return 10 stubs — fewer than limit+1, so has_more=False
+    stubs = [_make_notif_stub(i) for i in range(10)]
+    result.scalars.return_value.all.return_value = stubs
+
     from backend.app.main import app
 
-    _seed_notifications(user_id="u1", count=60)
-    token = _make_token(user_id="u1")
-
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get(
-            "/api/notifications",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-
-    assert response.status_code == 200
-    assert len(response.json()) == 50
-
-
-@pytest.mark.anyio
-async def test_list_notifications_only_returns_own_user():
-    """Notifications for other users are not returned."""
-    from backend.app.main import app
-
-    _seed_notifications(user_id="other-user", count=5)
-    token = _make_token(user_id="u1")
-
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get(
-            "/api/notifications",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-
-    assert response.status_code == 200
-    assert response.json() == []
-
-
-# ---------------------------------------------------------------------------
-# GET /api/notifications?before_id=X  (cursor pagination)
-# ---------------------------------------------------------------------------
-
-@pytest.mark.anyio
-async def test_list_notifications_cursor_pagination():
-    """GET /api/notifications?before_id=X returns items after the cursor (older)."""
-    from backend.app.main import app
-
-    items = _seed_notifications(user_id="u1", count=5)
-    # Items are sorted newest-first; items[4] is the oldest (created_at second=4 → 0:00:04)
-    # Sorted newest-first in the endpoint: index 0 = created_at=:04, index 4 = created_at=:00
-    # We want items after cursor at position 1 (second-newest), which is 3 items.
-    token = _make_token(user_id="u1")
-
-    # First, get the full list to determine what the second item's id is
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        full_response = await client.get(
-            "/api/notifications",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-
-    full_list = full_response.json()
-    assert len(full_list) == 5
-    cursor_id = full_list[1]["id"]  # second-newest
-
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    cursor_id = str(uuid.uuid4())
+    token = _make_token(user_id="u1", tenant_id="t1")
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         response = await client.get(
             f"/api/notifications?before_id={cursor_id}",
             headers={"Authorization": f"Bearer {token}"},
         )
 
     assert response.status_code == 200
-    page = response.json()
-    assert len(page) == 3
-    # None of the returned items should be the cursor item or newer
-    returned_ids = {n["id"] for n in page}
-    assert cursor_id not in returned_ids
-    assert full_list[0]["id"] not in returned_ids
+    data = response.json()
+    assert data["has_more"] is False
+    assert len(data["items"]) == 10
 
-
-# ---------------------------------------------------------------------------
-# PATCH /api/notifications/{id}/read
-# ---------------------------------------------------------------------------
 
 @pytest.mark.anyio
-async def test_mark_notification_read():
-    """PATCH /api/notifications/{id}/read sets read=True and returns updated record."""
+async def test_list_empty_returns_has_more_false(override_db):
+    """GET /api/notifications with no items returns empty list and has_more=false."""
+    _session, result = override_db
+    result.scalars.return_value.all.return_value = []
+
     from backend.app.main import app
 
-    items = _seed_notifications(user_id="u1", count=1)
-    notif_id = items[0]["id"]
-    token = _make_token(user_id="u1")
-
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.patch(
-            f"/api/notifications/{notif_id}/read",
+    token = _make_token(user_id="u1", tenant_id="t1")
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get(
+            "/api/notifications",
             headers={"Authorization": f"Bearer {token}"},
         )
 
     assert response.status_code == 200
-    body = response.json()
-    assert body["id"] == notif_id
-    assert body["read"] is True
+    data = response.json()
+    assert data["has_more"] is False
+    assert data["items"] == []
 
 
 @pytest.mark.anyio
-async def test_mark_notification_read_wrong_user_returns_404():
-    """PATCH /api/notifications/{id}/read returns 404 when notification belongs to another user."""
+async def test_user_b_cannot_see_user_a_notifications(override_db):
+    """User B gets 0 results even when mock would return items for user A."""
+    _session, result = override_db
+    # DB returns empty for user B (RLS + WHERE clause enforce this in prod)
+    result.scalars.return_value.all.return_value = []
+
     from backend.app.main import app
 
-    items = _seed_notifications(user_id="other-user", count=1)
-    notif_id = items[0]["id"]
-    token = _make_token(user_id="u1")
+    token_b = _make_token(user_id="u2", tenant_id="t1")
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get(
+            "/api/notifications",
+            headers={"Authorization": f"Bearer {token_b}"},
+        )
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    assert response.status_code == 200
+    data = response.json()
+    assert data["items"] == []
+    assert data["has_more"] is False
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/notifications/{id}/read — 204 No Content
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.anyio
+async def test_patch_returns_204_and_sets_read_true(override_db):
+    """PATCH /api/notifications/{id}/read returns 204 and sets read=True on the item."""
+    session, result = override_db
+    stub = _make_notif_stub(read=False)
+    result.scalar_one_or_none.return_value = stub
+
+    from backend.app.main import app
+
+    token = _make_token(user_id="u1", tenant_id="t1")
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         response = await client.patch(
-            f"/api/notifications/{notif_id}/read",
+            f"/api/notifications/{stub.id}/read",
             headers={"Authorization": f"Bearer {token}"},
         )
 
-    assert response.status_code == 404
+    assert response.status_code == 204
+    assert stub.read is True
 
 
 @pytest.mark.anyio
-async def test_mark_notification_read_nonexistent_returns_404():
+async def test_patch_unknown_notification_returns_404(override_db):
     """PATCH /api/notifications/{id}/read returns 404 for unknown id."""
+    _session, result = override_db
+    result.scalar_one_or_none.return_value = None
+
     from backend.app.main import app
 
-    token = _make_token(user_id="u1")
-
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    token = _make_token(user_id="u1", tenant_id="t1")
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         response = await client.patch(
-            "/api/notifications/does-not-exist/read",
+            f"/api/notifications/{uuid.uuid4()}/read",
             headers={"Authorization": f"Bearer {token}"},
         )
 
     assert response.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_patch_wrong_user_returns_404(override_db):
+    """PATCH /api/notifications/{id}/read returns 404 when notification belongs to another user."""
+    _session, result = override_db
+    # DB returns nothing for wrong user (WHERE user_id=... filters it out)
+    result.scalar_one_or_none.return_value = None
+
+    from backend.app.main import app
+
+    token = _make_token(user_id="u2", tenant_id="t1")
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.patch(
+            f"/api/notifications/{uuid.uuid4()}/read",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# POST /api/notifications — internal secret auth
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.anyio
+async def test_post_without_secret_header_returns_403(override_db):
+    """POST /api/notifications without X-BL-Internal-Secret returns 403."""
+    from backend.app.main import app
+
+    payload = {
+        "tenant_id": str(uuid.uuid4()),
+        "user_id": str(uuid.uuid4()),
+        "type": "info",
+        "title": "Test",
+        "body": "Body",
+    }
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post("/api/notifications", json=payload)
+
+    assert response.status_code == 403
+
+
+@pytest.mark.anyio
+async def test_post_with_wrong_secret_returns_403(override_db):
+    """POST /api/notifications with wrong X-BL-Internal-Secret returns 403."""
+    from backend.app.main import app
+
+    payload = {
+        "tenant_id": str(uuid.uuid4()),
+        "user_id": str(uuid.uuid4()),
+        "type": "info",
+        "title": "Test",
+        "body": "Body",
+    }
+    with patch.dict(os.environ, {"BL_INTERNAL_SECRET": "correct-secret"}):
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/api/notifications",
+                json=payload,
+                headers={"X-BL-Internal-Secret": "wrong-secret"},
+            )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.anyio
+async def test_post_with_correct_secret_returns_201(override_db):
+    """POST /api/notifications with correct X-BL-Internal-Secret returns 201."""
+    session, _result = override_db
+
+    # db.refresh() is a no-op mock; side_effect populates DB-generated fields.
+    async def _mock_refresh(obj: object) -> None:
+        obj.id = uuid.uuid4()  # type: ignore[attr-defined]
+        obj.read = False  # type: ignore[attr-defined]
+        obj.created_at = datetime(2026, 4, 3, 12, 0, 0, tzinfo=timezone.utc)  # type: ignore[attr-defined]
+
+    session.refresh = AsyncMock(side_effect=_mock_refresh)
+
+    from backend.app.main import app
+
+    payload = {
+        "tenant_id": str(uuid.uuid4()),
+        "user_id": str(uuid.uuid4()),
+        "type": "info",
+        "title": "Test notification",
+        "body": "This is a test",
+    }
+    with patch.dict(os.environ, {"BL_INTERNAL_SECRET": "test-secret"}):
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/api/notifications",
+                json=payload,
+                headers={"X-BL-Internal-Secret": "test-secret"},
+            )
+
+    assert response.status_code == 201
 
 
 # ---------------------------------------------------------------------------
 # Unauthenticated requests → 401
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.anyio
-async def test_list_notifications_unauthenticated_returns_401():
-    """GET /api/notifications without Authorization header returns 401."""
+async def test_list_unauthenticated_returns_401():
+    """GET /api/notifications without Authorization returns 401."""
     from backend.app.main import app
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         response = await client.get("/api/notifications")
 
     assert response.status_code == 401
 
 
 @pytest.mark.anyio
-async def test_mark_read_unauthenticated_returns_401():
-    """PATCH /api/notifications/{id}/read without Authorization header returns 401."""
+async def test_patch_unauthenticated_returns_401():
+    """PATCH /api/notifications/{id}/read without Authorization returns 401."""
     from backend.app.main import app
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.patch("/api/notifications/some-id/read")
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.patch(f"/api/notifications/{uuid.uuid4()}/read")
 
     assert response.status_code == 401

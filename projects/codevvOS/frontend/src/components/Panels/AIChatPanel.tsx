@@ -3,6 +3,7 @@ import type { IDockviewPanelProps } from 'dockview-react'
 import { Send, Square, MessageSquare } from 'lucide-react'
 import { useAIChat } from '../../hooks/useAIChat'
 import './AIChatPanel.css'
+import { RenderChip } from '../Artifacts/RenderChip'
 
 /** AI chat panel for dockview — streams responses from POST /api/ai/chat. */
 export default function AIChatPanel(_props: IDockviewPanelProps): JSX.Element {
@@ -58,6 +59,9 @@ export default function AIChatPanel(_props: IDockviewPanelProps): JSX.Element {
             >
               <div className="message-text">{msg.content}</div>
               <div className="message-timestamp">{new Date().toLocaleTimeString()}</div>
+              {msg.artifact && (
+                <RenderChip artifactId={msg.artifact.id} title={msg.artifact.title} />
+              )}
             </div>
           ))}
 

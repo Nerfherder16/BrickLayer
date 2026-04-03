@@ -1,0 +1,3 @@
+Run the **Autopilot /verify** independent verification pass for: $ARGUMENTS
+
+Invoke the bl-verifier agent. Reads `.autopilot/spec.md` and all production code. Never modifies source. Produces a verify-report at `.autopilot/verify-report.md` with pass/fail per task and evidence. Feed the report to `/fix` if failures found.

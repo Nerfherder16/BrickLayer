@@ -1,0 +1,133 @@
+{
+  "task_id": "phase5-20260403",
+  "description": "Phase 5: CodeMirror 6, inline AI, live preview, BL sidecar, artifact renderer, knowledge graph",
+  "project_root": "/home/nerfherder/Dev/Bricklayer2.0/projects/codevvOS",
+  "branch": "autopilot/phase5-20260403",
+  "waves": [
+    {
+      "id": 1,
+      "name": "Wave 1 — Independent foundation tasks",
+      "checkpoint_cmd": "cd /home/nerfherder/Dev/Bricklayer2.0/projects/codevvOS/frontend && npx tsc --noEmit 2>&1 | tail -5",
+      "tasks": [
+        {
+          "id": "t5.1",
+          "agent": "developer",
+          "description": "Task 5.1 — CodeMirror 6 Base Integration. Install CM6 packages (@codemirror/state @codemirror/view @codemirror/lang-javascript @codemirror/lang-python @codemirror/theme-one-dark — use --legacy-peer-deps if needed). Create frontend/src/components/Editor/CodeMirrorEditor.tsx wrapping EditorView with language detection, dark theme, controlled value. Create frontend/src/components/Editor/useCodeMirrorLanguage.ts hook. Modify frontend/src/components/Panels/EditorPanel.tsx to add feature flag useCodeMirror (default true). Write tests in frontend/src/__tests__/codemirror-editor.test.tsx. TDD: test-writer writes FAILING tests first, then implement. Tests: data-testid=codemirror-editor present, onChange fires on dispatch, language extension swaps on prop change, useEffect cleanup destroys EditorView on unmount, feature flag false renders Monaco fallback. Use var(--color-*) design tokens — no hardcoded hex. After passing tests commit with: feat(5.1): CodeMirror 6 base integration",
+          "status": "pending"
+        },
+        {
+          "id": "t5.3",
+          "agent": "developer",
+          "description": "Task 5.3 — Inline Edit Backend Endpoint. Create backend/app/api/ai_edit.py with POST /api/ai/inline-edit accepting {prompt, document, language}, streaming SSE to OLLAMA_BASE_URL env var. Rate limit 5 req/min per session, document max 100KB, final event: event: done. Create backend/app/services/llm_service.py. Modify backend/app/main.py to register router. Write tests in backend/tests/unit/test_ai_edit.py. TDD: tests first. Tests: missing fields=422, document>100KB=413, valid request=text/event-stream, 6th request in 60s=429, final SSE=event:done, LLM service uses OLLAMA_BASE_URL (mocked in tests). After passing tests commit with: feat(5.3): inline edit backend SSE endpoint",
+          "status": "pending"
+        },
+        {
+          "id": "t5.4",
+          "agent": "developer",
+          "description": "Task 5.4 — Live Preview Panel. Create frontend/src/components/Panels/LivePreviewPanel.tsx as dockview panel with sandboxed iframe loading http://localhost:{previewPort} from Zustand previewStore. Create frontend/src/components/Preview/ViewportToolbar.tsx with refresh, viewport selector (1440/768/375px), URL bar. Create frontend/src/components/Preview/ErrorOverlay.tsx. Create frontend/src/stores/previewStore.ts. Write tests in frontend/src/__tests__/live-preview-panel.test.tsx. TDD: tests first. Tests: data-testid=live-preview-iframe with src from store, viewport selector changes iframe width, refresh reassigns src, data-testid=preview-error-overlay on iframe onerror, error overlay hides on retry click, preview-reload SSE triggers src refresh. Use var(--color-*) tokens. After passing tests commit with: feat(5.4): live preview panel with viewport controls",
+          "status": "pending"
+        },
+        {
+          "id": "t5.5",
+          "agent": "developer",
+          "description": "Task 5.5 — Nginx Preview + Sidecar + Neo4j Proxy Routes. Modify nginx/default.conf to add: /preview/ -> PREVIEW_PORT env (default 5173), /bl-sidecar/ -> bl-sidecar:8300, /neo4j/ -> neo4j:7474. All routes with WebSocket upgrade headers for HMR. Create tests/integration/test_nginx_proxy.sh with curl smoke tests. Tests: /preview/ returns 502 not 404 when no upstream, /bl-sidecar/health proxies to sidecar, /neo4j/ proxies to Neo4j HTTP, Upgrade+Connection headers forwarded for /preview/. After passing tests commit with: feat(5.5): nginx proxy routes for preview sidecar neo4j",
+          "status": "pending"
+        },
+        {
+          "id": "t5.6",
+          "agent": "developer",
+          "description": "Task 5.6 — BrickLayer Sidecar Docker Service. Create self-contained FastAPI service in bl-sidecar/server.py. Ships copy of bl/ directory. Endpoints: GET /health, POST /run (SSE stream), POST /interrupt (SIGINT running command), GET /status. Long ops use asyncio.to_thread(). Port 8300. Create bl-sidecar/Dockerfile, bl-sidecar/requirements.txt. Modify docker-compose.yml to add bl-sidecar service on internal network. Create bl-sidecar/tests/test_server.py. TDD: tests first. Tests: GET /health=200 {status:ok}, POST /run valid=text/event-stream, POST /run unknown cmd=400, POST /interrupt while running=200, POST /interrupt idle=409, GET /status idle={active:false}, concurrent /health during /run within 100ms. After passing tests commit with: feat(5.6): BrickLayer sidecar Docker service",
+          "status": "pending"
+        },
+        {
+          "id": "t5.8",
+          "agent": "developer",
+          "description": "Task 5.8 — Artifact JSX Compile Endpoint. Create backend/app/api/artifacts.py with POST /api/artifacts/compile accepting {jsx, dependencies[]}. Run esbuild subprocess to transform JSX->React.createElement. Allowlist: react, react-dom, recharts, lucide-react. Returns {compiled, error}. Create backend/app/services/jsx_compiler.py. Modify backend/app/main.py to register router. Modify backend/Dockerfile to install esbuild binary. Write tests backend/tests/unit/test_artifacts.py. TDD: tests first. Tests: valid JSX=compiled contains React.createElement, JSX>50KB=413, dep not in allowlist=400, syntax error=200 with error field, empty JSX=400, esbuild binary callable. After passing tests commit with: feat(5.8): artifact JSX compile endpoint with esbuild",
+          "status": "pending"
+        },
+        {
+          "id": "t5.11",
+          "agent": "developer",
+          "description": "Task 5.11 — Docker Compose Neo4j Service. Modify docker-compose.yml to add Neo4j 5.x service with NEO4J_AUTH=neo4j/codevvos, Bolt 7687 and HTTP 7474 internal only, health check on HTTP. Create neo4j/init-cypher.sh init script. Create neo4j/constraints.cypher creating base schema: Decision, Assumption, Evidence, CodeFile nodes with BASED_ON, CONTRADICTS, SUPPORTS, REFERENCES relationships. Create tests/integration/test_neo4j_health.sh. Tests: Neo4j has health check configured, init creates all 4 node labels, init creates all 4 relationship types, Bolt 7687 reachable from backend network, HTTP 7474 reachable from nginx network. After passing tests commit with: feat(5.11): Neo4j service in docker-compose",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Wave 2 — Depends on Wave 1",
+      "checkpoint_cmd": "cd /home/nerfherder/Dev/Bricklayer2.0/projects/codevvOS/frontend && npx tsc --noEmit 2>&1 | tail -5 && cd /home/nerfherder/Dev/Bricklayer2.0/projects/codevvOS/backend && python -m pytest tests/unit/ -q 2>&1 | tail -5",
+      "tasks": [
+        {
+          "id": "t5.2",
+          "agent": "developer",
+          "description": "Task 5.2 — Inline AI Prompt (Cmd+K). Create CM6 extension in frontend/src/components/Editor/extensions/inlineAIPrompt.ts intercepting Cmd+K (Mac) / Ctrl+K. Opens floating Decoration.widget input at cursor. On submit, calls POST /api/ai/inline-edit, streams SSE, spinner during stream. On completion renders unified diff decorations (cm-line-added/cm-line-removed). Action bar: Accept, Reject, Regenerate. Escape dismisses. Create frontend/src/components/Editor/extensions/diffDecorations.ts. Create frontend/src/components/Editor/InlinePromptWidget.tsx. Create frontend/src/components/Editor/DiffActionBar.tsx. Write tests frontend/src/__tests__/inline-ai-prompt.test.tsx. TDD: tests first. Tests: keybinding triggers data-testid=inline-prompt-input, submission calls POST /api/ai/inline-edit, added lines have cm-line-added, removed have cm-line-removed, Accept applies new content, Reject restores original, Regenerate resubmits, Escape dismisses. Depends on 5.1 (CodeMirror) and 5.3 (backend). After passing tests commit with: feat(5.2): inline AI prompt Cmd+K with diff decorations",
+          "status": "pending"
+        },
+        {
+          "id": "t5.7",
+          "agent": "developer",
+          "description": "Task 5.7 — BrickLayer Sidecar Frontend Integration. Create Zustand sidecarStore in frontend/src/stores/sidecarStore.ts with runCommand(cmd, args) (SSE stream->output array), interrupt(), getStatus(). Create SidecarOutputPanel in frontend/src/components/Panels/SidecarOutputPanel.tsx as dockview panel with ANSI color rendering (ansi-to-html). Create frontend/src/components/Sidecar/CommandToolbar.tsx and frontend/src/components/Sidecar/AnsiOutput.tsx. Install ansi-to-html dep (--legacy-peer-deps if needed). Write tests frontend/src/__tests__/sidecar-store.test.ts and frontend/src/__tests__/sidecar-output-panel.test.tsx. TDD: tests first. Tests: runCommand opens EventSource to /bl-sidecar/run, SSE data events accumulate in output array, interrupt calls POST /bl-sidecar/interrupt, SidecarOutputPanel renders output lines, ANSI codes render as span style=color, stop button disabled when no command, data-testid=sidecar-connecting before first event. Depends on 5.6 (sidecar service). After passing tests commit with: feat(5.7): sidecar frontend store and output panel",
+          "status": "pending"
+        },
+        {
+          "id": "t5.9",
+          "agent": "developer",
+          "description": "Task 5.9 — Artifact Panel Frontend Renderer. Create ArtifactPanel in frontend/src/components/Panels/ArtifactPanel.tsx as dockview panel with srcdoc iframe (sandbox=allow-scripts ONLY — NO allow-same-origin). PostMessage with crypto.randomUUID() nonce per render. Create frontend/src/components/Artifacts/IframeSandbox.tsx and frontend/src/components/Artifacts/RenderChip.tsx. Create frontend/src/stores/artifactStore.ts holding {id, title, jsx, compiled}. Modify frontend/src/components/Panels/ChatPanel.tsx to render RenderChip for messages with artifact metadata. Write tests frontend/src/__tests__/artifact-panel.test.tsx and frontend/src/__tests__/render-chip.test.tsx. TDD: tests first. Tests: data-testid=artifact-iframe has sandbox containing allow-scripts but NOT allow-same-origin, srcdoc contains nonce, RenderChip renders for artifact messages, clicking RenderChip sets active artifact in store, artifactStore persists, error postMessage renders data-testid=artifact-error-overlay. CRITICAL: sandbox must be allow-scripts ONLY. Depends on 5.8 (compile endpoint). After passing tests commit with: feat(5.9): artifact panel renderer with sandboxed iframe",
+          "status": "pending"
+        },
+        {
+          "id": "t5.12",
+          "agent": "developer",
+          "description": "Task 5.12 — Knowledge Graph Backend API. Create FastAPI router in backend/app/api/graph.py with GET /nodes, POST /nodes, POST /edges, GET /neighborhood/{nodeId} (2-hop), GET /decisions. Create backend/app/services/neo4j_client.py using neo4j async Python driver with connection via NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD env vars. Modify backend/app/main.py to register router. Add neo4j dep to requirements. Write tests backend/tests/unit/test_graph_api.py. TDD: tests first. Tests: GET /nodes empty graph=[], POST /nodes=returns node ID, POST /edges=creates relationship, GET /neighborhood/{id}=node+2-hop neighbors, GET /decisions=Decision nodes with BASED_ON chains, invalid node type=400, Neo4j error=503. Depends on 5.11 (Neo4j service). After passing tests commit with: feat(5.12): knowledge graph backend API with Neo4j",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Wave 3 — After Wave 2",
+      "checkpoint_cmd": "cd /home/nerfherder/Dev/Bricklayer2.0/projects/codevvOS/frontend && npx vitest run 2>&1 | tail -10",
+      "tasks": [
+        {
+          "id": "t5.10",
+          "agent": "developer",
+          "description": "Task 5.10 — Artifact Persistence to Recall. Modify backend/app/api/artifacts.py to add POST /api/artifacts/persist storing artifact to Recall via HTTP. Create backend/app/services/recall_client.py calling RECALL_BASE_URL env (http://100.70.195.84:8200). Frontend fetches artifact history on ArtifactPanel mount. Create frontend/src/components/Artifacts/ArtifactHistory.tsx dropdown in panel toolbar. Modify frontend/src/components/Panels/ArtifactPanel.tsx to include history. Write tests backend/tests/unit/test_artifact_persistence.py and frontend/src/__tests__/artifact-history.test.tsx. TDD: tests first. Tests: persist calls Recall at RECALL_BASE_URL, returns artifact ID, history sorted by timestamp desc, ArtifactHistory renders titles, selecting loads artifact, Recall error=empty list (graceful degradation). Depends on 5.8 (compile) and 5.9 (panel). After passing tests commit with: feat(5.10): artifact persistence to Recall",
+          "status": "pending"
+        },
+        {
+          "id": "t5.13",
+          "agent": "developer",
+          "description": "Task 5.13 — Knowledge Graph Frontend Panel. Create KnowledgeGraphPanel in frontend/src/components/Panels/KnowledgeGraphPanel.tsx using @react-sigma/core + graphology with force-directed layout. Node colors: Decision=blue (var(--color-*)), Assumption=amber, Evidence=green, CodeFile=gray. Click shows side detail pane. Toolbar: type filter, search, Add Decision button. Create frontend/src/components/Graph/GraphCanvas.tsx, frontend/src/components/Graph/NodeDetail.tsx, frontend/src/components/Graph/AddDecisionForm.tsx. Create frontend/src/stores/graphStore.ts. Install @react-sigma/core graphology graphology-layout-forceatlas2 (--legacy-peer-deps if needed). Write tests frontend/src/__tests__/knowledge-graph-panel.test.tsx and frontend/src/__tests__/graph-store.test.ts. TDD: tests first. Tests: data-testid=graph-canvas renders without crashing with empty data, Decision nodes have blue fill token, type filter hides that type nodes, search filters by title substring, clicking node sets selectedNode and shows data-testid=node-detail, AddDecisionForm submits to POST /api/graph/nodes, store fetches /api/graph/nodes on mount. No hardcoded hex. Depends on 5.12. After passing tests commit with: feat(5.13): knowledge graph frontend panel",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Wave 4 — Panel registration",
+      "checkpoint_cmd": "cd /home/nerfherder/Dev/Bricklayer2.0/projects/codevvOS/frontend && npx tsc --noEmit 2>&1 | tail -5",
+      "tasks": [
+        {
+          "id": "t5.14",
+          "agent": "developer",
+          "description": "Task 5.14 — Panel Registration + Dock Integration. Modify frontend/src/App.tsx panel factory to register LivePreviewPanel, SidecarOutputPanel, ArtifactPanel, KnowledgeGraphPanel. Modify frontend/src/components/Dock/Dock.tsx for icons+labels. Modify frontend/src/components/Dock/appRegistry.ts to add 4 new entries. Add keyboard shortcuts: Cmd+Shift+P (preview), Cmd+Shift+B (sidecar), Cmd+Shift+A (artifacts), Cmd+Shift+G (graph). Write tests frontend/src/__tests__/panel-registration.test.tsx. TDD: tests first. Tests: factory creates each panel without error, APP_REGISTRY has all 4 new panels, each has id+label+icon+componentKey, keyboard shortcuts open correct panels via registerShortcut, all panels render without console errors. Depends on 5.4 (LivePreview), 5.7 (Sidecar), 5.9 (Artifact), 5.13 (KnowledgeGraph). After passing tests commit with: feat(5.14): register all Phase 5 panels in dock",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Wave 5 — Integration smoke tests",
+      "checkpoint_cmd": "cd /home/nerfherder/Dev/Bricklayer2.0/projects/codevvOS/frontend && npx vitest run 2>&1 | tail -20 && cd /home/nerfherder/Dev/Bricklayer2.0/projects/codevvOS/backend && python -m pytest tests/ -q 2>&1 | tail -10",
+      "tasks": [
+        {
+          "id": "t5.15",
+          "agent": "developer",
+          "description": "Task 5.15 — Integration Smoke Tests. Write end-to-end integration tests. Create frontend/src/__tests__/phase5-graduation.test.tsx covering: CodeMirror editor mounts with feature flag enabled, inline prompt widget appears on simulated Cmd+K, LivePreviewPanel renders iframe with src from store, SidecarOutputPanel renders with SSE mock, ArtifactPanel renders iframe with allow-scripts sandbox, KnowledgeGraphPanel renders graph canvas, APP_REGISTRY includes all 4 new panel keys, all panels coexist in dockview without errors. Create tests/integration/test_phase5_smoke.py for backend: compile endpoint reachable, graph API reachable, inline-edit endpoint reachable, health checks pass. After passing tests commit with: test(5.15): Phase 5 integration graduation tests. Depends on all prior tasks.",
+          "status": "pending"
+        }
+      ]
+    }
+  ]
+}

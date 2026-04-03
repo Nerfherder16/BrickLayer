@@ -13,6 +13,10 @@ import TerminalPanel from '../Panels/TerminalPanel'
 import FileTreePanel from '../Panels/FileTreePanel'
 import AIChatPanel from '../Panels/AIChatPanel'
 import SettingsPanel from '../Panels/SettingsPanel'
+import LivePreviewPanel from '../Panels/LivePreviewPanel'
+import SidecarOutputPanel from '../Panels/SidecarOutputPanel'
+import ArtifactPanel from '../Panels/ArtifactPanel'
+import KnowledgeGraphPanel from '../Panels/KnowledgeGraphPanel'
 import '../../styles/dockview-theme.css'
 
 // Panel component registry — DockviewReact requires FunctionComponent (not ComponentType)
@@ -22,6 +26,10 @@ export const COMPONENTS: Record<string, React.FunctionComponent<IDockviewPanelPr
   FileTreePanel: FileTreePanel as React.FunctionComponent<IDockviewPanelProps>,
   AIChatPanel: AIChatPanel as React.FunctionComponent<IDockviewPanelProps>,
   SettingsPanel: SettingsPanel as React.FunctionComponent<IDockviewPanelProps>,
+  LivePreviewPanel: LivePreviewPanel as React.FunctionComponent<IDockviewPanelProps>,
+  SidecarOutputPanel: SidecarOutputPanel as React.FunctionComponent<IDockviewPanelProps>,
+  ArtifactPanel: ArtifactPanel as React.FunctionComponent<IDockviewPanelProps>,
+  KnowledgeGraphPanel: KnowledgeGraphPanel as React.FunctionComponent<IDockviewPanelProps>,
 }
 
 // Dev-mode assertion: warn if any APP_REGISTRY componentKey is missing from COMPONENTS

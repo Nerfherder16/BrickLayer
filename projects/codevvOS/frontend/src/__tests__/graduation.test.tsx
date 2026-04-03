@@ -59,6 +59,23 @@ vi.mock('dockview-react', () => ({
   },
 }))
 
+vi.mock('@react-sigma/core', () => ({
+  SigmaContainer: ({ children }: { children: React.ReactNode }) => (
+    React.createElement('div', { 'data-testid': 'sigma-container' }, children)
+  ),
+  useLoadGraph: () => () => undefined,
+  useRegisterEvents: () => () => undefined,
+}))
+vi.mock('graphology', () => {
+  class MockMultiGraph {
+    addNode(): void {}
+    addEdge(): void {}
+    nodes(): string[] { return [] }
+  }
+  return { default: MockMultiGraph, MultiGraph: MockMultiGraph }
+})
+vi.mock('graphology-layout-forceatlas2', () => ({ default: () => undefined }))
+
 // Static import AFTER vi.mock so App gets the mocked dockview-react
 import App from '../App'
 

@@ -1,0 +1,5 @@
+Run the **Autopilot /build** pipeline for: $ARGUMENTS
+
+Invoke Mortar to orchestrate an agent-mode build. Mortar dispatches to rough-in → Queen Coordinator → parallel worker agents (developer, test-writer, code-reviewer). Each task follows strict TDD. Commits after every completed task.
+
+Requires `.autopilot/spec.md` to exist (run `/spec` first if it doesn't). Read the spec, decompose into tasks, dispatch workers in parallel (up to 8), commit each task, then hand off to git-nerd for branch hygiene.

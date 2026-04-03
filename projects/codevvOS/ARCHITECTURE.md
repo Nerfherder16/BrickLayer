@@ -1,7 +1,7 @@
 # CodeVV OS — Architecture
 
 **Authority: Tier 1 — Human Only**
-Last updated: 2026-04-02
+Last updated: 2026-04-03
 
 ---
 
@@ -155,3 +155,21 @@ CodeVV-OS VM does NOT have direct GPU access. Instead:
 | CodeVV-OS | 16 threads | 64GB | 100GB (boot) + NFS mounts | None |
 | GPU / Ollama + Recall | 8 threads | 32GB | 50GB + AI pool mount | 2x RTX 3090 |
 | Remaining | 8 threads | 160GB | — | For future VMs/LXCs |
+
+## Frontend Technology Stack
+
+Added during Phase 4 build (2026-04-03). Reference before adding new frontend dependencies.
+
+| Library | Purpose |
+|---------|---------|
+| React 19 | UI framework |
+| TypeScript | Language |
+| Tailwind v4 | Utility-first CSS |
+| Vite | Build tool and dev server |
+| Zustand | Client state management (`notificationStore`, `settingsStore`) |
+| `@jsonforms/react` | Auto-render settings UI from Pydantic-generated JSON Schema |
+| Sonner | Toast notifications (zero-dependency, used in `NotificationCenter`) |
+| `vite-plugin-pwa` | Progressive Web App support — manifest, icons, `NetworkFirst` for `/api/*` |
+| `KeyboardContext` | Context provider for global keyboard shortcut registry and context-aware dispatch |
+| `ThemeContext` | Context provider for dark/light mode toggle with `localStorage` persistence |
+| Framer Motion | Animation (dock, panel transitions) |

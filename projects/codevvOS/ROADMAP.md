@@ -10,7 +10,9 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 |-------|--------|------|-------|
 | Phase 0 | **COMPLETE** | 2026-04-02 | 13 tasks. All scaffolding and config delivered. |
 | Phase 1 | **COMPLETE** | 2026-04-02 | 25 tasks. 258 tests passing (108 Phase 0 + 150 Phase 1). |
-| Phase 2 | **IN PROGRESS** | started 2026-04-02 | Spec written (spec-phase2.md, 8 tasks). Build started. |
+| Phase 2 | **COMPLETE** | 2026-04-03 | Frontend shell: dockview layout, dock, login screen. |
+| Phase 3 | **COMPLETE** | 2026-04-03 | Frontend features: code browser, terminal, settings, notifications. |
+| Phase 4 | **COMPLETE** | 2026-04-03 | Notifications backend, notification store, settings panel, keyboard shortcuts, command palette, theme toggle, PWA. 146 tests passing. |
 
 ---
 
@@ -209,8 +211,8 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] Always call `terminal.dispose()` on unmount (dispose addons first, then terminal)
 
 ### 3c. Settings Panel
-- [ ] `@jsonforms/react` auto-rendered from Pydantic-generated JSON Schema
-- [ ] Layered: user settings override system defaults
+- [x] `@jsonforms/react` auto-rendered from Pydantic-generated JSON Schema
+- [x] Layered: user settings override system defaults
 - [ ] Admin-only section for user management, network info, system metrics
 - [ ] Network info via `/proc/net/`, system metrics via **cgroup v2** (`/sys/fs/cgroup/memory.current`, `/sys/fs/cgroup/cpu.stat`) — **NOT psutil**. psutil reads host-level data from `/proc`; inside a Docker container this reports the entire host's memory/CPU, not the container's limits. This contradicts Phase 1d which correctly specifies cgroup v2 — keep them consistent.
 - [ ] Display/resolution via browser `window.screen` API
@@ -233,10 +235,10 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] Error overlay: compilation errors render in the preview panel, not just the terminal
 
 ### 3d. Notification Center Upgrade
-- [ ] Swap toast implementation to Sonner (zero deps, simplest API)
-- [ ] Notification center dropdown with history (PostgreSQL-backed)
-- [ ] Read/unread tracking with `PATCH /api/notifications/{id}/read`
-- [ ] SSE push for real-time delivery + `GET /api/notifications` for missed on page load
+- [x] Swap toast implementation to Sonner (zero deps, simplest API)
+- [x] Notification center dropdown with history (PostgreSQL-backed)
+- [x] Read/unread tracking with `PATCH /api/notifications/{id}/read`
+- [x] SSE push for real-time delivery + `GET /api/notifications` for missed on page load
 
 ---
 
@@ -363,14 +365,14 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 - [ ] Backup scope: code + canvas + docs + task history + AI conversation logs + DB snapshots
 
 ### 3.5-TH: Theming & UX Polish
-- [ ] Dark mode + light mode toggle
+- [x] Dark mode + light mode toggle
 - [ ] Per-workspace accent colors (part of workspace template definition)
-- [ ] **Command palette shortcut: `Cmd+Shift+K` (not `Cmd+K`)** — `Cmd+K` is reserved for inline AI editing in CodeMirror (Phase 3e). Resolved: command palette uses `Cmd+Shift+K` everywhere; `Cmd+K` is CodeMirror-context-only (fires only when CodeMirror has focus). Document both in keyboard shortcuts reference.
+- [x] **Command palette shortcut: `Cmd+Shift+K` (not `Cmd+K`)** — `Cmd+K` is reserved for inline AI editing in CodeMirror (Phase 3e). Resolved: command palette uses `Cmd+Shift+K` everywhere; `Cmd+K` is CodeMirror-context-only (fires only when CodeMirror has focus). Document both in keyboard shortcuts reference.
 - [ ] Opinionated default keyboard shortcuts + full remapping (VS Code-style)
 - [ ] Per-workspace shortcut profiles defined in workspace templates
 
 ### 3.5-ST: Settings & Preferences
-- [ ] Settings stored in PostgreSQL — sync across all machines on login
+- [x] Settings stored in PostgreSQL — sync across all machines on login
 - [ ] Layered: user overrides system defaults; admin sets org-wide defaults
 - [ ] Export/import: portable JSON config file
 

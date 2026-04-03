@@ -1,7 +1,32 @@
 {
   "general-purpose": {
-    "confidence": 0.8464,
-    "last_used": "2026-04-03T05:10:36.176Z",
-    "uses": 3
+    "confidence": 0.949668352,
+    "last_used": "2026-04-03T05:28:55.457Z",
+    "uses": 8
+  },
+  "mortar": {
+    "confidence": 0.76,
+    "last_used": "2026-04-03T12:17:08.753Z",
+    "uses": 1
+  },
+  "spec-writer": {
+    "confidence": 0.76,
+    "last_used": "2026-04-03T12:24:29.894Z",
+    "uses": 1
+  },
+  "worker-specialist": {
+    "confidence": 0.974230196224,
+    "last_used": "2026-04-03T12:44:20.526Z",
+    "uses": 11
+  },
+  "developer": {
+    "confidence": 0.98350732558336,
+    "last_used": "2026-04-03T13:42:02.524Z",
+    "uses": 13
+  },
+  "pr-writer": {
+    "confidence": 0.76,
+    "last_used": "2026-04-03T13:43:10.541Z",
+    "uses": 1
   }
 }

@@ -301,3 +301,4 @@
 {"task_id":"t-1775197674087","phase":"post","timestamp":"2026-04-03T06:31:18.461Z","duration_ms":204370,"success":true,"agent":"spec-writer"}
 {"task_id":"t-1775198058562","phase":"pre","timestamp":"2026-04-03T06:34:18.562Z","agent_type":"spec-writer","task_type":"frontend","complexity":"high","strategy":"balanced"}
 {"task_id":"t-1775198058562","phase":"post","timestamp":"2026-04-03T06:39:00.210Z","duration_ms":281643,"success":true,"agent":"spec-writer"}
+{"task_id":"t-1775228057366","phase":"pre","timestamp":"2026-04-03T14:54:17.367Z","agent_type":"claude-code-guide","task_type":"frontend","complexity":"high","strategy":"balanced"}

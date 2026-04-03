@@ -1,13 +1,45 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+import os
+import uuid
+from datetime import datetime
+
+from backend.app.db.session import get_db, set_tenant_context
+from backend.app.models.notification import Notification
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from fastapi.security import HTTPAuthorizationCredentials
+from pydantic import BaseModel, ConfigDict
 from shared.auth import bearer_scheme, verify_jwt
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api")
 
-# In-memory store for Phase 1 unit tests
-_notifications: list[dict] = []
+
+class NotificationItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    user_id: uuid.UUID
+    type: str
+    title: str
+    body: str | None
+    read: bool
+    created_at: datetime
+
+
+class NotificationList(BaseModel):
+    items: list[NotificationItem]
+    has_more: bool
+
+
+class NotificationCreate(BaseModel):
+    tenant_id: uuid.UUID
+    user_id: uuid.UUID
+    type: str
+    title: str
+    body: str | None = None
 
 
 def _get_current_user(
@@ -19,32 +51,77 @@ def _get_current_user(
         raise HTTPException(status_code=401, detail=str(e)) from e
 
 
-@router.get("/notifications")
+@router.get("/notifications", response_model=NotificationList)
 async def list_notifications(
     limit: int = Query(default=50, le=100),
-    before_id: str | None = Query(default=None),
+    before_id: uuid.UUID | None = Query(default=None),
     user: dict = Depends(_get_current_user),
-):
-    user_id = user.get("user_id", "")
-    user_notifications = [n for n in _notifications if n["user_id"] == user_id]
-    user_notifications.sort(key=lambda n: n["created_at"], reverse=True)
+    db: AsyncSession = Depends(get_db),
+) -> NotificationList:
+    tenant_id = user["tenant_id"]
+    user_id = user["user_id"]
+    await set_tenant_context(db, tenant_id)
 
-    if before_id:
-        idx = next((i for i, n in enumerate(user_notifications) if n["id"] == before_id), None)
-        if idx is not None:
-            user_notifications = user_notifications[idx + 1:]
+    stmt = (
+        select(Notification)
+        .where(Notification.tenant_id == tenant_id, Notification.user_id == user_id)
+        .order_by(Notification.created_at.desc())
+        .limit(limit + 1)
+    )
+    if before_id is not None:
+        sub = select(Notification.created_at).where(Notification.id == before_id).scalar_subquery()
+        stmt = stmt.where(Notification.created_at < sub)
 
-    return user_notifications[:limit]
+    result = await db.execute(stmt)
+    rows = list(result.scalars().all())
+    has_more = len(rows) > limit
+    items = [NotificationItem.model_validate(r) for r in rows[:limit]]
+    return NotificationList(items=items, has_more=has_more)
 
 
-@router.patch("/notifications/{notification_id}/read")
+@router.patch("/notifications/{notification_id}/read", status_code=204)
 async def mark_notification_read(
-    notification_id: str,
+    notification_id: uuid.UUID,
     user: dict = Depends(_get_current_user),
-):
-    user_id = user.get("user_id", "")
-    for n in _notifications:
-        if n["id"] == notification_id and n["user_id"] == user_id:
-            n["read"] = True
-            return n
-    raise HTTPException(status_code=404, detail="Notification not found")
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    tenant_id = user["tenant_id"]
+    user_id = user["user_id"]
+    await set_tenant_context(db, tenant_id)
+
+    stmt = select(Notification).where(
+        Notification.id == notification_id,
+        Notification.user_id == user_id,
+        Notification.tenant_id == tenant_id,
+    )
+    result = await db.execute(stmt)
+    notif = result.scalar_one_or_none()
+    if notif is None:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    notif.read = True
+    await db.commit()
+    return Response(status_code=204)
+
+
+@router.post("/notifications", status_code=201)
+async def create_notification(
+    body: NotificationCreate,
+    x_bl_internal_secret: str | None = Header(default=None, alias="X-BL-Internal-Secret"),
+    db: AsyncSession = Depends(get_db),
+) -> NotificationItem:
+    secret = os.environ.get("BL_INTERNAL_SECRET", "")
+    if not secret or x_bl_internal_secret != secret:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    notif = Notification(
+        tenant_id=body.tenant_id,
+        user_id=body.user_id,
+        type=body.type,
+        title=body.title,
+        body=body.body,
+    )
+    db.add(notif)
+    await db.commit()
+    await db.refresh(notif)
+    return NotificationItem.model_validate(notif)
