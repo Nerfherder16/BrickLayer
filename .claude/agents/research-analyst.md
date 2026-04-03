@@ -24,6 +24,14 @@ tools:
   - Grep
   - WebFetch
   - WebSearch
+  - mcp__jcodemunch__search_symbols
+  - mcp__jcodemunch__get_symbol_source
+  - mcp__jcodemunch__get_file_outline
+  - mcp__jcodemunch__search_text
+  - mcp__exa__web_search_exa
+  - mcp__exa__get_code_context_exa
+  - mcp__context7__resolve-library-id
+  - mcp__context7__query-docs
 triggers: []
 ---
 

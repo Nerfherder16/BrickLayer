@@ -12,6 +12,10 @@ tools:
   - Glob
   - Grep
   - Bash
+  - Skill
+  - mcp__jcodemunch__get_file_outline
+  - mcp__jcodemunch__get_file_tree
+  - mcp__jcodemunch__search_symbols
 triggers: []
 ---
 

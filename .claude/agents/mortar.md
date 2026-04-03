@@ -8,8 +8,16 @@ tools:
   - Grep
   - Bash
   - Agent
+  - Skill
   - mcp__recall__recall_search
   - mcp__recall__recall_store
+  - mcp__masonry__masonry_registry_list
+  - mcp__masonry__masonry_route
+  - mcp__masonry__masonry_status
+  - mcp__masonry__masonry_recall
+  - mcp__jcodemunch__search_symbols
+  - mcp__jcodemunch__get_file_outline
+  - mcp__jcodemunch__get_symbol_source
 triggers: []
 ---
 

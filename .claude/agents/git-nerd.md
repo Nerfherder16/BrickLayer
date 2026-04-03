@@ -35,6 +35,7 @@ tools:
   - Glob
   - Grep
   - Bash
+  - Skill
 triggers: []
 ---
 
