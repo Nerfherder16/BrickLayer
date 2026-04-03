@@ -1,3 +1,7 @@
-// MSW server lifecycle setup
-// MSW will be configured here when API mocks are needed
-// For now, empty setup file
+import { cleanup } from '@testing-library/react'
+import { afterEach } from 'vitest'
+
+// Automatically unmount and cleanup after each test
+afterEach(() => {
+  cleanup()
+})
