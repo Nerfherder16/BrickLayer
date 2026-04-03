@@ -1,13 +1,19 @@
 """Auth endpoints: login with rate limiting, logout with token blacklist, user list."""
+
 from __future__ import annotations
+
+import uuid
 
 import bcrypt
 from backend.app.core.security import RATE_LIMIT_LOGIN
-from fastapi import APIRouter, HTTPException, Request
+from backend.app.db.session import get_db, set_tenant_context
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from shared.auth import create_jwt
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/auth")
 api_router = APIRouter(prefix="/api/auth")
@@ -19,22 +25,51 @@ class LoginRequest(BaseModel):
     password: str
 
 
-async def _get_user_by_email(email: str) -> dict | None:
-    """Look up a user by email. Returns user dict or None if not found.
+class RegisterAdminRequest(BaseModel):
+    display_name: str
+    email: str
+    password: str
 
-    Stub — real implementation queries the DB via get_db dependency.
-    Designed as a standalone coroutine so unit tests can patch it directly.
-    """
-    return None
+
+async def _get_user_by_email(email: str, db: AsyncSession) -> dict | None:
+    """Look up a user by email across all tenants. Finds the tenant first, then queries with RLS."""
+    result = await db.execute(text("SELECT id FROM tenants LIMIT 1"))
+    row = result.fetchone()
+    if not row:
+        return None
+    tenant_id = str(row[0])
+    await set_tenant_context(db, tenant_id)
+    result = await db.execute(
+        text("SELECT id, tenant_id, email, password_hash, role FROM users WHERE email = :email"),
+        {"email": email},
+    )
+    row = result.fetchone()
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "tenant_id": row[1],
+        "email": row[2],
+        "password_hash": row[3],
+        "role": row[4],
+    }
 
 
 async def _blacklist_token(token: str) -> None:
     """Add token to Redis blacklist. Stub — implemented in integration layer."""
 
 
-async def _get_all_users() -> list[dict]:
-    """Return all users in the tenant. Stub — real implementation queries the DB."""
-    return []
+async def _get_all_users(db: AsyncSession) -> list[dict]:
+    """Return all users in the tenant."""
+    result = await db.execute(text("SELECT id FROM tenants LIMIT 1"))
+    row = result.fetchone()
+    if not row:
+        return []
+    await set_tenant_context(db, str(row[0]))
+    result = await db.execute(text("SELECT id, email, role FROM users"))
+    return [
+        {"id": r[0], "email": r[1], "display_name": r[1], "role": r[2]} for r in result.fetchall()
+    ]
 
 
 def _compute_initials(display_name: str) -> str:
@@ -53,10 +88,55 @@ class UserSummary(BaseModel):
     avatar_initials: str
 
 
+@api_router.post("/register-admin", status_code=201)
+async def register_admin(body: RegisterAdminRequest, db: AsyncSession = Depends(get_db)) -> dict:
+    """Create the initial admin account with a default tenant.
+
+    Returns 409 if a tenant already exists (setup already completed).
+    """
+    async with db.begin():
+        result = await db.execute(text("SELECT id FROM tenants LIMIT 1"))
+        if result.fetchone():
+            raise HTTPException(status_code=409, detail="Admin account already exists")
+
+        tenant_id = uuid.uuid4()
+        await db.execute(
+            text("INSERT INTO tenants (id, name, slug) VALUES (:id, :name, :slug)"),
+            {"id": str(tenant_id), "name": "Default", "slug": "default"},
+        )
+
+        await set_tenant_context(db, str(tenant_id))
+
+        password_hash = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
+        user_id = uuid.uuid4()
+        await db.execute(
+            text(
+                "INSERT INTO users (id, tenant_id, email, password_hash, role) "
+                "VALUES (:id, :tenant_id, :email, :password_hash, 'admin')"
+            ),
+            {
+                "id": str(user_id),
+                "tenant_id": str(tenant_id),
+                "email": body.email,
+                "password_hash": password_hash,
+            },
+        )
+
+    token = create_jwt(
+        user_id=str(user_id),
+        tenant_id=str(tenant_id),
+        role="admin",
+    )
+    return {
+        "token": token,
+        "user": {"id": str(user_id), "email": body.email, "role": "admin"},
+    }
+
+
 @api_router.get("/users")
-async def list_users() -> list[UserSummary]:
+async def list_users(db: AsyncSession = Depends(get_db)) -> list[UserSummary]:
     """Return all users for the login screen picker. Unauthenticated."""
-    users = await _get_all_users()
+    users = await _get_all_users(db)
     return [
         UserSummary(
             id=str(u["id"]),
@@ -69,13 +149,13 @@ async def list_users() -> list[UserSummary]:
 
 @router.post("/login")
 @limiter.limit(RATE_LIMIT_LOGIN)
-async def login(request: Request, body: LoginRequest) -> dict:
+async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)) -> dict:
     """Authenticate a user and return a JWT.
 
     Rate limited to 10 attempts per minute per IP.
     Returns 401 for invalid credentials, 429 when rate limit exceeded.
     """
-    user = await _get_user_by_email(body.email)
+    user = await _get_user_by_email(body.email, db)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
