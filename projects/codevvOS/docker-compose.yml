@@ -115,15 +115,15 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: docker/frontend/Dockerfile
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile
     expose:
       - "3000"
     networks:
       - frontend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:3000"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -150,7 +150,7 @@ services:
       - backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:1234/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:1234/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -166,8 +166,8 @@ services:
 
   nginx:
     build:
-      context: .
-      dockerfile: docker/nginx/Dockerfile
+      context: ./docker/nginx
+      dockerfile: Dockerfile
     ports:
       - "443:443"
     depends_on:
@@ -198,7 +198,7 @@ services:
     build:
       context: .
       dockerfile: docker/backend/Dockerfile
-    command: arq app.worker.WorkerSettings
+    command: arq backend.app.worker.WorkerSettings
     depends_on:
       postgres:
         condition: service_healthy
@@ -252,8 +252,8 @@ services:
 
   sandbox-manager:
     build:
-      context: .
-      dockerfile: docker/sandbox-manager/Dockerfile
+      context: ./docker/sandbox-manager
+      dockerfile: Dockerfile
     expose:
       - "3002"
     depends_on:
@@ -265,7 +265,7 @@ services:
       - sandbox
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3002/health')"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -320,7 +320,7 @@ services:
       - backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8300/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8300/health')"]
       interval: 15s
       timeout: 5s
       retries: 3
