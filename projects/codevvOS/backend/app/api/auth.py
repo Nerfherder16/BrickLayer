@@ -21,7 +21,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 
 class LoginRequest(BaseModel):
-    email: str
+    user_id: str
     password: str
 
 
@@ -31,17 +31,16 @@ class RegisterAdminRequest(BaseModel):
     password: str
 
 
-async def _get_user_by_email(email: str, db: AsyncSession) -> dict | None:
-    """Look up a user by email across all tenants. Finds the tenant first, then queries with RLS."""
+async def _get_user_by_id(user_id: str, db: AsyncSession) -> dict | None:
+    """Look up a user by UUID. Gets tenant from the users table directly (superuser bypasses RLS)."""
     result = await db.execute(text("SELECT id FROM tenants LIMIT 1"))
     row = result.fetchone()
     if not row:
         return None
-    tenant_id = str(row[0])
-    await set_tenant_context(db, tenant_id)
+    await set_tenant_context(db, str(row[0]))
     result = await db.execute(
-        text("SELECT id, tenant_id, email, password_hash, role FROM users WHERE email = :email"),
-        {"email": email},
+        text("SELECT id, tenant_id, email, password_hash, role FROM users WHERE id = :user_id"),
+        {"user_id": user_id},
     )
     row = result.fetchone()
     if not row:
@@ -155,7 +154,7 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends
     Rate limited to 10 attempts per minute per IP.
     Returns 401 for invalid credentials, 429 when rate limit exceeded.
     """
-    user = await _get_user_by_email(body.email, db)
+    user = await _get_user_by_id(body.user_id, db)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -169,7 +168,7 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends
     )
     return {
         "token": token,
-        "user": {"id": str(user["id"]), "email": body.email, "role": user["role"]},
+        "user": {"id": str(user["id"]), "email": user["email"], "role": user["role"]},
     }
 
 
