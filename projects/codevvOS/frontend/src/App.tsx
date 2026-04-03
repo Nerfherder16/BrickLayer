@@ -1,4 +1,5 @@
 import 'dockview-react/dist/styles/dockview.css'
+import './styles/dockview-theme.css'
 
 export default function App(): JSX.Element {
   return (
