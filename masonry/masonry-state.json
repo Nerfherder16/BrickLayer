@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "diagnose-analyst → fix-implementer",
-    "effort": "high",
-    "prompt_summary": "why is it a local mcp and not user mcp? whats the difference?",
-    "timestamp": "2026-04-03T03:27:33.839Z",
+    "agent": "rough-in",
+    "effort": "medium",
+    "prompt_summary": "remove brwosermcp and uplink and then lets test opentab",
+    "timestamp": "2026-04-03T03:32:32.118Z",
     "turn_count": 1
   }
 }
