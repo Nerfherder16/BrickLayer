@@ -1,9 +1,11 @@
 {
   "last_route": {
-    "agent": "git-nerd",
+    "agent": "rough-in",
     "effort": "medium",
-    "prompt_summary": "Last login: Fri Apr  3 17:13:44 UTC 2026 on lxc/tty1\nroot@codevvos:~# ^[[200~ ec",
-    "timestamp": "2026-04-03T17:19:17.986Z",
+    "prompt_summary": "review the diffs and commit then we will deploy and test",
+    "timestamp": "2026-04-03T18:58:10.795Z",
     "turn_count": 1
-  }
+  },
+  "mortar_consulted": true,
+  "mortar_session_id": "2026-04-03T18:49:01.339Z"
 }
