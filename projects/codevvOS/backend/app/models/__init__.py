@@ -4,5 +4,6 @@ from backend.app.models.project import Project
 from backend.app.models.workspace_template import WorkspaceTemplate
 from backend.app.models.activity_event import ActivityEvent
 from backend.app.models.agent_run import AgentRun
+from backend.app.models.layout import UserLayout
 
-__all__ = ["Tenant", "User", "Project", "WorkspaceTemplate", "ActivityEvent", "AgentRun"]
+__all__ = ["Tenant", "User", "Project", "WorkspaceTemplate", "ActivityEvent", "AgentRun", "UserLayout"]
