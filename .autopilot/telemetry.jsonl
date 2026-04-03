@@ -302,3 +302,8 @@
 {"task_id":"t-1775198058562","phase":"pre","timestamp":"2026-04-03T06:34:18.562Z","agent_type":"spec-writer","task_type":"frontend","complexity":"high","strategy":"balanced"}
 {"task_id":"t-1775198058562","phase":"post","timestamp":"2026-04-03T06:39:00.210Z","duration_ms":281643,"success":true,"agent":"spec-writer"}
 {"task_id":"t-1775228057366","phase":"pre","timestamp":"2026-04-03T14:54:17.367Z","agent_type":"claude-code-guide","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775242085988","phase":"pre","timestamp":"2026-04-03T18:48:05.989Z","agent_type":"developer","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775242096993","phase":"pre","timestamp":"2026-04-03T18:48:16.993Z","agent_type":"developer","task_type":"fix","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775242109468","phase":"pre","timestamp":"2026-04-03T18:48:29.469Z","agent_type":"developer","task_type":"test","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775242133171","phase":"pre","timestamp":"2026-04-03T18:48:53.172Z","agent_type":"mortar","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775242133171","phase":"post","timestamp":"2026-04-03T18:48:53.260Z","duration_ms":80,"success":true,"agent":"mortar"}

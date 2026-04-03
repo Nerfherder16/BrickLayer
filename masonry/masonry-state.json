@@ -2,8 +2,8 @@
   "last_route": {
     "agent": "rough-in",
     "effort": "medium",
-    "prompt_summary": "can i start versions on masonry and bricklayer so i can track and make sure whic",
-    "timestamp": "2026-04-03T19:31:55.103Z",
+    "prompt_summary": "can you show me the last 10 memories from adbp3 from vs code server",
+    "timestamp": "2026-04-03T19:37:03.443Z",
     "turn_count": 1
   },
   "mortar_consulted": true,

@@ -8,6 +8,13 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    "projects/codevvOS/frontend/src/components/Panels/TerminalPanel.tsx",
+    "projects/codevvOS/frontend/src/hooks/usePtyWebSocket.ts",
+    "projects/codevvOS/backend/app/api/layout.py",
+    "projects/codevvOS/backend/app/api/notifications.py",
+    "projects/codevvOS/backend/app/api/settings.py",
+    "projects/codevvOS/backend/app/api/auth.py",
+    "projects/codevvOS/backend/app/api/auth.py",
     "masonry/src/tools/config.js",
     "masonry/src/tools/config.test.js",
     "masonry/src/tools/extra-tools.js",
@@ -279,5 +286,5 @@
     "projects/codevvOS/frontend/src/test/setup.ts",
     "projects/codevvOS/frontend/src/App.tsx"
   ],
-  "timestamp": "2026-04-03T17:20:55.672Z"
+  "timestamp": "2026-04-03T19:38:20.118Z"
 }
