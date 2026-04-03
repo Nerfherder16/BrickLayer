@@ -84,6 +84,8 @@ services:
       dockerfile: docker/backend/Dockerfile
     expose:
       - "8000"
+    environment:
+      OLLAMA_BASE_URL: http://192.168.50.19:11434
     depends_on:
       postgres:
         condition: service_healthy
@@ -199,6 +201,8 @@ services:
       context: .
       dockerfile: docker/backend/Dockerfile
     command: arq backend.app.worker.WorkerSettings
+    environment:
+      OLLAMA_BASE_URL: http://192.168.50.19:11434
     depends_on:
       postgres:
         condition: service_healthy
@@ -213,7 +217,7 @@ services:
       - backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import redis; r = redis.from_url('redis://redis:6379'); r.ping()"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -244,6 +248,33 @@ services:
       resources:
         limits:
           memory: 64m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ptyhost:
+    build:
+      context: .
+      dockerfile: docker/ptyhost/Dockerfile
+    expose:
+      - "3001"
+    secrets:
+      - jwt_secret
+    networks:
+      - frontend
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:3001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
     logging:
       driver: "json-file"
       options:
