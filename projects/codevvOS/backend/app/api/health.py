@@ -20,8 +20,8 @@ async def _check_postgres() -> bool:
 
 async def _check_redis() -> bool:
     try:
-        from backend.app.core.config import settings
         import redis.asyncio as aioredis
+        from backend.app.core.config import settings
 
         r = aioredis.from_url(settings.redis_url)
         await r.ping()

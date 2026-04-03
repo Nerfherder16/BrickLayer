@@ -4,14 +4,13 @@ import asyncio
 import json
 import os
 import shutil
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
+from backend.app.dependencies.path_security import verify_path_in_workspace
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
-
-from backend.app.dependencies.path_security import verify_path_in_workspace
 from shared.auth import verify_jwt
 
 router = APIRouter(prefix="/api/files")

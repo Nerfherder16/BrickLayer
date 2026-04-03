@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Column, ForeignKey, JSON, String, TIMESTAMP, text
-from sqlalchemy.dialects.postgresql import UUID
-
 from backend.app.models.base import Base
+from sqlalchemy import JSON, TIMESTAMP, Column, ForeignKey, String, text
+from sqlalchemy.dialects.postgresql import UUID
 
 
 class WorkspaceTemplate(Base):

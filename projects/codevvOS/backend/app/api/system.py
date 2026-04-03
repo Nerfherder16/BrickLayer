@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-
 from shared.auth import require_role
 
 router = APIRouter(prefix="/api/system")
@@ -14,12 +12,12 @@ CGROUP_BASE = Path("/sys/fs/cgroup")
 
 
 class SystemMetrics(BaseModel):
-    memory_used_bytes: Optional[int] = None
-    memory_limit_bytes: Optional[int] = None
-    cpu_usage_usec: Optional[int] = None
+    memory_used_bytes: int | None = None
+    memory_limit_bytes: int | None = None
+    cpu_usage_usec: int | None = None
 
 
-def _read_cgroup_file(filename: str) -> Optional[int]:
+def _read_cgroup_file(filename: str) -> int | None:
     try:
         value = (CGROUP_BASE / filename).read_text().strip()
         if value == "max":
@@ -29,7 +27,7 @@ def _read_cgroup_file(filename: str) -> Optional[int]:
         return None
 
 
-def _read_cpu_usage() -> Optional[int]:
+def _read_cpu_usage() -> int | None:
     try:
         cpu_stat = (CGROUP_BASE / "cpu.stat").read_text()
         for line in cpu_stat.splitlines():

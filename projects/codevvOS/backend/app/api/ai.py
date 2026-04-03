@@ -3,10 +3,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials
+from shared.auth import bearer_scheme, verify_jwt
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-
-from shared.auth import bearer_scheme, verify_jwt
 
 RATE_LIMIT_AI = "30/minute"
 

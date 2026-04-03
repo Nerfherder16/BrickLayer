@@ -2,13 +2,12 @@
 from __future__ import annotations
 
 import bcrypt
+from backend.app.core.security import RATE_LIMIT_LOGIN
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+from shared.auth import create_jwt
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-
-from backend.app.core.security import RATE_LIMIT_LOGIN
-from shared.auth import create_jwt
 
 router = APIRouter(prefix="/auth")
 limiter = Limiter(key_func=get_remote_address)

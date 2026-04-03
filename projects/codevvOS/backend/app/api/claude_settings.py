@@ -4,7 +4,6 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel
-
 from shared.auth import bearer_scheme, verify_jwt
 
 router = APIRouter(prefix="/api")

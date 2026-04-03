@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from arq.connections import RedisSettings
-
 from backend.app.core.config import settings as app_settings
 
 

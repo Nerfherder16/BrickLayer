@@ -1,9 +1,8 @@
 """Settings API: schema introspection, per-user settings, admin system settings."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
-
 from backend.app.core.settings_schema import SystemSettings, UserSettings, to_draft7
+from fastapi import APIRouter, Depends
 from shared.auth import require_role
 
 router = APIRouter()

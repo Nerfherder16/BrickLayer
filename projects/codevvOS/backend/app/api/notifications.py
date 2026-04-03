@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import HTTPAuthorizationCredentials
-
 from shared.auth import bearer_scheme, verify_jwt
 
 router = APIRouter(prefix="/api")
@@ -25,7 +22,7 @@ def _get_current_user(
 @router.get("/notifications")
 async def list_notifications(
     limit: int = Query(default=50, le=100),
-    before_id: Optional[str] = Query(default=None),
+    before_id: str | None = Query(default=None),
     user: dict = Depends(_get_current_user),
 ):
     user_id = user.get("user_id", "")
