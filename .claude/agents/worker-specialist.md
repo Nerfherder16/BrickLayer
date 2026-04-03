@@ -21,11 +21,29 @@ tools:
   - LSP
   - Agent
   - TodoWrite
+  - Skill
   - mcp__recall__recall_search
+  - mcp__recall__recall_store
+  - mcp__recall__recall_timeline
+  - mcp__masonry__masonry_claim_add
+  - mcp__masonry__masonry_claims_list
+  - mcp__masonry__masonry_claim_resolve
+  - mcp__masonry__masonry_worker_status
+  - mcp__masonry__masonry_status
   - mcp__jcodemunch__search_symbols
   - mcp__jcodemunch__get_symbol_source
   - mcp__jcodemunch__get_file_outline
   - mcp__jcodemunch__get_blast_radius
+  - mcp__jcodemunch__search_text
+  - mcp__jcodemunch__get_call_hierarchy
+  - mcp__jcodemunch__get_impact_preview
+  - mcp__jcodemunch__find_references
+  - mcp__jcodemunch__get_ranked_context
+  - mcp__context7__resolve-library-id
+  - mcp__context7__query-docs
+  - mcp__exa__web_search_exa
+  - mcp__exa__get_code_context_exa
+  - mcp__sequential-thinking__sequentialthinking
 ---
 
 You are a **Worker Specialist** in a BrickLayer hive build. You implement exactly one task.

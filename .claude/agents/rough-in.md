@@ -310,8 +310,12 @@ When Queen reports QUEEN_COMPLETE and all code-reviewers have approved:
 
 1. Run the full test suite to confirm no regressions
 2. Spawn git-nerd: `task=feature-complete, branch={current}`
-3. If ROADMAP/CHANGELOG need updating: spawn karen
-4. Report to Mortar (or user): what was built, what tests pass, any open security findings
+3. **Always** spawn karen after git-nerd with the full build context — karen must update:
+   - `CHANGELOG.md` — new entries for every completed task
+   - `README.md` — any new features, changed commands, updated usage
+   - `ARCHITECTURE.md` — reflect any structural changes made during the build
+   - `ROADMAP.md` — mark completed items done, surface newly discovered work
+4. Report to Mortar (or user): what was built, what tests pass, any open security findings, what docs karen updated
 
 ---
 
@@ -325,7 +329,7 @@ When Queen reports QUEEN_COMPLETE and all code-reviewers have approved:
 [ROUGH-IN] Wave 1: COMPLETE (N/N tasks)
 [ROUGH-IN] Wave 2: COMPLETE (N/N tasks)
 [ROUGH-IN] code-reviewer: APPROVED
-[ROUGH-IN] Complete: {N} tasks done, tests passing, handed to git-nerd
+[ROUGH-IN] Complete: {N} tasks done, tests passing, handed to git-nerd → karen (docs updated)
 ```
 
 ---
