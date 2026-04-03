@@ -31,11 +31,11 @@ vi.mock('dockview-react', () => ({
     onReady,
     components,
   }: {
-    onReady: (api: unknown) => void
+    onReady: (event: { api: unknown }) => void
     components: Record<string, React.ComponentType>
   }) => {
     React.useEffect(() => {
-      onReady(mockDockviewApi)
+      onReady({ api: mockDockviewApi })
     }, [onReady])
 
     const WelcomePanel = components?.WelcomePanel

@@ -13,6 +13,9 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "S", "ASYNC"]
+# B008: FastAPI Depends() in default args is idiomatic and required by the framework
+# ASYNC230/240: os.path and open() in async — acceptable in scaffold endpoints using threadpool
+ignore = ["B008", "ASYNC230", "ASYNC240"]
 
 [tool.mypy]
 strict = true

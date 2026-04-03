@@ -17,7 +17,7 @@ def _get_user_key(request: Request) -> str:
         try:
             payload = verify_jwt(auth[7:])
             return f"user:{payload.get('user_id', '')}"
-        except Exception:
+        except Exception:  # noqa: S110 — intentional silent fallback to IP key
             pass
     return get_remote_address(request)
 
@@ -36,5 +36,5 @@ async def ai_status(
     try:
         verify_jwt(credentials.credentials)
     except Exception as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=401, detail=str(e)) from e
     return {"status": "available"}

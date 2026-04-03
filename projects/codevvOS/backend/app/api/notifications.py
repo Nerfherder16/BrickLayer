@@ -16,7 +16,7 @@ def _get_current_user(
     try:
         return verify_jwt(credentials.credentials)
     except Exception as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=401, detail=str(e)) from e
 
 
 @router.get("/notifications")

@@ -41,11 +41,11 @@ vi.mock('dockview-react', () => ({
     onReady,
     components,
   }: {
-    onReady: (api: unknown) => void
+    onReady: (event: { api: unknown }) => void
     components: Record<string, React.ComponentType>
   }) => {
     React.useEffect(() => {
-      onReady(mockDockviewApi)
+      onReady({ api: mockDockviewApi })
     }, [onReady])
     const WelcomePanelComp = components?.WelcomePanel
     return (
@@ -78,7 +78,12 @@ const server = setupServer(
   http.put('/api/layout', () => HttpResponse.json({ status: 'ok' })),
 )
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }))
+beforeAll(() => {
+  // jsdom defaults window.innerWidth to 0 → useBreakpoint returns isMobile:true.
+  // Force desktop width so App renders DockviewShell + Dock.
+  Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1280 })
+  server.listen({ onUnhandledRequest: 'bypass' })
+})
 afterEach(() => {
   server.resetHandlers()
   sessionStorage.clear()

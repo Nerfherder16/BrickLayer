@@ -44,7 +44,7 @@ def _get_current_user(
     try:
         return verify_jwt(credentials.credentials)
     except Exception as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=401, detail=str(e)) from e
 
 
 @router.get("/tree", response_model=TreeResponse)
@@ -77,7 +77,7 @@ async def get_file_tree(
                 )
             )
     except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=403, detail=str(e)) from e
 
     dir_stat = os.stat(resolved)
     return TreeResponse(
