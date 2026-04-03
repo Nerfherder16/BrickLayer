@@ -96,7 +96,7 @@ async def test_get_layout_without_jwt_returns_401():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/api/layout")
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 @pytest.mark.anyio
@@ -110,7 +110,7 @@ async def test_put_layout_without_jwt_returns_401():
             json={"layout_version": 1, "layout": {}},
         )
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 @pytest.mark.anyio
