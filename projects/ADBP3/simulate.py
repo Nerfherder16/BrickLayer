@@ -339,7 +339,7 @@ if __name__ == "__main__":
     # Burn event log
     burn_records = [r for r in records if r["credits_burned"] > 0]
     if burn_records:
-        print(f"\nBurn event log:")
+        print("\nBurn event log:")
         print(
             f"  {'Month':>6} {'Backing Pre':>12} {'Credits Burned':>16} "
             f"{'Burn Cost':>14} {'Backing Post':>13} {'Capped?':>8}"

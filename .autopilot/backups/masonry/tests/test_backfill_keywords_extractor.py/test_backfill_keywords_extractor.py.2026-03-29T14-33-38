@@ -14,8 +14,6 @@ from backfill_keywords_extractor import (
     strategy_capabilities,
     strategy_body_sections,
     extract_keywords,
-    MIN_PHRASE_LEN,
-    MAX_PHRASE_LEN,
     MAX_KEYWORDS,
 )
 

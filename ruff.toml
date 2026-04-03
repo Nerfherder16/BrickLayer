@@ -1,0 +1,17 @@
+[lint]
+select = ["E", "F", "W"]
+ignore = [
+  "E501",   # line too long — handled by formatter
+  "E402",   # module-level import not at top — intentional in sys.path setup files
+  "E741",   # ambiguous variable name — `l` in test fixtures is acceptable
+]
+
+[lint.per-file-ignores]
+"masonry/scripts/archive/**" = ["F841", "E701", "E722"]
+"masonry/uiux-pro-max/**"    = ["F841", "W293"]
+"tests/**"                   = ["F841"]
+"masonry/tests/**"           = ["F841"]
+"projects/**"                = ["F841", "E701"]
+"diag.py"                    = ["E722"]
+"bl/training_export.py"      = ["F401"]
+"masonry/scripts/**"         = ["F841"]

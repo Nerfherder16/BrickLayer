@@ -1,6 +1,4 @@
 """Tests for bl/model_version.py"""
-import pytest
-from pathlib import Path
 
 
 def test_hash_is_12_hex_chars(tmp_path):

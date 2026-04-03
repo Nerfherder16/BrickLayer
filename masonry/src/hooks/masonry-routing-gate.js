@@ -24,7 +24,7 @@ const path = require("path");
 const os = require("os");
 const { readStdin } = require("./session/stop-utils");
 
-const GATE_FILE = process.env.BL_GATE_FILE || path.join(os.tmpdir(), 'masonry-mortar-gate.json');
+const GATE_FILE = path.join(os.tmpdir(), "masonry-mortar-gate.json");
 const GATE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 
 const EXEMPT_PATH_PATTERNS = [
@@ -118,20 +118,8 @@ async function main() {
     process.exit(0);
   }
 
-  // Build/fix mode bypass — but only when a specialist is active.
-  // Orchestrators (mortar, rough-in, trowel) must still delegate even in build mode.
   if (isBuildOrFixMode(cwd)) {
-    const gateForMode = readGate();
-    if (!gateForMode || !gateForMode.chain || gateForMode.chain.length === 0) {
-      process.exit(0); // no chain info — legacy bypass
-    } else {
-      const { ORCHESTRATORS: ORCH } = require("./session/mortar-gate");
-      const tip = gateForMode.chain[gateForMode.chain.length - 1];
-      if (!ORCH.has(tip) || gateForMode.specialist_spawned) {
-        process.exit(0); // specialist active — allow
-      }
-      // orchestrator in build mode — fall through to gate enforcement below
-    }
+    process.exit(0);
   }
 
   const toolInput = input.tool_input || {};
@@ -143,6 +131,10 @@ async function main() {
 
   const gate = readGate();
   if (!gate) {
+    process.exit(0);
+  }
+
+  if (gate.mortar_consulted) {
     process.exit(0);
   }
 
@@ -159,35 +151,11 @@ async function main() {
     }
   })();
 
-  // Multi-stage gate: check chain depth, not just mortar_consulted boolean.
-  // Write/Edit is only allowed when the chain tip is a specialist (non-orchestrator).
-  // Even if specialist_spawned is true, orchestrators themselves cannot edit.
-  const { ORCHESTRATORS } = require("./session/mortar-gate");
-  const chain = gate.chain || [];
-
-  if (gate.mortar_consulted && chain.length > 0) {
-    const currentAgent = chain[chain.length - 1];
-    if (!ORCHESTRATORS.has(currentAgent)) {
-      // Chain tip is a specialist — allow Write/Edit
-      process.exit(0);
-    }
-    // Orchestrator is the chain tip — block even if specialist_spawned is true.
-    // Orchestrators must delegate via Agent tool and let the specialist edit.
-    process.stderr.write(
-      `[masonry-routing-gate] BLOCKED: Write/Edit to "${relPath}" rejected.\n` +
-        `  "${currentAgent}" is an orchestrator — it must NOT edit production code.\n` +
-        `  Delegate to a specialist: Agent({ subagent_type: "kiln-engineer", prompt: "..." })\n` +
-        `  The specialist will do the edit. You wait for it to return. Do NOT retry the edit yourself.\n`
-    );
-    process.exit(2);
-  }
-
-  // No agent spawned yet
   process.stderr.write(
     `[masonry-routing-gate] BLOCKED: Write/Edit to "${relPath}" rejected.\n` +
       `  A routing hint was injected but no agent has been spawned yet.\n` +
       `  Spawn the routed agent first, or route through Mortar:\n` +
-      `    Agent({ subagent_type: "mortar", prompt: "..." })\n`
+      `    Act as the mortar agent defined in .claude/agents/mortar.md\n`
   );
   process.exit(2);
 }

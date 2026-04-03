@@ -14,7 +14,6 @@ import sys
 from constants import (
     BURN_COST_PER_CREDIT,
     CREDIT_PRICE,
-    EMPLOYEE_FEE_RATE,
     FAILURE_THRESHOLD,
     MONTHLY_INTEREST_RATE,
     WARNING_THRESHOLD,
@@ -262,7 +261,7 @@ def analyze(failures):
 
     for label, case in zip(labels, cases):
         print(f"\n  [{label}] — Run #{case['run']}")
-        print(f"  Parameters:")
+        print("  Parameters:")
         print(
             f"    trigger_ratio:  {case['trigger_ratio']:.3f}  "
             f"(burn when backing >= {case['trigger_ratio'] * 100:.1f}%)"

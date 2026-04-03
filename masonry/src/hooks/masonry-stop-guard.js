@@ -6,9 +6,8 @@
  * At SessionStart, all pre-existing dirty files are recorded. On Stop, only
  * files NOT in that snapshot are flagged — i.e. files modified THIS session.
  *
- * Fallback: if no snapshot exists but a pre-existing set is available, uses that.
- * If neither activity log nor snapshot exists, allows stop — no record means no block.
- * (mtime fallback removed: too broad in multi-session repos, causes cross-contamination.)
+ * Fallback: if no snapshot exists (session-start didn't run or no session ID),
+ * falls back to mtime-based detection (today's files only).
  *
  * Exits silently (0) if nothing new was modified this session.
  * Exit code 2 blocks the stop when session files are uncommitted.
@@ -85,17 +84,7 @@ async function main() {
 
   if (parsed.stop_hook_active) process.exit(0);
 
-  const rawCwd = normalizeCwd(parsed.cwd || process.cwd());
-  // Always use git toplevel as cwd so paths from `git status --porcelain`
-  // (which are repo-root-relative) align with `git add` path resolution.
-  let cwd;
-  try {
-    cwd = execSync('git rev-parse --show-toplevel', {
-      encoding: 'utf8', timeout: 3000, cwd: rawCwd,
-    }).trim();
-  } catch {
-    cwd = rawCwd;
-  }
+  const cwd = normalizeCwd(parsed.cwd || process.cwd());
   const sessionId = getSessionId(parsed);
   const snapPath = sessionId ? path.join(os.tmpdir(), `masonry-snap-${sessionId}.json`) : null;
 
@@ -119,22 +108,9 @@ async function main() {
     : null;
 
   try {
-    // If we already blocked this session recently, suppress repeated messages
-    // but still provide stderr output so Claude Code doesn't report "No stderr output".
-    // Sentinel expires after 60s to avoid stale files blocking future sessions.
+    // If we already blocked this session, exit silently
     if (sentinelPath && fs.existsSync(sentinelPath)) {
-      try {
-        const sentinelAge = Date.now() - Number(fs.readFileSync(sentinelPath, 'utf8').trim());
-        if (sentinelAge < 60000) {
-          process.stderr.write('[Masonry] Stop still blocked — uncommitted session files.\n');
-          process.exit(2);
-        }
-        // Sentinel expired — remove it and re-evaluate
-        fs.unlinkSync(sentinelPath);
-      } catch {
-        // Corrupt sentinel — remove and continue
-        try { fs.unlinkSync(sentinelPath); } catch { /* ignore */ }
-      }
+      process.exit(2);
     }
 
     const status = gitStatusSafe(cwd);
@@ -170,16 +146,21 @@ async function main() {
       if (sessionWrites !== null) {
         // Activity-log mode: only flag files THIS session's tools wrote to.
         if (!sessionWrites.has(file)) continue;
-      } else if (preExistingSet !== null) {
-        // Snapshot fallback: skip binary/asset files and files dirty at session start.
+      } else {
+        // Fallback modes (snapshot or mtime): skip binary/asset files — they are
+        // almost always written by sibling sessions (Playwright, build tools) and
+        // cause cross-session false positives.
         const ext = path.extname(file).toLowerCase();
         if (BINARY_EXTS.has(ext)) continue;
-        if (preExistingSet.has(file)) continue;
-      } else {
-        // No activity log and no snapshot — no record of what this session changed.
-        // Skip rather than falling back to mtime, which causes cross-session
-        // contamination in multi-session repos (sibling sessions' files get flagged).
-        continue;
+
+        if (preExistingSet !== null) {
+          // Snapshot fallback: skip files dirty at session start.
+          if (preExistingSet.has(file)) continue;
+        } else {
+          // Last resort: mtime-based (today's files only).
+          const days = fileAgeDays(path.join(cwd, file.replace(/\/$/, '')));
+          if (days !== 0 && days !== null) continue;
+        }
       }
 
       (xy === '??' ? sessionUntracked : sessionModified).push(file);

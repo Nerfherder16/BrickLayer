@@ -500,7 +500,7 @@ if __name__ == "__main__":
     print(
         f"  Fee: ${EMPLOYEE_FEE_MONTHLY}/mo → {FEE_TO_ESCROW_PCT * 100:.0f}% escrow / {FEE_TO_OPERATOR_PCT * 100:.0f}% operator"
     )
-    print(f"  Burn: vendor=$2.00/token reimbursed from escrow at CRR≥1.0")
+    print("  Burn: vendor=$2.00/token reimbursed from escrow at CRR≥1.0")
     print(f"  Months: {SIMULATION_MONTHS}")
     print("-" * 60)
 

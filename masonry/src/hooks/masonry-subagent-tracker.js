@@ -15,7 +15,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
-const { isMortarGated, ORCHESTRATORS } = require('./session/mortar-gate');
+const { isMortarGated } = require('./session/mortar-gate');
 const { readStdin } = require('./session/stop-utils');
 
 const MAX_TRACKED = 20;
@@ -67,33 +67,19 @@ async function main() {
 
   const cwd = input.cwd || process.cwd();
 
-  // Update Mortar gate file with chain tracking.
-  // The routing-gate checks chain depth and specialist_spawned to decide
-  // whether to allow Write/Edit on production code.
+  // Update Mortar gate file when ANY recognized agent is spawned.
+  // The routing-gate PreToolUse hook checks mortar_consulted to decide
+  // whether to block Write/Edit operations on production code.
+  // Previously this only fired for mortar-type agents; now it fires for all
+  // recognized specialists so that direct agent dispatch also clears the gate.
   const subagentType = (input.subagent_type || "").trim().toLowerCase();
   {
-    const gateFile = process.env.BL_GATE_FILE || path.join(os.tmpdir(), "masonry-mortar-gate.json");
-    const agentName = subagentType || (input.agent_name || "unknown").toLowerCase();
-    const isSpecialist = !ORCHESTRATORS.has(agentName);
-
-    // Read existing gate to extend the chain
-    let existingGate = {};
-    try {
-      if (fs.existsSync(gateFile)) {
-        existingGate = JSON.parse(fs.readFileSync(gateFile, "utf8"));
-      }
-    } catch {}
-
-    const chain = existingGate.chain || [];
-    chain.push(agentName);
-
+    const gateFile = path.join(os.tmpdir(), "masonry-mortar-gate.json");
     try {
       fs.writeFileSync(gateFile, JSON.stringify({
         mortar_consulted: true,
         timestamp: new Date().toISOString(),
-        agent: agentName,
-        chain,
-        specialist_spawned: isSpecialist || existingGate.specialist_spawned || false,
+        agent: subagentType || input.agent_name || "unknown",
       }), "utf8");
     } catch {}
   }

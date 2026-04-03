@@ -42,6 +42,21 @@ agent_db.json
 
 # Personal / unrelated content
 projects/MarchMadness/
+projects/passive-frontend-v2/
+
+# Playwright MCP screenshots
+.playwright-mcp/
+
+# Root-level design/UI screenshots (from browser automation sessions)
+about-desktop-1440.png
+cta-1440*.png
+cta-current.png
+header-*.png
+home-desktop-1440.png
+home-mobile-375.png
+home-narrow-1200.png
+live-cta.png
+hero-desktop-current.png
 
 # OS
 .DS_Store
