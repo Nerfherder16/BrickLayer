@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LayoutDashboard, FolderOpen, Terminal, MessageSquare, MoreHorizontal } from 'lucide-react'
+import { LayoutDashboard, FolderOpen, Terminal, MessageSquare, MoreHorizontal, type LucideIcon } from 'lucide-react'
 import WelcomePanel from '@/components/Panels/WelcomePanel'
 import ComingSoonPanel from '@/components/Mobile/ComingSoonPanel'
 
@@ -8,7 +8,7 @@ type TabId = 'dashboard' | 'files' | 'terminal' | 'ai-chat' | 'more'
 interface Tab {
   id: TabId
   label: string
-  Icon: React.ComponentType<{ size?: number; 'aria-hidden'?: string }>
+  Icon: LucideIcon
 }
 
 const TABS: Tab[] = [

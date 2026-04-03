@@ -1,13 +1,18 @@
 import { useCallback, useContext, useEffect, useRef } from 'react'
-import { DockviewReact, type DockviewApi, type IDockviewPanelProps } from 'dockview-react'
+import {
+  DockviewReact,
+  type DockviewApi,
+  type DockviewReadyEvent,
+  type IDockviewPanelProps,
+} from 'dockview-react'
 import { LayoutContext } from '../../contexts/LayoutContext'
 import { getStoredToken } from '../../api/auth'
 import WelcomePanel from './WelcomePanel'
 import '../../styles/dockview-theme.css'
 
-// Panel component registry — DockviewReact requires this map
-const COMPONENTS: Record<string, React.ComponentType<IDockviewPanelProps>> = {
-  WelcomePanel: WelcomePanel as React.ComponentType<IDockviewPanelProps>,
+// Panel component registry — DockviewReact requires FunctionComponent (not ComponentType)
+const COMPONENTS: Record<string, React.FunctionComponent<IDockviewPanelProps>> = {
+  WelcomePanel: WelcomePanel as React.FunctionComponent<IDockviewPanelProps>,
 }
 
 // Default layout applied when no saved layout exists or fromJSON fails
@@ -36,8 +41,34 @@ export default function DockviewShell(): JSX.Element {
     }
   }, [])
 
-  const handleReady = useCallback(
+  const loadLayout = useCallback(
     async (api: DockviewApi) => {
+      try {
+        const token = getStoredToken()
+        const res = await fetch('/api/layout', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        const data = (await res.json()) as { layout_version: number | null; layout: unknown }
+
+        if (data.layout && typeof data.layout === 'object') {
+          try {
+            api.fromJSON(data.layout as Parameters<DockviewApi['fromJSON']>[0])
+          } catch {
+            applyDefaultLayout(api)
+          }
+        } else {
+          applyDefaultLayout(api)
+        }
+      } catch {
+        applyDefaultLayout(api)
+      }
+    },
+    [],
+  )
+
+  const handleReady = useCallback(
+    (event: DockviewReadyEvent) => {
+      const api = event.api
       setDockviewApi(api)
 
       // Subscribe to layout changes with 1000ms debounce
@@ -61,35 +92,15 @@ export default function DockviewShell(): JSX.Element {
         }, 1000)
       })
 
-      // Load saved layout
-      try {
-        const token = getStoredToken()
-        const res = await fetch('/api/layout', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        })
-        const data = (await res.json()) as { layout_version: number | null; layout: unknown }
-
-        if (data.layout && typeof data.layout === 'object') {
-          try {
-            api.fromJSON(data.layout as Parameters<DockviewApi['fromJSON']>[0])
-          } catch {
-            applyDefaultLayout(api)
-          }
-        } else {
-          applyDefaultLayout(api)
-        }
-      } catch {
-        applyDefaultLayout(api)
-      }
+      // Load saved layout (async, non-blocking)
+      void loadLayout(api)
     },
-    [setDockviewApi],
+    [setDockviewApi, loadLayout],
   )
 
   return (
-    <DockviewReact
-      components={COMPONENTS}
-      onReady={handleReady}
-      style={{ height: 'calc(100vh - 48px)', width: '100%' }}
-    />
+    <div style={{ height: 'calc(100vh - 48px)', width: '100%' }}>
+      <DockviewReact components={COMPONENTS} onReady={handleReady} />
+    </div>
   )
 }
