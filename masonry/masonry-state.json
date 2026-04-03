@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "rough-in",
+    "agent": "research-analyst + competitive-analyst",
     "effort": "medium",
-    "prompt_summary": "<task-notification>\n<task-id>bwo7muafr</task-id>\n<tool-use-id>toolu_015BE8DejANA",
-    "timestamp": "2026-04-03T05:08:58.481Z",
+    "prompt_summary": "in my research i see its better to run subagents rather than agent teams. whats ",
+    "timestamp": "2026-04-03T12:21:47.171Z",
     "turn_count": 1
   }
 }

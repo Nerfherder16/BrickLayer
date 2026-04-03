@@ -292,3 +292,12 @@
 {"task_id":"t-1775141772911","phase":"post","timestamp":"2026-04-02T15:02:23.314Z","duration_ms":370398,"success":true,"agent":"general-purpose"}
 {"task_id":"t-1775192360445","phase":"pre","timestamp":"2026-04-03T04:59:20.446Z","agent_type":"general-purpose","task_type":"frontend","complexity":"high","strategy":"balanced"}
 {"task_id":"t-1775192360445","phase":"post","timestamp":"2026-04-03T05:04:11.253Z","duration_ms":290798,"success":true,"agent":"general-purpose"}
+{"task_id":"t-1775195997844","phase":"pre","timestamp":"2026-04-03T05:59:57.844Z","agent_type":"claude-code-guide","task_type":"backend","complexity":"medium","strategy":"balanced"}
+{"task_id":"t-1775196353983","phase":"pre","timestamp":"2026-04-03T06:05:53.983Z","agent_type":"spec-writer","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775196353983","phase":"post","timestamp":"2026-04-03T06:13:01.199Z","duration_ms":427212,"success":true,"agent":"spec-writer"}
+{"task_id":"t-1775196853997","phase":"pre","timestamp":"2026-04-03T06:14:13.997Z","agent_type":"spec-writer","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775196853997","phase":"post","timestamp":"2026-04-03T06:20:42.543Z","duration_ms":388541,"success":true,"agent":"spec-writer"}
+{"task_id":"t-1775197674087","phase":"pre","timestamp":"2026-04-03T06:27:54.087Z","agent_type":"spec-writer","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775197674087","phase":"post","timestamp":"2026-04-03T06:31:18.461Z","duration_ms":204370,"success":true,"agent":"spec-writer"}
+{"task_id":"t-1775198058562","phase":"pre","timestamp":"2026-04-03T06:34:18.562Z","agent_type":"spec-writer","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775198058562","phase":"post","timestamp":"2026-04-03T06:39:00.210Z","duration_ms":281643,"success":true,"agent":"spec-writer"}

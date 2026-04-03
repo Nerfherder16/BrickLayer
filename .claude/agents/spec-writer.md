@@ -47,33 +47,34 @@ Before touching anything:
 
 ## Phase 2 — Codebase Exploration
 
-Use the **Explore subagent** (`subagent_type: "Explore"`) to scan the codebase:
+**NEVER use the Explore subagent** — it generates too much output and blows the context budget before the spec is written.
 
-```
-Explore [project dir] and report:
-- Tech stack (language versions, frameworks, test runner, type checker)
-- Directory structure and naming conventions
-- Testing patterns (where tests live, how they're named, what runner)
-- Existing components/modules this feature will touch
-- Any relevant config files (pyproject.toml, package.json, tsconfig.json)
-- Exact commands for: run tests, run typecheck, run lint
-```
+Use targeted tools instead:
+- `jcodemunch-mcp get_file_outline` for understanding a file's structure without reading its body
+- `jcodemunch-mcp search_symbols` to find relevant functions/components by name
+- `Glob` for finding files by pattern (e.g., `**/*.test.ts`, `**/package.json`)
+- `Read` with `offset` + `limit` parameters to read specific sections of large files (never read a file >200 lines in full)
+- `Grep` for finding specific patterns (imports, function names, test patterns)
 
-For small/new projects, use Glob and Read directly.
+Gather ONLY what you need to write the spec:
+1. Check `package.json` or `pyproject.toml` for tech stack and test commands
+2. Use `Glob` to find test files and understand where they live
+3. Read the prior phase spec (e.g., `spec-phase3.md`) with offset/limit to understand format — do NOT read it in full
+4. Read only the relevant ROADMAP section (use offset/limit — never read the full ROADMAP)
+5. Stop exploring when you have enough to write tasks — do not over-explore
 
 ---
 
-## Phase 3 — Recall Consultation (MANDATORY)
+## Phase 3 — Recall Consultation
 
-Before designing anything, query Recall for known issues with the identified tech stack:
+Query Recall for known issues — **maximum 2 searches, limit 3 results each**:
 
 ```
-recall_search(query="known issues [framework] [dependency] [platform]", domain="autopilot", limit=5)
-recall_search(query="build errors [tech-stack] [platform]", domain="autopilot", limit=5)
-recall_search(query="[primary dependency] gotchas Windows", domain="autopilot", limit=3)
+recall_search(query="known issues [primary framework] [platform]", limit=3)
+recall_search(query="[most complex new dependency] gotchas", limit=3)
 ```
 
-Extract actionable warnings and **bake them into task descriptions** — not as footnotes. If Recall says "vitest needs `@vitest/coverage-v8` not `@vitest/coverage-c8`", that goes directly into the task that installs test dependencies.
+Extract actionable warnings and bake them into task descriptions. If Recall is unavailable or returns nothing useful, skip and move on. Do not retry or run more searches.
 
 ---
 
@@ -138,9 +139,13 @@ Check `.ui/tokens.json` and `.ui/components.json` if `.ui/` exists — inject th
 
 ---
 
-## Phase 6 — Write the Spec
+## Phase 6 — Write the Spec (DO THIS BEFORE PHASE 7)
 
-Create `.autopilot/` directory if it doesn't exist, then write `.autopilot/spec.md`:
+**Write the file immediately after designing the tasks. Do not summarize first. Do not present first. Write the file.**
+
+Create `.autopilot/` directory if it doesn't exist, then write `.autopilot/spec.md`.
+
+**Output budget warning:** You have a limited output budget. Exploration (Phases 2-3) and design (Phases 4-5) consume output. Write the spec file AS SOON AS you have enough information — do not wait until you've read everything. A spec written with 80% of ideal information is infinitely better than a perfect spec that never gets written.
 
 ```markdown
 # Spec: [Feature/Project Name]
