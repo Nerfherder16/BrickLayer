@@ -8,7 +8,32 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
-    "bl/tmux/pane.py"
+    "projects/codevvOS/frontend/src/components/Mobile/ComingSoonPanel.tsx",
+    "projects/codevvOS/frontend/src/components/Mobile/MobileShell.tsx",
+    "projects/codevvOS/frontend/src/components/Mobile/__tests__/MobileShell.test.tsx",
+    "projects/codevvOS/frontend/src/components/Panels/WelcomePanel.tsx",
+    "projects/codevvOS/frontend/src/__tests__/graduation.test.tsx",
+    "projects/codevvOS/frontend/src/components/Dock/Dock.tsx",
+    "projects/codevvOS/tests/integration/test_phase2_shell.py",
+    "projects/codevvOS/frontend/src/App.tsx",
+    "projects/codevvOS/frontend/src/hooks/__tests__/useBreakpoint.test.ts",
+    "projects/codevvOS/frontend/src/hooks/useBreakpoint.ts",
+    "bl/tmux/pane.py",
+    "bl/tmux/tests/test_pane.py",
+    "projects/codevvOS/frontend/src/api/auth.ts",
+    "projects/codevvOS/frontend/src/components/Dock/Dock.tsx",
+    "projects/codevvOS/frontend/src/components/Login/LoginScreen.tsx",
+    "projects/codevvOS/frontend/src/components/Login/__tests__/LoginScreen.test.tsx",
+    "projects/codevvOS/frontend/src/components/Shell/DockviewShell.tsx",
+    "projects/codevvOS/frontend/src/components/Shell/WelcomePanel.tsx",
+    "projects/codevvOS/frontend/src/components/Shell/__tests__/DockviewShell.test.tsx",
+    "projects/codevvOS/frontend/src/contexts/LayoutContext.tsx",
+    "projects/codevvOS/frontend/src/hooks/__tests__/useAuth.test.ts",
+    "projects/codevvOS/frontend/src/hooks/useAuth.ts",
+    "projects/codevvOS/frontend/src/App.tsx",
+    "projects/codevvOS/frontend/src/__tests__/App.test.tsx",
+    "projects/codevvOS/frontend/src/test/setup.ts",
+    "projects/codevvOS/frontend/src/App.tsx"
   ],
-  "timestamp": "2026-04-02T04:17:12.204Z"
+  "timestamp": "2026-04-03T04:34:10.701Z"
 }
