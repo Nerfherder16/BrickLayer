@@ -48,6 +48,7 @@ async function main() {
   const { getSessionId } = require('./session/stop-utils');
   const { tool_name, tool_input = {}, cwd = process.cwd() } = input;
   const sessionId = getSessionId(input);
+  const claudeUser = process.env.CLAUDE_USER || 'unknown';
 
   if (!WATCHED_TOOLS.has(tool_name)) process.exit(0);
 
@@ -68,6 +69,7 @@ async function main() {
     tool: tool_name,
     file: filePath,
     summary: oneLiner,
+    user: claudeUser,
   });
   try {
     fs.appendFileSync(activityFile, activityEntry + '\n', 'utf8');
@@ -93,7 +95,7 @@ async function main() {
         } catch (_e) { /* optional */ }
         const domain = `${cfProject}-code`;
         await Promise.all(facts.map(fact =>
-          storeMemory({ content: fact, domain, tags: ['code-fact', 'auto-extracted', ext], importance: 0.5 })
+          storeMemory({ content: fact, domain, tags: ['code-fact', 'auto-extracted', ext, `user:${claudeUser}`], importance: 0.5 })
             .catch(() => {})
         ));
       }
@@ -129,7 +131,7 @@ async function main() {
   const recallResult = await storeMemory({
     content: snippet,
     domain: `${project}-autoresearch`,
-    tags: ['masonry', `project:${project}`, `qid:${qid}`, `verdict:${verdict}`, `severity:${severity}`, 'masonry:finding'],
+    tags: ['masonry', `project:${project}`, `qid:${qid}`, `verdict:${verdict}`, `severity:${severity}`, 'masonry:finding', `user:${claudeUser}`],
     importance,
   });
 
