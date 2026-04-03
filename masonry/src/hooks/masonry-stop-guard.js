@@ -6,8 +6,9 @@
  * At SessionStart, all pre-existing dirty files are recorded. On Stop, only
  * files NOT in that snapshot are flagged — i.e. files modified THIS session.
  *
- * Fallback: if no snapshot exists (session-start didn't run or no session ID),
- * falls back to mtime-based detection (today's files only).
+ * Fallback: if no snapshot exists but a pre-existing set is available, uses that.
+ * If neither activity log nor snapshot exists, allows stop — no record means no block.
+ * (mtime fallback removed: too broad in multi-session repos, causes cross-contamination.)
  *
  * Exits silently (0) if nothing new was modified this session.
  * Exit code 2 blocks the stop when session files are uncommitted.
@@ -169,21 +170,16 @@ async function main() {
       if (sessionWrites !== null) {
         // Activity-log mode: only flag files THIS session's tools wrote to.
         if (!sessionWrites.has(file)) continue;
-      } else {
-        // Fallback modes (snapshot or mtime): skip binary/asset files — they are
-        // almost always written by sibling sessions (Playwright, build tools) and
-        // cause cross-session false positives.
+      } else if (preExistingSet !== null) {
+        // Snapshot fallback: skip binary/asset files and files dirty at session start.
         const ext = path.extname(file).toLowerCase();
         if (BINARY_EXTS.has(ext)) continue;
-
-        if (preExistingSet !== null) {
-          // Snapshot fallback: skip files dirty at session start.
-          if (preExistingSet.has(file)) continue;
-        } else {
-          // Last resort: mtime-based (today's files only).
-          const days = fileAgeDays(path.join(cwd, file.replace(/\/$/, '')));
-          if (days !== 0 && days !== null) continue;
-        }
+        if (preExistingSet.has(file)) continue;
+      } else {
+        // No activity log and no snapshot — no record of what this session changed.
+        // Skip rather than falling back to mtime, which causes cross-session
+        // contamination in multi-session repos (sibling sessions' files get flagged).
+        continue;
       }
 
       (xy === '??' ? sessionUntracked : sessionModified).push(file);
