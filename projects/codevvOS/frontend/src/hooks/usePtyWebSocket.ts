@@ -13,11 +13,13 @@ export interface PtyWebSocketResult {
 }
 
 /** Open and manage a WebSocket connection to the PTY host for a given session. */
-export function usePtyWebSocket(sessionId: string): PtyWebSocketResult {
+export function usePtyWebSocket(sessionId: string, onData?: (data: string) => void): PtyWebSocketResult {
   const wsRef = useRef<WebSocket | null>(null)
   const retryCountRef = useRef(0)
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mountedRef = useRef(true)
+  const onDataRef = useRef(onData)
+  useEffect(() => { onDataRef.current = onData }, [onData])
   const [readyState, setReadyState] = useState<number>(WebSocket.CONNECTING)
 
   const connect = useCallback(() => {
@@ -45,6 +47,11 @@ export function usePtyWebSocket(sessionId: string): PtyWebSocketResult {
         const message = JSON.parse(event.data) as { type: string; id?: number; data?: string }
         if (message.type === 'data' && message.id !== undefined) {
           ws.send(JSON.stringify({ type: 'ack', id: message.id }))
+          if (message.data !== undefined) {
+            onDataRef.current?.(message.data)
+          }
+        } else if (message.type === 'replay' && message.data !== undefined) {
+          onDataRef.current?.(message.data)
         }
       } catch {
         // Ignore malformed messages

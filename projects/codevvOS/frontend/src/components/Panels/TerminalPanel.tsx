@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { IDockviewPanelProps } from 'dockview-react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -16,8 +16,14 @@ function getCssVar(name: string, fallback: string): string {
 
 export default function TerminalPanel(_props: IDockviewPanelProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
+  const terminalRef = useRef<Terminal | null>(null)
   const sessionId = useRef(crypto.randomUUID()).current
-  const { send, sendResize } = usePtyWebSocket(sessionId)
+
+  const handleData = useCallback((data: string) => {
+    terminalRef.current?.write(data)
+  }, [])
+
+  const { send, sendResize } = usePtyWebSocket(sessionId, handleData)
 
   useEffect(() => {
     if (containerRef.current === null) return
@@ -44,6 +50,7 @@ export default function TerminalPanel(_props: IDockviewPanelProps): JSX.Element 
 
     // Step 2: Attach to DOM (MUST happen before loading addons)
     terminal.open(containerRef.current)
+    terminalRef.current = terminal
 
     // Step 3–6: Load addons in order
     const webglAddon = new WebglAddon()
@@ -84,6 +91,7 @@ export default function TerminalPanel(_props: IDockviewPanelProps): JSX.Element 
     resizeObserver.observe(containerRef.current)
 
     return () => {
+      terminalRef.current = null
       if (resizeTimer !== null) clearTimeout(resizeTimer)
       resizeObserver.disconnect()
       dataDisposable.dispose()
