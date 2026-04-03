@@ -127,6 +127,22 @@ Bricklayer2.0/
 - **Heal loop**: Automated diagnose→fix→verify cycle without human intervention.
 - **Swarm**: Parallel multi-agent dispatch with configurable aggregation (worst/majority/any_failure).
 
+## Code Retrieval — jCodeMunch First
+
+**Use `jcodemunch-mcp` for all symbol-level code access in this repo.**
+
+BrickLayer agent swarms run up to 8 workers in parallel — each worker reading entire files redundantly burns context fast. jCodeMunch indexes once and lets every agent retrieve only the symbols they need.
+
+- `search_symbols` — find functions/classes by name before reading anything
+- `get_symbol_source` — fetch exact implementation instead of `Read` on whole file
+- `get_file_outline` — understand a file's structure without reading its body
+- `get_blast_radius` — check impact before any refactor in `bl/`
+- `get_call_hierarchy` — trace callers/callees across the engine without grep
+
+**Only use `Read` when you genuinely need the full file** (e.g., file-level restructuring). For everything else, jCodeMunch first.
+
+---
+
 ## Authority Hierarchy
 
 | Tier | Source | Who Edits |
