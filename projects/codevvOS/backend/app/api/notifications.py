@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import uuid
+from collections.abc import AsyncGenerator
 from datetime import datetime
 
 from backend.app.db.session import get_db, set_tenant_context
 from backend.app.models.notification import Notification
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
+from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, ConfigDict
 from shared.auth import bearer_scheme, verify_jwt
@@ -49,6 +52,23 @@ def _get_current_user(
         return verify_jwt(credentials.credentials)
     except Exception as e:
         raise HTTPException(status_code=401, detail=str(e)) from e
+
+
+async def _sse_heartbeat() -> AsyncGenerator[str, None]:
+    """Yield SSE keep-alive comments every 15 seconds."""
+    while True:
+        yield ": heartbeat\n\n"
+        await asyncio.sleep(15)
+
+
+@router.get("/events")
+async def sse_events() -> StreamingResponse:
+    """Server-Sent Events stream for live preview auto-reload and push notifications."""
+    return StreamingResponse(
+        _sse_heartbeat(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/notifications", response_model=NotificationList)

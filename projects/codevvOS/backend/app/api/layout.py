@@ -1,4 +1,5 @@
 """Layout persistence endpoints: GET/PUT /api/layout."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -13,10 +14,10 @@ bearer_scheme = HTTPBearer()
 
 
 class LayoutRequest(BaseModel):
-    layout_version: int
+    version: int
     layout: dict[str, Any]
 
-    @field_validator("layout_version")
+    @field_validator("version")
     @classmethod
     def version_must_be_positive(cls, v: int) -> int:
         if v < 1:
@@ -83,7 +84,7 @@ async def put_layout(
     await _upsert_layout(
         user_id=current_user["user_id"],
         tenant_id=current_user["tenant_id"],
-        layout_version=body.layout_version,
+        layout_version=body.version,
         layout_json=body.layout,
     )
     return {"status": "ok"}
