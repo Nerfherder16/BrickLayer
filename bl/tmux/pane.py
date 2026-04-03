@@ -27,7 +27,7 @@ def spawn_tmux_pane(
     cwd: str,
     env_overrides: dict[str, str] | None,
 ) -> str | None:
-    """Create a tmux pane running the claude command. Returns pane_id or None."""
+    """Create a tmux window running the claude command. Returns window_id or None."""
     cmd_str = " ".join(shlex.quote(p) for p in [claude_bin, *claude_args])
 
     parts = ["unset CLAUDECODE"]
@@ -78,7 +78,13 @@ def spawn_tmux_pane(
 
     try:
         proc = subprocess.run(
-            ["tmux", "split-window", "-h", "-d", "-P", "-F", "#{pane_id}", pane_cmd],
+            [
+                "tmux", "new-window",
+                "-d",                          # don't switch to the new window
+                "-P", "-F", "#{window_id}",    # print the new window's ID
+                "-n", f"agent:{agent_name}",   # window name shown in the status bar
+                pane_cmd,
+            ],
             capture_output=True,
             text=True,
             timeout=10,
@@ -86,16 +92,6 @@ def spawn_tmux_pane(
         pane_id = proc.stdout.strip() or None
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
         return None
-
-    if pane_id:
-        try:
-            _ = subprocess.run(
-                ["tmux", "select-pane", "-t", pane_id, "-T", f"agent:{agent_name}"],
-                capture_output=True,
-                timeout=5,
-            )
-        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
-            pass
 
     return pane_id
 
@@ -134,7 +130,7 @@ def cleanup_panes(spawns: list[SpawnResult]) -> None:
         if spawn.pane_id and not keep:
             try:
                 _ = subprocess.run(
-                    ["tmux", "kill-pane", "-t", spawn.pane_id],
+                    ["tmux", "kill-window", "-t", spawn.pane_id],
                     capture_output=True,
                     timeout=5,
                 )

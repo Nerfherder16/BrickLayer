@@ -177,8 +177,8 @@ class TestSpawnTmuxPane:
         assert "capture-pane" not in cmd_str
 
     @patch("bl.tmux.pane.subprocess.run")
-    def test_sets_pane_title(self, mock_run):
-        mock_run.return_value = MagicMock(stdout="%5\n", returncode=0)
+    def test_sets_window_name(self, mock_run):
+        mock_run.return_value = MagicMock(stdout="@5\n", returncode=0)
         from bl.tmux.pane import spawn_tmux_pane
 
         spawn_tmux_pane(
@@ -192,9 +192,11 @@ class TestSpawnTmuxPane:
             cwd="/tmp",
             env_overrides=None,
         )
-        title_call = mock_run.call_args_list[1]
-        assert "select-pane" in title_call[0][0]
-        assert "agent:my-agent" in title_call[0][0]
+        # Only one subprocess call — new-window with -n flag carries the name
+        assert mock_run.call_count == 1
+        cmd = mock_run.call_args_list[0][0][0]
+        assert "new-window" in cmd
+        assert "agent:my-agent" in cmd
 
 
 class TestTmuxWait:
@@ -228,7 +230,7 @@ class TestCleanupPanes:
             prompt_file=Path("/tmp/bl-prompt-abc.txt"),
         )
         cleanup_panes([spawn])
-        kill_calls = [c for c in mock_run.call_args_list if "kill-pane" in c[0][0]]
+        kill_calls = [c for c in mock_run.call_args_list if "kill-window" in c[0][0]]
         assert len(kill_calls) == 1
 
     @patch("bl.tmux.pane.subprocess.run")
