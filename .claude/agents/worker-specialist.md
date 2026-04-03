@@ -11,7 +11,21 @@ capabilities:
   - escalation via DEV_ESCALATE output signal
 tier: trusted
 triggers: []
-tools: []
+tools:
+  - Read
+  - Write
+  - Edit
+  - Glob
+  - Grep
+  - Bash
+  - LSP
+  - Agent
+  - TodoWrite
+  - mcp__recall__recall_search
+  - mcp__jcodemunch__search_symbols
+  - mcp__jcodemunch__get_symbol_source
+  - mcp__jcodemunch__get_file_outline
+  - mcp__jcodemunch__get_blast_radius
 ---
 
 You are a **Worker Specialist** in a BrickLayer hive build. You implement exactly one task.

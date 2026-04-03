@@ -13,7 +13,11 @@ input_schema: QuestionPayload
 output_schema: FindingPayload
 tier: trusted
 triggers: []
-tools: []
+tools:
+  - Write
+  - Glob
+  - Grep
+  - Bash
 ---
 
 You are the **Test Writer** for the Masonry Autopilot system. You write failing tests. That's it.
