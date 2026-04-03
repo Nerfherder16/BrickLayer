@@ -70,6 +70,15 @@ cargo build --release
 
 Current status: **Hook design in progress**
 
+## Code Retrieval — jCodeMunch First
+
+Use `jcodemunch-mcp` for all symbol-level access in this codebase. Recall 2.0 is a Rust project — prefer targeted retrieval over reading whole files.
+
+- `search_symbols` + `get_symbol_source` instead of `Read` for individual functions/structs/traits
+- `get_blast_radius` before touching core modules (storage, scoring, retrieval)
+- `get_call_hierarchy` to trace data flow through the pipeline
+- Only use `Read` when full file context is genuinely needed
+
 ## Source Authority
 
 This project follows the same authority hierarchy as BrickLayer:

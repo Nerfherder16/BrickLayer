@@ -43,6 +43,15 @@ cd Codevv && docker-compose up -d
 # TBD — Phase 1 deliverable
 ```
 
+## Code Retrieval — jCodeMunch First
+
+Use `jcodemunch-mcp` for all symbol-level access in this codebase. CodeVV OS spans Python, TypeScript, and React — prefer targeted retrieval over reading whole files.
+
+- `search_symbols` + `get_symbol_source` instead of `Read` for individual functions/components/classes
+- `get_blast_radius` before touching shared modules (FastAPI routes, Yjs sync, auth)
+- `get_file_outline` to understand a module's structure before diving in
+- Only use `Read` when full file context is genuinely needed
+
 ## Source Authority
 
 | Tier | Source | Who Edits |
