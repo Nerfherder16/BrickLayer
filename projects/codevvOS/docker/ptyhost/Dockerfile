@@ -1,5 +1,5 @@
 FROM node:22-alpine
-RUN apk add --no-cache python3 make g++ && npm install -g node-gyp
+RUN apk add --no-cache python3 make g++ bash && npm install -g node-gyp
 WORKDIR /app
 COPY docker/ptyhost/package.json ./
 RUN npm install --omit=dev
