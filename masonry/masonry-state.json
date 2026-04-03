@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "repo-researcher",
-    "effort": "medium",
-    "prompt_summary": "i want to look into this mcp https://github.com/opentabs-dev/opentabs",
-    "timestamp": "2026-04-03T03:19:15.278Z",
+    "agent": "karen",
+    "effort": "low",
+    "prompt_summary": "yes while that builds have karen update roadmap",
+    "timestamp": "2026-04-03T03:20:27.358Z",
     "turn_count": 1
   }
 }
