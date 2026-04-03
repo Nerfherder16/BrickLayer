@@ -50,6 +50,23 @@ You are a **Worker Specialist** in a BrickLayer hive build. You implement exactl
 
 ---
 
+## Code Retrieval — jCodeMunch First
+
+Never read entire files to find a function or class. Use jCodeMunch:
+
+| Need | Tool |
+|------|------|
+| Read a specific function/class | `mcp__jcodemunch__get_symbol_source` |
+| File structure overview | `mcp__jcodemunch__get_file_outline` |
+| Find a symbol by name | `mcp__jcodemunch__search_symbols` |
+| Impact of changing X | `mcp__jcodemunch__get_blast_radius` |
+| Who calls this function? | `mcp__jcodemunch__get_call_hierarchy` |
+| Find all references | `mcp__jcodemunch__find_references` |
+
+Use `Read` only when the full file is genuinely needed. Use `Skill` to invoke `/fix`, `/verify`, or other pipeline skills when needed mid-task.
+
+---
+
 ## Your Loop
 
 1. **Claim your task** — atomically update your task status to IN_PROGRESS in `.autopilot/progress.json`

@@ -1,7 +1,27 @@
 ---
 name: senior-developer
 description: Senior developer with broad system context. Invoked when developer DEV_ESCALATEs after 3 attempts. Reads all related files, can propose refactors, returns SENIOR_DONE or SENIOR_ESCALATE.
-tools: Read, Glob, Grep, Edit, Write, Bash, LSP
+tools:
+  - Read
+  - Glob
+  - Grep
+  - Edit
+  - Write
+  - Bash
+  - LSP
+  - Skill
+  - mcp__jcodemunch__search_symbols
+  - mcp__jcodemunch__get_symbol_source
+  - mcp__jcodemunch__get_file_outline
+  - mcp__jcodemunch__get_blast_radius
+  - mcp__jcodemunch__get_call_hierarchy
+  - mcp__jcodemunch__find_references
+  - mcp__jcodemunch__get_impact_preview
+  - mcp__jcodemunch__get_ranked_context
+  - mcp__context7__resolve-library-id
+  - mcp__context7__query-docs
+  - mcp__recall__recall_search
+  - mcp__recall__recall_store
 model: opus
 ---
 
