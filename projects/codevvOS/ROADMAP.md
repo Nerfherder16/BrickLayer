@@ -4,114 +4,124 @@ Tracks planned work across project phases. Derived from `project-brief.md` and v
 
 ---
 
+## Build Status
+
+| Phase | Status | Date | Notes |
+|-------|--------|------|-------|
+| Phase 0 | **COMPLETE** | 2026-04-02 | 13 tasks. All scaffolding and config delivered. |
+| Phase 1 | **COMPLETE** | 2026-04-02 | 25 tasks. 258 tests passing (108 Phase 0 + 150 Phase 1). |
+| Phase 2 | **IN PROGRESS** | started 2026-04-02 | Spec written (spec-phase2.md, 8 tasks). Build started. |
+
+---
+
 ## Phase 0: Pre-Build Security & Architecture Requirements
 
 > These must be resolved in design before Phase 1 build starts. No code until these are decided.
 
 ### 0a. Security Pre-Requirements (CRITICAL — resolve before coding)
-- [ ] **Non-superuser Postgres role:** Create `codevv_app` role with `NOBYPASSRLS NOINHERIT`. All FastAPI connections use this role. Superuser bypasses all RLS — never use it for app queries.
-- [ ] **SET ROLE per connection:** Explicitly execute `SET ROLE codevv_app` at the start of every SQLAlchemy session via an `@event.listens_for(engine, "connect")` hook. Do NOT rely on the connection string user alone — RLS is bypassed if SET ROLE is omitted.
-- [ ] **Internal-only ports:** Use `expose:` (Docker-internal) not `ports:` for Postgres, Redis, Yjs, FastAPI. Only Nginx exposes `:443` to the LAN. Nothing else. _(ARCHITECTURE.md updated to match — was showing all ports as LAN-exposed)_
-- [ ] **BrickLayer sidecar auth:** Internal shared secret (`BL_INTERNAL_SECRET` env var) required on all `bl/server.py` endpoints. Network-isolated to `backend` Docker network only.
-- [ ] **Masonry MCP auth:** Even within the Docker network, masonry-mcp endpoints must validate `BL_INTERNAL_SECRET`. Backend sets this header on all masonry-mcp calls.
-- [ ] **Shared JWT auth library:** Single `auth.js` / `auth.py` used identically by backend, Yjs server, ptyHost, **and tldraw-sync**. No service implements its own JWT logic. Validate JWT on connection AND on a 60s expiry timer.
-- [ ] **JWT algorithm pinning:** Explicitly pin to `HS256` (or `RS256` if asymmetric keys). Reject tokens with `alg: none` or any algorithm not in the allowlist. Configure `algorithms=["HS256"]` in PyJWT / `jose` — never omit this parameter, which would allow alg:none attacks.
-- [ ] **Brute force protection on /auth/login:** Apply `slowapi` rate limiting to `POST /auth/login` specifically — e.g., 10 attempts per user per minute. Return `429 Too Many Requests`. Without this, credential stuffing hits an unlimited endpoint.
-- [ ] **Redis session store decision:** Explicitly define whether JWTs are independently verifiable (signature-only validation, no Redis lookup per request) or Redis-required per request. If Redis is required for every auth check, Redis downtime = all users logged out instantly. Recommended: verify by signature; Redis only for explicit revocation (logout, admin force-signout).
-- [ ] **Recall API auth:** Fresh Recall instance deployed from scratch on GPU VM — configure API key auth at deployment time. Store as `RECALL_API_KEY` Docker secret. No pre-existing instance to audit.
-- [ ] **Claude API key encryption:** Decided — `pgcrypto` (`pgp_sym_encrypt`) with key from Docker secret.
-- [ ] **Path traversal dependency:** Create `verify_path_in_workspace(path, user_workspace_root)` FastAPI dependency using `os.path.realpath()`. Apply to ALL file endpoints — not just the tree endpoint.
+- [x] **Non-superuser Postgres role:** Create `codevv_app` role with `NOBYPASSRLS NOINHERIT`. All FastAPI connections use this role. Superuser bypasses all RLS — never use it for app queries.
+- [x] **SET ROLE per connection:** Explicitly execute `SET ROLE codevv_app` at the start of every SQLAlchemy session via an `@event.listens_for(engine, "connect")` hook. Do NOT rely on the connection string user alone — RLS is bypassed if SET ROLE is omitted.
+- [x] **Internal-only ports:** Use `expose:` (Docker-internal) not `ports:` for Postgres, Redis, Yjs, FastAPI. Only Nginx exposes `:443` to the LAN. Nothing else. _(ARCHITECTURE.md updated to match — was showing all ports as LAN-exposed)_
+- [x] **BrickLayer sidecar auth:** Internal shared secret (`BL_INTERNAL_SECRET` env var) required on all `bl/server.py` endpoints. Network-isolated to `backend` Docker network only.
+- [x] **Masonry MCP auth:** Even within the Docker network, masonry-mcp endpoints must validate `BL_INTERNAL_SECRET`. Backend sets this header on all masonry-mcp calls.
+- [x] **Shared JWT auth library:** Single `auth.js` / `auth.py` used identically by backend, Yjs server, ptyHost, **and tldraw-sync**. No service implements its own JWT logic. Validate JWT on connection AND on a 60s expiry timer.
+- [x] **JWT algorithm pinning:** Explicitly pin to `HS256` (or `RS256` if asymmetric keys). Reject tokens with `alg: none` or any algorithm not in the allowlist. Configure `algorithms=["HS256"]` in PyJWT / `jose` — never omit this parameter, which would allow alg:none attacks.
+- [x] **Brute force protection on /auth/login:** Apply `slowapi` rate limiting to `POST /auth/login` specifically — e.g., 10 attempts per user per minute. Return `429 Too Many Requests`. Without this, credential stuffing hits an unlimited endpoint.
+- [x] **Redis session store decision:** Explicitly define whether JWTs are independently verifiable (signature-only validation, no Redis lookup per request) or Redis-required per request. If Redis is required for every auth check, Redis downtime = all users logged out instantly. Recommended: verify by signature; Redis only for explicit revocation (logout, admin force-signout).
+- [x] **Recall API auth:** Fresh Recall instance deployed from scratch on GPU VM — configure API key auth at deployment time. Store as `RECALL_API_KEY` Docker secret. No pre-existing instance to audit.
+- [x] **Claude API key encryption:** Decided — `pgcrypto` (`pgp_sym_encrypt`) with key from Docker secret.
+- [x] **Path traversal dependency:** Create `verify_path_in_workspace(path, user_workspace_root)` FastAPI dependency using `os.path.realpath()`. Apply to ALL file endpoints — not just the tree endpoint.
 
 ### 0b. Architecture Pre-Requirements
-- [ ] **docker.sock resolution:** Remove from `backend`. Mount **only** on `sandbox-manager` service via `tecnativa/docker-socket-proxy`. Scope must allow full container lifecycle: `containers` (create/start/stop/rm), `exec` (exec into running containers), `images` (pull sandbox images). `exec`-only scope is insufficient — sandbox-manager must create and destroy containers. ptyHost calls sandbox-manager API for container ops — never touches Docker directly.
-- [ ] **tldraw sync decision:** tldraw v2 uses `@tldraw/sync-core` (not Yjs). Two options:
+- [x] **docker.sock resolution:** Remove from `backend`. Mount **only** on `sandbox-manager` service via `tecnativa/docker-socket-proxy`. Scope must allow full container lifecycle: `containers` (create/start/stop/rm), `exec` (exec into running containers), `images` (pull sandbox images). `exec`-only scope is insufficient — sandbox-manager must create and destroy containers. ptyHost calls sandbox-manager API for container ops — never touches Docker directly.
+- [x] **tldraw sync decision:** tldraw v2 uses `@tldraw/sync-core` (not Yjs). Two options:
   - Use tldraw's native sync: add `tldraw-sync` Docker service
   - Use community `tldraw-yjs` adapter (unofficial, unsupported)
   - **Decided:** tldraw native sync + `tldraw-sync` service. ADR still needed. _Data migration risk: existing tldraw documents stored as Yjs blobs are incompatible with tldraw-sync format — decide at Phase 3.5-d: wipe or build export tool via `getSnapshot()` API._
-- [ ] **Univer collab decision:** Univer does NOT use Yjs. Its collab stack requires `univer-server` Docker service. **V1 decision: single-user Univer only** (no `univer-server`). Multi-user Excel collab is V2.
-- [ ] **Pydantic v2 → JSONForms adapter:** `GET /api/settings/schema` must post-process Pydantic v2 output (draft 2020-12) to JSON Schema draft 7 before returning. Write `to_draft7()` utility: `$defs` → `definitions`, rewrite `$ref` paths, flatten `Optional` `anyOf`.
-- [ ] **Artifact Panel CSP:** Use `srcdoc` iframe (null origin) with `sandbox="allow-scripts"` — NO `allow-same-origin`. Server-side compile Claude output to `React.createElement()` calls (no JSX, no `unsafe-eval`). Bundle React UMD + charting libraries into the iframe runtime.
-- [ ] **ARQ worker service:** Add `worker` service to Docker Compose (same backend image, `command: arq app.worker.WorkerSettings`). Without it, all background jobs enqueue to Redis but never execute. _ARQ scope: short/medium jobs only (notifications, digests, polling). Never route long-running BrickLayer agent runs through ARQ — use `POST /agent/spawn` on bricklayer sidecar directly. ARQ default `job_timeout=300s` will kill 30-60min agent runs._
-- [ ] **`pydantic-settings` package:** Add `pip install pydantic-settings` to requirements. Pydantic v2 split settings into a separate package — easy miss.
+- [x] **Univer collab decision:** Univer does NOT use Yjs. Its collab stack requires `univer-server` Docker service. **V1 decision: single-user Univer only** (no `univer-server`). Multi-user Excel collab is V2.
+- [x] **Pydantic v2 → JSONForms adapter:** `GET /api/settings/schema` must post-process Pydantic v2 output (draft 2020-12) to JSON Schema draft 7 before returning. Write `to_draft7()` utility: `$defs` → `definitions`, rewrite `$ref` paths, flatten `Optional` `anyOf`.
+- [x] **Artifact Panel CSP:** Use `srcdoc` iframe (null origin) with `sandbox="allow-scripts"` — NO `allow-same-origin`. Server-side compile Claude output to `React.createElement()` calls (no JSX, no `unsafe-eval`). Bundle React UMD + charting libraries into the iframe runtime.
+- [x] **ARQ worker service:** Add `worker` service to Docker Compose (same backend image, `command: arq app.worker.WorkerSettings`). Without it, all background jobs enqueue to Redis but never execute. _ARQ scope: short/medium jobs only (notifications, digests, polling). Never route long-running BrickLayer agent runs through ARQ — use `POST /agent/spawn` on bricklayer sidecar directly. ARQ default `job_timeout=300s` will kill 30-60min agent runs._
+- [x] **`pydantic-settings` package:** Add `pip install pydantic-settings` to requirements. Pydantic v2 split settings into a separate package — easy miss.
 
 ### 0e. Design System (reference before any frontend work)
-- [ ] **Authority document:** `docs/design-system.md` is the Tier 2 UI ground truth. All frontend builders reference it before writing any component.
-- [ ] **Palette:** Derived from 5 source colors — `#0D160B` (warm green near-black), `#655560` (muted mauve), `#FCF7FF` (lavender near-white), `#4F87B3` (steel blue accent), `#ED474A` (coral red). "Obsidian Shell" aesthetic.
-- [ ] **Tailwind v4:** Implement `@layer base` CSS custom properties from design-system.md §9 before Phase 2 frontend shell starts. All components use token names — never hardcode hex values.
-- [ ] **Self-host fonts:** Inter + JetBrains Mono in `/public/fonts/` — LAN kiosk has no Google Fonts CDN access.
-- [ ] **Per-workspace accent:** Apply `.workspace-dev`, `.workspace-brainstorm`, `.workspace-review`, `.workspace-planning`, `.workspace-meeting` classes on the workspace container. Shell chrome is unaffected by accent changes.
-- [ ] **UX specs:** `docs/superpowers/specs/codevvos-experience-design.md` sections §29–§38 cover all previously-unspecced features (mobile, login, dock, branch environments, guest links, inline AI edit, live preview, dep scanner, spec gate, KG first-run). Read before building those features.
+- [x] **Authority document:** `docs/design-system.md` is the Tier 2 UI ground truth. All frontend builders reference it before writing any component.
+- [x] **Palette:** Derived from 5 source colors — `#0D160B` (warm green near-black), `#655560` (muted mauve), `#FCF7FF` (lavender near-white), `#4F87B3` (steel blue accent), `#ED474A` (coral red). "Obsidian Shell" aesthetic.
+- [x] **Tailwind v4:** Implement `@layer base` CSS custom properties from design-system.md §9 before Phase 2 frontend shell starts. All components use token names — never hardcode hex values.
+- [x] **Self-host fonts:** Inter + JetBrains Mono in `/public/fonts/` — LAN kiosk has no Google Fonts CDN access.
+- [x] **Per-workspace accent:** Apply `.workspace-dev`, `.workspace-brainstorm`, `.workspace-review`, `.workspace-planning`, `.workspace-meeting` classes on the workspace container. Shell chrome is unaffected by accent changes.
+- [x] **UX specs:** `docs/superpowers/specs/codevvos-experience-design.md` sections §29–§38 cover all previously-unspecced features (mobile, login, dock, branch environments, guest links, inline AI edit, live preview, dep scanner, spec gate, KG first-run). Read before building those features.
 
 ### 0c. Baseline Docker Compose (author before Phase 1 coding starts)
-- [ ] Write `docker-compose.yml` encoding all Phase 0 decisions: `expose:` vs `ports:`, Docker secrets, `codevv_app` role env, named networks (`frontend`/`backend`), resource limits, `depends_on: condition: service_healthy`, `restart: unless-stopped`
-- [ ] This is the single source of truth for service topology — developers modify it, agents reference it
-- [ ] Write CI/CD workflow files (GitHub Actions): `fast-check.yml` (lint + unit tests, runs on every push), `integration.yml` (integration tests, runs on PR), `build-check.yml` (Docker build verification). See BUILD_BIBLE.md §4 for full pipeline spec. These are Phase 0 deliverables — without them the build loop has no gate.
-- [ ] **Masonry-MCP architecture decision (resolve before writing compose):** ARCHITECTURE.md previously listed masonry-mcp as a separate container (`expose: 3003`). ROADMAP Technology Decisions says `npm install masonry-mcp` inside the CodeVV Docker image. **Decided: npm install masonry-mcp inside the backend image.** No separate masonry-mcp container. Masonry MCP server runs as a subprocess within the backend container, communicated via the MCP protocol over stdio. Update ARCHITECTURE.md service list to remove masonry-mcp as a standalone service (13 core services, not 14).
+- [x] Write `docker-compose.yml` encoding all Phase 0 decisions: `expose:` vs `ports:`, Docker secrets, `codevv_app` role env, named networks (`frontend`/`backend`), resource limits, `depends_on: condition: service_healthy`, `restart: unless-stopped`
+- [x] This is the single source of truth for service topology — developers modify it, agents reference it
+- [x] Write CI/CD workflow files (GitHub Actions): `fast-check.yml` (lint + unit tests, runs on every push), `integration.yml` (integration tests, runs on PR), `build-check.yml` (Docker build verification). See BUILD_BIBLE.md §4 for full pipeline spec. These are Phase 0 deliverables — without them the build loop has no gate.
+- [x] **Masonry-MCP architecture decision (resolve before writing compose):** ARCHITECTURE.md previously listed masonry-mcp as a separate container (`expose: 3003`). ROADMAP Technology Decisions says `npm install masonry-mcp` inside the CodeVV Docker image. **Decided: npm install masonry-mcp inside the backend image.** No separate masonry-mcp container. Masonry MCP server runs as a subprocess within the backend container, communicated via the MCP protocol over stdio. Update ARCHITECTURE.md service list to remove masonry-mcp as a standalone service (13 core services, not 14).
 
 ### 0d. Known Time Bombs (from stack-validator analysis — prevent before they bite)
-- [ ] **bricklayer container entrypoint:** Must start tmux daemon before uvicorn (`tmux new-session -d -s main`). Add health check that verifies tmux is running. `spawn_agent()` fails silently if tmux server is not up.
-- [ ] **sandbox-manager:** Use `aiodocker` (async) or Go for Docker API calls. Do NOT use `docker-py` (sync) in an async FastAPI service — every container operation blocks the event loop.
-- [ ] **livekit-agents base image:** Use `python:3.12-slim-bookworm`, NOT Alpine. `opuslib` and audio codec deps fail to compile against Alpine musl libc.
-- [ ] **yjs-server / tldraw-sync:** Lock to `node:22-alpine` base image. Do NOT switch to Bun or Deno — tldraw-sync has no published Bun compatibility guarantees and y-websocket has edge cases at scale.
-- [ ] **`spawn_agent()` in async routes:** Enforce `asyncio.to_thread()` wrapping everywhere. Consider a linter rule or wrapper function that makes the sync-to-async boundary explicit.
-- [ ] **dockview layout versioning:** Store `{ version: 1, layout: {...} }` from day one. No layout schema versioning = painful migration when users have saved layouts.
+- [x] **bricklayer container entrypoint:** Must start tmux daemon before uvicorn (`tmux new-session -d -s main`). Add health check that verifies tmux is running. `spawn_agent()` fails silently if tmux server is not up.
+- [x] **sandbox-manager:** Use `aiodocker` (async) or Go for Docker API calls. Do NOT use `docker-py` (sync) in an async FastAPI service — every container operation blocks the event loop.
+- [x] **livekit-agents base image:** Use `python:3.12-slim-bookworm`, NOT Alpine. `opuslib` and audio codec deps fail to compile against Alpine musl libc.
+- [x] **yjs-server / tldraw-sync:** Lock to `node:22-alpine` base image. Do NOT switch to Bun or Deno — tldraw-sync has no published Bun compatibility guarantees and y-websocket has edge cases at scale.
+- [x] **`spawn_agent()` in async routes:** Enforce `asyncio.to_thread()` wrapping everywhere. Consider a linter rule or wrapper function that makes the sync-to-async boundary explicit.
+- [x] **dockview layout versioning:** Store `{ version: 1, layout: {...} }` from day one. No layout schema versioning = painful migration when users have saved layouts.
 
 ---
 
 ## Phase 1: Infrastructure & Backend (no frontend dependency)
 
 ### 1a. Docker Compose Hardening
-- [ ] Add native Docker HEALTHCHECK per service (`pg_isready`, `redis-cli ping`, `curl /health`)
-- [ ] Replace `wait-for-healthy.sh` with `depends_on: condition: service_healthy`
-- [ ] Add Docker network isolation: `frontend` (exposed) + `backend` (internal)
-- [ ] Add log rotation on all services (`max-size: 10m`, `max-file: 3`)
-- [ ] Add resource limits (memory + CPU) per service
-- [ ] Add Docker secrets for passwords/keys (replace env vars)
-- [ ] Remove docker.sock mount from backend container (security fix)
-- [ ] Add `restart: unless-stopped` on all long-running services
+- [x] Add native Docker HEALTHCHECK per service (`pg_isready`, `redis-cli ping`, `curl /health`)
+- [x] Replace `wait-for-healthy.sh` with `depends_on: condition: service_healthy`
+- [x] Add Docker network isolation: `frontend` (exposed) + `backend` (internal)
+- [x] Add log rotation on all services (`max-size: 10m`, `max-file: 3`)
+- [x] Add resource limits (memory + CPU) per service
+- [x] Add Docker secrets for passwords/keys (replace env vars)
+- [x] Remove docker.sock mount from backend container (security fix)
+- [x] Add `restart: unless-stopped` on all long-running services
 
 ### 1b. Node.js ptyHost Service (NEW)
-- [ ] Dedicated Node.js + `node-pty` microservice for per-user terminal PTY
-- [ ] WebSocket transport with ACK-based flow control — define message schema upfront: `{type:"data",id,data}` / `{type:"ack",id}` / `{type:"resize",cols,rows}`
-- [ ] ReconnectingPTY pattern: session persistence via replay buffer per session (cap at 100KB — VS Code pattern)
-- [ ] **Per-user container sandboxing via sandbox-manager API (HARD DEPENDENCY on sandbox-manager):** Terminal sessions must run shells INSIDE per-user sandbox containers, NOT on the ptyHost container filesystem. ptyHost calls `POST /sandbox/exec` on sandbox-manager to get a PTY inside a sandboxed container. Phase 1b is NOT done until this integration is working — a ptyHost that spawns shells on its own filesystem is a security hole.
-- [ ] Shell cleanup on disconnect: SIGHUP -> timeout -> SIGKILL -> waitpid -> close FDs
-- [ ] Heartbeat monitoring with crash recovery (VS Code ptyHost pattern)
-- [ ] JWT validation on WebSocket connection using shared `auth.js` library (see Phase 0a)
-- [ ] Add HEALTHCHECK to ptyHost service in Docker Compose: `curl --fail http://localhost:PORT/health || exit 1`
+- [x] Dedicated Node.js + `node-pty` microservice for per-user terminal PTY
+- [x] WebSocket transport with ACK-based flow control — define message schema upfront: `{type:"data",id,data}` / `{type:"ack",id}` / `{type:"resize",cols,rows}`
+- [x] ReconnectingPTY pattern: session persistence via replay buffer per session (cap at 100KB — VS Code pattern)
+- [x] **Per-user container sandboxing via sandbox-manager API (HARD DEPENDENCY on sandbox-manager):** Terminal sessions must run shells INSIDE per-user sandbox containers, NOT on the ptyHost container filesystem. ptyHost calls `POST /sandbox/exec` on sandbox-manager to get a PTY inside a sandboxed container. Phase 1b is NOT done until this integration is working — a ptyHost that spawns shells on its own filesystem is a security hole.
+- [x] Shell cleanup on disconnect: SIGHUP -> timeout -> SIGKILL -> waitpid -> close FDs
+- [x] Heartbeat monitoring with crash recovery (VS Code ptyHost pattern)
+- [x] JWT validation on WebSocket connection using shared `auth.js` library (see Phase 0a)
+- [x] Add HEALTHCHECK to ptyHost service in Docker Compose: `curl --fail http://localhost:PORT/health || exit 1`
 
 ### 1c. Nginx Reverse Proxy (NEW)
-- [ ] Per-service WebSocket location blocks: Yjs (`/yjs`), ptyHost (`/pty`), LiveKit (`/livekit`), **tldraw-sync (`/tldraw`)**, SSE (`/api/stream`, `/api/files/watch`), BrickLayer agent streams (`/bl/agent/*/stream`)
-- [ ] tldraw-sync location block requires `proxy_buffering off` and `proxy_read_timeout 3600s` — long-idle canvas connections time out without it
-- [ ] `proxy_read_timeout 3600s` + ping/pong every 30s for long-lived WebSocket
-- [ ] SSL termination (self-signed for LAN; Let's Encrypt optional)
-- [ ] `proxy_buffering off` for WebSocket and SSE paths
-- [ ] HTTP/2 for static assets (WebSocket falls back to HTTP/1.1 automatically)
-- [ ] Artifact Panel iframe: `X-Frame-Options SAMEORIGIN` + CSP header with `sandbox` attribute on iframe responses
-- [ ] LiveKit UDP port range `50000-60000` published (required for WebRTC media — fallback to TURN relay otherwise)
+- [x] Per-service WebSocket location blocks: Yjs (`/yjs`), ptyHost (`/pty`), LiveKit (`/livekit`), **tldraw-sync (`/tldraw`)**, SSE (`/api/stream`, `/api/files/watch`), BrickLayer agent streams (`/bl/agent/*/stream`)
+- [x] tldraw-sync location block requires `proxy_buffering off` and `proxy_read_timeout 3600s` — long-idle canvas connections time out without it
+- [x] `proxy_read_timeout 3600s` + ping/pong every 30s for long-lived WebSocket
+- [x] SSL termination (self-signed for LAN; Let's Encrypt optional)
+- [x] `proxy_buffering off` for WebSocket and SSE paths
+- [x] HTTP/2 for static assets (WebSocket falls back to HTTP/1.1 automatically)
+- [x] Artifact Panel iframe: `X-Frame-Options SAMEORIGIN` + CSP header with `sandbox` attribute on iframe responses
+- [x] LiveKit UDP port range `50000-60000` published (required for WebRTC media — fallback to TURN relay otherwise)
 
 ### 1d. Backend API Extensions (FastAPI)
-- [ ] `GET /api/files/tree?path=` — Lazy-load directory listing with `verify_path_in_workspace` dependency (Phase 0a)
-- [ ] `PATCH /api/files/{path:path}` — File operations scoped to user workspace. Use `{path:path}` for slash-containing paths. Apply `verify_path_in_workspace` dependency.
-- [ ] File watch via `watchfiles` (Rust-backed) pushing changes over SSE — fan-out via async generator, not per-connection watcher (inotify exhaustion risk)
-- [ ] `GET /api/settings/schema` — JSON Schema from Pydantic models, post-processed to draft 7 via `to_draft7()` (see Phase 0b)
-- [ ] `GET/PUT /api/settings/user` — Per-user settings CRUD
-- [ ] `GET/PUT /api/admin/settings` — Admin-only settings with `require_role("admin")` dependency
-- [ ] `GET /api/notifications?limit=50&before_id=` — Cursor-paginated notification history
-- [ ] `PATCH /api/notifications/{id}/read` — Mark notification read
-- [ ] Add `slowapi` rate limiting on all `/api/ai` and assistant endpoints (per-user limits — prevent trigger automation exhausting org API key)
-- [ ] Use `expire_on_commit=False` on all SQLAlchemy async sessions to prevent `MissingGreenlet` errors
-- [ ] Wrap all `spawn_agent()` calls in `asyncio.to_thread()` — blocking tmux dispatch must not block FastAPI event loop
-- [ ] System metrics endpoints: read from cgroup v2 (`/sys/fs/cgroup/memory.current` etc.) not `psutil` — Docker containers report misleading host-level data via psutil
+- [x] `GET /api/files/tree?path=` — Lazy-load directory listing with `verify_path_in_workspace` dependency (Phase 0a)
+- [x] `PATCH /api/files/{path:path}` — File operations scoped to user workspace. Use `{path:path}` for slash-containing paths. Apply `verify_path_in_workspace` dependency.
+- [x] File watch via `watchfiles` (Rust-backed) pushing changes over SSE — fan-out via async generator, not per-connection watcher (inotify exhaustion risk)
+- [x] `GET /api/settings/schema` — JSON Schema from Pydantic models, post-processed to draft 7 via `to_draft7()` (see Phase 0b)
+- [x] `GET/PUT /api/settings/user` — Per-user settings CRUD
+- [x] `GET/PUT /api/admin/settings` — Admin-only settings with `require_role("admin")` dependency
+- [x] `GET /api/notifications?limit=50&before_id=` — Cursor-paginated notification history
+- [x] `PATCH /api/notifications/{id}/read` — Mark notification read
+- [x] Add `slowapi` rate limiting on all `/api/ai` and assistant endpoints (per-user limits — prevent trigger automation exhausting org API key)
+- [x] Use `expire_on_commit=False` on all SQLAlchemy async sessions to prevent `MissingGreenlet` errors
+- [x] Wrap all `spawn_agent()` calls in `asyncio.to_thread()` — blocking tmux dispatch must not block FastAPI event loop
+- [x] System metrics endpoints: read from cgroup v2 (`/sys/fs/cgroup/memory.current` etc.) not `psutil` — Docker containers report misleading host-level data via psutil
 
 ### 1e. PostgreSQL Multi-Tenant & Schema
-- [ ] Enable Row-Level Security (RLS) on all shared tables
-- [ ] Create `codevv_app` role: `NOLOGIN NOBYPASSRLS NOINHERIT` — all app connections use this role
-- [ ] Composite indexes on tenant-scoped tables: `(tenant_id, id)`, `(tenant_id, created_at DESC)` — bare `(tenant_id)` alone is insufficient
-- [ ] Add admin role to user model
-- [ ] Remove `pgvector` extension — no defined use case in CodeVV (Recall uses Qdrant for vector search)
-- [ ] **Split Alembic migrations into two revisions:** (1) core tables only (`tenants`, `users`, `projects`, `workspace_templates`, `activity_events`, `agent_runs`) — must pass CI before any feature work starts; (2) feature tables in a separate revision. Monolithic initial migrations fail in unexpected ways and are hard to roll back.
-- [ ] Add Redis AOF persistence: set `appendonly yes` + `appendfsync everysec` in redis.conf. Without persistence, all ARQ job queues and session data are lost on Redis restart. Mount redis.conf via Docker bind mount.
+- [x] Enable Row-Level Security (RLS) on all shared tables
+- [x] Create `codevv_app` role: `NOLOGIN NOBYPASSRLS NOINHERIT` — all app connections use this role
+- [x] Composite indexes on tenant-scoped tables: `(tenant_id, id)`, `(tenant_id, created_at DESC)` — bare `(tenant_id)` alone is insufficient
+- [x] Add admin role to user model
+- [x] Remove `pgvector` extension — no defined use case in CodeVV (Recall uses Qdrant for vector search)
+- [x] **Split Alembic migrations into two revisions:** (1) core tables only (`tenants`, `users`, `projects`, `workspace_templates`, `activity_events`, `agent_runs`) — must pass CI before any feature work starts; (2) feature tables in a separate revision. Monolithic initial migrations fail in unexpected ways and are hard to roll back.
+- [x] Add Redis AOF persistence: set `appendonly yes` + `appendfsync everysec` in redis.conf. Without persistence, all ARQ job queues and session data are lost on Redis restart. Mount redis.conf via Docker bind mount.
 
 #### Core tables (must exist before any feature work):
 ```
@@ -141,14 +151,14 @@ yjs_snapshots     doc_id, data (BYTEA), clock_high, updated_at
 ```
 
 ### 1f. Claude AI Auth Migration (CRITICAL)
-- [ ] **Remove OAuth PKCE flow** — Anthropic bans third-party apps from using subscription OAuth tokens (enforced server-side since Jan 2026)
-- [ ] Remove `claude_auth.py` OAuth PKCE logic (authorize URL, token exchange, refresh)
-- [ ] Repurpose `claude_credentials` table for encrypted per-user API keys (or remove if using org key only)
-- [ ] Keep shared API key path (`ANTHROPIC_API_KEY` env var) — already works, compliant
-- [ ] Add per-user API key option: user provides Console API key via Settings panel, stored encrypted in PostgreSQL
-- [ ] Evaluate Claude Agent SDK (`pip install claude-agent-sdk`) — gives Claude Code's full tool suite (Read, Write, Edit, Bash, Grep, Glob) built-in alongside CodeVV's 19 custom tools
-- [ ] SSE streaming: no change needed — works identically with API key auth
-- [ ] Frontend: remove "Connect Claude" OAuth redirect, replace with API key input in Settings
+- [x] **Remove OAuth PKCE flow** — Anthropic bans third-party apps from using subscription OAuth tokens (enforced server-side since Jan 2026)
+- [x] Remove `claude_auth.py` OAuth PKCE logic (authorize URL, token exchange, refresh)
+- [x] Repurpose `claude_credentials` table for encrypted per-user API keys (or remove if using org key only)
+- [x] Keep shared API key path (`ANTHROPIC_API_KEY` env var) — already works, compliant
+- [x] Add per-user API key option: user provides Console API key via Settings panel, stored encrypted in PostgreSQL
+- [x] Evaluate Claude Agent SDK (`pip install claude-agent-sdk`) — gives Claude Code's full tool suite (Read, Write, Edit, Bash, Grep, Glob) built-in alongside CodeVV's 19 custom tools
+- [x] SSE streaming: no change needed — works identically with API key auth
+- [x] Frontend: remove "Connect Claude" OAuth redirect, replace with API key input in Settings
 
 ---
 
