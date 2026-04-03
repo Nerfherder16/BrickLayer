@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-03T17:20:55.607Z",
+  "generated_at": "2026-04-03T16:20:36.896Z",
   "campaign": {
     "active": false,
     "project": null,
@@ -14,10 +14,7 @@
   "training": {
     "configured": false
   },
-  "agents": {
-    "below_threshold": [],
-    "last_optimized": null
-  },
+  "agents": {},
   "rough_in": {
     "active_task": null
   },
