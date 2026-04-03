@@ -114,9 +114,6 @@ describe('TerminalPanel', () => {
 
   it('should call terminal.loadAddon() at least 2 times', () => {
     render(<TerminalPanel {...mockDockviewProps} />)
-    expect(mockTerminalInstance.loadAddon).toHaveBeenCalledTimes(
-      expect.any(Number) as unknown as number,
-    )
     expect(mockTerminalInstance.loadAddon.mock.calls.length).toBeGreaterThanOrEqual(2)
   })
 

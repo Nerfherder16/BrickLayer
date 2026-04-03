@@ -33,22 +33,24 @@ def ollama_env(monkeypatch):
 
 
 def _mock_ollama_stream(chunks: list[dict]):
-    """Build a mock async context manager for httpx.AsyncClient.stream."""
+    """Build a mock client where stream() returns a context manager yielding lines."""
 
-    class _FakeResponse:
+    class _FakeStreamCtx:
+        """Context manager returned by client.stream(); yields lines on aiter_lines()."""
+
         async def aiter_lines(self):
             for chunk in chunks:
                 yield json.dumps(chunk)
 
-        async def __aenter__(self):
+        def __enter__(self):
             return self
 
-        async def __aexit__(self, *args):
+        def __exit__(self, *args):
             pass
 
     class _FakeClient:
         def stream(self, method, url, **kwargs):
-            return _FakeResponse()
+            return _FakeStreamCtx()
 
         async def __aenter__(self):
             return self
@@ -199,21 +201,21 @@ async def test_chat_history_forwarded_to_ollama(ollama_env):
 
     captured_payload: dict = {}
 
-    class _CapturingResponse:
+    class _CapturingStreamCtx:
         async def aiter_lines(self):
             yield json.dumps({"message": {"content": "ok"}, "done": True})
 
-        async def __aenter__(self):
+        def __enter__(self):
             return self
 
-        async def __aexit__(self, *args):
+        def __exit__(self, *args):
             pass
 
     class _CapturingClient:
         def stream(self, method, url, json=None, **kwargs):
             nonlocal captured_payload
             captured_payload = json or {}
-            return _CapturingResponse()
+            return _CapturingStreamCtx()
 
         async def __aenter__(self):
             return self

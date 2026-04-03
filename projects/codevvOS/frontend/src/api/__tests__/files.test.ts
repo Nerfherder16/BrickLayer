@@ -22,7 +22,7 @@ const server = setupServer(
     }
     return HttpResponse.json({ name: 'unknown', type: 'dir' })
   }),
-  http.patch('/api/files/readme.md', () =>
+  http.patch('/api/files/workspace/readme.md', () =>
     HttpResponse.json({ content: '# Hello' }),
   ),
 )

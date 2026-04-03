@@ -1,0 +1,16 @@
+@import '@xterm/xterm/css/xterm.css';
+
+.terminal-panel {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--terminal-background, #0a0a0d);
+}
+
+.terminal-panel .xterm {
+  height: 100%;
+}
+
+.terminal-panel .xterm-viewport {
+  border-radius: var(--radius-none, 0);
+}
