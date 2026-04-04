@@ -32,6 +32,7 @@ function runNpmAudit(fileDir) {
     const output = execFileSync('npm', ['audit', '--json'], {
       cwd: fileDir,
       stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 8000,
     });
     const data = JSON.parse(output.toString());
     // npm audit --json v7+ uses data.metadata.vulnerabilities
@@ -69,6 +70,7 @@ function runPipAudit(fileDir) {
     const output = execFileSync('pip-audit', ['--format', 'json', '-r', 'requirements.txt'], {
       cwd: fileDir,
       stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 6000,
     });
     return parsePipAuditOutput(output.toString());
   } catch (e) {

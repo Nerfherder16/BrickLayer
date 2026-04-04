@@ -65,7 +65,7 @@ function markRun() {
 }
 
 if (isRateLimited()) {
-  process.stdout.write("[masonry-training-export] rate-limited, skipping (< 1h since last run)\n");
+  process.stderr.write("[masonry-training-export] rate-limited, skipping (< 1h since last run)\n");
   process.exit(0);
 }
 
@@ -107,7 +107,7 @@ if (confKeys.length > 0) {
   scores.sort((a, b) => b.score - a.score);
   const highest = scores[0];
   const lowest = scores[scores.length - 1];
-  process.stdout.write(
+  process.stderr.write(
     `[masonry-training-export] Pattern confidence: ${confKeys.length} patterns tracked` +
     ` (highest: ${highest.key}=${highest.score.toFixed(2)},` +
     ` lowest: ${lowest.key}=${lowest.score.toFixed(2)})\n`
@@ -116,7 +116,7 @@ if (confKeys.length > 0) {
 
 // ── Run export ───────────────────────────────────────────────────────────────
 
-process.stdout.write("[masonry-training-export] exporting campaign traces...\n");
+process.stderr.write("[masonry-training-export] exporting campaign traces...\n");
 markRun();
 
 const args = [
@@ -136,7 +136,7 @@ const child = spawn(python, args, {
   env: { ...process.env },
 });
 
-child.stdout.on("data", (data) => process.stdout.write(data));
+child.stdout.on("data", (data) => process.stderr.write(data));
 child.stderr.on("data", (data) => process.stderr.write(data));
 
 child.on("close", (code) => {
@@ -144,7 +144,7 @@ child.on("close", (code) => {
     process.stderr.write(`[masonry-training-export] export failed: exit code ${code}\n`);
     // Non-fatal — don't block session stop on export failure
   } else {
-    process.stdout.write("[masonry-training-export] done\n");
+    process.stderr.write("[masonry-training-export] done\n");
   }
   process.exit(0);
 });

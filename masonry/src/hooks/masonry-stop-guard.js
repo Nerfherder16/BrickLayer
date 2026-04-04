@@ -183,7 +183,7 @@ async function main() {
           `("${inProgressTask.description}"). Commit after task completes.\n`
         );
         checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
-        process.exit(1);
+        process.exit(2);
       }
     }
 

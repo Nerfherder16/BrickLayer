@@ -157,7 +157,7 @@ async function main() {
   try {
     if (!fs.existsSync(MAS_DIR)) fs.mkdirSync(MAS_DIR, { recursive: true });
     fs.writeFileSync(STATUS_FILE, JSON.stringify(status, null, 2), "utf8");
-    process.stdout.write("[masonry-system-status] status written\n");
+    process.stderr.write("[masonry-system-status] status written\n");
   } catch (e) {
     process.stderr.write(`[masonry-system-status] write failed: ${e.message}\n`);
   }
