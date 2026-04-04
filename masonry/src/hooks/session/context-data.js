@@ -185,6 +185,25 @@ async function addContextData(lines, cwd, state) {
       lines.push(markdown);
     }
   } catch (_) {}
+
+  // --- Auto-safeguards from mistake monitor ---
+  try {
+    const os = require("os");
+    const safeguardsPath = path.join(os.homedir(), ".claude", "rules", "auto-safeguards.md");
+    if (fs.existsSync(safeguardsPath)) {
+      const content = fs.readFileSync(safeguardsPath, "utf8").trim();
+      // Extract rule headings and bullets — skip header/timestamp lines
+      const ruleLines = content.split("\n").filter(l =>
+        l.startsWith("## ") || l.startsWith("- ") || l.startsWith("**")
+      );
+      if (ruleLines.length > 0) {
+        lines.push("[Masonry] Auto-safeguards (learned from past mistakes):");
+        for (const l of ruleLines.slice(0, 10)) {
+          lines.push("  " + l.trim());
+        }
+      }
+    }
+  } catch (_) {}
 }
 
 module.exports = { addContextData };
