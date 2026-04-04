@@ -21,7 +21,7 @@
         "CLAUDE_USER": "nick",
         "TERMINAL_TITLE": "Nick"
       },
-      "icon": "diamond",
+      "icon": "ruby",
       "color": "terminal.ansiRed"
     }
   },
