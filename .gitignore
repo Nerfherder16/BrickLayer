@@ -7,3 +7,8 @@
 .claude/settings.json.bak-dir
 .claude/settings.local.json.bak
 .claude/plugins/marketplaces/claude-plugins-official/.git
+
+# Python build artifacts
+*.egg-info/
+__pycache__/
+*.pyc
