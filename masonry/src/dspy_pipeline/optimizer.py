@@ -1,7 +1,6 @@
 """DSPy optimizer — optimizes agent prompts using scored training data."""
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
