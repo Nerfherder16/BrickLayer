@@ -1,0 +1,274 @@
+# Network Map — Tim's Infrastructure
+
+**Single source of truth for all homelab, Tailscale, VPS, and cloud infrastructure.**
+Agents and skills read this file. Update it here — nowhere else.
+Passwords and API secrets are NOT stored here — query Recall for those.
+
+---
+
+## LAN — 192.168.50.0/24
+
+| Hostname | LAN IP | Tailscale IP | SSH | Role |
+|----------|--------|-------------|-----|------|
+| OPNsense | 192.168.50.1 | `100.107.42.78` (`thefarm`) | Web UI only | Gateway, firewall, Unbound DNS |
+| farmstand (CasaOS) | 192.168.50.19 | `100.80.82.114` (`farmstand`) | `nerfherder@farmstand` or `nerfherder@192.168.50.19` — ed25519 pubkey, no password | Docker host, primary homelab server. Also called `casaclaude` when running Claude Code |
+| Home Assistant | 192.168.50.20 | — | — | Smart home automation |
+| ollama-vm | 192.168.50.62 | — | `nerfherder@192.168.50.62` | GPU inference — RTX 3090, 24GB VRAM. Ollama binds `0.0.0.0:11434` |
+| ubuntu-claude | 192.168.50.35 | `100.79.9.122` (`ubuntuclaude`) | `nerfherder@100.79.9.122` (Tailscale — preferred) or `nerfherder@192.168.50.35` (LAN — unreachable from WSL) — pubkey, no password | Proxmox VM 103. Claude Code runner. Repo: `~/Dev/BrickLayer2.0` (capital B+L). Workspace: `~/Dev/workspace.code-workspace` |
+| recall-ollama | — | `100.70.195.84` | `nerfherder@100.70.195.84` — password in Recall | Proxmox VM 102. Runs System-Recall stack. SSH password → query Recall: `recall VM SSH` |
+| codevvos | 192.168.50.105 | — | `root@192.168.50.105` — password in Recall | Proxmox LXC 105. CodevvOS container. Root password → query Recall: `codevvos password` |
+| Proxmox (pve) | 192.168.50.69 | `100.99.135.123` | `ssh root@100.99.135.123` | Proxmox hypervisor. Web UI: `http://100.99.135.123:8006` |
+| windows-dev | — | — | — | Tim's Windows dev machine (`C:/Users/trg16/`) |
+
+---
+
+## Proxmox VMs & LXCs
+
+| VMID | Type | Name | LAN IP | Tailscale IP | Notes |
+|------|------|------|--------|-------------|-------|
+| 102 | VM | recall-ollama | — | 100.70.195.84 | System-Recall stack. Deploy: `cd /opt/recall/app && sudo docker compose restart worker api`. Services named `api` and `worker` |
+| 103 | VM | ubuntu-claude | 192.168.50.35 | 100.79.9.122 | Claude Code runner. QEMU guest agent running. SSH via Tailscale only from WSL |
+| 104 | LXC | recall-lxc | — | — | Recall LXC (experimental) |
+| 105 | LXC | codevvos | 192.168.50.105 | — | CodevvOS container |
+
+**Proxmox API token:** `root@pam!mcpserver` — query Recall: `proxmox API token` for the secret value.
+
+---
+
+## Tailscale Network
+
+Tailscale account: `trg1685@`
+
+| Tailscale IP | Hostname | OS | Status | Role |
+|-------------|----------|----|--------|------|
+| 100.108.211.26 | racknerd-f277ba1 | linux | online | VPS reverse proxy |
+| 100.80.82.114 | casaos | linux | online | CasaOS / farmstand |
+| 100.99.135.123 | proxmox | linux | online | Proxmox hypervisor — **advertises 192.168.50.0/24 subnet** |
+| 100.70.195.84 | recall-ollama | linux | online | Recall VM 102 — direct peer via 192.168.50.62 |
+| 100.79.9.122 | ubuntuclaude | linux | online | ubuntu-claude VM 103 |
+| 100.107.42.78 | thefarm | freebsd | online | OPNsense firewall/router |
+| 100.77.186.126 | msi | windows | online | Tim's MSI dev machine (WSL) |
+| 100.114.148.95 | desktop-slm11oq | windows | offline (241d) | Old Windows desktop |
+| 100.76.168.27 | samsung-sm-s928u | android | offline (239d) | Samsung phone |
+
+> **Subnet routing**: Proxmox advertises `192.168.50.0/24` — any Tailscale device with `--accept-routes` can reach all LAN hosts by their 192.168.50.x IP directly.
+> **VPS note**: VPS has `--accept-routes=false` — sees Tailscale peers but not the advertised LAN subnet.
+
+**Key Tailscale endpoints:**
+- Recall API: `http://100.70.195.84:8200`
+- Ollama: `http://100.70.195.84:11434` — models: `qwen3:14b`, `qwen3-embedding:0.6b` (**NOT** `100.80.82.114` — stale memory, Ollama is on recall-ollama VM, not CasaOS)
+- Proxmox web UI: `http://100.99.135.123:8006`
+- CasaOS services: `http://100.80.82.114:{port}`
+- OPNsense web UI: `http://100.107.42.78` (Tailscale) or `http://192.168.50.1` (LAN)
+
+---
+
+## VPS — Racknerd
+
+| Field | Value |
+|-------|-------|
+| Provider | Racknerd |
+| Public IP | `104.168.64.181` |
+| Tailscale IP | `100.108.211.26` |
+| SSH | `root@104.168.64.181` |
+| **SSH key (Windows)** | `C:/Users/trg16/.ssh/id_rsa` — **use RSA, NOT ed25519** (ed25519 does not work for VPS) |
+| OS | Ubuntu, plain nginx (no Docker) |
+| Role | Reverse proxy, public entry point for all `streamy.tube` subdomains |
+| nginx sites | `/etc/nginx/sites-enabled/` |
+| Static webroots | `/var/www/{name}/` |
+| Certbot | Auto-renews all Let's Encrypt certs |
+| WireGuard LAN IP | `10.10.10.1` (VPS side) ↔ `10.10.10.2` (CasaOS side) |
+| fail2ban | **CRITICAL** — one failed SSH login bans home IP `108.53.225.137` on ALL ports (including 443). Safe access: Racknerd web console VNC. Unban: `fail2ban-client set sshd unbanip 108.53.225.137` |
+
+---
+
+## SSH Keys
+
+| Key file | Location | Used for |
+|----------|----------|---------|
+| `id_rsa` | `C:/Users/trg16/.ssh/id_rsa` (Windows) | VPS root (`104.168.64.181`) — **only this key works for VPS** |
+| `id_ed25519` | `~/.ssh/id_ed25519` (WSL/Linux) | CasaOS (`farmstand`), ubuntu-claude, ollama-vm |
+
+**SSH config note:** Always use the same terminal environment (WSL) for `ssh-copy-id`. Keys copied from a different environment (VM, Windows CMD) won't match and will fail silently.
+
+**Home public IP:** `108.53.225.137` (ISP-assigned, may change)
+
+---
+
+## CasaOS — Docker Services (192.168.50.19)
+
+All app data at `/DATA/AppData/`. Media at `/DATA/Media/` (Movies, TV Shows, Music).
+Use `docker compose` — never `docker-compose`.
+Local NPMplus: iptables redirect `8444→443`, persisted via `/etc/rc.local`.
+
+### Port Map
+
+| Port | Service | Notes |
+|------|---------|-------|
+| 80 | CasaOS web UI | Open through WireGuard to VPS |
+| 5432 | mem0-postgres | **RESERVED — FamilyHub/Sadie. Do NOT use for anything else** |
+| 5434 | Codevv postgres | Offset to avoid 5432 conflict |
+| 5055 | Jellyseerr | Media requests |
+| 5678 | n8n | Workflow automation (blocked at WireGuard — not publicly accessible without OPNsense rule) |
+| 6333 | Qdrant | Vector DB (Recall) |
+| 6379 | Codevv Redis | |
+| 6380 | Recall Redis | Offset to avoid 6379 conflict |
+| 7070 | Sadie (Family Hub) | Voice AI + ESPHome |
+| 8096 | Jellyfin | Media server. Config: `/DATA/AppData/jellyfin/`. Internal URL: `http://192.168.50.19:8096` |
+| 8200 | System-Recall API | FastAPI + Qdrant + Neo4j + Ollama |
+| 9010 | Authentik | **Open through WireGuard to VPS** |
+| 9000 | Portainer | Container management |
+
+**Ollama is NOT on CasaOS** — runs on a separate VM at `192.168.50.62:11434` (RTX 3090).
+
+**Port range summary:**
+- `3000–3051` Web UIs
+- `5055–5434` Databases / Jellyseerr
+- `6333–6500` Qdrant / Redis / RDTClient
+- `7070–7882` App APIs / LiveKit
+- `8000–8989` Admin UIs / media servers
+- `9000–9999` Portainer / Authentik / Prowlarr / Zurg
+- `10081–10443` Nextcloud / Piper / SpeakerID
+
+---
+
+## VPS nginx — Public Subdomains (streamy.tube)
+
+All configs at `/etc/nginx/sites-enabled/` on VPS.
+Domain: `streamy.tube` — managed via Porkbun API (credentials in Recall: `porkbun API key`).
+
+| Subdomain | Backend | Path |
+|-----------|---------|------|
+| authentik.streamy.tube | CasaOS `:9010` | WireGuard proxy |
+| casa.streamy.tube | CasaOS `:80` | WireGuard proxy |
+| code-server.streamy.tube | CasaOS proxy | WireGuard proxy |
+| codevv.streamy.tube | CasaOS proxy | WireGuard proxy |
+| jellyfin.streamy.tube | CasaOS `:8096` | WireGuard proxy (Authentik forward auth — breaks API clients, use internal URL for apps) |
+| jellyseerr.streamy.tube | CasaOS proxy | WireGuard proxy |
+| livekit.streamy.tube | CasaOS proxy | WireGuard proxy |
+| mural.streamy.tube | VPS `/var/www/mural/` | Static |
+| n8n.streamy.tube | CasaOS `:5678` | WireGuard proxy |
+| recall.streamy.tube | CasaOS/VM proxy | WireGuard proxy |
+| revive.streamy.tube | CasaOS proxy | WireGuard proxy |
+| riven.streamy.tube | CasaOS proxy | WireGuard proxy |
+| riven-api.streamy.tube | CasaOS proxy | WireGuard proxy |
+| sim.streamy.tube | VPS static | Static |
+
+---
+
+## WireGuard Tunnel (VPS ↔ CasaOS)
+
+| Side | WireGuard IP |
+|------|-------------|
+| VPS | `10.10.10.1` |
+| CasaOS | `10.10.10.2` |
+
+**OPNsense rules — explicit allowlist (default-deny):**
+
+| Proto | Dest | Port | Service |
+|-------|------|------|---------|
+| TCP | CasaOS | 80 | CasaOS web / nginx |
+| TCP | CasaOS | 9010 | Authentik |
+
+> Every other CasaOS service port is **blocked**. To expose a new service: `OPNsense → Interfaces → WireGuard → Firewall Rules → Add`.
+> After reboot a pass rule is required — default policy is deny.
+> **FreeBSD/csh limitation on OPNsense**: multi-line SSH one-liners don't work — use single-line commands only.
+
+---
+
+## DNS — Porkbun
+
+| Field | Value |
+|-------|-------|
+| Registrar | Porkbun |
+| Domain | `streamy.tube` |
+| API keys | Recall: `porkbun API key` |
+| VPS A record | All `*.streamy.tube → 104.168.64.181` |
+| API base | `https://api.porkbun.com/api/json/v3/dns/` |
+| New record TTL | 300 |
+
+---
+
+## Hardware — Proxmox Host
+
+| Component | Details |
+|-----------|---------|
+| Motherboard | ASUS ROG Zenith Extreme X399 |
+| CPU | AMD Threadripper 1950X |
+| GPU | RTX 3090 (passed through to ollama-vm) |
+| BIOS | IOMMU enabled + "Enumerate all IOMMU in IVRs" (critical for X399) |
+| VM machine type | q35 + OVMF (UEFI) + `pcie=1,x-vga=1` for GPU passthrough |
+| Bridge | `vmbr0` |
+
+---
+
+## Active Projects & Network Deps
+
+| Project | Host | Internal URL | Public URL |
+|---------|------|-------------|-----------|
+| System-Recall | recall-ollama VM 102 | `http://100.70.195.84:8200` | `https://recall.streamy.tube` |
+| Sadie (Family Hub) | CasaOS | `http://192.168.50.19:7070` | LAN only |
+| Jellyfin / JellyStream | CasaOS | `http://192.168.50.19:8096` | `https://jellyfin.streamy.tube` (use internal for apps — Authentik breaks API clients) |
+| Ollama inference | ollama-vm | `http://192.168.50.62:11434` (LAN) / `http://100.70.195.84:11434` (Tailscale) | — |
+| ADBP | — | — | Solana devnet/mainnet |
+
+---
+
+## Credentials Index (all secrets in Recall — never plaintext here)
+
+| What | Recall query |
+|------|-------------|
+| Porkbun API key + secret | `porkbun API key` |
+| Proxmox API token secret | `proxmox API token` |
+| recall-ollama VM SSH password | `recall VM SSH` |
+| codevvos LXC root password | `codevvos password` |
+| OPNsense admin | `opnsense password` |
+| CasaOS admin | `casaos login` |
+| Authentik admin | `authentik admin` |
+
+---
+
+## Quick SSH Reference
+
+```bash
+# CasaOS (Tailscale — from anywhere)
+ssh nerfherder@farmstand
+
+# CasaOS (LAN)
+ssh nerfherder@192.168.50.19
+
+# VPS — MUST use RSA key (ed25519 does not work)
+ssh -i C:/Users/trg16/.ssh/id_rsa root@104.168.64.181   # Windows
+ssh root@104.168.64.181                                   # WSL (if id_rsa is default)
+
+# Proxmox (Tailscale)
+ssh root@100.99.135.123
+
+# Proxmox web UI
+open http://100.99.135.123:8006
+
+# Ollama VM (LAN)
+ssh nerfherder@192.168.50.62
+
+# ubuntu-claude (Tailscale — use this, LAN unreachable from WSL)
+ssh nerfherder@100.79.9.122
+
+# recall-ollama VM (Tailscale)
+ssh nerfherder@100.70.195.84   # password in Recall
+
+# codevvos LXC (LAN)
+ssh root@192.168.50.105        # password in Recall
+```
+
+---
+
+## Critical Gotchas
+
+1. **VPS fail2ban**: One failed SSH login bans `108.53.225.137` (home IP) on all ports. Use Racknerd VNC console if locked out. Unban: `fail2ban-client set sshd unbanip 108.53.225.137`
+2. **VPS SSH key**: Must use `id_rsa`, NOT `id_ed25519` — ed25519 is rejected
+3. **Jellyfin + Authentik**: Forward auth on `jellyfin.streamy.tube` breaks API clients (CORS errors). Apps must use `http://192.168.50.19:8096` directly
+4. **Port 5432 reserved**: mem0-postgres (Sadie/FamilyHub) owns it — any new Postgres must use a different port
+5. **WireGuard default-deny**: After OPNsense reboot, verify pass rules are active — new ports silently fail without explicit rules
+6. **Ollama is NOT on CasaOS**: It runs on the separate ollama-vm at `192.168.50.62` (LAN) or `100.70.195.84` (Tailscale)
+7. **OPNsense shell**: Uses FreeBSD csh — multi-line SSH heredocs don't work, use single-line commands
+8. **ubuntu-claude repo path**: `~/Dev/BrickLayer2.0` with capital B and L (not `Bricklayer2.0` like WSL)
