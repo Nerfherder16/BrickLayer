@@ -1,0 +1,148 @@
+#!/usr/bin/env node
+/**
+ * PostToolUse hook: Send Write/Edit data to Recall for auto-observation.
+ *
+ * Async, non-blocking — fires and forgets. Recall being offline
+ * should never block coding.
+ */
+
+const { extname } = require("path");
+const { appendFileSync, mkdirSync } = require("fs");
+const { join } = require("path");
+
+const CACHE_DIR = join(process.env.HOME || process.env.USERPROFILE || "/tmp", ".cache", "recall");
+const DEBUG_LOG = join(CACHE_DIR, "observe-edit-debug.log");
+
+function debug(msg) {
+  try {
+    mkdirSync(CACHE_DIR, { recursive: true });
+    appendFileSync(DEBUG_LOG, `[${new Date().toISOString()}] ${msg}\n`);
+  } catch {}
+}
+
+const RECALL_HOST = process.env.RECALL_HOST || "http://100.70.195.84:8200";
+const RECALL_API_KEY = process.env.RECALL_API_KEY || "recall-admin-key-change-me";
+const MAX_CONTENT_SIZE = 10000;
+
+// Skip binary, generated, and irrelevant file types
+const SKIP_EXTENSIONS = new Set([
+  ".lock", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp",
+  ".woff", ".woff2", ".ttf", ".eot", ".map", ".min.js", ".min.css",
+  ".pyc", ".pyo", ".whl", ".zip", ".tar", ".gz", ".exe", ".dll",
+  ".so", ".dylib", ".pdf", ".mp3", ".mp4", ".wav", ".avi",
+]);
+const SKIP_DIRS = ["node_modules", ".git", "__pycache__", "dist", "build", ".next", ".venv", "__tests__", ".autopilot", ".omc"];
+
+// Files matching these patterns get flagged as high-value — observer uses
+// a richer prompt and sets higher default importance
+const HIGH_VALUE_PATTERNS = [
+  /\/\.claude\/hooks\//,        // Claude hook files
+  /\/\.claude\/settings/,       // Claude settings
+  /\/\.claude\/CLAUDE\.md$/,    // Project instructions
+  /docker-compose\.(ya?ml)$/,   // Docker config
+  /Dockerfile$/,                // Docker images
+  /\.env(\.\w+)?$/,             // Environment files
+  /nginx\.conf/,                // Reverse proxy
+  /pyproject\.toml$/,           // Python project config
+  /package\.json$/,             // Node project config
+  /tsconfig.*\.json$/,          // TypeScript config
+  /\.github\/workflows\//,     // CI/CD pipelines
+  /hooks\/.*\.js$/,             // Any hooks directory
+];
+
+function shouldSkipFile(filePath) {
+  if (!filePath) return true;
+  const lower = filePath.replace(/\\/g, "/").toLowerCase();
+  if (SKIP_DIRS.some((d) => lower.includes(`/${d}/`) || lower.includes(`\\${d}\\`))) return true;
+  const ext = extname(lower);
+  if (SKIP_EXTENSIONS.has(ext)) return true;
+  // Check compound extensions like .min.js
+  if (lower.endsWith(".min.js") || lower.endsWith(".min.css")) return true;
+  // Skip test files by path pattern
+  if (/\/(tests?|__tests__|spec|__mocks__)\//.test(lower)) return true;
+  if (/\.(test|spec)\.(js|ts|jsx|tsx|py)$/.test(lower)) return true;
+  return false;
+}
+
+function readStdin() {
+  return new Promise((resolve) => {
+    let data = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (chunk) => (data += chunk));
+    process.stdin.on("end", () => resolve(data));
+    setTimeout(() => resolve(data), 1000);
+  });
+}
+
+async function main() {
+  const input = await readStdin();
+  if (!input) return;
+
+  let parsed;
+  try {
+    parsed = JSON.parse(input);
+  } catch {
+    return;
+  }
+
+  const toolInput = parsed.tool_input || {};
+  const toolName = parsed.tool_name || "Write";
+  const filePath = toolInput.file_path || toolInput.path || "";
+
+  if (!filePath || shouldSkipFile(filePath)) return;
+
+  const normalized = filePath.replace(/\\/g, "/");
+  const highValue = HIGH_VALUE_PATTERNS.some((p) => p.test(normalized));
+
+  const agentId = process.env.TMUX_PANE || process.env.CLAUDE_SESSION_ID || "";
+
+  const body = {
+    file_path: filePath,
+    tool_name: toolName,
+    high_value: highValue,
+    ...(agentId && { agent_id: agentId }),
+  };
+
+  if (toolName === "Edit" || toolName === "edit") {
+    body.old_string = (toolInput.old_string || "").slice(0, 5000);
+    body.new_string = (toolInput.new_string || "").slice(0, 5000);
+  } else {
+    const content = toolInput.content || "";
+    if (content.length > MAX_CONTENT_SIZE) {
+      // Truncate large files instead of dropping — observer still gets useful context
+      body.content = content.slice(0, MAX_CONTENT_SIZE);
+      body.truncated = true;
+    } else {
+      body.content = content;
+    }
+  }
+
+  const sessionId = parsed.session_id || "";
+
+  const headers = { "Content-Type": "application/json", "X-Activity-Source": "hook/observe" };
+  if (RECALL_API_KEY) {
+    headers["Authorization"] = `Bearer ${RECALL_API_KEY}`;
+  }
+
+  // Fire-and-forget — don't await, exit immediately
+  fetch(`${RECALL_HOST}/observe/file-change`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(4000),
+  }).catch((err) => debug(`observe/file-change failed: ${err.message} (file: ${filePath})`));
+
+  // Markov pre-fetch: record file visit for session transition tracking
+  if (sessionId && filePath) {
+    fetch(`${RECALL_HOST}/observe/file-visit`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ session_id: sessionId, file_path: filePath }),
+      signal: AbortSignal.timeout(3000),
+    }).catch(() => {});
+  }
+
+  // Event loop drains naturally — AbortSignal.timeout() bounds the fire-and-forget fetches
+}
+
+main().catch(() => {});

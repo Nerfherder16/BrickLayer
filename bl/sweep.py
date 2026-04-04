@@ -17,6 +17,22 @@ import sys
 from pathlib import Path
 
 
+def validate_sweep_parameter(project_root, param_name: str) -> tuple:
+    """Check param_name exists in simulate.py's SCENARIO PARAMETERS block.
+    Returns (True, '') or (False, error_message)."""
+    root = Path(project_root)
+    simulate = root / "simulate.py"
+    if not simulate.exists():
+        return False, f"SWEEP_BLOCKED: simulate.py not found in {root}"
+    content = simulate.read_text(encoding="utf-8")
+    if "# SCENARIO PARAMETERS" not in content:
+        return False, "SWEEP_BLOCKED: no '# SCENARIO PARAMETERS' block found in simulate.py"
+    block = content[content.index("# SCENARIO PARAMETERS"):]
+    if param_name not in block:
+        return False, f"SWEEP_BLOCKED: parameter '{param_name}' not found in simulate.py SCENARIO PARAMETERS block"
+    return True, ""
+
+
 def _load_simulate(project_dir: Path):
     """Load simulate.py from project_dir, protecting sys.stdout from corruption."""
     simulate_path = project_dir / "simulate.py"
@@ -68,6 +84,10 @@ def sweep(
       final_primary, record_count, records
     Sorted by (scenario, param_value).
     """
+    ok, err = validate_sweep_parameter(project_dir, param_name)
+    if not ok:
+        return [{"error": err, "param_name": param_name}]
+
     mod = _load_simulate(project_dir)
     effective_scenarios = scenarios if scenarios is not None else ["baseline"]
     base = dict(base_params) if base_params else {}

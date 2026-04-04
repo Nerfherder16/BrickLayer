@@ -24,19 +24,10 @@ const fs = require("fs");
 const path = require("path");
 const https = require("https");
 const http = require("http");
+const { readStdin } = require('./session/stop-utils');
 
 const RECALL_HOST = process.env.RECALL_HOST || "http://100.70.195.84:8200";
 const RECALL_API_KEY = process.env.RECALL_API_KEY || "";
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 3000);
-  });
-}
 
 function isAutopilotActive(cwd) {
   try {
@@ -148,7 +139,7 @@ function recallStore(domain, tags, content, metadata) {
         metadata: metadata || {},
       });
 
-      const url = new URL(`${RECALL_HOST}/api/memory`);
+      const url = new URL(`${RECALL_HOST}/memory/store`);
       const options = {
         hostname: url.hostname,
         port: url.port || (url.protocol === "https:" ? 443 : 80),

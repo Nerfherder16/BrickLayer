@@ -1,6 +1,5 @@
 """Tests for .pipeline/ named pipeline template YAML files (Task 20)."""
 
-import sys
 from pathlib import Path
 
 import pytest

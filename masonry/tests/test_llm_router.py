@@ -13,9 +13,8 @@ from __future__ import annotations
 import importlib
 import subprocess
 import sys
-import types
 import unittest
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 # ---------------------------------------------------------------------------
 # Helpers

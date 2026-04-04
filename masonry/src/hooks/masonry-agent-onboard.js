@@ -9,6 +9,7 @@
 const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
+const { readStdin } = require('./session/stop-utils');
 
 /**
  * Detect common anti-patterns in agent metadata.
@@ -95,16 +96,6 @@ function parseFrontmatter(fmBody) {
     }
   }
   return result;
-}
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 1000);
-  });
 }
 
 async function main() {

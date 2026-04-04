@@ -1,0 +1,15 @@
+name: Build Check
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build
+      - run: docker compose up -d
+      - run: sleep 90 && docker compose ps
+      - run: docker compose down

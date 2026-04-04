@@ -1,7 +1,6 @@
 'use strict';
-// src/hooks/masonry-handoff.js — Detached background handoff process
-// Called as: node masonry-handoff.js {sessionId}
-// Packages loop state + recent findings into Recall for next-session resume.
+// src/hooks/masonry-handoff.js — Stop hook: packages loop state + recent findings into Recall for next-session resume.
+// Receives session context via stdin JSON payload (same as all other Stop hooks).
 
 const fs = require('fs');
 const path = require('path');
@@ -9,9 +8,6 @@ const os = require('os');
 
 const { storeMemory } = require('../core/recall');
 const { readState } = require('../core/state');
-
-const sessionId = process.argv[2] || 'unknown';
-const cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 
 /**
  * Read the 3 most recent findings by mtime from findings/ dir.
@@ -70,6 +66,17 @@ function countQuestions(dir) {
 }
 
 async function main() {
+  // Read session context from stdin JSON payload (Claude Code Stop hook protocol)
+  let cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+  let parsed = {};
+  try {
+    const raw = fs.readFileSync(0, 'utf-8');
+    parsed = JSON.parse(raw);
+    if (parsed.cwd) cwd = parsed.cwd;
+  } catch (_err) { /* use defaults */ }
+  const { getSessionId } = require('./session/stop-utils');
+  const sessionId = getSessionId(parsed);
+
   // Guard: don't re-trigger if already done this session
   const guardFile = path.join(os.tmpdir(), `masonry-handoff-triggered-${sessionId}.json`);
   if (fs.existsSync(guardFile)) process.exit(0);

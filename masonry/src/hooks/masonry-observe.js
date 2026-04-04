@@ -2,6 +2,7 @@
 // src/hooks/masonry-observe.js — PostToolUse async hook
 // A) Detects findings written to findings/*.md → stores to Recall + updates state
 // B) Appends all Edit/Write/MultiEdit/NotebookEdit activity to session activity log
+// C) Extracts code facts from non-finding edits and stores to Recall
 
 const fs = require('fs');
 const path = require('path');
@@ -10,6 +11,7 @@ const os = require('os');
 const { storeMemory } = require('../core/recall');
 const { readState, writeState } = require('../core/state');
 const { appendJsonl: masAppendJsonl, writeJson: masWriteJson, readJson: masReadJson } = require('../core/mas');
+const { extractCodeFacts, handleObserveWrite, findMasonryDir } = require('./masonry-observe-helpers');
 
 const WATCHED_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const MAX_STDIN = 2 * 1024 * 1024;
@@ -23,177 +25,10 @@ const SEVERITY_IMPORTANCE = {
   Info: 0.3,
 };
 
-/**
- * Extract a labeled value from markdown content.
- * Looks for "**Label**: value" patterns (case-insensitive label).
- */
 function extractMarkdownField(content, label) {
   const re = new RegExp(`\\*{0,2}${label}\\*{0,2}:\\s*([\\w-]+)`, 'i');
   const m = content.match(re);
   return m ? m[1].trim() : null;
-}
-
-// ---------------------------------------------------------------------------
-// Code-fact extraction helpers
-// ---------------------------------------------------------------------------
-
-const SKIP_DIRS = /[/\\](node_modules|\.git|__pycache__|dist|build|\.next|tests|__tests__)[/\\]/i;
-const SKIP_TEST = /\.(test|spec)\.(js|ts|jsx|tsx|py)$/i;
-const CODE_EXTS = /\.(py|js|ts|jsx|tsx|mjs|cjs|md)$/i;
-
-const PY_DEF    = /^[+]?\s*(?:async\s+)?def\s+([A-Za-z_]\w*)\s*\(/m;
-const PY_CLASS  = /^[+]?\s*class\s+([A-Za-z_]\w*)\s*[:(]/m;
-const JS_FUNC   = /^[+]?\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/m;
-const JS_ARROW  = /^[+]?\s*(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?\(/m;
-const JS_EXPORT = /^[+]?\s*export\s+(?:default\s+)?(?:function|class|const)\s+([A-Za-z_$][\w$]*)/m;
-
-/**
- * Scan added lines (lines starting with '+' in a diff, or all lines for Write)
- * and return matching definition names for the given patterns.
- */
-function scanLines(lines, patterns) {
-  const names = new Set();
-  for (const line of lines) {
-    for (const re of patterns) {
-      const m = line.match(re);
-      if (m && m[1]) names.add(m[1]);
-    }
-  }
-  return [...names];
-}
-
-/**
- * Count lines matching a definition pattern (for new-file summaries).
- */
-function countDefs(content, patterns) {
-  let count = 0;
-  for (const line of content.split('\n')) {
-    for (const re of patterns) {
-      if (re.test(line)) { count++; break; }
-    }
-  }
-  return count;
-}
-
-/**
- * Derive added lines from an Edit (new_string vs old_string) or Write (full content).
- * Returns lines that were added (not present in old, or all for Write).
- */
-function addedLines(toolName, toolInput) {
-  if (toolName === 'Write') {
-    const content = toolInput.content || '';
-    return content.split('\n').map(l => '+' + l);
-  }
-  if (toolName === 'Edit' || toolName === 'MultiEdit') {
-    const edits = toolName === 'MultiEdit'
-      ? (toolInput.edits || [])
-      : [{ old_string: toolInput.old_string || '', new_string: toolInput.new_string || '' }];
-    const added = [];
-    for (const e of edits) {
-      const newLines = (e.new_string || '').split('\n');
-      const oldSet = new Set((e.old_string || '').split('\n'));
-      for (const l of newLines) {
-        if (!oldSet.has(l)) added.push('+' + l);
-      }
-    }
-    return added;
-  }
-  return [];
-}
-
-/**
- * Extract human-readable facts from a code file edit.
- * Synchronous regex only — no I/O.
- * Returns an array of fact strings (max 5, each max 200 chars).
- */
-async function extractCodeFacts(filePath, toolName, toolInput, cwd) {
-  // Skip non-code or ignored paths
-  if (SKIP_DIRS.test(filePath)) return [];
-  if (SKIP_TEST.test(filePath)) return [];
-  if (!CODE_EXTS.test(filePath)) return [];
-
-  const rel = filePath.includes(cwd.replace(/\\/g, '/'))
-    ? filePath.replace(cwd.replace(/\\/g, '/') + '/', '')
-    : path.basename(filePath);
-  const ext = path.extname(filePath).toLowerCase();
-  const baseName = path.basename(filePath);
-  const facts = [];
-
-  const isNewFile = toolName === 'Write';
-
-  // --- Special files ---
-  if (/^(ROADMAP|CHANGELOG|ARCHITECTURE)\.md$/i.test(baseName)) {
-    facts.push(`Updated ${baseName} in ${rel.includes('/') ? path.dirname(rel) : 'project root'}`);
-    return facts;
-  }
-
-  if (/questions\.md$/i.test(baseName)) {
-    const newStr = toolInput.new_string || toolInput.content || '';
-    const doneCount = (newStr.match(/\bDONE\b/g) || []).length;
-    if (doneCount > 0) {
-      facts.push(`questions.md updated — ${doneCount} question(s) marked DONE`);
-    }
-    return facts;
-  }
-
-  // --- Python ---
-  if (ext === '.py') {
-    if (isNewFile) {
-      const content = toolInput.content || '';
-      const nDefs = countDefs(content, [/^\s*(?:async\s+)?def\s+[A-Za-z_]/m, /^\s*class\s+[A-Za-z_]/m]);
-      facts.push(`Created new file ${rel} with ${nDefs} definition(s)`);
-      return facts.slice(0, 5).map(f => f.slice(0, 200));
-    }
-    const lines = addedLines(toolName, toolInput);
-    const defNames = scanLines(lines, [PY_DEF]);
-    const classNames = scanLines(lines, [PY_CLASS]);
-    for (const n of defNames.slice(0, 3)) facts.push(`Added function ${n} to ${rel}`);
-    for (const n of classNames.slice(0, 2)) facts.push(`Added class ${n} to ${rel}`);
-  }
-
-  // --- JavaScript / TypeScript ---
-  if (['.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs'].includes(ext)) {
-    if (isNewFile) {
-      const content = toolInput.content || '';
-      const nExports = countDefs(content, [
-        /^\s*export\s+(?:default\s+)?(?:function|class|const)\s+[A-Za-z_$]/,
-        /^\s*(?:async\s+)?function\s+[A-Za-z_$]/,
-      ]);
-      facts.push(`Created new file ${rel} with ${nExports} export(s)`);
-      return facts.slice(0, 5).map(f => f.slice(0, 200));
-    }
-    const lines = addedLines(toolName, toolInput);
-    const funcNames = scanLines(lines, [JS_FUNC, JS_ARROW, JS_EXPORT]);
-    for (const n of funcNames.slice(0, 5)) facts.push(`Added function/export ${n} to ${rel}`);
-  }
-
-  return facts.slice(0, 5).map(f => f.slice(0, 200));
-}
-
-/**
- * Track agent invocations. Called when Write/Edit targets an agent .md or findings/ file.
- * Increments counter in snapshotsDir/.invocation_count and writes trigger flag at 10.
- */
-function handleObserveWrite(filePath, snapshotsDir) {
-  const isAgentMd = /agents[\\/][^/\\]+\.md$/.test(filePath);
-  const isFinding = /findings[\\/]/.test(filePath);
-  if (!isAgentMd && !isFinding) return;
-
-  // Read/increment counter
-  const countFile = path.join(snapshotsDir, '.invocation_count');
-  let data = { count: 0 };
-  try { data = JSON.parse(fs.readFileSync(countFile, 'utf8')); } catch (_e) {}
-  data.count = (data.count || 0) + 1;
-  fs.mkdirSync(snapshotsDir, { recursive: true });
-  fs.writeFileSync(countFile, JSON.stringify(data), 'utf8');
-
-  // Write trigger flag when threshold reached
-  if (data.count >= 10) {
-    const flag = { triggered_at: new Date().toISOString(), count: data.count };
-    fs.writeFileSync(path.join(snapshotsDir, 'overseer_trigger.flag'), JSON.stringify(flag), 'utf8');
-    // Reset counter
-    fs.writeFileSync(countFile, JSON.stringify({ count: 0 }), 'utf8');
-  }
 }
 
 module.exports.handleObserveWrite = handleObserveWrite;
@@ -210,7 +45,10 @@ async function main() {
   let input = {};
   try { input = JSON.parse(raw); } catch (_err) { process.exit(0); }
 
-  const { tool_name, tool_input = {}, session_id: sessionId = 'unknown', cwd = process.cwd() } = input;
+  const { getSessionId } = require('./session/stop-utils');
+  const { tool_name, tool_input = {}, cwd = process.cwd() } = input;
+  const sessionId = getSessionId(input);
+  const claudeUser = process.env.CLAUDE_USER || 'unknown';
 
   if (!WATCHED_TOOLS.has(tool_name)) process.exit(0);
 
@@ -231,18 +69,17 @@ async function main() {
     tool: tool_name,
     file: filePath,
     summary: oneLiner,
+    user: claudeUser,
   });
   try {
     fs.appendFileSync(activityFile, activityEntry + '\n', 'utf8');
   } catch (_err) { /* non-fatal */ }
 
   // --- A) Finding detection ---
-  // Match findings/{qid}.md or findings/synthesis.md
   const findingsRe = /findings[/\\]([^/\\]+\.md)$/i;
   const match = filePath.match(findingsRe);
 
   // --- C) Code-fact extraction (non-findings edits) ---
-  // Only runs when the file is NOT a finding — awaited so facts reach Recall before exit.
   if (!match) {
     try {
       const facts = await extractCodeFacts(filePath, tool_name, tool_input, cwd);
@@ -258,7 +95,7 @@ async function main() {
         } catch (_e) { /* optional */ }
         const domain = `${cfProject}-code`;
         await Promise.all(facts.map(fact =>
-          storeMemory({ content: fact, domain, tags: ['code-fact', 'auto-extracted', ext], importance: 0.5 })
+          storeMemory({ content: fact, domain, tags: ['code-fact', 'auto-extracted', ext, `user:${claudeUser}`], importance: 0.5 })
             .catch(() => {})
         ));
       }
@@ -266,10 +103,9 @@ async function main() {
     process.exit(0);
   }
 
-  const findingFilename = match[1]; // e.g. "D7.md" or "synthesis.md"
-  const qid = findingFilename.replace(/\.md$/i, ''); // e.g. "D7"
+  const findingFilename = match[1];
+  const qid = findingFilename.replace(/\.md$/i, '');
 
-  // Read the actual file for content parsing
   let fileContent = '';
   try {
     const absPath = path.isAbsolute(rawFilePath) ? rawFilePath : path.join(cwd, rawFilePath);
@@ -283,7 +119,6 @@ async function main() {
   const importance = SEVERITY_IMPORTANCE[severity] || 0.3;
   const snippet = fileContent.slice(0, 500);
 
-  // Read masonry.json from cwd for project name
   let project = path.basename(cwd);
   try {
     const masonryFile = path.join(cwd, 'masonry.json');
@@ -293,22 +128,13 @@ async function main() {
     }
   } catch (_err) { /* optional */ }
 
-  // Store finding to Recall
   const recallResult = await storeMemory({
     content: snippet,
     domain: `${project}-autoresearch`,
-    tags: [
-      'masonry',
-      `project:${project}`,
-      `qid:${qid}`,
-      `verdict:${verdict}`,
-      `severity:${severity}`,
-      'masonry:finding',
-    ],
+    tags: ['masonry', `project:${project}`, `qid:${qid}`, `verdict:${verdict}`, `severity:${severity}`, 'masonry:finding', `user:${claudeUser}`],
     importance,
   });
 
-  // Update masonry-state.json — increment verdict count, update last_qid/verdict
   const verdictUpdate = {};
   if (verdict !== 'UNKNOWN') {
     const state = readState(cwd) || {};
@@ -322,8 +148,7 @@ async function main() {
     ...(Object.keys(verdictUpdate).length ? { verdicts: verdictUpdate } : {}),
   });
 
-  // Emit "finding" event to routing_log.jsonl for DSPy routing training signal (F14.2)
-  // Pairs with "start" events from masonry-subagent-tracker.js to score downstream_success.
+  // Emit "finding" event to routing_log.jsonl for DSPy routing training signal
   if (verdict !== 'UNKNOWN') {
     const agentField = extractMarkdownField(fileContent, 'Agent') || 'unknown';
     const findingEntry = JSON.stringify({
@@ -335,11 +160,8 @@ async function main() {
       qid,
     });
     try {
-      // Resolve masonry/ dir — cwd might be the masonry dir itself (self-research sessions)
-      const masonryDir = path.basename(cwd) === 'masonry' && fs.existsSync(cwd)
-        ? cwd
-        : path.join(cwd, 'masonry');
-      if (fs.existsSync(masonryDir)) {
+      const masonryDir = findMasonryDir(cwd);
+      if (masonryDir) {
         const routingLogPath = path.join(masonryDir, 'routing_log.jsonl');
         fs.appendFileSync(routingLogPath, findingEntry + '\n', 'utf8');
       }
@@ -351,13 +173,10 @@ async function main() {
     const waveMatch = fileContent.match(/\*\*Wave\*\*:\s*(\d+)/i);
     const wave = waveMatch ? parseInt(waveMatch[1], 10) : null;
     masAppendJsonl(cwd, 'timing.jsonl', {
-      qid,
-      wave,
+      qid, wave,
       agent: extractMarkdownField(fileContent, 'Agent') || 'unknown',
-      started_at: null,
-      duration_ms: null,
-      verdict,
-      timestamp: new Date().toISOString(),
+      started_at: null, duration_ms: null,
+      verdict, timestamp: new Date().toISOString(),
     });
   } catch (_) {}
 
@@ -365,9 +184,7 @@ async function main() {
   try {
     const agentName = extractMarkdownField(fileContent, 'Agent') || 'unknown';
     const scores = masReadJson(cwd, 'agent_scores.json') || {};
-    if (!scores[agentName]) {
-      scores[agentName] = { count: 0, verdicts: {}, last_seen: null };
-    }
+    if (!scores[agentName]) scores[agentName] = { count: 0, verdicts: {}, last_seen: null };
     scores[agentName].count += 1;
     scores[agentName].verdicts[verdict] = (scores[agentName].verdicts[verdict] || 0) + 1;
     scores[agentName].last_seen = new Date().toISOString();
@@ -377,8 +194,7 @@ async function main() {
   // .mas/ recall log
   try {
     masAppendJsonl(cwd, 'recall_log.jsonl', {
-      qid,
-      query: snippet.slice(0, 100),
+      qid, query: snippet.slice(0, 100),
       memory_id: recallResult && recallResult.id ? recallResult.id : null,
       domain: `${project}-autoresearch`,
       timestamp: new Date().toISOString(),

@@ -8,7 +8,6 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
 
 # Bootstrap repo root into sys.path
 REPO_ROOT = Path(__file__).resolve().parent.parent

@@ -127,29 +127,31 @@ If your verdict is `CONCERNS`:
 
 Your tag: `agent:peer-reviewer`
 
+**Before re-running** — check if this finding was already peer-reviewed:
+Use **`mcp__recall__recall_search`**:
+- `query`: "peer review {finding_id} confirmed override"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:peer-reviewer"]
+- `limit`: 2
+If a prior review exists for the same `finding_id`, do not re-run — return the stored verdict with a note that it was retrieved from memory.
+
 **After OVERRIDE** — store so the main loop and future agents know the finding is contested:
-```
-recall_store(
-    content="OVERRIDE: [{finding_id}] Primary verdict {original_verdict} contradicted by independent re-run. {reason}. Re-queued as PENDING.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:peer-reviewer", "type:override"],
-    importance=0.9,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "OVERRIDE: [{finding_id}] Primary verdict {original_verdict} contradicted by independent re-run. {reason}. Re-queued as PENDING."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:peer-reviewer", "type:override"]
+- `importance`: 0.9
+- `durability`: "durable"
 
 **After CONFIRMED** — lightweight store to close the loop:
-```
-recall_store(
-    content="CONFIRMED: [{finding_id}] {original_verdict} independently verified. Fix correct.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:peer-reviewer", "type:confirmed"],
-    importance=0.5,
-    durability="standard",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "CONFIRMED: [{finding_id}] {original_verdict} independently verified. Fix correct."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:peer-reviewer", "type:confirmed"]
+- `importance`: 0.5
+- `durability`: "standard"
 
 ## Output contract
 

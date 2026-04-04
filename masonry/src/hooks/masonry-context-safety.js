@@ -12,18 +12,9 @@
 "use strict";
 const fs = require("fs");
 const path = require("path");
+const { readStdin } = require('./session/stop-utils');
 
 const HIGH_CONTEXT_PCT = 80; // block ExitPlanMode above this threshold
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
 
 function tryRead(p) {
   try { return fs.readFileSync(p, "utf8").trim(); } catch { return null; }

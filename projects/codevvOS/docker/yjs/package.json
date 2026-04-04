@@ -1,0 +1,17 @@
+{
+  "name": "codevv-yjs-server",
+  "version": "1.0.0",
+  "description": "Yjs WebSocket collaboration server for CodeVV OS",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT"
+}

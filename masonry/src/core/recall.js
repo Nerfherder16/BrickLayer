@@ -30,7 +30,7 @@ async function storeMemory({ content, domain, tags = [], importance = 0.5 }) {
     const { baseUrl, headers } = getRecallConfig();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
-    const res = await fetch(`${baseUrl}/store`, {
+    const res = await fetch(`${baseUrl}/memory/store`, {
       method: "POST",
       headers,
       body: JSON.stringify({ content, domain, tags, importance }),
@@ -53,12 +53,12 @@ async function searchMemory({ query, domain, tags, limit = 5 }) {
   try {
     const { baseUrl, headers } = getRecallConfig();
     const body = { query, limit };
-    if (domain) body.domain = domain;
+    if (domain) body.domain_hint = domain;
     if (tags && tags.length) body.tags = tags;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
-    const res = await fetch(`${baseUrl}/search`, {
+    const res = await fetch(`${baseUrl}/search/browse`, {
       method: "POST",
       headers,
       body: JSON.stringify(body),

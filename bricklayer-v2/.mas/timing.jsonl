@@ -1,0 +1,10 @@
+{"qid":"Q1.1","wave":null,"agent":"unknown","started_at":null,"duration_ms":null,"verdict":"DIAGNOSIS_COMPLETE","timestamp":"2026-03-24T14:28:51.729Z"}
+{"qid":"Q1.2","wave":null,"agent":"compliance-auditor","started_at":null,"duration_ms":null,"verdict":"DIAGNOSIS_COMPLETE","timestamp":"2026-03-24T14:29:51.682Z"}
+{"qid":"Q1.5","wave":null,"agent":"unknown","started_at":null,"duration_ms":null,"verdict":"DIAGNOSIS_COMPLETE","timestamp":"2026-03-24T14:30:47.111Z"}
+{"qid":"Q1.2","wave":null,"agent":"compliance-auditor","started_at":null,"duration_ms":null,"verdict":"DIAGNOSIS_COMPLETE","timestamp":"2026-03-24T14:32:30.480Z"}
+{"qid":"Q3.1","wave":null,"agent":"unknown","started_at":null,"duration_ms":null,"verdict":"IMMINENT","timestamp":"2026-03-24T14:32:58.704Z"}
+{"qid":"Q1.2","wave":null,"agent":"compliance-auditor","started_at":null,"duration_ms":null,"verdict":"DIAGNOSIS_COMPLETE","timestamp":"2026-03-24T14:34:55.452Z"}
+{"qid":"E13.2","wave":null,"agent":"unknown","started_at":null,"duration_ms":null,"verdict":"IMPROVEMENT","timestamp":"2026-03-24T14:39:36.903Z"}
+{"qid":"synthesis","wave":null,"agent":"unknown","started_at":null,"duration_ms":null,"verdict":"UNKNOWN","timestamp":"2026-03-24T14:50:00.102Z"}
+{"qid":"synthesis","wave":null,"agent":"unknown","started_at":null,"duration_ms":null,"verdict":"UNKNOWN","timestamp":"2026-03-24T14:58:55.876Z"}
+{"qid":"E13.3","wave":null,"agent":"str","started_at":null,"duration_ms":null,"verdict":"BLOCKED","timestamp":"2026-03-24T22:45:32.390Z"}

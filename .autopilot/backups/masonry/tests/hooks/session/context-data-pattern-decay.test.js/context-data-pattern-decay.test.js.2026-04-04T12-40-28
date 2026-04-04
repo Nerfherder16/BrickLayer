@@ -1,0 +1,516 @@
+/**
+ * masonry/tests/hooks/session/context-data-pattern-decay.test.js
+ *
+ * Tests for the pattern-decay integration in addContextData().
+ *
+ * The spec requires that at the START of addContextData(), before any Recall
+ * query block, the function calls toolPatternDecay({ project_dir: cwd }) and:
+ *   - If result.pruned > 0: pushes a line to the `lines` array:
+ *       "[Masonry] Pattern decay: ${result.decayed} scores updated, ${result.pruned} stale patterns pruned"
+ *   - If result.pruned === 0: stays silent (no line added)
+ *   - If toolPatternDecay throws: the exception is swallowed (never propagates)
+ *
+ * Import path inside context-data.js:
+ *   const { toolPatternDecay } = require('../../tools/impl-patterns')
+ *
+ * Actual signature: addContextData(lines, cwd, state)
+ *   - lines: string[] — mutated in place (callers pass empty array, read it back)
+ *   - cwd: string    — project root passed through to toolPatternDecay
+ *   - state: object  — must include { autopilotMode, uiMode }
+ *
+ * Written BEFORE implementation. All tests must FAIL until the developer
+ * integrates toolPatternDecay into addContextData() in context-data.js.
+ *
+ * Strategy: require context-data.js with toolPatternDecay injected via the
+ * require cache. All other context-data.js dependencies (Recall, filesystem)
+ * are allowed to run normally or fail silently — we only assert on the decay-
+ * specific entries in the lines array.
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createRequire } from "module";
+import fs from "fs";
+import path from "path";
+import os from "os";
+
+const require = createRequire(import.meta.url);
+
+// ---------------------------------------------------------------------------
+// Absolute paths for the modules under test
+// ---------------------------------------------------------------------------
+
+const CONTEXT_DATA_PATH = path.resolve(
+  new URL(".", import.meta.url).pathname,
+  "../../../src/hooks/session/context-data.js"
+);
+
+const IMPL_PATTERNS_PATH = path.resolve(
+  new URL(".", import.meta.url).pathname,
+  "../../../src/tools/impl-patterns.js"
+);
+
+// ---------------------------------------------------------------------------
+// Inject a mock toolPatternDecay into the require cache, load context-data.js,
+// then return { addContextData, mockDecay }.
+// ---------------------------------------------------------------------------
+
+function loadWithMock(mockDecayImpl) {
+  delete require.cache[CONTEXT_DATA_PATH];
+  delete require.cache[IMPL_PATTERNS_PATH];
+
+  // Preserve other exports from impl-patterns so context-data.js doesn't break
+  // if it uses toolPatternPromote / toolPatternDemote anywhere else.
+  let realExports = {};
+  try {
+    realExports = require(IMPL_PATTERNS_PATH);
+  } catch (_) {}
+
+  const mockDecay = vi.fn(mockDecayImpl);
+
+  require.cache[IMPL_PATTERNS_PATH] = {
+    id: IMPL_PATTERNS_PATH,
+    filename: IMPL_PATTERNS_PATH,
+    loaded: true,
+    exports: { ...realExports, toolPatternDecay: mockDecay },
+    children: [],
+    paths: [],
+    parent: null,
+  };
+
+  const contextData = require(CONTEXT_DATA_PATH);
+  return { addContextData: contextData.addContextData, mockDecay };
+}
+
+// ---------------------------------------------------------------------------
+// Minimal state object satisfying addContextData(lines, cwd, state).
+// Provides the structural minimum so the function can reach the decay call.
+// ---------------------------------------------------------------------------
+
+function makeState(overrides = {}) {
+  return {
+    autopilotMode: null,
+    uiMode: null,
+    ...overrides,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Invoke addContextData and return the lines array that was mutated.
+// addContextData(lines, cwd, state) mutates lines in-place AND may return a
+// value — we capture both and return the array.
+// We intentionally swallow errors from OTHER parts of addContextData so tests
+// only assert on decay behavior.
+// ---------------------------------------------------------------------------
+
+async function runAndGetLines(addContextData, cwd, stateOverrides = {}) {
+  const lines = [];
+  const state = makeState(stateOverrides);
+  try {
+    await addContextData(lines, cwd, state);
+  } catch (_) {
+    // Other parts of context-data.js may fail (Recall, filesystem) — that is
+    // fine. We only care about what was pushed to `lines` before the failure.
+  }
+  return lines;
+}
+
+// ---------------------------------------------------------------------------
+// Temp directory helpers
+// ---------------------------------------------------------------------------
+
+let tempDir = null;
+
+function makeProjectDir() {
+  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ctx-decay-test-"));
+  fs.mkdirSync(path.join(tempDir, ".autopilot"), { recursive: true });
+  return tempDir;
+}
+
+function cleanProjectDir() {
+  if (tempDir) {
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch (_) {}
+    tempDir = null;
+  }
+}
+
+beforeEach(() => {
+  delete require.cache[CONTEXT_DATA_PATH];
+  delete require.cache[IMPL_PATTERNS_PATH];
+});
+
+afterEach(() => {
+  cleanProjectDir();
+  delete require.cache[CONTEXT_DATA_PATH];
+  delete require.cache[IMPL_PATTERNS_PATH];
+});
+
+// ---------------------------------------------------------------------------
+// 1. toolPatternDecay called with correct project_dir
+// ---------------------------------------------------------------------------
+
+describe("toolPatternDecay is called with the cwd project_dir at session start", () => {
+  it("calls toolPatternDecay once with { project_dir: cwd } when addContextData runs", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData, mockDecay } = loadWithMock(() => ({
+      decayed: 0,
+      pruned: 0,
+    }));
+
+    await runAndGetLines(addContextData, cwd);
+
+    expect(mockDecay).toHaveBeenCalledTimes(1);
+    expect(mockDecay).toHaveBeenCalledWith({ project_dir: cwd });
+  });
+
+  it("passes the exact cwd string to toolPatternDecay — not process.cwd() or a fallback", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData, mockDecay } = loadWithMock(() => ({
+      decayed: 0,
+      pruned: 0,
+    }));
+
+    await runAndGetLines(addContextData, cwd);
+
+    // The argument must be the cwd we passed, not some derived or default path
+    const callArg = mockDecay.mock.calls[0]?.[0];
+    expect(callArg).toBeDefined();
+    expect(callArg.project_dir).toBe(cwd);
+  });
+
+  it("calls toolPatternDecay with a different project_dir when a different cwd is supplied", async () => {
+    const cwd1 = makeProjectDir();
+    const cwd2 = fs.mkdtempSync(path.join(os.tmpdir(), "ctx-decay-cwd2-"));
+
+    try {
+      // First call with cwd1
+      const first = loadWithMock(() => ({ decayed: 0, pruned: 0 }));
+      await runAndGetLines(first.addContextData, cwd1);
+      expect(first.mockDecay.mock.calls[0][0].project_dir).toBe(cwd1);
+
+      // Second call with cwd2 (fresh module load)
+      const second = loadWithMock(() => ({ decayed: 0, pruned: 0 }));
+      await runAndGetLines(second.addContextData, cwd2);
+      expect(second.mockDecay.mock.calls[0][0].project_dir).toBe(cwd2);
+    } finally {
+      fs.rmSync(cwd2, { recursive: true, force: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 2. pruned > 0 → decay summary line emitted in lines output
+// ---------------------------------------------------------------------------
+
+describe("decay line is emitted when pruned > 0", () => {
+  it("emits the decay line when pruned is 1 and decayed is 3", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData } = loadWithMock(() => ({
+      decayed: 3,
+      pruned: 1,
+    }));
+
+    const lines = await runAndGetLines(addContextData, cwd);
+
+    const decayLine = lines.find(
+      (l) => typeof l === "string" && l.includes("Pattern decay")
+    );
+    expect(decayLine).toBeDefined();
+    expect(decayLine).toContain("[Masonry] Pattern decay:");
+    expect(decayLine).toContain("3 scores updated");
+    expect(decayLine).toContain("1 stale patterns pruned");
+  });
+
+  it("emits the decay line when pruned is 12 and decayed is 5", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData } = loadWithMock(() => ({
+      decayed: 5,
+      pruned: 12,
+    }));
+
+    const lines = await runAndGetLines(addContextData, cwd);
+
+    const decayLine = lines.find(
+      (l) => typeof l === "string" && l.includes("Pattern decay")
+    );
+    expect(decayLine).toBeDefined();
+    expect(decayLine).toContain("5 scores updated");
+    expect(decayLine).toContain("12 stale patterns pruned");
+  });
+
+  it("decay line format is exactly: [Masonry] Pattern decay: N scores updated, M stale patterns pruned", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData } = loadWithMock(() => ({
+      decayed: 7,
+      pruned: 2,
+    }));
+
+    const lines = await runAndGetLines(addContextData, cwd);
+
+    const decayLine = lines.find(
+      (l) => typeof l === "string" && l.includes("Pattern decay")
+    );
+    expect(decayLine).toBe(
+      "[Masonry] Pattern decay: 7 scores updated, 2 stale patterns pruned"
+    );
+  });
+
+  it("decay line uses the actual result values, not hardcoded numbers", async () => {
+    const cwd = makeProjectDir();
+
+    const { addContextData: ad1 } = loadWithMock(() => ({
+      decayed: 99,
+      pruned: 42,
+    }));
+    const lines1 = await runAndGetLines(ad1, cwd);
+    const line1 = lines1.find(
+      (l) => typeof l === "string" && l.includes("Pattern decay")
+    );
+    expect(line1).toContain("99 scores updated");
+    expect(line1).toContain("42 stale patterns pruned");
+
+    // Reload with different numbers
+    const { addContextData: ad2 } = loadWithMock(() => ({
+      decayed: 1,
+      pruned: 1,
+    }));
+    const lines2 = await runAndGetLines(ad2, cwd);
+    const line2 = lines2.find(
+      (l) => typeof l === "string" && l.includes("Pattern decay")
+    );
+    expect(line2).toContain("1 scores updated");
+    expect(line2).toContain("1 stale patterns pruned");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 3. pruned === 0 → no decay line in output (stay silent)
+//
+// To distinguish "correctly silent" from "crashed before emitting anything",
+// we verify that mockDecay WAS called (the function reached the decay call)
+// but still produced no decay line.
+// ---------------------------------------------------------------------------
+
+describe("no decay line when pruned === 0", () => {
+  it("does NOT add any decay line when pruned is 0 and decayed is 0, but decay WAS called", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData, mockDecay } = loadWithMock(() => ({
+      decayed: 0,
+      pruned: 0,
+    }));
+
+    const lines = await runAndGetLines(addContextData, cwd);
+
+    // Decay must have been called (function reached that point)
+    expect(mockDecay).toHaveBeenCalledTimes(1);
+
+    // No decay line should appear in output
+    const decayLine = lines.find(
+      (l) => typeof l === "string" && l.includes("Pattern decay")
+    );
+    expect(decayLine).toBeUndefined();
+  });
+
+  it("does NOT add any decay line when pruned is 0 even if decayed is non-zero, but decay WAS called", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData, mockDecay } = loadWithMock(() => ({
+      decayed: 5,
+      pruned: 0,
+    }));
+
+    const lines = await runAndGetLines(addContextData, cwd);
+
+    expect(mockDecay).toHaveBeenCalledTimes(1);
+
+    const decayLine = lines.find(
+      (l) => typeof l === "string" && l.includes("Pattern decay")
+    );
+    expect(decayLine).toBeUndefined();
+  });
+
+  it("no [Masonry] Pattern decay line present when pruned is 0, confirmed by decay call count", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData, mockDecay } = loadWithMock(() => ({
+      decayed: 0,
+      pruned: 0,
+    }));
+
+    const lines = await runAndGetLines(addContextData, cwd);
+
+    // Decay was called (not skipped)
+    expect(mockDecay.mock.calls.length).toBe(1);
+
+    // No line starts with the decay prefix
+    const masonryDecayLines = lines.filter(
+      (l) => typeof l === "string" && l.startsWith("[Masonry] Pattern decay")
+    );
+    expect(masonryDecayLines).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 4. Exception in toolPatternDecay does not propagate
+// ---------------------------------------------------------------------------
+
+describe("exception in toolPatternDecay is swallowed (session start must never fail due to decay)", () => {
+  it("addContextData does not throw when toolPatternDecay throws synchronously", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData } = loadWithMock(() => {
+      throw new Error("decay exploded");
+    });
+
+    const lines = [];
+    const state = makeState();
+    // Must not reject — the error is in decay, not in the broader function
+    await expect(
+      addContextData(lines, cwd, state)
+    ).resolves.not.toThrow();
+  });
+
+  it("addContextData resolves when toolPatternDecay throws synchronously", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData } = loadWithMock(() => {
+      throw new Error("disk read failure");
+    });
+
+    const lines = [];
+    const state = makeState();
+    // The promise must resolve (not reject)
+    const promise = addContextData(lines, cwd, state);
+    await expect(promise).resolves.toBeDefined().catch(() => {
+      // If it resolves to undefined that is also acceptable — just must not reject
+    });
+
+    // Alternative assertion: not rejected
+    let threw = false;
+    try {
+      await addContextData([], cwd, state);
+    } catch (e) {
+      // Only fail if the error is the decay error — other errors from
+      // downstream context-data.js operations (Recall, etc.) are acceptable.
+      if (e.message === "disk read failure") {
+        threw = true;
+      }
+    }
+    expect(threw).toBe(false);
+  });
+
+  it("does NOT emit a decay line when toolPatternDecay throws", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData } = loadWithMock(() => {
+      throw new Error("unexpected decay failure");
+    });
+
+    const lines = await runAndGetLines(addContextData, cwd);
+
+    const decayLine = lines.find(
+      (l) => typeof l === "string" && l.includes("Pattern decay")
+    );
+    expect(decayLine).toBeUndefined();
+  });
+
+  it("does NOT propagate when toolPatternDecay returns a rejected promise", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData } = loadWithMock(async () => {
+      throw new Error("async decay failure");
+    });
+
+    const lines = [];
+    const state = makeState();
+    let decayErrorPropagated = false;
+    try {
+      await addContextData(lines, cwd, state);
+    } catch (e) {
+      if (e.message === "async decay failure") {
+        decayErrorPropagated = true;
+      }
+    }
+    expect(decayErrorPropagated).toBe(false);
+  });
+
+  it("does NOT throw when toolPatternDecay returns null instead of { decayed, pruned }", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData } = loadWithMock(() => null);
+
+    const lines = [];
+    const state = makeState();
+    let decayErrorPropagated = false;
+    try {
+      await addContextData(lines, cwd, state);
+    } catch (e) {
+      // A TypeError from accessing null.pruned would be the decay error here
+      if (e instanceof TypeError && e.message.includes("pruned")) {
+        decayErrorPropagated = true;
+      }
+    }
+    expect(decayErrorPropagated).toBe(false);
+  });
+
+  it("does NOT throw when toolPatternDecay returns an object missing the pruned key", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData } = loadWithMock(() => ({ decayed: 3 }));
+
+    const lines = [];
+    const state = makeState();
+    let threw = false;
+    try {
+      await addContextData(lines, cwd, state);
+    } catch (e) {
+      // Any TypeError from missing .pruned would be the decay bug
+      if (e instanceof TypeError) {
+        threw = true;
+      }
+    }
+    expect(threw).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 5. Decay is called at the START — before any other context-data operations
+// ---------------------------------------------------------------------------
+
+describe("toolPatternDecay is invoked at the start of addContextData", () => {
+  it("mockDecay is called when addContextData runs, regardless of other state", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData, mockDecay } = loadWithMock(() => ({
+      decayed: 0,
+      pruned: 0,
+    }));
+
+    await runAndGetLines(addContextData, cwd);
+
+    // If decay were deferred and something threw first, mock.calls.length would be 0
+    expect(mockDecay.mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("mockDecay call count is 1 per addContextData invocation (not 0, not 2+)", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData, mockDecay } = loadWithMock(() => ({
+      decayed: 0,
+      pruned: 0,
+    }));
+
+    await runAndGetLines(addContextData, cwd);
+
+    expect(mockDecay).toHaveBeenCalledTimes(1);
+  });
+
+  it("when pruned > 0, decay line appears before the function returns", async () => {
+    const cwd = makeProjectDir();
+    const { addContextData } = loadWithMock(() => ({
+      decayed: 2,
+      pruned: 4,
+    }));
+
+    const lines = await runAndGetLines(addContextData, cwd);
+
+    // The decay line must be present — meaning it was pushed during execution
+    const decayLine = lines.find(
+      (l) => typeof l === "string" && l.includes("Pattern decay")
+    );
+    expect(decayLine).toBeDefined();
+    expect(decayLine).toContain("2 scores updated");
+    expect(decayLine).toContain("4 stale patterns pruned");
+  });
+});

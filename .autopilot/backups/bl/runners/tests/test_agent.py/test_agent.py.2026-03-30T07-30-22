@@ -1,0 +1,229 @@
+"""Tests for bl.runners.agent — tmux dispatch integration."""
+
+import json
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+from bl.runners.agent import (
+    _parse_text_output,
+    _read_frontmatter_model,
+    _strip_frontmatter,
+    _summary_from_agent_output,
+    _verdict_from_agent_output,
+    run_agent,
+    run_scout_for_project,
+)
+
+
+# ---------------------------------------------------------------------------
+# Unit tests for helpers (unchanged logic, but ensures no regressions)
+# ---------------------------------------------------------------------------
+
+
+class TestStripFrontmatter:
+    def test_no_frontmatter(self):
+        assert _strip_frontmatter("hello world") == "hello world"
+
+    def test_strips_yaml_block(self):
+        text = "---\nmodel: opus\n---\nBody text"
+        assert _strip_frontmatter(text) == "Body text"
+
+
+class TestReadFrontmatterModel:
+    def test_no_frontmatter(self):
+        assert _read_frontmatter_model("no frontmatter") is None
+
+    def test_reads_model(self):
+        text = '---\nmodel: "opus"\n---\nbody'
+        result = _read_frontmatter_model(text)
+        assert result == "claude-opus-4-6"
+
+    def test_unknown_model_passthrough(self):
+        text = "---\nmodel: custom-model-id\n---\nbody"
+        result = _read_frontmatter_model(text)
+        assert result == "custom-model-id"
+
+
+class TestVerdictFromAgentOutput:
+    def test_empty_output(self):
+        assert _verdict_from_agent_output("any", {}) == "INCONCLUSIVE"
+
+    def test_self_verdict(self):
+        assert _verdict_from_agent_output("unknown-agent", {"verdict": "HEALTHY"}) == "HEALTHY"
+
+    def test_security_hardener_fixed(self):
+        assert (
+            _verdict_from_agent_output("security-hardener", {"risks_fixed": 3})
+            == "HEALTHY"
+        )
+
+
+class TestParseTextOutput:
+    def test_commit_extraction(self):
+        text = "committed abc1234 then committed def5678"
+        result = _parse_text_output("unknown", text)
+        assert result.get("changes_committed") == 2
+
+    def test_verdict_line(self):
+        text = "verdict: HEALTHY\nsummary: all good"
+        result = _parse_text_output("custom-agent", text)
+        assert result["verdict"] == "HEALTHY"
+        assert result["summary"] == "all good"
+
+
+class TestSummaryFromAgentOutput:
+    def test_empty(self):
+        result = _summary_from_agent_output("test", {})
+        assert "no structured output" in result
+
+    def test_summary_key(self):
+        result = _summary_from_agent_output("test", {"summary": "done"})
+        assert result == "done"
+
+
+# ---------------------------------------------------------------------------
+# Integration: run_agent uses spawn_agent/wait_for_agent
+# ---------------------------------------------------------------------------
+
+
+class TestRunAgentTmuxIntegration:
+    """Verify run_agent dispatches through bl.tmux instead of raw subprocess."""
+
+    def test_no_agent_name(self):
+        result = run_agent({"agent_name": "", "finding": "", "source": ""})
+        assert result["verdict"] == "INCONCLUSIVE"
+        assert "No agent specified" in result["summary"]
+
+    @patch("bl.runners.agent.wait_for_agent")
+    @patch("bl.runners.agent.spawn_agent")
+    @patch("bl.runners.agent.cfg")
+    def test_calls_spawn_agent(self, mock_cfg, mock_spawn, mock_wait):
+        # Set up cfg paths
+        agent_md = MagicMock()
+        agent_md.exists.return_value = True
+        agent_md.read_text.return_value = "---\nmodel: opus\n---\nDo the thing."
+        mock_cfg.agents_dir = MagicMock()
+        mock_cfg.agents_dir.__truediv__ = MagicMock(return_value=agent_md)
+        mock_cfg.agents_dir.glob.return_value = []
+        mock_cfg.project_root = Path("/tmp/test-project")
+        mock_cfg.recall_src = Path("/tmp/test-project")
+        mock_cfg.findings_dir = MagicMock()
+        finding_md = MagicMock()
+        finding_md.exists.return_value = False
+        mock_cfg.findings_dir.__truediv__ = MagicMock(return_value=finding_md)
+
+        mock_spawn.return_value = MagicMock()
+        mock_wait.return_value = MagicMock(
+            exit_code=0,
+            stdout=json.dumps({"result": '```json\n{"verdict": "HEALTHY"}\n```'}),
+        )
+
+        result = run_agent(
+            {"agent_name": "test-agent", "finding": "F1", "source": ""}
+        )
+
+        mock_spawn.assert_called_once()
+        call_kwargs = mock_spawn.call_args
+        assert call_kwargs.kwargs["agent_name"] == "test-agent"
+        assert "allowed_tools" in call_kwargs.kwargs
+        mock_wait.assert_called_once()
+
+    @patch("bl.runners.agent.wait_for_agent")
+    @patch("bl.runners.agent.spawn_agent")
+    @patch("bl.runners.agent.cfg")
+    def test_timeout_returns_inconclusive(self, mock_cfg, mock_spawn, mock_wait):
+        agent_md = MagicMock()
+        agent_md.exists.return_value = True
+        agent_md.read_text.return_value = "Agent body"
+        mock_cfg.agents_dir = MagicMock()
+        mock_cfg.agents_dir.__truediv__ = MagicMock(return_value=agent_md)
+        mock_cfg.project_root = Path("/tmp/test-project")
+        mock_cfg.recall_src = Path("/tmp/test-project")
+        mock_cfg.findings_dir = MagicMock()
+        finding_md = MagicMock()
+        finding_md.exists.return_value = False
+        mock_cfg.findings_dir.__truediv__ = MagicMock(return_value=finding_md)
+
+        mock_spawn.return_value = MagicMock()
+        mock_wait.return_value = MagicMock(exit_code=-1, stdout="")
+
+        result = run_agent(
+            {"agent_name": "test-agent", "finding": "", "source": ""}
+        )
+        assert result["verdict"] == "INCONCLUSIVE"
+        assert "timed out" in result["summary"]
+
+    @patch("bl.runners.agent.spawn_agent", side_effect=FileNotFoundError)
+    @patch("bl.runners.agent.cfg")
+    def test_missing_claude_returns_inconclusive(self, mock_cfg, mock_spawn):
+        agent_md = MagicMock()
+        agent_md.exists.return_value = True
+        agent_md.read_text.return_value = "Agent body"
+        mock_cfg.agents_dir = MagicMock()
+        mock_cfg.agents_dir.__truediv__ = MagicMock(return_value=agent_md)
+        mock_cfg.project_root = Path("/tmp/test-project")
+        mock_cfg.recall_src = Path("/tmp/test-project")
+        mock_cfg.findings_dir = MagicMock()
+        finding_md = MagicMock()
+        finding_md.exists.return_value = False
+        mock_cfg.findings_dir.__truediv__ = MagicMock(return_value=finding_md)
+
+        result = run_agent(
+            {"agent_name": "test-agent", "finding": "", "source": ""}
+        )
+        assert result["verdict"] == "INCONCLUSIVE"
+        assert "not found" in result["summary"]
+
+
+# ---------------------------------------------------------------------------
+# Integration: run_scout_for_project uses spawn_agent/wait_for_agent
+# ---------------------------------------------------------------------------
+
+
+class TestRunScoutTmuxIntegration:
+    @patch("bl.runners.agent.wait_for_agent")
+    @patch("bl.runners.agent.spawn_agent")
+    @patch("bl.runners.agent.cfg")
+    def test_scout_calls_spawn_agent(self, mock_cfg, mock_spawn, mock_wait):
+        scout_md = MagicMock()
+        scout_md.exists.return_value = True
+        scout_md.read_text.return_value = "Scout instructions"
+        mock_cfg.agents_dir = MagicMock()
+        mock_cfg.agents_dir.__truediv__ = MagicMock(return_value=scout_md)
+
+        # Use MagicMock for project_root so __truediv__ is settable
+        project_root = MagicMock()
+        cfg_path = MagicMock()
+        cfg_path.exists.return_value = False
+        project_root.__truediv__ = MagicMock(return_value=cfg_path)
+        mock_cfg.project_root = project_root
+        mock_cfg.recall_src = Path("/tmp/test-project")
+
+        docs_dir = MagicMock()
+        docs_dir.exists.return_value = False
+
+        mock_spawn.return_value = MagicMock()
+        mock_wait.return_value = MagicMock(
+            exit_code=0,
+            stdout="# BrickLayer Campaign Questions\n## Q1\nQuestion text",
+        )
+        mock_cfg.questions_md = MagicMock()
+
+        run_scout_for_project()
+
+        mock_spawn.assert_called_once()
+        call_kwargs = mock_spawn.call_args
+        assert call_kwargs.kwargs.get("dangerously_skip_permissions") is True
+        assert call_kwargs.kwargs.get("output_format") is None
+        mock_wait.assert_called_once()
+
+    @patch("bl.runners.agent.spawn_agent")
+    @patch("bl.runners.agent.cfg")
+    def test_scout_missing_md(self, mock_cfg, mock_spawn):
+        scout_md = MagicMock()
+        scout_md.exists.return_value = False
+        mock_cfg.agents_dir = MagicMock()
+        mock_cfg.agents_dir.__truediv__ = MagicMock(return_value=scout_md)
+
+        run_scout_for_project()
+        mock_spawn.assert_not_called()

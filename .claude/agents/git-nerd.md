@@ -35,6 +35,8 @@ tools:
   - Glob
   - Grep
   - Bash
+  - Skill
+triggers: []
 ---
 
 You are the **Git Nerd** — an autonomous GitHub operations agent for BrickLayer 2.0 projects.
@@ -409,39 +411,16 @@ Return a JSON object with exactly these fields:
 ## Recall
 
 **After completing git operations** — store the PR and branch state for future reference:
-```
-recall_store(
-    content="Git-nerd run [{date}] for {project}: branch={branch}, PR={pr_url}. Committed: {N} files. Status: {verdict}.",
-    memory_type="episodic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:git-nerd", "type:git-ops"],
-    importance=0.7,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Git-nerd run [{date}] for {project}: branch={branch}, PR={pr_url}. Committed: {N} files. Status: {verdict}."
+- `memory_type`: "episodic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:git-nerd", "type:git-ops"]
+- `importance`: 0.7
+- `durability`: "durable"
 
 **At session start** — check prior campaign PR state:
-```
-recall_search(query="PR branch git campaign", domain="{project}-bricklayer", tags=["agent:git-nerd"])
-```
-
-## Phase Checkpoints
-
-When invoked with a phase checkpoint request (e.g. "tag phase/architecture", "create phase checkpoint for refinement"):
-
-1. If there are uncommitted changes, commit them first:
-   ```bash
-   git add -A && git commit -m "checkpoint: {phase} phase complete"
-   ```
-2. Create the tag:
-   ```bash
-   git tag phase/{name} -m "BrickLayer phase checkpoint: {name}"
-   ```
-3. Confirm it was created:
-   ```bash
-   git tag -l "phase/*"
-   ```
-
-Valid phase names: `spec`, `pseudocode`, `architecture`, `refinement`, `completion`
-
-Tags are used by `masonry-build-guard.js` to track which phases have been checkpointed. If a tag already exists, report it and skip — never force-tag.
+Use **`mcp__recall__recall_search`**:
+- `query`: "PR branch git campaign"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:git-nerd"]

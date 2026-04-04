@@ -1,20 +1,18 @@
-"""Layer 3: Monte Carlo statistical validation via repeated sampling.
-
-Runs an agent on N random samples from test_cases (with replacement),
-computes accuracy, Wilson confidence interval, and Elo delta.
-"""
+"""Monte Carlo agent evaluation with Wilson confidence intervals and Elo delta."""
 from __future__ import annotations
 
 import math
 import random
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Optional
+
+_ELO_BASE = 1200
+_ELO_K = 32
+_WILSON_Z = 1.96  # 95% CI
 
 
 @dataclass
 class MonteCarloResult:
-    """Results from a Monte Carlo evaluation run."""
-
     n_trials: int
     n_pass: int
     accuracy: float
@@ -23,82 +21,51 @@ class MonteCarloResult:
     elo_delta: float
 
 
-def _wilson_ci(n_pass: int, n_trials: int, z: float = 1.96) -> tuple[float, float]:
-    """Compute Wilson score interval at given z-score (default 95% CI)."""
+def _wilson_ci(n_pass: int, n_trials: int, z: float = _WILSON_Z) -> tuple[float, float]:
+    """Wilson score interval for a proportion."""
     if n_trials == 0:
         return 0.0, 1.0
-    p_hat = n_pass / n_trials
-    denominator = 1 + z * z / n_trials
-    centre = (p_hat + z * z / (2 * n_trials)) / denominator
-    margin = (z / denominator) * math.sqrt(
-        p_hat * (1 - p_hat) / n_trials + z * z / (4 * n_trials * n_trials)
-    )
-    low = max(0.0, centre - margin)
-    high = min(1.0, centre + margin)
-    return low, high
+    p = n_pass / n_trials
+    denom = 1 + z**2 / n_trials
+    centre = (p + z**2 / (2 * n_trials)) / denom
+    margin = (z * math.sqrt(p * (1 - p) / n_trials + z**2 / (4 * n_trials**2))) / denom
+    return max(0.0, centre - margin), min(1.0, centre + margin)
 
 
-def compute_elo_delta(
-    wins: int,
-    losses: int,
-    k: float = 32.0,
-    opponent_elo: float = 1200.0,
-    agent_elo: float = 1200.0,
-) -> float:
-    """Compute net Elo delta from a batch of wins/losses.
-
-    Uses the standard Elo formula: delta = K * (score - expected).
-    Score = wins / (wins + losses).
-    Expected = 1 / (1 + 10^((opponent_elo - agent_elo)/400)).
-    """
-    total = wins + losses
-    if total == 0:
+def compute_elo_delta(wins: int, losses: int, opponent_elo: int = _ELO_BASE) -> float:
+    """Expected Elo delta for an agent with wins/losses against a fixed opponent."""
+    n = wins + losses
+    if n == 0:
         return 0.0
-    score = wins / total
-    expected = 1.0 / (1.0 + 10.0 ** ((opponent_elo - agent_elo) / 400.0))
-    return k * (score - expected)
+    score = wins / n
+    # Assume agent starts at 1200 for expected calculation
+    expected = 1 / (1 + 10 ** ((opponent_elo - _ELO_BASE) / 400))
+    return _ELO_K * (score - expected)
 
 
 def run_monte_carlo(
     agent_name: str,
     test_cases: list[dict[str, Any]],
-    n: int = 50,
-    base_dir: Any = None,
-    _run_fn: Callable[[str, dict[str, Any], Any], bool] | None = None,
+    n: int,
+    base_dir: Any,
+    _run_fn: Optional[Callable[[str, dict, Any], bool]] = None,
 ) -> MonteCarloResult:
-    """Run agent on N random samples from test_cases (with replacement).
-
-    Args:
-        agent_name: Name of the agent being evaluated.
-        test_cases: Pool of test cases to sample from.
-        n: Number of trials to run.
-        base_dir: Base directory for agent resolution (passed to _run_fn).
-        _run_fn: Callable(agent_name, task, base_dir) -> bool.
-                 If None, no trials run (n_pass = 0).
-
-    Returns:
-        MonteCarloResult with accuracy, Wilson CI, and Elo delta.
-    """
+    """Run n Monte Carlo trials sampling from test_cases with replacement."""
     if not test_cases:
         return MonteCarloResult(
-            n_trials=0,
-            n_pass=0,
-            accuracy=0.0,
-            wilson_ci_low=0.0,
-            wilson_ci_high=1.0,
-            elo_delta=0.0,
+            n_trials=n, n_pass=0, accuracy=0.0,
+            wilson_ci_low=0.0, wilson_ci_high=0.0, elo_delta=compute_elo_delta(0, n),
         )
 
     n_pass = 0
     for _ in range(n):
         task = random.choice(test_cases)
-        if _run_fn is not None:
-            if _run_fn(agent_name, task, base_dir):
-                n_pass += 1
+        if _run_fn is not None and _run_fn(agent_name, task, base_dir):
+            n_pass += 1
 
     accuracy = n_pass / n if n > 0 else 0.0
     ci_low, ci_high = _wilson_ci(n_pass, n)
-    elo_delta = compute_elo_delta(wins=n_pass, losses=n - n_pass)
+    delta = compute_elo_delta(n_pass, n - n_pass)
 
     return MonteCarloResult(
         n_trials=n,
@@ -106,5 +73,5 @@ def run_monte_carlo(
         accuracy=accuracy,
         wilson_ci_low=ci_low,
         wilson_ci_high=ci_high,
-        elo_delta=elo_delta,
+        elo_delta=delta,
     )

@@ -1,0 +1,160 @@
+# D1.2: Does the context window position of the Mortar routing instruction relative to conversation history affect compliance rates, and does the 22,587-token auto-loaded context dilute the routing signal?
+
+**Status**: DIAGNOSIS_COMPLETE
+**Date**: 2026-03-29
+**Agent**: diagnose-analyst
+
+## Evidence
+
+### Source Files Measured
+
+All measurements are from direct file reads and `wc -c` byte counts.
+
+**Primary source: `C:/Users/trg16/.claude/CLAUDE.md`** — 13,780 bytes, 250 lines
+**Rules files directory: `C:/Users/trg16/.claude/rules/`** — 13 files, 66,839 bytes total
+
+### Routing Section Isolation
+
+The Mortar routing section spans lines 35–105 of `CLAUDE.md`, measured via `sed -n '35,105p'`:
+
+- **Routing section bytes**: 3,863 bytes
+- **Estimated tokens (at 3.5 bytes/token for technical markdown)**: ~1,104 tokens
+
+This section contains:
+- "Mortar Is the Entry Point for Everything" (the routing table and absolute directives)
+- "Core Behavior Rules" (operationalizations of the every-request rule)
+- "Operating Principles" (includes the escape hatch — see D1.1)
+- "Agent Routing" (model-per-complexity guidance)
+
+### Per-File Token Breakdown (Verified)
+
+| File | Bytes | Est. Tokens | Category |
+|------|-------|-------------|----------|
+| `CLAUDE.md` (full) | 13,780 | 3,937 | Mixed |
+| `figma-designer-guide.md` | 7,319 | 2,091 | UI only |
+| `figma-mcp-workflow.md` | 9,202 | 2,629 | UI only |
+| `figma-workflow.md` | 4,572 | 1,306 | UI only |
+| `frontend-design-philosophy.md` | 16,475 | 4,707 | UI only |
+| `react-tailwind-standards.md` | 6,410 | 1,831 | UI only |
+| `ui-design-workflow.md` | 5,724 | 1,635 | UI only |
+| `context-continuation.md` | 2,306 | 659 | Dev/general |
+| `quality-standards.md` | 3,551 | 1,015 | Dev/general |
+| `security-standards.md` | 3,781 | 1,080 | Dev/general |
+| `session-boundaries.md` | 1,339 | 383 | Dev/general |
+| `spec-workflow.md` | 2,608 | 745 | Dev/general |
+| `tdd-enforcement.md` | 2,144 | 613 | Dev/general |
+| `verification-checklist.md` | 1,408 | 402 | Dev/general |
+| **Grand total** | **80,619** | **23,034** | |
+
+### Routing Signal Fractions
+
+| Signal | Tokens | Fraction of total context |
+|--------|--------|--------------------------|
+| Mortar routing section | 1,104 | **4.8%** |
+| UI-specific rules (6 files) | 14,201 | **61.7%** |
+| Non-UI rules (7 files) | 4,896 | 21.3% |
+| Remainder of CLAUDE.md (skills, hooks, MCP, Tim context) | 2,833 | 12.3% |
+
+UI rules volume vs routing signal: **12.9x more UI content than routing content** in every non-UI session.
+
+### E1.9 Cross-Validation
+
+bl-audit finding E1.9 established 22,587 tokens at session start. Our direct measurement yields 23,034 tokens (delta 447 tokens — within the precision margin of the 3.5 bytes/token approximation). E1.9 reported 12,423 tokens of UI-specific rules; our measurement yields 14,201 tokens. The discrepancy is within the expected range of different tokenization methods. The order-of-magnitude conclusions are identical: UI rules dominate context, routing signal is ~5% of total load.
+
+### Load Order (Claude Code behavior)
+
+Claude Code loads auto-context in this order:
+1. `~/.claude/CLAUDE.md` (global, first in session) — routing section at lines 35–105
+2. Project-level `.claude/CLAUDE.md` (if present)
+3. `~/.claude/rules/*.md` files (alphabetical order) — all 13 rules files follow
+
+The routing section appears approximately 1,400 tokens into a 23,034-token context (6% into the document). The remaining 94% of context is loaded _after_ the routing directive — including all six UI-specific files totaling 14,201 tokens.
+
+### Positional Decay as Conversation History Grows
+
+As conversation history accumulates, the routing section becomes an ever-smaller fraction of total context:
+
+| History tokens | Total context tokens | Routing section fraction |
+|----------------|---------------------|--------------------------|
+| 0 (session start) | 23,034 | 4.79% |
+| 5,000 | 28,034 | 3.94% |
+| 10,000 | 33,034 | 3.34% |
+| 20,000 | 43,034 | 2.56% |
+| 50,000 | 73,034 | 1.51% |
+| 100,000 | 123,034 | 0.90% |
+| 150,000 | 173,034 | 0.64% |
+
+At a 100K-token conversation context — common for extended coding sessions — the routing directive occupies less than 1% of total context.
+
+### Largest Single Diluting File
+
+`frontend-design-philosophy.md` alone is 16,475 bytes (~4,707 tokens) — **4.3x the size of the entire routing section**. It is loaded in every session regardless of whether the session involves any UI work. Its content (dark color palettes, bento grid layouts, typography scale, motion physics) is entirely irrelevant to routing behavior.
+
+## Analysis
+
+### Causal Chain
+
+**Step 1: The routing signal starts at 4.8% of total auto-loaded context.**
+
+Even before any conversation history exists, the Mortar routing section (1,104 tokens) is already overwhelmed in volume by the UI rules (14,201 tokens) that follow it. The instruction system is not balanced: 61.7% of auto-loaded context is dedicated to a narrow work type (UI/design) while the universal routing directive that governs all work types represents under 5%.
+
+**Step 2: Position in context is structurally favorable but not decisive.**
+
+The routing section loads early — lines 35–105 of the first file read by Claude Code. Research on instruction-following in large language models (e.g., Lost in the Middle, 2023; Attention Sink studies) consistently finds that instructions near the beginning of context receive higher weight than instructions in the middle, though recency (near the end) can also be elevated. The routing section benefits from primacy — it is among the first content seen.
+
+However, primacy advantage is meaningful only when competing instructions are at comparable volume. When the subsequent context is 12.9x larger than the routing signal, and when those subsequent instructions are domain-specific (UI rules that appear to "speak louder" about their domain), the primacy benefit is insufficient to maintain routing compliance for non-UI tasks.
+
+**Step 3: Content-type mismatch amplifies dilution.**
+
+The UI rules are written as operational guides with specific code examples, component patterns, color hex values, and decision trees. This dense, specific content pattern is associated with high-weight instruction-following. The routing directive, by contrast, is declarative ("Every request goes through Mortar") — a policy statement rather than an operational guide. Operational specificity tends to increase instruction adherence over policy declarations. The UI rules load after the routing directive and present themselves as more operationally complete.
+
+**Step 4: History growth compounds the dilution arithmetically.**
+
+A session investigating a Solana program bug, for example, would accumulate code context, error messages, and analysis quickly. At 50K tokens of history (achievable in a medium-length debugging session), the routing section is 1.51% of total context. At the 150K token context ceiling that triggers the `masonry-context-monitor.js` warning, the routing section is 0.64% of total context — statistically indistinguishable from noise.
+
+**Step 5: Context dilution is a secondary amplifier, not a primary cause.**
+
+D1.1 established that the escape hatch at line 68 ("direct action when trivial") is the primary mechanism that allows inline execution. Context dilution does not need to "break" the routing directive by itself — it only needs to make the routing directive slightly less salient so that the escape hatch fires more readily. The dilution operates as a _threshold shift_: as the routing directive becomes a smaller fraction of context, the probability that the model applies "trivial" to any given task increases. The primary root cause is the undefined escape hatch (D1.1); context dilution is the amplifier that lowers the activation threshold for inline execution.
+
+**Step 6: The UI rules loading in non-UI sessions is an inefficiency with a measurable signal cost.**
+
+14,201 tokens of UI content consumed in a Solana debugging session, a git hygiene task, or a data pipeline build achieves no useful work. Each token of irrelevant content is a token of capacity spent on context that does not contribute to the task. More critically, it is a token of capacity that does not reinforce routing behavior — it reinforces UI design behavior in sessions where UI design is irrelevant.
+
+### Root Cause
+
+Context dilution is confirmed as a secondary/amplifying mechanism. The routing signal at session start is **4.8% of total context** (1,104 tokens out of 23,034). UI-specific rules — loaded unconditionally in every session — constitute **61.7% of total context** and are **12.9x the volume of the routing directive**. As conversation history grows, the routing directive fraction falls below 1% at 100K tokens. The dilution is not sufficient by itself to cause routing failures (the escape hatch is the primary driver), but it lowers the effective weight of the routing directive and makes the escape hatch easier to activate.
+
+The hypothesis is **confirmed with calibration**: the token ratio analysis shows the dilution is real and measurable, but it is an amplifier of the D1.1 root cause rather than an independent root cause.
+
+## Fix Specification
+
+- **File**: `C:/Users/trg16/.claude/CLAUDE.md`
+- **Line**: No single-line fix. The dilution problem requires a structural change to the rules-loading system.
+- **Change**: Two-part fix:
+
+  **Part A (high-value, immediate)**: Move the six UI-specific rules files into a conditional load group. In Claude Code, this can be done via the `rules` directory structure: create `C:/Users/trg16/.claude/rules/ui/` subdirectory and move the six UI files there. Claude Code only loads rules from the top-level `rules/` directory by default, so subdirectory files are not auto-loaded unless explicitly referenced. This reduces the baseline auto-loaded context from ~23,034 tokens to ~8,833 tokens (~62% reduction), and the routing signal fraction rises from 4.8% to approximately **12.5%** of auto-loaded context.
+
+  Files to move to `rules/ui/`:
+  - `figma-designer-guide.md`
+  - `figma-mcp-workflow.md`
+  - `figma-workflow.md`
+  - `frontend-design-philosophy.md`
+  - `react-tailwind-standards.md`
+  - `ui-design-workflow.md`
+
+  **Part B (complementary)**: Add a rules-loading directive to CLAUDE.md that explicitly invokes the UI rules subdirectory when UI work is detected (e.g., when the session begins with `/ui-init`, `/ui-compose`, or a Figma URL). This preserves full UI rules access while eliminating unconditional load.
+
+- **Verification**:
+  ```bash
+  # Verify files moved to subdirectory
+  ls "C:/Users/trg16/.claude/rules/ui/" | wc -l  # should show 6
+  ls "C:/Users/trg16/.claude/rules/"*.md | wc -l  # should show 7 (non-UI files only)
+
+  # Estimate new token count
+  wc -c "C:/Users/trg16/.claude/rules/"*.md  # should total ~17,137 bytes vs prior 66,839
+  ```
+  Behavioral proxy: in a non-UI session (e.g., Python debugging task), verify Claude does not reference UI design patterns, Figma workflows, or Tailwind component patterns in its responses — these would indicate the UI rules are no longer loading unconditionally.
+
+- **Risk**: The UI rules subdirectory approach has one regression surface: any hook or script that reads files from `rules/` by path may fail if it expects the UI files at the old location. Check `masonry-style-checker.js` (design token enforcement) — it may explicitly reference `rules/frontend-design-philosophy.md` or similar paths. The `masonry-tdd-enforcer.js` hook is not affected (it does not reference design rules). The `/ui-init` and `/ui-compose` skills that depend on UI rules must explicitly load the subdirectory when activated — this requires updating those skill invocations to prepend the UI rules context.
+
+[RECOMMEND: fix-implementer — DIAGNOSIS_COMPLETE; move 6 UI-specific rules files to `rules/ui/` subdirectory to reduce auto-loaded context by 62% and raise routing signal fraction from 4.8% to ~12.5%]

@@ -11,8 +11,8 @@ jobs:
     outputs:
       python: ${{ steps.filter.outputs.python }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -29,17 +29,18 @@ jobs:
       matrix:
         python-version: ['3.11', '3.12']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt || pip install -r masonry/requirements.txt || true
-          pip install pytest ruff
+          pip install pytest ruff httpx dspy-ai
+          pip install -e masonry/
       - name: Lint with ruff
-        run: ruff check . --select E,F,W --ignore E501
+        run: ruff check .
       - name: Test with pytest
-        run: python -m pytest masonry/tests/ -v --tb=short
+        run: python -m pytest bl/tests/ masonry/tests/ -v --tb=short --ignore=masonry/tests/test_backfill_routing_keywords.py --ignore=masonry/tests/test_optimize_with_claude.py

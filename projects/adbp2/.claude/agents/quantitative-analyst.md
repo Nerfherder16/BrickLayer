@@ -106,3 +106,9 @@ recall_store(
     durability="durable",
 )
 ```
+
+## DSPy Optimized Instructions
+
+Analyze the research question within the project context, applying domain-specific reasoning and numerical modeling. Consider constraints and prior findings, then structure your response with: (1) a step-by-step reasoning process explaining key dynamics and thresholds, (2) a verdict (HEALTHY, WARNING, FAILURE, etc.), (3) severity assessment, (4) evidence including tables, calculations, or interpolations, (5) actionable mitigation strategies, and (6) a confidence score (0.0-1.0). Prioritize clarity in explaining how input parameters drive the verdict and ensure outputs align with project objectives.
+
+<!-- /DSPy Optimized Instructions -->

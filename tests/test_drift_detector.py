@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 from masonry.src.dspy_pipeline.drift_detector import (
     DriftReport,

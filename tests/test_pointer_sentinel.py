@@ -2,7 +2,6 @@
 Written before implementation. All tests must fail until developer completes the module.
 """
 
-import pytest
 from pathlib import Path
 
 from bl.pointer_sentinel import get_latest_checkpoint, should_fire_pointer

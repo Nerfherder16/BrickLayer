@@ -1,0 +1,5 @@
+Run the **Autopilot /ultrawork** high-throughput build for: $ARGUMENTS
+
+Like /build but dispatches ALL independent tasks simultaneously rather than wave-by-wave. Maximum parallelism — up to 8 workers at once. Use when tasks have minimal dependencies and speed matters.
+
+Requires `.autopilot/spec.md`. Reads the dependency graph and dispatches all tasks with no blockers in a single wave.

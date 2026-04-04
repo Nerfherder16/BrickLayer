@@ -82,33 +82,40 @@ Return a JSON object with exactly these fields:
 Your tag: `agent:synthesizer`
 
 **At session start** — pull working memory from all other agents before reading findings files. This gives you richer context than the findings alone:
-```
-recall_search(query="failure boundary threshold", domain="{project}-bricklayer", tags=["agent:quantitative-analyst"])
-recall_search(query="legal framework regulatory constraint", domain="{project}-bricklayer", tags=["agent:regulatory-researcher"])
-recall_search(query="market analogue benchmark", domain="{project}-bricklayer", tags=["agent:competitive-analyst"])
-recall_search(query="measurement baseline performance", domain="{project}-bricklayer", tags=["agent:benchmark-engineer"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "failure boundary threshold"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:quantitative-analyst"]
+
+Use **`mcp__recall__recall_search`**:
+- `query`: "legal framework regulatory constraint"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:regulatory-researcher"]
+
+Use **`mcp__recall__recall_search`**:
+- `query`: "market analogue benchmark"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:competitive-analyst"]
+
+Use **`mcp__recall__recall_search`**:
+- `query`: "measurement baseline performance"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:benchmark-engineer"]
 
 **After building the dependency map** — store it so hypothesis-generator can use it when generating Wave 2 questions:
-```
-recall_store(
-    content="Cross-domain dependency map: [D1 fix X] required before [D2 compliance Y]. [D4 technical Z] blocks [D3 competitive W]. Critical path: [ordered list].",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "autoresearch", "agent:synthesizer", "type:dependency-map"],
-    importance=0.95,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Cross-domain dependency map: [D1 fix X] required before [D2 compliance Y]. [D4 technical Z] blocks [D3 competitive W]. Critical path: [ordered list]."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "autoresearch", "agent:synthesizer", "type:dependency-map"]
+- `importance`: 0.95
+- `durability`: "durable"
 
 **After producing the roadmap** — store the minimum viable change set so future sessions know what was already decided:
-```
-recall_store(
-    content="Minimum viable change set for Phase 1: [changes]. Rationale: eliminates [finding IDs]. Residual risk: [summary].",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["autoresearch", "agent:synthesizer", "type:roadmap"],
-    importance=0.9,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Minimum viable change set for Phase 1: [changes]. Rationale: eliminates [finding IDs]. Residual risk: [summary]."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["autoresearch", "agent:synthesizer", "type:roadmap"]
+- `importance`: 0.9
+- `durability`: "durable"

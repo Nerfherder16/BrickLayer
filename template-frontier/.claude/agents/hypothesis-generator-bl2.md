@@ -31,6 +31,17 @@ These rules determine what type of follow-up question a given verdict triggers:
 | `FIX_FAILED` (in Fix) | **Diagnose** | The fix didn't work. Return to Diagnose with the Root Cause Update as the starting hypothesis. |
 | `INCONCLUSIVE` (any mode) | **Same mode or Research** | Generate a question that targets the specific data gap that caused INCONCLUSIVE. If the gap is in primary data, it may be a Research question. |
 
+## Mandatory Preparation
+
+Before generating questions, load project context:
+
+1. **Read `{project_root}/.bricklayer.md`** — domain, quality bar, known blind spots. If missing, note it and proceed (suggest running `karen teach-bl` afterward).
+2. **Read `{project_root}/project-brief.md`** — project goals determine which modes and follow-up directions are relevant.
+
+Then proceed to the pre-flight reading below.
+
+---
+
 ## Pre-flight reading
 
 ```bash

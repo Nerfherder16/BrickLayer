@@ -1,0 +1,196 @@
+"""bl/tmux/core.py — Dataclasses, spawn_agent, wait_for_agent."""
+
+import os
+import shutil
+import subprocess
+import time
+import uuid
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from bl.tmux.helpers import (
+    build_claude_args,
+    build_env,
+    extract_session_id,
+    in_tmux,
+)
+from bl.tmux.pane import spawn_tmux_pane, tmux_wait_with_timeout
+from bl.tmux.signals import write_start_signal, write_stop_signal
+
+TEMP_DIR = Path("/tmp")
+
+
+@dataclass
+class SpawnResult:
+    """Handle returned by spawn_agent for collection via wait_for_agent."""
+
+    agent_id: str
+    agent_name: str
+    pane_id: str | None
+    result_file: Path
+    exit_file: Path
+    prompt_file: Path
+    process: subprocess.Popen | None = None
+    _start_time: float = field(default_factory=time.monotonic, repr=False)
+
+
+@dataclass
+class AgentResult:
+    """Collected result after an agent finishes."""
+
+    agent_id: str
+    agent_name: str
+    exit_code: int
+    stdout: str
+    session_id: str | None
+    duration_ms: int
+
+
+def spawn_agent(
+    agent_name: str,
+    prompt: str,
+    *,
+    model: str | None = None,
+    allowed_tools: list[str] | None = None,
+    disallowed_tools: list[str] | None = None,
+    cwd: str | None = None,
+    timeout: int = 600,
+    capture_output: bool = True,
+    dangerously_skip_permissions: bool = False,
+    session_id: str | None = None,
+    env_overrides: dict[str, str] | None = None,
+) -> SpawnResult:
+    """
+    Spawn a claude -p agent. In tmux: new pane. Outside: subprocess.
+
+    Raises FileNotFoundError if claude CLI is not installed.
+    """
+    agent_id = uuid.uuid4().hex[:8]
+    result_file = TEMP_DIR / f"bl-result-{agent_id}.json"
+    exit_file = TEMP_DIR / f"bl-exit-{agent_id}.txt"
+    prompt_file = TEMP_DIR / f"bl-prompt-{agent_id}.txt"
+    prompt_file.write_text(prompt, encoding="utf-8")
+
+    claude_bin = shutil.which("claude") or "claude"
+    claude_args = build_claude_args(
+        model=model,
+        allowed_tools=allowed_tools,
+        disallowed_tools=disallowed_tools,
+        dangerously_skip_permissions=dangerously_skip_permissions,
+        output_format="json" if capture_output else None,
+        session_id=session_id,
+    )
+    effective_cwd = cwd or os.getcwd()
+    write_start_signal(agent_id, agent_name, effective_cwd, model, None)
+
+    if in_tmux():
+        pane_id = spawn_tmux_pane(
+            agent_id=agent_id,
+            agent_name=agent_name,
+            claude_bin=claude_bin,
+            claude_args=claude_args,
+            prompt_file=prompt_file,
+            result_file=result_file if capture_output else None,
+            exit_file=exit_file,
+            cwd=effective_cwd,
+            env_overrides=env_overrides,
+        )
+        write_start_signal(agent_id, agent_name, effective_cwd, model, pane_id)
+        return SpawnResult(
+            agent_id=agent_id,
+            agent_name=agent_name,
+            pane_id=pane_id,
+            result_file=result_file,
+            exit_file=exit_file,
+            prompt_file=prompt_file,
+        )
+
+    child_env = build_env(env_overrides)
+    stdin_fh = open(prompt_file, encoding="utf-8")  # noqa: SIM115
+    proc = subprocess.Popen(
+        [claude_bin, *claude_args],
+        stdin=stdin_fh,
+        stdout=subprocess.PIPE if capture_output else None,
+        stderr=subprocess.PIPE if capture_output else None,
+        text=True,
+        encoding="utf-8",
+        cwd=effective_cwd,
+        env=child_env,
+    )
+    stdin_fh.close()
+
+    return SpawnResult(
+        agent_id=agent_id,
+        agent_name=agent_name,
+        pane_id=None,
+        result_file=result_file,
+        exit_file=exit_file,
+        prompt_file=prompt_file,
+        process=proc,
+    )
+
+
+def wait_for_agent(spawn: SpawnResult, *, timeout: int = 600) -> AgentResult:
+    """Block until agent completes and return its result."""
+    if spawn.process is not None:
+        return _wait_subprocess(spawn, timeout)
+    return _wait_tmux(spawn, timeout)
+
+
+def _wait_subprocess(spawn: SpawnResult, timeout: int) -> AgentResult:
+    try:
+        stdout, _ = spawn.process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        spawn.process.kill()
+        spawn.process.communicate()
+        result = AgentResult(
+            agent_id=spawn.agent_id,
+            agent_name=spawn.agent_name,
+            exit_code=-1,
+            stdout="",
+            session_id=None,
+            duration_ms=round((time.monotonic() - spawn._start_time) * 1000),
+        )
+        write_stop_signal(spawn.agent_id, spawn.agent_name, result)
+        return result
+
+    raw = stdout or ""
+    result = AgentResult(
+        agent_id=spawn.agent_id,
+        agent_name=spawn.agent_name,
+        exit_code=spawn.process.returncode,
+        stdout=raw,
+        session_id=extract_session_id(raw),
+        duration_ms=round((time.monotonic() - spawn._start_time) * 1000),
+    )
+    write_stop_signal(spawn.agent_id, spawn.agent_name, result)
+    return result
+
+
+def _wait_tmux(spawn: SpawnResult, timeout: int) -> AgentResult:
+    channel = f"bl-done-{spawn.agent_id}"
+    completed = tmux_wait_with_timeout(channel, timeout)
+    duration_ms = round((time.monotonic() - spawn._start_time) * 1000)
+
+    stdout = ""
+    exit_code = -1
+    if completed:
+        try:
+            stdout = spawn.result_file.read_text(encoding="utf-8")
+        except OSError:
+            pass
+        try:
+            exit_code = int(spawn.exit_file.read_text(encoding="utf-8").strip())
+        except (OSError, ValueError):
+            pass
+
+    result = AgentResult(
+        agent_id=spawn.agent_id,
+        agent_name=spawn.agent_name,
+        exit_code=exit_code,
+        stdout=stdout,
+        session_id=extract_session_id(stdout),
+        duration_ms=duration_ms,
+    )
+    write_stop_signal(spawn.agent_id, spawn.agent_name, result)
+    return result

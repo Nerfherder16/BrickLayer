@@ -127,38 +127,41 @@ Reasoning: [why this confidence level]
 Your tag: `agent:research-analyst`
 
 **At session start** — check what assumptions have already been tested:
-```
-recall_search(query="assumption tested evidence research", domain="{project}-bricklayer", tags=["agent:research-analyst"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "assumption tested evidence research"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:research-analyst"]
 
 Also check competitive and regulatory findings that may bound your parameters:
-```
-recall_search(query="regulatory market competitive constraint", domain="{project}-bricklayer")
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "regulatory market competitive constraint"
+- `domain`: "{project}-bricklayer"
 
 **After FAILURE** — store the refuted assumption immediately (high priority — this affects planning):
-```
-recall_store(
-    content="FAILURE: [{question_id}] Assumption '{assumption}' is REFUTED. Evidence: {key evidence citation}. This is a blocker for {downstream dependency}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:research-analyst", "type:assumption-failure"],
-    importance=0.95,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "FAILURE: [{question_id}] Assumption '{assumption}' is REFUTED. Evidence: {key evidence citation}. This is a blocker for {downstream dependency}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:research-analyst", "type:assumption-failure"]
+- `importance`: 0.95
+- `durability`: "durable"
 
 **After HEALTHY or WARNING** — store the finding so Predict mode can use it:
-```
-recall_store(
-    content="{verdict}: [{question_id}] Assumption '{assumption}' — evidence: {key finding}. Confidence: {level}. Would change if: {falsification condition}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:research-analyst", "type:assumption-{verdict_lower}"],
-    importance=0.8,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "{verdict}: [{question_id}] Assumption '{assumption}' — evidence: {key finding}. Confidence: {level}. Would change if: {falsification condition}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:research-analyst", "type:assumption-{verdict_lower}"]
+- `importance`: 0.8
+- `durability`: "durable"
+
+## Self-Nomination
+
+When findings reveal regulatory exposure, append:
+`[RECOMMEND: regulatory-researcher — regulatory risk identified, deeper legal research needed]`
+
+When findings reveal competitive dynamics, append:
+`[RECOMMEND: competitive-analyst — market dynamics identified, competitive landscape research needed]`
 
 ## Self-Nomination
 

@@ -315,21 +315,19 @@ Return a JSON object with exactly these fields:
 ## Recall
 
 **At session start** — retrieve prior overseer reports to understand historical repair patterns:
-```
-recall_search(query="agent performance fleet repair overseer", domain="{project}-bricklayer", tags=["bricklayer", "agent:overseer"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "agent performance fleet repair overseer"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:overseer"]
 
 **After completing fleet audit** — store the fleet health summary:
-```
-recall_store(
-    content="Overseer run [{date}]: Fleet verdict {verdict}. Repaired: {N} agents. Created: {N} agents. Underperformers: {list}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:overseer", "type:fleet-audit"],
-    importance=0.85,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Overseer run [{date}]: Fleet verdict {verdict}. Repaired: {N} agents. Created: {N} agents. Underperformers: {list}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:overseer", "type:fleet-audit"]
+- `importance`: 0.85
+- `durability`: "durable"
 
 ## Constraints
 

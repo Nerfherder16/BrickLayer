@@ -16,9 +16,10 @@ The confirmed issues cluster around two themes:
 
 2. **DSPy dead weight** (E1.5/E1.8) -- The DSPy pipeline has 3 dead signature classes (62% of signatures.py) and is listed as a hard dependency despite being entirely optional in the production path. The optimization pipeline has never produced output.
 
-The fleet analysis (E1.4) found `tools-manifest` global copy is redundant (85% overlap with BL version) and `health-monitor` has confusing name collision (70% overlap, different purposes). Both are low-effort consolidation targets.
+The fleet analysis (E1.4) found `tools-manifest` global copy is redundant (85% overlap with BL version) and `health-monitor` has confusing name collision (70% overlap, different purposes). Both are low-effort consolidation targets. 
+## verify above 'health' 
 
----
+---   
 
 ## Critical Findings (must act)
 
@@ -119,17 +120,17 @@ The efficiency audit found no critical waste. The confirmed issues are all low-e
 
 ## Cumulative Metrics
 
-| Domain | Wave | Questions | CONFIRMED | FALSE_POSITIVE |
+| Domain                | Wave | Questions | CONFIRMED | FALSE_POSITIVE |
 |--------|------|-----------|-----------|----------------|
-| D1: Dead Code | 1 | 6 | 5 | 1 |
-| D2: Unwired Items | 1 | 6 | 6 | 0 |
-| D3: Bugs & Logic | 1 | 8 | 2 | 6 |
-| D4: Config Drift | 1 | 4 | 4 | 0 |
-| D5: Stale References | 1 | 6 | 4 | 2 |
-| D6: Structural | 1 | 6 | 3 | 3 |
-| M1: Mortar Routing | 2 | 6 | 5 | 1 |
-| V1: Fix Verification | 2 | 5 | 2 | 3 |
-| E1: Efficiency/Overhead | 3 | 9 | 5 | 4 |
+| D1: Dead Code           | 1 |     6 | 5 | 1 |
+| D2: Unwired Items       | 1 |     6 | 6 | 0 |
+| D3: Bugs & Logic        | 1 |     8 | 2 | 6 |
+| D4: Config Drift        | 1 |     4 | 4 | 0 |
+| D5: Stale References    | 1 |     6 | 4 | 2 |
+| D6: Structural          | 1 |     6 | 3 | 3 |
+| M1: Mortar Routing      | 2 |     6 | 5 | 1 |
+| V1: Fix Verification    | 2 |     5 | 2 | 3 |
+| E1: Efficiency/Overhead | 3 |     9 | 5 | 4 |
 | **Total** | **1-3** | **56** | **36** | **20** |
 
 **Wave 3 signal quality**: The 44% false-positive rate (4 of 9) is appropriate for an efficiency audit -- hypotheses about waste are inherently speculative. The false positives confirmed that several design decisions (zero npm deps, complementary rules/hooks, reasonable context budget) are sound. The 56% confirmation rate still yielded 5 actionable cleanup items.

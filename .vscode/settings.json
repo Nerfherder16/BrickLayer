@@ -1,0 +1,49 @@
+{
+  "task.allowAutomaticTasks": "on",
+  "terminal.integrated.defaultProfile.linux": "Claude (Tim)",
+  "terminal.integrated.tabs.title": "${process}",
+  "terminal.integrated.tabs.description": "${workspaceFolder}",
+  "terminal.integrated.profiles.linux": {
+    "Claude (Tim)": {
+      "path": "bash",
+      "args": ["--login"],
+      "env": {
+        "CLAUDE_USER": "tim",
+        "TERMINAL_TITLE": "Tim"
+      },
+      "icon": "octoface",
+      "color": "terminal.ansiBlue"
+    },
+    "Claude (Nick)": {
+      "path": "bash",
+      "args": ["--login"],
+      "env": {
+        "CLAUDE_USER": "nick",
+        "TERMINAL_TITLE": "Nick"
+      },
+      "icon": "ruby",
+      "color": "terminal.ansiRed"
+    },
+    "Tmux (Tim)": {
+      "path": "bash",
+      "args": ["--login", "-c", "tmux new-session -A -s tim"],
+      "env": {
+        "CLAUDE_USER": "tim",
+        "TERMINAL_TITLE": "Tim-tmux"
+      },
+      "icon": "octoface",
+      "color": "terminal.ansiCyan"
+    },
+    "Tmux (Nick)": {
+      "path": "bash",
+      "args": ["--login", "-c", "tmux new-session -A -s nick"],
+      "env": {
+        "CLAUDE_USER": "nick",
+        "TERMINAL_TITLE": "Nick-tmux"
+      },
+      "icon": "ruby",
+      "color": "terminal.ansiMagenta"
+    }
+  },
+  "terminal.integrated.tabs.enabled": true
+}

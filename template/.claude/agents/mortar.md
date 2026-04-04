@@ -113,9 +113,10 @@ If mode is missing or unrecognized, log `[MORTAR] WARNING: unknown mode '{mode}'
 
 When two equally-scored agents could handle a question, break the tie using Recall:
 
-```
-recall_search(query="verdict performance findings", domain="{project}-bricklayer", tags=["agent:{candidate}"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "verdict performance findings"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:{candidate}"]
 
 Prefer the agent with more recent activity, higher HEALTHY/FIXED ratio, fewer OVERRIDE verdicts.
 
@@ -179,9 +180,10 @@ Exception — route directly (not through Rough-in) for these single-agent tasks
 
 Your tag: `agent:mortar`
 
-```
-recall_search(query="campaign state project context", domain="{project}-bricklayer", tags=["agent:mortar", "agent:trowel"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "campaign state project context"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:mortar", "agent:trowel"]
 
 Use Recall to orient yourself on session start — especially for resuming a campaign where Trowel left off.
 

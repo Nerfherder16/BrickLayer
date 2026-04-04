@@ -1,0 +1,52 @@
+{
+  "project": "learning-loop-pattern-confidence-decay",
+  "status": "BUILDING",
+  "strategy": "balanced",
+  "branch": "bricklayer-v2/mar24-parallel",
+  "tasks": [
+    {
+      "id": 1,
+      "status": "DONE",
+      "title": "Implement toolPatternPromote and toolPatternDemote",
+      "description": "Add promote/demote functions to impl-patterns.js and register in MCP dispatch [mode:javascript]",
+      "files": [
+        "masonry/src/tools/impl-patterns.js",
+        "masonry/bin/masonry-mcp.js"
+      ]
+    },
+    {
+      "id": 2,
+      "status": "DONE",
+      "title": "Create masonry-build-outcome.js hook",
+      "description": "PostToolUse:Write hook that watches progress.json for DONE/FAILED transitions and calls promote/demote [mode:javascript] [depends:1]",
+      "files": [
+        "masonry/src/hooks/masonry-build-outcome.js",
+        "/home/nerfherder/.claude/settings.json"
+      ]
+    },
+    {
+      "id": 3,
+      "status": "DONE",
+      "title": "Auto-run decay at session start",
+      "description": "Call toolPatternDecay in addContextData() at session open [mode:javascript] [depends:1]",
+      "files": [
+        "masonry/src/hooks/session/context-data.js"
+      ]
+    },
+    {
+      "id": 4,
+      "status": "IN_PROGRESS",
+      "title": "Inject top-confidence agents at session start",
+      "description": "Surface top-5 agents by confidence score in session-start context [mode:javascript] [depends:3]",
+      "files": [
+        "masonry/src/hooks/session/context-data.js"
+      ]
+    }
+  ],
+  "tests": {
+    "total": 685,
+    "passing": 654,
+    "failing": 31
+  },
+  "updated_at": "2026-04-04T12:42:41.037Z"
+}

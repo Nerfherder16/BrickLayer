@@ -3,7 +3,7 @@
  * PreToolUse:Agent hook (Masonry): Capture Agent tool prompt before subagent spawns.
  *
  * Fires in the parent session when the Agent tool is called. Writes the prompt
- * to a temp file (.masonry/pending_agent_prompts/<subagent_type>-<uuid>.json)
+ * to a temp file (.mas/pending_agent_prompts/<subagent_type>-<uuid>.json)
  * so masonry-subagent-tracker.js can read it on SubagentStart and populate
  * request_text in routing_log.jsonl.
  *
@@ -21,16 +21,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const crypto = require("crypto");
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
+const { readStdin } = require('./session/stop-utils');
 
 function ensureDir(p) {
   try { fs.mkdirSync(p, { recursive: true }); } catch (_) {}
@@ -54,7 +45,7 @@ async function main() {
 
   // Use a fixed home-dir path so this matches masonry-subagent-tracker.js exactly,
   // regardless of whether CWD is the repo root, masonry/, or a project subdir.
-  const pendingDir = path.join(os.homedir(), ".masonry", "pending_agent_prompts");
+  const pendingDir = path.join(os.homedir(), ".mas", "pending_agent_prompts");
   ensureDir(pendingDir);
 
   const record = {

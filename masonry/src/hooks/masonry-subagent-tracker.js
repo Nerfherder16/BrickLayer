@@ -2,7 +2,7 @@
 /**
  * SubagentStart hook (Masonry): Track active agent spawns.
  *
- * Writes agent activity to ~/.masonry/state/agents.json (global, not per-project)
+ * Writes agent activity to ~/.mas/state/agents.json (global, not per-project)
  * so the statusline can show live agent count.
  *
  * Also updates masonry-state.json active_agent field when in campaign mode.
@@ -15,99 +15,12 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
+const { isMortarGated } = require('./session/mortar-gate');
+const { readStdin } = require('./session/stop-utils');
+
 const MAX_TRACKED = 20;
 const STALE_MS = 3600_000; // 1 hour — agents older than this are presumed done
 
-// ---------------------------------------------------------------------------
-// Mortar gate: block subagent spawns that bypass Mortar entirely.
-//
-// ALLOWED: any subagent_type that is a known specialist — these are already
-// dispatched by Mortar and just need to be tracked, not blocked.
-// BLOCKED: spawns with no recognized specialist type that don't originate from
-// a masonry:mortar parent context, which indicates Claude tried to do complex
-// work solo instead of routing through Mortar.
-//
-// Known specialist subagent_type values (set by Mortar when dispatching):
-// ---------------------------------------------------------------------------
-const MORTAR_DISPATCHED_TYPES = new Set([
-  // Claude Code built-in
-  "Explore",
-  "general-purpose",
-  // Autopilot agents
-  "developer",
-  "test-writer",
-  "code-reviewer",
-  "diagnose-analyst",
-  "fix-implementer",
-  "spec-writer",
-  // Masonry specialists
-  "masonry:mortar",
-  "mortar",
-  "trowel",
-  "uiux-master",
-  "solana-specialist",
-  "kiln-engineer",
-  "karen",
-  "frontier-analyst",
-  "design-reviewer",
-  "refactorer",
-  "prompt-engineer",
-  "git-nerd",
-  // Research fleet
-  "research-analyst",
-  "regulatory-researcher",
-  "competitive-analyst",
-  "quantitative-analyst",
-  "benchmark-engineer",
-  "hypothesis-generator",
-  "hypothesis-generator-bl2",
-  "synthesizer",
-  "synthesizer-bl2",
-  "planner",
-  "question-designer-bl2",
-  "health-monitor",
-  "cascade-analyst",
-  "evolve-optimizer",
-  "compliance-auditor",
-  "security",
-  "architect",
-  "uiux-master",
-]);
-
-function isMortarGated(input) {
-  const subagentType = (input.subagent_type || "").trim().toLowerCase();
-
-  // No subagent_type set — this is a raw spawn; only allow if already in a
-  // known specialist context (agent_name is a specialist) or if the spawn
-  // carries a recognized type.
-  if (!subagentType) {
-    // Check agent_name / agent_type as fallback
-    const agentName = (input.agent_name || input.agent_type || "").trim().toLowerCase();
-    if (agentName && MORTAR_DISPATCHED_TYPES.has(agentName)) {
-      return false; // allow — already a specialist
-    }
-    // Untagged spawn from main context — gate it
-    return true;
-  }
-
-  // If type is recognized, allow through
-  if (MORTAR_DISPATCHED_TYPES.has(subagentType)) {
-    return false;
-  }
-
-  // Unknown type — gate it
-  return true;
-}
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
 
 function ensureDir(p) {
   try { fs.mkdirSync(p, { recursive: true }); } catch (_) {}
@@ -153,8 +66,26 @@ async function main() {
   }
 
   const cwd = input.cwd || process.cwd();
-  // Use ~/.masonry/state/ — global, not per-project
-  const stateDir = path.join(os.homedir(), ".masonry", "state");
+
+  // Update Mortar gate file when ANY recognized agent is spawned.
+  // The routing-gate PreToolUse hook checks mortar_consulted to decide
+  // whether to block Write/Edit operations on production code.
+  // Previously this only fired for mortar-type agents; now it fires for all
+  // recognized specialists so that direct agent dispatch also clears the gate.
+  const subagentType = (input.subagent_type || "").trim().toLowerCase();
+  {
+    const gateFile = path.join(os.tmpdir(), "masonry-mortar-gate.json");
+    try {
+      fs.writeFileSync(gateFile, JSON.stringify({
+        mortar_consulted: true,
+        timestamp: new Date().toISOString(),
+        agent: subagentType || input.agent_name || "unknown",
+      }), "utf8");
+    } catch {}
+  }
+
+  // Use ~/.mas/state/ — global, not per-project
+  const stateDir = path.join(os.homedir(), ".mas", "state");
   ensureDir(stateDir);
 
   const now = Date.now();
@@ -163,7 +94,7 @@ async function main() {
     name: input.agent_name || input.agent_type || "agent",
     model: input.model || "?",
     startedAt: now,
-    sessionId: input.session_id || "",
+    sessionId: require('./session/stop-utils').getSessionId(input),
   };
 
   // Load existing agent state
@@ -195,7 +126,7 @@ async function main() {
       const subagentType = (input.subagent_type || agentEntry.name || '').toLowerCase().trim();
       // Use home-dir path to match masonry-preagent-tracker.js exactly — avoids
       // CWD mismatch when PreToolUse fires in masonry/ but SubagentStart fires in repo root.
-      const pendingDir = path.join(os.homedir(), '.masonry', 'pending_agent_prompts');
+      const pendingDir = path.join(os.homedir(), '.mas', 'pending_agent_prompts');
       const TTL_MS = 10_000; // 10-second freshness window
 
       // --- UUID-slot read (F-w42.1) ---

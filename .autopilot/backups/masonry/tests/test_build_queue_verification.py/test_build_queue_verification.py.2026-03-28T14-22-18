@@ -1,0 +1,486 @@
+"""
+Build Queue Verification — 32-Task Acceptance Test
+===================================================
+Verifies every deliverable from the BrickLayer 2.0 build queue (Phases 1-5).
+Run: pytest masonry/tests/test_build_queue_verification.py -v
+
+One test per task. Each test checks:
+  1. Required files exist
+  2. Required content patterns are present
+  3. No hollow stubs (files have meaningful content)
+"""
+
+import json
+import re
+from pathlib import Path
+
+import pytest
+
+# ── Roots ────────────────────────────────────────────────────────────────────
+REPO = Path("C:/Users/trg16/Dev/Bricklayer2.0")
+CLAUDE = Path("C:/Users/trg16/.claude")
+TEMPLATE_AGENTS = REPO / "template/.claude/agents"
+TEMPLATE_SKILLS = REPO / "template/.claude/skills"
+GLOBAL_AGENTS = CLAUDE / "agents"
+GLOBAL_SKILLS = CLAUDE / "skills"
+MASONRY = REPO / "masonry"
+
+
+def _read(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="ignore")
+
+
+def _has(path: Path, *patterns: str) -> None:
+    text = _read(path)
+    for p in patterns:
+        assert re.search(p, text, re.IGNORECASE), f"Pattern not found in {path.name}: {p!r}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 1 — Foundation + Quick Wins
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestPhase1Foundation:
+
+    def test_t01_schema_tests_exist_and_pass(self):
+        """T1: Pre-existing test_schemas.py failures fixed."""
+        test_file = MASONRY / "tests/test_mas_schemas.py"
+        assert test_file.exists(), "masonry/tests/test_mas_schemas.py missing"
+        # Structural check — file must reference FindingPayload or similar
+        _has(test_file, r"FindingPayload|QuestionPayload|GradeConfidence")
+
+    def test_t02_skill_frontmatter_on_template_agents(self):
+        """T2: All non-stub template agents have SKILL.md YAML frontmatter fields."""
+        # Exclude non-agent files and stub placeholders (content == "STUB")
+        NON_AGENTS = {"AUDIT_REPORT.md"}
+        agents = list(TEMPLATE_AGENTS.glob("*.md"))
+        assert len(agents) >= 20, f"Expected ≥20 template agents, got {len(agents)}"
+        missing_frontmatter = []
+        for agent in agents:
+            if agent.name in NON_AGENTS:
+                continue
+            text = _read(agent).strip()
+            if text == "STUB":
+                continue  # placeholder stubs are exempt
+            if not text.startswith("---"):
+                missing_frontmatter.append(agent.name)
+        assert not missing_frontmatter, f"Agents missing frontmatter: {missing_frontmatter}"
+        # Spot-check required fields in a few key agents
+        for name in ["developer.md", "code-reviewer.md", "trowel.md"]:
+            path = TEMPLATE_AGENTS / name
+            if path.exists():
+                _has(path, r"^name:", r"^description:", r"^model:")
+
+    def test_t03_karpathy_surgical_changes(self):
+        """T3: developer.md + fix-implementer.md have Karpathy rule + ambiguity gate."""
+        for agent_name in ["developer.md", "fix-implementer.md"]:
+            for base in [TEMPLATE_AGENTS, GLOBAL_AGENTS]:
+                path = base / agent_name
+                if path.exists():
+                    _has(path,
+                         r"only modify the exact lines|surgical|karpathy",
+                         r"surface ambiguit|ambiguity gate|step 0")
+
+    def test_t04_anti_pattern_detection_hook(self):
+        """T4: masonry-agent-onboard.js detects 5 anti-patterns."""
+        hook = MASONRY / "src/hooks/masonry-agent-onboard.js"
+        assert hook.exists(), "masonry-agent-onboard.js missing"
+        _has(hook,
+             r"OVER_CONSTRAINED",
+             r"EMPTY_DESCRIPTION",
+             r"MISSING_TRIGGER",
+             r"BLOATED_SKILL",
+             r"ORPHAN_REFERENCE")
+
+    def test_t05_secret_scanner_hook(self):
+        """T5: masonry-secret-scanner.js exists with patterns + test suite passes structure."""
+        hook = MASONRY / "src/hooks/masonry-secret-scanner.js"
+        assert hook.exists(), "masonry-secret-scanner.js missing"
+        _has(hook,
+             r"AKIA",           # AWS key pattern
+             r"ghp_",           # GitHub PAT
+             r"sk-ant",         # Anthropic key
+             r"BEGIN.*PRIVATE KEY|PEM",   # PEM key
+             r"exit.*2|process\.exit\(2\)")  # blocks with exit code 2
+        # Test file exists
+        test_file = MASONRY / "tests/hooks/test_secret_scanner.test.js"
+        assert test_file.exists(), "Secret scanner test file missing"
+        _has(test_file, r"blocks.*AWS|AWS.*block", r"allows.*placeholder|negative")
+
+    def test_t06_dependency_audit_and_file_size_hooks(self):
+        """T6: Dependency audit + file size hooks exist and are registered."""
+        dep_hook = MASONRY / "src/hooks/masonry-dep-audit.js"
+        # file-size hook may be named masonry-file-size.js or masonry-file-size-guard.js
+        size_hook = MASONRY / "src/hooks/masonry-file-size-guard.js"
+        if not size_hook.exists():
+            size_hook = MASONRY / "src/hooks/masonry-file-size.js"
+        assert dep_hook.exists(), "masonry-dep-audit.js missing"
+        assert size_hook.exists(), "masonry-file-size-guard.js (or masonry-file-size.js) missing"
+        _has(dep_hook, r"audit|vulnerabilit|package\.json|requirements")
+        _has(size_hook, r"300|lines|file.*size|size.*limit")
+        # Registered in settings.json hooks
+        settings = json.loads(_read(CLAUDE / "settings.json"))
+        hooks_section = json.dumps(settings.get("hooks", {}))
+        assert "masonry-dep-audit" in hooks_section or "dep-audit" in hooks_section, \
+            "masonry-dep-audit not registered in settings.json hooks"
+        assert "masonry-file-size" in hooks_section or "file-size" in hooks_section, \
+            "masonry-file-size not registered in settings.json hooks"
+
+    def test_t07_mcp_servers_configured(self):
+        """T7: chrome-devtools-mcp, bgpt, sequential-thinking, repomix in mcp.json."""
+        mcp_json = CLAUDE / "mcp.json"
+        assert mcp_json.exists(), "~/.claude/mcp.json missing"
+        config = json.loads(_read(mcp_json))
+        servers = config.get("mcpServers", {})
+        assert "chrome-devtools" in servers, "chrome-devtools MCP server missing"
+        assert "bgpt" in servers, "bgpt MCP server missing"
+        assert "sequential-thinking" in servers, "sequential-thinking MCP server missing"
+        assert "repomix" in servers, "repomix MCP server missing"
+
+    def test_t08_claude_github_actions_workflow(self):
+        """T8: .github/workflows/claude.yml exists with claude-code-action."""
+        workflow = REPO / ".github/workflows/claude.yml"
+        assert workflow.exists(), ".github/workflows/claude.yml missing"
+        _has(workflow,
+             r"anthropics/claude-code-action",
+             r"@claude|issue_comment|pull_request")
+
+    def test_t09_h0_h1_prediction_triad(self):
+        """T9: question-designer-bl2.md has H0/H1/prediction triad template."""
+        for base in [TEMPLATE_AGENTS, GLOBAL_AGENTS]:
+            path = base / "question-designer-bl2.md"
+            if path.exists():
+                _has(path, r"\bH0\b", r"\bH1\b", r"[Pp]rediction")
+                return
+        pytest.fail("question-designer-bl2.md not found in template or global agents")
+
+    def test_t10_grade_confidence_enum(self):
+        """T10: FindingPayload uses GradeConfidence enum (HIGH/MODERATE/LOW/VERY_LOW)."""
+        payloads = MASONRY / "src/schemas/payloads.py"
+        assert payloads.exists(), "masonry/src/schemas/payloads.py missing"
+        _has(payloads,
+             r"GradeConfidence",
+             r"HIGH",
+             r"MODERATE",
+             r"LOW",
+             r"VERY_LOW")
+        # Ensure FindingPayload uses the enum (not a float confidence)
+        text = _read(payloads)
+        assert "GradeConfidence" in text, "FindingPayload must use GradeConfidence enum"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 2 — Agent Quality & Evaluation
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestPhase2Quality:
+
+    def test_t11_bl_plugineval_scoring_infrastructure(self):
+        """T11: 3-layer scoring: static_analyzer + llm_judge + monte_carlo + elo_ranking."""
+        scoring = MASONRY / "src/scoring"
+        assert scoring.exists(), "masonry/src/scoring/ directory missing"
+        required = ["static_analyzer.py", "llm_judge.py", "monte_carlo.py", "elo_ranking.py"]
+        for fname in required:
+            assert (scoring / fname).exists(), f"masonry/src/scoring/{fname} missing"
+        # Each file has meaningful content (not stubs)
+        for fname in required:
+            text = _read(scoring / fname)
+            assert len(text) > 200, f"{fname} looks like a stub (< 200 chars)"
+
+    def test_t12_pass_at_n_metrics(self):
+        """T12: improve_agent.py has pass@1 / pass@3 / pass^3 metrics."""
+        script = MASONRY / "scripts/improve_agent.py"
+        assert script.exists(), "masonry/scripts/improve_agent.py missing"
+        _has(script, r"pass_at_1|pass@1", r"pass_at_3|pass@3")
+
+    def test_t13_constitutional_ai_critique_loop(self):
+        """T13: optimize_with_claude.py has critique-revise Constitutional AI loop."""
+        script = MASONRY / "scripts/optimize_with_claude.py"
+        assert script.exists(), "masonry/scripts/optimize_with_claude.py missing"
+        _has(script,
+             r"constitutional|critique",
+             r"revise|revision",
+             r"anti.pattern|anti_pattern")
+
+    def test_t14_staged_agent_rollout(self):
+        """T14: improve_agent.py has 5%→20%→50%→100% staged rollout + snapshot history."""
+        script = MASONRY / "scripts/improve_agent.py"
+        _has(script,
+             r"5%.*20%|staged|rollout",
+             r"snapshot")
+        # Snapshot history directory structure
+        snapshots = MASONRY / "agent_snapshots"
+        assert snapshots.exists(), "masonry/agent_snapshots/ directory missing"
+
+    def test_t15_fail_closed_defaults(self):
+        """T15: code-reviewer defaults FAIL, confidence gating ≥80%."""
+        for base in [TEMPLATE_AGENTS, GLOBAL_AGENTS]:
+            path = base / "code-reviewer.md"
+            if path.exists():
+                _has(path,
+                     r"fail.closed|default.*fail|FAIL.*default",
+                     r"80%|confidence.*gat|gat.*confidence")
+                return
+        pytest.fail("code-reviewer.md not found")
+
+    def test_t16_golden_examples_in_agent_prompts(self):
+        """T16: developer.md and fix-implementer.md have before/after golden examples."""
+        for agent in ["developer.md", "fix-implementer.md"]:
+            for base in [TEMPLATE_AGENTS, GLOBAL_AGENTS]:
+                path = base / agent
+                if path.exists():
+                    _has(path, r"[Gg]olden [Ee]xample|before.*after|❌.*✅|BAD.*GOOD")
+                    break
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 3 — Developer Build Loop Upgrades
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestPhase3BuildLoop:
+
+    def test_t17_parallel_debugger_agent(self):
+        """T17: parallel-debugger.md exists in both template and global agents."""
+        assert (TEMPLATE_AGENTS / "parallel-debugger.md").exists(), \
+            "template parallel-debugger.md missing"
+        assert (GLOBAL_AGENTS / "parallel-debugger.md").exists(), \
+            "~/.claude/agents/parallel-debugger.md missing"
+        _has(TEMPLATE_AGENTS / "parallel-debugger.md",
+             r"compet|hypothes|parallel.*diagnos|diagnos.*parallel")
+
+    def test_t18_tdd_orchestrator_agent(self):
+        """T18: tdd-orchestrator.md exists with mutation + property-based testing."""
+        assert (TEMPLATE_AGENTS / "tdd-orchestrator.md").exists(), \
+            "template tdd-orchestrator.md missing"
+        assert (GLOBAL_AGENTS / "tdd-orchestrator.md").exists(), \
+            "~/.claude/agents/tdd-orchestrator.md missing"
+        _has(TEMPLATE_AGENTS / "tdd-orchestrator.md",
+             r"mutation",
+             r"property.based|hypothesis|quickcheck",
+             r"chaos|ATDD|BDD")
+
+    def test_t19_pr_writer_agent(self):
+        """T19: pr-writer.md exists and covers PR description + review checklist."""
+        assert (TEMPLATE_AGENTS / "pr-writer.md").exists(), \
+            "template pr-writer.md missing"
+        assert (GLOBAL_AGENTS / "pr-writer.md").exists(), \
+            "~/.claude/agents/pr-writer.md missing"
+        _has(TEMPLATE_AGENTS / "pr-writer.md",
+             r"pull request|PR description",
+             r"checklist|review")
+
+    def test_t20_named_pipeline_templates(self):
+        """T20: .pipeline/ has FEATURE-DEV, BUG-FIX, SECURITY-AUDIT YAML files."""
+        pipeline_dir = REPO / ".pipeline"
+        assert pipeline_dir.exists(), ".pipeline/ directory missing"
+        for name in ["FEATURE-DEV.yml", "BUG-FIX.yml", "SECURITY-AUDIT.yml"]:
+            path = pipeline_dir / name
+            assert path.exists(), f".pipeline/{name} missing"
+            text = _read(path)
+            assert len(text) > 100, f".pipeline/{name} looks like a stub"
+
+    def test_t21_dual_verification_verifier_agent(self):
+        """T21: verifier.md exists (REVIEWER quality + VERIFIER spec compliance)."""
+        verifier = GLOBAL_AGENTS / "verifier.md"
+        assert verifier.exists(), "~/.claude/agents/verifier.md missing"
+        _has(verifier, r"spec.*complian|complian.*spec|verif")
+
+    def test_t22_loki_reflect_competing_hypotheses(self):
+        """T22: trowel.md has LOKI reflect phase + competing hypotheses."""
+        for base in [TEMPLATE_AGENTS, GLOBAL_AGENTS]:
+            path = base / "trowel.md"
+            if path.exists():
+                _has(path,
+                     r"reflect|LOKI",
+                     r"compet.*hypothes|hypothes.*compet|INDETERMINATE|adversar")
+                return
+        pytest.fail("trowel.md not found")
+
+    def test_t23_repomix_mcp_docs(self):
+        """T23: repomix MCP docs exist in docs/tooling/."""
+        repomix_doc = REPO / "docs/tooling/repomix-mcp.md"
+        assert repomix_doc.exists(), "docs/tooling/repomix-mcp.md missing"
+        _has(repomix_doc, r"repomix|pack_codebase|generate_skill")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 4 — MCP, Tooling & Infrastructure
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestPhase4Infrastructure:
+
+    def test_t24_ci_cd_templates(self):
+        """T24: node-ci.yml, python-ci.yml, release-please.yml exist."""
+        workflows = REPO / ".github/workflows"
+        for name in ["node-ci.yml", "python-ci.yml", "release-please.yml"]:
+            path = workflows / name
+            assert path.exists(), f".github/workflows/{name} missing"
+            text = _read(path)
+            assert len(text) > 100, f"{name} looks like a stub"
+        # node-ci has paths-filter or change detection
+        _has(workflows / "node-ci.yml", r"paths|on:.*push|test|npm")
+        _has(workflows / "python-ci.yml", r"pytest|python|pip")
+        _has(workflows / "release-please.yml", r"release-please|google-github-actions")
+
+    def test_t25_charlie_proactive_playbooks(self):
+        """T25: .charlie/ has conductor.json + 4 playbooks."""
+        charlie = REPO / ".charlie"
+        assert charlie.exists(), ".charlie/ directory missing"
+        assert (charlie / "conductor.json").exists(), ".charlie/conductor.json missing"
+        playbooks_dir = charlie / "playbooks"
+        assert playbooks_dir.exists(), ".charlie/playbooks/ missing"
+        playbooks = list(playbooks_dir.glob("*.md"))
+        assert len(playbooks) >= 4, f"Expected ≥4 playbooks, got {len(playbooks)}"
+        # Check the 4 required playbook names
+        names = {p.stem for p in playbooks}
+        expected = {"dead-code-cleanup", "coverage-threshold-bump", "release-notes", "team-update"}
+        missing = expected - names
+        assert not missing, f"Missing Charlie playbooks: {missing}"
+
+    def test_t26_worktrunk_documentation(self):
+        """T26: worktrunk.md exists in docs/tooling/."""
+        worktrunk = REPO / "docs/tooling/worktrunk.md"
+        assert worktrunk.exists(), "docs/tooling/worktrunk.md missing"
+        _has(worktrunk, r"worktrunk|parallel.*workflow|branch.*worktree")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 5 — UI/UX, Visual Output & Agent Catalog Expansion
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestPhase5UIAndAgents:
+
+    def test_t27_uiux_master_ai_slop_test(self):
+        """T27: uiux-master.md has AI slop test + Nielsen scoring + personas."""
+        for base in [TEMPLATE_AGENTS, GLOBAL_AGENTS]:
+            path = base / "uiux-master.md"
+            if path.exists():
+                _has(path,
+                     r"slop|nielsen|heuristic",
+                     r"persona|user.*type|audience")
+                return
+        pytest.fail("uiux-master.md not found")
+
+    def test_t28_code_reviewer_8_interaction_states(self):
+        """T28: code-reviewer.md has all 8 interaction state checks."""
+        for base in [TEMPLATE_AGENTS, GLOBAL_AGENTS]:
+            path = base / "code-reviewer.md"
+            if path.exists():
+                _has(path,
+                     r"[Dd]efault|[Ii]dle",
+                     r"[Hh]over",
+                     r"[Ff]ocus",
+                     r"[Aa]ctive|[Pp]ressed",
+                     r"[Ll]oading",
+                     r"[Ee]rror|[Ii]nvalid",
+                     r"[Ee]mpty",
+                     r"[Ss]keleton|[Dd]isabled")
+                return
+        pytest.fail("code-reviewer.md not found")
+
+    def test_t29_visual_report_and_teach_bricklayer_skills(self):
+        """T29: visual-report.md and teach-bricklayer.md exist in template skills."""
+        assert (TEMPLATE_SKILLS / "visual-report.md").exists(), \
+            "template/.claude/skills/visual-report.md missing"
+        assert (TEMPLATE_SKILLS / "teach-bricklayer.md").exists(), \
+            "template/.claude/skills/teach-bricklayer.md missing"
+        _has(TEMPLATE_SKILLS / "visual-report.md", r"HTML|visual|synthesis|report")
+        _has(TEMPLATE_SKILLS / "teach-bricklayer.md", r"\.bricklayer\.md|context|setup|onboard")
+
+    def test_t30_plugin_marketplace_entry(self):
+        """T30: .claude-plugin/marketplace.json exists with required fields."""
+        marketplace = REPO / ".claude-plugin/marketplace.json"
+        assert marketplace.exists(), ".claude-plugin/marketplace.json missing"
+        data = json.loads(_read(marketplace))
+        required_fields = ["name", "description", "version"]
+        for field in required_fields:
+            assert field in data or any(field in str(v) for v in data.values()), \
+                f"marketplace.json missing field: {field}"
+
+    def test_t31_22_stack_matched_domain_agents(self):
+        """T31: 22 stack-matched domain agents exist in template + global."""
+        expected_agents = [
+            # 15 from 0xfurai
+            "python-specialist.md", "rust-specialist.md", "go-specialist.md",
+            "kotlin-specialist.md", "bash-specialist.md",
+            "postgres-specialist.md", "redis-specialist.md", "neo4j-specialist.md",
+            "fastapi-specialist.md", "nextjs-specialist.md",
+            "kafka-specialist.md", "docker-specialist.md",
+            "opentelemetry-specialist.md", "github-actions-specialist.md",
+            "vector-db-specialist.md",
+            # 7 from VoltAgent niche domains
+            "chaos-engineer.md", "reinforcement-learning-engineer.md",
+            "legacy-modernizer.md", "scientific-computing-specialist.md",
+            "geospatial-developer.md", "embedded-developer.md",
+            "game-developer.md",
+        ]
+        missing_template = [a for a in expected_agents
+                            if not (TEMPLATE_AGENTS / a).exists()]
+        missing_global = [a for a in expected_agents
+                          if not (GLOBAL_AGENTS / a).exists()]
+        assert not missing_template, f"Missing from template agents: {missing_template}"
+        assert not missing_global, f"Missing from global agents: {missing_global}"
+
+    def test_t32_7_marketing_skills(self):
+        """T32: 7 marketing skills exist in ~/.claude/skills/ or template/skills/."""
+        expected_skills = [
+            "positioning.md",
+            "gtm.md",
+            "copywriting.md",
+            "email-sequence.md",
+            "social-content.md",
+            "launch-brief.md",
+            "competitive-positioning.md",
+        ]
+        # Check either global skills (flat .md) or template skills
+        missing = []
+        for skill in expected_skills:
+            in_global = (GLOBAL_SKILLS / skill).exists()
+            in_template = (TEMPLATE_SKILLS / skill).exists()
+            if not (in_global or in_template):
+                missing.append(skill)
+        assert not missing, f"Missing marketing skills: {missing}"
+        # Spot-check content depth
+        for skill in expected_skills[:3]:
+            for base in [GLOBAL_SKILLS, TEMPLATE_SKILLS]:
+                path = base / skill
+                if path.exists():
+                    assert len(_read(path)) > 300, f"{skill} looks like a stub"
+                    break
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CROSS-CUTTING: /build skill Ruflo rewrite
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestBuildSkillRuflo:
+    """Verifies the /build skill has Ruflo SPARC 5-stage pipeline."""
+
+    def test_build_skill_sparc_phases(self):
+        """Phase 0 pseudocode + architecture generation exists in build skill."""
+        build_skill = GLOBAL_SKILLS / "build/SKILL.md"
+        assert build_skill.exists(), "~/.claude/skills/build/SKILL.md missing"
+        _has(build_skill,
+             r"Phase 0|pseudocode.writer|architecture.writer",
+             r"SPARC",
+             r"strategy.*conservative|conservative.*strategy")
+
+    def test_build_skill_senior_escalation(self):
+        """Escalation chain includes parallel-debugger + senior-developer."""
+        build_skill = GLOBAL_SKILLS / "build/SKILL.md"
+        _has(build_skill,
+             r"parallel.debugger",
+             r"senior.developer",
+             r"diagnose.analyst")
+
+    def test_build_skill_compaction_recovery(self):
+        """Resuming section handles TaskCreate re-registration after compaction."""
+        build_skill = GLOBAL_SKILLS / "build/SKILL.md"
+        _has(build_skill,
+             r"compaction|TaskCreate.*resum|re.register|fresh.*ID",
+             r"depends_on")
+
+    def test_build_skill_tdd_orchestrator_mode(self):
+        """[mode:tdd-deep] routes to tdd-orchestrator."""
+        build_skill = GLOBAL_SKILLS / "build/SKILL.md"
+        _has(build_skill, r"tdd.deep|tdd-orchestrator")

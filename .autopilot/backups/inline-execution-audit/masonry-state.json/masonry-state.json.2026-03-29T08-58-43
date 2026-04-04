@@ -1,0 +1,21 @@
+{
+  "project": "inline-execution-audit",
+  "mode": "campaign",
+  "wave": 1,
+  "q_current": 14,
+  "q_total": 14,
+  "wave_complete": true,
+  "active_agent": null,
+  "verdicts": {
+    "HEALTHY": 0,
+    "WARNING": 4,
+    "FAILURE": 6,
+    "CONFIRMED": 3,
+    "FRONTIER_PARTIAL": 1,
+    "CONCERNS": 1
+  },
+  "active_agent_count": 7,
+  "last_qid": "FR1.1",
+  "last_verdict": "FRONTIER_PARTIAL",
+  "updated_at": "2026-03-29T10:00:00Z"
+}

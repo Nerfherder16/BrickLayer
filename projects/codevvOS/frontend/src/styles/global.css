@@ -1,0 +1,343 @@
+/* CodeVV OS — Obsidian Shell Design System
+   Tailwind v4 CSS-first configuration.
+   Source of truth: design-system.md
+   Version: 1.0 / 2026-04-02 */
+
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Base tokens — :root dark mode (primary)
+   --------------------------------------------------------------------------- */
+
+@layer base {
+  :root {
+    /* -- Surfaces (section 2.1) -- */
+    --color-base:       #0D160B;
+    --color-surface-1:  #111B0E;
+    --color-surface-2:  #162013;
+    --color-surface-3:  #1C2618;
+    --color-surface-4:  #222D1E;
+    --color-surface-5:  #293524;
+
+    /* -- Borders (section 2.2) -- */
+    --color-border-subtle:  #192510;
+    --color-border-muted:   #212E16;
+    --color-border-default: #2C3D1F;
+    --color-border-strong:  #3A4D2A;
+
+    /* -- Text (section 2.3) -- */
+    --color-text-primary:   #EDE9F4;
+    --color-text-secondary: #9088A0;
+    --color-text-tertiary:  #5F5570;
+    --color-text-muted:     #3D3350;
+    --color-text-inverse:   #111B0E;
+
+    /* -- Accent — default steel blue (section 2.4) -- */
+    --color-accent:       #4F87B3;
+    --color-accent-muted: #4F87B320;
+    --color-accent-dim:   #4F87B340;
+    --color-accent-fg:    #EDE9F4;
+
+    /* -- Semantic status (section 2.5) -- */
+    --color-success:       #4DA862;
+    --color-success-muted: #4DA86220;
+    --color-warning:       #C98A30;
+    --color-warning-muted: #C98A3020;
+    --color-error:         #ED474A;
+    --color-error-muted:   #ED474A20;
+    --color-info:          #4F87B3;
+    --color-info-muted:    #4F87B320;
+
+    /* -- Severity (section 2.5) -- */
+    --color-severity-critical: #ED474A;
+    --color-severity-high:     #C9614A;
+    --color-severity-medium:   #C98A30;
+    --color-severity-low:      #5F5570;
+
+    /* -- Typography -- */
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+
+    /* -- Type scale (rem) -- */
+    --text-xs:   0.75rem;    /* 12px */
+    --text-sm:   0.875rem;   /* 14px */
+    --text-base: 1rem;       /* 16px */
+    --text-lg:   1.125rem;   /* 18px */
+    --text-xl:   1.25rem;    /* 20px */
+    --text-2xl:  1.5rem;     /* 24px */
+    --text-3xl:  1.875rem;   /* 30px */
+    --text-4xl:  2.25rem;    /* 36px */
+
+    /* -- Spacing (4px base grid) -- */
+    --space-0:  0;
+    --space-1:  0.25rem;
+    --space-2:  0.5rem;
+    --space-3:  0.75rem;
+    --space-4:  1rem;
+    --space-5:  1.25rem;
+    --space-6:  1.5rem;
+    --space-8:  2rem;
+    --space-10: 2.5rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+    --space-20: 5rem;
+    --space-24: 6rem;
+
+    /* -- Border radius -- */
+    --radius-none: 0;
+    --radius-sm:   0.125rem;
+    --radius-md:   0.25rem;
+    --radius-lg:   0.375rem;
+    --radius-xl:   0.5rem;
+    --radius-2xl:  0.75rem;
+    --radius-full: 9999px;
+
+    /* -- Shadows -- */
+    --shadow-0: none;
+    --shadow-1: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+    --shadow-2: 0 2px 4px -1px rgb(0 0 0 / 0.5);
+    --shadow-3: 0 4px 8px -2px rgb(0 0 0 / 0.6);
+    --shadow-4: 0 8px 16px -4px rgb(0 0 0 / 0.7);
+    --shadow-5: 0 20px 40px -8px rgb(0 0 0 / 0.8);
+
+    /* -- Glass / blur -- */
+    --glass-blur: blur(12px);
+    --glass-bg:   rgb(17 27 14 / 0.75);
+
+    /* -- Motion -- */
+    --duration-fast:   100ms;
+    --duration-normal: 200ms;
+    --duration-slow:   350ms;
+    --ease-default:    cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-spring:     cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* -- Terminal -- */
+    --terminal-background: #0A100A;
+    --terminal-foreground: #C8D8C0;
+    --terminal-cursor:     #4F87B3;
+
+    /* -- Icon sizes -- */
+    --icon-xs:  0.75rem;
+    --icon-sm:  1rem;
+    --icon-md:  1.25rem;
+    --icon-lg:  1.5rem;
+    --icon-xl:  2rem;
+    --icon-2xl: 2.5rem;
+    --icon-3xl: 3rem;
+
+    /* -- Component tokens — panels -- */
+    --panel-bg:      var(--color-surface-1);
+    --panel-border:  var(--color-border-muted);
+    --panel-header:  var(--color-surface-2);
+    --panel-radius:  var(--radius-md);
+
+    /* -- Component tokens — sidebar -- */
+    --sidebar-bg:     var(--color-surface-2);
+    --sidebar-width:  240px;
+    --sidebar-border: var(--color-border-muted);
+
+    /* -- Component tokens — inputs -- */
+    --input-bg:       var(--color-surface-3);
+    --input-border:   var(--color-border-default);
+    --input-radius:   var(--radius-md);
+    --input-focus:    var(--color-accent);
+  }
+
+  /* -- Workspace accent classes (section 2.4) -- */
+
+  .workspace-dev {
+    --color-accent:       #4F87B3;
+    --color-accent-muted: #4F87B320;
+    --color-accent-dim:   #4F87B340;
+  }
+
+  .workspace-brainstorm {
+    --color-accent:       #8E6AAF;
+    --color-accent-muted: #8E6AAF20;
+    --color-accent-dim:   #8E6AAF40;
+  }
+
+  .workspace-review {
+    --color-accent:       #ED474A;
+    --color-accent-muted: #ED474A20;
+    --color-accent-dim:   #ED474A40;
+  }
+
+  .workspace-planning {
+    --color-accent:       #4E9E7A;
+    --color-accent-muted: #4E9E7A20;
+    --color-accent-dim:   #4E9E7A40;
+  }
+
+  .workspace-meeting {
+    --color-accent:       #C47A52;
+    --color-accent-muted: #C47A5220;
+    --color-accent-dim:   #C47A5240;
+  }
+
+  /* -- Light mode (section 2.6) — applied via class="theme-light" on :root -- */
+
+  .theme-light {
+    --color-base:      #FAF6FF;
+    --color-surface-1: #FFFFFF;
+    --color-surface-2: #F4F0FA;
+    --color-surface-3: #EDE8F5;
+    --color-surface-4: #E4DEEE;
+    --color-surface-5: #DAD3E7;
+
+    --color-border-subtle:  #ECE7F5;
+    --color-border-muted:   #DDD7ED;
+    --color-border-default: #C5BDD9;
+    --color-border-strong:  #9E94BA;
+
+    --color-text-primary:   #0F1A0C;
+    --color-text-secondary: #4A4265;
+    --color-text-tertiary:  #7A6E8F;
+    --color-text-muted:     #B8B0CC;
+    --color-text-inverse:   #EDE9F4;
+
+    --glass-bg: rgb(250 246 255 / 0.85);
+  }
+
+  /* -- Base element resets -- */
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-base);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  code,
+  pre,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+  }
+
+  /* Scrollbar — dark minimal */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-surface-1);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: var(--radius-full);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-tertiary);
+  }
+
+  /* Selection */
+  ::selection {
+    background: var(--color-accent-dim);
+    color: var(--color-text-primary);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   @theme — map CSS tokens to Tailwind v4 utilities
+   --------------------------------------------------------------------------- */
+
+@theme {
+  /* Colors */
+  --color-base:             var(--color-base);
+  --color-surface-1:        var(--color-surface-1);
+  --color-surface-2:        var(--color-surface-2);
+  --color-surface-3:        var(--color-surface-3);
+  --color-surface-4:        var(--color-surface-4);
+  --color-surface-5:        var(--color-surface-5);
+
+  --color-border-subtle:    var(--color-border-subtle);
+  --color-border-muted:     var(--color-border-muted);
+  --color-border-default:   var(--color-border-default);
+  --color-border-strong:    var(--color-border-strong);
+
+  --color-text-primary:     var(--color-text-primary);
+  --color-text-secondary:   var(--color-text-secondary);
+  --color-text-tertiary:    var(--color-text-tertiary);
+  --color-text-muted:       var(--color-text-muted);
+  --color-text-inverse:     var(--color-text-inverse);
+
+  --color-accent:           var(--color-accent);
+  --color-accent-muted:     var(--color-accent-muted);
+  --color-accent-dim:       var(--color-accent-dim);
+  --color-accent-fg:        var(--color-accent-fg);
+
+  --color-success:          var(--color-success);
+  --color-warning:          var(--color-warning);
+  --color-error:            var(--color-error);
+  --color-info:             var(--color-info);
+
+  /* Fonts */
+  --font-family-sans: var(--font-sans);
+  --font-family-mono: var(--font-mono);
+
+  /* Font sizes */
+  --font-size-xs:   var(--text-xs);
+  --font-size-sm:   var(--text-sm);
+  --font-size-base: var(--text-base);
+  --font-size-lg:   var(--text-lg);
+  --font-size-xl:   var(--text-xl);
+  --font-size-2xl:  var(--text-2xl);
+  --font-size-3xl:  var(--text-3xl);
+  --font-size-4xl:  var(--text-4xl);
+
+  /* Spacing */
+  --spacing-0:  var(--space-0);
+  --spacing-1:  var(--space-1);
+  --spacing-2:  var(--space-2);
+  --spacing-3:  var(--space-3);
+  --spacing-4:  var(--space-4);
+  --spacing-5:  var(--space-5);
+  --spacing-6:  var(--space-6);
+  --spacing-8:  var(--space-8);
+  --spacing-10: var(--space-10);
+  --spacing-12: var(--space-12);
+  --spacing-16: var(--space-16);
+  --spacing-20: var(--space-20);
+  --spacing-24: var(--space-24);
+
+  /* Border radius */
+  --radius-none: var(--radius-none);
+  --radius-sm:   var(--radius-sm);
+  --radius-md:   var(--radius-md);
+  --radius-lg:   var(--radius-lg);
+  --radius-xl:   var(--radius-xl);
+  --radius-2xl:  var(--radius-2xl);
+  --radius-full: var(--radius-full);
+
+  /* Shadows */
+  --shadow-0: var(--shadow-0);
+  --shadow-1: var(--shadow-1);
+  --shadow-2: var(--shadow-2);
+  --shadow-3: var(--shadow-3);
+  --shadow-4: var(--shadow-4);
+  --shadow-5: var(--shadow-5);
+
+  /* Motion */
+  --transition-duration-fast:   var(--duration-fast);
+  --transition-duration-normal: var(--duration-normal);
+  --transition-duration-slow:   var(--duration-slow);
+  --ease-default:               var(--ease-default);
+  --ease-spring:                var(--ease-spring);
+}

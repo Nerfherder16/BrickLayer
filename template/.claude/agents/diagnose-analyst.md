@@ -112,38 +112,34 @@ Then output the JSON verdict block.
 Your tag: `agent:diagnose-analyst`
 
 **At session start** — search for prior findings in this area to avoid re-diagnosing known issues:
-```
-recall_search(query="diagnosis root cause failure", domain="{project}-bricklayer", tags=["agent:diagnose-analyst"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "diagnosis root cause failure"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:diagnose-analyst"]
 
 Also check what Monitor has been tracking — known degraded metrics often lead to root causes:
-```
-recall_search(query="monitor alert degraded metric", domain="{project}-bricklayer", tags=["agent:health-monitor"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "monitor alert degraded metric"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:health-monitor"]
 
 **After DIAGNOSIS_COMPLETE** — store the root cause and fix spec so Fix mode can find it:
-```
-recall_store(
-    content="DIAGNOSIS_COMPLETE: [{question_id}] Root cause: {root cause summary}. File: {file}:{line}. Fix: {change description}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:diagnose-analyst", "type:diagnosis-complete"],
-    importance=0.9,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "DIAGNOSIS_COMPLETE: [{question_id}] Root cause: {root cause summary}. File: {file}:{line}. Fix: {change description}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:diagnose-analyst", "type:diagnosis-complete"]
+- `importance`: 0.9
+- `durability`: "durable"
 
 **After FAILURE (partial diagnosis)** — store what is known so follow-up questions can build on it:
-```
-recall_store(
-    content="FAILURE: [{question_id}] Confirmed failure in {component}. Root cause: partially identified as {hypothesis}. Needs further investigation of {specific area}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:diagnose-analyst", "type:open-failure"],
-    importance=0.8,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "FAILURE: [{question_id}] Confirmed failure in {component}. Root cause: partially identified as {hypothesis}. Needs further investigation of {specific area}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:diagnose-analyst", "type:open-failure"]
+- `importance`: 0.8
+- `durability`: "durable"
 
 ## Output contract
 

@@ -22,16 +22,6 @@ const { readState } = require("../core/state");
 // Helpers
 // ---------------------------------------------------------------------------
 
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (chunk) => (data += chunk));
-    process.stdin.on("end", () => resolve(data));
-    // Don't hold the process open longer than necessary
-    setTimeout(() => resolve(data), 2000);
-  });
-}
 
 function normalizeCwd(p) {
   // Convert POSIX /c/Users/... paths to Windows C:\Users\... so fs ops work
@@ -43,7 +33,8 @@ function normalizeCwd(p) {
 
 /**
  * Derive a canonical domain string from the project directory name.
- * Mirrors the mapping used by recall-session-summary.js and recall-retrieve.js.
+ * Must be kept in sync with C:/Users/trg16/Dev/Recall/hooks/domains.js
+ * (cross-repo — cannot require() directly, so sync manually on changes).
  */
 function deriveDomain(cwdOrProjectName) {
   const name = path.basename(cwdOrProjectName).toLowerCase();
@@ -212,7 +203,8 @@ async function main() {
   // Avoid recursive firing when stop_hook_active is set
   if (parsed.stop_hook_active) process.exit(0);
 
-  const sessionId = parsed.session_id || "unknown";
+  const { getSessionId, readStdin } = require('./session/stop-utils');
+  const sessionId = getSessionId(parsed);
   const cwd = normalizeCwd(parsed.cwd || process.cwd());
   const projectName = path.basename(cwd);
 
@@ -230,7 +222,7 @@ async function main() {
 
   // --- Build structured summary object ---
   const structured = {
-    type: "session_summary",
+    type: "masonry_build_telemetry",
     project: projectName,
     domain: deriveDomain(projectName),
     session_id: sessionId,

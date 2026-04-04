@@ -15,19 +15,10 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { readStdin } = require('./session/stop-utils');
 
 const DEBOUNCE_MS = 5 * 60 * 1000; // 5 minutes
 const LAST_RUN_FILE = path.join(os.homedir(), '.mas', 'ema-last-run.json');
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = '';
-    process.stdin.setEncoding('utf8');
-    process.stdin.on('data', (chunk) => (data += chunk));
-    process.stdin.on('end', () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
 
 function normalizeCwd(p) {
   if (process.platform === 'win32' && /^\/[a-zA-Z]\//.test(p)) {

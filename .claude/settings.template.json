@@ -1,0 +1,644 @@
+{
+  "respectGitignore": false,
+  "cleanupPeriodDays": 7,
+  "env": {
+    "CLAUDE_CODE_ENABLE_TASKS": "true",
+    "CLAUDE_CODE_HIDE_ACCOUNT_INFO": "true",
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "true",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "ENABLE_TOOL_SEARCH": "true",
+    "ENABLE_LSP_TOOL": "true",
+    "DISABLE_AUTO_COMPACT": "false",
+    "DISABLE_COMPACT": "false",
+    "DISABLE_MICROCOMPACT": "false",
+    "DISABLE_AUTO_COMPACT_THRESHOLD": "85",
+    "DISABLE_NON_ESSENTIAL_MODEL_CALLS": "true",
+    "DISABLE_INSTALLATION_CHECKS": "true",
+    "DISABLE_ERROR_REPORTING": "true",
+    "DISABLE_AUTOUPDATER": "1",
+    "RECALL_HOST": "http://100.70.195.84:8200",
+    "RECALL_API_KEY": "REPLACE_ME",
+    "OLLAMA_HOST": "http://100.70.195.84:11434"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Bash(basedpyright:*)",
+      "Bash(cp:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(mypy:*)",
+      "Bash(python tests:*)",
+      "Bash(python:*)",
+      "Bash(pyright:*)",
+      "Bash(pytest:*)",
+      "Bash(rg:*)",
+      "Bash(rm:*)",
+      "Bash(ruff check:*)",
+      "Bash(ruff format:*)",
+      "Bash(uv add:*)",
+      "Bash(uv pip show:*)",
+      "Bash(uv pip:*)",
+      "Bash(uv run:*)",
+      "Edit",
+      "Glob",
+      "Grep",
+      "NotebookEdit",
+      "Read",
+      "TodoWrite",
+      "WebFetch",
+      "WebSearch",
+      "Write",
+      "mcp__ide__*",
+      "mcp__recall__*",
+      "mcp__masonry__*",
+      "LSP",
+      "Bash(python -c \"from bl.recall_bridge import search_prior_findings, store_finding; print\\(''recall_bridge OK''\\)\")",
+      "Bash(pytest tests/ -q --tb=short)",
+      "Bash(pytest tests/test_synthesizer.py -q --tb=short)",
+      "Bash(python -m pytest tests/test_synthesizer.py -q --tb=short)",
+      "mcp__recall__recall_store",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); hooks=d.get\\(''''hooks'''',{}\\); [print\\(event,json.dumps\\(cmds,indent=2\\)\\) for event,cmds in hooks.items\\(\\)]\")",
+      "Bash(cp \"C:/Users/trg16/Dev/Bricklayer2.0/template/.claude/agents/mortar.md\" \"C:/Users/trg16/Dev/Bricklayer2.0/.claude/agents/mortar.md\")",
+      "Bash(cp \"C:/Users/trg16/Dev/Bricklayer2.0/template/.claude/agents/mortar.md\" \"C:/Users/trg16/Dev/Bricklayer2.0/projects/bl2/.claude/agents/mortar.md\")",
+      "Bash(python simulate.py)",
+      "Bash(MPLBACKEND=Agg python simulate.py)",
+      "mcp__excel__excel_describe_sheets",
+      "mcp__excel__excel_read_sheet",
+      "mcp__excel__excel_write_to_sheet",
+      "Bash(MPLBACKEND=Agg python sweep_split.py)",
+      "Bash(python3:*)",
+      "Bash(MPLBACKEND=Agg python sweep_admin_fee.py)",
+      "Bash(ls -d C:/Users/trg16/Dev/Bricklayer2.0/projects/*/findings/)",
+      "mcp__recall__recall_search",
+      "Bash(echo MISSING grep -rn \"3100\\\\|8100\\\\|dashboard\" C:/Users/trg16/Dev/Bricklayer2.0/ --include=*.md -l)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Read(//c/Users/trg16/Dev/Bricklayer2.0/**)",
+      "Bash(grep -r DISABLE_OMC /c/Users/trg16/.claude /c/Users/trg16/Dev/Bricklayer2.0/masonry /c/Users/trg16/Dev/Bricklayer2.0/bl --include=*.md --include=*.js --include=*.py)",
+      "Bash(ls /c/Users/trg16/Dev/Bricklayer2.0/masonry/src/dspy_pipeline/generated/*.py)",
+      "Bash(/dev/null echo:*)",
+      "Bash(grep -r DISABLE_OMC /c/Users/trg16/.claude/skills /c/Users/trg16/Dev/Bricklayer2.0/masonry /c/Users/trg16/Dev/Bricklayer2.0/bl --include=*.md --include=*.js --include=*.py)",
+      "Bash(\"C:/Users/trg16/Dev/Bricklayer2.0/.autopilot/mode\")",
+      "Bash(git -C C:/Users/trg16/Dev/Bricklayer2.0 branch --show-current)",
+      "Bash(git -C C:/Users/trg16/Dev/Bricklayer2.0 log --oneline -3)",
+      "Bash(find C:/Users/trg16/Dev/Bricklayer2.0 -name '.omc' -type d -exec rm -rf {} +)",
+      "Bash(node --test tests/test_mas_core.js)",
+      "Bash(node masonry/src/hooks/masonry-tdd-enforcer.js)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(node --test tests/test_pulse_hook.js)",
+      "Bash(node --test tests/test_session_start_mas.js)",
+      "Bash(node --test tests/test_stop_guard_mas.js)",
+      "Bash(node --test tests/test_observe_mas.js)",
+      "Bash(node --test tests/test_tool_failure_mas.js)",
+      "Bash(node --test tests/test_tool_failure_hook.js tests/test_masonry_fleet_cli.js tests/test_masonry_hud.js)",
+      "Bash(node --test tests/test_mas_integration.js)",
+      "Bash(find C:/Users/trg16/Dev/Bricklayer2.0 -name projectScanner*)",
+      "Bash(npm run:*)",
+      "Bash(for f:*)",
+      "Bash(do)",
+      "Bash(if grep:*)",
+      "Bash(then)",
+      "Bash(sed -i 's/When files_changed includes CHANGELOG.md itself as the primary change, that is typically an automated commit \u2014 skip it./When files_changed includes CHANGELOG.md ONLY as the primary change AND the subject is a chore-type bot commit, skip it. If CHANGELOG.md appears alongside source files in a meaningful commit, that is still action='\"''\"'updated'\"''\"'./' \"$f\")",
+      "Bash(for dest:*)",
+      "Bash(cp \"/c/Users/trg16/Dev/Bricklayer2.0/template/.claude/agents/karen.md\" \"$dest\")",
+      "Bash(echo \"OK: $dest\")",
+      "Bash(echo \"FAIL: $dest\")",
+      "Bash(done)",
+      "Bash(python -c \":*)",
+      "Bash(cp C:/Users/trg16/Dev/Bricklayer2.0/template/.claude/agents/trowel.md C:/Users/trg16/Dev/Bricklayer2.0/bl-audit/.claude/agents/trowel.md)",
+      "Bash(cp C:/Users/trg16/Dev/Bricklayer2.0/template/.claude/agents/trowel.md ~/.claude/agents/trowel.md)",
+      "Bash(find C:/Users/trg16/Dev/Bricklayer2.0 -name campaign.py -path */bl/*)",
+      "Bash(find C:/Users/trg16/Dev/Bricklayer2.0/bl -name *.py)",
+      "Bash(ls C:/Users/trg16/Dev/Bricklayer2.0/bl/*.py)",
+      "Bash(node --check masonry/src/hooks/masonry-training-export.js)",
+      "Bash(grep -E \"^tests$|^bl$\")",
+      "Bash(1 echo:*)",
+      "Bash(node --check masonry/src/hooks/masonry-system-status.js)",
+      "Bash(node --check masonry/src/hooks/masonry-session-end.js)",
+      "Bash(node --check masonry/src/hooks/masonry-score-trigger.js)",
+      "Bash(grep -rn decay_conflicting /c/Users/trg16/Dev/Bricklayer2.0/ --include=*.py --include=*.js --include=*.md)",
+      "Bash(node --check C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-system-status.js)",
+      "Bash(node --check C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-session-end.js)",
+      "Bash(cp /c/Users/trg16/.claude/skills/visual-report.md /c/Users/trg16/Dev/Bricklayer2.0/template/.claude/skills/visual-report.md)",
+      "Bash(cp /c/Users/trg16/.claude/skills/teach-bricklayer.md /c/Users/trg16/Dev/Bricklayer2.0/template/.claude/skills/teach-bricklayer.md)",
+      "Bash(cp \"C:/Users/trg16/Dev/Bricklayer2.0/template/.claude/agents/code-reviewer.md\" \"C:/Users/trg16/.claude/agents/code-reviewer.md\")",
+      "Bash(cp \"C:/Users/trg16/Dev/Bricklayer2.0/template/.claude/agents/developer.md\" \"C:/Users/trg16/.claude/agents/developer.md\")",
+      "Bash(cp \"C:/Users/trg16/Dev/Bricklayer2.0/template/.claude/agents/fix-implementer.md\" \"C:/Users/trg16/.claude/agents/fix-implementer.md\")",
+      "Bash(C:/Users/trg16/Dev/Bricklayer2.0/masonry/agent_registry.yml:*)",
+      "Bash(chmod +x ~/.git-hooks/pre-commit)",
+      "Bash(git config:*)",
+      "Bash(bash ~/.git-hooks/pre-commit)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(git -C \"C:/Users/trg16/Dev/Bricklayer2.0\" ls-files --others --exclude-standard .mcp.json)",
+      "mcp__figma-developer__get_figma_data",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_resize",
+      "mcp__playwright__browser_wait_for",
+      "mcp__figma__get_screenshot",
+      "Bash(git checkout:*)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  },
+  "model": "sonnet",
+  "enableAllProjectMcpServers": true,
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-session-start node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-session-start.js",
+            "timeout": 8
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh recall-retrieve node /home/nerfherder/.claude/recall-hooks/recall-retrieve.js",
+            "timeout": 8
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-register node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-register.js",
+            "timeout": 8
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-prompt-router node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-prompt-router.js",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-prompt-inject node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-prompt-inject.js",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh better-hook ~/.tmux/plugins/tmux-agent-status/hooks/better-hook.sh UserPromptSubmit",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "TeammateIdle": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-teammate-idle node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-teammate-idle.js",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-teammate-idle node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-teammate-idle.js",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh better-hook ~/.tmux/plugins/tmux-agent-status/hooks/better-hook.sh PreToolUse",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-routing-gate node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-routing-gate.js",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-pre-protect node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-pre-protect.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-block-no-verify node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-block-no-verify.js",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-approver node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-approver.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-dep-audit node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-dep-audit.js",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-content-guard node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-content-guard.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-context-safety node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-context-safety.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-mortar-enforcer node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-mortar-enforcer.js",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-preagent-tracker node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-preagent-tracker.js",
+            "timeout": 3,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-pre-task node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-pre-task.js",
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-post-task node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-post-task.js",
+            "timeout": 3,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-agent-complete node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-agent-complete.js",
+            "timeout": 5,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-auto-pr node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-auto-pr.js",
+            "timeout": 15,
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh observe-edit node /home/nerfherder/.claude/recall-hooks/observe-edit.js",
+            "timeout": 10,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-observe node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-observe.js",
+            "timeout": 5,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-rust-check node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-rust-check.js",
+            "timeout": 5,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-vitest node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-vitest.js",
+            "timeout": 5,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-style-checker node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-style-checker.js",
+            "timeout": 30,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-tdd-enforcer node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-tdd-enforcer.js",
+            "timeout": 5,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-agent-onboard node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-agent-onboard.js",
+            "timeout": 10,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-build-patterns node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-build-patterns.js",
+            "timeout": 8,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-pulse node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-pulse.js",
+            "timeout": 5,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-file-size-guard node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-file-size-guard.js",
+            "timeout": 5,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-checkpoint node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-checkpoint.js",
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-tool-failure node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-tool-failure.js",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-subagent-tracker node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-subagent-tracker.js",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-agent-complete node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-agent-complete.js",
+            "timeout": 5,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-auto-pr node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-auto-pr.js",
+            "timeout": 15,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-session-end node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-session-end.js",
+            "timeout": 8
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-pre-compact node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-pre-compact.js",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-post-compact node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-post-compact.js",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh session-save node /home/nerfherder/.claude/recall-hooks/session-save.js",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh recall-session-summary node /home/nerfherder/.claude/recall-hooks/recall-session-summary.js",
+            "timeout": 10,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-stop-guard node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-stop-guard.js",
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-session-summary node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-session-summary.js",
+            "timeout": 8
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-handoff node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-handoff.js",
+            "timeout": 8,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-context-monitor node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-context-monitor.js",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-build-guard node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-build-guard.js",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-score-trigger node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-score-trigger.js",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-pagerank-trigger node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-pagerank-trigger.js",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-system-status node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-system-status.js",
+            "timeout": 8
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-training-export node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-training-export.js",
+            "timeout": 65,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh masonry-ema-collector node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/masonry-ema-collector.js",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh better-hook ~/.tmux/plugins/tmux-agent-status/hooks/better-hook.sh Stop",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/monitors/hook-timer.sh better-hook ~/.tmux/plugins/tmux-agent-status/hooks/better-hook.sh Notification",
+            "timeout": 3
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "node /home/nerfherder/.claude/hud/masonry-statusline.js"
+  },
+  "outputStyle": "default",
+  "spinnerTipsEnabled": false,
+  "alwaysThinkingEnabled": true,
+  "prefersReducedMotion": true,
+  "showTurnDuration": true,
+  "mcpServers": {
+    "uplink": {
+      "type": "stdio",
+      "command": "python3",
+      "args": [
+        "/mnt/c/Users/trg16/Dev/uplink/server.py"
+      ]
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest"
+      ]
+    },
+    "bgpt": {
+      "type": "sse",
+      "url": "https://bgpt.pro/mcp/sse"
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "repomix": {
+      "command": "npx",
+      "args": [
+        "repomix-mcp"
+      ]
+    },
+    "figma-developer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "figma-developer-mcp@latest",
+        "REPLACE_ME",
+        "--stdio"
+      ]
+    },
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "REPLACE_ME",
+        "--access-token",
+        "REPLACE_ME"
+      ]
+    },
+    "docker": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "docker-mcp@latest"
+      ]
+    }
+  }
+}

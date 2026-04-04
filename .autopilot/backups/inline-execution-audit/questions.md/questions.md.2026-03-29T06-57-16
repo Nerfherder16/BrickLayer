@@ -1,0 +1,138 @@
+# Question Bank -- inline-execution-audit
+
+**Campaign type**: BrickLayer 2.0
+**Generated**: 2026-03-29T04:00:00Z
+**Modes selected**: diagnose (5), research (4), audit (3), validate (1), frontier (1) = 14 questions
+**Mode rationale**: D1 (instruction authority) and D2 (enforcement gap) are priority-9 domains requiring structural diagnosis. D5 (behavioral triggers) and D3 (routing coverage) require systematic cataloging via research mode. D4 (fleet gaps) is a cross-reference audit. Validate and frontier cover enforcement design feasibility.
+
+---
+
+## Wave 1
+
+### D1.1: Why does the Mortar routing directive in CLAUDE.md lose authority against the "trivial vs. substantive" escape hatch, and what is the effective definition of "trivial" that Claude applies?
+
+**Status**: DONE
+**Finding**: findings/D1.1.md
+**Completed**: 2026-03-29T04:10:00Z
+**Mode**: diagnose
+**Priority**: HIGH
+**Hypothesis**: Claude interprets "trivial" broadly -- any task that can be answered from existing context without tool use is classified as trivial, regardless of the CLAUDE.md directive that "every request goes through Mortar." The escape hatch phrase "direct action when trivial, agents when substantive" overrides the absolute "every request" directive because it appears later in the Operating Principles section and provides a more specific behavioral rule.
+**Agent**: diagnose-analyst
+**Success criterion**: A structural analysis showing (a) the exact CLAUDE.md text positions of the absolute directive vs. the escape hatch, (b) evidence of which instruction takes precedence in the model's instruction-following hierarchy, and (c) a proposed operational definition of "trivial" that matches observed inline execution patterns.
+
+### D1.2: Does the context window position of the Mortar routing instruction relative to conversation history affect compliance rates, and does the 22,587-token auto-loaded context dilute the routing signal?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: HIGH
+**Hypothesis**: The Mortar routing section occupies a small fraction of the 22,587-token auto-loaded context. The 12,423 tokens of UI-specific rules (Figma guides, frontend philosophy, React/Tailwind standards) loaded in every session -- including non-UI sessions -- dilute the effective weight of routing instructions. As conversation history grows, the routing instruction becomes an even smaller fraction of total context, further reducing compliance.
+**Agent**: diagnose-analyst
+**Success criterion**: A token-count analysis showing (a) the byte/token size of the Mortar routing section vs. total auto-loaded context, (b) the ratio of routing-relevant instructions to non-routing instructions, and (c) whether instruction position (early vs. late in system context) correlates with compliance based on known LLM instruction-following research.
+
+### D1.3: Does the prompt router hint injection ("Mortar: routing to {agent} [effort:X]") carry sufficient authority weight relative to CLAUDE.md instructions, or is it treated as a low-priority system annotation?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: HIGH
+**Hypothesis**: The prompt router hint is injected via hookSpecificOutput as a single line of text. Claude treats this as supplementary context rather than a directive -- it carries less weight than CLAUDE.md instructions, conversation history, and model priors. The hint format (arrow symbol, bracketed metadata) may read as informational annotation rather than an imperative instruction, further reducing compliance.
+**Agent**: diagnose-analyst
+**Success criterion**: A structural analysis of (a) how hookSpecificOutput content is positioned in the context Claude receives, (b) whether the hint format signals authority or annotation, and (c) comparison with other hook outputs that DO reliably influence behavior (e.g., masonry-approver.js auto-approve signals).
+
+### D2.1: What enforcement mechanisms are structurally possible within the Claude Code hook system to make Mortar routing mandatory rather than advisory?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: HIGH
+**Hypothesis**: The hook system can block tool use (PreToolUse returning "deny") but cannot force Claude to invoke a specific tool like the Agent tool. A PreToolUse hook on Write/Read/Bash could check whether a Mortar routing receipt exists in the current turn and deny if absent -- but this would block ALL direct tool use, including legitimate trivial tasks. The fundamental constraint is that hooks are gate-based (allow/deny) not directive-based (force action X).
+**Agent**: diagnose-analyst
+**Success criterion**: A comprehensive inventory of (a) which hook events could participate in enforcement, (b) what each hook can structurally do (allow, deny, inject text, modify parameters), (c) whether a "routing receipt" pattern is feasible (Mortar emits a token that downstream PreToolUse hooks check), and (d) the false-positive rate estimate for forced delegation on trivial tasks.
+
+### D2.2: Could a "routing receipt" pattern be implemented where Mortar sets a session-level flag that PreToolUse hooks check before allowing Write/Edit/Bash execution?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: HIGH
+**Hypothesis**: A routing receipt would require: (1) Mortar or the prompt router writes a flag to a file or environment variable, (2) PreToolUse hooks read that flag before allowing tool execution, (3) the flag resets per-turn to prevent stale receipts. This is feasible using masonry-state.json as the flag store, but has a race condition: Claude may invoke tools before the prompt router hook has completed, and hooks execute asynchronously. The pattern is architecturally sound but has timing vulnerabilities.
+**Agent**: diagnose-analyst
+**Success criterion**: A feasibility analysis with (a) a concrete implementation sketch using existing hook infrastructure, (b) identification of race conditions or timing issues, (c) the mechanism for resetting the receipt per-turn, and (d) whether masonry-state.json or an alternative store is appropriate.
+
+### D5.1: Which prompt characteristics reliably predict inline execution vs. delegation, and can a taxonomy of bypass triggers be constructed from the prompt router's skip conditions?
+
+**Status**: PENDING
+**Mode**: research
+**Priority**: HIGH
+**Hypothesis**: Inline execution is triggered by a predictable set of prompt characteristics: (a) prompts under 20 characters, (b) question-form prompts ("what is...", "how does..."), (c) follow-up prompts that reference prior conversation context, (d) prompts where the router classifies effort as "low", (e) prompts that match no INTENT_RULES pattern. These five categories account for the majority of inline execution events.
+**Agent**: research-analyst
+**Success criterion**: A taxonomy of bypass trigger categories with (a) the specific prompt router code paths that produce no routing hint for each category, (b) estimated frequency of each trigger type in typical sessions, and (c) examples of prompts in each category that should have been delegated but were not.
+
+### D5.2: Does the prompt router's effort classification ("low" / "medium" / "high" / "max") correlate with actual delegation behavior, and what happens when effort is "medium" with no intent match?
+
+**Status**: PENDING
+**Mode**: research
+**Priority**: MEDIUM
+**Hypothesis**: When the router classifies effort as "medium" and no intent rule matches, line 194 of masonry-prompt-router.js explicitly skips hint injection. This is the most common no-signal condition because "medium" is the default effort classification. The result is that a large class of moderately complex prompts receive no routing guidance whatsoever -- these are the prompts most likely to be answered inline despite being substantive enough to warrant delegation.
+**Agent**: research-analyst
+**Success criterion**: Analysis of (a) the effort classification regex patterns and their match rates against typical prompts, (b) the specific code path at line 194 that skips on medium+no-intent, (c) estimated percentage of real prompts that fall into this gap, and (d) whether reclassifying the skip condition would reduce inline execution.
+
+### D3.1: Which task types in the Mortar routing table have no corresponding prompt router INTENT_RULES entry, creating systematic routing gaps?
+
+**Status**: PENDING
+**Mode**: research
+**Priority**: MEDIUM
+**Hypothesis**: The Mortar routing table defines 10 work types but the prompt router covers only 9 intent categories via INTENT_RULES. At least one Mortar work type has no router-level detection, meaning prompts for that work type never receive a routing hint. Additionally, multi-intent prompts that span multiple work types get first-match-only routing, potentially misrouting the secondary intent.
+**Agent**: research-analyst
+**Success criterion**: A cross-reference matrix showing (a) each Mortar work type mapped to its INTENT_RULES entry (or "MISSING"), (b) each INTENT_RULES entry mapped to its Mortar work type, (c) any orphaned entries in either direction, and (d) the multi-intent first-match problem illustrated with concrete prompt examples.
+
+### D3.2: How do follow-up prompts (references to prior conversation turns) interact with the routing system, and does the lack of conversational context awareness in the prompt router cause systematic routing failures?
+
+**Status**: PENDING
+**Mode**: research
+**Priority**: MEDIUM
+**Hypothesis**: The prompt router processes each prompt in isolation -- it has no access to conversation history. A follow-up prompt like "now do the same for the other module" carries no routing signal because it contains no intent keywords. The original prompt may have received a routing hint, but the follow-up inherits nothing. This creates a systematic gap where multi-turn workflows degrade from delegated to inline as the conversation progresses.
+**Agent**: research-analyst
+**Success criterion**: Analysis of (a) whether the prompt router has any mechanism for conversational context, (b) concrete examples of follow-up prompts that would lose routing signal, (c) the frequency of follow-up prompts in typical development sessions, and (d) whether a "last-routing-hint" persistence mechanism could close this gap.
+
+### D4.1: Which agents in the Mortar routing table have missing, broken, or unresolvable .md files, and does fleet incompleteness force inline execution for those work types?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: MEDIUM
+**Hypothesis**: At least 3 delegation targets referenced in the Mortar routing table or agent_registry.yml have missing or broken .md files: uiux-master (confirmed D2.6), solana-specialist (confirmed D2.6), and potentially others. When Claude attempts to delegate to a missing agent, it falls back to inline execution silently -- there is no error signal or retry mechanism. Fleet incompleteness is a direct cause of inline execution for the affected work types.
+**Agent**: research-analyst
+**Success criterion**: A complete cross-reference audit showing (a) every agent referenced in CLAUDE.md Mortar routing table, (b) whether each has a resolvable .md file in the expected locations, (c) whether agent_registry.yml entries match actual .md files, and (d) which work types have no functional delegation target.
+
+### D4.2: Does the mismatch between the 55+ agents in agent_registry.yml and the 10 routing categories in the Mortar table create dead zones where agents exist but are never routed to?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: MEDIUM
+**Hypothesis**: The agent registry contains 55+ agents but the Mortar routing table has only 10 work type categories. Many registered agents have no routing path -- they exist in the registry but are never selected by Mortar's dispatch logic. This creates "dark fleet" agents that can only be invoked by explicit name reference, never by automatic routing. The dark fleet represents wasted capability and may include agents that would prevent inline execution if they were routable.
+**Agent**: research-analyst
+**Success criterion**: A mapping showing (a) which registry agents are reachable via the 10 Mortar routing categories, (b) which registry agents have no routing path ("dark fleet"), (c) whether any dark fleet agents cover work types that currently default to inline execution, and (d) recommendations for routing table expansion.
+
+### A1.1: Does the current hook system enforce any behavioral contract on Claude's delegation decisions, or is every routing signal purely advisory with zero enforcement authority?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: HIGH
+**Hypothesis**: Zero hooks in the current system enforce delegation. The masonry-prompt-router.js injects hints but cannot block. The masonry-approver.js auto-approves in build mode but does not check routing compliance. The masonry-pre-protect.js guards file edits but does not verify delegation. Every routing signal in the system is advisory. The enforcement authority is exactly zero -- not "weak" or "partial," but structurally absent.
+**Agent**: research-analyst
+**Success criterion**: A complete audit of all 15+ hooks listing (a) whether each hook has any delegation-enforcement capability, (b) what each hook actually enforces (file protection, linting, etc. vs. routing), (c) whether any hook could be extended to enforce delegation without architectural changes, and (d) a definitive verdict on whether enforcement authority is zero or non-zero.
+
+### V1.1: Would a mandatory-delegation enforcement mechanism (e.g., PreToolUse blocking without routing receipt) break legitimate trivial-task direct execution, and what is the estimated false-positive rate?
+
+**Status**: PENDING
+**Mode**: validate
+**Priority**: MEDIUM
+**Hypothesis**: Mandatory delegation would break at least 30% of legitimate interactions. Tasks like "what branch am I on?", "show git status", and "read this file" are genuinely trivial and routing them through Mortar would add latency and context overhead without quality benefit. The false-positive rate (trivial tasks incorrectly forced through delegation) would be unacceptable unless the enforcement mechanism includes a trivial-task whitelist or effort-threshold bypass.
+**Agent**: design-reviewer
+**Success criterion**: An analysis with (a) a categorization of "trivial" tasks that should bypass delegation, (b) an estimate of what percentage of total prompts fall into the trivial category, (c) a proposed whitelist or threshold mechanism, and (d) a verdict on whether enforcement is feasible without unacceptable false-positive rates.
+
+### FR1.1: What would a structurally enforced routing architecture look like if Claude Code's hook system could force Agent tool invocation, and what prerequisites does the current system lack?
+
+**Status**: PENDING
+**Mode**: frontier
+**Priority**: LOW
+**Hypothesis**: A structurally enforced architecture would require: (1) a hook that can inject mandatory tool calls (not just text), (2) a routing receipt system where Mortar marks each request as "routed" before any other tool use is permitted, (3) a trivial-task classifier that operates before the enforcement gate, and (4) a conversation-aware router that maintains routing state across turns. The current system lacks all four prerequisites. The closest feasible path is a PreToolUse deny-gate combined with a file-based routing receipt, but this cannot force the Agent tool -- it can only block everything else until Claude "voluntarily" invokes Mortar.
+**Agent**: frontier-analyst
+**Success criterion**: A design sketch with (a) the ideal enforcement architecture (unconstrained by current limitations), (b) the minimum viable enforcement architecture (constrained to current hook capabilities), (c) a gap analysis between ideal and feasible, and (d) a recommendation on whether to pursue hook-based enforcement or a fundamentally different approach.

@@ -239,18 +239,16 @@ Return a JSON object with exactly these fields:
 ## Recall
 
 **After creating a skill** — store metadata so future campaigns know what skills exist:
-```
-recall_store(
-    content="Skill created [{date}]: /{skill_name} — {description}. Source finding: {finding_id}. Campaign: {project_name}.",
-    memory_type="semantic",
-    domain="bricklayer-skills",
-    tags=["bricklayer", "agent:skill-forge", "type:skill-created"],
-    importance=0.8,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Skill created [{date}]: /{skill_name} — {description}. Source finding: {finding_id}. Campaign: {project_name}."
+- `memory_type`: "semantic"
+- `domain`: "bricklayer-skills"
+- `tags`: ["bricklayer", "agent:skill-forge", "type:skill-created"]
+- `importance`: 0.8
+- `durability`: "durable"
 
 **At session start** — check what skills already exist to avoid duplication:
-```
-recall_search(query="skill created finding procedure", domain="bricklayer-skills", tags=["agent:skill-forge"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "skill created finding procedure"
+- `domain`: "bricklayer-skills"
+- `tags`: ["agent:skill-forge"]

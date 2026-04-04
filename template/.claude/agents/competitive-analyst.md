@@ -106,43 +106,39 @@ Return a JSON object with exactly these fields:
 Your tag: `agent:competitive-analyst`
 
 **At session start** — retrieve prior market research and check regulatory findings for constraints that affect competitive positioning:
-```
-recall_search(query="market analogues competitive failure modes", domain="{project}-autoresearch", tags=["agent:competitive-analyst"])
-recall_search(query="regulatory classification legal framework", domain="{project}-autoresearch", tags=["agent:regulatory-researcher"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "market analogues competitive failure modes"
+- `domain`: "{project}-autoresearch"
+- `tags`: ["agent:competitive-analyst"]
+
+Use **`mcp__recall__recall_search`**:
+- `query`: "regulatory classification legal framework"
+- `domain`: "{project}-autoresearch"
+- `tags`: ["agent:regulatory-researcher"]
 
 **After mapping an analogue** — store it so other agents (especially synthesizer) can reference it without re-researching:
-```
-recall_store(
-    content="Analogue: [system name]. Parallel: [what maps]. Failure trigger: [cause]. Applicability: [High/Medium/Low]. Lesson: [mitigation].",
-    memory_type="semantic",
-    domain="{project}-autoresearch",
-    tags=["autoresearch", "agent:competitive-analyst", "type:analogue"],
-    importance=0.8,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Analogue: [system name]. Parallel: [what maps]. Failure trigger: [cause]. Applicability: [High/Medium/Low]. Lesson: [mitigation]."
+- `memory_type`: "semantic"
+- `domain`: "{project}-autoresearch"
+- `tags`: ["autoresearch", "agent:competitive-analyst", "type:analogue"]
+- `importance`: 0.8
+- `durability`: "durable"
 
 **After fee/participation benchmarking** — store the benchmark so quantitative-analyst can use realistic ranges:
-```
-recall_store(
-    content="Benchmark: [metric] for [comparable programs] ranges [low]-[high]. Realistic assumption for simulation: [value].",
-    memory_type="semantic",
-    domain="{project}-autoresearch",
-    tags=["autoresearch", "agent:competitive-analyst", "type:benchmark"],
-    importance=0.85,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Benchmark: [metric] for [comparable programs] ranges [low]-[high]. Realistic assumption for simulation: [value]."
+- `memory_type`: "semantic"
+- `domain`: "{project}-autoresearch"
+- `tags`: ["autoresearch", "agent:competitive-analyst", "type:benchmark"]
+- `importance`: 0.85
+- `durability`: "durable"
 
 After completing a market analysis finding:
-```
-recall_store(
-    content="Market analysis for {project}: [verdict]. Analogues: [N] found. Top risk: [summary].",
-    memory_type="semantic",
-    domain="{project}-autoresearch",
-    tags=["bricklayer", "agent:competitive-analyst", "type:market-analysis"],
-    importance=0.8,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Market analysis for {project}: [verdict]. Analogues: [N] found. Top risk: [summary]."
+- `memory_type`: "semantic"
+- `domain`: "{project}-autoresearch"
+- `tags`: ["bricklayer", "agent:competitive-analyst", "type:market-analysis"]
+- `importance`: 0.8
+- `durability`: "durable"

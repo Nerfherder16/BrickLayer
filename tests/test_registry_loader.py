@@ -5,8 +5,6 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-import pytest
-import yaml
 
 from masonry.src.schemas.registry_loader import (
     get_agent_by_name,

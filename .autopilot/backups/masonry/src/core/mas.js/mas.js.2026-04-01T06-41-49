@@ -1,0 +1,60 @@
+'use strict';
+/**
+ * core/mas.js — .mas/ directory helpers for JSON state files.
+ *
+ * The .mas/ directory stores runtime state (errors, system status, pulse)
+ * in JSON/JSONL files. This module provides read/write/append primitives.
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+function getMasDir(projectDir) {
+  const masDir = path.join(projectDir, '.mas');
+  fs.mkdirSync(masDir, { recursive: true });
+  return masDir;
+}
+
+function isResearchProject(dir) {
+  return fs.existsSync(path.join(dir, 'program.md')) &&
+         fs.existsSync(path.join(dir, 'questions.md'));
+}
+
+function readJson(projectDir, filename) {
+  try {
+    const filePath = path.join(getMasDir(projectDir), filename);
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function writeJson(projectDir, filename, data) {
+  const filePath = path.join(getMasDir(projectDir), filename);
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n');
+}
+
+function initKilnJson(projectDir, filename, defaultData) {
+  const filePath = path.join(getMasDir(projectDir), filename);
+  if (!fs.existsSync(filePath)) {
+    writeJson(projectDir, filename, defaultData);
+  }
+  return readJson(projectDir, filename);
+}
+
+function appendJsonl(projectDir, filename, entry) {
+  const filePath = path.join(getMasDir(projectDir), filename);
+  fs.appendFileSync(filePath, JSON.stringify(entry) + '\n');
+}
+
+function prunePulse(projectDir, maxEntries = 100) {
+  const filePath = path.join(getMasDir(projectDir), 'pulse.jsonl');
+  try {
+    const lines = fs.readFileSync(filePath, 'utf8').trim().split('\n').filter(Boolean);
+    if (lines.length > maxEntries) {
+      fs.writeFileSync(filePath, lines.slice(-maxEntries).join('\n') + '\n');
+    }
+  } catch { /* file doesn't exist yet */ }
+}
+
+module.exports = { getMasDir, isResearchProject, readJson, writeJson, initKilnJson, appendJsonl, prunePulse };

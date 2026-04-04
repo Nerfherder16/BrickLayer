@@ -16,7 +16,7 @@ from reportlab.platypus import (
     TableStyle,
     HRFlowable,
 )
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+from reportlab.lib.enums import TA_CENTER
 
 PAGE_W, PAGE_H = letter
 LM = RM = 1.0 * inch
@@ -280,7 +280,7 @@ story.append(
 
 story.append(
     Paragraph(
-        f"\u2022  <b>MC-optimal strategy</b> (confirmed via 300,000-run Monte Carlo \u2014 3 seeds \u00d7 100,000 runs \u00d7 240 months):",
+        "\u2022  <b>MC-optimal strategy</b> (confirmed via 300,000-run Monte Carlo \u2014 3 seeds \u00d7 100,000 runs \u00d7 240 months):",
         bul,
     )
 )

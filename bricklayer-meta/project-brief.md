@@ -7,11 +7,14 @@
 
 ## What this system actually does
 
-BrickLayer is an autonomous research campaign engine. It runs a loop: pull the next PENDING
-question from `questions.md`, dispatch it to a specialist agent or test runner, classify the
-verdict (HEALTHY / WARNING / FAILURE / INCONCLUSIVE), write a structured finding, and repeat.
-Between waves, a local LLM (qwen2.5:7b via Ollama) reads the findings and generates the next
-batch of questions. The campaign ends when the synthesizer says STOP, or the human does.
+BrickLayer is an autonomous project lifecycle engine. It researches, builds, fixes, and
+maintains systems through a structured campaign loop: pull the next PENDING question from
+`questions.md`, dispatch it to a specialist agent or test runner, classify the verdict, write
+a structured finding, and repeat. Between waves, a local LLM (qwen2.5:7b via Ollama) reads
+the findings and generates the next batch of questions. The campaign ends when the synthesizer
+says STOP, or the human does. Beyond research, BrickLayer orchestrates builds through agent
+coordination, swarm runners, inter-agent communication via Recall, and automated
+diagnose→fix→verify cycles via the heal loop.
 
 This meta-project uses BrickLayer to stress-test **BrickLayer itself** — specifically its
 campaign quality properties: verdict accuracy, coverage completeness, synthesis coherence across
@@ -21,9 +24,11 @@ waves, fix-loop effectiveness, and hypothesis generator quality.
 
 ## The key invariants — things that cannot be wrong
 
-1. **BrickLayer does not write code by default.** The research loop produces findings (`.md` files)
-   and updates `results.tsv`. The fix loop (`bl/fixloop.py`) is opt-in (`--fix-loop` flag) and
-   only activates on FAILURE verdicts. Most campaigns run without it.
+1. **BrickLayer's research loop produces findings by default; its build and fix capabilities are
+   mode-driven.** The research loop produces findings (`.md` files) and updates `results.tsv`.
+   Fix mode, the heal loop (`bl/healloop.py`), and swarm runners actively generate and modify
+   code. The heal loop chains diagnose→fix→verify automatically. Agent orchestration via tmux
+   waves and inter-agent memory via Recall enable coordinated multi-agent builds.
 
 2. **Hypothesis generation is local inference, not Claude.** `bl/hypothesis.py` calls
    `qwen2.5:7b` at `192.168.50.62:11434` (Ollama). It produces 4–5 questions per wave when the
@@ -194,9 +199,10 @@ unique, actionable findings (not redundant, not INCONCLUSIVE, not verdict-drifte
 
 ## Evolution hypothesis
 
-BrickLayer's current form is specialized for business model stress-testing. The question is
-whether its core loop — iterate parameters, run, classify verdict, synthesize, generate next
-questions — is a general-purpose research engine that can evolve into:
+BrickLayer's original form was specialized for business model stress-testing. It has since
+evolved into a full project lifecycle engine — research, build, fix, and maintain. The core
+loop (iterate parameters, run, classify verdict, synthesize, generate next questions) has
+proven general-purpose. The question now is how far the lifecycle coverage extends into:
 
 1. **Code stress-testing**: Questions probe code quality dimensions (test coverage, type safety,
    security surface). Agents are linters, test runners, static analyzers. Verdicts map to pass/fail

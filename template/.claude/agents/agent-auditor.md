@@ -123,21 +123,19 @@ The main loop checks this file at the next wave-start sentinel. Overseer reads i
 Your tag: `agent:agent-auditor`
 
 **Before auditing** — pull prior audit scores to detect trajectory changes:
-```
-recall_search(query="agent audit score underperforming", domain="{project}-bricklayer", tags=["agent:agent-auditor"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "agent audit score underperforming"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:agent-auditor"]
 
 **After completing audit** — store the scorecard so Overseer and future audits can compare:
-```
-recall_store(
-    content="Agent audit [{date}] wave {N}: scores: [{agent}: {score}, ...]. Underperforming: [{list or none}]. Regressions: {N}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:agent-auditor", "type:audit-report"],
-    importance=0.75,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Agent audit [{date}] wave {N}: scores: [{agent}: {score}, ...]. Underperforming: [{list or none}]. Regressions: {N}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:agent-auditor", "type:audit-report"]
+- `importance`: 0.75
+- `durability`: "durable"
 
 ## Output contract
 

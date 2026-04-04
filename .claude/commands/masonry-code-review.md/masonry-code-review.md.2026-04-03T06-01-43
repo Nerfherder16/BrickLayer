@@ -1,0 +1,5 @@
+Run a **comprehensive code review** on: $ARGUMENTS
+
+Invoke the code-reviewer agent via Mortar. Produces severity-tiered output: CRITICAL (must fix before merge), HIGH (should fix), MEDIUM (consider fixing), LOW (style/nit). Reviews for correctness, security, performance, and adherence to project standards.
+
+Scope: the files/directories specified, or the current git diff if no argument given.

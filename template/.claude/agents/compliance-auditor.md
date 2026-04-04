@@ -142,33 +142,28 @@ NON_COMPLIANT items: {list IDs}
 Your tag: `agent:compliance-auditor`
 
 **At session start** — check for prior audit results to understand drift:
-```
-recall_search(query="compliance audit NON_COMPLIANT checklist", domain="{project}-bricklayer", tags=["agent:compliance-auditor"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "compliance audit NON_COMPLIANT checklist"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:compliance-auditor"]
 
 **After NON_COMPLIANT finding (HIGH severity)** — store immediately as high-priority:
-```
-recall_store(
-    content="NON_COMPLIANT HIGH: [{question_id}] {requirement}. Location: {file}:{line}. Evidence: {evidence summary}. Structural: {yes/no}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:compliance-auditor", "type:non-compliant-high"],
-    importance=0.95,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "NON_COMPLIANT HIGH: [{question_id}] {requirement}. Location: {file}:{line}. Evidence: {evidence summary}. Structural: {yes/no}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:compliance-auditor", "type:non-compliant-high"]
+- `importance`: 0.95
+- `durability`: "durable"
 
 **After overall audit verdict** — store the summary:
-```
-recall_store(
-    content="{overall_verdict}: [{question_id}] {standard} audit. Score: {score}%. NON_COMPLIANT items: {count}. Key findings: {top 2-3 issues}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:compliance-auditor", "type:audit-summary"],
-    importance=0.85,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "{overall_verdict}: [{question_id}] {standard} audit. Score: {score}%. NON_COMPLIANT items: {count}. Key findings: {top 2-3 issues}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:compliance-auditor", "type:audit-summary"]
+- `importance`: 0.85
+- `durability`: "durable"
 
 ## Output contract
 

@@ -206,21 +206,19 @@ Write to `questions.md`:
 Your tag: `agent:question-designer-bl2`
 
 **At session start** — check if a prior question bank exists for this project:
-```
-recall_search(query="question bank wave design bricklayer", domain="{project}-bricklayer", tags=["agent:question-designer-bl2"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "question bank wave design bricklayer"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:question-designer-bl2"]
 
 **After generating the question bank** — store the mode selection rationale:
-```
-recall_store(
-    content="QUESTION BANK: [{project}] Wave 1 generated. Modes selected: {modes}. Rationale: {why these modes}. Question count: {N}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:question-designer-bl2", "type:question-bank"],
-    importance=0.8,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "QUESTION BANK: [{project}] Wave 1 generated. Modes selected: {modes}. Rationale: {why these modes}. Question count: {N}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:question-designer-bl2", "type:question-bank"]
+- `importance`: 0.8
+- `durability`: "durable"
 
 ## Output contract
 

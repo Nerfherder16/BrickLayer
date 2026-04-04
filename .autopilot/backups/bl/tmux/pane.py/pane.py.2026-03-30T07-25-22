@@ -1,0 +1,115 @@
+"""bl/tmux/pane.py — Tmux pane spawning, waiting, and cleanup."""
+
+from __future__ import annotations
+
+import os
+import shlex
+import subprocess
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from bl.tmux.core import SpawnResult
+
+
+def spawn_tmux_pane(
+    *,
+    agent_id: str,
+    agent_name: str,
+    claude_bin: str,
+    claude_args: list[str],
+    prompt_file: Path,
+    result_file: Path | None,
+    exit_file: Path,
+    cwd: str,
+    env_overrides: dict[str, str] | None,
+) -> str | None:
+    """Create a tmux pane running the claude command. Returns pane_id or None."""
+    cmd_str = " ".join(shlex.quote(p) for p in [claude_bin, *claude_args])
+
+    parts = ["unset CLAUDECODE"]
+    if env_overrides:
+        for k, v in env_overrides.items():
+            if v:
+                parts.append(f"export {k}={shlex.quote(v)}")
+            else:
+                parts.append(f"unset {k}")
+
+    parts.append(f"cd {shlex.quote(cwd)}")
+
+    if result_file:
+        parts.append(
+            f"{cmd_str} < {shlex.quote(str(prompt_file))} "
+            f"> {shlex.quote(str(result_file))}"
+        )
+    else:
+        parts.append(f"{cmd_str} < {shlex.quote(str(prompt_file))}")
+
+    parts.append(f"echo $? > {shlex.quote(str(exit_file))}")
+    parts.append(f"tmux wait-for -S bl-done-{agent_id}")
+    pane_cmd = "; ".join(parts)
+
+    try:
+        proc = subprocess.run(
+            ["tmux", "split-window", "-h", "-d", "-P", "-F", "#{pane_id}", pane_cmd],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        pane_id = proc.stdout.strip() or None
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+        return None
+
+    if pane_id:
+        try:
+            _ = subprocess.run(
+                ["tmux", "select-pane", "-t", pane_id, "-T", f"agent:{agent_name}"],
+                capture_output=True,
+                timeout=5,
+            )
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+            pass
+
+    return pane_id
+
+
+def tmux_wait_with_timeout(channel: str, timeout: int) -> bool:
+    """Block until tmux wait-for signal or timeout. Returns True if signalled."""
+    try:
+        _ = subprocess.run(
+            ["timeout", str(timeout), "tmux", "wait-for", channel],
+            check=True,
+            capture_output=True,
+        )
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
+def cleanup_panes(spawns: list[SpawnResult]) -> None:
+    """Remove temp files and kill dead tmux panes (unless BL_KEEP_PANES=1)."""
+    keep = os.environ.get("BL_KEEP_PANES", "0") == "1"
+
+    for spawn in spawns:
+        for f in (spawn.prompt_file, spawn.result_file, spawn.exit_file):
+            try:
+                f.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+        # Clean signal files
+        for prefix in ("bl-agent-start-", "bl-agent-stop-"):
+            try:
+                Path(f"/tmp/{prefix}{spawn.agent_id}.json").unlink(missing_ok=True)
+            except OSError:
+                pass
+
+        if spawn.pane_id and not keep:
+            try:
+                subprocess.run(
+                    ["tmux", "kill-pane", "-t", spawn.pane_id],
+                    capture_output=True,
+                    timeout=5,
+                )
+            except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+                pass

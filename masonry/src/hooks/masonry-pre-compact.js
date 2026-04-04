@@ -8,70 +8,17 @@
  *
  * v2: Stores mid-session checkpoint to Recall including both user prompts AND
  * assistant responses. Fills the gap for long-running sessions that never close.
+ * v3: Writes discrete snapshot files (.autopilot/pre-compact-snapshot.json,
+ * masonry/pre-compact-campaign.json) and appends to build.log on pre-compact.
  *
- * Note: Claude Code does NOT include transcript_path in PreCompact hook payloads
- * (only Stop/SessionEnd get it). We derive the path from cwd + session_id using
- * the known project slug format: ~/.claude/projects/{cwd-slug}/{session_id}.jsonl
- * where slug = path separators → "--", drive colon removed.
- *
- * Output: hookSpecificOutput with a brief state reminder that survives compaction.
+ * Output: systemMessage with a brief state reminder that survives compaction.
  */
 
 "use strict";
 const fs = require("fs");
-const os = require("os");
 const path = require("path");
-
-const RECALL_HOST = process.env.RECALL_HOST || "http://100.70.195.84:8200";
-const RECALL_API_KEY = process.env.RECALL_API_KEY || "recall-admin-key-change-me";
-const MAX_TRANSCRIPT_LINES = 100; // scan last 100 JSONL lines for recent turns
-
-// Project → canonical domain (matches recall-retrieve.js)
-const PROJECT_DOMAINS = {
-  "recall": "recall", "system-recall": "recall",
-  "familyhub": "family-hub", "family-hub": "family-hub", "sadie": "family-hub",
-  "relay": "relay", "codevv": "codevv", "foundry": "foundry",
-  "media-server": "media-server", "jellyfin": "media-server", "homelab": "homelab",
-};
-
-/**
- * Extract recent conversation turns (user + assistant) from the JSONL transcript.
- */
-function extractRecentTurns(transcriptPath, maxMessages) {
-  try {
-    const content = fs.readFileSync(transcriptPath, "utf8");
-    const lines = content.trim().split("\n").slice(-MAX_TRANSCRIPT_LINES);
-    const turns = [];
-    for (const line of lines) {
-      try {
-        const entry = JSON.parse(line);
-        const isUser = entry.type === "human" || entry.type === "user";
-        const isAssistant = entry.type === "assistant";
-        if (!isUser && !isAssistant) continue;
-        const raw = entry.message?.content ?? entry.content;
-        const text = typeof raw === "string" ? raw
-          : Array.isArray(raw)
-            ? raw.filter((c) => c.type === "text").map((c) => c.text).join(" ")
-            : "";
-        if (!text || text.length < 5) continue;
-        turns.push({ role: isUser ? "User" : "Assistant", text: text.slice(0, 400) });
-      } catch {}
-    }
-    return turns.slice(-maxMessages);
-  } catch {
-    return [];
-  }
-}
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
+const { storeRecallCheckpoint } = require("../pre-compact-recall");
+const { readStdin } = require('./session/stop-utils');
 
 function tryRead(p) {
   try { return fs.readFileSync(p, "utf8").trim(); } catch { return null; }
@@ -81,29 +28,51 @@ function tryJSON(p) {
   try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; }
 }
 
-/**
- * Derive the JSONL transcript path from cwd + session_id.
- * Claude Code stores transcripts at:
- *   ~/.claude/projects/{cwd-slug}/{session_id}.jsonl
- * where cwd-slug = path separators replaced with "--", drive colon removed.
- * Example: "C:/Users/trg16/Dev/Bricklayer2.0" → "C--Users-trg16-Dev-Bricklayer2-0"
- */
-function deriveTranscriptPath(cwd, sessionId) {
-  if (!sessionId) return null;
-  // Claude Code slug format: each character class replaced with "-"
-  //   "C:\Users\trg16\Dev\Bricklayer2.0"
-  //   → normalize backslashes: "C:/Users/trg16/Dev/Bricklayer2.0"
-  //   → colon → "-": "C-/Users/trg16/Dev/Bricklayer2.0"
-  //   → slash → "-": "C--Users-trg16-Dev-Bricklayer2.0"
-  //   → dot   → "-": "C--Users-trg16-Dev-Bricklayer2-0"
-  const slug = cwd
-    .replace(/\\/g, "/")
-    .replace(/:/g, "-")
-    .replace(/\//g, "-")
-    .replace(/\./g, "-");
-  const transcriptDir = path.join(os.homedir(), ".claude", "projects", slug);
-  const transcriptFile = path.join(transcriptDir, `${sessionId}.jsonl`);
-  return fs.existsSync(transcriptFile) ? transcriptFile : null;
+/** Save .autopilot/pre-compact-snapshot.json and append to build.log. */
+function saveBuildSnapshot(cwd, progress, total, lines) {
+  try {
+    const snapshot = { ...progress, snapshot_at: new Date().toISOString() };
+    fs.mkdirSync(path.join(cwd, ".autopilot"), { recursive: true });
+    fs.writeFileSync(
+      path.join(cwd, ".autopilot", "pre-compact-snapshot.json"),
+      JSON.stringify(snapshot, null, 2),
+      "utf8"
+    );
+    lines.push(`PRE_COMPACT BUILD: snapshot saved to .autopilot/pre-compact-snapshot.json`);
+  } catch {}
+
+  try {
+    const buildLogPath = path.join(cwd, ".autopilot", "build.log");
+    const firstNonDone = (progress.tasks || []).find(
+      (t) => t.status !== "DONE" && t.status !== "BLOCKED"
+    );
+    const taskStatus = firstNonDone
+      ? `Task ${firstNonDone.id} of ${total} (${firstNonDone.status})`
+      : "All tasks done";
+    const logLine = `[${new Date().toISOString()}] PRE_COMPACT: Snapshot saved. ${taskStatus}. Resume with /build.\n`;
+    if (fs.existsSync(buildLogPath)) {
+      fs.appendFileSync(buildLogPath, logLine, "utf8");
+    }
+  } catch {}
+}
+
+/** Save masonry/pre-compact-campaign.json for active campaign state. */
+function saveCampaignSnapshot(cwd, campaign, lines) {
+  try {
+    const snapshot = {
+      saved_at: new Date().toISOString(),
+      current_question_id: campaign.q_current || null,
+      wave: campaign.wave || 0,
+      project_dir: cwd,
+    };
+    fs.mkdirSync(path.join(cwd, "masonry"), { recursive: true });
+    fs.writeFileSync(
+      path.join(cwd, "masonry", "pre-compact-campaign.json"),
+      JSON.stringify(snapshot, null, 2),
+      "utf8"
+    );
+    lines.push(`PRE_COMPACT CAMPAIGN: snapshot saved to masonry/pre-compact-campaign.json`);
+  } catch {}
 }
 
 async function main() {
@@ -134,7 +103,7 @@ async function main() {
         lines.push(`  Run /masonry-build to continue.`);
       }
 
-      // Update compact-state with progress info (preserve auto_build flag if set)
+      // Update compact-state (preserve auto_build flag if set)
       const updatedState = {
         ...(compactState || {}),
         mode: autopilotMode,
@@ -151,9 +120,24 @@ async function main() {
           "utf8"
         );
       } catch {}
+
+      saveBuildSnapshot(cwd, progress, total, lines);
+
+    // Snapshot task-ids.json alongside progress so panel IDs survive compaction
+    try {
+      const taskIdsPath = path.join(cwd, ".autopilot", "task-ids.json");
+      if (fs.existsSync(taskIdsPath)) {
+        const taskIds = fs.readFileSync(taskIdsPath, "utf8");
+        fs.writeFileSync(
+          path.join(cwd, ".autopilot", "pre-compact-task-ids.json"),
+          taskIds,
+          "utf8"
+        );
+        lines.push(`  task-ids.json backed up to pre-compact-task-ids.json`);
+      }
+    } catch {}
     } else if (compactState && compactState.auto_build) {
-      // Plan was just approved ("Approve & compact then build") but build hasn't started yet.
-      // No progress.json exists — trigger the build after compact.
+      // Plan approved but build not yet started — no progress.json.
       lines.push(`[Masonry] COMPACTING — spec approved, build pending.`);
       lines.push(`  Spec: ${compactState.spec || ".autopilot/spec.md"}`);
       lines.push(`  After compact, run /masonry-build to start the build.`);
@@ -178,8 +162,8 @@ async function main() {
   }
 
   // --- Swarm inflight task persistence ---
-  // Save IN_PROGRESS tasks (with claimed_by) to .autopilot/inflight-agents.json before compaction.
-  // masonry-session-start.js reads this on resume to warn the coordinator about orphaned workers.
+  // Save IN_PROGRESS tasks (with claimed_by) to .autopilot/inflight-agents.json.
+  // masonry-session-start.js reads this on resume to warn about orphaned workers.
   {
     const swarmProgress = tryJSON(path.join(cwd, ".autopilot", "progress.json"));
     if (swarmProgress) {
@@ -220,64 +204,19 @@ async function main() {
   if (campaign && campaign.mode) {
     lines.push(`[Masonry] COMPACTING — campaign state preserved.`);
     lines.push(`  ${campaign.project || path.basename(cwd)}: wave ${campaign.wave || 0}, Q${campaign.q_current || 0}/${campaign.q_total || 0}`);
+    saveCampaignSnapshot(cwd, campaign, lines);
   }
 
   if (lines.length > 0) {
-    // Inject state reminder into the compacted summary
     process.stdout.write(
       JSON.stringify({
-        hookSpecificOutput: {
-          hookEventName: "PreCompact",
-          content: lines.join("\n"),
-        },
+        systemMessage: lines.join("\n"),
       })
     );
   }
 
   // --- Recall: store mid-session checkpoint with assistant responses ---
-  // PreCompact does not receive transcript_path — derive it from cwd + session_id.
-  const projectName = path.basename(cwd);
-  const domain = PROJECT_DOMAINS[projectName.toLowerCase()] || projectName.toLowerCase() || "general";
-
-  const transcriptPath = deriveTranscriptPath(cwd, input.session_id);
-
-  if (transcriptPath) {
-    const turns = extractRecentTurns(transcriptPath, 20);
-    // Only store if we have meaningful content (at least 1 assistant turn)
-    const hasAssistant = turns.some((t) => t.role === "Assistant");
-    if (turns.length >= 3 && hasAssistant) {
-      const turnText = turns
-        .map((t) => `[${t.role}] ${t.text}`)
-        .join("\n");
-
-      const content = [
-        `[PreCompact Checkpoint] ${projectName} — ${turns.length} turns captured at context compaction (${new Date().toISOString().slice(0, 16)})`,
-        turnText,
-      ].join("\n\n");
-
-      const headers = {
-        "Content-Type": "application/json",
-        ...(RECALL_API_KEY ? { Authorization: `Bearer ${RECALL_API_KEY}` } : {}),
-      };
-
-      try {
-        await fetch(`${RECALL_HOST}/memory/store`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            content: content.slice(0, 4000),
-            domain,
-            source: "system",
-            memory_type: "episodic",
-            tags: ["precompact-checkpoint", projectName, "has-assistant-responses"],
-            importance: 0.65,
-          }),
-          signal: AbortSignal.timeout(4000),
-        });
-      } catch { /* Recall down — never block compaction */ }
-    }
-  }
-
+  await storeRecallCheckpoint(cwd, input.session_id);
 }
 
 main().catch(() => {});

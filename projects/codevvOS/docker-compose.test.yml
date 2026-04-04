@@ -1,0 +1,47 @@
+# docker-compose.test.yml
+# Extends docker-compose.yml for integration testing
+# Usage: docker compose -f docker-compose.yml -f docker-compose.test.yml up -d
+
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: codevvos_test
+    volumes:
+      - type: tmpfs
+        target: /var/lib/postgresql/data
+
+  redis:
+    volumes:
+      - type: tmpfs
+        target: /data
+
+  backend:
+    environment:
+      TESTING: "true"
+      DATABASE_URL: "postgresql+asyncpg://codevv_app:test_password@postgres:5432/codevvos_test"
+      REDIS_URL: "redis://redis:6379"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  worker:
+    environment:
+      TESTING: "true"
+
+  yjs:
+    environment:
+      TESTING: "true"
+
+  nginx: {}
+
+  frontend: {}
+
+  docker-socket-proxy: {}
+
+  sandbox-manager:
+    environment:
+      TESTING: "true"
+
+volumes: {}

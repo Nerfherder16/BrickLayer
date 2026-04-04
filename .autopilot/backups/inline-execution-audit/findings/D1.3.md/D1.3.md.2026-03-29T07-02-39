@@ -1,0 +1,190 @@
+# D1.3: Does the prompt router hint injection ("→ Mortar: routing to {agent} [effort:X]") carry sufficient authority weight relative to CLAUDE.md instructions, or is it treated as a low-priority system annotation?
+
+**Status**: DIAGNOSIS_COMPLETE
+**Agent**: diagnose-analyst
+**Date**: 2026-03-29
+
+## Evidence
+
+### Hook Registration (Verified)
+
+`masonry-prompt-router.js` is confirmed active in `C:/Users/trg16/.claude/settings.json`, line 45–49, registered as the third UserPromptSubmit hook (after `recall-retrieve.js` and `masonry-register.js`, before `masonry-prompt-inject.js`).
+
+### Output Format Used by the Router
+
+`masonry-prompt-router.js` lines 203–210 write:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "UserPromptSubmit",
+    "content": "→ Mortar: routing to {agent} [effort:X] — {note}"
+  }
+}
+```
+
+The content string uses an arrow symbol, a colon, and bracketed metadata — e.g., `→ Mortar: routing to diagnose-analyst → fix-implementer [effort:high]`.
+
+### Two Distinct Output Channels for UserPromptSubmit Hooks
+
+Cross-referencing all four registered UserPromptSubmit hooks against their output formats reveals two structurally different injection mechanisms:
+
+| Hook | Output field | Effect |
+|------|-------------|--------|
+| `recall-retrieve.js` | `additionalContext` | Injected as pre-prompt context block, attributed to system |
+| `masonry-register.js` | `additionalContext` | Injected as pre-prompt context block, attributed to system |
+| `masonry-prompt-router.js` | `hookSpecificOutput.content` | Mechanism unclear — see analysis below |
+| `masonry-prompt-inject.js` | `additionalContext` | Injected as pre-prompt context block, attributed to system |
+
+The `additionalContext` output format is the Claude Code UserPromptSubmit spec for context injection (confirmed in bl-audit M1.3 and M1.4; see `masonry/src/hooks/masonry-register.js` line 91: `process.stdout.write(JSON.stringify({ additionalContext: text }))`).
+
+The `hookSpecificOutput` format is the same field name used by hooks on other event types:
+- `masonry-approver.js` (PreToolUse) uses `hookSpecificOutput` with `permissionDecision: "allow"` — a decision field that produces enforced behavior (tool invocation is explicitly allowed or blocked)
+- `masonry-pre-protect.js` (PreToolUse) uses `decision: "block"` — also produces enforced behavior
+- `masonry-session-start.js` (SessionStart) uses `hookSpecificOutput.content` to inject context at session open
+
+For UserPromptSubmit, the Claude Code spec defines `additionalContext` as the field for injecting content into the conversation. The `hookSpecificOutput.content` field is used by other hook types for decision signals, not for context injection. When `hookSpecificOutput` is emitted from a UserPromptSubmit hook, the behavior is ambiguous: it may be displayed or logged but does not follow the same `additionalContext` injection pathway.
+
+### Confirmed Statement from bl-audit ARCHITECTURE.md (line 54)
+
+> "Even with correct output, `additionalContext` is advisory context — Claude may ignore it"
+
+This is the architecture's own documented conclusion about the stronger `additionalContext` format. The `hookSpecificOutput.content` format used by the prompt router is a weaker channel than `additionalContext` — if even `additionalContext` is advisory, `hookSpecificOutput.content` from a UserPromptSubmit hook carries less or equal weight.
+
+### Format Semantics: Annotation vs. Directive
+
+The hint text `→ Mortar: routing to uiux-master [effort:high]` exhibits the lexical characteristics of an annotation, not a directive:
+
+1. **Arrow symbol prefix (`→`)**: In documentation and system logs, `→` conventionally means "maps to" or "results in" — it describes a relationship, not an instruction. Compare to directive language ("You MUST route this to...") or permission language ("Decision: allow").
+
+2. **Bracketed metadata (`[effort:X]`)**: Square-bracketed key-value pairs are the canonical format for system metadata and logging annotations (e.g., `[INFO]`, `[effort:high]`, `[2026-03-29]`). They signal "this is metadata about the action" rather than "this is an imperative to act."
+
+3. **"routing to {agent}"** uses the present participle (progressive aspect), describing what is happening rather than what should happen. Compare directive forms: "Route to {agent}", "Dispatch to {agent}", "You must invoke {agent}."
+
+4. **No consequence clause**: Directives typically include a consequence or expectation: "...otherwise explain why." The hint has no enforcement framing.
+
+### Comparison: Hooks That DO Reliably Influence Behavior
+
+`masonry-approver.js` (PreToolUse, Write/Edit/Bash) produces reliable behavioral compliance because:
+- It emits `{ permissionDecision: "allow", permissionDecisionReason: "..." }` — a structured decision with a recognized semantic field
+- The decision field is part of a blocking protocol: if the hook exits with a block decision, the tool call is stopped entirely
+- The hook fires AFTER Claude has decided to use a tool, so the approval/block applies to an imminent concrete action, not to a general routing preference
+
+`masonry-pre-protect.js` (PreToolUse, Write/Edit) produces reliable blocking because:
+- It emits `{ decision: "block", reason: "..." }` — structured with the exact field name that Claude Code's hook processor recognizes as a hard block
+- The block fires synchronously before the tool executes; Claude has no pathway to proceed
+
+Neither of these hooks relies on Claude reading a hint and voluntarily complying. They operate at the tool invocation layer, not at the text-generation layer.
+
+### Where in Claude's Context the Hint Appears
+
+The UserPromptSubmit hooks run before Claude processes the user's message. The `additionalContext` injection from `masonry-register.js` prepends a Mortar directive block to the system context Claude reads. The `hookSpecificOutput.content` from `masonry-prompt-router.js` is positioned differently — it is a separate injection that Claude Code may display inline or as a system annotation rather than as part of the structured context block.
+
+Within the existing `additionalContext` injection stream, the `masonry-register.js` Mortar directive ("Route this prompt through Mortar") is itself documented as advisory (bl-audit M1.4). The prompt-router hint arrives in a weaker channel, after a stronger channel that is itself advisory only. The effective authority stack at prompt time is:
+
+1. **CLAUDE.md routing directive** (lines 37, 56): Present in auto-loaded context since session start — highest persistence but authority reduced by escape hatch (D1.1) and dilution (D1.2).
+2. **masonry-register.js `additionalContext`**: Advisory context injection per prompt — documented as ignorable (bl-audit M1.4).
+3. **masonry-prompt-router.js `hookSpecificOutput.content`**: Single-line annotation in a weaker channel — no structured authority, annotation-format text.
+4. **masonry-prompt-inject.js `additionalContext`** (Recall memories): Contextual, not routing-specific.
+
+### Skip Conditions That Reduce Hit Rate
+
+Even when the router fires, it exits silently (no hint emitted) when:
+- Prompt is empty, a slash command, or < 20 chars (line 168)
+- `program.md` + `questions.md` exist in cwd (lines 173–179) — BL research project
+- `masonry-state.json` has `mode` set (lines 183–187) — active campaign
+- Intent is unclear AND effort is "medium" (line 194: `const hasSignal = intent || effort !== "medium"`)
+
+The last condition is especially significant: if a prompt triggers no intent rule AND is "medium" effort (the default), the hook silently exits. This means a large fraction of standard development prompts — ones that don't match the 10 INTENT_RULES but are also not short or simple enough to be "low" — produce no hint at all.
+
+## Analysis
+
+### Causal Chain
+
+**Step 1: The hint uses `hookSpecificOutput` rather than `additionalContext`.**
+
+For UserPromptSubmit hooks, `additionalContext` is the documented channel for injecting text into the model's context. The prompt router uses `hookSpecificOutput.content` instead. This is the same field structure used by PreToolUse hooks for decision signaling — but those hooks operate on a different mechanism (blocking tool invocations). For UserPromptSubmit, `hookSpecificOutput.content` has no equivalent decision-forcing semantic. The text reaches Claude through a separate display pathway rather than the structured context injection pathway.
+
+**Step 2: Even if the text reaches Claude, `additionalContext` content is advisory.**
+
+bl-audit M1.4 and ARCHITECTURE.md line 54 document that even the stronger `additionalContext` format is "advisory context — Claude may ignore it." The prompt-router hint, in the weaker `hookSpecificOutput.content` channel, carries at most the same authority as `additionalContext` and possibly less.
+
+**Step 3: The hint format signals annotation, not directive.**
+
+The lexical structure `→ Mortar: routing to {agent} [effort:X]` uses arrow notation, progressive aspect ("routing to"), and bracketed metadata — all markers of a system log line or informational annotation. Language models trained on code, documentation, and system logs associate this pattern with observational metadata (what the system IS doing or HAS decided) rather than imperative instructions (what YOU MUST do). The model reads it as a status report, not a command.
+
+**Step 4: The model receives competing signals of unequal authority.**
+
+At prompt time, the model has:
+- CLAUDE.md routing directive (advisory, diluted by context weight, partially overridden by escape hatch)
+- `masonry-register.js` Mortar directive via `additionalContext` (advisory, documented as ignorable)
+- Prompt-router hint via `hookSpecificOutput.content` (annotation-formatted, weaker channel)
+
+None of these signals is enforced. The model applies the escape hatch ("direct action when trivial") to most requests, and neither the register directive nor the router hint provides a blocking mechanism that prevents inline execution.
+
+**Step 5: Hooks that reliably influence behavior work differently.**
+
+`masonry-approver.js` and `masonry-pre-protect.js` reliably influence behavior because they operate at the tool-invocation layer with structured decision fields (`permissionDecision`, `decision: "block"`) that Claude Code's hook processor treats as authoritative blocking signals — not suggestions. The prompt router cannot replicate this authority for text generation because no `TextGeneration` hook event exists in the hook event taxonomy (confirmed in bl-audit peer-review cross-validation: the hook registry contains SessionStart, PreToolUse, PostToolUse, PostToolUseFailure, SubagentStart, Stop — no TextGeneration event).
+
+### Root Cause
+
+The prompt-router hint carries insufficient authority weight for three compounding reasons:
+
+1. **Wrong output channel**: `hookSpecificOutput.content` is used instead of `additionalContext` — the hint may not even enter the same context injection pathway as other pre-prompt context
+2. **Format signals annotation, not imperative**: `→ Mortar: routing to X [effort:Y]` reads as a system log line, not a directive
+3. **No enforcement pathway exists**: Even if the hint were received as an authoritative instruction, the hook cannot block inline text generation — no TextGeneration hook event exists, so there is no mechanism to intercept non-compliant responses
+
+The hint is structurally incapable of overriding CLAUDE.md instructions because it is (a) in the wrong output channel to reliably enter the context, (b) lexically formatted as metadata, and (c) cannot block the behavior it is intended to prevent.
+
+## Fix Specification
+
+- **File**: `C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-prompt-router.js`
+- **Line**: 203–210 (the `process.stdout.write` call at the bottom of `main()`)
+- **Change**: Replace the `hookSpecificOutput` output format with `additionalContext`, AND rewrite the hint content from annotation format to directive format.
+
+  Current output (lines 203–210):
+  ```javascript
+  process.stdout.write(
+    JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: "UserPromptSubmit",
+        content: parts.join(" — "),
+      },
+    })
+  );
+  ```
+
+  Replacement:
+  ```javascript
+  // Build imperative directive, not annotation
+  const directive = intent
+    ? `[MASONRY ROUTING] This request must be routed to: ${intent.route}. Effort level: ${effort}. Do NOT handle inline — invoke the appropriate agent via the Agent tool.${intent.note ? " Note: " + intent.note : ""}`
+    : `[MASONRY ROUTING] Effort level: ${effort}. Complex requests require agent delegation.`;
+
+  process.stdout.write(
+    JSON.stringify({ additionalContext: directive })
+  );
+  ```
+
+  Key changes:
+  1. `hookSpecificOutput` → `additionalContext` (correct channel for UserPromptSubmit context injection)
+  2. `→ Mortar: routing to X [effort:Y]` → `[MASONRY ROUTING] This request must be routed to: X` (imperative, no annotation markers)
+  3. Explicit prohibition added: "Do NOT handle inline — invoke the appropriate agent via the Agent tool"
+
+- **Verification**:
+  ```bash
+  # Confirm the output channel change
+  grep -n "hookSpecificOutput\|additionalContext" \
+    "C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-prompt-router.js"
+  # After fix: should show only additionalContext, no hookSpecificOutput
+
+  # Confirm directive format
+  grep -n "must be routed\|Do NOT handle inline" \
+    "C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-prompt-router.js"
+  # After fix: should match the new imperative text
+  ```
+  Behavioral proxy: after the change, present a debugging prompt (e.g., "why is X failing") and a research prompt (e.g., "analyze the performance of Y") and verify Claude invokes the Agent tool for `diagnose-analyst` and `research-analyst` respectively rather than answering inline.
+
+- **Risk**: Changing from annotation format to directive format increases the probability of over-delegation. The "Do NOT handle inline" prohibition may cause Claude to delegate genuinely simple tasks (e.g., "what does this error message mean?") that the router incorrectly classifies as "debugging" via the regex patterns. The effort classification partly mitigates this — the `low` effort tier (short prompts, "what/where/how/show" questions) currently exits silently; the fix should preserve this behavior to avoid over-routing short questions. Additionally, the fix interacts with the D1.1 root cause: even with a stronger routing hint, the undefined "trivial" escape hatch in CLAUDE.md may still override it. Full compliance requires BOTH the D1.1 fix (narrowing the escape hatch) AND this fix (strengthening the routing hint). Neither fix alone is sufficient.
+
+[RECOMMEND: fix-implementer — DIAGNOSIS_COMPLETE; change `hookSpecificOutput` to `additionalContext` and rewrite annotation-format hint to imperative directive format in masonry-prompt-router.js line 203–210]

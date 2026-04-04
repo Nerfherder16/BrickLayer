@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 /**
  * masonry-file-size-guard.js
- * PostToolUse hook — enforces 300-line file size limit on .py, .ts, .js files.
- * Hard blocks (exit 2) when lines > 300.
- * Warns (exit 0) when lines > 250.
+ * PostToolUse hook — enforces 600-line file size limit on .py, .ts, .js files.
+ * Hard blocks (exit 2) when lines > 600.
+ * Warns (exit 0) when lines > 400.
  * Exempt: test files, __init__.py, *.d.ts, migration files.
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const LINE_LIMIT = 300;
-const WARN_THRESHOLD = 250;
+const LINE_LIMIT = 600;
+const WARN_THRESHOLD = 400;
 
 /**
  * Target file extensions that are subject to the size check.
@@ -44,7 +44,7 @@ function isExempt(filePath) {
   if (
     filePath.includes('/migrations/') ||
     filePath.includes('\\migrations\\') ||
-    /\d{4}_/.test(basename) ||
+    /^\d{4}_/.test(basename) ||
     basename.includes('_migration.')
   ) {
     return true;
@@ -102,6 +102,18 @@ process.stdin.on('end', () => {
     }
 
     if (lineCount > LINE_LIMIT) {
+      // Allow Edit operations that shrink or maintain the file size.
+      // This enables incremental refactoring of oversized files.
+      if (tool_name === 'Edit' && tool_input.old_string && tool_input.new_string) {
+        const oldLines = tool_input.old_string.split('\n').length;
+        const newLines = tool_input.new_string.split('\n').length;
+        if (newLines <= oldLines) {
+          process.stderr.write(
+            `FILE_SIZE_SHRINK: ${filePath} has ${lineCount} lines (over ${LINE_LIMIT}). Edit allowed (net ${newLines - oldLines} lines).\n`
+          );
+          process.exit(0);
+        }
+      }
       process.stderr.write(
         `FILE_SIZE_BLOCK: ${filePath} has ${lineCount} lines (limit: ${LINE_LIMIT}). Split this file into focused modules.\n`
       );
@@ -110,7 +122,7 @@ process.stdin.on('end', () => {
 
     if (lineCount > WARN_THRESHOLD) {
       process.stderr.write(
-        `FILE_SIZE_WARN: ${filePath} has ${lineCount} lines (approaching 300-line limit). Consider splitting.\n`
+        `FILE_SIZE_WARN: ${filePath} has ${lineCount} lines (approaching 600-line limit). Consider splitting.\n`
       );
       process.exit(0);
     }

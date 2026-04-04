@@ -8,7 +8,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 
 class TestRunOptimizationApiKey(unittest.TestCase):
@@ -32,7 +32,6 @@ class TestRunOptimizationApiKey(unittest.TestCase):
 
     def test_api_key_argument_accepted(self):
         """--api-key must be a recognised argument (no argparse error)."""
-        from masonry.scripts import run_optimization
 
         import argparse
         parser = argparse.ArgumentParser()

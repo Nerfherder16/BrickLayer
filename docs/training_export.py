@@ -47,7 +47,6 @@ from training_schema import (
     verdict_to_binary_pass,
     verdict_to_critic_flag,
     verdict_to_partial_credit,
-    NEEDS_HUMAN_THRESHOLD,
 )
 
 
@@ -533,7 +532,7 @@ def _print_stats(traces: list[dict]) -> None:
         d = t.get("task_domain", "unknown")
         domains[d] = domains.get(d, 0) + 1
 
-    print(f"[training_export] stats:")
+    print("[training_export] stats:")
     print(f"  total:         {total}")
     print(f"  sft_eligible:  {sft}  ({sft/total:.0%})")
     print(f"  outcome_pass:  {passed}  ({passed/total:.0%})")

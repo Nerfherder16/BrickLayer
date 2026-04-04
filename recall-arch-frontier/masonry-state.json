@@ -1,0 +1,15 @@
+{
+  "last_qid": "R37.2",
+  "last_verdict": "CONCERNS",
+  "verdicts": {
+    "PROMISING": 8,
+    "BREAKTHROUGH": 3,
+    "CONFIRMED": 1,
+    "DONE": 2,
+    "HEALTHY": 1,
+    "CONCERNS": 1
+  },
+  "updated_at": "2026-03-18T01:34:38.434Z",
+  "active_agent": "quantitative-analyst",
+  "active_agent_count": 5
+}

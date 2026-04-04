@@ -1,0 +1,344 @@
+{
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "80",
+    "RECALL_HOST": "http://100.70.195.84:8200",
+    "RECALL_API_KEY": "recall-admin-key-change-me",
+    "OLLAMA_HOST": "http://100.70.195.84:11434",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "ENABLE_LSP_TOOL": "1",
+    "ENABLE_TOOL_SEARCH": "auto:3"
+  },
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  },
+  "model": "sonnet",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-session-start.js",
+            "timeout": 8,
+            "continueOnError": true
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Recall/hooks/recall-retrieve.js",
+            "timeout": 8,
+            "continueOnError": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-register.js",
+            "timeout": 8,
+            "continueOnError": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-prompt-router.js",
+            "timeout": 5,
+            "continueOnError": true
+          }
+        ]
+      }
+    ],
+    "TeammateIdle": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-teammate-idle.js",
+            "timeout": 5,
+            "continueOnError": true
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-teammate-idle.js",
+            "timeout": 5,
+            "continueOnError": true
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-pre-edit.js",
+            "timeout": 5,
+            "continueOnError": true
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-session-lock.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-approver.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-context-safety.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-mortar-enforcer.js",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-preagent-tracker.js",
+            "timeout": 3,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-pre-task.js",
+            "timeout": 3,
+            "continueOnError": true,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/.claude/hooks/permission-mode-watcher.js",
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Recall/hooks/observe-edit.js",
+            "timeout": 10,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-observe.js",
+            "timeout": 5,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-lint-check.js",
+            "timeout": 30,
+            "continueOnError": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-design-token-enforcer.js",
+            "timeout": 10,
+            "continueOnError": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-guard.js",
+            "timeout": 3,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-tdd-enforcer.js",
+            "timeout": 5,
+            "continueOnError": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-agent-onboard.js",
+            "timeout": 10,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-build-patterns.js",
+            "timeout": 8,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-pulse.js",
+            "timeout": 5,
+            "continueOnError": true
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-tool-failure.js",
+            "timeout": 5,
+            "continueOnError": true
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-subagent-tracker.js",
+            "timeout": 3,
+            "continueOnError": true
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-session-end.js",
+            "timeout": 8,
+            "continueOnError": true
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-pre-compact.js",
+            "timeout": 10,
+            "continueOnError": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Recall/hooks/session-save.js",
+            "timeout": 10,
+            "continueOnError": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Recall/hooks/recall-session-summary.js",
+            "timeout": 10,
+            "continueOnError": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-stop-guard.js",
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-session-summary.js",
+            "timeout": 8,
+            "continueOnError": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-handoff.js",
+            "timeout": 8,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-context-monitor.js",
+            "timeout": 5,
+            "continueOnError": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-build-guard.js",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-ui-compose-guard.js",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-score-trigger.js",
+            "timeout": 5,
+            "continueOnError": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-system-status.js",
+            "timeout": 8,
+            "continueOnError": true
+          },
+          {
+            "type": "command",
+            "command": "node C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-training-export.js",
+            "timeout": 65,
+            "async": true
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "node C:/Users/trg16/.claude/hud/masonry-statusline.js"
+  },
+  "enabledPlugins": {
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "masonry@masonry": true
+  },
+  "voiceEnabled": true,
+  "skipDangerousModePermissionPrompt": true
+}

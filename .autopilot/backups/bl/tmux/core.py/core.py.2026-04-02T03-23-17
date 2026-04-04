@@ -1,0 +1,350 @@
+"""bl/tmux/core.py — Dataclasses, spawn_agent, wait_for_agent."""
+
+import os
+import shutil
+import subprocess
+import time
+import uuid
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from bl.tmux.helpers import (
+    build_claude_args,
+    build_env,
+    extract_session_id,
+    in_tmux,
+)
+from bl.tmux.pane import spawn_tmux_pane, tmux_wait_with_timeout
+from bl.tmux.signals import write_start_signal, write_stop_signal
+
+TEMP_DIR = Path("/tmp")
+_GATE_FILE = TEMP_DIR / "masonry-mortar-gate.json"
+
+# Orchestrators that coordinate but don't write production code.
+_ORCHESTRATORS = {"mortar", "rough-in", "trowel"}
+
+
+def _seed_gate(agent_name: str) -> None:
+    """Pre-seed the masonry gate file when an agent is spawned via tmux.
+
+    The SubagentStart hook only fires for Claude Code's Agent tool, not
+    for tmux-dispatched agents. This bridges the gap so the enforcer and
+    routing-gate hooks see the correct chain state.
+    """
+    import json
+    from datetime import datetime, timezone
+
+    existing: dict = {}
+    try:
+        if _GATE_FILE.exists():
+            existing = json.loads(_GATE_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        pass
+
+    chain: list[str] = existing.get("chain", [])
+    chain.append(agent_name.lower())
+    is_specialist = agent_name.lower() not in _ORCHESTRATORS
+
+    gate = {
+        "mortar_consulted": True,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "agent": agent_name.lower(),
+        "chain": chain,
+        "specialist_spawned": is_specialist or existing.get("specialist_spawned", False),
+    }
+    try:
+        _GATE_FILE.write_text(json.dumps(gate), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _build_orchestrator_prompt(agent_name: str) -> str:
+    """Build the --append-system-prompt for orchestrator agents."""
+    # Agent-specific specialist lists for smart routing
+    _SPECIALISTS = {
+        "mortar": {
+            "kiln-engineer": "Kiln/BrickLayerHub Electron app changes",
+            "python-specialist": "Python backend, FastAPI, Pydantic",
+            "typescript-specialist": "TypeScript, React, frontend",
+            "rust-specialist": "Rust code",
+            "docker-specialist": "Docker, containers, compose",
+            "mcp-developer": "MCP server development",
+            "postgres-specialist": "PostgreSQL, database",
+            "go-specialist": "Go code",
+            "developer": "general implementation (fallback)",
+        },
+        "rough-in": {
+            "kiln-engineer": "Kiln/BrickLayerHub Electron app",
+            "developer": "general implementation",
+            "test-writer": "writing tests",
+            "code-reviewer": "code review",
+            "security": "security audit",
+            "diagnose-analyst": "root cause analysis",
+        },
+        "trowel": {
+            "research-analyst": "general research",
+            "quantitative-analyst": "simulations, parameter sweeps",
+            "regulatory-researcher": "regulatory/legal research",
+            "competitive-analyst": "competitive landscape",
+            "benchmark-engineer": "performance benchmarks",
+        },
+    }
+
+    specialists = _SPECIALISTS.get(agent_name, {"developer": "general"})
+    specialist_list = "\n".join(
+        f"  - {name}: {desc}" for name, desc in specialists.items()
+    )
+
+    dispatch_template = (
+        "python3 -c \"\n"
+        "import sys; sys.path.insert(0, '/home/nerfherder/Dev/Bricklayer2.0')\n"
+        "from bl.tmux.core import spawn_agent, wait_for_agent\n"
+        "handle = spawn_agent('<AGENT_NAME>', '''\n"
+        "Task: <FULL USER REQUEST>\n"
+        "Project root: <CWD>\n"
+        "''', cwd='<CWD>', dangerously_skip_permissions=True)\n"
+        "result = wait_for_agent(handle)\n"
+        "print('RESULT:', result.stdout[-2000:] if result.stdout else '(empty)')\n"
+        "\""
+    )
+
+    return (
+        f"You are {agent_name}, an ORCHESTRATOR in the BrickLayer hierarchy.\n"
+        "You CANNOT edit or write files — those tools have been removed.\n\n"
+        "## YOUR WORKFLOW\n"
+        "1. READ relevant files to understand the task scope\n"
+        "2. DECIDE: simple (1 file, 1 specialist) or complex (multi-file, multi-specialist)\n"
+        f"3. DISPATCH via Bash using the template below\n"
+        "4. WAIT — the Bash command blocks until the agent finishes. Do NOT background it.\n"
+        "5. VERIFY — after the agent completes, run a quick check (typecheck, grep, etc.)\n"
+        "6. REPORT — summarize what was done and verification results\n\n"
+        "## ROUTING\n"
+        + (
+            "Simple tasks (1 file, 1 specialist) → dispatch the specialist directly:\n"
+            f"{specialist_list}\n\n"
+            "Complex tasks (multi-file, wave planning needed) → dispatch to rough-in\n"
+            if agent_name == "mortar"
+            else f"Select the right specialist for the task:\n{specialist_list}\n"
+        )
+        + "\n## DISPATCH (copy this pattern — replace <PLACEHOLDERS>)\n"
+        f"```\n{dispatch_template}\n```\n\n"
+        "## CRITICAL RULES\n"
+        "- The Bash command BLOCKS until the agent finishes. Do NOT background it.\n"
+        "- Do NOT poll with sleep/tmux capture-pane. Just run the command and wait.\n"
+        "- Do NOT use sed/awk/echo to edit files yourself. You have no Edit/Write tools.\n"
+        "- Do NOT retry the task yourself if the agent fails — report the failure.\n"
+        "- Claude Code's Agent tool does NOT support custom agents — use Bash spawn_agent.\n\n"
+        "## VERIFICATION (after agent completes)\n"
+        "Run a quick check to confirm the work:\n"
+        "- TypeScript: `cd <project> && npx tsc --noEmit 2>&1 | tail -5`\n"
+        "- Python: `cd <project> && python -m py_compile <file>`\n"
+        "- General: `grep -c '<expected_pattern>' <file>` to confirm changes landed\n"
+        "Report PASS or FAIL with evidence."
+    )
+
+
+@dataclass
+class SpawnResult:
+    """Handle returned by spawn_agent for collection via wait_for_agent."""
+
+    agent_id: str
+    agent_name: str
+    pane_id: str | None
+    result_file: Path
+    exit_file: Path
+    prompt_file: Path
+    process: subprocess.Popen[str] | None = None
+    start_time: float = field(default_factory=time.monotonic, repr=False)
+
+
+@dataclass
+class AgentResult:
+    """Collected result after an agent finishes."""
+
+    agent_id: str
+    agent_name: str
+    exit_code: int
+    stdout: str
+    session_id: str | None
+    duration_ms: int
+
+
+def spawn_agent(
+    agent_name: str,
+    prompt: str,
+    *,
+    model: str | None = None,
+    allowed_tools: list[str] | None = None,
+    disallowed_tools: list[str] | None = None,
+    cwd: str | None = None,
+    timeout: int = 600,  # noqa: ARG001  # reserved for future use by callers
+    capture_output: bool = True,
+    output_format: str | None = "json",
+    dangerously_skip_permissions: bool = False,
+    session_id: str | None = None,
+    env_overrides: dict[str, str] | None = None,
+) -> SpawnResult:
+    """
+    Spawn a claude -p agent. In tmux: new pane. Outside: subprocess.
+
+    Raises FileNotFoundError if claude CLI is not installed.
+    """
+    agent_id = uuid.uuid4().hex[:8]
+    result_file = TEMP_DIR / f"bl-result-{agent_id}.json"
+    exit_file = TEMP_DIR / f"bl-exit-{agent_id}.txt"
+    prompt_file = TEMP_DIR / f"bl-prompt-{agent_id}.txt"
+    _ = prompt_file.write_text(prompt, encoding="utf-8")
+
+    # Orchestrators get Edit/Write stripped and a system prompt reinforcing
+    # delegation.  This is the hard enforcement — they physically cannot
+    # edit production code, so they MUST delegate to specialists.
+    effective_disallowed = list(disallowed_tools) if disallowed_tools else []
+    system_prompt: str | None = None
+    if agent_name.lower() in _ORCHESTRATORS:
+        for tool in ("Edit", "Write", "NotebookEdit"):
+            if tool not in effective_disallowed:
+                effective_disallowed.append(tool)
+        system_prompt = _build_orchestrator_prompt(agent_name.lower())
+
+    claude_bin = shutil.which("claude") or "claude"
+    claude_args = build_claude_args(
+        model=model,
+        allowed_tools=allowed_tools,
+        disallowed_tools=effective_disallowed or None,
+        dangerously_skip_permissions=dangerously_skip_permissions,
+        output_format=output_format if capture_output else None,
+        session_id=session_id,
+        append_system_prompt=system_prompt,
+    )
+    effective_cwd = cwd or os.getcwd()
+    write_start_signal(agent_id, agent_name, effective_cwd, model, None)
+
+    # Seed the masonry gate file so hooks know which agent is active.
+    # Without this, the mortar-enforcer treats tmux-spawned agents as
+    # "main session" and blocks their subagent dispatches.
+    _seed_gate(agent_name)
+
+    if in_tmux():
+        # In tmux panes, use stream-json piped through a formatter for
+        # real-time human-readable output. parse_agent_raw handles plain text.
+        pane_claude_args = build_claude_args(
+            model=model,
+            allowed_tools=allowed_tools,
+            disallowed_tools=effective_disallowed or None,
+            dangerously_skip_permissions=dangerously_skip_permissions,
+            output_format="stream-json",
+            session_id=session_id,
+            append_system_prompt=system_prompt,
+        )
+        pane_id = spawn_tmux_pane(
+            agent_id=agent_id,
+            agent_name=agent_name,
+            claude_bin=claude_bin,
+            claude_args=pane_claude_args,
+            prompt_file=prompt_file,
+            result_file=result_file if capture_output else None,
+            exit_file=exit_file,
+            cwd=effective_cwd,
+            env_overrides=env_overrides,
+        )
+        write_start_signal(agent_id, agent_name, effective_cwd, model, pane_id)
+        return SpawnResult(
+            agent_id=agent_id,
+            agent_name=agent_name,
+            pane_id=pane_id,
+            result_file=result_file,
+            exit_file=exit_file,
+            prompt_file=prompt_file,
+        )
+
+    child_env = build_env(env_overrides)
+    stdin_fh = open(prompt_file, encoding="utf-8")  # noqa: SIM115
+    proc = subprocess.Popen(
+        [claude_bin, *claude_args],
+        stdin=stdin_fh,
+        stdout=subprocess.PIPE if capture_output else None,
+        stderr=subprocess.PIPE if capture_output else None,
+        text=True,
+        encoding="utf-8",
+        cwd=effective_cwd,
+        env=child_env,
+    )
+    stdin_fh.close()
+
+    return SpawnResult(
+        agent_id=agent_id,
+        agent_name=agent_name,
+        pane_id=None,
+        result_file=result_file,
+        exit_file=exit_file,
+        prompt_file=prompt_file,
+        process=proc,
+    )
+
+
+def wait_for_agent(spawn: SpawnResult, *, timeout: int = 600) -> AgentResult:
+    """Block until agent completes and return its result."""
+    if spawn.process is not None:
+        return _wait_subprocess(spawn, timeout)
+    return _wait_tmux(spawn, timeout)
+
+
+def _wait_subprocess(spawn: SpawnResult, timeout: int) -> AgentResult:
+    assert spawn.process is not None  # guaranteed by caller
+    proc = spawn.process
+    try:
+        stdout, _ = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        _ = proc.communicate()
+        result = AgentResult(
+            agent_id=spawn.agent_id,
+            agent_name=spawn.agent_name,
+            exit_code=-1,
+            stdout="",
+            session_id=None,
+            duration_ms=round((time.monotonic() - spawn.start_time) * 1000),
+        )
+        write_stop_signal(spawn.agent_id, spawn.agent_name, result)
+        return result
+
+    raw = stdout or ""
+    result = AgentResult(
+        agent_id=spawn.agent_id,
+        agent_name=spawn.agent_name,
+        exit_code=proc.returncode,
+        stdout=raw,
+        session_id=extract_session_id(raw),
+        duration_ms=round((time.monotonic() - spawn.start_time) * 1000),
+    )
+    write_stop_signal(spawn.agent_id, spawn.agent_name, result)
+    return result
+
+
+def _wait_tmux(spawn: SpawnResult, timeout: int) -> AgentResult:
+    channel = f"bl-done-{spawn.agent_id}"
+    completed = tmux_wait_with_timeout(channel, timeout)
+    duration_ms = round((time.monotonic() - spawn.start_time) * 1000)
+
+    stdout = ""
+    exit_code = -1
+    if completed:
+        try:
+            stdout = spawn.result_file.read_text(encoding="utf-8")
+        except OSError:
+            pass
+        try:
+            exit_code = int(spawn.exit_file.read_text(encoding="utf-8").strip())
+        except (OSError, ValueError):
+            pass
+
+    result = AgentResult(
+        agent_id=spawn.agent_id,
+        agent_name=spawn.agent_name,
+        exit_code=exit_code,
+        stdout=stdout,
+        session_id=extract_session_id(stdout),
+        duration_ms=duration_ms,
+    )
+    write_stop_signal(spawn.agent_id, spawn.agent_name, result)
+    return result

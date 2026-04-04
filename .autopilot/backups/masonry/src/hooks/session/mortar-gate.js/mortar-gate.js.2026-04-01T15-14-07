@@ -1,0 +1,88 @@
+"use strict";
+/**
+ * session/mortar-gate.js — Mortar routing gate for subagent spawns.
+ *
+ * Maintains the set of recognized specialist agent types and provides
+ * the isMortarGated() check used by masonry-subagent-tracker.js.
+ *
+ * Also classifies agents as orchestrators vs specialists for
+ * hierarchy enforcement in masonry-mortar-enforcer.js and
+ * masonry-routing-gate.js.
+ */
+
+// Orchestrators: coordinate work but never write production code.
+const ORCHESTRATORS = new Set(["mortar", "rough-in", "trowel"]);
+
+// What each orchestrator is allowed to spawn.
+// null = any recognized specialist (from MORTAR_DISPATCHED_TYPES).
+const ORCHESTRATOR_ALLOWED_CHILDREN = {
+  "mortar": new Set(["rough-in", "trowel", "karen", "explore", "general-purpose"]),
+  "rough-in": null,
+  "trowel": null,
+};
+
+// Known specialist subagent_type values (set by Mortar when dispatching).
+// Any spawn with a type NOT in this set is blocked as a Mortar bypass.
+const MORTAR_DISPATCHED_TYPES = new Set([
+  // Claude Code built-in
+  "Explore",
+  "general-purpose",
+  // Autopilot agents
+  "developer",
+  "test-writer",
+  "code-reviewer",
+  "diagnose-analyst",
+  "fix-implementer",
+  "spec-writer",
+  // Masonry orchestrators + specialists
+  "masonry:mortar",
+  "mortar",
+  "rough-in",
+  "trowel",
+  "uiux-master",
+  "solana-specialist",
+  "kiln-engineer",
+  "karen",
+  "frontier-analyst",
+  "design-reviewer",
+  "refactorer",
+  "prompt-engineer",
+  "git-nerd",
+  // Research fleet
+  "research-analyst",
+  "regulatory-researcher",
+  "competitive-analyst",
+  "quantitative-analyst",
+  "benchmark-engineer",
+  "hypothesis-generator",
+  "hypothesis-generator-bl2",
+  "synthesizer",
+  "synthesizer-bl2",
+  "planner",
+  "question-designer-bl2",
+  "health-monitor",
+  "cascade-analyst",
+  "evolve-optimizer",
+  "compliance-auditor",
+  "security",
+  "architect",
+]);
+
+/**
+ * Returns true if the subagent spawn should be blocked (not a recognized specialist).
+ */
+function isMortarGated(input) {
+  const subagentType = (input.subagent_type || "").trim().toLowerCase();
+
+  if (!subagentType) {
+    const agentName = (input.agent_name || input.agent_type || "").trim().toLowerCase();
+    if (agentName && MORTAR_DISPATCHED_TYPES.has(agentName)) {
+      return false; // allow — already a specialist
+    }
+    return true; // untagged spawn from main context
+  }
+
+  return !MORTAR_DISPATCHED_TYPES.has(subagentType);
+}
+
+module.exports = { isMortarGated, MORTAR_DISPATCHED_TYPES, ORCHESTRATORS, ORCHESTRATOR_ALLOWED_CHILDREN };

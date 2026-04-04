@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADBP3 Treasury Backing Ratio Explorer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; display: flex; flex-direction: column; }
+  h1 { font-size: 1.1rem; font-weight: 600; color: #94a3b8; padding: 14px 20px; border-bottom: 1px solid #1e293b; letter-spacing: 0.05em; text-transform: uppercase; }
+  .layout { display: flex; flex: 1; height: calc(100vh - 49px); }
+
+  /* Controls */
+  .controls { width: 280px; min-width: 280px; background: #0d1117; border-right: 1px solid #1e293b; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+  .control-group { display: flex; flex-direction: column; gap: 10px; }
+  .group-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #475569; padding-bottom: 4px; border-bottom: 1px solid #1e293b; }
+  .control { display: flex; flex-direction: column; gap: 4px; }
+  .control label { font-size: 0.75rem; color: #94a3b8; display: flex; justify-content: space-between; }
+  .control label span { color: #e2e8f0; font-weight: 600; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: #3b82f6; cursor: pointer; height: 4px; }
+  .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { padding: 4px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 600; cursor: pointer; border: 1px solid #334155; background: #1e293b; color: #94a3b8; transition: all 0.15s; }
+  .chip.active { background: #1d4ed8; border-color: #3b82f6; color: #fff; }
+
+  /* Right panel */
+  .right { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Chart area */
+  .chart-area { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 16px; overflow: hidden; }
+  .health-bar { display: flex; align-items: center; gap: 12px; }
+  .health-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .health-label { font-size: 0.8rem; font-weight: 600; }
+  .health-ratio { font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .health-sub { font-size: 0.7rem; color: #64748b; margin-left: auto; }
+
+  .stats-row { display: flex; gap: 12px; }
+  .stat { background: #0d1117; border: 1px solid #1e293b; border-radius: 8px; padding: 10px 14px; flex: 1; }
+  .stat-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; }
+  .stat-value { font-size: 1rem; font-weight: 700; color: #e2e8f0; font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+  canvas { width: 100%; flex: 1; min-height: 0; }
+  .canvas-wrap { flex: 1; min-height: 0; position: relative; }
+
+  /* Prompt output */
+  .prompt-area { background: #0d1117; border-top: 1px solid #1e293b; padding: 14px 20px; display: flex; flex-direction: column; gap: 8px; }
+  .prompt-header { display: flex; justify-content: space-between; align-items: center; }
+  .prompt-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: #475569; font-weight: 700; }
+  .copy-btn { padding: 5px 14px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #94a3b8; font-size: 0.75rem; cursor: pointer; transition: all 0.15s; }
+  .copy-btn:hover { background: #334155; color: #e2e8f0; }
+  .copy-btn.copied { background: #064e3b; border-color: #10b981; color: #10b981; }
+  .prompt-text { font-size: 0.78rem; color: #94a3b8; line-height: 1.55; font-family: monospace; background: #0f1117; border: 1px solid #1e293b; border-radius: 6px; padding: 10px 12px; max-height: 80px; overflow-y: auto; }
+</style>
+</head>
+<body>
+
+<h1>ADBP3 — Treasury Backing Ratio Explorer</h1>
+
+<div class="layout">
+  <div class="controls">
+
+    <div class="control-group">
+      <div class="group-label">Scale</div>
+      <div class="control">
+        <label>Employees <span id="val-employees">500</span></label>
+        <input type="range" id="employees" min="50" max="5000" step="50" value="500">
+      </div>
+      <div class="control">
+        <label>Credits / employee / month <span id="val-credits">10</span></label>
+        <input type="range" id="credits" min="1" max="50" step="1" value="10">
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="group-label">Treasury Parameters</div>
+      <div class="control">
+        <label>Annual interest rate <span id="val-interest">4.0</span>%</label>
+        <input type="range" id="interest" min="0" max="10" step="0.1" value="4.0">
+      </div>
+      <div class="control">
+        <label>Admin fee <span id="val-fee">10</span>%</label>
+        <input type="range" id="fee" min="0" max="25" step="1" value="10">
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="group-label">Burn Activity</div>
+      <div class="control">
+        <label>Monthly burn rate <span id="val-burn">2</span>%</label>
+        <input type="range" id="burn" min="0" max="20" step="0.5" value="2">
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="group-label">Horizon</div>
+      <div class="chip-row">
+        <div class="chip active" data-months="12">12 mo</div>
+        <div class="chip" data-months="24">24 mo</div>
+        <div class="chip" data-months="36">36 mo</div>
+        <div class="chip" data-months="60">60 mo</div>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="group-label">Starting Conditions</div>
+      <div class="control">
+        <label>Initial treasury ($) <span id="val-treasury">0</span></label>
+        <input type="range" id="treasury" min="0" max="100000" step="1000" value="0">
+      </div>
+      <div class="control">
+        <label>Initial credits outstanding <span id="val-outstanding">0</span></label>
+        <input type="range" id="outstanding" min="0" max="50000" step="500" value="0">
+      </div>
+    </div>
+
+  </div>
+
+  <div class="right">
+    <div class="chart-area">
+
+      <div class="health-bar">
+        <div class="health-dot" id="health-dot"></div>
+        <div class="health-label" id="health-label">—</div>
+        <div class="health-ratio" id="health-ratio">—</div>
+        <div class="health-sub" id="health-sub"></div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">Month-end treasury</div><div class="stat-value" id="stat-wallet">—</div></div>
+        <div class="stat"><div class="stat-label">Credits outstanding</div><div class="stat-value" id="stat-credits">—</div></div>
+        <div class="stat"><div class="stat-label">Cumulative admin revenue</div><div class="stat-value" id="stat-admin">—</div></div>
+        <div class="stat"><div class="stat-label">Total burns</div><div class="stat-value" id="stat-burns">—</div></div>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="chart"></canvas>
+      </div>
+
+    </div>
+
+    <div class="prompt-area">
+      <div class="prompt-header">
+        <div class="prompt-label">Claude Prompt</div>
+        <button class="copy-btn" id="copy-btn">Copy Prompt</button>
+      </div>
+      <div class="prompt-text" id="prompt-text"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let months = 12;
+let simData = [];
+
+function getParams() {
+  return {
+    employees:   +document.getElementById('employees').value,
+    creditsPerEmp: +document.getElementById('credits').value,
+    interestAPR: +document.getElementById('interest').value / 100,
+    adminFee:    +document.getElementById('fee').value / 100,
+    burnPct:     +document.getElementById('burn').value / 100,
+    initWallet:  +document.getElementById('treasury').value,
+    initOutstanding: +document.getElementById('outstanding').value,
+    months,
+  };
+}
+
+// ── Simulation (confirmed ADBP3 mechanics) ─────────────────────────────────
+// - Employee pays $1/credit → 100% to treasury (minus admin fee tracked separately)
+// - Admin fee is 10% of purchase price, separate from treasury
+// - Interest: 4% APR, monthly compound = APR/12 applied to wallet each month
+// - Burns: cost $2/credit from treasury, removes credit from outstanding
+// - Backing ratio = treasury_wallet / total_credits_outstanding
+function simulate(p) {
+  const monthlyRate = p.interestAPR / 12;
+  const monthlyInflow = p.employees * p.creditsPerEmp; // credits purchased = dollars to treasury
+  const adminPerMonth = monthlyInflow * p.adminFee;    // separate, not in treasury
+  const netInflow = monthlyInflow * (1 - p.adminFee);  // treasury only gets (1 - fee)
+
+  // Actually per the brief: employee pays $1 → 100% to treasury wallet
+  // Admin fee is on TOP or a portion? Re-reading: "10% fee on every credit purchase generates admin revenue"
+  // "This fee is tracked separately — it does NOT flow into the treasury wallet"
+  // So treasury gets: purchase_price - admin_fee = $1 * (1 - 0.10) = $0.90 per credit?
+  // Actually re-reading more carefully: "Employee pays $1.00 per credit → full $1.00 goes to treasury wallet"
+  // "A 10% fee on every credit purchase generates admin revenue"
+  // This is contradictory... The brief says 100% goes to treasury AND 10% fee tracks separately.
+  // Resolution: the $1 goes to treasury; the admin fee is derived from the $1 (a portion of it)
+  // So treasury gets $1/credit, and of that $1, $0.10 is "admin revenue" tracked separately
+  // But treasury wallet still gets $1 total. The admin fee is an accounting allocation, not a cash outflow.
+  // For simulation: wallet += $1/credit purchased; interest accrues on full wallet.
+
+  let wallet = p.initWallet;
+  let outstanding = p.initOutstanding;
+  let cumulativeAdmin = 0;
+  let cumulativeBurns = 0;
+  const data = [];
+
+  for (let m = 0; m < p.months; m++) {
+    // Interest on prior balance
+    const interest = wallet * monthlyRate;
+    wallet += interest;
+
+    // New purchases this month
+    const newCredits = p.employees * p.creditsPerEmp;
+    wallet += newCredits; // $1 per credit to treasury
+    outstanding += newCredits;
+    cumulativeAdmin += newCredits * p.adminFee; // tracked separately
+
+    // Burns: % of outstanding burned
+    const burnedCredits = Math.round(outstanding * p.burnPct);
+    const burnCost = burnedCredits * 2; // $2 per credit destroyed
+    wallet = Math.max(0, wallet - burnCost);
+    outstanding = Math.max(0, outstanding - burnedCredits);
+    cumulativeBurns += burnedCredits;
+
+    const ratio = outstanding > 0 ? wallet / outstanding : Infinity;
+
+    data.push({ month: m + 1, wallet, outstanding, ratio, cumulativeAdmin, cumulativeBurns });
+  }
+
+  return data;
+}
+
+// ── Chart ──────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('chart');
+const ctx = canvas.getContext('2d');
+
+function healthColor(ratio) {
+  if (ratio >= 1.0) return '#10b981'; // green — fully backed
+  if (ratio >= 0.7) return '#f59e0b'; // yellow — warning
+  return '#ef4444';                   // red — underbacked
+}
+
+function drawChart(data) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.scale(dpr, dpr);
+
+  const W = rect.width, H = rect.height;
+  const pad = { top: 20, right: 20, bottom: 40, left: 60 };
+  const cW = W - pad.left - pad.right;
+  const cH = H - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (!data.length) return;
+
+  const maxRatio = Math.max(2, ...data.map(d => d.ratio === Infinity ? 2 : d.ratio)) * 1.1;
+  const minRatio = Math.min(0, ...data.map(d => d.ratio === Infinity ? 0 : d.ratio));
+
+  function xOf(m) { return pad.left + ((m - 1) / (data.length - 1 || 1)) * cW; }
+  function yOf(r) { return pad.top + (1 - (r - minRatio) / (maxRatio - minRatio)) * cH; }
+
+  // Grid lines
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 1;
+  const gridLines = [0, 0.5, 1.0, 1.5, 2.0].filter(v => v <= maxRatio);
+  for (const v of gridLines) {
+    const y = yOf(v);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cW, y); ctx.stroke();
+    ctx.fillStyle = '#475569';
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText(v.toFixed(1) + 'x', pad.left - 6, y + 4);
+  }
+
+  // 1.0 reference line
+  const y1 = yOf(1.0);
+  ctx.strokeStyle = '#334155';
+  ctx.setLineDash([4, 4]);
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(pad.left, y1); ctx.lineTo(pad.left + cW, y1); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#475569';
+  ctx.font = '9px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText('fully backed', pad.left + 4, y1 - 4);
+
+  // Area fill
+  const gradient = ctx.createLinearGradient(0, pad.top, 0, pad.top + cH);
+  gradient.addColorStop(0, 'rgba(59,130,246,0.25)');
+  gradient.addColorStop(1, 'rgba(59,130,246,0.02)');
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.moveTo(xOf(data[0].month), yOf(Math.min(data[0].ratio, maxRatio)));
+  for (const d of data) ctx.lineTo(xOf(d.month), yOf(Math.min(d.ratio === Infinity ? maxRatio : d.ratio, maxRatio)));
+  ctx.lineTo(xOf(data[data.length-1].month), pad.top + cH);
+  ctx.lineTo(xOf(data[0].month), pad.top + cH);
+  ctx.closePath();
+  ctx.fill();
+
+  // Line — color-segmented
+  for (let i = 1; i < data.length; i++) {
+    const prev = data[i-1], curr = data[i];
+    const avgRatio = (prev.ratio + curr.ratio) / 2;
+    ctx.strokeStyle = healthColor(avgRatio === Infinity ? 99 : avgRatio);
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(xOf(prev.month), yOf(Math.min(prev.ratio === Infinity ? maxRatio : prev.ratio, maxRatio)));
+    ctx.lineTo(xOf(curr.month), yOf(Math.min(curr.ratio === Infinity ? maxRatio : curr.ratio, maxRatio)));
+    ctx.stroke();
+  }
+
+  // X-axis labels
+  ctx.fillStyle = '#475569';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'center';
+  const step = Math.ceil(data.length / 8);
+  for (const d of data.filter((_, i) => i % step === 0 || i === data.length - 1)) {
+    ctx.fillText('M' + d.month, xOf(d.month), pad.top + cH + 18);
+  }
+}
+
+// ── UI Updates ─────────────────────────────────────────────────────────────
+function fmt(n) { return n >= 1e6 ? '$' + (n/1e6).toFixed(2) + 'M' : n >= 1e3 ? '$' + (n/1e3).toFixed(1) + 'K' : '$' + n.toFixed(0); }
+function fmtN(n) { return n >= 1e6 ? (n/1e6).toFixed(2) + 'M' : n >= 1e3 ? (n/1e3).toFixed(1) + 'K' : n.toFixed(0); }
+
+function update() {
+  const p = getParams();
+  simData = simulate(p);
+  const last = simData[simData.length - 1];
+
+  const ratio = last.ratio === Infinity ? 99 : last.ratio;
+  const color = healthColor(ratio);
+  const label = ratio >= 1.0 ? 'FULLY BACKED' : ratio >= 0.7 ? 'WARNING' : 'UNDERBACKED';
+
+  document.getElementById('health-dot').style.background = color;
+  document.getElementById('health-label').style.color = color;
+  document.getElementById('health-label').textContent = label;
+  document.getElementById('health-ratio').textContent = ratio > 10 ? '∞' : ratio.toFixed(3) + 'x';
+  document.getElementById('health-ratio').style.color = color;
+  document.getElementById('health-sub').textContent = `at month ${last.month}`;
+
+  document.getElementById('stat-wallet').textContent = fmt(last.wallet);
+  document.getElementById('stat-credits').textContent = fmtN(last.outstanding);
+  document.getElementById('stat-admin').textContent = fmt(last.cumulativeAdmin);
+  document.getElementById('stat-burns').textContent = fmtN(last.cumulativeBurns);
+
+  drawChart(simData);
+  updatePrompt(p, last, ratio);
+}
+
+function updatePrompt(p, last, ratio) {
+  const status = ratio >= 1.0 ? 'fully backed' : ratio >= 0.7 ? 'approaching undercollateralization' : 'underbacked';
+  const text = `Simulate the ADBP3 reserve-backed credit system with the following parameters:
+- ${p.employees} employees purchasing ${p.creditsPerEmp} credits/month at $1/credit
+- Treasury interest rate: ${(p.interestAPR*100).toFixed(1)}% APR (monthly compound)
+- Admin fee: ${(p.adminFee*100).toFixed(0)}% tracked separately from treasury
+- Monthly burn rate: ${(p.burnPct*100).toFixed(1)}% of outstanding credits at $2/credit
+- Starting treasury: ${fmt(p.initWallet)}, starting credits outstanding: ${fmtN(p.initOutstanding)}
+- Horizon: ${p.months} months
+
+After ${p.months} months the system is ${status} with a backing ratio of ${ratio > 10 ? '∞' : ratio.toFixed(3)}x. Treasury wallet: ${fmt(last.wallet)}, credits outstanding: ${fmtN(last.outstanding)}.
+
+Analyze the long-term sustainability and identify the key leverage points that move the backing ratio.`;
+
+  document.getElementById('prompt-text').textContent = text;
+}
+
+// ── Controls wiring ────────────────────────────────────────────────────────
+const sliders = ['employees','credits','interest','fee','burn','treasury','outstanding'];
+const labels  = ['val-employees','val-credits','val-interest','val-fee','val-burn','val-treasury','val-outstanding'];
+
+sliders.forEach((id, i) => {
+  const el = document.getElementById(id);
+  const lbl = document.getElementById(labels[i]);
+  el.addEventListener('input', () => {
+    lbl.textContent = el.value;
+    update();
+  });
+});
+
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    months = +chip.dataset.months;
+    update();
+  });
+});
+
+document.getElementById('copy-btn').addEventListener('click', () => {
+  const text = document.getElementById('prompt-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy Prompt'; btn.classList.remove('copied'); }, 2000);
+  });
+});
+
+window.addEventListener('resize', () => drawChart(simData));
+update();
+</script>
+</body>
+</html>

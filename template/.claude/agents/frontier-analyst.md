@@ -141,18 +141,16 @@ After writing the finding, output a JSON block:
 Your tag: `agent:frontier-analyst`
 
 **At session start** — check for prior frontier explorations:
-```
-recall_search(query="frontier viable blocked partial prerequisite", domain="{project}-bricklayer", tags=["agent:frontier-analyst"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "frontier viable blocked partial prerequisite"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:frontier-analyst"]
 
 **After completing exploration** — store the possibility map for future frontier questions:
-```
-recall_store(
-    content="Frontier [{question_id}]: verdict {verdict}. Feasibility: {feasibility}. Key analogues: {list}. Prerequisites: {list}. Ceiling: {summary}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:frontier-analyst", "type:possibility-map"],
-    importance=0.75,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Frontier [{question_id}]: verdict {verdict}. Feasibility: {feasibility}. Key analogues: {list}. Prerequisites: {list}. Ceiling: {summary}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:frontier-analyst", "type:possibility-map"]
+- `importance`: 0.75
+- `durability`: "durable"

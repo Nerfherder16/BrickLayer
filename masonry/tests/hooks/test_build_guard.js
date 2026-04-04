@@ -84,14 +84,15 @@ describe("masonry-build-guard session awareness", () => {
     expect(code).toBe(0);
   });
 
-  it("blocks defensively when current session has no session_id (null) and tasks pending", () => {
+  it("allows stop when current session has no session_id (ppid fallback differs from build owner)", () => {
     const dir = makeDir();
     writeProgress(dir, {
       status: "BUILDING",
       session_id: "session-abc",
       tasks: [{ id: 1, status: "PENDING", description: "task 1" }],
     });
+    // With getSessionId(), empty payload gets session-{ppid} which != session-abc
     const code = runHook(dir, {});
-    expect(code).toBe(2);
+    expect(code).toBe(0);
   });
 });

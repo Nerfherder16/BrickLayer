@@ -410,16 +410,13 @@ cd {project_root}
 
 ## Step 7: Store to Recall
 
-```
-recall_store(
-    content="Wave {N} synthesis for {project_name}: {summary}. Critical: {critical_findings}. Recommendation: {CONTINUE|PIVOT|STOP}.",
-    memory_type="semantic",
-    domain="{project_name}-bricklayer",
-    tags=["bricklayer", "synthesis", "wave:{N}"],
-    importance=0.9,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Wave {N} synthesis for {project_name}: {summary}. Critical: {critical_findings}. Recommendation: {CONTINUE|PIVOT|STOP}."
+- `memory_type`: "semantic"
+- `domain`: "{project_name}-bricklayer"
+- `tags`: ["bricklayer", "agent:synthesizer-bl2", "synthesis", "wave:{N}"]
+- `importance`: 0.9
+- `durability`: "durable"
 
 ---
 
@@ -446,9 +443,10 @@ Return a JSON object with exactly these fields:
 See **Step 7: Store to Recall** above for recall_store calls.
 
 **At session start** — retrieve prior wave synthesis to understand what was already concluded:
-```
-recall_search(query="wave synthesis critical findings recommendation", domain="{project_name}-bricklayer", tags=["bricklayer", "synthesis"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "wave synthesis critical findings recommendation"
+- `domain`: "{project_name}-bricklayer"
+- `tags`: ["bricklayer", "synthesis"]
 
 ## Constraints
 

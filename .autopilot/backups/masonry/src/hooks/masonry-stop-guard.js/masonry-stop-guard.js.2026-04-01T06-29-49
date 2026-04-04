@@ -1,0 +1,256 @@
+#!/usr/bin/env node
+/**
+ * Stop hook (Masonry): Block if there are uncommitted git changes from THIS session.
+ *
+ * Primary boundary: session snapshot written by masonry-session-start.js.
+ * At SessionStart, all pre-existing dirty files are recorded. On Stop, only
+ * files NOT in that snapshot are flagged — i.e. files modified THIS session.
+ *
+ * Fallback: if no snapshot exists (session-start didn't run or no session ID),
+ * falls back to mtime-based detection (today's files only).
+ *
+ * Exits silently (0) if nothing new was modified this session.
+ * Exit code 2 blocks the stop when session files are uncommitted.
+ */
+
+'use strict';
+
+const { execSync, execFileSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+const {
+  readStdin, normalizeCwd, fileAgeDays, isResearchProject, closeSession, tryRead, tryJSON, getSessionId,
+} = require('./session/stop-utils');
+
+const {
+  checkDocStaleness, checkOverseerTrigger,
+} = require('./session/stop-checks');
+
+const {
+  generateAutoCommitMessage, loadSessionWrites,
+} = require('./session/stop-git');
+
+// Binary/asset extensions — in snapshot/mtime fallback, these were almost certainly
+// written by a sibling session (e.g. Playwright screenshots, build artifacts).
+// In activity-log mode they are still caught if THIS session's Write tool wrote them.
+const BINARY_EXTS = new Set([
+  '.png', '.jpg', '.jpeg', '.webp', '.gif', '.ico',
+  '.svg', '.mp4', '.mp3', '.wav', '.pdf', '.zip', '.gz', '.tar',
+  '.woff', '.woff2', '.ttf', '.eot', '.bin', '.exe', '.dll',
+]);
+
+// Exported for tests
+module.exports.checkOverseerTrigger = checkOverseerTrigger;
+
+/**
+ * Run `git status --porcelain` with retry logic.
+ * Clears stale index.lock before each attempt and retries up to 3 times
+ * with brief pauses to handle concurrent git operations.
+ */
+function gitStatusSafe(cwd, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    const lockFile = path.join(cwd, '.git', 'index.lock');
+    try {
+      if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile);
+    } catch { /* already gone or no permission */ }
+    try {
+      return execSync('git status --porcelain', {
+        encoding: 'utf8', timeout: 6000, cwd,
+      }).trim();
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      // Brief pause before retry (200ms)
+      try { execSync('sleep 0.2', { timeout: 1000 }); } catch { /* ignore */ }
+    }
+  }
+  return '';
+}
+
+async function main() {
+  // Auto-detect BrickLayer research project — hooks are silent inside BL subprocesses
+  if (isResearchProject(process.cwd())) process.exit(0);
+
+  const input = await readStdin();
+  if (!input) process.exit(0);
+
+  let parsed;
+  try {
+    parsed = JSON.parse(input);
+  } catch {
+    process.exit(0);
+  }
+
+  if (parsed.stop_hook_active) process.exit(0);
+
+  const rawCwd = normalizeCwd(parsed.cwd || process.cwd());
+  // Always use git toplevel as cwd so paths from `git status --porcelain`
+  // (which are repo-root-relative) align with `git add` path resolution.
+  let cwd;
+  try {
+    cwd = execSync('git rev-parse --show-toplevel', {
+      encoding: 'utf8', timeout: 3000, cwd: rawCwd,
+    }).trim();
+  } catch {
+    cwd = rawCwd;
+  }
+  const sessionId = getSessionId(parsed);
+  const snapPath = sessionId ? path.join(os.tmpdir(), `masonry-snap-${sessionId}.json`) : null;
+
+  // Primary: files this session's Write/Edit tools actually touched.
+  // This is the authoritative source — prevents false positives from sibling sessions
+  // modifying shared files (e.g. questions.md in a concurrent campaign session).
+  const sessionWrites = loadSessionWrites(sessionId, cwd);
+
+  // Fallback snapshot: files dirty at session start (pre-existing, not ours).
+  let preExistingSet = null;
+  if (snapPath) {
+    try {
+      const snap = JSON.parse(fs.readFileSync(snapPath, 'utf8'));
+      preExistingSet = new Set(snap.preExisting || []);
+    } catch { /* fall through to mtime fallback */ }
+  }
+
+  // Debounce sentinel: prevents repeated "Stop blocked" messages from flooding context
+  const sentinelPath = sessionId
+    ? path.join(os.tmpdir(), `masonry-stop-blocked-${sessionId}`)
+    : null;
+
+  try {
+    // If we already blocked this session, exit silently
+    if (sentinelPath && fs.existsSync(sentinelPath)) {
+      process.exit(2);
+    }
+
+    const status = gitStatusSafe(cwd);
+
+    if (!status) {
+      closeSession(cwd);
+      checkDocStaleness(cwd, snapPath);
+      checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
+      process.exit(0);
+    }
+
+    const allLines = status.split('\n').filter(Boolean);
+    const allFiles = allLines.map(l => l.slice(3).trim());
+
+    // Filter out gitignored paths
+    let ignoredSet = new Set();
+    try {
+      const ignored = execSync('git check-ignore --stdin', {
+        input: allFiles.join('\n'), encoding: 'utf8', timeout: 5000, cwd,
+      }).trim();
+      if (ignored) ignored.split('\n').filter(Boolean).forEach(p => ignoredSet.add(p.trim()));
+    } catch { /* no ignored files */ }
+
+    const sessionModified = [];
+    const sessionUntracked = [];
+
+    for (const line of allLines) {
+      const xy = line.slice(0, 2).trim();
+      const file = line.slice(3).trim();
+
+      if (ignoredSet.has(file)) continue;
+
+      if (sessionWrites !== null) {
+        // Activity-log mode: only flag files THIS session's tools wrote to.
+        if (!sessionWrites.has(file)) continue;
+      } else {
+        // Fallback modes (snapshot or mtime): skip binary/asset files — they are
+        // almost always written by sibling sessions (Playwright, build tools) and
+        // cause cross-session false positives.
+        const ext = path.extname(file).toLowerCase();
+        if (BINARY_EXTS.has(ext)) continue;
+
+        if (preExistingSet !== null) {
+          // Snapshot fallback: skip files dirty at session start.
+          if (preExistingSet.has(file)) continue;
+        } else {
+          // Last resort: mtime-based (today's files only).
+          const days = fileAgeDays(path.join(cwd, file.replace(/\/$/, '')));
+          if (days !== 0 && days !== null) continue;
+        }
+      }
+
+      (xy === '??' ? sessionUntracked : sessionModified).push(file);
+    }
+
+    if (sessionModified.length === 0 && sessionUntracked.length === 0) {
+      closeSession(cwd);
+      checkDocStaleness(cwd, snapPath);
+      checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
+      process.exit(0);
+    }
+
+    // Guard: do not auto-commit if an autopilot build/fix task is IN_PROGRESS.
+    // Partial implementations should not be committed without verification.
+    const autopilotMode = tryRead(path.join(cwd, '.autopilot', 'mode'));
+    if (autopilotMode === 'build' || autopilotMode === 'fix') {
+      const progress = tryJSON(path.join(cwd, '.autopilot', 'progress.json'));
+      const inProgressTask = progress?.tasks?.find(t => t.status === 'IN_PROGRESS');
+      if (inProgressTask) {
+        process.stderr.write(
+          `\n[Masonry] Auto-commit skipped: task #${inProgressTask.id} is IN_PROGRESS ` +
+          `("${inProgressTask.description}"). Commit after task completes.\n`
+        );
+        checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
+        process.exit(1);
+      }
+    }
+
+    // Auto-commit session files rather than blocking — avoids token-expensive Claude intervention.
+    try {
+      // Clear lock before staging/committing
+      const lockFile = path.join(cwd, '.git', 'index.lock');
+      try { if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile); } catch { /* ignore */ }
+
+      const allSessionFiles = [...sessionModified, ...sessionUntracked];
+      // Add files individually — one bad path won't abort the whole batch
+      let staged = 0;
+      for (const f of allSessionFiles) {
+        try {
+          execFileSync('git', ['add', '--', f], { encoding: 'utf8', timeout: 5000, cwd });
+          staged++;
+        } catch (_) { /* skip files with corrupt/missing paths */ }
+      }
+      if (staged === 0) throw new Error('nothing staged');
+      const msg = generateAutoCommitMessage(allSessionFiles, cwd);
+      // Clear lock again before commit in case staging created one
+      try { if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile); } catch { /* ignore */ }
+      execFileSync('git', ['commit', '-m', msg], { encoding: 'utf8', timeout: 10000, cwd });
+      process.stderr.write(
+        `[Masonry] Auto-committed ${staged} session file${staged !== 1 ? 's' : ''}: "${msg}"\n`
+      );
+    } catch (commitErr) {
+      // Auto-commit failed — fall back to blocking so user knows.
+      // Write sentinel to prevent repeated messages on retry.
+      const sessionCount = sessionModified.length + sessionUntracked.length;
+      if (sentinelPath) {
+        try { fs.writeFileSync(sentinelPath, Date.now().toString()); } catch { /* ignore */ }
+      }
+      process.stderr.write(
+        `\nStop blocked — ${sessionCount} uncommitted session file${sessionCount !== 1 ? 's' : ''} ` +
+        `(git status). Commit before stopping.\n`
+      );
+      checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
+      process.exit(2);
+    }
+
+    checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
+  } catch {
+    // Not a git repo or git unavailable — allow stop
+  }
+
+  // Clean up debounce sentinel on successful stop
+  if (sentinelPath) {
+    try { if (fs.existsSync(sentinelPath)) fs.unlinkSync(sentinelPath); } catch { /* ignore */ }
+  }
+
+  closeSession(cwd);
+  checkDocStaleness(cwd, snapPath);
+
+  process.exit(0);
+}
+
+main().catch(() => process.exit(0));

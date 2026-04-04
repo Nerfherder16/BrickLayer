@@ -1,21 +1,9 @@
 ---
 name: tools-manifest
-model: haiku
-description: >-
-  Canonical catalog of all MCP tools available to BrickLayer agents. Reference when writing new agents or checking tool coverage. Not an interactive agent — a reference document read by forge-check and overseer.
-modes: [meta]
-capabilities:
-  - MCP tool catalog documentation for agent authors
-  - tool coverage reference for forge-check validation
-  - canonical tool list maintenance across campaign agents
-input_schema: QuestionPayload
-output_schema: FindingPayload
-tier: draft
-tools:
-  - Read
-  - Glob
-  - Grep
-  - Bash
+description: Canonical catalog of all MCP tools available to BrickLayer agents. Reference when writing new agents or checking tool coverage.
+type: reference
+triggers: []
+tools: []
 ---
 
 # BrickLayer Tools Manifest

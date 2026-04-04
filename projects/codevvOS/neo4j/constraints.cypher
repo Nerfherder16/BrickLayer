@@ -1,0 +1,5 @@
+CREATE CONSTRAINT decision_id IF NOT EXISTS FOR (n:Decision) REQUIRE n.id IS UNIQUE;
+CREATE CONSTRAINT assumption_id IF NOT EXISTS FOR (n:Assumption) REQUIRE n.id IS UNIQUE;
+CREATE CONSTRAINT evidence_id IF NOT EXISTS FOR (n:Evidence) REQUIRE n.id IS UNIQUE;
+CREATE CONSTRAINT codefile_id IF NOT EXISTS FOR (n:CodeFile) REQUIRE n.id IS UNIQUE;
+CREATE INDEX decision_title IF NOT EXISTS FOR (n:Decision) ON (n.title);
