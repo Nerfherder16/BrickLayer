@@ -3,7 +3,7 @@
 # Runs on cron, pulls remote changes then pushes local ones.
 # Uses --autostash to handle dirty working trees safely.
 
-REPO="/home/nerfherder/Dev/Bricklayer2.0"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG="$HOME/.bricklayer-sync.log"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 
@@ -34,3 +34,6 @@ if [[ $PUSH_EXIT -ne 0 ]]; then
 fi
 
 echo "[$TIMESTAMP] OK — $(git log --oneline -1)" >> "$LOG"
+
+# Deploy .claude/ assets to ~/.claude/
+"$REPO/scripts/deploy-claude.sh"
