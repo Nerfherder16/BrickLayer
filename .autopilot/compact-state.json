@@ -1,8 +1,17 @@
 {
   "mode": "build",
-  "project": "inline-execution-audit-backlog",
-  "done": 4,
+  "project": "learning-loop-pattern-confidence-decay",
+  "done": 0,
   "total": 4,
-  "nextTask": null,
-  "compactedAt": "2026-04-04T06:50:38.199Z"
+  "nextTask": {
+    "id": 1,
+    "status": "PENDING",
+    "title": "Implement toolPatternPromote and toolPatternDemote",
+    "description": "Add promote/demote functions to impl-patterns.js and register in MCP dispatch [mode:javascript]",
+    "files": [
+      "masonry/src/tools/impl-patterns.js",
+      "masonry/bin/masonry-mcp.js"
+    ]
+  },
+  "compactedAt": "2026-04-04T07:08:51.040Z"
 }

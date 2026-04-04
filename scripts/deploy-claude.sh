@@ -82,7 +82,31 @@ if os.path.exists(dst_file):
             print(f"WARNING: {dst_file} is invalid JSON ({e}), skipping merge to avoid data loss", file=sys.stderr)
             sys.exit(1)
 
-dst.setdefault('mcpServers', {}).update(src.get('mcpServers', {}))
+src_mcps = src.get('mcpServers', {})
+
+# On non-WSL Linux, remap Windows paths (/mnt/c/Users/trg16/...) to ~/Dev/...
+import platform, subprocess
+is_wsl = False
+if platform.system() == 'Linux':
+    try:
+        with open('/proc/version') as pv:
+            is_wsl = 'microsoft' in pv.read().lower()
+    except Exception:
+        pass
+
+if not is_wsl and platform.system() == 'Linux':
+    home = os.path.expanduser('~')
+    win_prefix = '/mnt/c/Users/trg16/Dev/'
+    linux_prefix = os.path.join(home, 'Dev/')
+    for name, server in src_mcps.items():
+        new_args = [a.replace(win_prefix, linux_prefix) for a in server.get('args', [])]
+        # Fix capitalization: Bricklayer2.0 -> BrickLayer2.0 (ubuntu-claude repo path)
+        new_args = [a.replace('/Dev/Bricklayer2.0/', '/Dev/BrickLayer2.0/') for a in new_args]
+        if new_args != server.get('args', []):
+            server = dict(server, args=new_args)
+            src_mcps[name] = server
+
+dst.setdefault('mcpServers', {}).update(src_mcps)
 
 # Atomic write: write to temp file first, then rename
 dst_dir = os.path.dirname(os.path.abspath(dst_file))

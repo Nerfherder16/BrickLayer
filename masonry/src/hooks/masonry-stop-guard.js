@@ -119,6 +119,7 @@ async function main() {
       closeSession(cwd);
       checkDocStaleness(cwd, snapPath);
       checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
+      process.stderr.write('\n');
       process.exit(0);
     }
 
@@ -170,6 +171,7 @@ async function main() {
       closeSession(cwd);
       checkDocStaleness(cwd, snapPath);
       checkOverseerTrigger(path.join(cwd, 'masonry', 'agent_snapshots'));
+      process.stderr.write('\n');
       process.exit(0);
     }
 
@@ -239,7 +241,7 @@ async function main() {
 
   closeSession(cwd);
   checkDocStaleness(cwd, snapPath);
-
+  process.stderr.write('\n');
   process.exit(0);
 }
 

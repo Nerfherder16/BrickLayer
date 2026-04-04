@@ -1,0 +1,452 @@
+/**
+ * masonry/tests/hooks/session/context-data-pattern-decay.test.js
+ *
+ * Tests for the pattern-decay integration in addContextData().
+ *
+ * The spec requires that at the START of addContextData(), before any Recall
+ * query block, the function calls toolPatternDecay({ project_dir: cwd }) and:
+ *   - If result.pruned > 0: pushes a line to the output array:
+ *       "[Masonry] Pattern decay: ${result.decayed} scores updated, ${result.pruned} stale patterns pruned"
+ *   - If result.pruned === 0: stays silent (no line added)
+ *   - If toolPatternDecay throws: the exception is swallowed (never propagates)
+ *
+ * Import path inside context-data.js:
+ *   const { toolPatternDecay } = require('../../tools/impl-patterns')
+ *
+ * Written BEFORE implementation. All tests must FAIL until the developer
+ * integrates toolPatternDecay into addContextData() in context-data.js.
+ *
+ * Strategy: import addContextData by requiring context-data.js with
+ * toolPatternDecay mocked via module-level jest.mock / vitest mock injection.
+ * We mock impl-patterns entirely and observe only decay-specific behavior in
+ * the output lines array — we do not assert on any other context-data output.
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createRequire } from "module";
+import fs from "fs";
+import path from "path";
+import os from "os";
+
+// ---------------------------------------------------------------------------
+// Module-level mock for impl-patterns
+// Because context-data.js uses CommonJS require(), we intercept it by
+// temporarily replacing the module in the require cache before each load.
+// ---------------------------------------------------------------------------
+
+const require = createRequire(import.meta.url);
+
+/**
+ * Resolve the absolute paths for the modules under test.
+ * These will resolve even if the file does not yet exist — Node only throws
+ * at require() time, not at resolve() time, so we use a try/catch to handle
+ * the not-yet-implemented case gracefully in the RED state.
+ */
+const CONTEXT_DATA_PATH = path.resolve(
+  new URL(".", import.meta.url).pathname,
+  "../../../src/hooks/session/context-data.js"
+);
+
+const IMPL_PATTERNS_PATH = path.resolve(
+  new URL(".", import.meta.url).pathname,
+  "../../../src/tools/impl-patterns.js"
+);
+
+/**
+ * Load context-data.js with toolPatternDecay replaced by mockDecay.
+ * Clears the require cache before each load so mock is always fresh.
+ *
+ * Returns { addContextData, mockDecay } or throws if the file is absent.
+ */
+function loadWithMock(mockDecayImpl) {
+  // Clear both modules from the cache so our mock is picked up cleanly.
+  delete require.cache[CONTEXT_DATA_PATH];
+  delete require.cache[IMPL_PATTERNS_PATH];
+
+  // Inject the mock into the require cache under the impl-patterns key.
+  // Any existing real exports are preserved; only toolPatternDecay is replaced.
+  let realExports = {};
+  try {
+    // Load real module first to get its other exports (toolPatternPromote, etc.)
+    // without triggering side effects on context-data.js.
+    realExports = require(IMPL_PATTERNS_PATH);
+  } catch (_) {
+    // impl-patterns doesn't exist or can't load — fine, mock everything.
+  }
+
+  const mockDecay = vi.fn(mockDecayImpl);
+
+  require.cache[IMPL_PATTERNS_PATH] = {
+    id: IMPL_PATTERNS_PATH,
+    filename: IMPL_PATTERNS_PATH,
+    loaded: true,
+    exports: {
+      ...realExports,
+      toolPatternDecay: mockDecay,
+    },
+    children: [],
+    paths: [],
+    parent: null,
+  };
+
+  // Now load context-data.js — it will pick up our injected impl-patterns.
+  const contextData = require(CONTEXT_DATA_PATH);
+
+  return { addContextData: contextData.addContextData, mockDecay };
+}
+
+// ---------------------------------------------------------------------------
+// Temp directory helpers — context-data.js needs a cwd to operate
+// ---------------------------------------------------------------------------
+
+let tempDir;
+
+function makeProjectDir() {
+  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ctx-decay-test-"));
+  // Scaffold minimal .autopilot dir so context-data.js doesn't blow up
+  // on filesystem operations unrelated to decay.
+  fs.mkdirSync(path.join(tempDir, ".autopilot"), { recursive: true });
+  return tempDir;
+}
+
+function cleanProjectDir() {
+  if (tempDir) {
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch (_) {}
+    tempDir = null;
+  }
+}
+
+beforeEach(() => {
+  // Ensure the require cache is clean between tests.
+  delete require.cache[CONTEXT_DATA_PATH];
+  delete require.cache[IMPL_PATTERNS_PATH];
+});
+
+afterEach(() => {
+  cleanProjectDir();
+  delete require.cache[CONTEXT_DATA_PATH];
+  delete require.cache[IMPL_PATTERNS_PATH];
+});
+
+// ---------------------------------------------------------------------------
+// Helper: call addContextData and collect lines output.
+// addContextData is expected to return an array of strings or a structure
+// containing a lines array. We handle both shapes.
+// ---------------------------------------------------------------------------
+
+async function collectLines(addContextData, cwd) {
+  const result = await addContextData(cwd);
+
+  // Support both: direct array return and { lines: [...] } object return.
+  if (Array.isArray(result)) {
+    return result;
+  }
+  if (result && Array.isArray(result.lines)) {
+    return result.lines;
+  }
+  // If the function accumulates into an external array passed as arg, the
+  // caller must check that — for now assume return value contains lines.
+  return [];
+}
+
+// ---------------------------------------------------------------------------
+// 1. toolPatternDecay called with correct project_dir
+// ---------------------------------------------------------------------------
+
+describe("toolPatternDecay is called with the cwd project_dir at session start", () => {
+  it("calls toolPatternDecay once with { project_dir: cwd } when addContextData runs", async () => {
+    const cwd = makeProjectDir();
+
+    const { addContextData, mockDecay } = loadWithMock(() => ({
+      decayed: 0,
+      pruned: 0,
+    }));
+
+    await collectLines(addContextData, cwd).catch(() => {});
+
+    expect(mockDecay).toHaveBeenCalledTimes(1);
+    expect(mockDecay).toHaveBeenCalledWith({ project_dir: cwd });
+  });
+
+  it("passes the same cwd that is used throughout addContextData (not a hardcoded path)", async () => {
+    const cwd1 = makeProjectDir();
+    const cwd2 = fs.mkdtempSync(path.join(os.tmpdir(), "ctx-decay-cwd2-"));
+
+    try {
+      const { addContextData, mockDecay } = loadWithMock(() => ({
+        decayed: 0,
+        pruned: 0,
+      }));
+
+      // First call with cwd1
+      await collectLines(addContextData, cwd1).catch(() => {});
+      const firstCall = mockDecay.mock.calls[0];
+      expect(firstCall[0].project_dir).toBe(cwd1);
+
+      // Reload and call with cwd2 — mock must be called with the new cwd
+      delete require.cache[CONTEXT_DATA_PATH];
+      delete require.cache[IMPL_PATTERNS_PATH];
+      const second = loadWithMock(() => ({ decayed: 0, pruned: 0 }));
+      await collectLines(second.addContextData, cwd2).catch(() => {});
+      const secondCall = second.mockDecay.mock.calls[0];
+      expect(secondCall[0].project_dir).toBe(cwd2);
+    } finally {
+      fs.rmSync(cwd2, { recursive: true, force: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 2. pruned > 0 → decay summary line emitted in lines output
+// ---------------------------------------------------------------------------
+
+describe("decay line is emitted when pruned > 0", () => {
+  it("emits the decay line when pruned is 1 and decayed is 3", async () => {
+    const cwd = makeProjectDir();
+
+    const { addContextData } = loadWithMock(() => ({
+      decayed: 3,
+      pruned: 1,
+    }));
+
+    const lines = await collectLines(addContextData, cwd).catch(() => []);
+
+    const decayLine = lines.find((l) =>
+      typeof l === "string" && l.includes("Pattern decay")
+    );
+    expect(decayLine).toBeDefined();
+    expect(decayLine).toContain("[Masonry] Pattern decay:");
+    expect(decayLine).toContain("3 scores updated");
+    expect(decayLine).toContain("1 stale patterns pruned");
+  });
+
+  it("emits the decay line when pruned is 12 and decayed is 5", async () => {
+    const cwd = makeProjectDir();
+
+    const { addContextData } = loadWithMock(() => ({
+      decayed: 5,
+      pruned: 12,
+    }));
+
+    const lines = await collectLines(addContextData, cwd).catch(() => []);
+
+    const decayLine = lines.find((l) =>
+      typeof l === "string" && l.includes("Pattern decay")
+    );
+    expect(decayLine).toBeDefined();
+    expect(decayLine).toContain("5 scores updated");
+    expect(decayLine).toContain("12 stale patterns pruned");
+  });
+
+  it("decay line format is exactly: [Masonry] Pattern decay: N scores updated, M stale patterns pruned", async () => {
+    const cwd = makeProjectDir();
+
+    const { addContextData } = loadWithMock(() => ({
+      decayed: 7,
+      pruned: 2,
+    }));
+
+    const lines = await collectLines(addContextData, cwd).catch(() => []);
+
+    const decayLine = lines.find((l) =>
+      typeof l === "string" && l.includes("Pattern decay")
+    );
+    expect(decayLine).toBe(
+      "[Masonry] Pattern decay: 7 scores updated, 2 stale patterns pruned"
+    );
+  });
+
+  it("decay line uses the actual values from the toolPatternDecay result, not hardcoded numbers", async () => {
+    const cwd = makeProjectDir();
+
+    const { addContextData: ad1 } = loadWithMock(() => ({
+      decayed: 99,
+      pruned: 42,
+    }));
+
+    const lines1 = await collectLines(ad1, cwd).catch(() => []);
+    const line1 = lines1.find((l) => typeof l === "string" && l.includes("Pattern decay"));
+    expect(line1).toContain("99 scores updated");
+    expect(line1).toContain("42 stale patterns pruned");
+
+    // Reload and try different numbers
+    delete require.cache[CONTEXT_DATA_PATH];
+    delete require.cache[IMPL_PATTERNS_PATH];
+
+    const { addContextData: ad2 } = loadWithMock(() => ({
+      decayed: 1,
+      pruned: 1,
+    }));
+
+    const lines2 = await collectLines(ad2, cwd).catch(() => []);
+    const line2 = lines2.find((l) => typeof l === "string" && l.includes("Pattern decay"));
+    expect(line2).toContain("1 scores updated");
+    expect(line2).toContain("1 stale patterns pruned");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 3. pruned === 0 → no decay line in output (stay silent)
+// ---------------------------------------------------------------------------
+
+describe("no decay line when pruned === 0", () => {
+  it("does NOT add any decay line when pruned is 0 and decayed is 0", async () => {
+    const cwd = makeProjectDir();
+
+    const { addContextData } = loadWithMock(() => ({
+      decayed: 0,
+      pruned: 0,
+    }));
+
+    const lines = await collectLines(addContextData, cwd).catch(() => []);
+
+    const decayLine = lines.find(
+      (l) => typeof l === "string" && l.includes("Pattern decay")
+    );
+    expect(decayLine).toBeUndefined();
+  });
+
+  it("does NOT add any decay line when pruned is 0 even if decayed is non-zero", async () => {
+    // Edge case: decayed > 0 but pruned === 0 — spec says silence when pruned === 0
+    const cwd = makeProjectDir();
+
+    const { addContextData } = loadWithMock(() => ({
+      decayed: 5,
+      pruned: 0,
+    }));
+
+    const lines = await collectLines(addContextData, cwd).catch(() => []);
+
+    const decayLine = lines.find(
+      (l) => typeof l === "string" && l.includes("Pattern decay")
+    );
+    expect(decayLine).toBeUndefined();
+  });
+
+  it("does NOT add any [Masonry] Pattern decay line when pruned is 0", async () => {
+    const cwd = makeProjectDir();
+
+    const { addContextData } = loadWithMock(() => ({
+      decayed: 0,
+      pruned: 0,
+    }));
+
+    const lines = await collectLines(addContextData, cwd).catch(() => []);
+
+    // Extra guard: no line should start with "[Masonry] Pattern decay"
+    const masonryDecayLines = lines.filter(
+      (l) => typeof l === "string" && l.startsWith("[Masonry] Pattern decay")
+    );
+    expect(masonryDecayLines).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 4. Exception in toolPatternDecay does not propagate
+// ---------------------------------------------------------------------------
+
+describe("exception in toolPatternDecay is swallowed (session start must never fail)", () => {
+  it("addContextData does not throw when toolPatternDecay throws synchronously", async () => {
+    const cwd = makeProjectDir();
+
+    const { addContextData } = loadWithMock(() => {
+      throw new Error("decay exploded");
+    });
+
+    // Must not reject/throw
+    await expect(
+      collectLines(addContextData, cwd)
+    ).resolves.not.toThrow();
+  });
+
+  it("addContextData completes and returns output when toolPatternDecay throws", async () => {
+    const cwd = makeProjectDir();
+
+    const { addContextData } = loadWithMock(() => {
+      throw new Error("disk read failure");
+    });
+
+    // The function must resolve (not reject) and return something
+    const result = await collectLines(addContextData, cwd).catch(() => null);
+    // We don't care what it contains, just that it didn't explode
+    expect(result).not.toBeNull();
+  });
+
+  it("does NOT emit a decay line when toolPatternDecay throws", async () => {
+    const cwd = makeProjectDir();
+
+    const { addContextData } = loadWithMock(() => {
+      throw new Error("unexpected decay failure");
+    });
+
+    const lines = await collectLines(addContextData, cwd).catch(() => []);
+
+    const decayLine = lines.find(
+      (l) => typeof l === "string" && l.includes("Pattern decay")
+    );
+    expect(decayLine).toBeUndefined();
+  });
+
+  it("addContextData does not throw when toolPatternDecay returns a rejected promise", async () => {
+    const cwd = makeProjectDir();
+
+    const { addContextData } = loadWithMock(async () => {
+      throw new Error("async decay failure");
+    });
+
+    await expect(
+      collectLines(addContextData, cwd)
+    ).resolves.not.toThrow();
+  });
+
+  it("addContextData does not throw when toolPatternDecay returns null", async () => {
+    const cwd = makeProjectDir();
+
+    // Returning null instead of { decayed, pruned } — should be handled gracefully
+    const { addContextData } = loadWithMock(() => null);
+
+    await expect(
+      collectLines(addContextData, cwd)
+    ).resolves.not.toThrow();
+  });
+
+  it("addContextData does not throw when toolPatternDecay returns an object missing pruned", async () => {
+    const cwd = makeProjectDir();
+
+    // Partial result — missing pruned key
+    const { addContextData } = loadWithMock(() => ({ decayed: 3 }));
+
+    await expect(
+      collectLines(addContextData, cwd)
+    ).resolves.not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 5. Decay is called BEFORE other context data operations
+//    (i.e., at the START of addContextData, not at the end)
+// ---------------------------------------------------------------------------
+
+describe("toolPatternDecay is called at the start of addContextData, not deferred", () => {
+  it("mockDecay is called even if a later operation in addContextData fails", async () => {
+    const cwd = makeProjectDir();
+
+    // We cannot easily force later operations to fail without knowing their
+    // internals, but we can verify the call order by checking that mockDecay
+    // is invoked on every addContextData call regardless of downstream state.
+    const { addContextData, mockDecay } = loadWithMock(() => ({
+      decayed: 0,
+      pruned: 0,
+    }));
+
+    // Call with a cwd that has no special state — addContextData should run
+    // decay first thing and we should see the call.
+    await collectLines(addContextData, cwd).catch(() => {});
+
+    // Decay must have been called — if it were deferred and something threw
+    // before it, the call count would be 0.
+    expect(mockDecay.mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
+});

@@ -1,8 +1,8 @@
 {
   "developer": {
-    "confidence": 0.9999999997668797,
-    "last_used": "2026-03-29T14:26:02.372Z",
-    "uses": 94
+    "confidence": 0.999999999968711,
+    "last_used": "2026-04-04T13:29:24.401Z",
+    "uses": 103
   },
   "bl-verifier": {
     "confidence": 0.808,
@@ -10,9 +10,9 @@
     "uses": 2
   },
   "Explore": {
-    "confidence": 0.9988666320441113,
-    "last_used": "2026-04-02T05:10:22.433Z",
-    "uses": 25
+    "confidence": 0.9990933056352891,
+    "last_used": "2026-04-04T13:38:02.627Z",
+    "uses": 26
   },
   "git-nerd": {
     "confidence": 0.808,
@@ -173,5 +173,25 @@
     "confidence": 0.76,
     "last_used": "2026-04-04T05:25:28.102Z",
     "uses": 1
+  },
+  "karen": {
+    "confidence": 0.808,
+    "last_used": "2026-04-04T13:28:46.553Z",
+    "uses": 2
+  },
+  "test-writer": {
+    "confidence": 0.87712,
+    "last_used": "2026-04-04T12:47:05.931Z",
+    "uses": 4
+  },
+  "code-reviewer": {
+    "confidence": 0.76,
+    "last_used": "2026-04-04T07:15:15.694Z",
+    "uses": 1
+  },
+  "spec-reviewer": {
+    "confidence": 0.808,
+    "last_used": "2026-04-04T12:35:10.590Z",
+    "uses": 2
   }
 }

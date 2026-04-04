@@ -16,7 +16,7 @@ const fs = require("fs");
 const path = require("path");
 const { readStdin } = require("./session/stop-utils");
 const { buildHintText } = require("./session/route-hints");
-const { detectIntent } = require("./session/registry-router");
+const { detectIntentAsync } = require("./session/registry-router");
 
 const FOLLOWUP_PATTERNS = [
   /^(now|next|then|also|additionally)\s/i,
@@ -122,7 +122,7 @@ async function main() {
     }
   } catch {}
 
-  let intent = detectIntent(prompt);
+  let intent = await detectIntentAsync(prompt);
   const effort = classifyEffort(prompt);
 
   const MASONRY_STATE_PATH = path.join(cwd, "masonry", "masonry-state.json");

@@ -1,0 +1,56 @@
+#!/usr/bin/env node
+/**
+ * Stop hook: Auto-save session state to Recall.
+ *
+ * Fires on Stop event — captures what was worked on.
+ * Always exits 0 (don't prevent stopping).
+ */
+
+const RECALL_HOST = process.env.RECALL_HOST || "http://100.70.195.84:8200";
+const RECALL_API_KEY = process.env.RECALL_API_KEY || "recall-admin-key-change-me";
+
+function readStdin() {
+  return new Promise((resolve) => {
+    let data = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (chunk) => (data += chunk));
+    process.stdin.on("end", () => resolve(data));
+    setTimeout(() => resolve(data), 2000);
+  });
+}
+
+async function main() {
+  const input = await readStdin();
+  if (!input) return;
+
+  let parsed;
+  try {
+    parsed = JSON.parse(input);
+  } catch {
+    return;
+  }
+
+  if (parsed.stop_hook_active) return;
+
+  const sessionId = parsed.session_id || parsed.sessionId;
+  if (!sessionId) return;
+
+  const headers = { "Content-Type": "application/json" };
+  if (RECALL_API_KEY) {
+    headers["Authorization"] = `Bearer ${RECALL_API_KEY}`;
+  }
+
+  try {
+    await fetch(`${RECALL_HOST}/observe/session-snapshot`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ session_id: sessionId }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch {
+    // Ignore — don't block stopping
+  }
+
+}
+
+main().catch(() => {});

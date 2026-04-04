@@ -1,11 +1,13 @@
 {
   "last_route": {
-    "agent": "rough-in",
-    "effort": "medium",
-    "prompt_summary": "ok most my mcps arent connecting in tmux on vs code server",
-    "timestamp": "2026-04-04T06:50:53.707Z",
-    "turn_count": 2
+    "agent": "verifier",
+    "effort": "low",
+    "prompt_summary": "can you go in and check bricklayer actions",
+    "timestamp": "2026-04-04T13:55:53.312Z",
+    "turn_count": 1
   },
   "mortar_consulted": true,
-  "mortar_session_id": "2026-04-04T05:10:14.701Z"
+  "mortar_session_id": "2026-04-04T13:59:40.275Z",
+  "active_agent": "karen",
+  "active_agent_count": 2
 }

@@ -1,34 +1,53 @@
 {
-  "project": "inline-execution-audit-backlog",
-  "status": "COMPLETE",
+  "project": "learning-loop-pattern-confidence-decay",
+  "status": "BUILDING",
+  "strategy": "balanced",
   "branch": "bricklayer-v2/mar24-parallel",
   "tasks": [
     {
       "id": 1,
-      "description": "Patch masonry-approver.js: add read tool to Mortar gate exemption",
-      "status": "DONE"
+      "status": "PENDING",
+      "title": "Implement toolPatternPromote and toolPatternDemote",
+      "description": "Add promote/demote functions to impl-patterns.js and register in MCP dispatch [mode:javascript]",
+      "files": [
+        "masonry/src/tools/impl-patterns.js",
+        "masonry/bin/masonry-mcp.js"
+      ]
     },
     {
       "id": 2,
-      "description": "Update masonry-prompt-router.js: spec+build INTENT_RULES + build rule cleanup",
-      "status": "DONE"
+      "status": "PENDING",
+      "title": "Create masonry-build-outcome.js hook",
+      "description": "PostToolUse:Write hook that watches progress.json for DONE/FAILED transitions and calls promote/demote [mode:javascript] [depends:1]",
+      "files": [
+        "masonry/src/hooks/masonry-build-outcome.js",
+        "/home/nerfherder/.claude/settings.json"
+      ]
     },
     {
       "id": 3,
-      "description": "Add last_route multi-turn persistence to masonry-prompt-router.js",
-      "status": "DONE"
+      "status": "PENDING",
+      "title": "Auto-run decay at session start",
+      "description": "Call toolPatternDecay in addContextData() at session open [mode:javascript] [depends:1]",
+      "files": [
+        "masonry/src/hooks/session/context-data.js"
+      ]
     },
     {
       "id": 4,
-      "description": "Write masonry/scripts/backfill_routing_keywords.py",
-      "status": "DONE"
+      "status": "PENDING",
+      "title": "Inject top-confidence agents at session start",
+      "description": "Surface top-5 agents by confidence score in session-start context [mode:javascript] [depends:3]",
+      "files": [
+        "masonry/src/hooks/session/context-data.js"
+      ]
     }
   ],
   "tests": {
-    "total": 36,
-    "passing": 36,
+    "total": 0,
+    "passing": 0,
     "failing": 0
   },
-  "updated_at": "2026-03-29T14:45:00.000Z",
-  "snapshot_at": "2026-04-04T06:50:38.199Z"
+  "updated_at": "2026-04-04T07:05:00.000Z",
+  "snapshot_at": "2026-04-04T07:08:51.041Z"
 }
