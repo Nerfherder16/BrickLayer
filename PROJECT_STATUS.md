@@ -1,6 +1,6 @@
 # BrickLayer 2.0 — Project Status
 
-Last updated: 2026-04-02
+Last updated: 2026-04-04
 
 ---
 
@@ -29,11 +29,11 @@ Last updated: 2026-04-02
 | Hook | Status |
 |------|--------|
 | `session/mortar-gate.js` | Stable. Dynamic loader from `agent_registry.yml` + frontmatter since 2026-04-02 |
-| `masonry-mortar-enforcer.js` | Stable. `BL_GATE_FILE` env var since 2026-04-02 |
+| `masonry-mortar-enforcer.js` | Stable. Updated 2026-04-04: allows direct specialist spawns from main session (aligns with new routing rules) |
 | `masonry-routing-gate.js` | Stable. `BL_GATE_FILE` env var since 2026-04-02 |
 | `masonry-pre-protect.js` | Stable. `BL_GATE_FILE` env var since 2026-04-02 |
 | `masonry-subagent-tracker.js` | Stable. `BL_GATE_FILE` env var since 2026-04-02 |
-| `masonry-prompt-router.js` | Stable. `BL_GATE_FILE` env var since 2026-04-02 |
+| `masonry-prompt-router.js` | Stable. Updated 2026-04-04: added `@agent-name:` self-invoke bypass |
 | `masonry-session-end.js` | Stable. Dead `decay_conflicting_memories` block removed 2026-04-02 |
 
 ---
@@ -42,10 +42,21 @@ Last updated: 2026-04-02
 
 | Agent | Status |
 |-------|--------|
-| `mortar.md` | Stable. WSL-portable paths since 2026-04-02 |
+| `mortar.md` | Stable. WSL-portable paths since 2026-04-02. Entry point for campaigns/docs only (dev tasks go direct to rough-in) |
 | `trowel.md` | Stable. `RECALL_HOST` env var since 2026-04-02 |
 | `bl-verifier.md` | Stable. WSL paths since 2026-04-02 |
 | `e2e.md` | Stable. WSL paths since 2026-04-02 |
+
+---
+
+## Global Rules / Skills (updated 2026-04-04)
+
+| Asset | Status |
+|-------|--------|
+| `~/.claude/rules/network-map.md` | New. Full LAN/Tailscale/VPS/WireGuard topology. Single source of truth for all infrastructure. |
+| `~/.claude/skills/homelab/SKILL.md` | Updated. Thin reference pointing to network-map.md. |
+| `~/.claude/agents/self-host.md` | Updated. References network-map.md for topology. |
+| `~/.claude/rules/` (CLAUDE.md) | Updated 2026-04-04. Dev tasks now route to rough-in directly; Mortar handles campaigns/research/docs only. |
 
 ---
 
