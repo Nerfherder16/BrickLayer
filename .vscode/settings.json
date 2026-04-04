@@ -7,7 +7,7 @@
       "env": {
         "CLAUDE_USER": "tim"
       },
-      "icon": "account",
+      "icon": "beaker",
       "color": "terminal.ansiBlue"
     },
     "Claude (Nick)": {
@@ -15,8 +15,8 @@
       "env": {
         "CLAUDE_USER": "nick"
       },
-      "icon": "person",
-      "color": "terminal.ansiGreen"
+      "icon": "device-desktop",
+      "color": "terminal.ansiRed"
     }
   }
 }
