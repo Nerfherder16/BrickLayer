@@ -68,7 +68,12 @@ const INTENT_RULES = [
     note: "Use /masonry-run to start a campaign.",
   },
   {
-    patterns: [/\b(security.?audit|penetration|owasp|vulnerability|cve|exploit|hardening)\b/i,\n      /\bsecurity\b.{0,25}\b(config|configuration|header|headers|policy|rules|hardening)\b/i,\n      /\b(rate.?limit\w*|auth.?middleware)\b/i, /\/masonry-security-review\b/i],
+    patterns: [
+      /\b(security.?audit|penetration|owasp|vulnerability|cve|exploit|harden\w*)\b/i,
+      /\bsecurity\b.{0,25}\b(config|configuration|header|headers|policy|rules)\b/i,
+      /\b(rate.?limit\w*|auth.?middleware)\b/i,
+      /\/masonry-security-review\b/i,
+    ],
     route: "security agent",
   },
   {
