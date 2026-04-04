@@ -132,7 +132,7 @@ function _clean(mem) {
  */
 async function searchPriorFindings(query, domain = 'autoresearch', limit = 5) {
   if (!query) return [];
-  const raw = await _post('/memory/search', { query, domain, limit });
+  const raw = await _post('/search/browse', { query, domain_hint: domain, limit });
   return _extractMemories(raw).map(_clean);
 }
 
@@ -141,9 +141,9 @@ async function searchPriorFindings(query, domain = 'autoresearch', limit = 5) {
  */
 async function getProjectHistory(projectName, limit = 10) {
   if (!projectName) return [];
-  const raw = await _post('/memory/search', {
+  const raw = await _post('/search/browse', {
     query: projectName,
-    domain: 'autoresearch',
+    domain_hint: 'autoresearch',
     limit,
   });
   return _extractMemories(raw).map(_clean);
@@ -181,7 +181,7 @@ async function storeFinding(questionId, verdict, summary, project, tags, domain,
 async function getAnalogousFailures(systemType, limit = 5) {
   if (!systemType) return [];
 
-  const raw = await _post('/memory/search', {
+  const raw = await _post('/search/browse', {
     query: `FAILURE ${systemType}`,
     limit,
   });
@@ -206,9 +206,9 @@ async function getCampaignContext(project, wave = 1, limit = 8) {
   if (!project) return [];
 
   const query = `campaign context project:${project} wave:${wave} findings synthesis`;
-  const raw = await _post('/memory/search', {
+  const raw = await _post('/search/browse', {
     query,
-    domain: `${project}-bricklayer`,
+    domain_hint: `${project}-bricklayer`,
     limit,
     tags: ['bricklayer', `project:${project}`],
   });
@@ -216,7 +216,7 @@ async function getCampaignContext(project, wave = 1, limit = 8) {
 
   // Also search without domain restriction for cross-project analogues
   if (memories.length < Math.floor(limit / 2)) {
-    const crossRaw = await _post('/memory/search', {
+    const crossRaw = await _post('/search/browse', {
       query: `bricklayer synthesis failure ${project}`,
       limit: limit - memories.length,
     });
