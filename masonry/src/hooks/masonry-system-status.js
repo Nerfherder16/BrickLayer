@@ -47,7 +47,7 @@ async function main() {
       const degradedFlag = path.join(MAS_DIR, "recall_degraded");
       return {
         degraded: fs.existsSync(degradedFlag),
-        host: process.env.RECALL_HOST || "http://100.70.195.84:8200",
+        host: process.env.RECALL_HOST || "http://localhost:8200",
       };
     } catch { return { degraded: false }; }
   }

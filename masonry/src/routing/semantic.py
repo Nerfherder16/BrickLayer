@@ -28,7 +28,7 @@ _embedding_cache: dict[str, list[float]] = {}
 _OLLAMA_URL = (
     os.environ.get("OLLAMA_URL")
     or os.environ.get("OLLAMA_HOST")
-    or "http://100.70.195.84:11434"
+    or os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 )
 _DEFAULT_OLLAMA_URL = _OLLAMA_URL  # kept for backward-compat references
 _DEFAULT_MODEL = "qwen3-embedding:0.6b"

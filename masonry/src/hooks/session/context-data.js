@@ -48,7 +48,7 @@ async function addContextData(lines, cwd, state) {
 
     if (hasPyproject || hasPackageJson) {
       const lang = hasPyproject ? "python" : "typescript";
-      const RECALL_HOST_URL = process.env.RECALL_HOST || "http://100.70.195.84:8200";
+      const RECALL_HOST_URL = process.env.RECALL_HOST || "http://localhost:8200";
       const RECALL_API_KEY_VAL = process.env.RECALL_API_KEY || "";
       const http = require("http");
       const https = require("https");

@@ -14,7 +14,7 @@ const os   = require('os');
 const CACHE_FILE = path.join(os.tmpdir(), 'masonry-recall-status.json');
 
 async function main() {
-  const host   = process.argv[2] || 'http://100.70.195.84:8200';
+  const host   = process.argv[2] || 'http://localhost:8200';
   const apiKey = process.argv[3] || '';
 
   let ok = false;

@@ -16,7 +16,7 @@ import urllib.request
 import urllib.error
 from typing import Any
 
-RECALL_HOST = os.environ.get("RECALL_HOST", "http://100.70.195.84:8200")
+RECALL_HOST = os.environ.get("RECALL_HOST", os.environ.get("RECALL_HOST", "http://localhost:8200"))
 RECALL_API_KEY = os.environ.get("RECALL_API_KEY", "recall-admin-key-change-me")
 RECALL_TIMEOUT = 3  # seconds — never block a campaign
 

@@ -129,7 +129,7 @@ function getInProgressTask(cwd) {
  * Emits stderr warnings for each detected pattern. Never throws or blocks.
  */
 async function checkSemanticDegradation(messages, cwd) {
-  const ollamaHost = process.env.OLLAMA_HOST || "http://100.70.195.84:11434";
+  const ollamaHost = process.env.OLLAMA_HOST || "http://localhost:11434";
 
   if (!messages || messages.length < 3) return;
 

@@ -15,7 +15,7 @@ const yaml = require("js-yaml");
 
 const REGISTRY_PATH = path.resolve(__dirname, "../../../agent_registry.yml");
 const EMBED_CACHE_PATH = path.join(os.tmpdir(), "masonry-agent-embed-index.json");
-const EMBED_HOST = "100.70.195.84";
+const EMBED_HOST = "localhost";
 const EMBED_PORT = 11434;
 const EMBED_MODEL = "qwen3-embedding:0.6b";
 const EMBED_TIMEOUT_MS = 2000;

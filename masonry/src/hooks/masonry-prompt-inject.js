@@ -8,7 +8,7 @@
 const https = require('https');
 const http = require('http');
 
-const RECALL_HOST = process.env.RECALL_HOST || 'http://100.70.195.84:8200';
+const RECALL_HOST = process.env.RECALL_HOST || 'http://localhost:8200';
 const RECALL_API_KEY = process.env.RECALL_API_KEY || '';
 const THRESHOLD = 0.15;
 const MAX_RESULTS = 3;

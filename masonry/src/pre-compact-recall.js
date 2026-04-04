@@ -8,7 +8,7 @@
  *       For now this is a no-op stub so the pre-compact hook doesn't crash.
  */
 
-const RECALL_URL = process.env.RECALL_API_URL || "http://100.70.195.84:8200";
+const RECALL_URL = process.env.RECALL_API_URL || "http://localhost:8200";
 
 /**
  * Store a checkpoint to Recall before context compaction.

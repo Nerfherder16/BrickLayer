@@ -17,7 +17,7 @@ const http = require("http");
 const https = require("https");
 const { execSync } = require("child_process");
 
-const RECALL_HOST = process.env.RECALL_HOST || "http://100.70.195.84:8200";
+const RECALL_HOST = process.env.RECALL_HOST || "http://localhost:8200";
 const RECALL_API_KEY = process.env.RECALL_API_KEY || "";
 
 function findProjectRoot() {

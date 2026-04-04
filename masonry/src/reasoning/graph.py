@@ -27,7 +27,7 @@ except ImportError:
     if TYPE_CHECKING:
         Driver = Any  # type: ignore[assignment,misc]
 
-_DEFAULT_HTTP = "http://100.70.195.84:8200"
+_DEFAULT_HTTP = os.environ.get("RECALL_HOST", "http://localhost:8200")
 _DEFAULT_AUTH = ("neo4j", "password")
 
 # Local JSON graph store

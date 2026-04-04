@@ -27,7 +27,7 @@ function progressBar(pct) {
 
 function loadConfig() {
   const DEFAULTS = {
-    recallHost: process.env.RECALL_HOST || "http://100.70.195.84:8200",
+    recallHost: process.env.RECALL_HOST || "http://localhost:8200",
     recallApiKey: process.env.RECALL_API_KEY || "",
     handoffThreshold: 70,
   };

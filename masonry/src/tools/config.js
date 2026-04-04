@@ -7,7 +7,7 @@ const os = require('os');
 const CONFIG_PATH = path.join(os.homedir(), '.masonry', 'config.json');
 
 const CONFIG_DEFAULTS = {
-  recallHost: 'http://100.70.195.84:8200',
+  recallHost: 'http://localhost:8200',
   recallApiKey: process.env.RECALL_API_KEY || '',
 };
 
