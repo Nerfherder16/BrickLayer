@@ -60,7 +60,9 @@ async function processRequest(name, args) {
     // Patterns
     case "masonry_pattern_store": return await patterns.toolPatternStore(args);
     case "masonry_pattern_search":return await patterns.toolPatternSearch(args);
-    case "masonry_pattern_decay": return patterns.toolPatternDecay(args);
+    case "masonry_pattern_decay":   return patterns.toolPatternDecay(args);
+    case "masonry_pattern_promote": return patterns.toolPatternPromote(args);
+    case "masonry_pattern_demote":  return patterns.toolPatternDemote(args);
     // Agents / swarm
     case "masonry_worker_status": return agents.toolWorkerStatus(args);
     case "masonry_task_assign":   return agents.toolTaskAssign(args);

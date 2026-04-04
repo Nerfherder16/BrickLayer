@@ -151,6 +151,30 @@ const TOOLS_ADVANCED = [
     },
   },
   {
+    name: 'masonry_pattern_promote',
+    description: 'Promote an agent pattern confidence (ceiling-approached: conf + 0.2 * (1 - conf))',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        agent_type: { type: 'string' },
+        project_dir: { type: 'string' },
+      },
+      required: ['agent_type', 'project_dir'],
+    },
+  },
+  {
+    name: 'masonry_pattern_demote',
+    description: 'Demote an agent pattern confidence (proportional reduction: conf - 0.15 * conf, floor 0.1)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        agent_type: { type: 'string' },
+        project_dir: { type: 'string' },
+      },
+      required: ['agent_type', 'project_dir'],
+    },
+  },
+  {
     name: 'masonry_training_update',
     description: 'Recompute EMA strategy scores from masonry/telemetry.jsonl',
     inputSchema: {

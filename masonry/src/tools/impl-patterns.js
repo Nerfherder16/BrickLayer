@@ -111,4 +111,60 @@ function toolPatternDecay(args) {
   return { decayed: decayedCount, pruned: prunedIds.length, remaining: Object.keys(surviving).length, pruned_ids: prunedIds };
 }
 
-module.exports = { toolPatternStore, toolPatternSearch, toolPatternDecay };
+function toolPatternPromote(args) {
+  const { agent_type, project_dir } = args;
+  const autopilotDir = path.join(project_dir, '.autopilot');
+  const confPath = path.join(autopilotDir, 'pattern-confidence.json');
+
+  let store = {};
+  try {
+    store = JSON.parse(fs.readFileSync(confPath, 'utf8'));
+  } catch {
+    fs.mkdirSync(autopilotDir, { recursive: true });
+  }
+
+  const entry = store[agent_type];
+  const INIT_CONFIDENCE = 0.76;
+  const old_confidence = (entry && typeof entry === 'object') ? entry.confidence : INIT_CONFIDENCE;
+  const uses = (entry && typeof entry === 'object') ? (entry.uses || 0) + 1 : 1;
+  const new_confidence = old_confidence + 0.2 * (1.0 - old_confidence);
+
+  store[agent_type] = {
+    confidence: new_confidence,
+    last_used: new Date().toISOString(),
+    uses,
+  };
+
+  fs.writeFileSync(confPath, JSON.stringify(store, null, 2), 'utf8');
+  return { agent_type, old_confidence, new_confidence, uses };
+}
+
+function toolPatternDemote(args) {
+  const { agent_type, project_dir } = args;
+  const autopilotDir = path.join(project_dir, '.autopilot');
+  const confPath = path.join(autopilotDir, 'pattern-confidence.json');
+
+  let store = {};
+  try {
+    store = JSON.parse(fs.readFileSync(confPath, 'utf8'));
+  } catch {
+    fs.mkdirSync(autopilotDir, { recursive: true });
+  }
+
+  const entry = store[agent_type];
+  const INIT_CONFIDENCE = 0.76;
+  const old_confidence = (entry && typeof entry === 'object') ? entry.confidence : INIT_CONFIDENCE;
+  const uses = (entry && typeof entry === 'object') ? (entry.uses || 0) + 1 : 1;
+  const new_confidence = Math.max(0.1, old_confidence - 0.15 * old_confidence);
+
+  store[agent_type] = {
+    confidence: new_confidence,
+    last_used: new Date().toISOString(),
+    uses,
+  };
+
+  fs.writeFileSync(confPath, JSON.stringify(store, null, 2), 'utf8');
+  return { agent_type, old_confidence, new_confidence, uses };
+}
+
+module.exports = { toolPatternStore, toolPatternSearch, toolPatternDecay, toolPatternPromote, toolPatternDemote };
