@@ -141,6 +141,7 @@ agents:
   - organize folders
   - update readme
   - update docs
+  - release notes
 - name: prompt-engineer
   file: ~/.claude/agents/prompt-engineer.md
   model: opus
@@ -215,10 +216,14 @@ agents:
   - dockerfile
   - docker compose
   - kubernetes
-  - nginx config
+  - nginx
+  - prometheus
+  - grafana
+  - helm
+  - terraform
   - ci/cd
   - github actions
-  - deploy
+  - k8s
 - name: security
   file: ~/.claude/agents/security.md
   model: sonnet
@@ -427,6 +432,14 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
+  routing_keywords:
+  - blue sky
+  - ceiling
+  - possibility space
+  - what could
+  - what if we
+  - future of
+  - explore what
 - name: code-reviewer
   file: .claude/agents/code-reviewer.md
   model: sonnet
@@ -539,6 +552,12 @@ agents:
   last_score: null
   runs_since_optimization: 0
   registrySource: frontmatter
+  routing_keywords:
+  - kiln
+  - bricklayer hub
+  - electron app
+  - hub feature
+  - hub ui
 - name: mcp-advisor
   file: .claude/agents/mcp-advisor.md
   model: sonnet
@@ -765,6 +784,15 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
+  routing_keywords:
+  - solana
+  - anchor program
+  - spl token
+  - adbp
+  - devnet
+  - mainnet-beta
+  - phantom wallet
+  - solana deploy
 - name: uiux-master
   file: C:/Users/trg16/.claude/agents/uiux-master.md
   model: sonnet
@@ -904,13 +932,10 @@ agents:
   output_schema: FindingPayload
   tier: trusted
   routing_keywords:
-  - build
   - implement
   - code
   - develop
-  - fix
   - refactor
-  - test
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -1480,7 +1505,14 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - golang
+  - goroutine
+  - go module
+  - gorm
+  - grpc
+  - go service
+  - go cli
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1514,7 +1546,14 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - jellystream
+  - kotlin
+  - android
+  - jetpack
+  - compose
+  - viewmodel
+  - room database
   triggers: []
   tools: []
   dspy_status: not_optimized

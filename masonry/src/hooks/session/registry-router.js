@@ -68,7 +68,7 @@ const INTENT_RULES = [
     note: "Use /masonry-run to start a campaign.",
   },
   {
-    patterns: [/\b(security.?audit|penetration|owasp|vulnerability|cve|exploit)\b/i, /\/masonry-security-review\b/i],
+    patterns: [/\b(security.?audit|penetration|owasp|vulnerability|cve|exploit|hardening)\b/i,\n      /\bsecurity\b.{0,25}\b(config|configuration|header|headers|policy|rules|hardening)\b/i,\n      /\b(rate.?limit\w*|auth.?middleware)\b/i, /\/masonry-security-review\b/i],
     route: "security agent",
   },
   {
@@ -108,7 +108,7 @@ const INTENT_RULES = [
     note: "Use /plan for full spec-to-build pipeline.",
   },
   {
-    patterns: [/\b(commit|branch|merge|push|pull.?request|pr|cherry.?pick|release)\b/i, /\bgit\b(?!hub)/i],
+    patterns: [/\b(commit|branch|merge|push|pull.?request|pr|cherry.?pick)\b/i, /\bgit\b(?!hub)/i],
     route: "git-nerd",
   },
   {
@@ -116,7 +116,7 @@ const INTENT_RULES = [
     route: "refactorer",
   },
   {
-    patterns: [/\b(roadmap|docs|documentation|readme|changelog|organize.{0,20}folder|audit.{0,20}(files|dirs))\b/i],
+    patterns: [/\b(roadmap|docs|documentation|readme|changelog|release.?notes|release.?process|organize.{0,20}folder|audit.{0,20}(files|dirs))\b/i],
     route: "karen",
   },
   {
