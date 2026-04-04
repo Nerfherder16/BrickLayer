@@ -1,4 +1,5 @@
 """Recall memory system client for artifact persistence."""
+
 from __future__ import annotations
 
 import logging
@@ -18,9 +19,13 @@ async def persist_artifact(
     """Store artifact to Recall. Returns the memory ID. Raises httpx.HTTPError on failure."""
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            f"{RECALL_BASE_URL}/memory",
+            f"{RECALL_BASE_URL}/memory/store",
             json={
                 "content": jsx,
+                "domain": "codevv",
+                "source": "codevv-artifact",
+                "memory_type": "semantic",
+                "tags": ["artifact", f"artifact_id:{artifact_id}", title[:50]],
                 "metadata": {
                     "type": "artifact",
                     "artifact_id": artifact_id,
@@ -35,17 +40,18 @@ async def persist_artifact(
 
 
 async def get_artifact_history() -> list[dict]:
-    """Fetch all artifact memories from Recall, sorted by timestamp desc. Returns [] on error."""
+    """Fetch artifact memories from Recall via search, sorted by timestamp desc. Returns [] on error."""
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{RECALL_BASE_URL}/memory",
-                params={"type": "artifact"},
+            response = await client.post(
+                f"{RECALL_BASE_URL}/search/browse",
+                json={"query": "artifact", "domain_hint": "codevv", "limit": 50},
                 timeout=5.0,
             )
             response.raise_for_status()
-            items = response.json()
-            return sorted(items, key=lambda x: x.get("timestamp", ""), reverse=True)
+            data = response.json()
+            items = data.get("results", data) if isinstance(data, dict) else data
+            return sorted(items, key=lambda x: x.get("created_at", ""), reverse=True)
     except Exception as e:
         logging.warning(f"Recall unavailable: {e}")
         return []
