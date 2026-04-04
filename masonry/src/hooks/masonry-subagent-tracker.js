@@ -2,7 +2,7 @@
 /**
  * SubagentStart hook (Masonry): Track active agent spawns.
  *
- * Writes agent activity to ~/.masonry/state/agents.json (global, not per-project)
+ * Writes agent activity to ~/.mas/state/agents.json (global, not per-project)
  * so the statusline can show live agent count.
  *
  * Also updates masonry-state.json active_agent field when in campaign mode.
@@ -84,8 +84,8 @@ async function main() {
     } catch {}
   }
 
-  // Use ~/.masonry/state/ — global, not per-project
-  const stateDir = path.join(os.homedir(), ".masonry", "state");
+  // Use ~/.mas/state/ — global, not per-project
+  const stateDir = path.join(os.homedir(), ".mas", "state");
   ensureDir(stateDir);
 
   const now = Date.now();
@@ -126,7 +126,7 @@ async function main() {
       const subagentType = (input.subagent_type || agentEntry.name || '').toLowerCase().trim();
       // Use home-dir path to match masonry-preagent-tracker.js exactly — avoids
       // CWD mismatch when PreToolUse fires in masonry/ but SubagentStart fires in repo root.
-      const pendingDir = path.join(os.homedir(), '.masonry', 'pending_agent_prompts');
+      const pendingDir = path.join(os.homedir(), '.mas', 'pending_agent_prompts');
       const TTL_MS = 10_000; // 10-second freshness window
 
       // --- UUID-slot read (F-w42.1) ---

@@ -44,15 +44,32 @@ def count_rules(content: str) -> int:
 
 
 def score_agent_file(path: str) -> dict[str, int]:
-    """Score an agent .md file across four dimensions, max 40 total."""
+    """Score an agent .md file across four dimensions, max 40 total.
+
+    Scoring is graduated rather than binary:
+    - frontmatter_complete: proportional to required keys present (0–10)
+    - has_output_contract: 0 or 10
+    - has_examples: 0 or 10
+    - rule_density: linear ramp up to sweet-spot, capped at 10
+    """
     content = Path(path).read_text(encoding="utf-8")
 
     fm = parse_frontmatter(content)
-    frontmatter_complete = 10 if _REQUIRED_FRONTMATTER.issubset(fm.keys()) else 0
+    present = _REQUIRED_FRONTMATTER.intersection(fm.keys())
+    frontmatter_complete = round(10 * len(present) / len(_REQUIRED_FRONTMATTER))
+
     has_output_contract = 10 if check_has_output_contract(content) else 0
     has_examples = 10 if check_has_examples(content) else 0
+
     n_rules = count_rules(content)
-    rule_density = 10 if _RULE_SWEET_MIN <= n_rules <= _RULE_SWEET_MAX else 0
+    if n_rules == 0:
+        rule_density = 0
+    elif n_rules < _RULE_SWEET_MIN:
+        rule_density = round(10 * n_rules / _RULE_SWEET_MIN)
+    elif n_rules <= _RULE_SWEET_MAX:
+        rule_density = 10
+    else:
+        rule_density = max(0, 10 - (n_rules - _RULE_SWEET_MAX))
 
     return {
         "frontmatter_complete": frontmatter_complete,

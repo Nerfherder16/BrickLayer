@@ -17,7 +17,7 @@
  *   }
  */
 
-const { spawn } = require("child_process");
+const { spawn, spawnSync } = require("child_process");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
@@ -99,7 +99,11 @@ try {
 // Build confidence summary line if there are entries
 const confKeys = Object.keys(patternConfidence);
 if (confKeys.length > 0) {
-  const scores = confKeys.map(k => ({ key: k, score: patternConfidence[k] }));
+  const scores = confKeys.map(k => {
+    const raw = patternConfidence[k];
+    const score = (typeof raw === 'object' && raw !== null) ? (raw.confidence ?? 0) : Number(raw);
+    return { key: k, score };
+  });
   scores.sort((a, b) => b.score - a.score);
   const highest = scores[0];
   const lowest = scores[scores.length - 1];

@@ -222,7 +222,7 @@ async function main() {
 
   // --- Build structured summary object ---
   const structured = {
-    type: "session_summary",
+    type: "masonry_build_telemetry",
     project: projectName,
     domain: deriveDomain(projectName),
     session_id: sessionId,

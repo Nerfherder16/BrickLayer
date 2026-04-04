@@ -38,25 +38,25 @@ function makeTempFile(lines, ext = ".js") {
 }
 
 // ---------------------------------------------------------------------------
-// Hard block: > 300 lines must exit 2
+// Hard block: > 600 lines must exit 2
 // ---------------------------------------------------------------------------
 
-describe("file-size-guard — hard block (>300 lines)", () => {
-  it("exits 2 and outputs FILE_SIZE_BLOCK for a .js file with 301 lines", () => {
-    const tmpFile = makeTempFile(301, ".js");
+describe("file-size-guard — hard block (>600 lines)", () => {
+  it("exits 2 and outputs FILE_SIZE_BLOCK for a .js file with 601 lines", () => {
+    const tmpFile = makeTempFile(601, ".js");
     try {
       const { exitCode, stderr } = runHook("Write", { file_path: tmpFile });
       expect(exitCode).toBe(2);
       expect(stderr).toContain("FILE_SIZE_BLOCK");
-      expect(stderr).toContain("301");
-      expect(stderr).toContain("300");
+      expect(stderr).toContain("601");
+      expect(stderr).toContain("600");
     } finally {
       fs.unlinkSync(tmpFile);
     }
   });
 
-  it("exits 2 for a .ts file with 350 lines", () => {
-    const tmpFile = makeTempFile(350, ".ts");
+  it("exits 2 for a .ts file with 650 lines", () => {
+    const tmpFile = makeTempFile(650, ".ts");
     try {
       const { exitCode, stderr } = runHook("Edit", { file_path: tmpFile });
       expect(exitCode).toBe(2);
@@ -66,8 +66,8 @@ describe("file-size-guard — hard block (>300 lines)", () => {
     }
   });
 
-  it("exits 2 for a .py file with 400 lines", () => {
-    const tmpFile = makeTempFile(400, ".py");
+  it("exits 2 for a .py file with 700 lines", () => {
+    const tmpFile = makeTempFile(700, ".py");
     try {
       const { exitCode, stderr } = runHook("Write", { file_path: tmpFile });
       expect(exitCode).toBe(2);
@@ -78,7 +78,7 @@ describe("file-size-guard — hard block (>300 lines)", () => {
   });
 
   it("FILE_SIZE_BLOCK message includes the file path", () => {
-    const tmpFile = makeTempFile(310, ".js");
+    const tmpFile = makeTempFile(610, ".js");
     try {
       const { exitCode, stderr } = runHook("Write", { file_path: tmpFile });
       expect(exitCode).toBe(2);
@@ -90,12 +90,12 @@ describe("file-size-guard — hard block (>300 lines)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Warning zone: 251–300 lines must exit 0 with FILE_SIZE_WARN
+// Warning zone: 401–600 lines must exit 0 with FILE_SIZE_WARN
 // ---------------------------------------------------------------------------
 
-describe("file-size-guard — warning zone (251–300 lines)", () => {
-  it("exits 0 with FILE_SIZE_WARN for a .js file with 260 lines", () => {
-    const tmpFile = makeTempFile(260, ".js");
+describe("file-size-guard — warning zone (401–600 lines)", () => {
+  it("exits 0 with FILE_SIZE_WARN for a .js file with 450 lines", () => {
+    const tmpFile = makeTempFile(450, ".js");
     try {
       const { exitCode, stderr } = runHook("Write", { file_path: tmpFile });
       expect(exitCode).toBe(0);
@@ -105,8 +105,8 @@ describe("file-size-guard — warning zone (251–300 lines)", () => {
     }
   });
 
-  it("exits 0 with FILE_SIZE_WARN for exactly 300 lines", () => {
-    const tmpFile = makeTempFile(300, ".ts");
+  it("exits 0 with FILE_SIZE_WARN for exactly 600 lines", () => {
+    const tmpFile = makeTempFile(600, ".ts");
     try {
       const { exitCode, stderr } = runHook("Write", { file_path: tmpFile });
       expect(exitCode).toBe(0);
@@ -299,7 +299,7 @@ describe("file-size-guard — shrinking edits on oversized files", () => {
   });
 
   it("still blocks Edit that adds lines to an already oversized file", () => {
-    const tmpFile = makeTempFile(310, ".js");
+    const tmpFile = makeTempFile(610, ".js");
     try {
       const oldStr = "const x0 = 0;";
       const newStr = Array.from({ length: 20 }, (_, i) => `const z${i} = ${i};`).join("\n");
@@ -316,7 +316,7 @@ describe("file-size-guard — shrinking edits on oversized files", () => {
   });
 
   it("still blocks Write (not Edit) on oversized files", () => {
-    const tmpFile = makeTempFile(350, ".ts");
+    const tmpFile = makeTempFile(650, ".ts");
     try {
       const { exitCode, stderr } = runHook("Write", { file_path: tmpFile });
       expect(exitCode).toBe(2);
@@ -327,7 +327,7 @@ describe("file-size-guard — shrinking edits on oversized files", () => {
   });
 
   it("emits FILE_SIZE_SHRINK message for allowed shrinking edits", () => {
-    const tmpFile = makeTempFile(400, ".js");
+    const tmpFile = makeTempFile(620, ".js");
     try {
       const oldStr = Array.from({ length: 30 }, (_, i) => `const x${i} = ${i};`).join("\n");
       const newStr = Array.from({ length: 5 }, (_, i) => `const y${i} = ${i};`).join("\n");

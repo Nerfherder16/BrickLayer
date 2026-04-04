@@ -7,6 +7,7 @@
 const { existsSync, readFileSync } = require("fs");
 const { execSync } = require("child_process");
 const path = require("path");
+const { getSessionId, readStdin } = require('./session/stop-utils');
 
 function findAutopilotDir(startDir) {
   let dir = startDir;
@@ -72,8 +73,6 @@ async function main() {
 
   // If the build already completed, don't warn about an interrupted build.
   if (progress.status === "COMPLETE") process.exit(0);
-
-  const { getSessionId, readStdin } = require('./session/stop-utils');
   const buildSessionId = progress.session_id || null;
   const currentSessionId = getSessionId(parsed);
 

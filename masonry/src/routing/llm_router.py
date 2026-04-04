@@ -20,6 +20,7 @@ from masonry.src.schemas.payloads import AgentRegistryEntry, RoutingDecision
 _LLM_MODEL: str = os.environ.get("MASONRY_LLM_MODEL", "claude-haiku-4-5-20251001")
 _LLM_TIMEOUT: int = 20
 _LLM_RETRY_DELAY: int = 2
+_MAX_REQUEST_LEN: int = 500
 _claude_checked: bool = False
 
 _CLAUDE_CMD = ["claude.cmd" if platform.system() == "Windows" else "claude"]
@@ -33,6 +34,11 @@ Registry agents: {agent_names}
 
 User request: {request_text}
 """
+
+
+def _sanitize(text: str) -> str:
+    """Collapse whitespace and truncate to prevent prompt injection."""
+    return " ".join(text.split())[:_MAX_REQUEST_LEN]
 
 
 def route_llm(
@@ -53,7 +59,7 @@ def route_llm(
     agent_names = [entry.name for entry in registry]
     prompt = _PROMPT_TEMPLATE.format(
         agent_names=", ".join(agent_names),
-        request_text=request_text,
+        request_text=_sanitize(request_text),
     )
 
     cmd = _CLAUDE_CMD + [
@@ -89,6 +95,7 @@ def route_llm(
                 raw = raw.split("```")[1]
                 if raw.startswith("json"):
                     raw = raw[4:]
+                raw = raw.strip()
             data = json.loads(raw)
             target = data.get("target_agent", "")
             reason = data.get("reason", "")

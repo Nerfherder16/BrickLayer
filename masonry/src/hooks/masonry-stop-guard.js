@@ -46,15 +46,11 @@ module.exports.checkOverseerTrigger = checkOverseerTrigger;
 
 /**
  * Run `git status --porcelain` with retry logic.
- * Clears stale index.lock before each attempt and retries up to 3 times
- * with brief pauses to handle concurrent git operations.
+ * Retries up to 3 times with brief pauses to handle concurrent git operations.
+ * Does NOT delete index.lock — that risks corrupting in-progress git operations.
  */
 function gitStatusSafe(cwd, retries = 3) {
   for (let i = 0; i < retries; i++) {
-    const lockFile = path.join(cwd, '.git', 'index.lock');
-    try {
-      if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile);
-    } catch { /* already gone or no permission */ }
     try {
       return execSync('git status --porcelain', {
         encoding: 'utf8', timeout: 6000, cwd,
@@ -193,10 +189,6 @@ async function main() {
 
     // Auto-commit session files rather than blocking — avoids token-expensive Claude intervention.
     try {
-      // Clear lock before staging/committing
-      const lockFile = path.join(cwd, '.git', 'index.lock');
-      try { if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile); } catch { /* ignore */ }
-
       const allSessionFiles = [...sessionModified, ...sessionUntracked];
       // Add files individually — one bad path won't abort the whole batch
       let staged = 0;
@@ -208,8 +200,6 @@ async function main() {
       }
       if (staged === 0) throw new Error('nothing staged');
       const msg = generateAutoCommitMessage(allSessionFiles, cwd);
-      // Clear lock again before commit in case staging created one
-      try { if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile); } catch { /* ignore */ }
       execFileSync('git', ['commit', '-m', msg], { encoding: 'utf8', timeout: 10000, cwd });
       process.stderr.write(
         `[Masonry] Auto-committed ${staged} session file${staged !== 1 ? 's' : ''}: "${msg}"\n`

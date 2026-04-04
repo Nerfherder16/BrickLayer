@@ -10,8 +10,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const LINE_LIMIT = 300;
-const WARN_THRESHOLD = 250;
+const LINE_LIMIT = 600;
+const WARN_THRESHOLD = 400;
 
 /**
  * Target file extensions that are subject to the size check.

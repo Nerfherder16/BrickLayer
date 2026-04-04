@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
-_EMA_HISTORY_PATH: Path = Path(__file__).resolve().parent.parent.parent / "ema_history.json"
+_EMA_HISTORY_PATH: Path = Path(
+    os.environ.get("MASONRY_EMA_HISTORY", str(Path.cwd() / "ema_history.json"))
+)
 
 _FALLBACK = "balanced"
 

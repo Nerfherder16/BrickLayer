@@ -11,6 +11,7 @@ from masonry.src.dspy_pipeline.signatures import KarenSig, ResearchAgentSig
 from masonry.src.schemas.payloads import AgentRegistryEntry
 
 _DEFAULT_MODEL = "anthropic/claude-haiku-4-5-20251001"
+_OLLAMA_MODEL = "ollama_chat/llama3"
 _MIN_EXAMPLES = 5
 
 # Per-agent signature dispatch table — agents not listed fall back to ResearchAgentSig
@@ -22,12 +23,13 @@ _SIG_DISPATCH: dict[str, type] = {
 _METRIC_DISPATCH: dict[str, Callable] = {}
 
 
-def configure_dspy(api_key: Optional[str] = None) -> None:
-    """Configure DSPy with the Anthropic LM."""
+def configure_dspy(api_key: Optional[str] = None, backend: str = "anthropic") -> None:
+    """Configure DSPy with the appropriate LM backend."""
     kwargs: dict[str, Any] = {}
     if api_key is not None:
         kwargs["api_key"] = api_key
-    lm = dspy.LM(_DEFAULT_MODEL, **kwargs)
+    model = _OLLAMA_MODEL if backend == "ollama" else _DEFAULT_MODEL
+    lm = dspy.LM(model, **kwargs)
     dspy.configure(lm=lm)
 
 

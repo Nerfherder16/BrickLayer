@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "diagnose-analyst",
-    "effort": "high",
-    "prompt_summary": "the spec needs to survive compaction, this is not acceptable! All three critical",
-    "timestamp": "2026-04-04T17:14:02.240Z",
+    "agent": "git-nerd",
+    "effort": "medium",
+    "prompt_summary": "yes, git-nerd is naturally supposed to be invoked to do this task",
+    "timestamp": "2026-04-04T17:23:13.297Z",
     "turn_count": 1
   },
   "mortar_consulted": true,

@@ -8,6 +8,11 @@
 .claude/settings.local.json.bak
 .claude/plugins/marketplaces/claude-plugins-official/.git
 
+# Runtime session state — not source, never commit
+**/.mas/
+!**/.mas/kiln.json
+!**/.mas/context.md
+
 # Python build artifacts
 *.egg-info/
 __pycache__/

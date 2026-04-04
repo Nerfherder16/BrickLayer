@@ -102,7 +102,7 @@ async function main() {
 
   // Skip if active campaign
   try {
-    const state = JSON.parse(fs.readFileSync(path.join(cwd, "masonry-state.json"), "utf8"));
+    const state = JSON.parse(fs.readFileSync(path.join(cwd, "masonry", "masonry-state.json"), "utf8"));
     if (state && state.mode) return;
   } catch {}
 

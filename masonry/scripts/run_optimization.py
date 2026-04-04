@@ -74,7 +74,7 @@ def run(
     from masonry.src.dspy_pipeline.optimizer import configure_dspy, optimize_agent
     from masonry.src.dspy_pipeline.signatures import KarenSig, ResearchAgentSig
 
-    configure_dspy(api_key=api_key)
+    configure_dspy(api_key=api_key, backend=backend)
 
     scored_path = Path(base_dir) / "scored_all.jsonl"
     examples = load_training_data_from_scored_all(scored_path, agent_name, base_dir=base_dir)

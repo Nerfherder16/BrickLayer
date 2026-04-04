@@ -21,13 +21,15 @@ function tryJSON(p) {
   try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; }
 }
 
+const { getSessionId, readStdin } = require('./session/stop-utils');
+
 async function main() {
   const raw = await readStdin();
   let input = {};
   try { input = JSON.parse(raw); } catch {}
 
   const cwd = input.cwd || process.cwd();
-  const { getSessionId, readStdin } = require('./session/stop-utils');
+  const MAS_DIR = require('path').join(cwd, ".mas");
   const sessionId = getSessionId(input);
   const ts = new Date().toISOString();
 

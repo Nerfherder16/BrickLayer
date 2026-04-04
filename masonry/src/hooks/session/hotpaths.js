@@ -8,7 +8,7 @@ function getSlug(projectRoot) {
 }
 
 function getHotpathsFile(projectRoot) {
-  return path.join(os.homedir(), '.masonry', 'state', getSlug(projectRoot), 'hotpaths.json');
+  return path.join(os.homedir(), '.mas', 'state', getSlug(projectRoot), 'hotpaths.json');
 }
 
 function readData(projectRoot) {

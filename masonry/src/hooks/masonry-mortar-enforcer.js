@@ -35,7 +35,7 @@ function readGate() {
 
 function logBlocked(subagentType, reason, promptSnippet) {
   try {
-    const logDir = path.join(os.homedir(), ".masonry");
+    const logDir = path.join(os.homedir(), ".mas");
     fs.mkdirSync(logDir, { recursive: true });
     const logPath = path.join(logDir, "mortar_enforcer.log");
     const line = JSON.stringify({
