@@ -53,7 +53,12 @@ async function main() {
   if (!WATCHED_TOOLS.has(tool_name)) process.exit(0);
 
   const rawFilePath = tool_input.file_path || tool_input.path || 'unknown';
-  const filePath = path.normalize(rawFilePath).replace(/\\/g, '/');
+  // Resolve to absolute so relative paths like 'autopilot/build.log' are stored
+  // as '/cwd/autopilot/build.log' — loadSessionWrites can then strip cwd correctly.
+  const filePath = (rawFilePath !== 'unknown'
+    ? path.resolve(cwd, rawFilePath)
+    : rawFilePath
+  ).replace(/\\/g, '/');
 
   // --- Overseer trigger counter ---
   try {

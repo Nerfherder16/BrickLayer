@@ -194,7 +194,7 @@ async function main() {
       let staged = 0;
       for (const f of allSessionFiles) {
         try {
-          execFileSync('git', ['add', '--', f], { encoding: 'utf8', timeout: 5000, cwd });
+          execFileSync('git', ['add', '--', f], { encoding: 'utf8', stdio: 'pipe', timeout: 5000, cwd });
           staged++;
         } catch (_) { /* skip files with corrupt/missing paths */ }
       }

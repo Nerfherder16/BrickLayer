@@ -1,9 +1,9 @@
 {
   "last_route": {
     "agent": "git-nerd",
-    "effort": "medium",
-    "prompt_summary": "yes, git-nerd is naturally supposed to be invoked to do this task",
-    "timestamp": "2026-04-04T17:23:13.297Z",
+    "effort": "low",
+    "prompt_summary": "ok issues found on pr",
+    "timestamp": "2026-04-04T18:03:42.341Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
