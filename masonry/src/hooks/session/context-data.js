@@ -12,6 +12,15 @@ const { execSync } = require("child_process");
 async function addContextData(lines, cwd, state) {
   const { autopilotMode, uiMode } = state;
 
+  // --- Pattern decay: prune stale tool-use patterns at session start ---
+  try {
+    const { toolPatternDecay } = require('../../tools/impl-patterns');
+    const result = await toolPatternDecay({ project_dir: cwd });
+    if (result.pruned > 0) {
+      lines.push(`[Masonry] Pattern decay: ${result.decayed} scores updated, ${result.pruned} stale patterns pruned`);
+    }
+  } catch (_) { /* fail silently */ }
+
   // --- Build Pattern Import: Recall ---
   try {
     const projectFiles = fs.readdirSync(cwd).slice(0, 30);
