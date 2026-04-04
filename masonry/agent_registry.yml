@@ -14,6 +14,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
+  routing_keywords:
+  - run simulation
+  - parameter sweep
+  - sensitivity analysis
+  - boundary finding
+  - model stress test
 - name: peer-reviewer
   file: .claude/agents/peer-reviewer.md
   model: haiku
@@ -93,6 +99,10 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
+  routing_keywords:
+  - route this
+  - dispatch agents
+  - orchestrate
 - name: spec-writer
   file: ~/.claude/agents/spec-writer.md
   model: opus
@@ -106,6 +116,10 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
+  routing_keywords:
+  - write a spec
+  - create a spec
+  - /plan
 - name: developer
   file: ~/.claude/agents/developer.md
   model: sonnet
@@ -156,6 +170,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: candidate
+  routing_keywords:
+  - improve prompt
+  - sharpen prompt
+  - write a prompt
+  - prompt template
+  - system prompt
 - name: refactorer
   file: ~/.claude/agents/refactorer.md
   model: sonnet
@@ -170,6 +190,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: candidate
+  routing_keywords:
+  - refactor
+  - clean up code
+  - extract method
+  - dead code removal
 - name: self-host
   file: ~/.claude/agents/self-host.md
   model: sonnet
@@ -184,6 +209,13 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
+  routing_keywords:
+  - self host
+  - casaos
+  - farmstand deploy
+  - publish to streamy
+  - homelab deploy
+  - deploy to proxmox
 - name: architect
   file: ~/.claude/agents/architect.md
   model: opus
@@ -198,6 +230,13 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: candidate
+  routing_keywords:
+  - system design
+  - adr
+  - architecture decision
+  - design pattern
+  - service mesh
+  - event driven
 - name: devops
   file: ~/.claude/agents/devops.md
   model: sonnet
@@ -252,6 +291,13 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
+  routing_keywords:
+  - excel
+  - spreadsheet
+  - csv data
+  - workbook
+  - xlsm
+  - xlsx formula
 - name: rust-analyst
   file: ~/.claude/agents/rust-analyst.md
   model: sonnet
@@ -266,6 +312,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
+  routing_keywords:
+  - audit rust
+  - review rust
+  - rust safety
+  - rust soundness
+  - rust security
 - name: rust-developer
   file: ~/.claude/agents/rust-developer.md
   model: sonnet
@@ -280,6 +332,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
+  routing_keywords:
+  - write rust
+  - implement rust
+  - rust crate
+  - tokio
+  - actix
 - name: diagnose-analyst
   file: .claude/agents/diagnose-analyst.md
   model: opus
@@ -313,6 +371,13 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
+  routing_keywords:
+  - compliance check
+  - gdpr
+  - hipaa
+  - pci dss
+  - sox audit
+  - regulatory audit
 - name: regulatory-researcher
   file: .claude/agents/regulatory-researcher.md
   model: sonnet
@@ -326,6 +391,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
+  routing_keywords:
+  - regulatory research
+  - legal research
+  - licensing question
+  - tax compliance
 - name: competitive-analyst
   file: .claude/agents/competitive-analyst.md
   model: sonnet
@@ -339,6 +409,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
+  routing_keywords:
+  - competitive analysis
+  - how others solved
+  - analogous systems
+  - market comparison
 - name: research-analyst
   file: .claude/agents/research-analyst.md
   model: sonnet
@@ -352,6 +427,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
+  routing_keywords:
+  - research
+  - investigate
+  - evidence based
+  - literature review
 - name: benchmark-engineer
   file: .claude/agents/benchmark-engineer.md
   model: sonnet
@@ -365,6 +445,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
+  routing_keywords:
+  - benchmark
+  - measure latency
+  - throughput test
+  - performance baseline
+  - load test
 - name: design-reviewer
   file: .claude/agents/design-reviewer.md
   model: sonnet
@@ -379,6 +465,16 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
+  routing_keywords:
+  - design review
+  - review this design
+  - architecture review
+  - design feedback
+  - does this design
+  - design hold up
+  - validate design
+  - validate this design
+  - validate the design
 - name: evolve-optimizer
   file: .claude/agents/evolve-optimizer.md
   model: opus
@@ -457,6 +553,11 @@ agents:
   last_score: null
   runs_since_optimization: 0
   registrySource: frontmatter
+  routing_keywords:
+  - review code
+  - code review
+  - review this diff
+  - review this PR
 - name: fix-implementer
   file: .claude/agents/fix-implementer.md
   model: sonnet
@@ -474,6 +575,10 @@ agents:
   last_score: 60.0
   runs_since_optimization: 0
   registrySource: frontmatter
+  routing_keywords:
+  - apply the fix
+  - implement the fix
+  - fix implementer
 - name: git-nerd
   file: .claude/agents/git-nerd.md
   model: haiku
@@ -589,6 +694,11 @@ agents:
   - regression-detection
   - rollback
   tier: trusted
+  routing_keywords:
+  - agent health
+  - fleet performance
+  - rewrite agent
+  - agent scores
 - name: planner
   file: .claude/agents/planner.md
   model: opus
@@ -662,6 +772,10 @@ agents:
   last_score: null
   runs_since_optimization: 0
   registrySource: frontmatter
+  routing_keywords:
+  - create skill
+  - distill skill
+  - new claude skill
 - name: synthesizer
   file: .claude/agents/synthesizer.md
   model: opus
@@ -732,6 +846,10 @@ agents:
   last_score: null
   runs_since_optimization: 0
   registrySource: frontmatter
+  routing_keywords:
+  - run campaign
+  - research loop
+  - wave plan
 - name: bug-catcher
   file: .claude/agents/bug-catcher.md
   model: sonnet
@@ -820,6 +938,12 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
+  routing_keywords:
+  - design system
+  - figma tokens
+  - dark dashboard
+  - ui component
+  - ux flow
 - name: adbp-model-analyst
   file: .claude/agents/adbp-model-analyst.md
   model: sonnet
@@ -888,7 +1012,10 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - verify bricklayer
+  - check bl install
+  - bl health
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -932,8 +1059,6 @@ agents:
   output_schema: FindingPayload
   tier: trusted
   routing_keywords:
-  - implement
-  - code
   - develop
   - refactor
   dspy_status: not_optimized
@@ -1064,7 +1189,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
-  routing_keywords: []
+  routing_keywords:
+  - production ready
+  - prod check
+  - before merging
+  - pre-merge validation
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -1202,7 +1331,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
-  routing_keywords: []
+  routing_keywords:
+  - mutation test
+  - test quality
+  - mutmut
+  - stryker
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -1341,7 +1474,10 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
-  routing_keywords: []
+  routing_keywords:
+  - three hypotheses
+  - competing diagnoses
+  - parallel debug
   triggers:
   - DEV_ESCALATE (3rd occurrence)
   - parallel debug
@@ -1364,7 +1500,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - bash script
+  - shell script
+  - zsh
+  - posix
+  - cron job
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1385,7 +1526,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - chaos test
+  - fault injection
+  - resilience test
+  - failure simulation
+  - blast radius
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1402,7 +1548,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - multi-stage build
+  - docker image optimization
+  - dockerfile best practices
+  - container security
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1419,7 +1569,14 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - esphome
+  - esp32
+  - firmware
+  - microcontroller
+  - sadie satellite
+  - arduino
+  - rtos
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1436,7 +1593,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - fastapi lifespan
+  - fastapi middleware
+  - dependency injection
+  - pydantic settings
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1453,7 +1614,13 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - game loop
+  - physics engine
+  - ecs
+  - bevy
+  - pygame
+  - unity
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1529,7 +1696,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - kafka
+  - message queue
+  - event streaming
+  - consumer group
+  - topic partitioning
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1570,7 +1742,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - legacy code
+  - modernize
+  - strangler fig
+  - technical debt migration
+  - rewrite legacy
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1587,7 +1764,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - neo4j
+  - cypher query
+  - graph database
+  - knowledge graph
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1604,7 +1785,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - next.js
+  - nextjs
+  - app router
+  - server component
+  - rsc
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1621,7 +1807,13 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - opentelemetry
+  - otel
+  - distributed tracing
+  - jaeger
+  - tempo
+  - otlp
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1638,7 +1830,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - postgres cte
+  - window function
+  - jsonb query
+  - partitioning
+  - explain analyze
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1708,8 +1905,8 @@ agents:
   routing_keywords:
   - verify
   - spec compliance
-  - check
-  - validate
+  - spec violations
+  - verify this
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1751,7 +1948,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - redis pub sub
+  - redis sorted set
+  - redis stream
+  - cache eviction
+  - lua script redis
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1802,7 +2004,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - vector search
+  - embedding pipeline
+  - qdrant collection
+  - annoy index
+  - faiss
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1863,7 +2070,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - mcp server
+  - mcp tool
+  - model context protocol
+  - add mcp
+  - mcp transport
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1885,7 +2097,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - pentest
+  - pen test
+  - authorized test
+  - authorized pentest
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1906,7 +2122,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - arxiv
+  - peer reviewed
+  - academic paper
+  - pubmed
+  - semantic scholar
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -2108,7 +2329,10 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - security hardening
+  - harden server
+  - harden container
   triggers: []
   tools: []
   dspy_status: not_optimized
