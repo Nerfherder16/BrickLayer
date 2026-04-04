@@ -5,37 +5,46 @@ description: Use when working with Docker, Proxmox, CasaOS deployments, or homel
 
 # Homelab Infrastructure
 
-## Key Hosts
-| Device | IP | Purpose |
-|--------|-----|---------|
-| OPNsense | 192.168.50.1 | Gateway, firewall, Unbound DNS |
-| CasaOS | 192.168.50.19 | Docker host (SSH: nerfherder@, pubkey) |
-| Ollama VM | 192.168.50.62 | GPU inference (RTX 3090, 24GB VRAM) |
-| ubuntu-claude | 192.168.50.35 | Claude Code runner (SSH: nerfherder@, pubkey, no password) |
-| Home Assistant | 192.168.50.20 | Smart home automation |
-| VPS (Racknerd) | 104.168.64.181 | Reverse proxy for remote access |
+**Full network map is in `~/.claude/rules/network-map.md` — that is the single source of truth.**
+Everything below is a quick-reference summary; update the network map for permanent changes.
+
+## Quick Host Reference
+
+| Host | IP | SSH | Role |
+|------|----|-----|------|
+| OPNsense | 192.168.50.1 | Web UI | Gateway, firewall, Unbound DNS |
+| farmstand (CasaOS) | 192.168.50.19 | `nerfherder@farmstand` (Tailscale) | Docker host |
+| ollama-vm | 192.168.50.62 | `nerfherder@192.168.50.62` | RTX 3090 inference |
+| ubuntu-claude | 192.168.50.35 | `nerfherder@192.168.50.35` | Claude Code runner |
+| Home Assistant | 192.168.50.20 | — | Smart home |
+| VPS (Racknerd) | 104.168.64.181 | `root@104.168.64.181` | Reverse proxy |
 
 ## Docker on CasaOS
-- Use `docker compose` (not `docker-compose`)
-- Data: `/DATA/AppData/`
-- Always check logs before suggesting fixes: `docker logs -f [container]`
-- VPN-dependent containers route through Gluetun
+
+- Command: `docker compose` (never `docker-compose`)
+- Data root: `/DATA/AppData/`
+- Diagnose first: `docker logs -f [container]` before suggesting any fix
+- VPN containers: route through Gluetun
 
 ## Proxmox
-- **Hardware**: ASUS ROG Zenith Extreme X399, AMD Threadripper 1950X, RTX 3090
-- **BIOS**: IOMMU enabled + "Enumerate all IOMMU in IVRs" (critical for X399)
-- **VM config**: q35 machine type, OVMF (UEFI), `pcie=1,x-vga=1` for GPU passthrough
 
-### Common Proxmox Issues
-1. **VM won't start** → Check if GPU needs vendor-reset
-2. **GPU passthrough fails** → Verify IOMMU groups
-3. **Boot issues** → Add `nomodeset` to GRUB
-4. **Ollama unreachable** → Ensure `OLLAMA_HOST=0.0.0.0:11434`
+- **Hardware**: ASUS ROG Zenith Extreme X399, Threadripper 1950X, RTX 3090
+- **BIOS**: IOMMU enabled + "Enumerate all IOMMU in IVRs" (critical for X399)
+- **GPU passthrough**: q35 + OVMF + `pcie=1,x-vga=1`
 
 ## Troubleshooting Checklist
-1. Service not responding → `docker ps` + `docker logs`
-2. GPU issues → IOMMU groups, `pcie=1,x-vga=1`
-3. Network issues → OPNsense firewall rules, WireGuard tunnel status
-4. VPN check → `docker exec gluetun wget -qO- https://ipinfo.io`
 
-## Recall retrieves detailed service configs, port mappings, and infrastructure history automatically.
+1. Service not responding → `docker ps` then `docker logs -f [name]`
+2. GPU passthrough fails → check IOMMU groups, vendor-reset on VM restart
+3. Network issue → OPNsense firewall rules, WireGuard tunnel status (`ping 192.168.50.19` from VPS)
+4. VPN container → `docker exec gluetun wget -qO- https://ipinfo.io`
+5. Ollama unreachable → ensure `OLLAMA_HOST=0.0.0.0:11434`
+
+## Credentials
+
+Stored in Recall — never hardcoded. Query examples:
+- `porkbun API key` → DNS management keys
+- `opnsense password` → firewall admin
+- `casaos login` → CasaOS admin
+
+See network-map.md for the full credentials index.
