@@ -38,9 +38,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt || pip install -r masonry/requirements.txt || true
-          pip install pytest ruff httpx
+          pip install pytest ruff httpx dspy-ai
           pip install -e masonry/
       - name: Lint with ruff
         run: ruff check .
       - name: Test with pytest
-        run: python -m pytest bl/tests/ -v --tb=short
+        run: python -m pytest bl/tests/ masonry/tests/ -v --tb=short --ignore=masonry/tests/test_backfill_routing_keywords.py --ignore=masonry/tests/test_optimize_with_claude.py
