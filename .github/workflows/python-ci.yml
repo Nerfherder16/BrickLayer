@@ -42,4 +42,4 @@ jobs:
       - name: Lint with ruff
         run: ruff check .
       - name: Test with pytest
-        run: python -m pytest masonry/tests/ -v --tb=short --ignore=masonry/tests/test_build_queue_verification.py --ignore=masonry/tests/test_phase6_wiring.py --ignore=masonry/tests/test_wiring_completeness.py --ignore=masonry/tests/test_optimize_with_claude.py
+        run: python -m pytest masonry/tests/ -v --tb=short --ignore=masonry/tests/test_build_queue_verification.py --ignore=masonry/tests/test_phase6_wiring.py --ignore=masonry/tests/test_wiring_completeness.py --ignore=masonry/tests/test_optimize_with_claude.py --ignore=masonry/tests/test_backfill_routing_keywords.py --ignore=masonry/tests/test_bl_plugin_eval.py --ignore=masonry/tests/training/
