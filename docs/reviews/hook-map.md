@@ -1,0 +1,369 @@
+# Hook Map — BrickLayer 2.0 System
+
+> **Purpose:** Change-impact reference. Before modifying any hook, find it here to understand what it touches and what depends on it.
+>
+> **Last updated:** 2026-04-04
+> **Total hooks:** 52 active (10 enforcing, 18+ async, 24 advisory)
+
+---
+
+## Quick-Reference: What Blocks?
+
+These hooks can **exit 2** and stop an operation entirely:
+
+| Hook | Blocks When |
+|------|-------------|
+| `masonry-stop-guard` | Uncommitted session files at Stop |
+| `masonry-build-guard` | Pending /build tasks at Stop |
+| `masonry-ui-compose-guard` | Pending /ui-compose tasks at Stop |
+| `masonry-dangerous-cmd` | `git stash drop`, `reset --hard`, `push --force` to main |
+| `masonry-content-guard` | Secret/credential patterns in file write |
+| `masonry-tdd-enforcer` | Writing impl without test (in /build mode only) |
+| `masonry-file-size-guard` | File > 600 lines |
+| `masonry-context-safety` | ExitPlanMode with uncommitted plan state |
+| `masonry-jcodemunch-nudge` | Read on large file (suggests symbol retrieval instead) |
+| `masonry-routing-gate` | Write/Edit violating file placement routing |
+| `masonry-block-no-verify` | git hook bypass attempts |
+| `masonry-subagent-tracker` | Invalid agent spawn (not in registry) |
+
+---
+
+## Event → Hook Map
+
+### SessionStart
+| Hook | Reads | Writes | External |
+|------|-------|--------|----------|
+| `masonry-session-start` | `.autopilot/mode`, `.autopilot/progress.json`, `masonry.json`, `masonry-state.json`, git status | `/tmp/masonry-snap-{sessionId}.json` (pre-dirty snapshot) | Recall API (addContextData) |
+
+**Delegates to sub-modules:**
+- `session/build-state.js` — builds/UI/campaign state
+- `session/project-detect.js` — BL project detection, session lock
+- `session/context-data.js` — Recall patterns, codebase map, swarm resume
+- `session/hotpaths.js` — most-edited files context
+- `session/dead-refs.js` — dead reference audit
+
+**Change impact:** Modifying this hook affects what context is available at the start of EVERY session. Any change here breaks session continuity, Mortar routing priming, and the pre-dirty snapshot (which stop-guard depends on).
+
+---
+
+### UserPromptSubmit (fires in order)
+| # | Hook | Reads | Writes | External | Blocks |
+|---|------|-------|--------|----------|--------|
+| 1 | `recall-retrieve` | `.mas/recall_degraded`, session state `/tmp/.cache/recall/session-state-{sessionId}.json`, injected tracker | Session state, injected tracker, periodic Recall feedback | Recall API (`/search/browse`, `/search/rehydrate`, `/session/start`, `/search/track-injection`, `/admin/profile/proposals`) | No |
+| 2 | `masonry-register` | `masonry.json`, `masonry-state.json`, `.autopilot/mode`, `.claude/agents/mortar.md` (existence) | Session temp `/tmp/masonry-{sessionId}.json` | Recall API (handoff/finding search) | No |
+| 3 | `masonry-prompt-router` | `agent_registry.yml`, `masonry-state.json`, `.autopilot/strategy` | `masonry-state.json` (last_route, turn_count), `.autopilot/strategy`, gate file `/tmp/masonry-mortar-gate.json` | registry-router.detectIntentAsync | No |
+| 4 | `masonry-prompt-inject` | Minimal | Advisory system message | — | No |
+| 5 | `better-hook.sh` | — | tmux status | tmux | No |
+
+**Change impact on recall-retrieve:** Affects EVERY prompt — what memories Claude sees. Helper modules in `/home/nerfherder/.claude/recall-hooks/`:
+- `recall-retrieve-query.js` — query classification, term extraction, shouldSkip() logic
+- `recall-retrieve-results.js` — result ranking, adaptive filtering, format
+- `recall-retrieve-session.js` — session state persistence
+- `domains.js` — project→domain mappings
+
+**Change impact on masonry-prompt-router:** Affects routing for every request. The gate file it writes is read by downstream hooks during the same prompt turn. Changing routing logic here cascades to all agent dispatch.
+
+---
+
+### PreToolUse — Write/Edit
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-routing-gate` | `masonry-state.json`, mortar gate file, target path | Gate state | — | **Yes** |
+| `masonry-pre-protect` | File permissions, protected file list | Warning to stderr | — | No |
+| `masonry-approver` | Tool input, approval rules | Approval decision | — | No |
+| `masonry-dep-audit` | File content, dependency manifests, lock files | Warnings to stderr | — | No |
+| `masonry-content-guard` | File content (secret patterns) | — | — | **Yes** |
+
+---
+
+### PreToolUse — Bash
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-block-no-verify` | Command text, git hooks status | — | — | **Yes** |
+| `masonry-dangerous-cmd` | Command text, `git stash list`, git status | `.mas/mistakes.jsonl` | Git | **Yes** |
+
+---
+
+### PreToolUse — Agent
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-mortar-enforcer` | Agent params, mortar gate state | Agent spawn telemetry | — | No |
+| `masonry-preagent-tracker` | Agent params | `.autopilot/subagent_log.jsonl` | Recall API | No (async) |
+| `masonry-pre-task` | `.autopilot/strategy`, `.autopilot/progress.json`, agent params | `.autopilot/telemetry.jsonl`, `.autopilot/current-task-id`, strategy system message | `training/selector.py` (EMA strategy) | No (async) |
+
+---
+
+### PreToolUse — Read
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-jcodemunch-nudge` | File path, file size | — | — | **Yes** (large files) |
+
+---
+
+### PreToolUse — ExitPlanMode
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-context-safety` | Plan state, git status | — | — | **Yes** |
+
+---
+
+### PostToolUse — Write/Edit
+Fires in order. `masonry-post-write-runner` is a bundle that spawns 9 child hooks in parallel.
+
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-post-write-runner` | File path, content | Delegates to children | Spawns child processes | No (async) |
+| ↳ `observe-edit` (Recall hook) | File path, content (≤10KB), HIGH_VALUE_PATTERNS | — | Recall API (`/observe/file-change`, `/observe/file-visit`) | No |
+| ↳ `masonry-observe` | `findings/*.md`, `masonry.json`, session state | `.mas/timing.jsonl`, `.mas/agent_scores.json`, `.mas/recall_log.jsonl`, activity log `/tmp/masonry-activity-{sessionId}.ndjson` | Recall API (storeMemory), `routing_log.jsonl` | No |
+| ↳ `masonry-rust-check` | `.rs` files | — | rustc/cargo | No |
+| ↳ `masonry-vitest` | Test files | — | vitest | No |
+| ↳ `masonry-style-checker` | Code files | — | eslint, prettier | No |
+| ↳ `masonry-agent-onboard` | Agent `.md` files | Agent registry | — | No |
+| ↳ `masonry-build-patterns` | Build output | Recall pattern store | Recall API | No |
+| ↳ `masonry-pulse` | Session state | Pulse telemetry | — | No |
+| ↳ `masonry-checkpoint` | Progress state | Checkpoint file | — | No |
+| `masonry-hook-watch` | File path (hooks or settings.json) | Smoke test results to stderr | `masonry/scripts/hook-smoke.js` | No (async) |
+| `masonry-tdd-enforcer` | File path, `.autopilot/mode`, test file candidates | Warnings to stderr | — | **Yes** (in /build) |
+| `masonry-file-size-guard` | File size | Warnings | — | **Yes** (>600 lines) |
+
+---
+
+### PostToolUse — Write (only)
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-build-outcome` | Task ID, build progress | Build telemetry | — | No (async) |
+
+---
+
+### PostToolUse — Bash
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-mistake-monitor` | Command, exit code, output | `.mas/mistakes.jsonl` | — | No (async) |
+
+---
+
+### PostToolUse — Agent
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-post-task` | `.autopilot/telemetry.jsonl`, `.autopilot/current-task-id`, `.autopilot/progress.json`, tool result | `.autopilot/telemetry.jsonl` (duration), `pattern-confidence.json` (Bayesian update), `.autopilot/topology`, `.autopilot/recall-injection.json` | `reasoning/bank.py`, `reasoning/graph.py`, `training/collector.py` | No (async) |
+| `masonry-agent-complete` | Agent result, task outcome, progress state | `.autopilot/progress.json` (mark DONE), completion telemetry | Recall API | No (async) |
+| `masonry-auto-pr` | Agent completion status, git branch state, progress | Git commits | GitHub API (PR creation) | No (async) |
+
+---
+
+### PostToolUseFailure
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-tool-failure` | Tool error output | Error logs | — | No |
+
+---
+
+### SubagentStart
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-subagent-tracker` | Agent params, `agent_registry.yml` | `.autopilot/subagent_log.jsonl` | Recall API | **Yes** (invalid agent) |
+
+---
+
+### SubagentStop
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-agent-complete` | Agent result | Progress state | Recall API | No (async) |
+| `masonry-auto-pr` | Completion status | — | GitHub API | No (async) |
+
+---
+
+### TeammateIdle / TaskCompleted
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-teammate-idle` | Teammate status, task list, agent assignment state | Teammate tracking telemetry | — | No |
+
+---
+
+### PreCompact / PostCompact
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-pre-compact` | Context state, session transcript | Pre-compact checkpoint | — | No |
+| `masonry-post-compact` | Compact history, checkpoint files | Restored context, summary injection | — | No |
+
+---
+
+### Stop
+Sync blocking hooks fire first, then `masonry-stop-runner` fires async in parallel:
+
+**Sync (blocking) — fire in order:**
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-stop-checker` | Git status, build state | — | Git | No |
+| `masonry-stop-guard` | Git status, `/tmp/masonry-snap-{sessionId}.json`, activity log, `.autopilot/mode`, `.autopilot/progress.json` | Auto-commits session files, git tags, `phase-tags.json` | Git | **Yes** |
+| `masonry-build-guard` | `.autopilot/mode`, `.autopilot/progress.json`, git remote | Git tags, `phase-tags.json`, backup cleanup | Git | **Yes** |
+| `masonry-context-monitor` | Context usage, memory state | Context monitoring telemetry | — | No |
+| `masonry-ui-compose-guard` | `.ui/mode`, `.ui/progress.json` | — | — | **Yes** |
+
+**Async — spawned by `masonry-stop-runner` (70s window, all parallel):**
+| Hook | Reads | Writes | External |
+|------|-------|--------|----------|
+| `session-save` (Recall) | Session ID | — | Recall API `/observe/session-snapshot` |
+| `recall-session-summary` (Recall) | Session transcript path | — | Recall API `/observe/session-summary` |
+| `masonry-session-summary` | Telemetry, progress state | Session summary file | — |
+| `masonry-handoff` | Campaign state, findings, progress | Recall handoff memory | Recall API (storeMemory, tag: `masonry:handoff`) |
+| `masonry-score-trigger` | ReasoningBank state | Score updates | — |
+| `masonry-pagerank-trigger` | Pattern citation graph | — | `masonry_pagerank_run` |
+| `masonry-system-status` | System state | System status snapshot | — |
+| `masonry-training-export` | `.autopilot/telemetry.jsonl`, `agent_db.json`, `pattern-confidence.json` | Training export files | — |
+| `masonry-ema-collector` | EMA metrics | EMA records | — |
+| `better-hook.sh` | — | tmux status | tmux |
+
+---
+
+### SessionEnd
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `masonry-session-end` | `.autopilot/mode/progress.json`, `.ui/mode/progress.json`, session transcript, `agent_db.json` | `.autopilot/session-notes.md`, `.ui/session-notes.md`, releases `.mas/session.lock`, updates `agent_db.json`, removes `/tmp/masonry-snap-{sessionId}.json` | `discover_skill_candidates.py` | No |
+
+---
+
+### Notification
+| Hook | Reads | Writes | External | Blocks |
+|------|-------|--------|----------|--------|
+| `better-hook.sh` | — | tmux status | tmux | No |
+
+---
+
+## Shared State Files (touched by multiple hooks)
+
+Understanding which hooks share state is critical for change impact:
+
+| File | Written By | Read By |
+|------|-----------|---------|
+| `.autopilot/mode` | `/build` pipeline, spec-writer | masonry-session-start, masonry-stop-guard, masonry-build-guard, masonry-tdd-enforcer, masonry-session-end |
+| `.autopilot/progress.json` | developer, queen-coordinator | masonry-session-start, masonry-stop-guard, masonry-build-guard, masonry-pre-task, masonry-post-task, masonry-agent-complete, masonry-session-end |
+| `.autopilot/telemetry.jsonl` | masonry-pre-task | masonry-post-task, masonry-training-export |
+| `.autopilot/current-task-id` | masonry-pre-task | masonry-post-task |
+| `.autopilot/strategy` | masonry-prompt-router | masonry-pre-task |
+| `.autopilot/pattern-confidence.json` | masonry-post-task | masonry-pre-task (EMA), masonry-training-export |
+| `.autopilot/subagent_log.jsonl` | masonry-preagent-tracker, masonry-subagent-tracker | — |
+| `.mas/mistakes.jsonl` | masonry-dangerous-cmd, masonry-mistake-monitor | — |
+| `.mas/timing.jsonl` | masonry-observe | — |
+| `.mas/agent_scores.json` | masonry-observe | masonry-session-end |
+| `.mas/recall_log.jsonl` | masonry-observe | — |
+| `.mas/session.json` | masonry-session-start | — |
+| `masonry-state.json` | masonry-prompt-router, masonry-register | masonry-session-start, masonry-prompt-router, masonry-routing-gate |
+| `/tmp/masonry-snap-{sessionId}.json` | masonry-session-start | masonry-stop-guard |
+| `/tmp/masonry-activity-{sessionId}.ndjson` | masonry-observe | masonry-stop-guard |
+| `/tmp/masonry-mortar-gate.json` | masonry-prompt-router | masonry-routing-gate, masonry-mortar-enforcer |
+| `/tmp/masonry-{sessionId}.json` | masonry-register | masonry-register (subsequent calls) |
+| `/tmp/.cache/recall/session-state-{sessionId}.json` | recall-retrieve | recall-retrieve |
+| `/tmp/.cache/recall/injected-{sessionId}.json` | recall-retrieve | recall-retrieve |
+| `phase-tags.json` | masonry-stop-guard, masonry-build-guard | — |
+| `routing_log.jsonl` | masonry-observe | DSPy training pipeline |
+| `agent_db.json` | masonry-session-end | masonry-subagent-tracker, masonry-training-export |
+
+---
+
+## External System Dependency Map
+
+| System | Hooks That Call It | Purpose |
+|--------|--------------------|---------|
+| **Recall API** (`100.70.195.84:8200`) | recall-retrieve, masonry-register, observe-edit, masonry-observe, masonry-handoff, session-save, recall-session-summary, masonry-preagent-tracker, masonry-subagent-tracker, masonry-agent-complete, masonry-build-patterns | Memory inject, observation, handoff, session snapshot |
+| **Git** | masonry-session-start, masonry-stop-guard, masonry-build-guard, masonry-stop-checker, masonry-dangerous-cmd | Status, commit, tag |
+| **GitHub API** | masonry-auto-pr | PR creation on agent task completion |
+| **Python scripts** | masonry-pre-task (`training/selector.py`), masonry-post-task (`reasoning/bank.py`, `reasoning/graph.py`, `training/collector.py`), masonry-session-end (`discover_skill_candidates.py`) | EMA strategy, Recall sync, pattern graph, skill discovery |
+| **tmux** | better-hook.sh (all variants) | Status line updates |
+| **eslint/prettier** | masonry-style-checker (inside post-write-runner) | Style enforcement |
+| **rustc/cargo** | masonry-rust-check (inside post-write-runner) | Rust compilation check |
+| **vitest** | masonry-vitest (inside post-write-runner) | Test runner |
+| **masonry_pagerank_run** (MCP) | masonry-pagerank-trigger | Pattern graph scoring |
+
+---
+
+## Hook Chains — Flow Summary
+
+```
+SessionStart
+  └── masonry-session-start
+        ├── Reads pre-dirty git state → /tmp/masonry-snap
+        └── Injects Mortar routing + Recall context
+
+Prompt
+  ├── recall-retrieve       → queries Recall, injects memories
+  ├── masonry-register      → Mortar routing directive + Recall handoff hydration
+  ├── masonry-prompt-router → intent detection, writes gate file
+  └── masonry-prompt-inject → context hints
+
+PreToolUse:Write/Edit
+  ├── masonry-routing-gate   [BLOCKS]
+  ├── masonry-pre-protect
+  ├── masonry-approver
+  ├── masonry-dep-audit
+  └── masonry-content-guard  [BLOCKS on secrets]
+
+PreToolUse:Bash
+  ├── masonry-block-no-verify [BLOCKS]
+  └── masonry-dangerous-cmd   [BLOCKS on git stash drop / reset --hard / force push]
+
+PreToolUse:Read
+  └── masonry-jcodemunch-nudge [BLOCKS large files]
+
+PostToolUse:Write/Edit
+  ├── masonry-post-write-runner (async bundle)
+  │     ├── observe-edit → Recall /observe/file-change
+  │     ├── masonry-observe → findings detection, code facts to Recall
+  │     ├── masonry-rust-check
+  │     ├── masonry-vitest
+  │     ├── masonry-style-checker
+  │     ├── masonry-agent-onboard
+  │     ├── masonry-build-patterns
+  │     ├── masonry-pulse
+  │     └── masonry-checkpoint
+  ├── masonry-hook-watch (async, fires on hooks/settings.json changes)
+  ├── masonry-tdd-enforcer   [BLOCKS in /build]
+  └── masonry-file-size-guard [BLOCKS >600 lines]
+
+PostToolUse:Agent (+ SubagentStop)
+  ├── masonry-post-task      → Bayesian confidence update, training export
+  ├── masonry-agent-complete → marks progress DONE
+  └── masonry-auto-pr        → GitHub PR creation
+
+Stop
+  ├── masonry-stop-checker
+  ├── masonry-stop-guard       [BLOCKS on uncommitted session files]
+  ├── masonry-build-guard      [BLOCKS on pending /build tasks]
+  ├── masonry-context-monitor
+  ├── masonry-ui-compose-guard [BLOCKS on pending /ui-compose]
+  └── masonry-stop-runner (async, 70s window)
+        ├── session-save → Recall snapshot
+        ├── recall-session-summary → Recall summary
+        ├── masonry-handoff → Recall handoff tag
+        ├── masonry-training-export
+        └── ... (7 more background hooks)
+
+SessionEnd
+  └── masonry-session-end
+        ├── Releases .mas/session.lock
+        ├── Updates agent_db.json
+        └── Skill discovery (rate-limited 24h)
+```
+
+---
+
+## Change Impact Guide
+
+**Before modifying any hook, check this table:**
+
+| If you change... | Also check/test... |
+|-----------------|-------------------|
+| `masonry-session-start` | `masonry-stop-guard` (depends on snap file format), `session/` sub-modules |
+| `masonry-stop-guard` | `/tmp/masonry-snap-*` format (from session-start), `/tmp/masonry-activity-*` format (from masonry-observe) |
+| `masonry-prompt-router` | Gate file format (`/tmp/masonry-mortar-gate.json`), `masonry-routing-gate`, `masonry-mortar-enforcer` |
+| `masonry-observe` | Activity log format (masonry-stop-guard reads it), `masonry-handoff` (reads findings state) |
+| `masonry-pre-task` | `masonry-post-task` (they share telemetry.jsonl format and current-task-id) |
+| `masonry-post-task` | `pattern-confidence.json` format (masonry-pre-task reads it), `masonry-training-export` |
+| `recall-retrieve` | Helper modules in `recall-hooks/`: `recall-retrieve-query.js`, `recall-retrieve-results.js`, `recall-retrieve-session.js` |
+| `masonry-post-write-runner` | All 9 child hook scripts it spawns |
+| `masonry-hook-watch` | `masonry/scripts/hook-smoke.js` |
+| Any hook in `masonry/src/hooks/` | `masonry-hook-watch` will auto-fire smoke tests |
+| `settings.json` | `masonry-hook-watch` will auto-fire smoke tests; also verify event+matcher ordering |
+| `.autopilot/mode` format | masonry-stop-guard, masonry-build-guard, masonry-tdd-enforcer, masonry-session-end |
+| `.autopilot/progress.json` format | masonry-stop-guard, masonry-build-guard, masonry-pre-task, masonry-post-task, masonry-agent-complete |
+| Recall API schema | recall-retrieve, observe-edit, masonry-observe, masonry-handoff, session-save, recall-session-summary |

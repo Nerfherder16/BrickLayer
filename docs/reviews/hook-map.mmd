@@ -1,0 +1,236 @@
+---
+title: BrickLayer 2.0 Hook Wiring Map
+---
+flowchart TD
+    %% ── Events ─────────────────────────────────────────────────
+    E_SS([SessionStart])
+    E_UP([UserPromptSubmit])
+    E_PREW([PreToolUse · Write/Edit])
+    E_PREB([PreToolUse · Bash])
+    E_PREA([PreToolUse · Agent])
+    E_PRER([PreToolUse · Read])
+    E_PREX([PreToolUse · ExitPlanMode])
+    E_POSTW([PostToolUse · Write/Edit])
+    E_POSTB([PostToolUse · Bash])
+    E_POSTA([PostToolUse · Agent])
+    E_POSTF([PostToolUseFailure])
+    E_SUBA([SubagentStart])
+    E_SUBS([SubagentStop])
+    E_STOP([Stop])
+    E_SE([SessionEnd])
+    E_NOTIF([Notification])
+
+    %% ── External Systems ────────────────────────────────────────
+    RECALL[(Recall API\n100.70.195.84:8200)]
+    GIT[(Git)]
+    GITHUB[(GitHub API)]
+    PYTHON[(Python Scripts\ntraining/ reasoning/)]
+    TMUX[(tmux)]
+    LINTERS[(eslint / prettier\nrustc / vitest)]
+
+    %% ── Shared State Files ──────────────────────────────────────
+    SNAP["/tmp/masonry-snap-{id}.json"]
+    GATE["/tmp/masonry-mortar-gate.json"]
+    ACTIVITY["/tmp/masonry-activity-{id}.ndjson"]
+    AUTOPILOT[".autopilot/\nmode · progress · strategy\ntelemetry · current-task-id\npattern-confidence"]
+    MASSTATE["masonry-state.json"]
+    MASLOG[".mas/\ntiming · agent_scores\nmistakes · recall_log"]
+
+    %% ═══════════════════════════════════════════════════════════
+    %% SESSION START
+    %% ═══════════════════════════════════════════════════════════
+    E_SS --> SS["masonry-session-start\n(8s, advisory)"]
+    SS -->|reads| AUTOPILOT
+    SS -->|reads| GIT
+    SS -->|writes pre-dirty snapshot| SNAP
+    SS -->|Mortar routing directive| RECALL
+    SS -->|reads/writes| MASSTATE
+
+    %% ═══════════════════════════════════════════════════════════
+    %% PROMPT CHAIN
+    %% ═══════════════════════════════════════════════════════════
+    E_UP --> RR["recall-retrieve\n(Recall hook, 8s)"]
+    E_UP --> MR["masonry-register\n(8s)"]
+    E_UP --> MPR["masonry-prompt-router\n(5s)"]
+    E_UP --> MPI["masonry-prompt-inject\n(5s)"]
+    E_UP --> BH1["better-hook.sh\n(3s)"]
+
+    RR -->|search / browse / rehydrate| RECALL
+    RR -->|reads/writes session state| RECALL
+    MR -->|handoff search| RECALL
+    MR -->|reads/writes| MASSTATE
+    MPR -->|reads| MASSTATE
+    MPR -->|writes gate file| GATE
+    MPR -->|writes| AUTOPILOT
+    BH1 --> TMUX
+
+    %% ═══════════════════════════════════════════════════════════
+    %% PRE-TOOL: WRITE/EDIT
+    %% ═══════════════════════════════════════════════════════════
+    E_PREW --> RG["masonry-routing-gate\n(3s) 🔴BLOCKS"]
+    E_PREW --> PP["masonry-pre-protect\n(5s, advisory)"]
+    E_PREW --> MA["masonry-approver\n(5s, advisory)"]
+    E_PREW --> DA["masonry-dep-audit\n(10s, advisory)"]
+    E_PREW --> CG["masonry-content-guard\n(5s) 🔴BLOCKS secrets"]
+
+    RG -->|reads| GATE
+    RG -->|reads| MASSTATE
+
+    %% ═══════════════════════════════════════════════════════════
+    %% PRE-TOOL: BASH
+    %% ═══════════════════════════════════════════════════════════
+    E_PREB --> BNV["masonry-block-no-verify\n(3s) 🔴BLOCKS"]
+    E_PREB --> DC["masonry-dangerous-cmd\n(5s) 🔴BLOCKS\ngit stash drop\nreset --hard\nforce push main"]
+    DC -->|reads| GIT
+    DC -->|writes blocked cmds| MASLOG
+
+    %% ═══════════════════════════════════════════════════════════
+    %% PRE-TOOL: AGENT
+    %% ═══════════════════════════════════════════════════════════
+    E_PREA --> ME["masonry-mortar-enforcer\n(5s, advisory)"]
+    E_PREA --> PAT["masonry-preagent-tracker\n(3s, async)"]
+    E_PREA --> PT["masonry-pre-task\n(3s, async)"]
+
+    ME -->|reads| GATE
+    PAT -->|track agent spawn| RECALL
+    PAT -->|writes| AUTOPILOT
+    PT -->|reads/writes| AUTOPILOT
+    PT -->|EMA strategy| PYTHON
+
+    %% ═══════════════════════════════════════════════════════════
+    %% PRE-TOOL: READ + EXITPLANMODE
+    %% ═══════════════════════════════════════════════════════════
+    E_PRER --> JN["masonry-jcodemunch-nudge\n(3s) 🔴BLOCKS large files"]
+    E_PREX --> CS["masonry-context-safety\n(5s) 🔴BLOCKS"]
+
+    %% ═══════════════════════════════════════════════════════════
+    %% POST-TOOL: WRITE/EDIT
+    %% ═══════════════════════════════════════════════════════════
+    E_POSTW --> PWR["masonry-post-write-runner\n(35s, async bundle)"]
+    E_POSTW --> HW["masonry-hook-watch\n(25s, async)"]
+    E_POSTW --> TDD["masonry-tdd-enforcer\n(5s) 🔴BLOCKS in /build"]
+    E_POSTW --> FSG["masonry-file-size-guard\n(5s) 🔴BLOCKS >600 lines"]
+
+    subgraph POST_WRITE_BUNDLE ["masonry-post-write-runner children (parallel)"]
+        OE["observe-edit\n(Recall hook)"]
+        MO["masonry-observe"]
+        RC["masonry-rust-check"]
+        VT["masonry-vitest"]
+        SC["masonry-style-checker"]
+        AO["masonry-agent-onboard"]
+        BP["masonry-build-patterns"]
+        PU["masonry-pulse"]
+        CP["masonry-checkpoint"]
+    end
+    PWR --> POST_WRITE_BUNDLE
+
+    OE -->|file-change / file-visit| RECALL
+    MO -->|findings + code facts| RECALL
+    MO -->|writes| MASLOG
+    MO -->|writes session activity| ACTIVITY
+    RC --> LINTERS
+    VT --> LINTERS
+    SC --> LINTERS
+
+    HW -->|smoke tests| LINTERS
+    TDD -->|reads| AUTOPILOT
+    FSG -->|warns/blocks| FSG
+
+    %% ═══════════════════════════════════════════════════════════
+    %% POST-TOOL: BASH
+    %% ═══════════════════════════════════════════════════════════
+    E_POSTB --> MM["masonry-mistake-monitor\n(5s, async)"]
+    MM -->|writes errors| MASLOG
+
+    %% ═══════════════════════════════════════════════════════════
+    %% POST-TOOL: AGENT (+ SubagentStop)
+    %% ═══════════════════════════════════════════════════════════
+    E_POSTA --> POTA["masonry-post-task\n(3s, async)"]
+    E_POSTA --> AC["masonry-agent-complete\n(5s, async)"]
+    E_POSTA --> APR["masonry-auto-pr\n(15s, async)"]
+    E_SUBS --> AC
+    E_SUBS --> APR
+
+    POTA -->|reads/writes| AUTOPILOT
+    POTA -->|Bayesian update| AUTOPILOT
+    POTA -->|bank / graph / collector| PYTHON
+    AC -->|marks DONE| AUTOPILOT
+    AC --> RECALL
+    APR --> GITHUB
+    APR --> GIT
+
+    %% ═══════════════════════════════════════════════════════════
+    %% FAILURE + SUBAGENT START
+    %% ═══════════════════════════════════════════════════════════
+    E_POSTF --> TF["masonry-tool-failure\n(5s, advisory)"]
+    E_SUBA --> SAT["masonry-subagent-tracker\n(3s) 🔴BLOCKS invalid agent"]
+    SAT --> RECALL
+
+    %% ═══════════════════════════════════════════════════════════
+    %% STOP
+    %% ═══════════════════════════════════════════════════════════
+    E_STOP --> SCK["masonry-stop-checker\n(45s)"]
+    E_STOP --> SG["masonry-stop-guard\n🔴BLOCKS uncommitted\nsession files"]
+    E_STOP --> BG["masonry-build-guard\n🔴BLOCKS pending\n/build tasks"]
+    E_STOP --> CM["masonry-context-monitor\n(5s, advisory)"]
+    E_STOP --> UCG["masonry-ui-compose-guard\n🔴BLOCKS pending\n/ui-compose"]
+    E_STOP --> SR["masonry-stop-runner\n(70s async bundle)"]
+
+    SG -->|reads| SNAP
+    SG -->|reads| ACTIVITY
+    SG -->|reads| AUTOPILOT
+    SG -->|auto-commit + phase tags| GIT
+    BG -->|reads| AUTOPILOT
+    BG -->|phase tags| GIT
+    SCK --> GIT
+
+    subgraph STOP_RUNNER_BUNDLE ["masonry-stop-runner children (parallel)"]
+        SSV["session-save\n(Recall hook, 10s)"]
+        RSS["recall-session-summary\n(Recall hook, 10s)"]
+        MSS["masonry-session-summary\n(8s)"]
+        MHO["masonry-handoff\n(8s)"]
+        MSCT["masonry-score-trigger\n(5s)"]
+        MPT["masonry-pagerank-trigger\n(5s)"]
+        MSY["masonry-system-status\n(8s)"]
+        MTE["masonry-training-export\n(65s)"]
+        EMAC["masonry-ema-collector\n(5s)"]
+        BH3["better-hook.sh\n(3s)"]
+    end
+    SR --> STOP_RUNNER_BUNDLE
+
+    SSV --> RECALL
+    RSS --> RECALL
+    MHO -->|handoff tag| RECALL
+    MTE -->|reads| AUTOPILOT
+    BH3 --> TMUX
+
+    %% ═══════════════════════════════════════════════════════════
+    %% SESSION END
+    %% ═══════════════════════════════════════════════════════════
+    E_SE --> SEND["masonry-session-end\n(8s)"]
+    SEND -->|releases session.lock| MASLOG
+    SEND -->|updates agent_db| AUTOPILOT
+    SEND -->|skill discovery (24h rate)| PYTHON
+    SEND -->|deletes| SNAP
+
+    %% ═══════════════════════════════════════════════════════════
+    %% NOTIFICATION
+    %% ═══════════════════════════════════════════════════════════
+    E_NOTIF --> BH2["better-hook.sh\n(3s)"]
+    BH2 --> TMUX
+
+    %% ── Styles ──────────────────────────────────────────────────
+    classDef event fill:#1e3a5f,stroke:#4a90d9,color:#e0f0ff
+    classDef blocking fill:#5c1a1a,stroke:#e05252,color:#ffe0e0
+    classDef async fill:#1a3d2b,stroke:#4caf7d,color:#e0ffe8
+    classDef advisory fill:#2d2d10,stroke:#c9a84c,color:#fffde0
+    classDef external fill:#2a1f3d,stroke:#9b7fd4,color:#f0e0ff
+    classDef state fill:#1a2a3a,stroke:#5b8db8,color:#d0e8ff
+    classDef bundle fill:#1a2a1a,stroke:#4a7a4a,color:#d0f0d0
+
+    class E_SS,E_UP,E_PREW,E_PREB,E_PREA,E_PRER,E_PREX,E_POSTW,E_POSTB,E_POSTA,E_POSTF,E_SUBA,E_SUBS,E_STOP,E_SE,E_NOTIF event
+    class RG,CG,BNV,DC,JN,CS,TDD,FSG,SG,BG,UCG,SAT blocking
+    class PAT,PT,POTA,AC,APR,MM,PWR,HW,SR,SSV,RSS,MSS,MHO,MSCT,MPT,MSY,MTE,EMAC async
+    class PP,MA,DA,ME,CM,TF,MPI advisory
+    class RECALL,GIT,GITHUB,PYTHON,TMUX,LINTERS external
+    class SNAP,GATE,ACTIVITY,AUTOPILOT,MASSTATE,MASLOG state
