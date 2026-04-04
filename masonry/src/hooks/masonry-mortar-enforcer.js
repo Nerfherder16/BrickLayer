@@ -95,7 +95,7 @@ async function main() {
   if (!gate || !gate.chain || gate.chain.length === 0) {
     // No chain yet — main session context.
     // Main session can only spawn mortar (or Claude Code built-ins).
-    const MAIN_SESSION_ALLOWED = new Set(["mortar", "explore", "general-purpose"]);
+    const MAIN_SESSION_ALLOWED = new Set(["mortar", "explore", "general-purpose", "self-host"]);
     if (!MAIN_SESSION_ALLOWED.has(subagentType)) {
       block(subagentType, [
         `⛔ Agent spawn blocked: main session cannot spawn "${subagentType}" directly.`,

@@ -1,0 +1,244 @@
+#!/usr/bin/env node
+/**
+ * UserPromptSubmit hook: Query Recall for relevant memories before Claude responds.
+ * Always exits silently on failure — never block the user.
+ */
+
+const { writeFileSync, mkdirSync, existsSync, readFileSync } = require("fs");
+const { join } = require("path");
+
+const RECALL_HOST = process.env.RECALL_HOST || "http://100.70.195.84:8200";
+const RECALL_API_KEY = process.env.RECALL_API_KEY || "recall-admin-key-change-me";
+const CACHE_DIR = join(process.env.HOME || process.env.USERPROFILE || "/tmp", ".cache", "recall");
+
+const { PROJECT_DOMAINS } = require("./domains");
+const { shouldSkip, extractKeyTerms, classifyQueryType, STOP_WORDS } = require("./recall-retrieve-query");
+const { selectBestResults, adaptiveFilter, chronologicalSort, formatContext, formatRehydrate } = require("./recall-retrieve-results");
+const {
+  getInjectedFile, getSessionStateFile, isFirstPrompt,
+  loadSessionState, saveSessionState, needsCheckpoint,
+  submitPeriodicFeedback, storeCheckpointSummary, submitImplicitFeedback,
+} = require("./recall-retrieve-session");
+
+// Change 3: module-scope in-memory dedup map (survives across hook invocations in same process)
+const injectedIds = new Map();
+
+function readStdin() {
+  return new Promise((resolve) => {
+    let data = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (chunk) => (data += chunk));
+    process.stdin.on("end", () => resolve(data));
+    setTimeout(() => resolve(data), 500);
+  });
+}
+
+async function main() {
+  const input = await readStdin();
+  if (!input) return;
+  let parsed;
+  try { parsed = JSON.parse(input); } catch { return; }
+
+  const prompt = parsed.prompt || "";
+  if (shouldSkip(prompt)) return;
+
+  const cwd = parsed.cwd || "";
+  const projectName = cwd.split(/[/\\]/).filter(Boolean).pop() || "";
+  const domain = PROJECT_DOMAINS[projectName.toLowerCase()] || projectName.toLowerCase() || "";
+  const query = extractKeyTerms(prompt);
+  const headers = { "Content-Type": "application/json", "X-Activity-Source": "hook/retrieve" };
+  if (RECALL_API_KEY) headers["Authorization"] = `Bearer ${RECALL_API_KEY}`;
+
+  // Change 1: Query enrichment for short prompts (< 5 words OR < 30 chars)
+  let effectiveQuery = query;
+  try {
+    const wordCount = prompt.trim().split(/\s+/).filter(Boolean).length;
+    if (wordCount < 5 || prompt.length < 30) {
+      let enriched = query;
+      enriched += ` ${process.cwd()}`;
+      if (parsed.transcript_path) {
+        try {
+          const transcript = readFileSync(parsed.transcript_path, "utf8");
+          const lines = transcript.split("\n").filter(Boolean);
+          const tail = lines.slice(-2).join(" ");
+          if (tail) enriched += ` ${tail}`;
+        } catch {}
+      }
+      effectiveQuery = enriched.slice(0, 500);
+    }
+  } catch {
+    effectiveQuery = query;
+  }
+
+  const injectedFile = getInjectedFile(parsed.session_id);
+  const firstPrompt = isFirstPrompt(injectedFile);
+  const stateFile = getSessionStateFile(parsed.session_id);
+  const state = loadSessionState(stateFile);
+
+  if (!state.topic_terms) state.topic_terms = [];
+  state.prompt_count += 1;
+  state.recent_prompts.push(prompt.slice(0, 200));
+  if (state.recent_prompts.length > 50) state.recent_prompts = state.recent_prompts.slice(-50);
+
+  const promptTerms = query.split(/\s+/).filter((t) => t.length > 3).slice(0, 3);
+  for (const term of promptTerms) {
+    if (!state.topic_terms.includes(term)) state.topic_terms.push(term);
+  }
+  if (state.topic_terms.length > 20) state.topic_terms = state.topic_terms.slice(-20);
+
+  const allPromptTerms = query.split(/\s+/).filter((t) => t.length > 2);
+  submitImplicitFeedback(state, allPromptTerms, headers).catch(() => {});
+
+  if (parsed.session_id) {
+    fetch(`${RECALL_HOST}/ingest/${parsed.session_id}/turns`, {
+      method: "POST", headers,
+      body: JSON.stringify({ session_id: parsed.session_id, turns: [{ role: "user", content: prompt.slice(0, 2000), timestamp: new Date().toISOString() }] }),
+      signal: AbortSignal.timeout(2000),
+    }).catch(() => {});
+  }
+
+  const topicPrefix = state.topic_terms.slice(-5).join(" ");
+  const searchQuery = topicPrefix ? `${topicPrefix} ${effectiveQuery}`.slice(0, 300) : effectiveQuery;
+
+  try {
+    const queryType = classifyQueryType(prompt);
+    const searchBody = { query: searchQuery, limit: queryType.maxResults + 2, min_importance: 0.15 };
+    if (domain) searchBody.domain_hint = domain;
+    if (parsed.session_id) searchBody.session_id = parsed.session_id;
+
+    const browsePromise = fetch(`${RECALL_HOST}/search/browse`, {
+      method: "POST", headers, body: JSON.stringify(searchBody), signal: AbortSignal.timeout(3000),
+    });
+
+    if (firstPrompt && parsed.session_id) {
+      fetch(`${RECALL_HOST}/session/start`, {
+        method: "POST", headers,
+        body: JSON.stringify({ session_id: parsed.session_id, working_directory: cwd || null, current_task: query.slice(0, 200) || null }),
+        signal: AbortSignal.timeout(2000),
+      }).catch(() => {});
+    }
+
+    let rehydratePromise = null;
+    if (firstPrompt && domain && prompt.length > 80) {
+      rehydratePromise = fetch(`${RECALL_HOST}/search/rehydrate`, {
+        method: "POST", headers, body: JSON.stringify({ domain, max_entries: 5 }), signal: AbortSignal.timeout(3000),
+      }).catch(() => null);
+    }
+
+    const [browseResp, rehydrateResp] = await Promise.all([browsePromise, rehydratePromise || Promise.resolve(null)]);
+    if (!browseResp.ok) return;
+
+    const data = await browseResp.json();
+    const rawResults = data.results || [];
+    const maxRawSim = rawResults.length > 0 ? Math.max(...rawResults.map((r) => r.similarity)) : null;
+
+    let results = selectBestResults(rawResults, queryType.maxResults);
+    results = adaptiveFilter(results, queryType.maxResults);
+    results = chronologicalSort(results);
+
+    let rehydrateEntries = [];
+    if (rehydrateResp && rehydrateResp.ok) {
+      try { const rData = await rehydrateResp.json(); rehydrateEntries = rData.entries || []; } catch {}
+    }
+
+    const rehydrateIds = new Set(rehydrateEntries.map((e) => e.id).filter(Boolean));
+    results = results.filter((r) => !rehydrateIds.has(r.id));
+
+    let dedupCount = 0;
+    try {
+      let sessionInjected = [];
+      try { sessionInjected = JSON.parse(readFileSync(injectedFile, "utf8")); } catch {}
+      const alreadyInjectedIds = new Set(sessionInjected.filter((e) => e.source === "search").map((e) => e.memory_id));
+      if (alreadyInjectedIds.size > 0) {
+        const filtered = [];
+        for (const r of results) {
+          const imp = r.importance != null ? r.importance : 0;
+          if (alreadyInjectedIds.has(r.id) && imp < 0.85) dedupCount++;
+          else filtered.push(r);
+        }
+        results = filtered;
+      }
+    } catch {}
+    state.dedup_total = (state.dedup_total || 0) + dedupCount;
+
+    // Change 3: In-memory delta injection dedup
+    const sessionId = parsed.session_id;
+    if (sessionId) {
+      const sessionSet = injectedIds.get(sessionId);
+      if (sessionSet && sessionSet.size > 0) {
+        results = results.filter((r) => {
+          if (!r.id) return true;
+          const imp = r.importance != null ? r.importance : 0;
+          return !(sessionSet.has(r.id) && imp < 0.85);
+        });
+      }
+      if (!injectedIds.has(sessionId)) injectedIds.set(sessionId, new Set());
+      const idSet = injectedIds.get(sessionId);
+      for (const r of results) { if (r.id) idSet.add(r.id); }
+    }
+
+    const currentResultIds = results.map((r) => r.id);
+    const trackPayload = { query: query.slice(0, 500), domain: domain || null, injected_ids: currentResultIds, similarities: results.map((r) => r.similarity), prompt_length: prompt.length, query_type: queryType.type, is_first_prompt: firstPrompt, max_raw_similarity: maxRawSim, dedup_count: dedupCount };
+
+    if (results.length === 0 && rehydrateEntries.length === 0) {
+      fetch(`${RECALL_HOST}/search/track-injection`, { method: "POST", headers, body: JSON.stringify(trackPayload), signal: AbortSignal.timeout(2000) }).catch(() => {});
+      state.last_injected_ids = [];
+      state.last_injected_terms = [];
+      saveSessionState(stateFile, state);
+      return;
+    }
+
+    try {
+      if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true });
+      let injected = [];
+      try { injected = JSON.parse(readFileSync(injectedFile, "utf8")); } catch {}
+      const entries = results.map((r) => ({ memory_id: r.id, source: "search", timestamp: new Date().toISOString() }));
+      for (const e of rehydrateEntries) {
+        if (e.id) entries.push({ memory_id: e.id, source: "rehydrate", timestamp: new Date().toISOString() });
+      }
+      injected.push(...entries);
+      if (injected.length > 500) injected = injected.slice(-500);
+      writeFileSync(injectedFile, JSON.stringify(injected));
+    } catch {}
+
+    fetch(`${RECALL_HOST}/search/track-injection`, { method: "POST", headers, body: JSON.stringify(trackPayload), signal: AbortSignal.timeout(2000) }).catch(() => {});
+
+    if (needsCheckpoint(state)) {
+      submitPeriodicFeedback(injectedFile, currentResultIds, headers).catch(() => {});
+      storeCheckpointSummary(cwd, state, domain, headers).catch(() => {});
+      state.last_checkpoint = new Date().toISOString();
+      state.recent_prompts = [];
+    }
+
+    state.last_injected_ids = results.map((r) => r.id).filter(Boolean);
+    state.last_injected_terms = results.map((r) => (r.summary || r.content || "")).join(" ").replace(/[^\w\s.-]/g, " ").split(/\s+/).filter((w) => w.length > 3 && !STOP_WORDS.has(w.toLowerCase())).map((w) => w.toLowerCase()).filter((v, i, a) => a.indexOf(v) === i).slice(0, 30);
+    saveSessionState(stateFile, state);
+
+    const parts = [];
+    const rehydrateContext = formatRehydrate(rehydrateEntries, domain);
+    if (rehydrateContext) parts.push(rehydrateContext);
+    const searchContext = formatContext(results);
+    if (searchContext) parts.push(searchContext);
+
+    if (firstPrompt) {
+      try {
+        const proposalResp = await fetch(`${RECALL_HOST}/admin/profile/proposals?status=pending&limit=3`, { headers, signal: AbortSignal.timeout(1500) });
+        if (proposalResp.ok) {
+          const proposalData = await proposalResp.json();
+          if (proposalData.proposals && proposalData.proposals.length > 0) {
+            const pLines = proposalData.proposals.map((p) => `  #${p.id} [${p.proposal_type.toUpperCase()}] "${p.section}": ${p.proposed_value.slice(0, 120)}`);
+            parts.push("Profile update proposals pending (use recall_profile_proposals tool to approve/reject):\n" + pLines.join("\n"));
+          }
+        }
+      } catch {}
+    }
+
+    const context = parts.join("\n\n");
+    if (!context) return;
+    process.stdout.write(JSON.stringify({ additionalContext: context }));
+  } catch {
+    // Recall down or timeout — don't block
+  }
+}
+
+main().catch(() => {});

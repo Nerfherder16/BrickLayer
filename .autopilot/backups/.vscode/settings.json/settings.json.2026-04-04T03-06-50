@@ -1,0 +1,22 @@
+{
+  "task.allowAutomaticTasks": "on",
+  "terminal.integrated.defaultProfile.linux": "Claude (Tim)",
+  "terminal.integrated.profiles.linux": {
+    "Claude (Tim)": {
+      "path": "bash",
+      "env": {
+        "CLAUDE_USER": "tim"
+      },
+      "icon": "beaker",
+      "color": "terminal.ansiBlue"
+    },
+    "Claude (Nick)": {
+      "path": "bash",
+      "env": {
+        "CLAUDE_USER": "nick"
+      },
+      "icon": "device-desktop",
+      "color": "terminal.ansiRed"
+    }
+  }
+}

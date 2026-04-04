@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-04T04:03:58.777Z",
+  "generated_at": "2026-04-04T05:23:08.487Z",
   "campaign": {
     "active": false,
     "project": null,
@@ -8,7 +8,7 @@
     "complete": null
   },
   "recall": {
-    "degraded": false,
+    "degraded": true,
     "host": "http://100.70.195.84:8200"
   },
   "training": {
