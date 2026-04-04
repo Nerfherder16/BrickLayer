@@ -66,9 +66,10 @@ fi
 # MCP servers — merge into ~/.claude.json (preserves user-specific fields)
 if [[ -f "$SRC/mcp-servers.json" ]] && command -v python3 &>/dev/null; then
   python3 - "$SRC/mcp-servers.json" "$HOME/.claude.json" <<'PYEOF'
-import json, sys, os
+import json, sys, os, tempfile
 
 src_file, dst_file = sys.argv[1], sys.argv[2]
+
 with open(src_file) as f:
     src = json.load(f)
 
@@ -77,15 +78,28 @@ if os.path.exists(dst_file):
     with open(dst_file) as f:
         try:
             dst = json.load(f)
-        except Exception:
-            dst = {}
+        except Exception as e:
+            print(f"WARNING: {dst_file} is invalid JSON ({e}), skipping merge to avoid data loss", file=sys.stderr)
+            sys.exit(1)
 
 dst.setdefault('mcpServers', {}).update(src.get('mcpServers', {}))
 
-with open(dst_file, 'w') as f:
-    json.dump(dst, f, indent=2)
+# Atomic write: write to temp file first, then rename
+dst_dir = os.path.dirname(os.path.abspath(dst_file))
+fd, tmp_path = tempfile.mkstemp(dir=dst_dir, suffix='.tmp')
+try:
+    with os.fdopen(fd, 'w') as f:
+        json.dump(dst, f, indent=2)
+    os.replace(tmp_path, dst_file)
+except Exception:
+    os.unlink(tmp_path)
+    raise
 PYEOF
-  echo "[$TIMESTAMP] deploy-claude: mcp-servers merged into ~/.claude.json" >> "$LOG"
+  if [[ $? -eq 0 ]]; then
+    echo "[$TIMESTAMP] deploy-claude: mcp-servers merged into ~/.claude.json" >> "$LOG"
+  else
+    echo "[$TIMESTAMP] deploy-claude: mcp-servers merge SKIPPED (invalid target JSON)" >> "$LOG"
+  fi
 fi
 
 echo "[$TIMESTAMP] deploy-claude: done" >> "$LOG"
