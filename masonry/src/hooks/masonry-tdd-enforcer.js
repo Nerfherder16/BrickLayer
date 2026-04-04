@@ -91,7 +91,42 @@ function isImplementationFile(filePath) {
   return /\.(py|ts|tsx|js|jsx)$/.test(filePath);
 }
 
-const { findTestFile } = require("../tdd-find-test-file");
+/**
+ * Find the corresponding test file for an implementation file.
+ * Checks common test layout conventions for Python and JS/TS projects.
+ * Returns the first existing test file path, or null if none found.
+ */
+function findTestFile(filePath) {
+  const dir = path.dirname(filePath);
+  const ext = path.extname(filePath);
+  const base = path.basename(filePath, ext);
+
+  const candidates = [];
+
+  if (ext === '.py') {
+    candidates.push(
+      path.join(dir, `test_${base}.py`),
+      path.join(dir, `${base}_test.py`),
+      path.join(dir, '..', 'tests', `test_${base}.py`),
+      path.join(dir, '..', 'tests', `${base}_test.py`),
+    );
+  } else {
+    // JS / TS
+    candidates.push(
+      path.join(dir, '__tests__', `${base}.test${ext}`),
+      path.join(dir, '__tests__', `${base}.spec${ext}`),
+      path.join(dir, `${base}.test${ext}`),
+      path.join(dir, `${base}.spec${ext}`),
+      path.join(dir, '..', '__tests__', `${base}.test${ext}`),
+      path.join(dir, '..', '__tests__', `${base}.spec${ext}`),
+    );
+  }
+
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  return null;
+}
 
 /**
  * Check if a test file actually imports the implementation module.

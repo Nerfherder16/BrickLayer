@@ -2,12 +2,12 @@
   "last_route": {
     "agent": "rough-in → queen-coordinator → workers",
     "effort": "medium",
-    "prompt_summary": "Cnerfherder@MSI:~/Dev/Bricklayer2.0 curl -s \"http://100.70.195.84:8200/api/v1/au",
-    "timestamp": "2026-04-04T19:17:02.839Z",
+    "prompt_summary": "would it be valuable to make a hook map md file so if we change one thing we kno",
+    "timestamp": "2026-04-04T19:59:37.992Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
   "mortar_session_id": "2026-04-04T15:45:35.687Z",
-  "active_agent": "karen",
-  "active_agent_count": 2
+  "active_agent": "developer",
+  "active_agent_count": 7
 }

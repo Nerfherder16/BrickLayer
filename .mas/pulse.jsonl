@@ -1,6 +1,3 @@
-{"timestamp":"2026-04-03T19:28:36.183Z","session_id":"fac17685-64bd-4415-8f13-2aa686630be1","tool":"Write","cwd":"/home/nerfherder/Dev/BrickLayer2.0"}
-{"timestamp":"2026-04-03T19:29:36.333Z","session_id":"fac17685-64bd-4415-8f13-2aa686630be1","tool":"Write","cwd":"/home/nerfherder/Dev/BrickLayer2.0"}
-{"timestamp":"2026-04-03T19:43:35.490Z","session_id":"fac17685-64bd-4415-8f13-2aa686630be1","tool":"Write","cwd":"/home/nerfherder/Dev/BrickLayer2.0"}
 {"timestamp":"2026-04-03T19:57:10.498Z","session_id":"fac17685-64bd-4415-8f13-2aa686630be1","tool":"Edit","cwd":"/home/nerfherder/Dev/BrickLayer2.0"}
 {"timestamp":"2026-04-03T20:51:55.498Z","session_id":"fac17685-64bd-4415-8f13-2aa686630be1","tool":"Write","cwd":"/home/nerfherder/Dev/BrickLayer2.0"}
 {"timestamp":"2026-04-03T20:52:57.232Z","session_id":"fac17685-64bd-4415-8f13-2aa686630be1","tool":"Write","cwd":"/home/nerfherder/Dev/BrickLayer2.0"}
@@ -15,3 +12,8 @@
 {"timestamp":"2026-04-04T18:58:43.015Z","session_id":"890ff17f-3dcd-4142-9d1f-e1c17302b198","tool":"Write","cwd":"/home/nerfherder/Dev/Bricklayer2.0"}
 {"timestamp":"2026-04-04T18:59:44.098Z","session_id":"890ff17f-3dcd-4142-9d1f-e1c17302b198","tool":"Edit","cwd":"/home/nerfherder/Dev/Bricklayer2.0"}
 {"timestamp":"2026-04-04T19:07:35.513Z","session_id":"890ff17f-3dcd-4142-9d1f-e1c17302b198","tool":"Edit","cwd":"/home/nerfherder/Dev/Bricklayer2.0"}
+{"timestamp":"2026-04-04T19:46:17.027Z","session_id":"smoke","tool":"Edit","cwd":"/home/nerfherder/Dev/Bricklayer2.0"}
+{"timestamp":"2026-04-04T19:47:53.389Z","session_id":"smoke","tool":"Edit","cwd":"/home/nerfherder/Dev/Bricklayer2.0"}
+{"timestamp":"2026-04-04T19:49:11.321Z","session_id":"smoke","tool":"Edit","cwd":"/home/nerfherder/Dev/Bricklayer2.0"}
+{"timestamp":"2026-04-04T19:54:07.883Z","session_id":"5d4ffc31-f15d-47af-8ce3-bb5e4f4452a6","tool":"Write","cwd":"/home/nerfherder/Dev/Bricklayer2.0"}
+{"timestamp":"2026-04-04T19:54:08.991Z","session_id":"smoke","tool":"Edit","cwd":"/home/nerfherder/Dev/Bricklayer2.0"}
