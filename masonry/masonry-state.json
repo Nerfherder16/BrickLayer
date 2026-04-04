@@ -1,9 +1,9 @@
 {
   "last_route": {
     "agent": "rough-in",
-    "effort": "medium",
-    "prompt_summary": "the vps went down but now code.streamy.tube is still not up and running",
-    "timestamp": "2026-04-04T06:01:57.375Z",
+    "effort": "low",
+    "prompt_summary": "why cant i scroll up here inside tmux. and yes fix masonry",
+    "timestamp": "2026-04-04T06:55:29.846Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
