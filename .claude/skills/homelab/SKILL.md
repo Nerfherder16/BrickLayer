@@ -11,6 +11,7 @@ description: Use when working with Docker, Proxmox, CasaOS deployments, or homel
 | OPNsense | 192.168.50.1 | Gateway, firewall, Unbound DNS |
 | CasaOS | 192.168.50.19 | Docker host (SSH: nerfherder@, pubkey) |
 | Ollama VM | 192.168.50.62 | GPU inference (RTX 3090, 24GB VRAM) |
+| ubuntu-claude | 192.168.50.35 | Claude Code runner (SSH: nerfherder@, pubkey, no password) |
 | Home Assistant | 192.168.50.20 | Smart home automation |
 | VPS (Racknerd) | 104.168.64.181 | Reverse proxy for remote access |
 
