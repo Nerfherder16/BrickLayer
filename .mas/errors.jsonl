@@ -352,3 +352,4 @@
 {"timestamp":"2026-04-04T14:03:15.914Z","tool":"Bash","error":"Exit code 1 cannot use `--jq` without specifying `--json`","retries":1,"fingerprint":"Bash:Exit code 1 cannot use `--jq` without specifying `--json`"}
 {"timestamp":"2026-04-04T14:21:41.640Z","tool":"Bash","error":"Exit code 2","retries":1,"fingerprint":"Bash:Exit code 2"}
 {"timestamp":"2026-04-04T15:30:47.474Z","tool":"Bash","error":"Exit code 1   File \"<stdin>\", line 25     (r.get(id,?)[:8])               ^ SyntaxError: f-string: invalid syntax","retries":1,"fingerprint":"Bash:Exit code 1 File \"<stdin>\", line 25 (r.get(id,?)[:8]) ^ SyntaxError: f-string: i"}
+{"timestamp":"2026-04-04T15:36:00.611Z","tool":"Bash","error":"Exit code 1 Traceback (most recent call last):   File \"<string>\", line 2, in <module> ModuleNotFoundError: No module named 'redis'","retries":1,"fingerprint":"Bash:Exit code 1 Traceback (most recent call last): File \"<string>\", line 2, in <modu"}
