@@ -7,14 +7,16 @@
       "env": {
         "CLAUDE_USER": "tim"
       },
-      "icon": "account"
+      "icon": "account",
+      "color": "terminal.ansiBlue"
     },
     "Claude (Nick)": {
       "path": "bash",
       "env": {
         "CLAUDE_USER": "nick"
       },
-      "icon": "person"
+      "icon": "person",
+      "color": "terminal.ansiGreen"
     }
   }
 }
