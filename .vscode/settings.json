@@ -23,6 +23,26 @@
       },
       "icon": "ruby",
       "color": "terminal.ansiRed"
+    },
+    "Tmux (Tim)": {
+      "path": "bash",
+      "args": ["--login", "-c", "tmux new-session -A -s tim"],
+      "env": {
+        "CLAUDE_USER": "tim",
+        "TERMINAL_TITLE": "Tim-tmux"
+      },
+      "icon": "octoface",
+      "color": "terminal.ansiCyan"
+    },
+    "Tmux (Nick)": {
+      "path": "bash",
+      "args": ["--login", "-c", "tmux new-session -A -s nick"],
+      "env": {
+        "CLAUDE_USER": "nick",
+        "TERMINAL_TITLE": "Nick-tmux"
+      },
+      "icon": "ruby",
+      "color": "terminal.ansiMagenta"
     }
   },
   "terminal.integrated.tabs.enabled": true
