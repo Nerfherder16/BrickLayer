@@ -10,9 +10,13 @@
  */
 
 'use strict';
+const fs = require('fs');
 const path = require('path');
 
 const CODE_EXTS = new Set(['.py', '.js', '.ts', '.tsx', '.jsx', '.mjs', '.cjs', '.rs', '.go', '.kt']);
+
+const NUDGE_THRESHOLD = 3 * 1024;  // 3 KB — below this, silent pass
+const BLOCK_THRESHOLD = 8 * 1024;  // 8 KB — above this, block with exit 2
 
 // Files that are routinely read whole and should not be nudged
 const EXEMPT_PATTERNS = [
@@ -54,14 +58,32 @@ async function main() {
   // Exempt test files, configs, etc.
   if (EXEMPT_PATTERNS.some(re => re.test(filePath))) process.exit(0);
 
-  const basename = path.basename(filePath);
-  process.stderr.write(
-    `[jcodemunch] Reading full file: ${basename}\n` +
-    `  → If you need a specific symbol: mcp__jcodemunch__get_symbol_source\n` +
-    `  → File structure only:           mcp__jcodemunch__get_file_outline\n` +
-    `  → Find by name:                  mcp__jcodemunch__search_symbols\n`
-  );
+  let fileSize = 0;
+  try { fileSize = fs.statSync(filePath).size; } catch { process.exit(0); }
 
+  const basename = path.basename(filePath);
+  if (fileSize < NUDGE_THRESHOLD) process.exit(0);
+
+  const kb = (fileSize / 1024).toFixed(1);
+
+  if (fileSize >= BLOCK_THRESHOLD) {
+    process.stderr.write(
+      `\n[jcodemunch] BLOCKED: ${basename} is ${kb}KB — reading whole file wastes tokens.\n` +
+      `Use symbol-level retrieval instead:\n` +
+      `  → Get file structure:    mcp__jcodemunch__get_file_outline  (file_path="${filePath}")\n` +
+      `  → Get a specific symbol: mcp__jcodemunch__get_symbol_source (symbol_name="<name>", file_path="${filePath}")\n` +
+      `  → Find by name:          mcp__jcodemunch__search_symbols    (query="<name>")\n` +
+      `  → Search code text:      mcp__jcodemunch__search_text       (query="<pattern>")\n` +
+      `\nIf you genuinely need the entire file, add offset=0 to your Read call to bypass this check.\n`
+    );
+    process.exit(2);
+  }
+
+  // Medium (3–8KB): nudge only, don't block
+  process.stderr.write(
+    `[jcodemunch] ${basename} is ${kb}KB — consider symbol-level retrieval to save tokens:\n` +
+    `  → mcp__jcodemunch__get_file_outline  or  mcp__jcodemunch__get_symbol_source\n`
+  );
   process.exit(0);
 }
 

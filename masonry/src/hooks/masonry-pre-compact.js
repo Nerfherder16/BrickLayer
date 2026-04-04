@@ -16,6 +16,7 @@
 
 "use strict";
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { storeRecallCheckpoint } = require("../pre-compact-recall");
 const { readStdin } = require('./session/stop-utils');
@@ -121,7 +122,9 @@ async function main() {
         );
       } catch {}
 
-      saveBuildSnapshot(cwd, progress, total, lines);
+      if (pending.length > 0) {
+        saveBuildSnapshot(cwd, progress, total, lines);
+      }
 
     // Snapshot task-ids.json alongside progress so panel IDs survive compaction
     try {
@@ -141,6 +144,25 @@ async function main() {
       lines.push(`[Masonry] COMPACTING — spec approved, build pending.`);
       lines.push(`  Spec: ${compactState.spec || ".autopilot/spec.md"}`);
       lines.push(`  After compact, run /masonry-build to start the build.`);
+    }
+  }
+
+  // --- Clear stale compact-state when build is already COMPLETE ---
+  // (.autopilot/mode is cleared on build completion, so autopilotMode is falsy above.
+  //  But compact-state.json may still hold the old task list — clear it now.)
+  {
+    const staleCompact = tryJSON(path.join(cwd, ".autopilot", "compact-state.json"));
+    if (staleCompact && staleCompact.mode) {
+      const liveProgress = tryJSON(path.join(cwd, ".autopilot", "progress.json"));
+      if (liveProgress && liveProgress.status === "COMPLETE") {
+        try {
+          fs.writeFileSync(
+            path.join(cwd, ".autopilot", "compact-state.json"),
+            JSON.stringify({ cleared_at: new Date().toISOString(), reason: "build-complete" }),
+            "utf8"
+          );
+        } catch {}
+      }
     }
   }
 
@@ -206,6 +228,40 @@ async function main() {
     lines.push(`  ${campaign.project || path.basename(cwd)}: wave ${campaign.wave || 0}, Q${campaign.q_current || 0}/${campaign.q_total || 0}`);
     saveCampaignSnapshot(cwd, campaign, lines);
   }
+
+  // --- Session activity breadcrumb (preserves conversational work context) ---
+  try {
+    const sessionId = input.session_id;
+    if (sessionId) {
+      const activityFile = path.join(os.tmpdir(), `masonry-activity-${sessionId}.ndjson`);
+      if (fs.existsSync(activityFile)) {
+        const rawLines = fs.readFileSync(activityFile, "utf8").trim().split("\n").filter(Boolean);
+        const summaries = rawLines
+          .map(l => { try { return JSON.parse(l).summary; } catch { return null; } })
+          .filter(Boolean);
+        if (summaries.length > 0) {
+          const recent = summaries.slice(-12);
+          const workPayload = {
+            saved_at: new Date().toISOString(),
+            session_id: sessionId,
+            recent_edits: recent,
+            total_edits: summaries.length,
+          };
+          try {
+            fs.mkdirSync(path.join(cwd, ".autopilot"), { recursive: true });
+            fs.writeFileSync(
+              path.join(cwd, ".autopilot", "pre-compact-work.json"),
+              JSON.stringify(workPayload, null, 2),
+              "utf8"
+            );
+          } catch {}
+          lines.push(
+            `[Masonry] Session work (${summaries.length} edits this session): ${recent.slice(-6).join(" → ")}`
+          );
+        }
+      }
+    }
+  } catch {}
 
   if (lines.length > 0) {
     process.stdout.write(

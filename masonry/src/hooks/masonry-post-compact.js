@@ -32,13 +32,18 @@ async function main() {
   const progress = tryJSON(path.join(cwd, ".autopilot", "pre-compact-snapshot.json"));
 
   if (compactState && compactState.mode) {
-    lines.push(`[Masonry] RESUMED after compaction — ${compactState.mode.toUpperCase()} mode.`);
-    lines.push(`  Project: ${compactState.project || path.basename(cwd)}, ${compactState.done || 0}/${compactState.total || 0} tasks done.`);
-    if (compactState.nextTask) {
-      lines.push(`  Next task #${compactState.nextTask.id}: ${compactState.nextTask.description}`);
-      lines.push(`  Run /masonry-build to continue.`);
-    } else if (compactState.auto_build) {
-      lines.push(`  Spec approved — run /masonry-build to start the build.`);
+    // Safety-net: don't inject stale "resume build" if the build already completed
+    const liveProgress = tryJSON(path.join(cwd, ".autopilot", "progress.json"));
+    const buildAlreadyComplete = liveProgress && liveProgress.status === "COMPLETE";
+    if (!buildAlreadyComplete) {
+      lines.push(`[Masonry] RESUMED after compaction — ${compactState.mode.toUpperCase()} mode.`);
+      lines.push(`  Project: ${compactState.project || path.basename(cwd)}, ${compactState.done || 0}/${compactState.total || 0} tasks done.`);
+      if (compactState.nextTask) {
+        lines.push(`  Next task #${compactState.nextTask.id}: ${compactState.nextTask.description}`);
+        lines.push(`  Run /masonry-build to continue.`);
+      } else if (compactState.auto_build) {
+        lines.push(`  Spec approved — run /masonry-build to start the build.`);
+      }
     }
   }
 
@@ -74,6 +79,16 @@ async function main() {
     lines.push(`[Masonry] RESUMED — campaign state.`);
     lines.push(`  Wave ${campaign.wave || 0}, last question: Q${campaign.current_question_id}`);
     lines.push(`  Project: ${campaign.project_dir || cwd}`);
+  }
+
+  // --- Session activity breadcrumb (restores conversational work context) ---
+  const workSnapshot = tryJSON(path.join(cwd, ".autopilot", "pre-compact-work.json"));
+  if (workSnapshot && Array.isArray(workSnapshot.recent_edits) && workSnapshot.recent_edits.length > 0) {
+    const edits = workSnapshot.recent_edits;
+    lines.push(
+      `[Masonry] Resuming after compaction — last session edited ${workSnapshot.total_edits || edits.length} file(s).`,
+      `  Recent: ${edits.slice(-8).join(" → ")}`
+    );
   }
 
   if (lines.length > 0) {
