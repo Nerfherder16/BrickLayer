@@ -24,8 +24,8 @@ async function addContextData(lines, cwd, state) {
       const RECALL_API_KEY_VAL = process.env.RECALL_API_KEY || "";
       const http = require("http");
       const https = require("https");
-      const queryBody = JSON.stringify({ query: `build patterns ${lang}`, domain: "build-patterns", limit: 5 });
-      const url = new URL(`${RECALL_HOST_URL}/api/memory/search`);
+      const queryBody = JSON.stringify({ query: `build patterns ${lang}`, domain_hint: "build-patterns", limit: 5 });
+      const url = new URL(`${RECALL_HOST_URL}/search/browse`);
       const lib = url.protocol === "https:" ? https : http;
       const req = lib.request({
         hostname: url.hostname,
