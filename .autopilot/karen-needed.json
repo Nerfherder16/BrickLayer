@@ -8,6 +8,7 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    "masonry/src/hooks/masonry-mortar-enforcer.js",
     ".claude/skills/homelab/SKILL.md",
     ".claude/skills/proxmox/SKILL.md",
     "projects/codevvOS/backend/app/services/recall_client.py",
@@ -15,5 +16,5 @@
     "masonry/src/hooks/masonry-prompt-inject.js",
     "masonry/src/tools/impl-simulation.js"
   ],
-  "timestamp": "2026-04-04T05:19:19.774Z"
+  "timestamp": "2026-04-04T06:00:40.831Z"
 }

@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "research-analyst + competitive-analyst",
+    "agent": "rough-in",
     "effort": "medium",
-    "prompt_summary": "im locked out of all my self hosted sight because a change that was made. im alm",
-    "timestamp": "2026-04-04T05:22:07.262Z",
+    "prompt_summary": "the vps went down but now code.streamy.tube is still not up and running",
+    "timestamp": "2026-04-04T06:01:57.375Z",
     "turn_count": 1
   },
   "mortar_consulted": true,

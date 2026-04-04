@@ -325,3 +325,4 @@
 {"task_id":"t-1775279405941","phase":"pre","timestamp":"2026-04-04T05:10:05.941Z","agent_type":"mortar","task_type":"test","complexity":"high","strategy":"balanced"}
 {"task_id":"t-1775279990684","phase":"pre","timestamp":"2026-04-04T05:19:50.685Z","agent_type":"rough-in","task_type":"test","complexity":"high","strategy":"balanced"}
 {"task_id":"t-1775280019601","phase":"pre","timestamp":"2026-04-04T05:20:19.601Z","agent_type":"self-host","task_type":"fix","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775280019601","phase":"post","timestamp":"2026-04-04T05:25:28.105Z","duration_ms":308501,"success":true,"agent":"self-host"}
