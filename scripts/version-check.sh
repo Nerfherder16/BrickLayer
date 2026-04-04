@@ -12,6 +12,11 @@ fi
 
 echo "$TODAY" > "$STAMP_FILE"
 
+# Set terminal tab title to the user's name
+if [[ -n "$TERMINAL_TITLE" ]]; then
+  echo -ne "\033]0;${TERMINAL_TITLE}\007"
+fi
+
 BL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BL_VERSION=$(cat "$BL_ROOT/VERSION" 2>/dev/null || echo "unknown")
 MASONRY_VERSION=$(cat "$BL_ROOT/masonry/VERSION" 2>/dev/null || echo "unknown")
