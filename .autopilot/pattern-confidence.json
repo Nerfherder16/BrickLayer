@@ -10,9 +10,9 @@
     "uses": 2
   },
   "Explore": {
-    "confidence": 0.9990933056352891,
-    "last_used": "2026-04-04T13:38:02.627Z",
-    "uses": 26
+    "confidence": 0.9995357724852679,
+    "last_used": "2026-04-04T16:18:58.634Z",
+    "uses": 29
   },
   "git-nerd": {
     "confidence": 0.808,
@@ -155,9 +155,9 @@
     "uses": 1
   },
   "spec-writer": {
-    "confidence": 0.87712,
-    "last_used": "2026-04-03T06:39:00.206Z",
-    "uses": 4
+    "confidence": 0.901696,
+    "last_used": "2026-04-04T16:56:53.341Z",
+    "uses": 5
   },
   "rough-in": {
     "confidence": 0.76,

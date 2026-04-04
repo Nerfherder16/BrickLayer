@@ -74,17 +74,22 @@ def optimize_agent(
     optimizer = dspy.MIPROv2(metric=metric, auto="light")
     program = dspy.Predict(signature_cls)
 
+    save_path = None
     try:
         optimized = optimizer.compile(program, trainset=trainset)
         score = getattr(optimized, "_score", 0.0)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        save_path = output_dir / f"{agent_name}.json"
+        optimized.save(str(save_path))
     except Exception:
         score = 0.0
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
     return {
         "agent": agent_name,
         "score": score,
         "optimized_at": datetime.now(timezone.utc).isoformat(),
+        "saved_to": str(save_path) if save_path else None,
     }
 
 
