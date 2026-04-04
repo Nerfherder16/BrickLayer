@@ -21,6 +21,25 @@ async function addContextData(lines, cwd, state) {
     }
   } catch (_) { /* fail silently */ }
 
+  // --- Top agents by confidence ---
+  try {
+    const confPath = path.join(cwd, '.autopilot', 'pattern-confidence.json');
+    const store = JSON.parse(fs.readFileSync(confPath, 'utf8'));
+
+    // Filter: only object entries with uses >= 2
+    const qualifying = Object.entries(store)
+      .filter(([, v]) => v && typeof v === 'object' && typeof v.confidence === 'number' && (v.uses || 0) >= 2)
+      .sort(([, a], [, b]) => b.confidence - a.confidence)
+      .slice(0, 5);
+
+    if (qualifying.length >= 2) {
+      const formatted = qualifying.map(([name, v]) =>
+        `${name} (${(v.confidence * 100).toFixed(1)}%, ${v.uses} uses)`
+      ).join(', ');
+      lines.push(`[Masonry] Top agents by confidence: ${formatted}`);
+    }
+  } catch (_) { /* fail silently */ }
+
   // --- Build Pattern Import: Recall ---
   try {
     const projectFiles = fs.readdirSync(cwd).slice(0, 30);
