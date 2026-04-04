@@ -182,6 +182,11 @@ Use **`mcp__recall__recall_store`**:
 For each IMMINENT finding, append to the finding:
 `[RECOMMEND: diagnose-analyst — IMMINENT cascade risk requires root cause investigation]`
 
+## Self-Nomination
+
+For each IMMINENT finding, append to the finding:
+`[RECOMMEND: diagnose-analyst — IMMINENT cascade risk requires root cause investigation]`
+
 ## Output contract
 
 Always output a JSON block at the end of your response:

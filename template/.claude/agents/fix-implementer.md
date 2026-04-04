@@ -271,6 +271,14 @@ After a successful fix is verified, append to the finding:
 After a FAILED fix attempt, append:
 `[RECOMMEND: diagnose-analyst — fix did not resolve the issue, re-diagnosis needed]`
 
+## Self-Nomination
+
+After a successful fix is verified, append to the finding:
+`[RECOMMEND: code-reviewer — fix implemented and tests pass, ready for code review]`
+
+After a FAILED fix attempt, append:
+`[RECOMMEND: diagnose-analyst — fix did not resolve the issue, re-diagnosis needed]`
+
 ## Anti-patterns — NEVER do these
 
 - Do not expand scope beyond the specified fix

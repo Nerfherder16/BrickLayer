@@ -1,0 +1,10 @@
+node_modules/
+*.log
+.env
+dist/
+.omc/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+routing_log.jsonl

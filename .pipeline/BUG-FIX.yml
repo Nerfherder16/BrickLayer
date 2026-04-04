@@ -1,0 +1,19 @@
+name: BUG-FIX
+description: Targeted bug fix pipeline — diagnosis to verified PR
+stages:
+  - agent: diagnose-analyst
+    description: Identify root cause and produce DIAGNOSIS_COMPLETE
+    outputs:
+      - .autopilot/diagnosis.md
+  - agent: fix-implementer
+    description: Implement minimal fix from diagnosis
+    inputs:
+      - .autopilot/diagnosis.md
+  - agent: code-reviewer
+    description: Review fix for correctness and regressions
+    on_failure: fix-implementer
+  - agent: peer-reviewer
+    description: Independent second review
+  - agent: pr-writer
+    description: Generate PR with fix description and test plan
+on_failure: parallel-debugger

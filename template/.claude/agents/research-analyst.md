@@ -163,6 +163,14 @@ When findings reveal regulatory exposure, append:
 When findings reveal competitive dynamics, append:
 `[RECOMMEND: competitive-analyst — market dynamics identified, competitive landscape research needed]`
 
+## Self-Nomination
+
+When findings reveal regulatory exposure, append:
+`[RECOMMEND: regulatory-researcher — regulatory risk identified, deeper legal research needed]`
+
+When findings reveal competitive dynamics, append:
+`[RECOMMEND: competitive-analyst — market dynamics identified, competitive landscape research needed]`
+
 ## Output contract
 
 Always output a JSON block at the end of your response:

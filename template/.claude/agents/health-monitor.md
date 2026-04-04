@@ -154,6 +154,11 @@ Use **`mcp__recall__recall_store`**:
 On ALERT verdict, append to the finding:
 `[RECOMMEND: diagnose-analyst — live metric outside threshold, root cause investigation needed]`
 
+## Self-Nomination
+
+On ALERT verdict, append to the finding:
+`[RECOMMEND: diagnose-analyst — live metric outside threshold, root cause investigation needed]`
+
 ## Output contract
 
 Always output a JSON block at the end of your response:

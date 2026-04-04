@@ -6,7 +6,9 @@ BrickLayer is NOT just a research tool. It orchestrates every phase: hypothesis 
 
 ---
 
-## Architecture
+## Research Campaigns
+
+BrickLayer asks: *what kills this?* — not *what is optimal?*
 
 ```
 Claude Code

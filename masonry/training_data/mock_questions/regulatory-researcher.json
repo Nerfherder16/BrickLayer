@@ -1,0 +1,62 @@
+[
+  {
+    "question_id": "mock-rr-001",
+    "question_text": "A US-based platform issues utility tokens to employees as compensation for services rendered. Are these tokens likely to be classified as securities under the Howey test?",
+    "expected_verdict": "WARNING",
+    "rationale": "Utility tokens given as compensation can satisfy the Howey test (investment of money, common enterprise, expectation of profit from others' efforts) if employees expect them to appreciate. SEC has taken aggressive enforcement positions. Legal opinion required."
+  },
+  {
+    "question_id": "mock-rr-002",
+    "question_text": "A SaaS platform stores EU customer PII on US-based AWS servers without a Data Processing Agreement. Is this compliant with GDPR?",
+    "expected_verdict": "FAILURE",
+    "rationale": "GDPR Article 28 requires a DPA with any data processor. Storing EU PII on US servers without SCCs or adequacy decisions post-Schrems II is a clear GDPR violation. Fines up to 4% of global revenue."
+  },
+  {
+    "question_id": "mock-rr-003",
+    "question_text": "A Solana-based loyalty/discount token is distributed to customers who purchase goods at a fixed exchange rate, with no expectation of appreciation or secondary market trading. Does this constitute a security?",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Loyalty/discount tokens with no investment expectation, no profit motive, and fixed redemption value typically fall outside the Howey test. Similar to airline miles or gift cards. Low securities risk if secondary trading is prohibited by design."
+  },
+  {
+    "question_id": "mock-rr-004",
+    "question_text": "A voice AI system for medical clinics records patient calls for quality assurance. Does this trigger HIPAA compliance obligations?",
+    "expected_verdict": "FAILURE",
+    "rationale": "Recording patient calls containing Protected Health Information (PHI) triggers HIPAA's Security Rule and Privacy Rule. Business Associate Agreement required with any vendor storing/processing PHI. Missing BAA is a direct HIPAA violation."
+  },
+  {
+    "question_id": "mock-rr-005",
+    "question_text": "A mobile app collects location data in the background to improve recommendations. The app's privacy policy discloses this. Under CCPA, is explicit opt-in consent required?",
+    "expected_verdict": "WARNING",
+    "rationale": "CCPA requires disclosure (satisfied) but does not require opt-in for general data collection — only for 'sale' of personal information. However, background location may trigger additional state laws (Illinois BIPA, Washington My Health MY Data). Federal risk is WARNING, not FAILURE."
+  },
+  {
+    "question_id": "mock-rr-006",
+    "question_text": "A crypto exchange operating in the US allows users to trade tokenized employee utility tokens between employees of the same company. Does this require a money transmitter license?",
+    "expected_verdict": "WARNING",
+    "rationale": "FinCEN's guidance on money transmission applies to entities exchanging value for others. Peer-to-peer token trading within a closed system may qualify. State-level money transmitter licenses vary significantly. FinCEN clarification recommended."
+  },
+  {
+    "question_id": "mock-rr-007",
+    "question_text": "A developer in the EU builds a personal AI assistant that stores notes about friends and family members. Does GDPR apply?",
+    "expected_verdict": "HEALTHY",
+    "rationale": "GDPR Article 2(2)(c) exempts personal/household activity. A personal AI assistant used purely for personal purposes falls under the household exemption. No GDPR obligations if not shared with others or used commercially."
+  },
+  {
+    "question_id": "mock-rr-008",
+    "question_text": "A fintech startup in the US extends credit to consumers at 36% APR using a bank partner model. Are there federal rate cap restrictions that apply?",
+    "expected_verdict": "HEALTHY",
+    "rationale": "Federal law does not impose a universal APR cap. The MLA caps rates for military personnel at 36% MAPR, but for general consumers the federal cap debate remains unresolved (CFPB rulemaking ongoing). Bank partner model (rent-a-charter) may export home state rates under Marquette National Bank doctrine."
+  },
+  {
+    "question_id": "mock-rr-009",
+    "question_text": "An AI system makes automated hiring decisions by screening resumes without human review. Does this create disparate impact liability under US employment law?",
+    "expected_verdict": "FAILURE",
+    "rationale": "EEOC guidelines and NYC Local Law 144 explicitly regulate automated employment decision tools (AEDTs). Fully automated resume screening without human oversight and bias auditing creates significant disparate impact liability under Title VII and state law."
+  },
+  {
+    "question_id": "mock-rr-010",
+    "question_text": "A Twilio-powered phone system makes automated outbound calls to customers who previously provided their phone number during a product purchase. Does this require additional TCPA consent?",
+    "expected_verdict": "WARNING",
+    "rationale": "TCPA requires prior express written consent for marketing autodialed calls to cell phones. Transactional calls from an existing business relationship have lower consent requirements, but marketing content mixed in triggers the stricter standard. Purpose of call determines compliance."
+  }
+]
