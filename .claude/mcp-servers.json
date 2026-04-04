@@ -1,0 +1,138 @@
+{
+  "mcpServers": {
+    "bgpt": {
+      "type": "sse",
+      "url": "https://bgpt.pro/mcp/sse"
+    },
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest"
+      ],
+      "env": {}
+    },
+    "sequential-thinking": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "env": {}
+    },
+    "repomix": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "repomix-mcp"
+      ],
+      "env": {}
+    },
+    "exa": {
+      "type": "http",
+      "url": "https://mcp.exa.ai/mcp?exaApiKey=d1383966-eb3f-4c92-9291-b53f4d0c15d9&tools=web_search_exa,web_search_advanced_exa,get_code_context_exa,crawling_exa,company_research_exa,people_search_exa,deep_researcher_start,deep_researcher_check"
+    },
+    "figma": {
+      "type": "http",
+      "url": "https://mcp.figma.com/mcp"
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "env": {}
+    },
+    "firecrawl-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "firecrawl-mcp"
+      ],
+      "env": {
+        "FIRECRAWL_API_KEY": "fc-0912ef408b434d4f9767699916cc82e2"
+      }
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ],
+      "env": {}
+    },
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "REPLACE_ME"
+      }
+    },
+    "recall": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/mnt/c/Users/trg16/Dev/Recall/mcp-server/index.js"
+      ],
+      "env": {
+        "RECALL_HOST": "http://100.70.195.84:8200"
+      }
+    },
+    "proxmox": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/mnt/c/Users/trg16/Dev/mcp-proxmox/index.js"
+      ],
+      "env": {
+        "PROXMOX_HOST": "100.99.135.123",
+        "PROXMOX_PORT": "8006",
+        "PROXMOX_USER": "root@pam",
+        "PROXMOX_TOKEN_NAME": "mcpserver",
+        "PROXMOX_TOKEN_VALUE": "69c9ecf2-c642-4017-8712-0654fa799c9a",
+        "PROXMOX_ALLOW_ELEVATED": "true"
+      }
+    },
+    "masonry": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/mnt/c/Users/trg16/Dev/Bricklayer2.0/masonry/bin/masonry-mcp.js"
+      ],
+      "env": {}
+    },
+    "excel": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@negokaz/excel-mcp-server"
+      ],
+      "env": {}
+    },
+    "opentabs": {
+      "type": "http",
+      "url": "http://127.0.0.1:9515/mcp",
+      "headers": {
+        "Authorization": "Bearer 3a42732a2082629a48477a18c8c31be9f2ed68b6ad9e19afe2b23f5238996921"
+      }
+    },
+    "jcodemunch": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "jcodemunch-mcp"
+      ],
+      "env": {}
+    }
+  }
+}

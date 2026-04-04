@@ -63,4 +63,29 @@ if [[ ! -f "$DST/settings.json" ]] && [[ -f "$SRC/settings.template.json" ]]; th
   echo ""
 fi
 
+# MCP servers — merge into ~/.claude.json (preserves user-specific fields)
+if [[ -f "$SRC/mcp-servers.json" ]] && command -v python3 &>/dev/null; then
+  python3 - "$SRC/mcp-servers.json" "$HOME/.claude.json" <<'PYEOF'
+import json, sys, os
+
+src_file, dst_file = sys.argv[1], sys.argv[2]
+with open(src_file) as f:
+    src = json.load(f)
+
+dst = {}
+if os.path.exists(dst_file):
+    with open(dst_file) as f:
+        try:
+            dst = json.load(f)
+        except Exception:
+            dst = {}
+
+dst.setdefault('mcpServers', {}).update(src.get('mcpServers', {}))
+
+with open(dst_file, 'w') as f:
+    json.dump(dst, f, indent=2)
+PYEOF
+  echo "[$TIMESTAMP] deploy-claude: mcp-servers merged into ~/.claude.json" >> "$LOG"
+fi
+
 echo "[$TIMESTAMP] deploy-claude: done" >> "$LOG"
