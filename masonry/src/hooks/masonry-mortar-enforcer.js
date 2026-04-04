@@ -1,63 +1,62 @@
 #!/usr/bin/env node
 /**
- * PreToolUse:Agent hook (Masonry): Enforce Mortar routing for all agent spawns.
+ * PreToolUse:Agent hook (Masonry): Enforce agent dispatch hierarchy.
  *
- * Blocks Agent tool calls where subagent_type is missing, empty, or "general-purpose".
- * Forces Claude to route through Mortar (subagent_type: "mortar") instead of
- * spawning generic agents directly.
+ * Enforces the Mortar → Coordinator → Specialist chain:
+ *   - Main session can only spawn: mortar, Explore, general-purpose
+ *   - Mortar can only spawn: rough-in, trowel, karen (+ Explore, general-purpose)
+ *   - Coordinators (rough-in, trowel) can spawn any recognized specialist
+ *   - Empty subagent_type is always blocked
  *
- * HOW IT WORKS:
- *   - subagent_type missing or ""  → BLOCK
- *   - subagent_type "general-purpose" → BLOCK
- *   - subagent_type is any specialist → ALLOW
- *
- * INFINITE LOOP PREVENTION:
- *   Mortar always dispatches with explicit specialist subagent_types (developer,
- *   trowel, research-analyst, etc.) — those pass through. The only way to reach
- *   Mortar is subagent_type: "mortar", which also passes through.
+ * Reads the gate file to determine which orchestrator is currently active,
+ * then enforces allowed children for that orchestrator.
  *
  * EXIT PROTOCOL:
  *   Exit 0 + JSON stdout → Claude Code reads the decision
- *   {"decision": "block", "reason": "..."}  → tool call blocked, reason shown to Claude
+ *   {"decision": "block", "reason": "..."}  → tool call blocked, reason shown
  *   {"decision": "approve"}                 → tool call proceeds
- *   Exit 0 + no/invalid JSON               → tool call proceeds (fail-open)
  */
 
 "use strict";
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { readStdin } = require('./session/stop-utils');
+const { ORCHESTRATORS, ORCHESTRATOR_ALLOWED_CHILDREN, MORTAR_DISPATCHED_TYPES } = require('./session/mortar-gate');
 
-// Only block truly empty spawns — no intent specified at all.
-// general-purpose is a valid Claude Code agent type and must be allowed
-// (swarm workers, coordinators, and inline tasks all use it).
-const BLOCKED_TYPES = new Set([
-  "",
-]);
+const GATE_FILE = process.env.BL_GATE_FILE || path.join(os.tmpdir(), 'masonry-mortar-gate.json');
 
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    // Timeout safety — never hang the hook pipeline
-    setTimeout(() => resolve(data), 3000);
-  });
+function readGate() {
+  try {
+    if (!fs.existsSync(GATE_FILE)) return null;
+    return JSON.parse(fs.readFileSync(GATE_FILE, "utf8"));
+  } catch { return null; }
 }
 
-function logBlocked(subagentType, promptSnippet) {
+function logBlocked(subagentType, reason, promptSnippet) {
   try {
-    const logDir = path.join(os.homedir(), ".masonry");
+    const logDir = path.join(os.homedir(), ".mas");
     fs.mkdirSync(logDir, { recursive: true });
     const logPath = path.join(logDir, "mortar_enforcer.log");
     const line = JSON.stringify({
       ts: new Date().toISOString(),
       blocked_type: subagentType || "(empty)",
+      reason,
       prompt_snippet: (promptSnippet || "").slice(0, 120),
     }) + "\n";
     fs.appendFileSync(logPath, line, "utf8");
   } catch (_) { /* non-fatal */ }
+}
+
+function block(subagentType, reason, prompt) {
+  logBlocked(subagentType, reason, prompt);
+  process.stdout.write(JSON.stringify({ decision: "block", reason }));
+  process.exit(0);
+}
+
+function approve() {
+  process.stdout.write(JSON.stringify({ decision: "approve" }));
+  process.exit(0);
 }
 
 async function main() {
@@ -65,33 +64,83 @@ async function main() {
   let input = {};
   try { input = JSON.parse(raw); } catch { /* fail-open */ }
 
-  // PreToolUse: parameters are in tool_input
   const toolInput = input.tool_input || input;
   const rawType = (toolInput.subagent_type || "");
-  const subagentType = rawType.toLowerCase().trim();
+  const subagentType = rawType.trim().toLowerCase();
   const prompt = toolInput.prompt || toolInput.description || "";
 
-  if (BLOCKED_TYPES.has(subagentType)) {
-    logBlocked(subagentType, prompt);
-
-    const reason = [
-      "⛔ Agent spawn blocked by masonry-mortar-enforcer: subagent_type is empty.",
+  // Rule 1: Empty subagent_type is always blocked
+  if (!subagentType) {
+    block(subagentType, [
+      "⛔ Agent spawn blocked: subagent_type is empty.",
       "",
-      "Always specify a subagent_type. Use one of:",
-      "  general-purpose   — general work, swarm workers, inline tasks",
-      "  Explore           — codebase exploration and research",
-      "  Plan              — architecture and planning tasks",
-      "",
-      "Example: Agent({ subagent_type: \"general-purpose\", prompt: \"...\" })",
-    ].join("\n");
-
-    process.stdout.write(JSON.stringify({ decision: "block", reason }));
-    process.exit(0);
+      "Route through Mortar: Agent({ subagent_type: \"mortar\", prompt: \"...\" })",
+    ].join("\n"), prompt);
+    return;
   }
 
-  // Valid specialist — allow through
-  process.stdout.write(JSON.stringify({ decision: "approve" }));
-  process.exit(0);
+  // Rule 2: Must be a recognized agent type
+  if (!MORTAR_DISPATCHED_TYPES.has(subagentType) && !MORTAR_DISPATCHED_TYPES.has(rawType.trim())) {
+    block(subagentType, [
+      `⛔ Agent spawn blocked: "${subagentType}" is not a recognized specialist.`,
+      "",
+      "Route through Mortar: Agent({ subagent_type: \"mortar\", prompt: \"...\" })",
+    ].join("\n"), prompt);
+    return;
+  }
+
+  // Rule 3: Enforce hierarchy based on current chain state
+  const gate = readGate();
+
+  if (!gate || !gate.chain || gate.chain.length === 0) {
+    // No chain yet — main session context.
+    // Routing lanes (matches CLAUDE.md delegation rules + prompt-router):
+    //   - Dev tasks       → rough-in directly (skip Mortar)
+    //   - Campaigns       → mortar (hands to Trowel)
+    //   - Docs            → karen directly
+    //   - Single-purpose  → named specialist directly
+    //   - @agent-name:    → any recognized agent (self-invoke bypass)
+    // Only block empty subagent_type and truly unrecognized types (handled above).
+    // All recognized registry agents are allowed from main session.
+    approve();
+    return;
+  }
+
+  // Chain exists — check who the current orchestrator is
+  const currentAgent = gate.chain[gate.chain.length - 1];
+
+  if (!ORCHESTRATORS.has(currentAgent)) {
+    // Current agent is a specialist — specialists shouldn't spawn agents,
+    // but we don't hard-block this (they might need Explore for research).
+    approve();
+    return;
+  }
+
+  // Current agent is an orchestrator — enforce allowed children
+  const allowed = ORCHESTRATOR_ALLOWED_CHILDREN[currentAgent];
+
+  if (allowed === null) {
+    // null = any recognized specialist is OK (rough-in, trowel)
+    approve();
+    return;
+  }
+
+  if (allowed && allowed.has(subagentType)) {
+    approve();
+    return;
+  }
+
+  // Orchestrator trying to spawn something not in its allowed set
+  const allowedList = allowed ? [...allowed].join(", ") : "(any specialist)";
+  block(subagentType, [
+    `⛔ Agent spawn blocked: "${currentAgent}" cannot spawn "${subagentType}" directly.`,
+    "",
+    `"${currentAgent}" can only delegate to: ${allowedList}`,
+    "",
+    currentAgent === "mortar"
+      ? "For dev tasks, spawn rough-in: Agent({ subagent_type: \"rough-in\", prompt: \"...\" })"
+      : "Spawn the appropriate specialist for this task.",
+  ].join("\n"), prompt);
 }
 
 main().catch(() => {

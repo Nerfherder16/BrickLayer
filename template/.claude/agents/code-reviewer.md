@@ -170,29 +170,31 @@ If verdict is `NEEDS_REVISION`:
 
 Your tag: `agent:code-reviewer`
 
+**Before reviewing** — check if this file or pattern was previously flagged:
+Use **`mcp__recall__recall_search`**:
+- `query`: "code review blocked {file_path} {component_name}"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:code-reviewer", "type:blocked"]
+- `limit`: 3
+If prior BLOCKED results exist for the same file, treat them as known risk patterns — look harder for the same class of issue.
+
 **After BLOCKED** — store so future agents know this pattern fails:
-```
-recall_store(
-    content="Code review BLOCKED: [{finding_id}] {reason}. Fix-implementer produced code that {what was wrong}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:code-reviewer", "type:blocked"],
-    importance=0.8,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Code review BLOCKED: [{finding_id}] {reason}. Fix-implementer produced code that {what was wrong}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:code-reviewer", "type:blocked"]
+- `importance`: 0.8
+- `durability`: "durable"
 
 **After APPROVED** — lightweight store:
-```
-recall_store(
-    content="Code review APPROVED: [{finding_id}] {change summary}. No issues found.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:code-reviewer", "type:approved"],
-    importance=0.4,
-    durability="standard",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Code review APPROVED: [{finding_id}] {change summary}. No issues found."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:code-reviewer", "type:approved"]
+- `importance`: 0.4
+- `durability`: "standard"
 
 ## Output contract
 

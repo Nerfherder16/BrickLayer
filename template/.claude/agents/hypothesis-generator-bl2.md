@@ -120,26 +120,24 @@ Append to `questions.md`:
 Your tag: `agent:hypothesis-generator-bl2`
 
 **At session start** — check what wave we're on and what was previously generated:
-```
-recall_search(query="wave hypothesis generated question bank", domain="{project}-bricklayer", tags=["agent:hypothesis-generator-bl2"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "wave hypothesis generated question bank"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:hypothesis-generator-bl2"]
 
 Also check recent findings to identify mode-transition candidates:
-```
-recall_search(query="DIAGNOSIS_COMPLETE FAILURE WARNING IMMINENT PROMISING", domain="{project}-bricklayer")
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "DIAGNOSIS_COMPLETE FAILURE WARNING IMMINENT PROMISING"
+- `domain`: "{project}-bricklayer"
 
 **After generating each wave** — store the mode transition summary:
-```
-recall_store(
-    content="WAVE {N+1} GENERATED: {N} questions. Transitions: {summary of mode transitions applied — e.g., 2 DIAGNOSIS_COMPLETE → Fix, 1 FAILURE → Diagnose}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:hypothesis-generator-bl2", "type:wave-generated"],
-    importance=0.75,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "WAVE {N+1} GENERATED: {N} questions. Transitions: {summary of mode transitions applied — e.g., 2 DIAGNOSIS_COMPLETE → Fix, 1 FAILURE → Diagnose}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:hypothesis-generator-bl2", "type:wave-generated"]
+- `importance`: 0.75
+- `durability`: "durable"
 
 ## Output contract
 

@@ -48,7 +48,11 @@ function writeState(projectDir, updates) {
       updated_at: new Date().toISOString(),
     };
 
-    fs.writeFileSync(stateFile, JSON.stringify(next, null, 2), "utf8");
+    // Atomic write: write to temp file then rename to prevent lost-update races
+    // between concurrent sessions (casaclaude + proxyclaude on same project).
+    const tmpFile = stateFile + ".tmp." + process.pid;
+    fs.writeFileSync(tmpFile, JSON.stringify(next, null, 2), "utf8");
+    fs.renameSync(tmpFile, stateFile);
   } catch (_err) {
     // Non-fatal — never block the loop
   }

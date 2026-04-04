@@ -1,0 +1,23 @@
+{
+  "reason": "doc_staleness",
+  "stale_files": [
+    "CHANGELOG.md",
+    "ROADMAP.md",
+    "ARCHITECTURE.md",
+    "README.md",
+    "PROJECT_STATUS.md"
+  ],
+  "source_files_changed": [
+    ".claude/skills/homelab/SKILL.md",
+    "CLAUDE.md",
+    "masonry/src/hooks/masonry-prompt-router.js",
+    "masonry/src/hooks/masonry-mortar-enforcer.js",
+    ".claude/skills/homelab/SKILL.md",
+    ".claude/skills/proxmox/SKILL.md",
+    "projects/codevvOS/backend/app/services/recall_client.py",
+    "masonry/src/hooks/masonry-prompt-inject.js",
+    "masonry/src/hooks/masonry-prompt-inject.js",
+    "masonry/src/tools/impl-simulation.js"
+  ],
+  "timestamp": "2026-04-04T06:43:39.678Z"
+}

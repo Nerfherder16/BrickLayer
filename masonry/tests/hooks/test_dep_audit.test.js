@@ -71,8 +71,9 @@ describe("dep-audit — non-dependency files are skipped", () => {
 
 describe("dep-audit — npm tool unavailable", () => {
   it("outputs DEP_AUDIT_SKIP when npm is not found on PATH", () => {
-    // We simulate npm-not-found by running the hook in an env with empty PATH
-    const result = spawnSync("node", [HOOK], {
+    // We simulate npm-not-found by running the hook in an env with empty PATH.
+    // Use process.execPath (absolute node binary) so node itself is still found.
+    const result = spawnSync(process.execPath, [HOOK], {
       input: JSON.stringify({
         tool_name: "Write",
         tool_input: { file_path: "package.json", content: "{}" },
@@ -95,7 +96,8 @@ describe("dep-audit — npm tool unavailable", () => {
 
 describe("dep-audit — pip-audit tool unavailable", () => {
   it("outputs DEP_AUDIT_SKIP when pip-audit is not found on PATH", () => {
-    const result = spawnSync("node", [HOOK], {
+    // Use process.execPath (absolute node binary) so node itself is still found.
+    const result = spawnSync(process.execPath, [HOOK], {
       input: JSON.stringify({
         tool_name: "Write",
         tool_input: { file_path: "requirements.txt", content: "flask==2.0.0\n" },

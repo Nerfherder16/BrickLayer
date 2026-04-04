@@ -6,7 +6,6 @@ These tests are unit-level and do NOT invoke DSPy or any LLM.
 
 from __future__ import annotations
 
-import types
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -100,7 +99,7 @@ class TestOptimizeAllDispatch(unittest.TestCase):
 
     def test_karen_metric_is_not_build_metric(self):
         """karen must receive a metric from build_karen_metric, not build_metric."""
-        from masonry.src.dspy_pipeline.optimizer import build_karen_metric, build_metric
+        from masonry.src.dspy_pipeline.optimizer import build_metric
 
         captured, _, _ = self._run_optimize_all_capture_calls(["karen"])
         _, _, metric = captured[0]

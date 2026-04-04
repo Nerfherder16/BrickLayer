@@ -38,7 +38,6 @@ import sys
 from constants import (
     BURN_COST_PER_CREDIT,
     CREDIT_PRICE,
-    EMPLOYEE_FEE_RATE,
     FAILURE_THRESHOLD,
     MONTHLY_INTEREST_RATE,
     WARNING_THRESHOLD,
@@ -449,7 +448,7 @@ if __name__ == "__main__":
         f"sigma={args.growth_sigma}) per month"
         + (" [DETERMINISTIC]" if args.growth_sigma == 0 else "")
     )
-    print(f"  Search space:")
+    print("  Search space:")
     print(f"    trigger_ratio:  [{TRIGGER_RATIO_MIN}, {TRIGGER_RATIO_MAX}]")
     print(f"    burn_pct:       [{BURN_PCT_MIN * 100:.0f}%, {BURN_PCT_MAX * 100:.0f}%]")
     print(f"    cooldown:       [{COOLDOWN_MIN}, {COOLDOWN_MAX}] months")

@@ -1,134 +1,60 @@
-"""masonry/src/dspy_pipeline/optimizer.py
-
-DSPy optimization pipeline for Masonry agents.
-
-Exposes:
-  - configure_dspy(model, api_key=None)
-  - build_metric(signature_cls)
-  - build_karen_metric()
-  - optimize_agent(agent_name, signature_cls, dataset, output_dir, metric_fn=None)
-  - optimize_all(registry, datasets, output_dir, optimize_agent_fn=None)
-"""
-
+"""DSPy optimizer — optimizes agent prompts using scored training data."""
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Optional
 
 import dspy
 
 from masonry.src.dspy_pipeline.signatures import KarenSig, ResearchAgentSig
+from masonry.src.schemas.payloads import AgentRegistryEntry
 
-# Minimum training examples required to attempt optimization.
+_DEFAULT_MODEL = "anthropic/claude-haiku-4-5-20251001"
+_OLLAMA_MODEL = "ollama_chat/llama3"
 _MIN_EXAMPLES = 5
 
-# Per-agent signature dispatch table. Agents not listed fall back to ResearchAgentSig.
-_SIGNATURE_DISPATCH: dict[str, type] = {
+# Per-agent signature dispatch table — agents not listed fall back to ResearchAgentSig
+_SIG_DISPATCH: dict[str, type] = {
     "karen": KarenSig,
 }
 
-
-# ---------------------------------------------------------------------------
-# DSPy configuration
-# ---------------------------------------------------------------------------
+# Per-agent metric dispatch — agents not listed use build_metric(ResearchAgentSig)
+_METRIC_DISPATCH: dict[str, Callable] = {}
 
 
-def configure_dspy(model: str = "anthropic/claude-haiku-4-5", api_key: str | None = None) -> None:
-    """Configure DSPy with the given language model.
-
-    Parameters
-    ----------
-    model:
-        DSPy-compatible model string (e.g. ``"anthropic/claude-haiku-4-5"``).
-    api_key:
-        Optional API key. When provided it is forwarded to ``dspy.LM``. When
-        omitted, DSPy uses the environment variable configured for the backend.
-    """
-    lm_kwargs: dict[str, Any] = {"model": model}
+def configure_dspy(api_key: Optional[str] = None, backend: str = "anthropic") -> None:
+    """Configure DSPy with the appropriate LM backend."""
+    kwargs: dict[str, Any] = {}
     if api_key is not None:
-        lm_kwargs["api_key"] = api_key
-
-    lm = dspy.LM(**lm_kwargs)
+        kwargs["api_key"] = api_key
+    model = _OLLAMA_MODEL if backend == "ollama" else _DEFAULT_MODEL
+    lm = dspy.LM(model, **kwargs)
     dspy.configure(lm=lm)
 
 
-# ---------------------------------------------------------------------------
-# Metric builders
-# ---------------------------------------------------------------------------
-
-
-def build_metric(signature_cls: type | None) -> Any:
-    """Return a DSPy-compatible metric function for research-style agents.
-
-    The metric scores a (example, prediction) pair across three components:
-      - Verdict match:        0.4 weight
-      - Evidence quality:     0.4 weight (length-based proxy)
-      - Confidence calibration: 0.2 weight
-    """
-
+def build_metric(sig_cls: Any) -> Callable:
+    """Return a metric function appropriate for the given signature class."""
     def metric(example: Any, prediction: Any, trace: Any = None) -> float:
-        score = 0.0
-
-        # Verdict match
-        ex_verdict = getattr(example, "verdict", None)
-        pred_verdict = getattr(prediction, "verdict", None)
-        if ex_verdict and pred_verdict and ex_verdict == pred_verdict:
-            score += 0.4
-
-        # Evidence quality (length proxy — longer is better, capped at 300 chars)
-        pred_evidence = getattr(prediction, "evidence", "") or ""
-        evidence_score = min(len(pred_evidence) / 300.0, 1.0)
-        score += 0.4 * evidence_score
-
-        # Confidence calibration — reward predictions close to example confidence
         try:
-            target_conf = float(getattr(example, "confidence", 0.75) or 0.75)
-            pred_conf = float(getattr(prediction, "confidence", "0.75") or "0.75")
-            calibration = 1.0 - abs(target_conf - pred_conf)
-            score += 0.2 * max(calibration, 0.0)
-        except (ValueError, TypeError):
-            pass
-
-        return float(score)
-
+            verdict = getattr(prediction, "verdict", "").strip().upper()
+            expected = getattr(example, "verdict", "").strip().upper()
+            return 1.0 if verdict == expected else 0.0
+        except Exception:
+            return 0.0
     return metric
 
 
-def build_karen_metric() -> Any:
-    """Return a DSPy-compatible metric function for the karen (docs) agent."""
-
+def _build_karen_metric() -> Callable:
+    """Metric for karen — checks output and summary are non-empty."""
     def metric(example: Any, prediction: Any, trace: Any = None) -> float:
-        score = 0.0
-
-        # Content quality: non-empty updated_content
-        updated = getattr(prediction, "updated_content", "") or ""
-        if len(updated) > 50:
-            score += 0.5
-
-        # Summary present
-        summary = getattr(prediction, "summary", "") or ""
-        if len(summary) > 10:
-            score += 0.3
-
-        # Confidence calibration
         try:
-            pred_conf = float(getattr(prediction, "confidence", "0.75") or "0.75")
-            target_conf = float(getattr(example, "confidence", 0.75) or 0.75)
-            calibration = 1.0 - abs(target_conf - pred_conf)
-            score += 0.2 * max(calibration, 0.0)
-        except (ValueError, TypeError):
-            pass
-
-        return float(score)
-
+            has_output = bool(getattr(prediction, "output", "").strip())
+            has_summary = bool(getattr(prediction, "summary", "").strip())
+            return 1.0 if (has_output and has_summary) else 0.0
+        except Exception:
+            return 0.0
     return metric
-
-
-# ---------------------------------------------------------------------------
-# Single-agent optimization
-# ---------------------------------------------------------------------------
 
 
 def optimize_agent(
@@ -136,127 +62,70 @@ def optimize_agent(
     signature_cls: type,
     dataset: list[dict],
     output_dir: Path,
-    metric_fn: Any = None,
-    num_trials: int = 10,
-    valset_size: int = 20,
+    metric_fn: Optional[Callable] = None,
+    **kwargs: Any,
 ) -> dict:
-    """Optimize a single agent using DSPy MIPROv2.
-
-    Parameters
-    ----------
-    agent_name:
-        Name of the agent (used for output file naming).
-    signature_cls:
-        DSPy Signature class to optimise.
-    dataset:
-        List of training example dicts.
-    output_dir:
-        Directory where the optimised module JSON is written.
-    metric_fn:
-        Callable ``(example, prediction) -> float``. Defaults to
-        ``build_metric(signature_cls)``.
-    num_trials:
-        Number of MIPROv2 trials.
-    valset_size:
-        Validation set size drawn from dataset.
-
-    Returns
-    -------
-    dict with keys: agent, score, optimized_at
-    """
-    if metric_fn is None:
-        metric_fn = build_metric(signature_cls)
-
-    # Build DSPy examples
-    dspy_examples = []
-    for ex in dataset:
-        dspy_ex = dspy.Example(**ex).with_inputs(
-            "question_text", "project_context", "constraints"
-        )
-        dspy_examples.append(dspy_ex)
-
-    module = dspy.ChainOfThought(signature_cls)
-    optimizer = dspy.MIPROv2(metric=metric_fn, num_candidates=num_trials, init_temperature=1.0)
-
-    val_size = min(valset_size, len(dspy_examples))
-    trainset = dspy_examples[val_size:]
-    valset = dspy_examples[:val_size]
-
-    optimized_module = optimizer.compile(
-        module,
-        trainset=trainset or dspy_examples,
-        valset=valset or dspy_examples,
-        requires_permission_to_run=False,
-    )
-
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_file = output_dir / f"{agent_name}.json"
+    """Optimize a single agent using DSPy MIPROv2."""
+    metric = metric_fn or build_metric(signature_cls)
 
     try:
-        optimized_module.save(str(output_file))
+        trainset = [dspy.Example(**ex).with_inputs(*signature_cls.input_fields()) for ex in dataset]
     except Exception:
-        # If save fails (e.g. mock), write a minimal stub so callers can detect the file.
-        output_file.write_text(json.dumps({"agent": agent_name}), encoding="utf-8")
+        trainset = dataset  # fallback — let optimizer handle it
 
-    result = {
+    optimizer = dspy.MIPROv2(metric=metric, auto="light")
+    program = dspy.Predict(signature_cls)
+
+    save_path = None
+    try:
+        optimized = optimizer.compile(program, trainset=trainset)
+        score = getattr(optimized, "_score", 0.0)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        save_path = output_dir / f"{agent_name}.json"
+        optimized.save(str(save_path))
+    except Exception:
+        score = 0.0
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+    return {
         "agent": agent_name,
-        "score": getattr(optimized_module, "best_score", 0.0),
-        "optimized_at": datetime.now(tz=timezone.utc).isoformat(),
+        "score": score,
+        "optimized_at": datetime.now(timezone.utc).isoformat(),
+        "saved_to": str(save_path) if save_path else None,
     }
-    return result
-
-
-# ---------------------------------------------------------------------------
-# Multi-agent orchestration
-# ---------------------------------------------------------------------------
 
 
 def optimize_all(
-    registry: list[Any],
+    registry: list[AgentRegistryEntry],
     datasets: dict[str, list[dict]],
     output_dir: Path,
-    optimize_agent_fn: Any = None,
 ) -> list[dict]:
-    """Optimize all eligible agents in the registry.
+    """Optimize all agents in the registry that have sufficient training data."""
+    results = []
 
-    Agents with fewer than ``_MIN_EXAMPLES`` training examples are skipped.
-    Each agent is dispatched to the correct signature via ``_SIGNATURE_DISPATCH``.
-
-    Parameters
-    ----------
-    registry:
-        List of agent registry entries (must have a ``.name`` attribute).
-    datasets:
-        Mapping of agent name → list of training example dicts.
-    output_dir:
-        Directory for optimised module outputs.
-    optimize_agent_fn:
-        Override for the per-agent optimization callable. Defaults to
-        ``optimize_agent``. Useful for testing.
-
-    Returns
-    -------
-    List of result dicts for each successfully optimised agent.
-    """
-    _opt_fn = optimize_agent_fn if optimize_agent_fn is not None else optimize_agent
-
-    results: list[dict] = []
     for entry in registry:
-        name: str = entry.name
-        agent_dataset = datasets.get(name, [])
+        name = entry.name
+        data = datasets.get(name, [])
 
-        if len(agent_dataset) < _MIN_EXAMPLES:
+        if len(data) < _MIN_EXAMPLES:
             continue
 
-        sig_cls = _SIGNATURE_DISPATCH.get(name, ResearchAgentSig)
+        sig_cls = _SIG_DISPATCH.get(name, ResearchAgentSig)
 
-        if name == "karen":
-            metric_fn = build_karen_metric()
+        if name in _METRIC_DISPATCH:
+            metric_fn = _METRIC_DISPATCH[name]
+        elif name == "karen":
+            metric_fn = _build_karen_metric()
         else:
             metric_fn = build_metric(sig_cls)
 
-        result = _opt_fn(name, sig_cls, agent_dataset, output_dir, metric_fn=metric_fn)
+        result = optimize_agent(
+            name,
+            sig_cls,
+            data,
+            output_dir,
+            metric_fn=metric_fn,
+        )
         results.append(result)
 
     return results

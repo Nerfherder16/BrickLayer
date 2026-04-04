@@ -1,0 +1,197 @@
+{
+  "developer": {
+    "confidence": 0.999999999968711,
+    "last_used": "2026-04-04T13:29:24.401Z",
+    "uses": 103
+  },
+  "bl-verifier": {
+    "confidence": 0.808,
+    "last_used": "2026-03-29T04:06:33.481Z",
+    "uses": 2
+  },
+  "Explore": {
+    "confidence": 0.9995357724852679,
+    "last_used": "2026-04-04T16:18:58.634Z",
+    "uses": 29
+  },
+  "git-nerd": {
+    "confidence": 0.8464,
+    "last_used": "2026-04-04T17:24:20.985Z",
+    "uses": 3
+  },
+  "general-purpose": {
+    "confidence": 0.9999601231601265,
+    "last_used": "2026-04-03T05:04:11.246Z",
+    "uses": 40
+  },
+  "statusline-setup": {
+    "confidence": 0.76,
+    "last_used": "2026-03-28T04:38:54.726Z",
+    "uses": 1
+  },
+  "python-specialist": {
+    "confidence": 0.808,
+    "last_used": "2026-03-29T14:29:29.309Z",
+    "uses": 2
+  },
+  "e2e": {
+    "confidence": 0.9213568000000001,
+    "last_used": "2026-03-29T05:06:37.874Z",
+    "uses": 6
+  },
+  "pattern-a": 0.999939064025999,
+  "pattern-b": 0.999939064025999,
+  "pattern-z": 0.999939064025999,
+  "pattern-x": 0.999939064025999,
+  "pattern-y": 0.999939064025999,
+  "repo-researcher": {
+    "confidence": 0.949668352,
+    "last_used": "2026-03-29T03:25:52.433Z",
+    "uses": 8
+  },
+  "architecture-writer": {
+    "confidence": 0.76,
+    "last_used": "2026-03-28T20:04:58.055Z",
+    "uses": 1
+  },
+  "pseudocode-writer": {
+    "confidence": 0.76,
+    "last_used": "2026-03-28T20:07:17.005Z",
+    "uses": 1
+  },
+  "economizer": {
+    "confidence": 0.76,
+    "last_used": "2026-03-28T20:43:10.761Z",
+    "uses": 1
+  },
+  "kiln-engineer": {
+    "confidence": 0.76,
+    "last_used": "2026-03-28T21:55:30.903Z",
+    "uses": 1
+  },
+  "queen-coordinator": {
+    "confidence": 0.8464,
+    "last_used": "2026-03-29T04:40:20.806Z",
+    "uses": 3
+  },
+  "mortar": {
+    "confidence": 0.949668352,
+    "last_used": "2026-04-04T03:40:39.373Z",
+    "uses": 8
+  },
+  "trowel": {
+    "confidence": 0.76,
+    "last_used": "2026-03-29T05:19:34.016Z",
+    "uses": 1
+  },
+  "Plan": {
+    "confidence": 0.76,
+    "last_used": "2026-03-29T06:41:40.198Z",
+    "uses": 1
+  },
+  "diagnose-analyst": {
+    "confidence": 0.93708544,
+    "last_used": "2026-03-29T09:03:39.477Z",
+    "uses": 7
+  },
+  "forge-check": {
+    "confidence": 0.76,
+    "last_used": "2026-03-29T07:26:10.531Z",
+    "uses": 1
+  },
+  "research-analyst": {
+    "confidence": 0.9793841569792,
+    "last_used": "2026-03-29T09:25:24.143Z",
+    "uses": 12
+  },
+  "peer-reviewer": {
+    "confidence": 0.949668352,
+    "last_used": "2026-03-29T08:32:22.396Z",
+    "uses": 8
+  },
+  "pointer": {
+    "confidence": 0.76,
+    "last_used": "2026-03-29T07:45:31.604Z",
+    "uses": 1
+  },
+  "design-reviewer": {
+    "confidence": 0.76,
+    "last_used": "2026-03-29T08:27:08.075Z",
+    "uses": 1
+  },
+  "frontier-analyst": {
+    "confidence": 0.76,
+    "last_used": "2026-03-29T08:34:54.488Z",
+    "uses": 1
+  },
+  "synthesizer-bl2": {
+    "confidence": 0.808,
+    "last_used": "2026-03-29T09:35:30.944Z",
+    "uses": 2
+  },
+  "retrospective": {
+    "confidence": 0.8464,
+    "last_used": "2026-03-29T09:35:46.959Z",
+    "uses": 3
+  },
+  "skill-forge": {
+    "confidence": 0.8464,
+    "last_used": "2026-03-29T08:53:34.197Z",
+    "uses": 3
+  },
+  "hypothesis-generator-bl2": {
+    "confidence": 0.76,
+    "last_used": "2026-03-29T08:58:22.752Z",
+    "uses": 1
+  },
+  "claude-code-guide": {
+    "confidence": 0.76,
+    "last_used": "2026-03-30T02:45:15.801Z",
+    "uses": 1
+  },
+  "unknown": {
+    "confidence": 0.76,
+    "last_used": "2026-04-01T04:25:46.815Z",
+    "uses": 1
+  },
+  "spec-writer": {
+    "confidence": 0.901696,
+    "last_used": "2026-04-04T16:56:53.341Z",
+    "uses": 5
+  },
+  "rough-in": {
+    "confidence": 0.76,
+    "last_used": "2026-04-03T20:55:52.636Z",
+    "uses": 1
+  },
+  "health-monitor": {
+    "confidence": 0.76,
+    "last_used": "2026-04-04T01:01:26.914Z",
+    "uses": 1
+  },
+  "self-host": {
+    "confidence": 0.76,
+    "last_used": "2026-04-04T05:25:28.102Z",
+    "uses": 1
+  },
+  "karen": {
+    "confidence": 0.808,
+    "last_used": "2026-04-04T13:28:46.553Z",
+    "uses": 2
+  },
+  "test-writer": {
+    "confidence": 0.87712,
+    "last_used": "2026-04-04T12:47:05.931Z",
+    "uses": 4
+  },
+  "code-reviewer": {
+    "confidence": 0.76,
+    "last_used": "2026-04-04T07:15:15.694Z",
+    "uses": 1
+  },
+  "spec-reviewer": {
+    "confidence": 0.808,
+    "last_used": "2026-04-04T12:35:10.590Z",
+    "uses": 2
+  }
+}

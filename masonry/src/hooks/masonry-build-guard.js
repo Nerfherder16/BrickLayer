@@ -7,16 +7,7 @@
 const { existsSync, readFileSync } = require("fs");
 const { execSync } = require("child_process");
 const path = require("path");
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (chunk) => (data += chunk));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
+const { getSessionId, readStdin } = require('./session/stop-utils');
 
 function findAutopilotDir(startDir) {
   let dir = startDir;
@@ -82,9 +73,8 @@ async function main() {
 
   // If the build already completed, don't warn about an interrupted build.
   if (progress.status === "COMPLETE") process.exit(0);
-
   const buildSessionId = progress.session_id || null;
-  const currentSessionId = parsed.session_id || parsed.sessionId || null;
+  const currentSessionId = getSessionId(parsed);
 
   // Only block the session that owns this build.
   if (buildSessionId && currentSessionId && buildSessionId !== currentSessionId) {

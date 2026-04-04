@@ -1,0 +1,268 @@
+# D2.2: Could a "routing receipt" pattern be implemented where Mortar sets a session-level flag that PreToolUse hooks check before allowing Write/Edit/Bash execution?
+
+**Agent**: diagnose-analyst
+
+**Status**: DIAGNOSIS_COMPLETE
+**Date**: 2026-03-29
+**Agent**: diagnose-analyst
+
+## Evidence
+
+### 1. isMortarConsulted() — existing implementation (masonry-approver.js lines 119–134, 293–301)
+
+The function already exists and reads `mortar_consulted` + `mortar_session_id` from
+`C:/Users/trg16/Dev/Bricklayer2.0/masonry/masonry-state.json`:
+
+```js
+function isMortarConsulted() {
+  const raw = readFileSync(MASONRY_STATE_PATH, "utf8");
+  const state = JSON.parse(raw);
+  if (!state.mortar_consulted) return false;
+  if (!state.mortar_session_id) return false;
+  const sessionTime = new Date(state.mortar_session_id).getTime();
+  if (isNaN(sessionTime)) return false;
+  return Date.now() - sessionTime < MORTAR_SESSION_FRESHNESS_MS; // 4 hours
+}
+```
+
+The gate fires at line 293 when all of these are true: tool is Write/Edit/Bash/MultiEdit,
+not a subagent context, and no active build/compose mode. The action taken (lines 293–301):
+
+```js
+if (mortarGateApplicable && !approve && !isMortarConsulted()) {
+  if (toolName !== "bash") {
+    process.stderr.write("[Masonry] Heads up: Mortar hasn't been consulted...\n");
+  }
+  // Always allow through — gate is advisory only.
+}
+```
+
+**Bash is unconditionally allowed through at this gate.** Write/Edit get only a `stderr`
+warning — the `process.exit(0)` that would block is not called.
+
+### 2. masonry-state.json — current schema and live state
+
+```json
+{
+  "last_qid": "synthesis",
+  "mortar_consulted": true,
+  "mortar_session_id": "2026-03-22T12:00:00.000Z",
+  "updated_at": "2026-03-25T02:27:55.028Z"
+}
+```
+
+Observations:
+- `mortar_session_id` is `2026-03-22T12:00:00.000Z` — 7 days stale relative to today (2026-03-29).
+  The 4-hour freshness window means `isMortarConsulted()` returns **false** on every call right now.
+- The file lives at a hardcoded absolute path (`C:/Users/trg16/Dev/Bricklayer2.0/masonry/masonry-state.json`),
+  not relative to `cwd`. This means it is a **global singleton**, not per-project.
+- No field tracks the Claude session ID — `mortar_session_id` is a timestamp written by Mortar manually,
+  not by any hook automatically.
+
+### 3. masonry-prompt-router.js — does it write a receipt?
+
+No. The `UserPromptSubmit` hook (masonry-prompt-router.js) reads intent and emits a `hookSpecificOutput`
+routing hint injected into Claude's context. It does **not** write to masonry-state.json, does not set
+`mortar_consulted`, and does not update `mortar_session_id`. Routing hints are text injected into the
+conversation; no machine-readable receipt is written anywhere.
+
+The skip conditions are also relevant: if a `masonry-state.json` with `mode` set exists in `cwd`,
+the router exits silently (line 186–189). This means the receipt writer and the receipt reader live in
+completely separate hooks with no shared write path.
+
+### 4. masonry-session-start.js — does session start reset the receipt?
+
+Session start does not reset `mortar_consulted` or `mortar_session_id`. `build-state.js` reads
+`masonry-state.json` at lines 70–74 but only to display campaign context (`campaign.mode`,
+`campaign.wave`, etc.) — it never writes back to the file.
+
+`project-detect.js` writes to `.mas/session.json` (per-project) and `.mas/session.lock`, not to
+`masonry-state.json`. So the receipt is never reset per session; it persists indefinitely until
+Mortar manually updates it.
+
+### 5. Hook execution model — timing constraints
+
+Claude Code hooks execute synchronously relative to the tool invocation they gate: PreToolUse fires
+before the tool runs, and the tool waits for the hook to exit. UserPromptSubmit fires before Claude
+processes the prompt but does not block tool execution — it only injects context text.
+
+The critical sequencing gap: if `UserPromptSubmit` were to write a receipt, the write would complete
+before Claude processes the prompt. PreToolUse fires later, when Claude actually invokes a tool. There
+is therefore **no race condition** between prompt submission and first tool invocation — they are
+strictly sequential within a single turn. The hypothesized race condition (hook completes
+asynchronously before tool use) does not exist because:
+- UserPromptSubmit fires synchronously on prompt submit
+- Claude processes the prompt and decides what to do
+- PreToolUse fires synchronously before each tool call
+- These three events cannot interleave within a single turn
+
+However, there IS a different timing vulnerability: the receipt granularity. The question asks about
+a "per-turn reset." A per-turn (per-prompt) receipt would require resetting the flag after each
+tool sequence completes. Claude Code has no PostTurn hook. The available reset points are:
+- Per-session: SessionStart hook (currently implemented, never actually resets the flag)
+- Per-tool: PostToolUse hook (could reset, but this fires after every tool, not after the full turn)
+- Per-prompt: no hook exists at this granularity
+
+## Analysis
+
+### Current state: skeleton without enforcement
+
+The routing receipt pattern is **structurally implemented but enforcement is stripped out**. All the
+architectural pieces exist:
+
+| Component | Present? | Enforcing? |
+|---|---|---|
+| Receipt field (`mortar_consulted`) in masonry-state.json | Yes | — |
+| Timestamp field (`mortar_session_id`) for freshness | Yes | — |
+| Freshness window constant (4 hours) | Yes | — |
+| `isMortarConsulted()` reader in PreToolUse hook | Yes | — |
+| Gate condition checking the receipt | Yes | No — `stderr` only |
+| Receipt writer (anything that sets `mortar_consulted: true`) | No | — |
+| Per-session reset (clear stale receipt at SessionStart) | No | — |
+
+The gate at line 293 of masonry-approver.js is fully wired but deliberately softened: the comment
+reads "gate is advisory only" and `process.exit(0)` is never called with a block decision. A blocking
+gate would require emitting `permissionDecision: "deny"` in `hookSpecificOutput` rather than writing
+to stderr and continuing.
+
+### Feasibility assessment
+
+**Yes, the pattern is implementable.** The architecture is already present. Four changes are required:
+
+**Change A — Receipt writer (masonry-prompt-router.js)**
+Add a write to masonry-state.json after routing hint is emitted, setting
+`mortar_consulted: false` (resetting any prior receipt) and storing a per-turn nonce. This is the
+natural place because it fires at prompt submit before any tool use.
+
+**Change B — Receipt stamper (the Mortar agent or a dedicated hook)**
+When Mortar processes a request and dispatches agents, it writes `mortar_consulted: true` and
+`mortar_session_id: <ISO timestamp>` to masonry-state.json. This write confirms routing happened.
+Currently this write exists in the schema but nothing in the hook chain produces it automatically —
+it must be written by Mortar's own code path, which is an agent instruction, not a hook.
+
+**Change C — Gate enforcement (masonry-approver.js line 293–301)**
+Replace the `process.stderr.write` advisory path with:
+```js
+process.stdout.write(JSON.stringify({
+  hookSpecificOutput: {
+    hookEventName: "PreToolUse",
+    permissionDecision: "deny",
+    permissionDecisionReason: "Mortar has not confirmed routing for this request. Consult Mortar before executing tools.",
+  },
+}));
+process.exit(0);
+```
+This is the minimal change to convert the advisory gate to a hard gate.
+
+**Change D — Per-session reset (masonry-session-start.js or masonry-prompt-router.js)**
+Reset `mortar_consulted: false` at session start or at each UserPromptSubmit (before Mortar has had
+a chance to consult). The prompt router is the correct place because it fires per-turn — resetting
+at SessionStart only would not handle mid-session turns where Mortar is bypassed.
+
+### Race condition assessment
+
+The hypothesized race condition does not exist for the intra-turn sequence. The sequence is strictly
+ordered: UserPromptSubmit → Claude inference → PreToolUse. Within a single turn, UserPromptSubmit
+always completes before PreToolUse fires.
+
+**However, two real vulnerabilities exist:**
+
+**Vulnerability 1 — The Mortar write path is an agent instruction, not a hook.**
+Mortar writes the receipt by running code in its own agent context. If Claude decides to invoke tools
+before finishing Mortar's reasoning (e.g., in a long parallel plan), the receipt may not be written
+when the first PreToolUse fires. This is the actual timing risk — not between hooks, but between
+Mortar's write and the first tool call within the same turn.
+
+**Vulnerability 2 — Bash exemption is total.**
+Line 295–297: `if (toolName !== "bash")` — Bash is never warned, never blocked. Any shell command
+can bypass the entire gate regardless of receipt state. Since Bash includes git operations, file
+creation via `echo >`, curl calls, and script execution, this exemption is wide enough to execute
+most real work without triggering the gate at all.
+
+### masonry-state.json as the store — appropriateness
+
+The file is a viable store with two significant limitations:
+
+1. **Global singleton**: hardcoded to one absolute path. In multi-project sessions where `cwd` shifts,
+   the same receipt applies to all projects. A per-project receipt (stored in `{cwd}/masonry-state.json`)
+   would be more correct but requires changing the hardcoded path to a `cwd`-relative lookup.
+
+2. **No session ID binding**: `mortar_session_id` is a timestamp, not the Claude session ID. Two
+   concurrent Claude sessions on different machines (Tim's stated workflow) would share and corrupt
+   each other's receipt state. The session ID from `SessionStart` input (`input.session_id`) is the
+   correct binding key and is available in the hook — it is already used in `masonry-session-start.js`
+   for the snap file and in `project-detect.js` for the session lock.
+
+An alternative store — a per-session temp file at `os.tmpdir()/masonry-receipt-{session_id}.json` —
+avoids both problems and matches the pattern already used by the session snapshot
+(`masonry-snap-${sessionId}.json`).
+
+### Summary of root cause
+
+The routing receipt pattern exists architecturally but has two root-cause gaps:
+
+1. **No automatic receipt writer** — `mortar_session_id` is set to a static past date
+   (`2026-03-22T12:00:00.000Z`) and nothing in the hook chain updates it. The gate always sees a
+   stale receipt and would always fire advisory warnings — but since the gate is advisory, this has no
+   behavioral effect.
+
+2. **Gate is advisory, not enforcing** — the `process.stderr.write` + allow-through at lines 293–301
+   means the pattern exists as documentation intent only. The one line change to emit `deny` is the
+   enforcement gap.
+
+## Fix Specification
+
+- **File**: `C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/hooks/masonry-approver.js`
+- **Line**: 293–301 (the Mortar gate advisory block)
+- **Change**: Replace the `process.stderr.write` advisory path with a blocking `deny` for Write/Edit
+  tools when `isMortarConsulted()` returns false and no active build/compose mode is detected.
+  Bash should remain exempt (it already is). Specifically, replace:
+  ```js
+  if (mortarGateApplicable && !approve && !isMortarConsulted()) {
+    if (toolName !== "bash") {
+      process.stderr.write(
+        "[Masonry] Heads up: Mortar hasn't been consulted this session. " +
+        "For complex multi-file work, invoke the mortar agent first.\n"
+      );
+    }
+    // Always allow through — gate is advisory only.
+  }
+  ```
+  With:
+  ```js
+  if (mortarGateApplicable && !approve && !isMortarConsulted()) {
+    if (toolName !== "bash") {
+      process.stdout.write(JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "deny",
+          permissionDecisionReason:
+            "[Masonry] Mortar has not been consulted for this session. " +
+            "Invoke the mortar agent before making Write/Edit changes.",
+        },
+      }));
+      process.exit(0);
+    }
+    // Bash: allow through unconditionally (git, scripts, simple commands).
+  }
+  ```
+  **Secondary change required**: `masonry-prompt-router.js` must write
+  `mortar_consulted: false` at prompt submit (resetting stale receipts per turn), and Mortar's
+  agent instructions must be updated to write `mortar_consulted: true, mortar_session_id: <now>`
+  to masonry-state.json when it confirms routing. Without the writer, the gate will deny every
+  non-exempt Write/Edit, including legitimate ones.
+- **Verification**:
+  1. Confirm stale receipt blocks: with `mortar_session_id` > 4 hours old (current live state),
+     attempt a Write tool in a non-build, non-research context — should receive a deny.
+     `node masonry/src/hooks/masonry-approver.js <<< '{"tool_name":"write","tool_input":{"file_path":"/tmp/test.txt","content":"x"},"cwd":"C:/Users/trg16/Dev"}'`
+  2. Confirm build mode bypasses gate: with `.autopilot/mode` = "build" and fresh `progress.json`,
+     same Write attempt should be allowed.
+  3. Confirm Bash always allowed: same stale-receipt state, Bash tool — should be allowed.
+- **Risk**: Enabling the hard block without first enabling the writer will deadlock interactive
+  sessions — every Write/Edit will be denied until Mortar writes the receipt. This is the primary
+  regression risk. The writer change in `masonry-prompt-router.js` and Mortar agent instructions
+  must be deployed atomically with the gate change. Adjacent tests: all existing PreToolUse
+  approval paths (build mode, UI compose mode, research mode, subagent exemption) are unaffected
+  because the gate only fires when `approve === false && !isSubagentContext()`.
+
+[RECOMMEND: fix-implementer — advisory gate has the deny logic missing; writer + gate changes are minimal and atomic; regression surface is well-bounded]

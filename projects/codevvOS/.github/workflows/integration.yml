@@ -1,0 +1,34 @@
+name: Integration Tests
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: codevv_app
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: codevvos_test
+        ports:
+          - 5432:5432
+        options: --health-cmd="pg_isready -U codevv_app" --health-interval=10s --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-test.txt
+      - run: pytest tests/integration/ tests/migrations/ -v
+        env:
+          DATABASE_URL: postgresql+asyncpg://codevv_app:test_password@localhost:5432/codevvos_test
+          REDIS_URL: redis://localhost:6379

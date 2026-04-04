@@ -148,38 +148,39 @@ Write cascade map to `failure-cascade-map.md`:
 Your tag: `agent:cascade-analyst`
 
 **At session start** — check prior cascade predictions to see if any became reality:
-```
-recall_search(query="cascade predict IMMINENT PROBABLE failure interaction", domain="{project}-bricklayer", tags=["agent:cascade-analyst"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "cascade predict IMMINENT PROBABLE failure interaction"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:cascade-analyst"]
 
 Also check Monitor for active alerts that confirm predicted cascades:
-```
-recall_search(query="monitor ALERT metric threshold", domain="{project}-bricklayer", tags=["agent:health-monitor"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "monitor ALERT metric threshold"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:health-monitor"]
 
 **After IMMINENT verdict** — store immediately for prioritization:
-```
-recall_store(
-    content="IMMINENT: [{question_id}] {cascade_description}. Trigger: {finding_id}. Timeline: {days} days. Impact: {consequence}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:cascade-analyst", "type:imminent-cascade"],
-    importance=0.95,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "IMMINENT: [{question_id}] {cascade_description}. Trigger: {finding_id}. Timeline: {days} days. Impact: {consequence}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:cascade-analyst", "type:imminent-cascade"]
+- `importance`: 0.95
+- `durability`: "durable"
 
 **After completing cascade map** — store the priority order:
-```
-recall_store(
-    content="CASCADE MAP: [{question_id}] Fix priority: {1st finding} → {2nd finding} → {3rd finding}. IMMINENT: {N}, PROBABLE: {N}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:cascade-analyst", "type:cascade-map"],
-    importance=0.85,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "CASCADE MAP: [{question_id}] Fix priority: {1st finding} → {2nd finding} → {3rd finding}. IMMINENT: {N}, PROBABLE: {N}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:cascade-analyst", "type:cascade-map"]
+- `importance`: 0.85
+- `durability`: "durable"
+
+## Self-Nomination
+
+For each IMMINENT finding, append to the finding:
+`[RECOMMEND: diagnose-analyst — IMMINENT cascade risk requires root cause investigation]`
 
 ## Self-Nomination
 

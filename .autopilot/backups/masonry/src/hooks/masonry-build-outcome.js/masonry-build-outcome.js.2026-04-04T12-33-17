@@ -1,0 +1,134 @@
+'use strict';
+// masonry/src/hooks/masonry-build-outcome.js — PostToolUse:Write hook
+// Watches .autopilot/progress.json for DONE/FAILED task transitions and calls
+// toolPatternPromote / toolPatternDemote accordingly.
+
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+const { toolPatternPromote, toolPatternDemote } = require('../../tools/impl-patterns');
+
+const SUFFIX = path.join('.autopilot', 'progress.json');
+const MAX_STDIN = 512 * 1024;
+
+const MODE_TO_AGENT = {
+  python: 'python-specialist',
+  typescript: 'typescript-specialist',
+  database: 'database-specialist',
+  tdd: 'tdd-london-swarm',
+  devops: 'devops',
+  security: 'security',
+  architect: 'architect',
+};
+
+/** Parse [mode:X] annotation from description (case-insensitive). Returns agent_type. */
+function inferAgentType(description) {
+  if (!description) return 'developer';
+  const m = description.match(/\[mode:([^\]]+)\]/i);
+  if (!m) return 'developer';
+  const mode = m[1].toLowerCase();
+  return MODE_TO_AGENT[mode] || 'developer';
+}
+
+/** Build cache file path for a session. */
+function cachePath(sessionId) {
+  return path.join(os.tmpdir(), `masonry-outcome-prev-${sessionId}.json`);
+}
+
+/** Read previous task states from cache. Returns {} if absent or unreadable. */
+function readPrevCache(sessionId) {
+  try {
+    return JSON.parse(fs.readFileSync(cachePath(sessionId), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+/** Persist current task states to cache. */
+function writePrevCache(sessionId, states) {
+  try {
+    fs.writeFileSync(cachePath(sessionId), JSON.stringify(states), 'utf8');
+  } catch { /* non-fatal */ }
+}
+
+async function main() {
+  // Read stdin
+  let raw = '';
+  try {
+    for await (const chunk of process.stdin) {
+      raw += chunk;
+      if (raw.length > MAX_STDIN) break;
+    }
+  } catch { process.exit(0); }
+
+  // Parse input
+  let input = {};
+  try { input = JSON.parse(raw); } catch { process.exit(0); }
+
+  const { tool_input = {}, session_id: sessionId } = input;
+  const filePath = tool_input.file_path || '';
+
+  // Early exit: only watch .autopilot/progress.json
+  if (!filePath.endsWith(SUFFIX)) process.exit(0);
+
+  // Derive project_dir from the file path
+  const projectDir = filePath.slice(0, -(SUFFIX.length + 1));
+
+  // Check mode — must be 'build' or 'fix'
+  let mode = '';
+  try {
+    mode = fs.readFileSync(path.join(projectDir, '.autopilot', 'mode'), 'utf8').trim();
+  } catch { process.exit(0); }
+
+  if (mode !== 'build' && mode !== 'fix') process.exit(0);
+
+  // Read current progress
+  let progress = null;
+  try {
+    progress = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch { process.exit(0); }
+
+  const tasks = Array.isArray(progress.tasks) ? progress.tasks : [];
+
+  // Build current state map: { [taskId]: status }
+  const currentStates = {};
+  for (const task of tasks) {
+    if (task.id != null) {
+      currentStates[String(task.id)] = task.status;
+    }
+  }
+
+  // Read previous states (use empty session key if missing)
+  const prevStates = sessionId ? readPrevCache(sessionId) : {};
+
+  // Diff: find tasks that newly transitioned to DONE or FAILED
+  for (const task of tasks) {
+    const id = String(task.id);
+    const prev = prevStates[id];
+    const curr = task.status;
+
+    // Only act on NEW transitions (previous state was not already terminal)
+    if (prev === curr) continue;
+    if (prev === 'DONE' || prev === 'FAILED') continue;
+
+    const agentType = inferAgentType(task.description);
+
+    try {
+      if (curr === 'DONE') {
+        toolPatternPromote({ agent_type: agentType, project_dir: projectDir });
+      } else if (curr === 'FAILED') {
+        toolPatternDemote({ agent_type: agentType, project_dir: projectDir });
+      }
+    } catch { /* non-fatal */ }
+  }
+
+  // Update cache with current states
+  if (sessionId) {
+    writePrevCache(sessionId, currentStates);
+  }
+
+  process.exit(0);
+}
+
+main().catch(() => process.exit(0));

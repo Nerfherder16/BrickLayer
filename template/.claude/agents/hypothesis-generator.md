@@ -97,22 +97,36 @@ Return a JSON object with exactly these fields:
 Your tag: `agent:hypothesis-generator`
 
 **At session start** — pull working memory from all agents before reading findings files. The richer inter-agent context produces better hypotheses than findings alone:
-```
-recall_search(query="failure boundary sensitivity leverage", domain="{project}-bricklayer", tags=["agent:quantitative-analyst"])
-recall_search(query="legal constraint regulatory risk", domain="{project}-bricklayer", tags=["agent:regulatory-researcher"])
-recall_search(query="market analogue failure trigger", domain="{project}-bricklayer", tags=["agent:competitive-analyst"])
-recall_search(query="cross-domain dependency critical path", domain="{project}-bricklayer", tags=["agent:synthesizer"])
-recall_search(query="regression baseline performance degradation", domain="{project}-bricklayer", tags=["agent:benchmark-engineer"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "failure boundary sensitivity leverage"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:quantitative-analyst"]
+
+Use **`mcp__recall__recall_search`**:
+- `query`: "legal constraint regulatory risk"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:regulatory-researcher"]
+
+Use **`mcp__recall__recall_search`**:
+- `query`: "market analogue failure trigger"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:competitive-analyst"]
+
+Use **`mcp__recall__recall_search`**:
+- `query`: "cross-domain dependency critical path"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:synthesizer"]
+
+Use **`mcp__recall__recall_search`**:
+- `query`: "regression baseline performance degradation"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:benchmark-engineer"]
 
 **After generating the new question bank** — store a summary so the next hypothesis-generator invocation knows what Wave N covered and doesn't duplicate it:
-```
-recall_store(
-    content="Wave [N] questions generated [{date}]: [N] questions across domains [list]. Key gaps addressed: [summary]. Motivated by findings: [IDs].",
-    memory_type="episodic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "autoresearch", "agent:hypothesis-generator", "type:wave-summary"],
-    importance=0.8,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Wave [N] questions generated [{date}]: [N] questions across domains [list]. Key gaps addressed: [summary]. Motivated by findings: [IDs]."
+- `memory_type`: "episodic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "autoresearch", "agent:hypothesis-generator", "type:wave-summary"]
+- `importance`: 0.8
+- `durability`: "durable"

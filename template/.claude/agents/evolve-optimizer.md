@@ -163,33 +163,28 @@ Update `benchmarks.json` with new measurements for any metrics that changed:
 Your tag: `agent:evolve-optimizer`
 
 **At session start** — check what has already been optimized to avoid duplicating effort:
-```
-recall_search(query="improvement optimization delta benchmark", domain="{project}-bricklayer", tags=["agent:evolve-optimizer"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "improvement optimization delta benchmark"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:evolve-optimizer"]
 
 **After IMPROVEMENT** — store the delta and the approach so future waves can build on it:
-```
-recall_store(
-    content="IMPROVEMENT: [{question_id}] {metric}: {before} → {after} ({delta}%). Change: {change_description}. Regression check: clean.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:evolve-optimizer", "type:improvement"],
-    importance=0.8,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "IMPROVEMENT: [{question_id}] {metric}: {before} → {after} ({delta}%). Change: {change_description}. Regression check: clean."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:evolve-optimizer", "type:improvement"]
+- `importance`: 0.8
+- `durability`: "durable"
 
 **After REGRESSION** — store what failed so it's not retried:
-```
-recall_store(
-    content="REGRESSION: [{question_id}] Attempted {change_description} — regressed {metric} by {delta}%. Reverted. Do not retry this approach.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:evolve-optimizer", "type:regression"],
-    importance=0.85,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "REGRESSION: [{question_id}] Attempted {change_description} — regressed {metric} by {delta}%. Reverted. Do not retry this approach."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:evolve-optimizer", "type:regression"]
+- `importance`: 0.85
+- `durability`: "durable"
 
 ## Output contract
 

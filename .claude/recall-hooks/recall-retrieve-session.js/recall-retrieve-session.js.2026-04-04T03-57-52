@@ -1,0 +1,158 @@
+"use strict";
+/**
+ * recall-retrieve-session.js — Session state persistence and feedback submission.
+ */
+
+const { writeFileSync, mkdirSync, existsSync, readFileSync } = require("fs");
+const { join } = require("path");
+
+const RECALL_HOST = process.env.RECALL_HOST || "http://100.70.195.84:8200";
+const CACHE_DIR = join(process.env.HOME || process.env.USERPROFILE || "/tmp", ".cache", "recall");
+const CHECKPOINT_PROMPT_INTERVAL = 25;
+const CHECKPOINT_TIME_INTERVAL_MS = 2 * 60 * 60 * 1000;
+const STALE_ENTRY_AGE_MS = 2 * 60 * 60 * 1000;
+
+function getInjectedFile(sessionId) {
+  const sessionKey = sessionId || `ppid-${process.ppid}`;
+  return join(CACHE_DIR, `injected-${sessionKey}.json`);
+}
+
+function getSessionStateFile(sessionId) {
+  const sessionKey = sessionId || `ppid-${process.ppid}`;
+  return join(CACHE_DIR, `session-state-${sessionKey}.json`);
+}
+
+function isFirstPrompt(injectedFile) {
+  try {
+    if (!existsSync(injectedFile)) return true;
+    const data = JSON.parse(readFileSync(injectedFile, "utf8"));
+    return !data || data.length === 0;
+  } catch {
+    return true;
+  }
+}
+
+function loadSessionState(stateFile) {
+  try {
+    if (existsSync(stateFile)) return JSON.parse(readFileSync(stateFile, "utf8"));
+  } catch {}
+  return {
+    prompt_count: 0,
+    last_checkpoint: new Date().toISOString(),
+    recent_prompts: [],
+    topic_terms: [],
+    last_injected_ids: [],
+    last_injected_terms: [],
+  };
+}
+
+function saveSessionState(stateFile, state) {
+  try {
+    if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true });
+    writeFileSync(stateFile, JSON.stringify(state));
+  } catch {}
+}
+
+function needsCheckpoint(state) {
+  if (state.prompt_count > 0 && state.prompt_count % CHECKPOINT_PROMPT_INTERVAL === 0) return true;
+  const elapsed = Date.now() - new Date(state.last_checkpoint).getTime();
+  if (elapsed >= CHECKPOINT_TIME_INTERVAL_MS && state.prompt_count > 0) return true;
+  return false;
+}
+
+async function submitPeriodicFeedback(injectedFile, currentResultIds, headers) {
+  let injected;
+  try {
+    injected = JSON.parse(readFileSync(injectedFile, "utf8"));
+  } catch { return; }
+  if (!injected || injected.length === 0) return;
+
+  const now = Date.now();
+  const currentIds = new Set(currentResultIds);
+  const reRetrievedIds = [];
+  const keepEntries = [];
+
+  for (const entry of injected) {
+    if (entry.source === "rehydrate") continue;
+    const age = now - new Date(entry.timestamp).getTime();
+    if (age > STALE_ENTRY_AGE_MS) {
+      if (currentIds.has(entry.memory_id)) reRetrievedIds.push(entry.memory_id);
+    } else {
+      keepEntries.push(entry);
+    }
+  }
+  for (const entry of injected) {
+    if (entry.source === "rehydrate") {
+      const age = now - new Date(entry.timestamp).getTime();
+      if (age <= STALE_ENTRY_AGE_MS) keepEntries.push(entry);
+    }
+  }
+
+  if (reRetrievedIds.length > 0) {
+    const uniqueIds = [...new Set(reRetrievedIds)];
+    try {
+      await fetch(`${RECALL_HOST}/memory/feedback`, {
+        method: "POST", headers,
+        body: JSON.stringify({ injected_ids: uniqueIds, assistant_text: `Re-retrieved: ${uniqueIds.join(", ")}`, force_useful: true }),
+        signal: AbortSignal.timeout(3000),
+      });
+    } catch {}
+  }
+  try { writeFileSync(injectedFile, JSON.stringify(keepEntries)); } catch {}
+}
+
+async function storeCheckpointSummary(cwd, state, domain, headers) {
+  const recentPrompts = state.recent_prompts || [];
+  if (recentPrompts.length < 3) return;
+  const projectName = cwd.split(/[/\\]/).filter(Boolean).pop() || "unknown";
+  const checkpointNum = Math.ceil((state.prompt_count || 0) / CHECKPOINT_PROMPT_INTERVAL);
+  const activeTopics = (state.topic_terms || []).slice(-10).join(", ");
+  const promptList = recentPrompts.slice(-15).map((p, i) => `${i + 1}. ${p.slice(0, 200)}`).join("\n");
+  const parts = [`[Checkpoint #${checkpointNum}] ${projectName} — ${recentPrompts.length} prompts (${new Date().toISOString().slice(0, 16)})`];
+  if (activeTopics) parts.push(`Active topics: ${activeTopics}`);
+  parts.push(`Recent work:\n${promptList}`);
+  try {
+    await fetch(`${RECALL_HOST}/memory/store`, {
+      method: "POST", headers,
+      body: JSON.stringify({
+        content: parts.join("\n").slice(0, 2000),
+        domain: domain || "general", source: "system", memory_type: "episodic",
+        tags: ["session-checkpoint", projectName, `checkpoint:${checkpointNum}`],
+        importance: 0.6,
+      }),
+      signal: AbortSignal.timeout(3000),
+    });
+  } catch {}
+}
+
+async function submitImplicitFeedback(state, promptTerms, headers) {
+  const lastIds = state.last_injected_ids || [];
+  const lastTerms = state.last_injected_terms || [];
+  if (lastIds.length === 0 || lastTerms.length === 0) return;
+  const currentSet = new Set(promptTerms.map((t) => t.toLowerCase()));
+  const hits = lastTerms.filter((t) => currentSet.has(t.toLowerCase()));
+  const overlap = hits.length / Math.max(lastTerms.length, 1);
+  let useful = null;
+  if (overlap >= 0.2) useful = true;
+  else if (overlap < 0.05 && lastTerms.length >= 3) useful = false;
+  if (useful === null) return;
+  try {
+    const promptText = promptTerms.join(" ").slice(0, 300) ||
+      (useful ? "Implicit feedback: continued on same topic (high term overlap)" : "Implicit feedback: topic changed (low term overlap)");
+    // Recall requires assistant_text >= 50 chars — pad short strings
+    const assistantText = promptText.length >= 50 ? promptText
+      : (useful ? `Implicit feedback: continued on same topic. Terms: ${promptTerms.slice(0, 5).join(", ")}` : `Implicit feedback: topic changed. Previous terms: ${lastTerms.slice(0, 5).join(", ")}`);
+    await fetch(`${RECALL_HOST}/memory/feedback`, {
+      method: "POST", headers,
+      body: JSON.stringify({ injected_ids: lastIds, assistant_text: assistantText, force_useful: useful }),
+      signal: AbortSignal.timeout(2000),
+    });
+  } catch {}
+}
+
+module.exports = {
+  getInjectedFile, getSessionStateFile, isFirstPrompt,
+  loadSessionState, saveSessionState, needsCheckpoint,
+  submitPeriodicFeedback, storeCheckpointSummary, submitImplicitFeedback,
+  CHECKPOINT_PROMPT_INTERVAL,
+};

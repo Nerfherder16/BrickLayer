@@ -8,9 +8,9 @@
 
 ## What BrickLayer 2.0 Is
 
-BrickLayer is an autonomous research loop that runs campaigns of questions against
-a target codebase or system. BL 2.0 adds a 9-mode lifecycle ontology on top of the
-BL 1.x engine:
+BrickLayer is an autonomous project lifecycle engine that researches, builds, fixes,
+and maintains systems through structured campaigns. BL 2.0 adds a 9-mode lifecycle
+ontology on top of the BL 1.x engine — covering conception through production maintenance:
 
 | Mode | Verdict vocab | Purpose |
 |------|--------------|---------|

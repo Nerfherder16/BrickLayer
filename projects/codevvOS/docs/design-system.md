@@ -1,0 +1,818 @@
+# CodeVV OS — Design System
+
+**Version:** 1.0  
+**Date:** 2026-04-02  
+**Authority:** Tier 2 — UI/UX ground truth. Implementation derives from this document.
+
+---
+
+## 1. Aesthetic Direction — "Obsidian Shell"
+
+**Concept:** CodeVV OS is a professional power tool, not a consumer app. The aesthetic is *dark OS shell* — like looking into polished volcanic glass. Dense, focused, purposeful. Every pixel earns its place.
+
+**What it is:**
+- A dark command center for serious engineering work
+- Crisp and precise — information-dense without feeling cluttered
+- Minimal chrome — panels feel like OS windows, not web cards
+- Calm under load — the interface doesn't compete with the work
+
+**What it is not:**
+- Gamey, playful, or colorful for its own sake
+- Soft or rounded — this is not a SaaS dashboard
+- White-space-heavy or editorial — it's a tool, not a magazine
+
+**Design references (feel, not literal):** Raycast + VS Code Dark + Linear's action-first density + aerospace mission control restraint.
+
+**Per-workspace accents** provide the only significant color variation. The shell itself is monochromatic near-black; the workspace accent is the identity signal that tells the user where they are. Switching workspaces feels like changing rooms, not themes.
+
+---
+
+## 2. Color Palette
+
+All tokens are CSS custom properties declared in a `@layer base` block. Dark mode is primary. Light mode is an alternative theme class applied to `:root`.
+
+The entire palette is genetically derived from five source colors:
+`#0D160B` (warm green near-black) · `#655560` (muted mauve-purple) · `#FCF7FF` (lavender near-white) · `#4F87B3` (steel blue) · `#ED474A` (coral red)
+
+### 2.1 Base Surfaces (Dark Mode)
+
+```css
+/* Background layers — from deepest to shallowest.
+   All steps pulled from #0D160B, advancing in lightness while
+   preserving its warm green character (G channel leads R by ~10, R leads B by ~3–5). */
+--color-base:       #0D160B;   /* Source color itself — app chrome, behind all panels */
+--color-surface-1:  #111B0E;   /* Primary panel backgrounds — +4 lightness, same family */
+--color-surface-2:  #162013;   /* Panel headers, sidebar — another +5 step up */
+--color-surface-3:  #1C2618;   /* Hover states, row highlights, active items */
+--color-surface-4:  #222D1E;   /* Tooltips, popovers, command palette */
+--color-surface-5:  #293524;   /* Menus, nested dropdowns — lightest surface, still same family */
+```
+
+### 2.2 Borders
+
+```css
+/* Four tiers of visibility, all derived from the surface stack.
+   Subtle → barely visible; Strong → unambiguous selection indicator. */
+--color-border-subtle:  #192510;   /* Nearly invisible — panel interior dividers */
+--color-border-muted:   #212E16;   /* Default panel border, sidebar separator */
+--color-border-default: #2C3D1F;   /* Input fields, focused ring outer */
+--color-border-strong:  #3A4D2A;   /* Active element borders, selection outline */
+```
+
+### 2.3 Text Tiers
+
+```css
+/* Primary: #FCF7FF muted down ~6% — preserves the cool lavender undertone
+   but comfortable for long-form reading on dark backgrounds. */
+--color-text-primary:   #EDE9F4;   /* Primary content, labels, headings */
+
+/* Secondary/Tertiary: #655560 (mauve-purple) lifted to readable contrast.
+   Secondary at ~57% lightness; Tertiary at ~44% — visible placeholder level. */
+--color-text-secondary: #9088A0;   /* Secondary labels, metadata, timestamps */
+--color-text-tertiary:  #5F5570;   /* Placeholder text, disabled labels */
+--color-text-muted:     #3D3350;   /* Very dim — decorative text only */
+
+/* Inverse: dark green-tinted, for text on accent/light surfaces. */
+--color-text-inverse:   #111B0E;   /* Text on accent/white backgrounds */
+```
+
+### 2.4 Workspace Accent System
+
+Each workspace template swaps `--color-accent-*` via a CSS class on the workspace container. The rest of the shell is unaffected.
+
+```css
+/* Default accent — steel blue source color, confirmed identity color */
+--color-accent:       #4F87B3;   /* Steel blue — primary accent, default workspace */
+--color-accent-muted: #4F87B320; /* 12% opacity — subtle fills */
+--color-accent-dim:   #4F87B340; /* 25% opacity — hover fills */
+--color-accent-fg:    #EDE9F4;   /* Near-white from text-primary — contrasts against #4F87B3 */
+
+/* Workspace-specific accent classes.
+   dev:        #4F87B3 — the source steel blue, literal match
+   brainstorm: #8E6AAF — #655560 lifted in lightness and pushed violet (ideation energy)
+   review:     #ED474A — the source coral red; urgency reads naturally as "review/alert"
+   planning:   #4E9E7A — forest sage green pulled from #0D160B's warm green character,
+                          lifted to an accent-usable brightness
+   meeting:    #C47A52 — warm amber-copper between coral warmth and earth tones */
+.workspace-dev        { --color-accent: #4F87B3; --color-accent-muted: #4F87B320; --color-accent-dim: #4F87B340; }
+.workspace-brainstorm { --color-accent: #8E6AAF; --color-accent-muted: #8E6AAF20; --color-accent-dim: #8E6AAF40; }
+.workspace-review     { --color-accent: #ED474A; --color-accent-muted: #ED474A20; --color-accent-dim: #ED474A40; }
+.workspace-planning   { --color-accent: #4E9E7A; --color-accent-muted: #4E9E7A20; --color-accent-dim: #4E9E7A40; }
+.workspace-meeting    { --color-accent: #C47A52; --color-accent-muted: #C47A5220; --color-accent-dim: #C47A5240; }
+```
+
+### 2.5 Semantic Status Colors
+
+```css
+/* Error: #ED474A directly — the coral red source IS the natural error signal in this palette.
+   Warning: #C98A30 — warm amber that harmonizes with the mauve/coral family; avoids generic orange.
+   Success: #4DA862 — forest green derived from the warm green undertone of #0D160B, lifted to
+             accent brightness; feels native to this palette rather than a generic #22C55E import.
+   Info: #4F87B3 — same as default accent; information blue is already established. */
+--color-success:       #4DA862;
+--color-success-muted: #4DA86220;
+--color-warning:       #C98A30;
+--color-warning-muted: #C98A3020;
+--color-error:         #ED474A;
+--color-error-muted:   #ED474A20;
+--color-info:          #4F87B3;
+--color-info-muted:    #4F87B320;
+
+/* Severity — dependency scanner, agent verdicts.
+   Critical = error source; High = coral-orange between red and amber;
+   Medium = warning amber; Low = text-tertiary mauve (muted, not alarming). */
+--color-severity-critical: #ED474A;   /* Same as error — coral red source */
+--color-severity-high:     #C9614A;   /* Coral-orange between error and warning */
+--color-severity-medium:   #C98A30;   /* Same as warning amber */
+--color-severity-low:      #5F5570;   /* Muted mauve — same as text-tertiary */
+```
+
+### 2.6 Light Mode (Secondary Theme)
+
+Applied via `class="theme-light"` on `:root`. Override the same tokens:
+
+```css
+.theme-light {
+  /* Surfaces: #FCF7FF as the base. Each step slightly less lavender-cool.
+     Surface-1 is pure white (maximum legibility); the faint character
+     of #FCF7FF lives in the outer background and nested layers. */
+  --color-base:           #FAF6FF;   /* #FCF7FF pulled slightly neutral — outermost background */
+  --color-surface-1:      #FFFFFF;   /* Pure white primary panels */
+  --color-surface-2:      #F4F0FA;   /* Panel headers — faint lavender, from #FCF7FF family */
+  --color-surface-3:      #EDE8F5;   /* Hover states — one step deeper */
+  --color-surface-4:      #E4DEEE;   /* Tooltips, popovers */
+  --color-surface-5:      #DAD3E7;   /* Menus, nested dropdowns */
+
+  /* Borders: warm-neutral, pulling from the mauve-purple family at light tints. */
+  --color-border-subtle:  #ECE7F5;
+  --color-border-muted:   #DDD7ED;
+  --color-border-default: #C5BDD9;
+  --color-border-strong:  #9E94BA;
+
+  /* Text: primary derived from #0D160B — the deep source, lightened one step for warmth.
+     Secondary/tertiary are #655560 darkened for light-mode contrast ratios. */
+  --color-text-primary:   #0F1A0C;   /* #0D160B +2 lightness — warm green near-black */
+  --color-text-secondary: #4A4265;   /* #655560 darkened for light-mode readability */
+  --color-text-tertiary:  #8279A0;   /* #655560 midpoint — tertiary labels */
+  --color-text-muted:     #C0B8D5;   /* Very light, decorative only */
+  --color-text-inverse:   #FAF6FF;   /* Near-white — text on dark surfaces in light mode */
+}
+```
+
+---
+
+## 3. Typography
+
+### 3.1 Font Families
+
+```css
+/* Interface font — loaded via Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+/* Monospace — loaded via Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+--font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+--font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, 'Cascadia Code', monospace;
+```
+
+**Rationale:**
+- **Inter** — Designed for screens, exceptional at 12–14px, variable weight axis, minimal optical noise at OS shell density.
+- **JetBrains Mono** — Purpose-built for code. Clear disambiguation of `l`/`1`/`I`, `0`/`O`. Programming ligatures (`->`, `=>`, `!=`, `===`) enabled by default. Available for self-hosting (OFL license).
+
+**Self-hosting note:** In a LAN-only deployment with no internet access, self-host both fonts in the `/public/fonts/` directory and load via `@font-face`. Do not depend on Google Fonts CDN for the kiosk boot scenario.
+
+### 3.2 Type Scale
+
+This is an OS-density scale. The base is 13px (not 16px) — appropriate for panel labels, file trees, and information-dense interfaces. 16px is reserved for panel titles, not body text.
+
+```css
+--text-xs:   0.6875rem;  /* 11px — badges, timestamp pills */
+--text-sm:   0.75rem;    /* 12px — panel labels, file tree, captions */
+--text-base: 0.8125rem;  /* 13px — primary UI text */
+--text-md:   0.875rem;   /* 14px — body content in docs/chat */
+--text-lg:   1rem;       /* 16px — panel titles, workspace headings */
+--text-xl:   1.125rem;   /* 18px — section headings */
+--text-2xl:  1.375rem;   /* 22px — modal titles, dialog headings */
+--text-3xl:  1.75rem;    /* 28px — empty state headlines */
+--text-4xl:  2.25rem;    /* 36px — login screen, splash */
+```
+
+### 3.3 Font Weight Usage
+
+```css
+--font-weight-normal:   400;  /* Body text, labels, secondary info */
+--font-weight-medium:   500;  /* Primary labels, tab titles, button text */
+--font-weight-semibold: 600;  /* Panel headers, headings, emphasis */
+/* Never use 700+ (bold) in the shell — too heavy for dark backgrounds */
+```
+
+### 3.4 Line Height
+
+```css
+--leading-tight:  1.25;  /* Panel labels, single-line elements */
+--leading-normal: 1.45;  /* Body text in chat, docs */
+--leading-relaxed:1.6;   /* Long-form content, onboarding */
+```
+
+### 3.5 Monospace Usage
+
+All terminal content, code editor text, diff views, inline code chips, file paths, and commit hashes use `--font-mono`. Never mix `--font-sans` into terminal panels.
+
+```css
+/* Monospace size — slightly smaller than equivalent sans-serif */
+--text-code-sm:   0.75rem;   /* 12px — inline code chips, breadcrumbs */
+--text-code-base: 0.8125rem; /* 13px — terminal default */
+--text-code-md:   0.875rem;  /* 14px — code editor default */
+```
+
+---
+
+## 4. Spacing Scale
+
+4px base grid. All layout and component spacing uses multiples of 4px.
+
+```css
+/* Tailwind-compatible naming — maps to `gap-`, `p-`, `m-`, etc. */
+--space-0:    0px;
+--space-px:   1px;
+--space-0-5:  2px;    /* 0.5 */
+--space-1:    4px;
+--space-1-5:  6px;    /* 1.5 */
+--space-2:    8px;
+--space-2-5:  10px;   /* 2.5 */
+--space-3:    12px;
+--space-3-5:  14px;   /* 3.5 */
+--space-4:    16px;
+--space-5:    20px;
+--space-6:    24px;
+--space-7:    28px;
+--space-8:    32px;
+--space-9:    36px;
+--space-10:   40px;
+--space-12:   48px;
+--space-14:   56px;
+--space-16:   64px;
+--space-20:   80px;
+--space-24:   96px;
+```
+
+**Component padding conventions:**
+- Panel body padding: `--space-3` (12px)
+- Panel header padding: `--space-2 --space-3` (8px 12px)
+- Button padding: `--space-1-5 --space-3` (6px 12px)
+- Input padding: `--space-1-5 --space-2` (6px 8px)
+- Chip/badge padding: `--space-0-5 --space-1-5` (2px 6px)
+- Dock icon padding: `--space-2` (8px)
+
+---
+
+## 5. Border Radius
+
+This is an OS shell. Functional elements are rectilinear. Softness appears only in notification/feedback elements.
+
+```css
+--radius-none: 0px;     /* Panels, panel headers, terminal — hard edges */
+--radius-xs:   2px;     /* Chips, badges, status pills, small tags */
+--radius-sm:   4px;     /* Buttons, inputs, dropdowns, menu items */
+--radius-md:   6px;     /* Dashboard cards, file tree hover states */
+--radius-lg:   8px;     /* Modals, dialogs, popovers, context menus */
+--radius-xl:   12px;    /* Toast notifications */
+--radius-2xl:  16px;    /* Avatar containers, large feature cards */
+--radius-full: 9999px;  /* Avatar images, online indicator dots */
+```
+
+**Strict rules:**
+- `dockview` panel frames: `--radius-none` — never round the panel container
+- Panel header tabs: `--radius-none`
+- Terminal: `--radius-none`
+- Code editor: `--radius-none`
+- Sidebar: `--radius-none`
+- Buttons everywhere: `--radius-sm`
+- Toasts: `--radius-xl`
+
+---
+
+## 6. Elevation & Shadow
+
+Depth is expressed through surface color + shadow, not borders alone. Use shadow levels consistently.
+
+```css
+--shadow-0:  none;
+--shadow-1:  0 1px 2px rgba(0, 0, 0, 0.5);
+             /* Panel raises from base — dock bar, file tree */
+
+--shadow-2:  0 2px 8px rgba(0, 0, 0, 0.55),
+             0 1px 2px rgba(0, 0, 0, 0.4);
+             /* Floating panels, tooltips */
+
+--shadow-3:  0 4px 16px rgba(0, 0, 0, 0.6),
+             0 2px 4px rgba(0, 0, 0, 0.4);
+             /* Context menus, popovers, dropdowns */
+
+--shadow-4:  0 8px 32px rgba(0, 0, 0, 0.65),
+             0 3px 8px rgba(0, 0, 0, 0.45);
+             /* Modals, dialogs */
+
+--shadow-5:  0 16px 48px rgba(0, 0, 0, 0.75),
+             0 6px 16px rgba(0, 0, 0, 0.5);
+             /* Command palette — highest elevation in the system */
+```
+
+**Glass/blur variant** — used sparingly for the command palette and catch-up digest overlay:
+
+```css
+--glass-bg:     rgba(23, 23, 29, 0.85);
+--glass-blur:   backdrop-filter: blur(16px) saturate(1.4);
+--glass-border: 1px solid rgba(255, 255, 255, 0.06);
+```
+
+---
+
+## 7. Component Tokens
+
+Specific token assignments for recurring components. Builders reference these tokens directly — never hardcode hex values in components.
+
+### Panels (dockview)
+
+```css
+--panel-bg:              var(--color-surface-1);
+--panel-border:          var(--color-border-muted);
+--panel-header-bg:       var(--color-surface-2);
+--panel-header-height:   36px;
+--panel-header-text:     var(--color-text-primary);
+--panel-header-weight:   var(--font-weight-medium);
+--panel-tab-active-bg:   var(--color-surface-1);
+--panel-tab-active-border: var(--color-accent);  /* 2px top border on active tab */
+--panel-tab-inactive-bg: var(--color-surface-2);
+--panel-tab-inactive-text: var(--color-text-secondary);
+--panel-resize-handle:   var(--color-border-muted);
+```
+
+### Sidebar
+
+```css
+--sidebar-bg:            var(--color-surface-2);
+--sidebar-width:         220px;
+--sidebar-item-height:   28px;
+--sidebar-item-hover-bg: var(--color-surface-3);
+--sidebar-item-active-bg:var(--color-accent-muted);
+--sidebar-item-active-text: var(--color-accent);
+--sidebar-section-label: var(--color-text-tertiary);
+```
+
+### Dock Bar
+
+```css
+--dock-bg:               var(--color-surface-2);
+--dock-height:           48px;
+--dock-icon-size:        28px;
+--dock-icon-padding:     var(--space-1-5);
+--dock-icon-radius:      var(--radius-sm);
+--dock-icon-hover-bg:    var(--color-surface-3);
+--dock-icon-active-dot:  var(--color-accent);
+--dock-separator:        var(--color-border-muted);
+```
+
+### Buttons
+
+```css
+/* Primary (accent fill) */
+--btn-primary-bg:       var(--color-accent);
+--btn-primary-text:     var(--color-accent-fg);
+--btn-primary-hover:    color-mix(in srgb, var(--color-accent) 85%, white);
+
+/* Secondary (surface fill) */
+--btn-secondary-bg:     var(--color-surface-3);
+--btn-secondary-text:   var(--color-text-primary);
+--btn-secondary-hover:  var(--color-surface-4);
+--btn-secondary-border: var(--color-border-default);
+
+/* Ghost (no fill) */
+--btn-ghost-text:       var(--color-text-secondary);
+--btn-ghost-hover-bg:   var(--color-surface-3);
+--btn-ghost-hover-text: var(--color-text-primary);
+
+/* Danger */
+--btn-danger-bg:        var(--color-error);
+--btn-danger-text:      #FFFFFF;
+
+/* Button sizing */
+--btn-height-sm:   26px;
+--btn-height-md:   32px;
+--btn-height-lg:   38px;
+--btn-radius:      var(--radius-sm);
+--btn-font-weight: var(--font-weight-medium);
+--btn-font-size:   var(--text-sm);
+```
+
+### Input Fields
+
+```css
+--input-bg:              var(--color-surface-3);
+--input-border:          var(--color-border-default);
+--input-border-focus:    var(--color-accent);
+--input-text:            var(--color-text-primary);
+--input-placeholder:     var(--color-text-tertiary);
+--input-height:          32px;
+--input-radius:          var(--radius-sm);
+--input-font-size:       var(--text-base);
+```
+
+### Badges & Chips
+
+```css
+--badge-radius:          var(--radius-xs);
+--badge-font-size:       var(--text-xs);
+--badge-font-weight:     var(--font-weight-medium);
+--badge-padding:         2px 6px;
+
+/* Content-type badges (Artifact Panel) */
+--badge-chart-bg:        #1E3A5F;   --badge-chart-text: #4B9EF5;
+--badge-react-bg:        #1A2E40;   --badge-react-text: #61DAFB;
+--badge-table-bg:        #1E3A2A;   --badge-table-text: #22C55E;
+--badge-diagram-bg:      #2D1E45;   --badge-diagram-text: #9B5CF6;
+--badge-simulation-bg:   #3A2010;   --badge-simulation-text: #F97316;
+```
+
+### Toast Notifications
+
+```css
+--toast-bg:              var(--color-surface-4);
+--toast-border:          var(--color-border-default);
+--toast-radius:          var(--radius-xl);
+--toast-shadow:          var(--shadow-4);
+--toast-width:           340px;
+--toast-font-size:       var(--text-sm);
+```
+
+### Terminal
+
+```css
+/* xterm.js theme tokens — these feed into the Terminal() constructor options */
+--terminal-background:   #0A0A0D;
+--terminal-foreground:   #CCCCCC;
+--terminal-cursor:       var(--color-accent);
+--terminal-cursor-accent:#0A0A0D;
+--terminal-selection-bg: rgba(107, 102, 248, 0.3);  /* accent at 30% */
+--terminal-black:        #1C1C22;
+--terminal-red:          #F47067;
+--terminal-green:        #57C687;
+--terminal-yellow:       #D99B4E;
+--terminal-blue:         #578FE8;
+--terminal-magenta:      #9B6EE8;
+--terminal-cyan:         #57C7D4;
+--terminal-white:        #CCCCCC;
+--terminal-bright-black: #444450;
+--terminal-bright-white: #EEEEF5;
+--terminal-font-family:  var(--font-mono);
+--terminal-font-size:    13;  /* px integer for xterm.js */
+--terminal-line-height:  1.4;
+```
+
+---
+
+## 8. Motion
+
+Transitions are fast. This is an OS — snap, don't float. Slow animations signal "the app is thinking", not "look how smooth I am."
+
+```css
+/* Durations */
+--duration-instant: 60ms;   /* Hover color changes, icon state flips */
+--duration-fast:    100ms;  /* Button press feedback, toggle switches */
+--duration-normal:  150ms;  /* Dropdown appear, resize handle reveal */
+--duration-medium:  200ms;  /* Panel open/close, sidebar expand/collapse */
+--duration-slow:    280ms;  /* Modal appear, command palette open */
+--duration-crawl:   400ms;  /* Reserved for onboarding only */
+
+/* Easing */
+--ease-default:  cubic-bezier(0.2, 0, 0, 1);       /* Fast start, smooth end */
+--ease-out:      cubic-bezier(0, 0, 0.2, 1);        /* Decelerate in */
+--ease-in:       cubic-bezier(0.4, 0, 1, 1);        /* Accelerate out */
+--ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1); /* Overshoot — approval/success only */
+--ease-linear:   linear;                              /* Progress bars, loaders */
+```
+
+**Usage guidelines:**
+- Panel open/close: `var(--duration-medium) var(--ease-default)`
+- Dropdown/popover appear: `var(--duration-normal) var(--ease-out)`
+- Hover state: `var(--duration-instant) var(--ease-default)`
+- Modal: `var(--duration-slow) var(--ease-out)` + slight scale `0.97 → 1.0`
+- Command palette: `var(--duration-slow) var(--ease-out)` + blur fade
+- Toast: slide in from bottom-right over `var(--duration-medium)`
+- Spec approved: `--ease-spring` — the one moment that earns a bounce
+
+**Never animate:** terminal content, code editor cursor, live diff lines, any content that updates at >10 FPS. Transition only structural chrome.
+
+---
+
+## 9. Icon Set
+
+**Library:** [Lucide React](https://lucide.dev) — MIT license, 1,500+ icons, clean 2px-stroke design, tree-shakeable React components, consistent visual weight.
+
+```bash
+npm install lucide-react
+```
+
+### Size Conventions
+
+```css
+--icon-xs:   12px;  /* Inline with text labels (file tree) */
+--icon-sm:   14px;  /* Secondary icons, badge decorators */
+--icon-base: 16px;  /* Default: buttons, input prefix/suffix */
+--icon-md:   18px;  /* Panel header actions */
+--icon-lg:   20px;  /* Sidebar primary nav icons */
+--icon-xl:   24px;  /* Dock icons, empty state illustrations */
+--icon-2xl:  32px;  /* Modal headers */
+--icon-3xl:  48px;  /* Full-page empty states */
+```
+
+### Stroke Width
+
+```css
+--icon-stroke-default: 1.5px;  /* Standard — most of the UI */
+--icon-stroke-dense:   1px;    /* Dense areas: file tree, status bar */
+--icon-stroke-bold:    2px;    /* Emphasis: active states, error indicators */
+```
+
+### Color Rules
+
+- Default: `var(--color-text-secondary)` — icons are not primary focus
+- Interactive (button icon): inherits button text color
+- Active/focused: `var(--color-accent)`
+- Destructive action: `var(--color-error)`
+- Never use raw `currentColor` without an explicit color context — always set a parent color
+
+### Icon Assignment Reference
+
+| Action | Lucide Icon |
+|--------|-------------|
+| Open panel | `LayoutDashboard` |
+| Terminal | `Terminal` |
+| Files | `FolderTree` |
+| Git | `GitBranch` |
+| AI Chat | `MessageSquare` |
+| Knowledge Graph | `Network` |
+| Canvas | `PenTool` |
+| Settings | `Settings` |
+| Search | `Search` |
+| Notifications | `Bell` |
+| Task | `CheckSquare` |
+| Build/Run | `Play` |
+| Stop | `Square` |
+| Agent mode | `Bot` |
+| Preview | `Monitor` |
+| Sandbox | `FlaskConical` |
+| Guest link | `Link` |
+| Branch | `GitBranch` |
+| Deploy | `Rocket` |
+| Vulnerability | `ShieldAlert` |
+| User | `CircleUser` |
+| Team | `Users` |
+| Brainstorm | `Lightbulb` |
+| Approve | `CheckCircle` |
+| Reject | `XCircle` |
+| Expand | `ChevronDown` |
+| Collapse | `ChevronRight` |
+| Drag handle | `GripVertical` |
+| Close panel | `X` |
+| More options | `MoreHorizontal` |
+
+---
+
+## 10. Tailwind v4 Configuration
+
+Tailwind v4 uses CSS-first configuration. All design tokens declared above are consumed directly via `@theme` blocks. No `tailwind.config.js` needed.
+
+```css
+/* src/styles/global.css */
+
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────
+   Design System Token Registration
+   ───────────────────────────────────────────── */
+
+@layer base {
+  :root {
+    /* Surfaces */
+    --color-base:       #08080B;
+    --color-surface-1:  #0F0F14;
+    --color-surface-2:  #151519;
+    --color-surface-3:  #1C1C23;
+    --color-surface-4:  #23232C;
+    --color-surface-5:  #2A2A35;
+
+    /* Borders */
+    --color-border-subtle:  #1A1A22;
+    --color-border-muted:   #262630;
+    --color-border-default: #333340;
+    --color-border-strong:  #444455;
+
+    /* Text */
+    --color-text-primary:   #EEEEF5;
+    --color-text-secondary: #8A8A9A;
+    --color-text-tertiary:  #55556A;
+    --color-text-muted:     #36364A;
+    --color-text-inverse:   #0F0F14;
+
+    /* Accent (overridden per workspace) */
+    --color-accent:       #4F87B3;
+    --color-accent-muted: #4F87B320;
+    --color-accent-dim:   #4F87B340;
+    --color-accent-fg:    #EEEEF5;
+
+    /* Status */
+    --color-success:       #22C55E;
+    --color-success-muted: #22C55E20;
+    --color-warning:       #F59E0B;
+    --color-warning-muted: #F59E0B20;
+    --color-error:         #EF4444;
+    --color-error-muted:   #EF444420;
+    --color-info:          #4B9EF5;
+    --color-info-muted:    #4B9EF520;
+
+    /* Typography */
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+    /* Radius */
+    --radius-none: 0px;
+    --radius-xs:   2px;
+    --radius-sm:   4px;
+    --radius-md:   6px;
+    --radius-lg:   8px;
+    --radius-xl:   12px;
+    --radius-2xl:  16px;
+
+    /* Motion */
+    --duration-instant: 60ms;
+    --duration-fast:    100ms;
+    --duration-normal:  150ms;
+    --duration-medium:  200ms;
+    --duration-slow:    280ms;
+    --ease-default:  cubic-bezier(0.2, 0, 0, 1);
+    --ease-out:      cubic-bezier(0, 0, 0.2, 1);
+    --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Light mode override */
+  .theme-light {
+    --color-base:           #F0F0F5;
+    --color-surface-1:      #FFFFFF;
+    --color-surface-2:      #F5F5FA;
+    --color-surface-3:      #EBEBF3;
+    --color-surface-4:      #E2E2EE;
+    --color-surface-5:      #D8D8E8;
+    --color-border-subtle:  #E8E8F0;
+    --color-border-muted:   #D8D8E8;
+    --color-border-default: #C0C0D4;
+    --color-border-strong:  #9090AA;
+    --color-text-primary:   #111118;
+    --color-text-secondary: #55556A;
+    --color-text-tertiary:  #9090A8;
+    --color-text-muted:     #C0C0D0;
+    --color-text-inverse:   #FFFFFF;
+  }
+
+  /* Workspace accent overrides */
+  .workspace-dev        { --color-accent: #4B9EF5; --color-accent-muted: #4B9EF520; --color-accent-dim: #4B9EF540; }
+  .workspace-brainstorm { --color-accent: #9B5CF6; --color-accent-muted: #9B5CF620; --color-accent-dim: #9B5CF640; }
+  .workspace-planning   { --color-accent: #22C55E; --color-accent-muted: #22C55E20; --color-accent-dim: #22C55E40; }
+  .workspace-review     { --color-accent: #F59E0B; --color-accent-muted: #F59E0B20; --color-accent-dim: #F59E0B40; }
+  .workspace-meeting    { --color-accent: #EC4899; --color-accent-muted: #EC489920; --color-accent-dim: #EC489940; }
+}
+
+/* ─────────────────────────────────────────────
+   Tailwind v4 Theme Extensions
+   Map CSS custom properties into Tailwind's
+   utility classes (bg-*, text-*, border-*, etc.)
+   ───────────────────────────────────────────── */
+
+@theme {
+  /* Colors */
+  --color-base:        var(--color-base);
+  --color-surface-1:   var(--color-surface-1);
+  --color-surface-2:   var(--color-surface-2);
+  --color-surface-3:   var(--color-surface-3);
+  --color-surface-4:   var(--color-surface-4);
+  --color-surface-5:   var(--color-surface-5);
+  --color-border-subtle:  var(--color-border-subtle);
+  --color-border-muted:   var(--color-border-muted);
+  --color-border-default: var(--color-border-default);
+  --color-border-strong:  var(--color-border-strong);
+  --color-text-primary:   var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-tertiary:  var(--color-text-tertiary);
+  --color-text-muted:     var(--color-text-muted);
+  --color-text-inverse:   var(--color-text-inverse);
+  --color-accent:         var(--color-accent);
+  --color-accent-muted:   var(--color-accent-muted);
+  --color-accent-dim:     var(--color-accent-dim);
+  --color-accent-fg:      var(--color-accent-fg);
+  --color-success:        var(--color-success);
+  --color-warning:        var(--color-warning);
+  --color-error:          var(--color-error);
+  --color-info:           var(--color-info);
+
+  /* Fonts */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  /* Radius */
+  --radius-none: var(--radius-none);
+  --radius-xs:   var(--radius-xs);
+  --radius-sm:   var(--radius-sm);
+  --radius-md:   var(--radius-md);
+  --radius-lg:   var(--radius-lg);
+  --radius-xl:   var(--radius-xl);
+  --radius-2xl:  var(--radius-2xl);
+
+  /* Shadow */
+  --shadow-1: var(--shadow-1);
+  --shadow-2: var(--shadow-2);
+  --shadow-3: var(--shadow-3);
+  --shadow-4: var(--shadow-4);
+  --shadow-5: var(--shadow-5);
+
+  /* Text sizes */
+  --text-xs:   var(--text-xs);
+  --text-sm:   var(--text-sm);
+  --text-base: var(--text-base);
+  --text-md:   var(--text-md);
+  --text-lg:   var(--text-lg);
+  --text-xl:   var(--text-xl);
+  --text-2xl:  var(--text-2xl);
+  --text-3xl:  var(--text-3xl);
+  --text-4xl:  var(--text-4xl);
+}
+
+/* ─────────────────────────────────────────────
+   Base Element Resets
+   ───────────────────────────────────────────── */
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;              /* The OS never scrolls at root level */
+    background-color: var(--color-base);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-tight);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Scrollbars — thin, dark, OS-native feel */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-default);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-border-strong); }
+
+  /* Selection color */
+  ::selection {
+    background: var(--color-accent-dim);
+    color: var(--color-text-primary);
+  }
+}
+```
+
+---
+
+## 11. Design Token Quick Reference
+
+For builders — the 20 tokens you'll use 80% of the time:
+
+| Token | Value | Use |
+|-------|-------|-----|
+| `--color-base` | `#08080B` | App background |
+| `--color-surface-1` | `#0F0F14` | Panel backgrounds |
+| `--color-surface-2` | `#151519` | Headers, sidebars |
+| `--color-surface-3` | `#1C1C23` | Hover states |
+| `--color-surface-4` | `#23232C` | Tooltips, menus |
+| `--color-border-muted` | `#262630` | Most dividers |
+| `--color-border-default` | `#333340` | Inputs, focused |
+| `--color-text-primary` | `#EEEEF5` | Primary text |
+| `--color-text-secondary` | `#8A8A9A` | Labels, metadata |
+| `--color-text-tertiary` | `#55556A` | Placeholders |
+| `--color-accent` | workspace-var | Active, focus, CTA |
+| `--color-accent-muted` | workspace-var | Subtle fills |
+| `--color-error` | `#EF4444` | Errors |
+| `--color-warning` | `#F59E0B` | Warnings |
+| `--color-success` | `#22C55E` | Success |
+| `--text-sm` | `12px` | Most labels |
+| `--text-base` | `13px` | Primary text |
+| `--font-mono` | JetBrains Mono | All code |
+| `--radius-sm` | `4px` | Buttons, inputs |
+| `--duration-normal` | `150ms` | Most transitions |
+
+---
+
+*Design System v1.0 — written for CodeVV OS builders. All implementation derives from this document. Changes must be reflected here first.*

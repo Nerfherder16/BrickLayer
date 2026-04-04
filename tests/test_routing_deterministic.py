@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 
-import pytest
 
 from masonry.src.routing.deterministic import (
     _route_from_registry_keywords,

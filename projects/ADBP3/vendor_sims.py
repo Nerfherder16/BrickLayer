@@ -270,10 +270,10 @@ def run_break_even(months, employees_list, minted_list, admin_list):
     )
     print()
     print(
-        f"  Scenario: vendor recirculates 50% of accepted credits (net cost = $0.50/credit)"
+        "  Scenario: vendor recirculates 50% of accepted credits (net cost = $0.50/credit)"
     )
     print(
-        f"  At what recirculation share does monthly admin income exceed monthly discount cost?"
+        "  At what recirculation share does monthly admin income exceed monthly discount cost?"
     )
     print()
 
@@ -317,7 +317,7 @@ def run_break_even(months, employees_list, minted_list, admin_list):
         "  Part C: Break-even month — when does admin income first exceed net discount cost?"
     )
     print(
-        f"  (Assuming 50% recirculation efficiency — vendor absorbs $0.50/credit net)"
+        "  (Assuming 50% recirculation efficiency — vendor absorbs $0.50/credit net)"
     )
     print()
     print(f"  {'Acceptance Share':>16}  {'Break-Even Month':>16}  {'Note'}")
@@ -347,7 +347,7 @@ def run_break_even(months, employees_list, minted_list, admin_list):
     )
     print()
     print(
-        f"  At 100% recirculation efficiency, discount cost = $0. Admin fee = pure margin."
+        "  At 100% recirculation efficiency, discount cost = $0. Admin fee = pure margin."
     )
     print()
     print(
@@ -502,7 +502,7 @@ def main():
     print("=" * 72)
     print("  VENDOR ECONOMICS SUMMARY")
     print("=" * 72)
-    print(f"""
+    print("""
   The admin fee pool is the primary financial incentive for vendor participation.
   Key findings:
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-import pytest
 
 from masonry.scripts.onboard_agent import extract_agent_metadata, generate_registry_entry
 from masonry.src.schemas import AgentRegistryEntry

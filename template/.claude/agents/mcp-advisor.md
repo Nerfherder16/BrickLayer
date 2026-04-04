@@ -243,18 +243,16 @@ Return a JSON object with exactly these fields:
 ## Recall
 
 **After writing recommendations** — store the gap summary so future campaigns know what was unblocking:
-```
-recall_store(
-    content="MCP advisor [{date}] for {project}: {N} gaps found, {M} MCPs recommended. Top gap: {description}. Verdict: {verdict}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:mcp-advisor", "type:tooling-gaps"],
-    importance=0.75,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "MCP advisor [{date}] for {project}: {N} gaps found, {M} MCPs recommended. Top gap: {description}. Verdict: {verdict}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:mcp-advisor", "type:tooling-gaps"]
+- `importance`: 0.75
+- `durability`: "durable"
 
 **At session start** — check prior tooling gap reports:
-```
-recall_search(query="MCP tooling gaps INCONCLUSIVE capability missing", domain="{project}-bricklayer", tags=["agent:mcp-advisor"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "MCP tooling gaps INCONCLUSIVE capability missing"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:mcp-advisor"]

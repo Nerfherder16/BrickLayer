@@ -1,0 +1,16 @@
+{
+  "last_qid": "synthesis_wave32",
+  "last_verdict": "UNKNOWN",
+  "verdicts": {
+    "HEALTHY": 12,
+    "WARNING": 8,
+    "FAILURE": 3,
+    "FIX_APPLIED": 11,
+    "PARTIAL": 2,
+    "BLOCKED": 2,
+    "DONE": 1
+  },
+  "updated_at": "2026-03-23T15:08:24.710Z",
+  "active_agent": "general-purpose",
+  "active_agent_count": 36
+}

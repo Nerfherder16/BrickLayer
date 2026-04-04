@@ -1,0 +1,286 @@
+'use strict';
+// engine/recall-bridge.js — BrickLayer <-> Recall bridge.
+//
+// Port of bl/recall_bridge.py to Node.js. Queries the Recall API for
+// memories relevant to a campaign, surfacing prior findings from
+// analogous projects.
+//
+// Uses native fetch() — no external HTTP dependency.
+// All network calls are fire-and-forget: timeouts are hard-capped and
+// every exception is swallowed so a Recall outage never blocks a campaign.
+
+const fs = require('fs');
+const path = require('path');
+const { cfg, authHeaders } = require('./config');
+
+const RECALL_TIMEOUT = 3000; // ms — never block a campaign
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+function _headers() {
+  const h = { 'Content-Type': 'application/json', Accept: 'application/json' };
+  if (cfg.apiKey) h['X-API-Key'] = cfg.apiKey;
+  return h;
+}
+
+function _writeRecallDegraded(degraded) {
+  try {
+    const sentinelDir = path.join(cfg.blRoot, '.mas');
+    const sentinelPath = path.join(sentinelDir, 'recall_degraded');
+    fs.mkdirSync(sentinelDir, { recursive: true });
+    if (degraded) {
+      fs.writeFileSync(sentinelPath, '1', 'utf8');
+    } else if (fs.existsSync(sentinelPath)) {
+      fs.unlinkSync(sentinelPath);
+    }
+  } catch (_) { /* never block on sentinel writes */ }
+}
+
+async function _post(endpoint, payload) {
+  const url = `${cfg.baseUrl}${endpoint}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), RECALL_TIMEOUT);
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: _headers(),
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    const result = await resp.json();
+    _writeRecallDegraded(false);
+    return result;
+  } catch (_) {
+    _writeRecallDegraded(true);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function _get(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), RECALL_TIMEOUT);
+  try {
+    const resp = await fetch(url, {
+      method: 'GET',
+      headers: _headers(),
+      signal: controller.signal,
+    });
+    return await resp.json();
+  } catch (_) {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function _patch(url, payload) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), RECALL_TIMEOUT);
+  try {
+    await fetch(url, {
+      method: 'PATCH',
+      headers: _headers(),
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    return true;
+  } catch (_) {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Normalise whatever shape Recall returns into a flat list of memory dicts.
+ */
+function _extractMemories(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'object') {
+    for (const key of ['memories', 'results', 'data', 'items']) {
+      if (Array.isArray(raw[key])) return raw[key];
+    }
+  }
+  return [];
+}
+
+/**
+ * Return only the fields callers care about.
+ */
+function _clean(mem) {
+  return {
+    content: mem.content ?? '',
+    importance: mem.importance ?? 0.0,
+    tags: mem.tags ?? [],
+    created_at: mem.created_at ?? '',
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/**
+ * Query Recall for memories matching `query` in the given domain.
+ * Returns list of {content, importance, tags, created_at} dicts.
+ * Returns [] on any error (timeout, unreachable, etc.)
+ */
+async function searchPriorFindings(query, domain = 'autoresearch', limit = 5) {
+  if (!query) return [];
+  const raw = await _post('/search/browse', { query, domain_hint: domain, limit });
+  return _extractMemories(raw).map(_clean);
+}
+
+/**
+ * Retrieve session summaries and key findings for a specific project.
+ */
+async function getProjectHistory(projectName, limit = 10) {
+  if (!projectName) return [];
+  const raw = await _post('/search/browse', {
+    query: projectName,
+    domain_hint: 'autoresearch',
+    limit,
+  });
+  return _extractMemories(raw).map(_clean);
+}
+
+/**
+ * Store a BL finding to Recall for cross-project recall.
+ * Returns true if stored successfully, false otherwise.
+ */
+async function storeFinding(questionId, verdict, summary, project, tags, domain, importance = 0.7) {
+  if (!summary) return false;
+
+  const effectiveDomain = domain || `${project}-bricklayer`;
+  const content = `[${project}/${questionId}] ${verdict}: ${summary}`;
+  const allTags = [
+    'bricklayer',
+    `project:${project}`,
+    `verdict:${verdict}`,
+    `qid:${questionId}`,
+  ];
+  if (tags) allTags.push(...tags);
+
+  const result = await _post('/memory/store', {
+    content,
+    domain: effectiveDomain,
+    importance,
+    tags: allTags,
+  });
+  return result !== null;
+}
+
+/**
+ * Find failure patterns from other projects that match this system type.
+ */
+async function getAnalogousFailures(systemType, limit = 5) {
+  if (!systemType) return [];
+
+  const raw = await _post('/search/browse', {
+    query: `FAILURE ${systemType}`,
+    limit,
+  });
+  const memories = _extractMemories(raw);
+
+  const failures = memories.filter(m => {
+    const content = (m.content || '').toUpperCase();
+    const tags = m.tags || [];
+    return content.includes('FAILURE') ||
+      tags.some(t => String(t).toLowerCase().includes('failure') ||
+                     String(t).toLowerCase().includes('verdict:failure'));
+  });
+
+  return failures.map(_clean);
+}
+
+/**
+ * Query Recall for cross-campaign context relevant to this project and wave.
+ * Returns [] on any error so a Recall outage never blocks a campaign.
+ */
+async function getCampaignContext(project, wave = 1, limit = 8) {
+  if (!project) return [];
+
+  const query = `campaign context project:${project} wave:${wave} findings synthesis`;
+  const raw = await _post('/search/browse', {
+    query,
+    domain_hint: `${project}-bricklayer`,
+    limit,
+    tags: ['bricklayer', `project:${project}`],
+  });
+  const memories = _extractMemories(raw);
+
+  // Also search without domain restriction for cross-project analogues
+  if (memories.length < Math.floor(limit / 2)) {
+    const crossRaw = await _post('/search/browse', {
+      query: `bricklayer synthesis failure ${project}`,
+      limit: limit - memories.length,
+    });
+    memories.push(..._extractMemories(crossRaw));
+  }
+
+  return memories.map(_clean);
+}
+
+/**
+ * For each injected memory whose verdict conflicts with actual session findings,
+ * reduce its importance by decayFactor.
+ * Returns count of decayed memories. Never blocks — returns 0 on any error.
+ */
+async function decayConflictingMemories(injectedMemoryIds, sessionFindings, decayFactor = 0.8) {
+  if (!injectedMemoryIds?.length || !sessionFindings?.length) return 0;
+
+  const PASS_VERDICTS = new Set(['HEALTHY', 'FIXED', 'VALIDATED', 'COMPLIANT', 'IMPROVEMENT']);
+  const FAIL_VERDICTS = new Set(['FAILURE', 'NON_COMPLIANT', 'REGRESSION']);
+
+  const actualPass = sessionFindings.some(f => PASS_VERDICTS.has(f.verdict));
+  const actualFail = sessionFindings.some(f => FAIL_VERDICTS.has(f.verdict));
+
+  let decayed = 0;
+
+  for (const memoryId of injectedMemoryIds) {
+    try {
+      const memory = await _get(`${cfg.baseUrl}/memory/${memoryId}`);
+      if (!memory) continue;
+
+      const tags = memory.tags || [];
+      const verdictTag = tags.find(t => t.startsWith('verdict:'));
+      const memoryVerdict = verdictTag ? verdictTag.split(':')[1] : null;
+      if (!memoryVerdict) continue;
+
+      const conflict =
+        (PASS_VERDICTS.has(memoryVerdict) && actualFail) ||
+        (FAIL_VERDICTS.has(memoryVerdict) && actualPass && !actualFail);
+
+      if (!conflict) continue;
+
+      const currentImportance = parseFloat(memory.importance || 0.5);
+      const newImportance = Math.round(currentImportance * decayFactor * 1000) / 1000;
+
+      const patched = await _patch(
+        `${cfg.baseUrl}/memory/${memoryId}`,
+        { importance: newImportance },
+      );
+      if (patched) decayed++;
+    } catch (_) {
+      continue;
+    }
+  }
+
+  return decayed;
+}
+
+module.exports = {
+  searchPriorFindings,
+  getProjectHistory,
+  storeFinding,
+  getAnalogousFailures,
+  getCampaignContext,
+  decayConflictingMemories,
+  _extractMemories,
+  _clean,
+};

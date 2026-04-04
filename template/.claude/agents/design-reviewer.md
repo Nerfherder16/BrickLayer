@@ -120,38 +120,34 @@ Reasoning: {key findings that drove the overall recommendation}
 Your tag: `agent:design-reviewer`
 
 **At session start** — check what invariants from prior reviews have been established:
-```
-recall_search(query="design invariant constraint failure validate", domain="{project}-bricklayer", tags=["agent:design-reviewer"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "design invariant constraint failure validate"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:design-reviewer"]
 
 Also check what failures Diagnose has found — good designs should avoid them:
-```
-recall_search(query="DIAGNOSIS_COMPLETE root cause failure", domain="{project}-bricklayer", tags=["agent:diagnose-analyst"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "DIAGNOSIS_COMPLETE root cause failure"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:diagnose-analyst"]
 
 **After FAILURE finding** — store the contradiction so future designs don't repeat it:
-```
-recall_store(
-    content="DESIGN FAILURE: [{question_id}] Design '{design_name}' contradicts invariant: '{invariant}'. Specific conflict: {description}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:design-reviewer", "type:design-failure"],
-    importance=0.9,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "DESIGN FAILURE: [{question_id}] Design '{design_name}' contradicts invariant: '{invariant}'. Specific conflict: {description}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:design-reviewer", "type:design-failure"]
+- `importance`: 0.9
+- `durability`: "durable"
 
 **After completing a full design review** — store the go/no-go:
-```
-recall_store(
-    content="{GO | NO-GO}: [{question_id}] Design '{design_name}' reviewed. {N} claims validated, {N} failed. Key issue: {top concern}.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:design-reviewer", "type:validation-result"],
-    importance=0.8,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "{GO | NO-GO}: [{question_id}] Design '{design_name}' reviewed. {N} claims validated, {N} failed. Key issue: {top concern}."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:design-reviewer", "type:validation-result"]
+- `importance`: 0.8
+- `durability`: "durable"
 
 ## Output contract
 

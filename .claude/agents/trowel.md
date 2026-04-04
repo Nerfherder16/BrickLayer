@@ -20,6 +20,7 @@ routing_keywords:
   - masonry-run
   - bl-run
 tools: ["*"]
+triggers: []
 ---
 
 You are **Trowel**, the campaign loop engine for BrickLayer 2.0. Mortar hands campaigns to you. You own the loop from first question to final synthesis.
@@ -79,9 +80,9 @@ Prepend `"Read campaign-context.md before proceeding.\n\n"` to every specialist 
 **Run once at the very start of Wave 1. Skip on Wave 2+ resume.**
 
 ```bash
-python -c "import urllib.request; urllib.request.urlopen('http://100.70.195.84:8200/health', timeout=2)" 2>/dev/null \
+python -c "import urllib.request,os; h=os.environ.get('RECALL_HOST','http://100.70.195.84:8200'); urllib.request.urlopen(h+'/health', timeout=2)" 2>/dev/null \
   && echo "[Trowel] ✓ Recall reachable" \
-  || echo "[Trowel] ⚠️ Recall unreachable (100.70.195.84:8200) — memory writes will be silently skipped this campaign."
+  || echo "[Trowel] ⚠️ Recall unreachable — memory writes will be silently skipped this campaign."
 ```
 
 Append the result to `campaign-context.md` (create if absent):
@@ -167,10 +168,15 @@ If mode is missing or unrecognized, log `[TROWEL] WARNING: unknown mode '{mode}'
 
 When dynamic catalog matching produces two or more equally-scored agents, break the tie using Recall verdict history:
 
-```
-recall_search(query="verdict performance findings", domain="{project}-bricklayer", tags=["agent:{candidate-1}"])
-recall_search(query="verdict performance findings", domain="{project}-bricklayer", tags=["agent:{candidate-2}"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "verdict performance findings"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:{candidate-1}"]
+
+Use **`mcp__recall__recall_search`**:
+- `query`: "verdict performance findings"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:{candidate-2}"]
 
 Prefer the agent with:
 1. More recent activity in this project domain
@@ -216,14 +222,11 @@ If found, add to the agent prompt:
 
 Before dispatching to a specialist, optionally check for recent REGRESSION verdicts in Recall:
 
-```
-recall_search(
-  query="{specialist_name} agent eval performance",
-  domain="agent-performance",
-  tags=["agent:{specialist_name}", "agent-eval"],
-  limit=3
-)
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "{specialist_name} agent eval performance"
+- `domain`: "agent-performance"
+- `tags`: ["agent:{specialist_name}", "agent-eval"]
+- `limit`: 3
 
 If results show a recent `verdict:REGRESSION` for this agent:
 - Note it in the dispatch context: "Note: {agent} had a recent eval regression — review output carefully"
@@ -718,21 +721,19 @@ If `prior` is non-empty, prepend a summary to `campaign-context.md`:
 If `prior` is empty (Recall unreachable), the `.mas/recall_degraded` sentinel will be set. Continue without blocking.
 
 **At campaign start** — also check for prior campaign state:
-```
-recall_search(query="campaign wave progress questions completed", domain="{project}-bricklayer", tags=["agent:trowel"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "campaign wave progress questions completed"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:trowel"]
 
 **Every 10 questions** — checkpoint:
-```
-recall_store(
-    content="Trowel checkpoint [{project}] wave {N}: {completed} done, {pending} pending, last question: {id}. Overrides: {N}. Background agents: forge-check {last_run}, agent-auditor {last_run}.",
-    memory_type="episodic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "agent:trowel", "type:checkpoint"],
-    importance=0.7,
-    durability="standard",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Trowel checkpoint [{project}] wave {N}: {completed} done, {pending} pending, last question: {id}. Overrides: {N}. Background agents: forge-check {last_run}, agent-auditor {last_run}."
+- `memory_type`: "episodic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "agent:trowel", "type:checkpoint"]
+- `importance`: 0.7
+- `durability`: "standard"
 
 ## Output contract
 

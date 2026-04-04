@@ -11,13 +11,10 @@ Run with:
 from __future__ import annotations
 
 import json
-import math
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
-import pytest
 
 # Ensure repo root on path
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent

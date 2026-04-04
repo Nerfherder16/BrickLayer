@@ -7,7 +7,6 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from masonry.src.routing.llm_router import route_llm
 from masonry.src.routing.router import route

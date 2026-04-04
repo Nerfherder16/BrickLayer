@@ -222,7 +222,7 @@ def convert_gguf(adapter_dir: str) -> None:
     print(f"[gguf] Merged model saved to {merged_dir}")
 
     # Convert via llama.cpp convert script
-    print(f"[gguf] Converting to GGUF (q4_k_m)...")
+    print("[gguf] Converting to GGUF (q4_k_m)...")
     result = subprocess.run(
         [
             sys.executable, "-m", "llama_cpp.convert",
@@ -244,8 +244,8 @@ def convert_gguf(adapter_dir: str) -> None:
             print("[gguf] ERROR: GGUF conversion failed.")
             print(result2.stderr[-500:])
             print("\nManual conversion:")
-            print(f"  git clone https://github.com/ggerganov/llama.cpp")
-            print(f"  cd llama.cpp && pip install -r requirements.txt")
+            print("  git clone https://github.com/ggerganov/llama.cpp")
+            print("  cd llama.cpp && pip install -r requirements.txt")
             print(f"  python convert_hf_to_gguf.py {merged_dir} --outfile {gguf_path} --outtype q4_k_m")
             return
         print(result2.stdout)
@@ -253,10 +253,10 @@ def convert_gguf(adapter_dir: str) -> None:
         print(result.stdout)
 
     print(f"[gguf] GGUF saved: {gguf_path}")
-    print(f"\nLoad into Ollama:")
-    print(f"  ollama create bricklayer-sft -f Modelfile")
+    print("\nLoad into Ollama:")
+    print("  ollama create bricklayer-sft -f Modelfile")
     print(f"  # Where Modelfile contains: FROM {gguf_path}")
-    print(f"\nOr use the load_adapter.sh script if it exists.")
+    print("\nOr use the load_adapter.sh script if it exists.")
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────

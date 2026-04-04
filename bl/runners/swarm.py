@@ -30,6 +30,10 @@ from concurrent.futures import (
     as_completed,
 )
 
+from bl.config import cfg as _cfg
+from bl.runners.agent import build_agent_prompt, parse_agent_raw
+from bl.tmux import collect_wave, spawn_wave
+
 # ---------------------------------------------------------------------------
 # Verdict ordering (worst-first)
 # ---------------------------------------------------------------------------
@@ -153,6 +157,114 @@ def _run_worker(worker_def: dict, timeout_seconds: int) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Wave dispatch for agent-mode workers
+# ---------------------------------------------------------------------------
+
+
+def _dispatch_agent_wave(agent_workers: list[dict], timeout: int) -> list[dict]:
+    """Batch-dispatch agent-mode workers via tmux wave for tiled layout.
+
+    Builds prompts, spawns all agents at once (tiled panes), collects results.
+    Returns list of swarm-compatible worker result dicts.
+    """
+    results: list[dict] = []
+    spawn_specs: list[tuple[str, str, dict]] = []  # (worker_id, agent_name, kwargs)
+
+    for wdef in agent_workers:
+        worker_id = wdef.get("id", "unknown")
+        worker_spec = wdef.get("spec", {})
+        question = {
+            "id": worker_id,
+            "mode": "agent",
+            "spec": worker_spec,
+            **{k: v for k, v in worker_spec.items() if k not in ("id", "mode")},
+        }
+
+        start = time.monotonic()
+        try:
+            prompt, model = build_agent_prompt(question)
+        except ValueError as exc:
+            results.append(
+                {
+                    "id": worker_id,
+                    "mode": "agent",
+                    "verdict": "INCONCLUSIVE",
+                    "summary": str(exc),
+                    "data": {"error": "prompt_build_failed"},
+                    "details": str(exc),
+                    "duration_ms": round((time.monotonic() - start) * 1000, 1),
+                }
+            )
+            continue
+
+        agent_name = question.get("agent_name", "").strip()
+        spawn_specs.append(
+            (
+                worker_id,
+                agent_name,
+                {
+                    "agent_name": agent_name,
+                    "prompt": prompt,
+                    "model": model,
+                    "allowed_tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+                    "cwd": str(_cfg.recall_src),
+                },
+            )
+        )
+
+    if not spawn_specs:
+        return results
+
+    try:
+        wave_args = [kwargs for _, _, kwargs in spawn_specs]
+        spawns = spawn_wave(wave_args)
+        agent_results = collect_wave(spawns, timeout=timeout)
+    except FileNotFoundError:
+        for worker_id, name, _ in spawn_specs:
+            results.append(
+                {
+                    "id": worker_id,
+                    "mode": "agent",
+                    "verdict": "INCONCLUSIVE",
+                    "summary": f"claude CLI not found — cannot spawn {name}",
+                    "data": {"error": "cli_not_found"},
+                    "details": "Install: https://claude.ai/download",
+                    "duration_ms": 0,
+                }
+            )
+        return results
+
+    for (worker_id, agent_name, _), ar in zip(spawn_specs, agent_results):
+        if ar.exit_code == -1:
+            results.append(
+                {
+                    "id": worker_id,
+                    "mode": "agent",
+                    "verdict": "INCONCLUSIVE",
+                    "summary": f"{agent_name} timed out after {timeout}s",
+                    "data": {"error": "timeout"},
+                    "details": f"Agent exceeded timeout ({timeout}s)",
+                    "duration_ms": ar.duration_ms,
+                }
+            )
+        else:
+            envelope = parse_agent_raw(agent_name, ar.stdout)
+            results.append(
+                {
+                    "id": worker_id,
+                    "mode": "agent",
+                    "verdict": envelope.get("verdict", "INCONCLUSIVE"),
+                    "summary": envelope.get("summary", ""),
+                    "data": envelope.get("data", {}),
+                    "details": envelope.get("details", ""),
+                    "duration_ms": ar.duration_ms,
+                }
+            )
+
+    return results
+
+
+# ---------------------------------------------------------------------------
 # Main runner
 # ---------------------------------------------------------------------------
 
@@ -181,71 +293,83 @@ def run_swarm(question: dict) -> dict:
 
     swarm_start = time.monotonic()
 
-    # Submit all workers to the thread pool.
+    # Partition workers: agent-mode → wave dispatch, others → thread pool.
+    agent_workers = [w for w in workers if w.get("mode") == "agent"]
+    other_workers = [w for w in workers if w.get("mode") != "agent"]
+
     completed_results: list[dict] = []
     timed_out_ids: list[str] = []
     failed_ids: list[str] = []
 
-    with ThreadPoolExecutor(max_workers=max(1, max_concurrency)) as pool:
-        future_to_worker = {
-            pool.submit(_run_worker, w, timeout_seconds): w for w in workers
-        }
+    # Dispatch agent workers via tmux wave (tiled panes, batch collect).
+    if agent_workers:
+        wave_results = _dispatch_agent_wave(agent_workers, timeout_seconds)
+        for r in wave_results:
+            completed_results.append(r)
+            if r["verdict"] in ("FAILURE", "INCONCLUSIVE"):
+                failed_ids.append(r["id"])
+            if r.get("data", {}).get("error") in ("timeout", "global_timeout"):
+                timed_out_ids.append(r["id"])
 
-        for future in as_completed(future_to_worker, timeout=timeout_seconds):
-            worker_def = future_to_worker[future]
-            worker_id = worker_def.get("id", "unknown")
-            try:
-                result = future.result(timeout=0)  # result already available
-                completed_results.append(result)
-                if result["verdict"] in ("FAILURE", "INCONCLUSIVE"):
-                    failed_ids.append(worker_id)
-            except FuturesTimeoutError:
-                # Individual future timed out (shouldn't happen since as_completed
-                # already enforced global timeout, but be safe).
-                timed_out_ids.append(worker_id)
+    # Dispatch non-agent workers via thread pool.
+    if other_workers:
+        with ThreadPoolExecutor(max_workers=max(1, max_concurrency)) as pool:
+            future_to_worker = {
+                pool.submit(_run_worker, w, timeout_seconds): w for w in other_workers
+            }
+
+            for future in as_completed(future_to_worker, timeout=timeout_seconds):
+                worker_def = future_to_worker[future]
+                worker_id = worker_def.get("id", "unknown")
+                try:
+                    result = future.result(timeout=0)
+                    completed_results.append(result)
+                    if result["verdict"] in ("FAILURE", "INCONCLUSIVE"):
+                        failed_ids.append(worker_id)
+                except FuturesTimeoutError:
+                    timed_out_ids.append(worker_id)
+                    completed_results.append(
+                        {
+                            "id": worker_id,
+                            "mode": worker_def.get("mode", ""),
+                            "verdict": "INCONCLUSIVE",
+                            "summary": f"Worker '{worker_id}' timed out",
+                            "data": {"error": "timeout"},
+                            "details": f"Worker did not complete within timeout ({timeout_seconds}s).",
+                            "duration_ms": timeout_seconds * 1000,
+                        }
+                    )
+                except Exception as exc:
+                    timed_out_ids.append(worker_id)
+                    completed_results.append(
+                        {
+                            "id": worker_id,
+                            "mode": worker_def.get("mode", ""),
+                            "verdict": "INCONCLUSIVE",
+                            "summary": f"Worker '{worker_id}' raised an unexpected error: {exc}",
+                            "data": {"error": str(exc)},
+                            "details": f"Unexpected error collecting result for '{worker_id}': {exc}",
+                            "duration_ms": 0,
+                        }
+                    )
+
+        # Handle non-agent workers that never completed.
+        completed_ids = {r["id"] for r in completed_results}
+        for worker_def in other_workers:
+            wid = worker_def.get("id", "unknown")
+            if wid not in completed_ids:
+                timed_out_ids.append(wid)
                 completed_results.append(
                     {
-                        "id": worker_id,
+                        "id": wid,
                         "mode": worker_def.get("mode", ""),
                         "verdict": "INCONCLUSIVE",
-                        "summary": f"Worker '{worker_id}' timed out",
-                        "data": {"error": "timeout"},
-                        "details": f"Worker did not complete within timeout ({timeout_seconds}s).",
+                        "summary": f"Worker '{wid}' did not finish within {timeout_seconds}s",
+                        "data": {"error": "global_timeout"},
+                        "details": f"Global swarm timeout ({timeout_seconds}s) expired before worker finished.",
                         "duration_ms": timeout_seconds * 1000,
                     }
                 )
-            except Exception as exc:
-                # as_completed itself raised — treat as worker error.
-                timed_out_ids.append(worker_id)
-                completed_results.append(
-                    {
-                        "id": worker_id,
-                        "mode": worker_def.get("mode", ""),
-                        "verdict": "INCONCLUSIVE",
-                        "summary": f"Worker '{worker_id}' raised an unexpected error: {exc}",
-                        "data": {"error": str(exc)},
-                        "details": f"Unexpected error collecting result for '{worker_id}': {exc}",
-                        "duration_ms": 0,
-                    }
-                )
-
-    # Handle workers that never completed because the global timeout expired.
-    completed_ids = {r["id"] for r in completed_results}
-    for worker_def in workers:
-        wid = worker_def.get("id", "unknown")
-        if wid not in completed_ids:
-            timed_out_ids.append(wid)
-            completed_results.append(
-                {
-                    "id": wid,
-                    "mode": worker_def.get("mode", ""),
-                    "verdict": "INCONCLUSIVE",
-                    "summary": f"Worker '{wid}' did not finish within {timeout_seconds}s",
-                    "data": {"error": "global_timeout"},
-                    "details": f"Global swarm timeout ({timeout_seconds}s) expired before worker finished.",
-                    "duration_ms": timeout_seconds * 1000,
-                }
-            )
 
     # Aggregate verdict.
     if aggregation == "majority":

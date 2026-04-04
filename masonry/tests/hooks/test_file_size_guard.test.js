@@ -29,32 +29,34 @@ function runHook(toolName, toolInput) {
  * Create a temp file with N lines of content and return its absolute path.
  */
 function makeTempFile(lines, ext = ".js") {
-  const tmpPath = join(os.tmpdir(), `masonry_size_test_${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`);
+  // Avoid digits-underscore patterns that match the migration file regex /^\d{4}_/
+  const rnd = Math.random().toString(36).slice(2, 8);
+  const tmpPath = join(os.tmpdir(), `masonry-guard-${rnd}${ext}`);
   const content = Array.from({ length: lines }, (_, i) => `const x${i} = ${i};`).join("\n");
   fs.writeFileSync(tmpPath, content, "utf8");
   return tmpPath;
 }
 
 // ---------------------------------------------------------------------------
-// Hard block: > 300 lines must exit 2
+// Hard block: > 600 lines must exit 2
 // ---------------------------------------------------------------------------
 
-describe("file-size-guard — hard block (>300 lines)", () => {
-  it("exits 2 and outputs FILE_SIZE_BLOCK for a .js file with 301 lines", () => {
-    const tmpFile = makeTempFile(301, ".js");
+describe("file-size-guard — hard block (>600 lines)", () => {
+  it("exits 2 and outputs FILE_SIZE_BLOCK for a .js file with 601 lines", () => {
+    const tmpFile = makeTempFile(601, ".js");
     try {
       const { exitCode, stderr } = runHook("Write", { file_path: tmpFile });
       expect(exitCode).toBe(2);
       expect(stderr).toContain("FILE_SIZE_BLOCK");
-      expect(stderr).toContain("301");
-      expect(stderr).toContain("300");
+      expect(stderr).toContain("601");
+      expect(stderr).toContain("600");
     } finally {
       fs.unlinkSync(tmpFile);
     }
   });
 
-  it("exits 2 for a .ts file with 350 lines", () => {
-    const tmpFile = makeTempFile(350, ".ts");
+  it("exits 2 for a .ts file with 650 lines", () => {
+    const tmpFile = makeTempFile(650, ".ts");
     try {
       const { exitCode, stderr } = runHook("Edit", { file_path: tmpFile });
       expect(exitCode).toBe(2);
@@ -64,8 +66,8 @@ describe("file-size-guard — hard block (>300 lines)", () => {
     }
   });
 
-  it("exits 2 for a .py file with 400 lines", () => {
-    const tmpFile = makeTempFile(400, ".py");
+  it("exits 2 for a .py file with 700 lines", () => {
+    const tmpFile = makeTempFile(700, ".py");
     try {
       const { exitCode, stderr } = runHook("Write", { file_path: tmpFile });
       expect(exitCode).toBe(2);
@@ -76,7 +78,7 @@ describe("file-size-guard — hard block (>300 lines)", () => {
   });
 
   it("FILE_SIZE_BLOCK message includes the file path", () => {
-    const tmpFile = makeTempFile(310, ".js");
+    const tmpFile = makeTempFile(610, ".js");
     try {
       const { exitCode, stderr } = runHook("Write", { file_path: tmpFile });
       expect(exitCode).toBe(2);
@@ -88,12 +90,12 @@ describe("file-size-guard — hard block (>300 lines)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Warning zone: 251–300 lines must exit 0 with FILE_SIZE_WARN
+// Warning zone: 401–600 lines must exit 0 with FILE_SIZE_WARN
 // ---------------------------------------------------------------------------
 
-describe("file-size-guard — warning zone (251–300 lines)", () => {
-  it("exits 0 with FILE_SIZE_WARN for a .js file with 260 lines", () => {
-    const tmpFile = makeTempFile(260, ".js");
+describe("file-size-guard — warning zone (401–600 lines)", () => {
+  it("exits 0 with FILE_SIZE_WARN for a .js file with 450 lines", () => {
+    const tmpFile = makeTempFile(450, ".js");
     try {
       const { exitCode, stderr } = runHook("Write", { file_path: tmpFile });
       expect(exitCode).toBe(0);
@@ -103,8 +105,8 @@ describe("file-size-guard — warning zone (251–300 lines)", () => {
     }
   });
 
-  it("exits 0 with FILE_SIZE_WARN for exactly 300 lines", () => {
-    const tmpFile = makeTempFile(300, ".ts");
+  it("exits 0 with FILE_SIZE_WARN for exactly 600 lines", () => {
+    const tmpFile = makeTempFile(600, ".ts");
     try {
       const { exitCode, stderr } = runHook("Write", { file_path: tmpFile });
       expect(exitCode).toBe(0);
@@ -253,5 +255,91 @@ describe("file-size-guard — non-target extensions are skipped", () => {
     });
     expect(exitCode).toBe(0);
     expect(stderr).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Shrinking edits on oversized files — should be allowed
+// ---------------------------------------------------------------------------
+
+describe("file-size-guard — shrinking edits on oversized files", () => {
+  it("allows Edit that removes more lines than it adds on a 400-line file", () => {
+    const tmpFile = makeTempFile(400, ".js");
+    try {
+      // old_string has 20 lines, new_string has 5 lines → net -15
+      const oldStr = Array.from({ length: 20 }, (_, i) => `const x${i} = ${i};`).join("\n");
+      const newStr = Array.from({ length: 5 }, (_, i) => `const y${i} = ${i};`).join("\n");
+      const { exitCode, stderr } = runHook("Edit", {
+        file_path: tmpFile,
+        old_string: oldStr,
+        new_string: newStr,
+      });
+      expect(exitCode).toBe(0);
+      expect(stderr).not.toContain("FILE_SIZE_BLOCK");
+    } finally {
+      fs.unlinkSync(tmpFile);
+    }
+  });
+
+  it("allows Edit that replaces same number of lines on a 400-line file", () => {
+    const tmpFile = makeTempFile(400, ".py");
+    try {
+      const oldStr = Array.from({ length: 10 }, (_, i) => `x_${i} = ${i}`).join("\n");
+      const newStr = Array.from({ length: 10 }, (_, i) => `y_${i} = ${i}`).join("\n");
+      const { exitCode, stderr } = runHook("Edit", {
+        file_path: tmpFile,
+        old_string: oldStr,
+        new_string: newStr,
+      });
+      expect(exitCode).toBe(0);
+      expect(stderr).not.toContain("FILE_SIZE_BLOCK");
+    } finally {
+      fs.unlinkSync(tmpFile);
+    }
+  });
+
+  it("still blocks Edit that adds lines to an already oversized file", () => {
+    const tmpFile = makeTempFile(610, ".js");
+    try {
+      const oldStr = "const x0 = 0;";
+      const newStr = Array.from({ length: 20 }, (_, i) => `const z${i} = ${i};`).join("\n");
+      const { exitCode, stderr } = runHook("Edit", {
+        file_path: tmpFile,
+        old_string: oldStr,
+        new_string: newStr,
+      });
+      expect(exitCode).toBe(2);
+      expect(stderr).toContain("FILE_SIZE_BLOCK");
+    } finally {
+      fs.unlinkSync(tmpFile);
+    }
+  });
+
+  it("still blocks Write (not Edit) on oversized files", () => {
+    const tmpFile = makeTempFile(650, ".ts");
+    try {
+      const { exitCode, stderr } = runHook("Write", { file_path: tmpFile });
+      expect(exitCode).toBe(2);
+      expect(stderr).toContain("FILE_SIZE_BLOCK");
+    } finally {
+      fs.unlinkSync(tmpFile);
+    }
+  });
+
+  it("emits FILE_SIZE_SHRINK message for allowed shrinking edits", () => {
+    const tmpFile = makeTempFile(620, ".js");
+    try {
+      const oldStr = Array.from({ length: 30 }, (_, i) => `const x${i} = ${i};`).join("\n");
+      const newStr = Array.from({ length: 5 }, (_, i) => `const y${i} = ${i};`).join("\n");
+      const { exitCode, stderr } = runHook("Edit", {
+        file_path: tmpFile,
+        old_string: oldStr,
+        new_string: newStr,
+      });
+      expect(exitCode).toBe(0);
+      expect(stderr).toContain("FILE_SIZE_SHRINK");
+    } finally {
+      fs.unlinkSync(tmpFile);
+    }
   });
 });

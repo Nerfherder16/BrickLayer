@@ -1,0 +1,37 @@
+/* Dockview CSS variable overrides — maps to Obsidian Shell design tokens */
+
+.dv-dockview {
+  --dv-background-color: var(--color-surface-1);
+  --dv-tabs-and-actions-container-background-color: var(--color-surface-2);
+  --dv-tab-background-color: var(--color-surface-2);
+  --dv-tab-divider-color: var(--color-border-muted);
+  --dv-paneview-header-border-color: var(--color-border-muted);
+  --dv-separator-border: var(--color-border-muted);
+  --dv-drag-over-background-color: var(--color-accent-muted);
+  --dv-drag-over-border-color: var(--color-accent);
+
+  /* Panel frame — no radius per design-system §5 */
+  border-radius: var(--radius-none);
+}
+
+/* Tab base styles */
+.dv-tab {
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-none);
+}
+
+/* Active tab — 2px top accent border */
+.dv-tab.dv-active-tab {
+  color: var(--color-text-primary);
+  border-top: 2px solid var(--color-accent);
+  border-radius: var(--radius-none);
+}
+
+/* Resize handle / splitter */
+.dv-sash-container .dv-sash {
+  background-color: var(--color-border-muted);
+}
+
+.dv-sash-container .dv-sash:hover {
+  background-color: var(--color-accent);
+}

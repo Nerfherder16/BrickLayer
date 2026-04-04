@@ -53,6 +53,18 @@ Read `project-brief.md` and ask for each mode:
 
 Number questions within each wave: `D1.1`, `D1.2`, `R1.1`, `FR1.1`, etc. Wave 1 questions start at 1.x.
 
+## Mandatory Preparation
+
+Before designing questions, load project context:
+
+1. **Read `{project_root}/.bricklayer.md`** — domain, quality bar, known blind spots, stakeholder audience. If missing, note it and proceed (suggest running `karen teach-bl` afterward).
+2. **Read `{project_root}/project-brief.md`** — project goals determine which modes to select and what domains to stress-test.
+3. **Read `{project_root}/constants.py`** — thresholds inform question difficulty and scope.
+
+Then proceed to the pre-flight reading below.
+
+---
+
 ## Pre-flight reading
 
 Before generating any questions:

@@ -1,0 +1,13 @@
+{
+  "last_route": {
+    "agent": "git-nerd",
+    "effort": "medium",
+    "prompt_summary": "yes, git-nerd is naturally supposed to be invoked to do this task",
+    "timestamp": "2026-04-04T17:23:13.297Z",
+    "turn_count": 1
+  },
+  "mortar_consulted": true,
+  "mortar_session_id": "2026-04-04T15:45:35.687Z",
+  "active_agent": "karen",
+  "active_agent_count": 2
+}

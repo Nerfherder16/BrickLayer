@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "codevvos-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "neo4j>=6.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "S", "ASYNC"]
+# B008: FastAPI Depends() in default args is idiomatic and required by the framework
+# ASYNC230/240: os.path and open() in async — acceptable in scaffold endpoints using threadpool
+ignore = ["B008", "ASYNC230", "ASYNC240"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+timeout = 30

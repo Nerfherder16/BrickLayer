@@ -1,0 +1,224 @@
+# Network Map — Tim's Infrastructure
+
+**Single source of truth for all homelab, Tailscale, VPS, and cloud infrastructure.**
+Agents and skills read this file. Update it here — nowhere else.
+
+---
+
+## LAN — 192.168.50.0/24
+
+| Hostname | LAN IP | Tailscale IP | SSH Access | Role |
+|----------|--------|--------------|------------|------|
+| OPNsense | 192.168.50.1 | — | Web UI only | Gateway, firewall, Unbound DNS |
+| farmstand (CasaOS) | 192.168.50.19 | (Tailscale hostname: `farmstand`) | `nerfherder@farmstand` or `nerfherder@192.168.50.19` — pubkey only | Docker host, primary homelab server |
+| Home Assistant | 192.168.50.20 | — | — | Smart home automation |
+| ubuntu-claude | 192.168.50.35 | — | `nerfherder@192.168.50.35` — pubkey, no password | Claude Code runner |
+| ollama-vm | 192.168.50.62 | — | `nerfherder@192.168.50.62` | GPU inference — RTX 3090, 24GB VRAM |
+| windows-dev | — | — | — | Tim's Windows dev machine (`C:/Users/trg16/`) |
+
+> **TODO — fill in:** Any other LAN hosts (NAS, printer, switches, APs, etc.)
+
+---
+
+## Tailscale Network
+
+| Hostname | Tailscale IP | Device | Notes |
+|----------|-------------|--------|-------|
+| farmstand | (auto-assigned) | CasaOS server | Primary homelab — always use `farmstand` over LAN IP when SSH-ing from outside |
+| recall (System-Recall) | 100.70.195.84 | CasaOS container or VM | Recall API at `:8200` |
+| casaclaude | — | — | Claude Code runner instance |
+| proxyclaude | — | — | Claude Code runner instance |
+
+> **TODO — fill in:**
+> - Tailscale IPs for each node (run `tailscale status` on farmstand)
+> - Any mobile devices, laptops, or remote machines on Tailscale
+> - Whether Tailscale exit node is configured
+
+---
+
+## VPS — Racknerd
+
+| Field | Value |
+|-------|-------|
+| Provider | Racknerd |
+| Public IP | `104.168.64.181` |
+| SSH | `root@104.168.64.181` — pubkey |
+| OS | Ubuntu |
+| Role | Reverse proxy (nginx), public entry point for all streamy.tube subdomains |
+| nginx sites dir | `/etc/nginx/sites-enabled/` |
+| Static webroots | `/var/www/{name}/` |
+| Certbot | Auto-renews all Let's Encrypt certs |
+| WireGuard | Tunnel to CasaOS — ports **80** and **9010** open by default |
+
+> **TODO — fill in:** Any other VPS instances, cloud servers, or co-located machines
+
+---
+
+## SSH Keys
+
+| Key | Path (local) | Grants access to |
+|-----|-------------|-----------------|
+| Primary pubkey | `~/.ssh/id_ed25519` (or `id_rsa`) | CasaOS, ubuntu-claude, ollama-vm, VPS |
+| VPS root key | `~/.ssh/id_ed25519` | `root@104.168.64.181` |
+
+> **TODO — fill in:**
+> - Actual key file name(s) (`ls ~/.ssh/`)
+> - Any per-host key overrides in `~/.ssh/config`
+> - Whether SSH agent is used (`ssh-add -l`)
+
+---
+
+## CasaOS — Docker Services (192.168.50.19)
+
+All data at `/DATA/AppData/`. Use `docker compose` (not `docker-compose`).
+
+| Service | Port | URL / Access | Notes |
+|---------|------|-------------|-------|
+| System-Recall | 8200 | `http://farmstand:8200` / Tailscale: `http://100.70.195.84:8200` | FastAPI + Qdrant + Neo4j + Ollama |
+| Sadie (Family Hub) | 7070 | `http://192.168.50.19:7070` | Voice AI assistant + ESPHome satellites |
+| Jellyfin | — | `https://jellyfin.streamy.tube` | Media server |
+| Jellyseerr | — | `https://jellyseerr.streamy.tube` | Media request management |
+| Riven | — | `https://riven.streamy.tube` | Media automation |
+| Authentik | — | `https://authentik.streamy.tube` | SSO / identity provider |
+| n8n | — | `https://n8n.streamy.tube` | Workflow automation |
+| LiveKit | — | `https://livekit.streamy.tube` | WebRTC server |
+| Code Server | — | `https://code-server.streamy.tube` | Browser VS Code |
+| Gluetun | — | Internal VPN gateway | VPN-dependent containers route through this |
+
+> **TODO — fill in:**
+> - Internal ports for each service (needed to open OPNsense firewall rules)
+> - Any services not listed above (`docker ps` on farmstand)
+> - Real-Debrid integration details for Riven
+
+---
+
+## VPS nginx — Public Subdomains (streamy.tube)
+
+All configs at `/etc/nginx/sites-enabled/` on VPS (`104.168.64.181`).
+
+| Subdomain | Backend | Type |
+|-----------|---------|------|
+| authentik.streamy.tube | CasaOS proxy | Docker |
+| casa.streamy.tube | CasaOS proxy | Docker |
+| code-server.streamy.tube | CasaOS proxy | Docker |
+| codevv.streamy.tube | CasaOS proxy | Docker |
+| jellyfin.streamy.tube | CasaOS proxy | Docker |
+| jellyseerr.streamy.tube | CasaOS proxy | Docker |
+| livekit.streamy.tube | CasaOS proxy | Docker |
+| mural.streamy.tube | VPS static | Static |
+| n8n.streamy.tube | CasaOS proxy | Docker |
+| recall.streamy.tube | CasaOS proxy | Docker |
+| revive.streamy.tube | CasaOS proxy | Docker |
+| riven.streamy.tube | CasaOS proxy | Docker |
+| riven-api.streamy.tube | CasaOS proxy | Docker |
+| sim.streamy.tube | VPS static | Static |
+
+> **TODO — fill in:** Any subdomains added after this file was written
+
+---
+
+## DNS — Porkbun
+
+| Field | Value |
+|-------|-------|
+| Registrar | Porkbun |
+| Domain | `streamy.tube` |
+| API keys | Stored in Recall — query: `porkbun API key` |
+| VPS A record | `streamy.tube → 104.168.64.181` |
+| Wildcard | `*.streamy.tube → 104.168.64.181` (if configured) |
+| API base | `https://api.porkbun.com/api/json/v3/dns/` |
+| New record TTL | 300 |
+
+---
+
+## Hardware — Proxmox Host
+
+| Component | Details |
+|-----------|---------|
+| Motherboard | ASUS ROG Zenith Extreme X399 |
+| CPU | AMD Threadripper 1950X |
+| GPU | RTX 3090 (passed through to Ollama VM) |
+| BIOS | IOMMU enabled + "Enumerate all IOMMU in IVRs" (critical for X399) |
+| VM config | q35 machine type, OVMF (UEFI), `pcie=1,x-vga=1` for GPU passthrough |
+
+---
+
+## Network Hardware
+
+| Device | Model / Notes |
+|--------|--------------|
+| Router/Firewall | OPNsense — 192.168.50.1 |
+| DNS | OPNsense Unbound (LAN) + Porkbun (public) |
+| WireGuard | VPS ↔ CasaOS tunnel — managed via OPNsense |
+
+> **TODO — fill in:** Switch model, AP model/brand, VLAN config if any
+
+---
+
+## Active Projects & Their Network Deps
+
+| Project | Host | Port | Access |
+|---------|------|------|--------|
+| System-Recall | CasaOS | 8200 | Tailscale: `100.70.195.84:8200` |
+| Sadie (Family Hub) | CasaOS | 7070 | LAN: `192.168.50.19:7070` |
+| JellyStream | CasaOS + VPS | — | `https://jellyfin.streamy.tube` |
+| ADBP | — | — | Solana devnet/mainnet |
+| Relay AI Receptionist | — | — | On hold (Twilio blocked) |
+
+---
+
+## Firewall — OPNsense Key Rules
+
+| Rule | Interface | Proto | Dest | Port | Purpose |
+|------|-----------|-------|------|------|---------|
+| WireGuard default | WireGuard | TCP | CasaOS | 80 | HTTP proxy |
+| WireGuard default | WireGuard | TCP | CasaOS | 9010 | Alt proxy port |
+
+> **TODO — fill in:** Full firewall rule list, any port forwards, VLAN rules
+
+---
+
+## Credentials Index (stored in Recall — never plaintext here)
+
+Query Recall for these when needed:
+
+| What | Recall query |
+|------|-------------|
+| Porkbun API key + secret | `porkbun API key` |
+| VPS root SSH key passphrase (if any) | `VPS SSH` |
+| OPNsense admin password | `opnsense password` |
+| CasaOS admin | `casaos login` |
+| Authentik admin | `authentik admin` |
+
+> **TODO — fill in:** Any other credential locations (env files, vaults, etc.)
+
+---
+
+## Quick SSH Reference
+
+```bash
+# CasaOS (from anywhere via Tailscale)
+ssh nerfherder@farmstand
+
+# CasaOS (LAN)
+ssh nerfherder@192.168.50.19
+
+# VPS
+ssh root@104.168.64.181
+
+# Ollama VM (LAN)
+ssh nerfherder@192.168.50.62
+
+# ubuntu-claude (LAN)
+ssh nerfherder@192.168.50.35
+```
+
+---
+
+## Maintenance Notes
+
+- Always `docker compose` on CasaOS, never `docker-compose`
+- GPU passthrough: check vendor-reset if VM won't start after host reboot
+- Ollama must bind to `0.0.0.0:11434` — not just localhost
+- WireGuard tunnel health: `ping 192.168.50.19` from VPS — if it fails, check OPNsense WireGuard status
+- Certbot auto-renews — if a cert is stale, `certbot renew --dry-run` on VPS to test

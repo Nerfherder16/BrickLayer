@@ -1,0 +1,1 @@
+{"wave": 13, "questions_total": 56, "verdict_summary": {"IMPROVEMENT": 24, "WARNING": 12, "HEALTHY": 9, "DIAGNOSIS_COMPLETE": 5, "PROMISING": 3, "INCONCLUSIVE": 2, "BLOCKED": 1}, "recommendation": "CONTINUE", "synthesis_path": "findings/synthesis.md", "timestamp": "2026-03-24T14:51:48.733240Z"}

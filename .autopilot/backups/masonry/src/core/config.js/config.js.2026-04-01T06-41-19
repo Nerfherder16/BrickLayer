@@ -1,0 +1,31 @@
+'use strict';
+/**
+ * core/config.js — Load masonry configuration from masonry.json or defaults.
+ *
+ * Searches for masonry.json in the masonry root (two levels up from this file)
+ * and merges with environment variables.
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+const _masonryRoot = path.resolve(__dirname, '..');
+
+function loadConfig() {
+  const defaults = {
+    recallHost: 'http://localhost:8787',
+    recallApiKey: '',
+    ollamaHost: 'http://localhost:11434',
+    ollamaModel: 'llama3',
+  };
+
+  const configPath = path.join(_masonryRoot, '..', 'masonry.json');
+  try {
+    const raw = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    return { ...defaults, ...raw };
+  } catch {
+    return defaults;
+  }
+}
+
+module.exports = { loadConfig };

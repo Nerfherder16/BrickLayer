@@ -1,0 +1,116 @@
+# Architecture -- inline-execution-audit
+
+Understanding the Masonry routing and enforcement system as revealed by Wave 1 investigation.
+
+---
+
+## System Overview
+
+The Masonry routing system operates across three layers that are supposed to ensure every user request is dispatched to the appropriate specialist agent via Mortar. In practice, all three layers are advisory.
+
+```
+User Prompt
+    |
+    v
+[UserPromptSubmit hooks]  -- masonry-register.js (advisory context)
+    |                        masonry-prompt-router.js (wrong channel, annotation format)
+    |                        masonry-prompt-inject.js (Recall memories)
+    v
+[Claude Code inference]   -- reads CLAUDE.md (routing at 4.8% of context)
+    |                        applies escape hatch ("trivial" = inline)
+    |                        decides: inline text OR tool use
+    |
+    +--- inline text response --> NO HOOK INTERCEPT (permanent gap)
+    |
+    +--- Write/Edit tool --> [PreToolUse: masonry-approver.js]
+    |                         Mortar gate fires but is advisory-only
+    |                         (stderr warning, always allows through)
+    |
+    +--- Agent tool -------> [PreToolUse: masonry-mortar-enforcer.js]
+    |                         Only blocks empty subagent_type
+    |
+    +--- Bash tool ---------> Unconditionally exempt from all routing checks
+```
+
+---
+
+## Hook Event Taxonomy
+
+| Event | Can Block? | Delegation Check? | Notes |
+|-------|-----------|-------------------|-------|
+| SessionStart | No | No | Context injection only |
+| UserPromptSubmit | No | No | Advisory context injection; cannot block or force tool use |
+| PreToolUse | **Yes** | **No** (could be added) | 7 hard blocks exist but none check routing |
+| PostToolUse | Yes (exit 2) | No | Post-hoc only |
+| PostToolUseFailure | No | No | Error tracking |
+| SubagentStart | No | No | Observational |
+| Stop | Yes | No | Git hygiene, build continuity |
+| **TextGeneration** | **Does not exist** | N/A | Fundamental platform gap |
+
+---
+
+## Routing Signal Flow
+
+### Layer 1: CLAUDE.md Instructions
+
+- **Absolute directive** (lines 37, 56): "Every request goes through Mortar"
+- **Escape hatch** (line 68): "direct action when trivial, agents when substantive"
+- **Effective outcome**: Escape hatch wins via specificity-beats-general. "Trivial" is undefined.
+- **Context weight**: 1,104 tokens (4.8% of 23,034-token auto-loaded context)
+
+### Layer 2: Prompt Router Hints (masonry-prompt-router.js)
+
+- **Output channel**: hookSpecificOutput.content (should be additionalContext)
+- **Format**: Annotation (`-> Mortar: routing to X [effort:Y]`) not imperative
+- **Coverage**: 10 INTENT_RULES covering 3/10 work types adequately, 6/10 degraded, 1/10 missing
+- **Silent zone**: 40-60% of prompts exit silently (medium+no-intent gate, line 194-195)
+- **Statefulness**: Zero. No conversation history, no routing persistence.
+
+### Layer 3: Enforcement Gate (masonry-approver.js)
+
+- **Infrastructure**: `isMortarConsulted()` function, receipt schema, gate condition -- all present
+- **Status**: Advisory-only. Line 300: "Always allow through -- gate is advisory only."
+- **Receipt state**: `mortar_consulted` and `mortar_session_id` fields absent from live state file
+- **Bash**: Unconditionally exempt (line 294)
+
+---
+
+## Agent Fleet
+
+| Category | Count | % | Notes |
+|----------|-------|---|-------|
+| Auto-routable (Mortar + INTENT_RULES) | 16 | 14% | developer, test-writer, code-reviewer, research-analyst, competitive-analyst, trowel, git-nerd, karen, uiux-master, architect, design-reviewer, diagnose-analyst, security, spec-writer, fix-implementer, refactorer |
+| Trowel-dispatched (campaign mode only) | 23 | 20% | quantitative-analyst, peer-reviewer, hypothesis-generator, synthesizer, etc. |
+| Build pipeline internal | 31 | 27% | mortar, overseer, worker-specialist, etc. (includes 31 stubs) |
+| Dark fleet (no routing path) | 44 | 39% | python-specialist, typescript-specialist, database-specialist, devops, etc. |
+| **Total registered** | **114** | **100%** | |
+
+---
+
+## Key Findings
+
+- **D1.1** [DIAGNOSIS_COMPLETE] Wave 1: CLAUDE.md line 68 escape hatch beats absolute Mortar directive via specificity; "trivial" undefined, defaults to broad model prior
+- **A1.1** [CONFIRMED] Wave 1: 0 of 23 hooks enforce delegation; enforcement infrastructure complete but advisory-only; safety pin still in
+- **D3.1** [FAILURE] Wave 1: 70% of routing surface dark or degraded; Spec+build has zero coverage; 3 first-match collisions verified
+
+---
+
+## Open Items
+
+| ID | Verdict | Summary |
+|----|---------|---------|
+| D3.1 | FAILURE | 1/10 Mortar work types zero coverage; 6/10 degraded; 70% routing surface dark |
+| D3.2 | FAILURE | Router stateless per-prompt; multi-turn collapse by Turn 2; campaign blackout |
+| D4.2 | FAILURE | 98/114 agents (86%) dark fleet; routing_keywords unpopulated for 80+ |
+
+---
+
+## Architecture Ceiling
+
+The hook system imposes three permanent constraints:
+
+1. **No text-generation interception**: Inline responses are permanently ungated
+2. **No forced tool invocation**: Hooks can block tools but cannot inject mandatory tool calls
+3. **No conversation state in hooks**: Per-prompt payload only; no history access
+
+The maximum achievable enforcement is a Write/Edit deny-gate backed by a per-session routing receipt. This is buildable in ~80 lines of code across 3 files (masonry-approver.js, masonry-prompt-router.js, Mortar agent instructions).

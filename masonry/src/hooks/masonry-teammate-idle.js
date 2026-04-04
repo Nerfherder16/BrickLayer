@@ -15,16 +15,7 @@
 
 const fs = require("fs");
 const path = require("path");
-
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
-}
+const { readStdin } = require('./session/stop-utils');
 
 function tryJSON(p) {
   try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; }
@@ -46,13 +37,51 @@ async function main() {
   const mode = tryRead(path.join(cwd, ".autopilot", "mode"));
   const progressPath = path.join(cwd, ".autopilot", "progress.json");
   const hasActiveProgress = fs.existsSync(progressPath);
-  if (!mode && !hasActiveProgress) process.exit(0);
+  if (!mode && !hasActiveProgress) return;
   if (mode && !["build", "fix", "swarm"].includes(mode) && !hasActiveProgress) {
-    process.exit(0);
+    return;
   }
 
+  // Check rough-in-state.json first (wave-based dispatch takes priority)
+  const roughInPath = path.join(cwd, ".autopilot", "rough-in-state.json");
+  const roughIn = tryJSON(roughInPath);
+  if (roughIn && Array.isArray(roughIn.waves)) {
+    const allTasks = roughIn.waves.flatMap((w) => w.tasks || []);
+    const done = allTasks.filter((t) => t.status === "complete").length;
+    const total = allTasks.length;
+    const pending = allTasks.find((t) => t.status === "pending");
+
+    if (!pending) {
+      const inProgress = allTasks.filter((t) => t.status === "in_progress");
+      if (inProgress.length === 0 && done === total && total > 0) {
+        process.stdout.write(JSON.stringify({
+          systemMessage: `[Masonry] All ${done}/${total} wave tasks complete. Queen should report QUEEN_COMPLETE.`,
+        }));
+      }
+      return;
+    }
+
+    pending.status = "in_progress";
+    roughIn.last_updated = new Date().toISOString();
+    try { fs.writeFileSync(roughInPath, JSON.stringify(roughIn, null, 2), "utf8"); } catch { return; }
+
+    const assignment = [
+      `[Masonry] Auto-assigning wave task ${pending.id} (${done}/${total} done)`,
+      ``,
+      `Task: ${pending.description}`,
+      `Agent: ${pending.agent || "developer"}`,
+      ``,
+      `Follow TDD: write failing tests first, implement to pass tests, refactor.`,
+      `When complete: update .autopilot/rough-in-state.json — set task ${pending.id} status to "complete"`,
+    ].join("\n");
+
+    process.stdout.write(JSON.stringify({ systemMessage: assignment }));
+    return;
+  }
+
+  // Fall back to progress.json (flat task list)
   const progress = tryJSON(progressPath);
-  if (!progress || !Array.isArray(progress.tasks)) process.exit(0);
+  if (!progress || !Array.isArray(progress.tasks)) return;
 
   const tasks = progress.tasks;
   const done = tasks.filter((t) => t.status === "DONE").length;
@@ -68,14 +97,11 @@ async function main() {
       // All done
       process.stdout.write(
         JSON.stringify({
-          hookSpecificOutput: {
-            hookEventName: eventName,
-            content: `[Masonry] All ${done}/${total} tasks complete. Run /verify to validate.`,
-          },
+          systemMessage: `[Masonry] All ${done}/${total} tasks complete. Run /verify to validate.`,
         })
       );
     }
-    process.exit(0);
+    return;
   }
 
   // Atomically claim: mark IN_PROGRESS before outputting assignment
@@ -85,7 +111,7 @@ async function main() {
     fs.writeFileSync(progressPath, JSON.stringify(progress, null, 2), "utf8");
   } catch {
     // Failed to claim — exit silently to avoid double-assignment
-    process.exit(0);
+    return;
   }
 
   // Read spec.md for project context (first 600 chars)
@@ -150,14 +176,11 @@ async function main() {
 
   process.stdout.write(
     JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: eventName,
-        content: assignment + strategyNote,
-      },
+      systemMessage: assignment + strategyNote,
     })
   );
 
-  process.exit(0);
+  return;
 }
 
-main().catch(() => process.exit(0));
+main().catch(() => {});

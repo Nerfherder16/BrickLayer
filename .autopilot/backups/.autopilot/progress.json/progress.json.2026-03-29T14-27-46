@@ -1,0 +1,33 @@
+{
+  "project": "inline-execution-audit-backlog",
+  "status": "BUILDING",
+  "branch": "bricklayer-v2/mar24-parallel",
+  "tasks": [
+    {
+      "id": 1,
+      "description": "Patch masonry-approver.js: add read tool to Mortar gate exemption",
+      "status": "DONE"
+    },
+    {
+      "id": 2,
+      "description": "Update masonry-prompt-router.js: spec+build INTENT_RULES + build rule cleanup",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 3,
+      "description": "Add last_route multi-turn persistence to masonry-prompt-router.js",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 4,
+      "description": "Write masonry/scripts/backfill_routing_keywords.py",
+      "status": "IN_PROGRESS"
+    }
+  ],
+  "tests": {
+    "total": 0,
+    "passing": 0,
+    "failing": 0
+  },
+  "updated_at": "2026-03-29T14:24:58.198Z"
+}

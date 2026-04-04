@@ -320,7 +320,7 @@ def main():
     print(
         f"  Threshold: ${MINIMUM_MEANINGFUL_MONTHLY:,.0f}/month for a vendor with 5% recirculation share."
     )
-    print(f"  This represents minimum income that motivates vendor participation.")
+    print("  This represents minimum income that motivates vendor participation.")
     print()
     print(
         f"  {'Fee':>6}  {'Threshold Month':>15}  {'Mo.12 Income (5%)':>20}  {'Mo.12 Income (10%)':>20}"

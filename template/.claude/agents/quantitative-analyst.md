@@ -98,38 +98,34 @@ On CONCERNS verdict where parameter is near threshold, append:
 Your tag: `agent:quantitative-analyst`
 
 **At session start** — check if prior runs established baselines or found boundaries:
-```
-recall_search(query="failure boundary threshold simulation", domain="{project}-bricklayer", tags=["agent:quantitative-analyst"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "failure boundary threshold simulation"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:quantitative-analyst"]
 
 Also check what regulatory or competitive constraints were found that bound your parameters:
-```
-recall_search(query="parameter constraints regulatory limits", domain="{project}-bricklayer", tags=["agent:regulatory-researcher"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "parameter constraints regulatory limits"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["agent:regulatory-researcher"]
 
 **After each experiment** — store the boundary you found:
-```
-recall_store(
-    content="[parameter]: [value] = FAILURE boundary. Primary metric: [value]. Hard cliff or gradual: [answer].",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["bricklayer", "autoresearch", "agent:quantitative-analyst", "type:boundary"],
-    importance=0.85,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "[parameter]: [value] = FAILURE boundary. Primary metric: [value]. Hard cliff or gradual: [answer]."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["bricklayer", "autoresearch", "agent:quantitative-analyst", "type:boundary"]
+- `importance`: 0.85
+- `durability`: "durable"
 
 **After sensitivity analysis** — store leverage rankings so hypothesis-generator can target high-impact parameters:
-```
-recall_store(
-    content="Sensitivity ranking: [param1] > [param2] > [param3]. [param1] drives [X]% of variance.",
-    memory_type="semantic",
-    domain="{project}-bricklayer",
-    tags=["autoresearch", "agent:quantitative-analyst", "type:sensitivity"],
-    importance=0.8,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Sensitivity ranking: [param1] > [param2] > [param3]. [param1] drives [X]% of variance."
+- `memory_type`: "semantic"
+- `domain`: "{project}-bricklayer"
+- `tags`: ["autoresearch", "agent:quantitative-analyst", "type:sensitivity"]
+- `importance`: 0.8
+- `durability`: "durable"
 
 ## DSPy Optimized Instructions
 

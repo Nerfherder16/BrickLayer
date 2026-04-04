@@ -4,7 +4,6 @@ Tests for .gitignore — verify **/.mas/ pattern is present and ordered correctl
 Run with: python -m pytest tests/test_gitignore_mas.py --capture=no -q
 """
 
-import os
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

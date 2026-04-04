@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADBP Name Bracket</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#0f0d1a; color:#e5e7eb;
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  min-height:100vh; display:flex; flex-direction:column;
+}
+#header {
+  padding:18px 24px 12px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+#title-row {
+  display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;
+}
+h1 { font-size:1rem; font-weight:700; color:#38bdf8; letter-spacing:.08em; text-transform:uppercase; }
+#round-label { font-size:.8rem; color:#9ca3af; font-weight:500; }
+#progress-track {
+  height:3px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; margin-bottom:6px;
+}
+#progress-fill {
+  height:100%; background:linear-gradient(90deg,#38bdf8,#8b5cf6);
+  border-radius:2px; transition:width .3s ease; width:0%;
+}
+#match-counter { font-size:.72rem; color:#6b7280; }
+
+#phase-banner {
+  display:none; text-align:center; padding:10px;
+  font-size:.8rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+}
+#phase-banner.semis { display:block; background:rgba(139,92,246,.12); color:#a78bfa; border-bottom:1px solid rgba(139,92,246,.2); }
+#phase-banner.final { display:block; background:rgba(251,191,36,.1); color:#fbbf24; border-bottom:1px solid rgba(251,191,36,.2); }
+#phase-banner.third { display:block; background:rgba(180,83,9,.12); color:#f59e0b; border-bottom:1px solid rgba(180,83,9,.2); }
+
+#matchup {
+  flex:1; display:flex; align-items:center; justify-content:center;
+  gap:28px; padding:32px 24px;
+}
+.name-card {
+  flex:1; max-width:400px; background:#1e1b2e;
+  border:1px solid rgba(255,255,255,0.08); border-radius:14px;
+  padding:44px 32px; cursor:pointer;
+  transition:all .12s ease;
+  display:flex; flex-direction:column; align-items:center; gap:14px;
+  min-height:180px; justify-content:center; user-select:none;
+}
+.name-card:hover {
+  background:#252236; border-color:rgba(56,189,248,.45);
+  transform:translateY(-3px); box-shadow:0 10px 36px rgba(56,189,248,.12);
+}
+.name-card:active { transform:translateY(-1px); }
+.name-card.flash-win {
+  background:rgba(56,189,248,.15) !important;
+  border-color:#38bdf8 !important;
+  box-shadow:0 0 28px rgba(56,189,248,.25) !important;
+}
+.card-name {
+  font-size:clamp(1.4rem,4vw,2.6rem); font-weight:600; text-align:center; line-height:1.2;
+}
+.card-key { font-size:.68rem; color:#374151; text-transform:uppercase; letter-spacing:.12em; }
+
+#vs { font-size:.9rem; font-weight:700; color:#374151; letter-spacing:.25em; flex-shrink:0; }
+
+#footer {
+  padding:10px 24px; border-top:1px solid rgba(255,255,255,0.05);
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:.72rem; color:#6b7280;
+}
+.count-red { color:#f87171; }
+.count-green { color:#34d399; }
+
+/* Round complete overlay */
+#round-toast {
+  display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:#1e1b2e; border:1px solid rgba(56,189,248,.3);
+  border-radius:12px; padding:28px 40px; text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,.6); z-index:10;
+}
+#round-toast.visible { display:block; }
+#round-toast h2 { font-size:1.2rem; color:#38bdf8; margin-bottom:8px; }
+#round-toast p { font-size:.85rem; color:#9ca3af; }
+
+/* Results */
+#results {
+  display:none; flex-direction:column; align-items:center;
+  justify-content:center; flex:1; padding:40px 24px; text-align:center;
+}
+#results.visible { display:flex; }
+#results h2 { font-size:1.4rem; color:#fbbf24; margin-bottom:8px; letter-spacing:.08em; text-transform:uppercase; }
+#results .subtitle { font-size:.8rem; color:#6b7280; margin-bottom:32px; }
+.result-item {
+  display:flex; align-items:center; gap:18px; padding:18px 32px;
+  margin-bottom:10px; background:#1e1b2e; border-radius:12px;
+  border:1px solid rgba(255,255,255,0.07); min-width:300px;
+}
+.result-item.gold { border-color:rgba(251,191,36,.35); background:rgba(251,191,36,.06); }
+.result-item.silver { border-color:rgba(156,163,175,.3); background:rgba(156,163,175,.04); }
+.result-item.bronze { border-color:rgba(180,83,9,.3); background:rgba(180,83,9,.05); }
+.result-medal { font-size:2rem; }
+.result-name { font-size:1.5rem; font-weight:600; }
+.result-place { font-size:.7rem; color:#9ca3af; text-transform:uppercase; letter-spacing:.1em; margin-top:2px; }
+#restart-btn {
+  margin-top:28px; padding:11px 32px; background:#38bdf8; color:#0f0d1a;
+  border:none; border-radius:8px; font-family:inherit; font-size:.9rem;
+  font-weight:700; cursor:pointer; letter-spacing:.05em; text-transform:uppercase;
+  transition:all .15s;
+}
+#restart-btn:hover { background:#7dd3fc; transform:translateY(-1px); }
+
+@media (max-width:600px) {
+  #matchup { flex-direction:column; gap:16px; padding:20px 16px; }
+  #vs { transform:none; }
+  .name-card { max-width:100%; min-height:120px; padding:24px 20px; }
+  .card-key { display:none; }
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="title-row">
+    <h1>ADBP Name Bracket</h1>
+    <span id="round-label">First Round</span>
+  </div>
+  <div id="progress-track"><div id="progress-fill"></div></div>
+  <div id="match-counter">Match 1 of 229</div>
+</div>
+
+<div id="phase-banner"></div>
+
+<div id="matchup">
+  <div class="name-card" id="card-a" onclick="pick(0)">
+    <div class="card-name" id="name-a">—</div>
+    <div class="card-key">← Left Arrow</div>
+  </div>
+  <div id="vs">VS</div>
+  <div class="name-card" id="card-b" onclick="pick(1)">
+    <div class="card-name" id="name-b">—</div>
+    <div class="card-key">Right Arrow →</div>
+  </div>
+</div>
+
+<div id="results">
+  <h2>🏆 Final Results</h2>
+  <p class="subtitle">Your top 3 names</p>
+  <div class="result-item gold">
+    <div class="result-medal">🥇</div>
+    <div><div class="result-name" id="res-1">—</div><div class="result-place">Champion</div></div>
+  </div>
+  <div class="result-item silver">
+    <div class="result-medal">🥈</div>
+    <div><div class="result-name" id="res-2">—</div><div class="result-place">Runner Up</div></div>
+  </div>
+  <div class="result-item bronze">
+    <div class="result-medal">🥉</div>
+    <div><div class="result-name" id="res-3">—</div><div class="result-place">3rd Place</div></div>
+  </div>
+  <button id="restart-btn" onclick="restart()">Run Again</button>
+</div>
+
+<div id="round-toast">
+  <h2 id="toast-title">Round Complete</h2>
+  <p id="toast-body">128 names advancing</p>
+</div>
+
+<div id="footer">
+  <span>Eliminated: <span id="elim-count" class="count-red">0</span></span>
+  <span style="color:#374151">Click a name or use ← →</span>
+  <span>Remaining: <span id="remain-count" class="count-green">229</span></span>
+</div>
+
+<script>
+const NAMES = [
+  // Territory 01 — Restoration
+  "Revive","Renew","Rebuild","Renovate","Restore","Redeem","Recover","Resolve","Refresh","Reset","Rally","Modernize","Solve","Payoff","Era",
+  "Sunrise","Dawn","Phoenix","Olive","Cross","Infinity","Lotus","Tree",
+  "PayTree","ReCross","CoverRise","Inficore","Infiniset","Recore","Rerise","Modawn",
+  "Revora","Revara","Revino","Renova","Revelo","Reviro","Ralo","Sunu","Dally","Tally","Truild","Rolive","Sunvive",
+  // Territory 02 — Opportunity
+  "Rise","Lift","Raise","Grow","Thrive","Elevate","Momentum","Reach","Prospect","Chance","Pass","Aim","More","Allow","Mobility",
+  "Summit","Horizon","Altitude","Sky","Open Door","Arrow","Up","Light","Key","Ladder","Telescope",
+  "Risewell","Growstead","Thriveway","Rizon","Liftit","Reladder","Advarro","Momitude","Relight","Prokey","Passkey","AllUp","AimUp","UpPass",
+  "Rivora","Rivio","Levora","Elivo","Aimo","Keya","Suma","Lado","Elo","Skyro","Ara",
+  // Territory 03 — Stability
+  "Foundation","Root","Pillar","Ground","Core","Solidity","Stasis","Even","Unity","Order","Firm","Base",
+  "Rock","Bedrock","Harbor","Stone","Keystone","Cornerstone","Anchor","Mountain","House",
+  "Anchorwell","Rootwell","Corestead","Groundwell","KeyCore","Unicore","Unation",
+  "Rootra","Roa","Cora","Ordine","Basor","Evio",
+  // Territory 04 — Freedom
+  "Choice","Open","Path","Way","Own","Salvation","Self","Claim","Will","Secure","Power","Relief","Rights","Belief","Flex",
+  "Frontier","Road","Freeway","Dove","Bell","Torch","Flag","Eagle","Horse","Blue Sky",
+  "Choiceway","Freepath","Ownway","Flexway","Frontpath","Waybell","Waysky","Wayfree","Willpower","Bluebell","Blueway","Powerhorse","Skyrelief",
+  "Freeva","Wayit","Owna","Frontly","Ownly","Wilio","Trex","Frex","Tecure","Powera",
+  // Territory 05 — American Identity
+  "Home","Together","Yankee","New World","Self","Patriot","Trust","Prosper","Start","Honor","Declaration","Vast","Triumph","West","Glory",
+  "Stripes","Red White & Blue","Seal","Bison","Rose","Emblem","Token","Crest","Oak","Rushmore","Dollar","Jeans","Denim","Shield","Stamp","Pledge","Star",
+  "Bluestar","Redstar","Homeoak","Selfstart","HonorSeal","WhiteStripe","NewOak","NewShield","TrustStamp","HomeStar","BlueBison","NewStripes","Westmore","Newmore",
+  "Oakly","Sealy","Stara","Patrio","Embla","Emble"
+];
+
+const BRACKET_SIZE = 256;
+const TOTAL_DECISIONS = NAMES.length; // 229
+const ROUND_NAMES = ["First Round","Round of 128","Round of 64","Round of 32","Round of 16","Quarterfinals","Semifinals","Championship"];
+
+let rounds = [], currentRound = 0, currentMatchIdx = 0;
+let thirdPlaceMatch = null;
+let phase = 'bracket'; // 'bracket' | 'thirdplace' | 'done'
+let decisionsMade = 0;
+let blocked = false;
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function getLoser(match) {
+  return match.winner === match.a ? match.b : match.a;
+}
+
+function init() {
+  const shuffled = shuffle(NAMES);
+  while (shuffled.length < BRACKET_SIZE) shuffled.push(null);
+
+  const r0 = [];
+  for (let i = 0; i < BRACKET_SIZE; i += 2) {
+    const a = shuffled[i], b = shuffled[i + 1];
+    const winner = a === null ? b : b === null ? a : null;
+    r0.push({ a, b, winner });
+  }
+  rounds = [r0];
+  currentRound = 0; currentMatchIdx = 0;
+  thirdPlaceMatch = null; phase = 'bracket'; decisionsMade = 0; blocked = false;
+  advanceState();
+  render();
+}
+
+function advanceState() {
+  while (true) {
+    if (phase !== 'bracket') return;
+    if (currentRound >= rounds.length) return;
+
+    const round = rounds[currentRound];
+    while (currentMatchIdx < round.length && round[currentMatchIdx].winner !== null) {
+      currentMatchIdx++;
+    }
+    if (currentMatchIdx < round.length) return; // found real match
+
+    // Round complete
+    const advancing = round.filter(m => m.winner !== null).map(m => m.winner).filter(Boolean);
+    const advCount = advancing.length;
+
+    if (round.length === 1) {
+      // Championship done → 3rd place
+      const semiRound = rounds[currentRound - 1];
+      thirdPlaceMatch = { a: getLoser(semiRound[0]), b: getLoser(semiRound[1]), winner: null };
+      phase = 'thirdplace';
+      return;
+    }
+
+    // Build next round
+    const nextRound = [];
+    for (let i = 0; i < round.length; i += 2) {
+      const a = round[i].winner;
+      const b = round[i + 1]?.winner ?? null;
+      const winner = a === null ? b : b === null ? a : null;
+      nextRound.push({ a, b, winner });
+    }
+    rounds.push(nextRound);
+    currentRound++;
+    currentMatchIdx = 0;
+    // Loop continues to skip any byes in new round
+  }
+}
+
+function pick(side) {
+  if (blocked || phase === 'done') return;
+  blocked = true;
+
+  const cardId = side === 0 ? 'card-a' : 'card-b';
+  document.getElementById(cardId).classList.add('flash-win');
+
+  setTimeout(() => {
+    document.getElementById(cardId).classList.remove('flash-win');
+
+    if (phase === 'thirdplace') {
+      thirdPlaceMatch.winner = side === 0 ? thirdPlaceMatch.a : thirdPlaceMatch.b;
+      phase = 'done';
+      decisionsMade++;
+      renderResults();
+      blocked = false;
+      return;
+    }
+
+    const match = rounds[currentRound][currentMatchIdx];
+    match.winner = side === 0 ? match.a : match.b;
+    decisionsMade++;
+
+    const wasLastInRound = currentMatchIdx + 1 >= rounds[currentRound].length ||
+      rounds[currentRound].slice(currentMatchIdx + 1).every(m => m.winner !== null);
+
+    currentMatchIdx++;
+    advanceState();
+
+    // Show round-complete toast if round just changed
+    const roundJustChanged = (phase === 'thirdplace') ||
+      (currentRound > 0 && rounds[currentRound - 1]?.length > 1 &&
+       rounds[currentRound]?.[0] !== undefined && currentMatchIdx === 0 && decisionsMade > 1);
+
+    render();
+    blocked = false;
+  }, 130);
+}
+
+function render() {
+  if (phase === 'done') return;
+
+  document.getElementById('matchup').style.display = 'flex';
+  document.getElementById('results').classList.remove('visible');
+
+  let nameA, nameB;
+  const banner = document.getElementById('phase-banner');
+
+  if (phase === 'thirdplace') {
+    nameA = thirdPlaceMatch.a;
+    nameB = thirdPlaceMatch.b;
+    banner.textContent = '🥉 3rd Place Match';
+    banner.className = 'third';
+  } else {
+    const match = rounds[currentRound]?.[currentMatchIdx];
+    if (!match) return;
+    nameA = match.a;
+    nameB = match.b;
+    banner.className = '';
+
+    if (currentRound === 6) { banner.textContent = '⚡ Semifinals — Final Four'; banner.className = 'semis'; }
+    else if (currentRound === 7) { banner.textContent = '🏆 Championship Match'; banner.className = 'final'; }
+  }
+
+  document.getElementById('name-a').textContent = nameA || '—';
+  document.getElementById('name-b').textContent = nameB || '—';
+
+  const pct = Math.min((decisionsMade / TOTAL_DECISIONS) * 100, 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('match-counter').textContent =
+    phase === 'thirdplace'
+      ? `3rd Place Match (${decisionsMade} of ${TOTAL_DECISIONS} decided)`
+      : `Match ${decisionsMade + 1} of ${TOTAL_DECISIONS}`;
+
+  const roundLabel = phase === 'thirdplace' ? '3rd Place' : (ROUND_NAMES[currentRound] || `Round ${currentRound + 1}`);
+  document.getElementById('round-label').textContent = roundLabel;
+
+  document.getElementById('elim-count').textContent = decisionsMade;
+  document.getElementById('remain-count').textContent = Math.max(0, NAMES.length - decisionsMade);
+}
+
+function renderResults() {
+  document.getElementById('matchup').style.display = 'none';
+  document.getElementById('phase-banner').className = '';
+
+  const final = rounds[rounds.length - 1][0];
+  const champion = final.winner;
+  const runnerUp = final.winner === final.a ? final.b : final.a;
+  const third = thirdPlaceMatch.winner;
+
+  document.getElementById('res-1').textContent = champion;
+  document.getElementById('res-2').textContent = runnerUp;
+  document.getElementById('res-3').textContent = third;
+
+  document.getElementById('progress-fill').style.width = '100%';
+  document.getElementById('round-label').textContent = 'Complete!';
+  document.getElementById('match-counter').textContent = `All ${TOTAL_DECISIONS} matches decided`;
+  document.getElementById('elim-count').textContent = NAMES.length - 3;
+  document.getElementById('remain-count').textContent = 3;
+  document.getElementById('results').classList.add('visible');
+}
+
+function restart() {
+  document.getElementById('results').classList.remove('visible');
+  init();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft')  pick(0);
+  if (e.key === 'ArrowRight') pick(1);
+});
+
+init();
+</script>
+</body>
+</html>

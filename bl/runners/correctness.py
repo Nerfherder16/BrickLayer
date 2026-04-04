@@ -15,10 +15,10 @@ def run_correctness(question: dict) -> dict:
     """Run pytest for correctness questions. Parse output for verdict."""
     test_spec = question.get("test", "")
 
-    pytest_matches = re.findall(r"pytest\s+(C:[^\s`]+(?:\s+C:[^\s`]+)*)", test_spec)
+    pytest_matches = re.findall(r"pytest\s+([^\s`]+(?:\s+[^\s`]+)*\.py[^\s`]*)", test_spec)
 
     if not pytest_matches:
-        path_matches = re.findall(r"C:/Users/trg16/Dev/Recall/[^\s`\n]+", test_spec)
+        path_matches = re.findall(r"(?:C:/Users/trg16/Dev/Recall|/home/\w+/Dev/Recall)/[^\s`\n]+", test_spec)
         if path_matches:
             paths = " ".join(path_matches)
             pytest_cmd = f"pytest {paths} -v --tb=short -q"

@@ -71,6 +71,43 @@ bricklayer-v2/
 
 ---
 
+## BrickLayer Engine (bl/) — Recent Changes
+
+### 2026-04-02 — Cross-platform portability + per-spawn gate
+
+| Module | Change |
+|--------|--------|
+| `bl/tmux/core.py` | `_seed_gate()` now per-spawn; each `spawn_agent()` gets its own `/tmp/masonry-gate-{agent_id}.json`; `BL_GATE_FILE` injected into child env |
+| `bl/tmux/pane.py` | `capture-pane` uses `-t "$TMUX_PANE"` instead of hardcoded target; fixes result capture in multi-window tmux sessions |
+| `bl/recall_bridge.py` | Removed dead `decay_conflicting_memories()` (unreachable, no callers) |
+| `bl/config.py` | `recall_src` default reads `RECALL_SRC` env var or `None` (was hardcoded Windows path) |
+| `bl/runners/correctness.py` | pytest path regex matches Linux paths in addition to Windows paths |
+
+**Masonry hooks** — all gate file references updated to use `BL_GATE_FILE` env var:
+`masonry-mortar-enforcer.js`, `masonry-routing-gate.js`, `masonry-pre-protect.js`, `masonry-subagent-tracker.js`, `masonry-prompt-router.js`
+
+`session/mortar-gate.js` — whitelist replaced with dynamic loader from `agent_registry.yml` + `.claude/agents/*.md` frontmatter; no more manual drift.
+
+`masonry-session-end.js` — removed dead `decay_conflicting_memories` invocation block.
+
+**Agents** — `mortar.md`, `trowel.md`, `bl-verifier.md`, `e2e.md` ported from hardcoded Windows paths to env-var-driven / WSL paths.
+
+### 2026-03-31 — tmux/pane + runners refactor
+
+| Module | Change |
+|--------|--------|
+| `bl/tmux/pane.py` | NEW — pane spawn/wait/cleanup extracted from `bl/tmux/core.py` |
+| `bl/frontmatter.py` | NEW — `strip_frontmatter()` and `read_frontmatter_model()` extracted from `runners/agent.py` |
+| `bl/runners/scout.py` | NEW — Scout agent runner (`run_scout_for_project`) |
+| `bl/runners/swarm.py` | NEW — Swarm meta-runner; parallel N-worker dispatch with `worst`/`majority`/`any_failure` aggregation; agent workers use tmux wave |
+| `bl/fixloop.py` | UPDATED — uses `bl.frontmatter` for agent file parsing |
+| `bl/runners/agent.py` | UPDATED — `read_frontmatter_model`/`strip_frontmatter` imported from `bl.frontmatter`; `run_agent_wave` uses `spawn_wave`/`collect_wave` |
+| `bl/tmux/helpers.py` | UPDATED — `MODEL_MAP` at module level; `in_tmux()` gains socket fallback |
+
+All new modules have test coverage under `bl/tmux/tests/` and `bl/runners/tests/`.
+
+---
+
 ## Open Items
 
 | ID | Verdict | Summary |

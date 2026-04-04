@@ -1,0 +1,27 @@
+{
+  "generated_at": "2026-04-04T17:37:35.301Z",
+  "campaign": {
+    "active": false,
+    "project": null,
+    "wave": null,
+    "pending": null,
+    "complete": null
+  },
+  "recall": {
+    "degraded": true,
+    "host": "http://100.70.195.84:8200"
+  },
+  "training": {
+    "configured": false
+  },
+  "agents": {
+    "below_threshold": [],
+    "last_optimized": null
+  },
+  "rough_in": {
+    "active_task": null
+  },
+  "skills": {
+    "count": 0
+  }
+}

@@ -90,35 +90,31 @@ Return a JSON object with exactly these fields:
 Your tag: `agent:benchmark-engineer`
 
 **At session start** — retrieve prior baselines before measuring anything. Comparing against a stored baseline is more reliable than comparing against results.tsv alone:
-```
-recall_search(query="baseline measurement benchmark latency throughput", domain="{project}-autoresearch", tags=["agent:benchmark-engineer"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "baseline measurement benchmark latency throughput"
+- `domain`: "{project}-autoresearch"
+- `tags`: ["agent:benchmark-engineer"]
 
 Also check what the quantitative-analyst found — their parameter boundaries tell you which operating points are worth measuring:
-```
-recall_search(query="failure boundary parameter threshold", domain="{project}-autoresearch", tags=["agent:quantitative-analyst"])
-```
+Use **`mcp__recall__recall_search`**:
+- `query`: "failure boundary parameter threshold"
+- `domain`: "{project}-autoresearch"
+- `tags`: ["agent:quantitative-analyst"]
 
 **After capturing a baseline** — store it immediately so future sessions don't need to re-establish it:
-```
-recall_store(
-    content="Baseline [{date}]: [operation] — P50: [value]ms, P95: [value]ms, throughput: [value] req/s. System state: [version/config]. N=[samples].",
-    memory_type="semantic",
-    domain="{project}-autoresearch",
-    tags=["bricklayer", "autoresearch", "agent:benchmark-engineer", "type:baseline"],
-    importance=0.9,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Baseline [{date}]: [operation] — P50: [value]ms, P95: [value]ms, throughput: [value] req/s. System state: [version/config]. N=[samples]."
+- `memory_type`: "semantic"
+- `domain`: "{project}-autoresearch"
+- `tags`: ["bricklayer", "autoresearch", "agent:benchmark-engineer", "type:baseline"]
+- `importance`: 0.9
+- `durability`: "durable"
 
 **After detecting a regression** — store it with enough detail for the synthesizer to include it in the roadmap:
-```
-recall_store(
-    content="Regression detected: [metric] degraded from [baseline] to [current] ([pct]% worse) under [condition]. Verdict: FAILURE. Reproducer: [command].",
-    memory_type="semantic",
-    domain="{project}-autoresearch",
-    tags=["autoresearch", "agent:benchmark-engineer", "type:regression"],
-    importance=0.95,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Regression detected: [metric] degraded from [baseline] to [current] ([pct]% worse) under [condition]. Verdict: FAILURE. Reproducer: [command]."
+- `memory_type`: "semantic"
+- `domain`: "{project}-autoresearch"
+- `tags`: ["autoresearch", "agent:benchmark-engineer", "type:regression"]
+- `importance`: 0.95
+- `durability`: "durable"

@@ -1,0 +1,135 @@
+"""
+bl/sweep.py — Parameter sweep harness for BrickLayer 2.0 campaigns.
+
+Runs simulate.run_simulation() for each (value × scenario) combination
+and returns structured results. Never prints — returns data only.
+
+Since the template's run_simulation() uses module-level globals (not kwargs),
+this harness injects parameter values by setting the module attribute before
+each call, then restores the original value.
+"""
+
+from __future__ import annotations
+
+import io
+import importlib.util
+import sys
+from pathlib import Path
+
+
+def validate_sweep_parameter(project_root, param_name: str) -> tuple:
+    """Check param_name exists in simulate.py's SCENARIO PARAMETERS block.
+    Returns (True, '') or (False, error_message)."""
+    root = Path(project_root)
+    simulate = root / "simulate.py"
+    if not simulate.exists():
+        return False, f"SWEEP_BLOCKED: simulate.py not found in {root}"
+    content = simulate.read_text(encoding="utf-8")
+    if "# SCENARIO PARAMETERS" not in content:
+        return False, "SWEEP_BLOCKED: no '# SCENARIO PARAMETERS' block found in simulate.py"
+    block = content[content.index("# SCENARIO PARAMETERS"):]
+    if param_name not in block:
+        return False, f"SWEEP_BLOCKED: parameter '{param_name}' not found in simulate.py SCENARIO PARAMETERS block"
+    return True, ""
+
+
+def _load_simulate(project_dir: Path):
+    """Load simulate.py from project_dir, protecting sys.stdout from corruption."""
+    simulate_path = project_dir / "simulate.py"
+    if not simulate_path.exists():
+        raise FileNotFoundError(f"simulate.py not found in {project_dir}")
+
+    # The template's simulate.py does sys.stdout = io.TextIOWrapper(...)
+    # which corrupts pytest's capture object. We protect against that here.
+    real_stdout = sys.stdout
+    fake_buf = io.BytesIO()
+    sys.stdout = io.TextIOWrapper(fake_buf, encoding="utf-8")
+    try:
+        # Add project_dir to sys.path so simulate.py can import constants.py
+        project_str = str(project_dir)
+        inserted = False
+        if project_str not in sys.path:
+            sys.path.insert(0, project_str)
+            inserted = True
+        try:
+            spec = importlib.util.spec_from_file_location(
+                f"simulate_sweep_{id(project_dir)}", simulate_path
+            )
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+        finally:
+            if inserted and project_str in sys.path:
+                sys.path.remove(project_str)
+    finally:
+        sys.stdout = real_stdout
+    return mod
+
+
+def sweep(
+    project_dir: Path,
+    param_name: str,
+    values: list,
+    scenarios: list[str] | None = None,
+    base_params: dict | None = None,
+) -> list[dict]:
+    """
+    Run simulate.run_simulation() for each (value × scenario) combination.
+
+    Parameters are injected as module-level globals on the loaded simulate
+    module (since the template's run_simulation() reads module globals, not
+    kwargs). After each call the original value is restored.
+
+    Returns list of dicts with keys:
+      param_name, param_value, scenario, verdict, failure_reason,
+      final_primary, record_count, records
+    Sorted by (scenario, param_value).
+    """
+    mod = _load_simulate(project_dir)
+    effective_scenarios = scenarios if scenarios is not None else ["baseline"]
+    base = dict(base_params) if base_params else {}
+
+    results = []
+    for scenario in effective_scenarios:
+        for value in values:
+            # Build full param set: base_params overrides, then swept param
+            all_params = dict(base)
+            all_params[param_name] = value
+
+            # Save originals and inject
+            originals = {}
+            for attr, val in all_params.items():
+                originals[attr] = getattr(mod, attr, None)
+                setattr(mod, attr, val)
+
+            try:
+                records, failure_reason = mod.run_simulation()
+                evaluation = mod.evaluate(records, failure_reason)
+            finally:
+                # Restore originals
+                for attr, orig in originals.items():
+                    if orig is None:
+                        # Attribute didn't exist originally — remove it
+                        try:
+                            delattr(mod, attr)
+                        except AttributeError:
+                            pass
+                    else:
+                        setattr(mod, attr, orig)
+
+            final_primary = records[-1]["primary"] if records else 0.0
+
+            results.append(
+                {
+                    "param_name": param_name,
+                    "param_value": value,
+                    "scenario": scenario,
+                    "verdict": evaluation.get("verdict", "FAILURE"),
+                    "failure_reason": failure_reason,
+                    "final_primary": final_primary,
+                    "record_count": len(records),
+                    "records": records,
+                }
+            )
+
+    results.sort(key=lambda r: (r["scenario"], r["param_value"]))
+    return results

@@ -1,0 +1,67 @@
+# CodeVV OS — Session Context
+
+## What This Is
+
+CodeVV OS is a boot-to-browser operating system built on top of [CodeVV](https://github.com/Nerfherder16/Codevv). It wraps CodeVV — a collaborative AI-assisted software design platform — in a minimal Alpine Linux distribution that boots directly into a kiosk-mode browser. Multiple users access the same deployment via any web browser on the LAN.
+
+Key references:
+- Project brief: `project-brief.md`
+- Architecture: `ARCHITECTURE.md`
+- Server hardware: `docs/server-build.md`
+
+## Architecture Summary
+
+```
+Alpine Linux → Docker Compose → {PostgreSQL, Redis, Yjs, FastAPI, Nginx}
+  → Cage/Sway compositor → Chromium --kiosk → CodeVV React frontend
+```
+
+Target deployment: Proxmox VM on Threadripper PRO 9975WX server. GPU inference via separate Ollama VM (2x RTX 3090).
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 19, TypeScript, Tailwind v4, Vite |
+| Backend | FastAPI, SQLAlchemy (async), Pydantic |
+| Database | PostgreSQL 16 (no pgvector — Recall uses Qdrant) |
+| Cache | Redis 7 (AOF persistence required) |
+| Real-time | Yjs (collab), tldraw-sync (canvas), LiveKit (video) |
+| AI | Claude (Console API key + SSE), Ollama via Recall (local LLM) |
+| OS Base | Alpine Linux |
+| Orchestration | Docker Compose |
+| Kiosk | Cage (Wayland compositor) + Chromium |
+
+## Development Commands
+
+```bash
+# CodeVV upstream
+git clone https://github.com/Nerfherder16/Codevv
+cd Codevv && docker-compose up -d
+
+# ISO build (when available)
+# TBD — Phase 1 deliverable
+```
+
+## Code Retrieval — jCodeMunch First
+
+Use `jcodemunch-mcp` for all symbol-level access in this codebase. CodeVV OS spans Python, TypeScript, and React — prefer targeted retrieval over reading whole files.
+
+- `search_symbols` + `get_symbol_source` instead of `Read` for individual functions/components/classes
+- `get_blast_radius` before touching shared modules (FastAPI routes, Yjs sync, auth)
+- `get_file_outline` to understand a module's structure before diving in
+- Only use `Read` when full file context is genuinely needed
+
+## Source Authority
+
+| Tier | Source | Who Edits |
+|------|--------|-----------|
+| Tier 1 | `project-brief.md`, `ARCHITECTURE.md` | Human — ground truth |
+| Tier 2 | `ROADMAP.md`, config files | Human + agent |
+| Tier 3 | Build scripts, ISO tooling, docs | Agent — implementation |
+
+## Current Phase
+
+**Pre-build / Phase 0** — All swarm reviews complete. ROADMAP, ARCHITECTURE.md, and experience design updated with all findings. Ready for `/plan` on Phase 0 + Phase 1.
+
+See `ROADMAP.md` for full phase breakdown and `BUILD_BIBLE.md` for build process guide.

@@ -1,0 +1,83 @@
+name: Fast Check
+on:
+  push:
+    branches:
+      - "feat/**"
+      - "fix/**"
+jobs:
+  lint-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff mypy
+      - run: ruff check backend/
+      - run: mypy backend/app
+
+  lint-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: cd frontend && npm ci
+      - run: cd frontend && npx tsc --noEmit
+      - run: cd frontend && npx eslint src/ --max-warnings=0
+
+  unit-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-test.txt
+      - run: pytest tests/unit/ -v
+
+  unit-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: cd frontend && npm ci
+      - run: cd frontend && npx vitest run
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install bandit pip-audit
+      - run: bandit -r backend/app/
+      - run: pip-audit
+      - uses: returntocorp/semgrep-action@v1
+      - name: TruffleHog scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+      - run: cd frontend && npm audit --audit-level=high
+
+  file-size-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check file sizes (600 line hard limit)
+        run: |
+          FAIL=0
+          for f in $(find backend frontend shared -name "*.py" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js"); do
+            LINES=$(wc -l < "$f")
+            if [ "$LINES" -gt 600 ]; then
+              echo "FAIL: $f has $LINES lines (hard limit 600)"
+              FAIL=1
+            elif [ "$LINES" -gt 400 ]; then
+              echo "WARNING: $f has $LINES lines (soft limit 400)"
+            fi
+          done
+          exit $FAIL

@@ -38,6 +38,16 @@ that Trowel reads to bias routing for the questions that remain.
 
 ## Procedure
 
+### Step 0: Retrieve prior checkpoints from Recall
+
+Before reading the file system, pull any prior pointer checkpoints for this project to understand cumulative wave history:
+Use **`mcp__recall__recall_search`**:
+- `query`: "wave checkpoint findings priorities {project_name}"
+- `domain`: "{project_name}-bricklayer"
+- `tags`: ["agent:pointer", "type:checkpoint"]
+- `limit`: 3
+Use prior checkpoints to identify recurring failure patterns across waves — flag them as "persistent" in the new checkpoint.
+
 ### Step 1: Find the last checkpoint
 
 Glob `{checkpoint_dir}/wave{N}-q*.md` and sort by filename. The last entry is the
@@ -109,16 +119,13 @@ blank. Priorities must be concrete directions, not generic statements.
 
 ## Step 6: Store to Recall
 
-```
-recall_store(
-    content="Wave {N} checkpoint at Q{question_count} for {project_name}: {brief summary of top findings and priorities}.",
-    memory_type="semantic",
-    domain="{project_name}-bricklayer",
-    tags=["agent:pointer", "type:checkpoint", "wave:{N}"],
-    importance=0.7,
-    durability="durable",
-)
-```
+Use **`mcp__recall__recall_store`**:
+- `content`: "Wave {N} checkpoint at Q{question_count} for {project_name}: {brief summary of top findings and priorities}."
+- `memory_type`: "semantic"
+- `domain`: "{project_name}-bricklayer"
+- `tags`: ["agent:pointer", "type:checkpoint", "wave:{N}"]
+- `importance`: 0.7
+- `durability`: "durable"
 
 ---
 

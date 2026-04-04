@@ -1,0 +1,262 @@
+# Question Bank — masonry-48h-validation
+
+**Campaign type**: BrickLayer 2.0
+**Generated**: 2026-03-29
+**Modes selected**: diagnose (8), audit (4), validate (4), research (2)
+
+---
+
+## Wave 1
+
+---
+
+### V1.1: Does masonry-context-monitor.js complete within its 5s settings.json timeout given its internal timeout sum (readStdin + git status 2s + Ollama 3s)?
+
+**Status**: DONE
+**Finding**: findings/V1.1.md
+**Completed**: 2026-03-29T04:00:00Z
+**Mode**: validate
+**Priority**: HIGH
+**H0**: readStdin completes quickly for Stop hooks and the total path completes within the 5s budget.
+**H1**: readStdin has no explicit timeout or a timeout >= 1s, making the sum >= 6s > 5s budget.
+**Agent**: diagnose-analyst
+**Success criterion**: Read stop-utils.js readStdin implementation, calculate exact worst-case timing, compare against 5s budget.
+
+---
+
+### V1.2: Does masonry-prompt-router.js outputting { additionalContext: "..." } match Claude Code's expected schema for UserPromptSubmit hooks?
+
+**Status**: DONE
+**Finding**: findings/V1.2.md
+**Completed**: 2026-03-29T04:01:00Z
+**Mode**: validate
+**Priority**: HIGH
+**H0**: Claude Code accepts additionalContext from UserPromptSubmit hooks and injects it into context.
+**H1**: Claude Code does not recognize additionalContext — the routing hint is silently discarded.
+**Agent**: research-analyst
+**Success criterion**: Identify whether additionalContext is a supported output field for UserPromptSubmit hooks.
+
+---
+
+### D1.1: Does masonry-context-monitor.js correctly handle empty stdin (no JSON input)?
+
+**Status**: DONE
+**Finding**: findings/D1.1.md
+**Completed**: 2026-03-29T04:02:00Z
+**Mode**: diagnose
+**Priority**: HIGH
+**H0**: Empty stdin → JSON.parse fails → catch → return. Clean exit, no stdout.
+**H1**: readStdin returns empty string, JSON.parse throws, but the return-instead-of-process.exit pattern has an untested edge.
+**Agent**: diagnose-analyst
+**Success criterion**: Trace empty stdin through readStdin → main() → JSON.parse → catch → return. Confirm no unhandled exception.
+
+---
+
+### D1.2: Does masonry-context-monitor.js session-scoped dirty file check correctly parse the activity log NDJSON format?
+
+**Status**: DONE
+**Finding**: findings/D1.2.md
+**Completed**: 2026-03-29T04:03:00Z
+**Mode**: diagnose
+**Priority**: HIGH
+**H0**: Activity log entries have a "file" field. The NDJSON parser handles malformed lines and path normalization.
+**H1**: masonry-observe.js writes a different schema (no "file" field, or field named "path"), causing the session file set to be empty.
+**Agent**: diagnose-analyst
+**Success criterion**: Read masonry-observe.js to confirm it writes "file" to the activity log. Confirm the NDJSON parser handles all output formats.
+
+---
+
+### D1.3: Does masonry-session-start.js session ID fallback (process.ppid) produce a stable key that masonry-stop-guard.js can correlate?
+
+**Status**: DONE
+**Finding**: findings/D1.3.md
+**Completed**: 2026-03-29T04:04:00Z
+**Mode**: diagnose
+**Priority**: HIGH
+**H0**: process.ppid is stable across all hook invocations within a single Claude Code session.
+**H1**: hook-runner spawns each hook as a separate child process with a different ppid — correlation fails.
+**Agent**: diagnose-analyst
+**Success criterion**: Determine whether hook-runner uses a single parent process for all hooks. Confirm ppid stability.
+
+---
+
+### D1.4: Does masonry-pre-compact.js correctly output systemMessage and does Claude Code consume it?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: MEDIUM
+**H0**: { systemMessage: "..." } is the correct output for PreCompact hooks. Claude Code injects it into compacted context.
+**H1**: PreCompact expects a different output format and systemMessage is ignored.
+**Agent**: diagnose-analyst
+**Success criterion**: Cross-reference with Claude Code hook documentation or other working hooks.
+
+---
+
+### D1.5: Does masonry-teammate-idle.js correctly output systemMessage for TeammateIdle events?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: MEDIUM
+**H0**: Claude Code reads systemMessage from TeammateIdle hooks and presents task assignments.
+**H1**: TeammateIdle uses a different output schema — systemMessage is silently discarded.
+**Agent**: diagnose-analyst
+**Success criterion**: Confirm systemMessage is valid for TeammateIdle hooks.
+
+---
+
+### D1.6: Does session/build-state.js process.exit(0) on auto-resume (line 40) race with stdout write?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: MEDIUM
+**H0**: process.stdout.write + process.exit(0) flushes completely in hook-runner context.
+**H1**: process.exit(0) can truncate the stdout write, causing lost or partial systemMessage.
+**Agent**: diagnose-analyst
+**Success criterion**: Determine whether process.stdout.write + process.exit(0) is atomic in Node.js.
+
+---
+
+### A1.1: Is the hookSpecificOutput → systemMessage migration complete across ALL hooks?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: HIGH
+**H0**: Every hook that used hookSpecificOutput has been migrated. Zero remaining references in active hooks.
+**H1**: At least one hook still outputs hookSpecificOutput, creating mixed-schema state.
+**Agent**: compliance-auditor
+**Success criterion**: Grep all .js files under masonry/src/hooks/ for hookSpecificOutput. List every reference with file:line.
+
+---
+
+### A1.2: Do all 6 modified hooks handle malformed JSON stdin identically?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: MEDIUM
+**H0**: All 6 hooks have try/catch around JSON.parse(stdin) that exits cleanly on parse failure.
+**H1**: At least one hook handles JSON parse failure differently (unhandled exception, error to stdout, non-zero exit).
+**Agent**: compliance-auditor
+**Success criterion**: For each hook, trace JSON.parse path. Document try/catch, behavior on failure, exit code.
+
+---
+
+### A1.3: Is the process.exit(0) → return migration consistent across all modified hooks?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: MEDIUM
+**H0**: context-monitor uses return. Other hooks retain process.exit(0) intentionally for early-exit paths.
+**H1**: Migration was applied inconsistently with no architectural reason for the differences.
+**Agent**: compliance-auditor
+**Success criterion**: For each hook, document all process.exit calls and return-from-main calls. Determine if pattern is consistent.
+
+---
+
+### A1.4: Do the Recall hooks (uncommitted) match the same termination pattern as Masonry hooks?
+
+**Status**: PENDING
+**Mode**: audit
+**Priority**: LOW
+**H0**: Recall hooks use the same return + .catch(() => {}) pattern as masonry-context-monitor.js.
+**H1**: Recall hooks use a different termination pattern, creating divergence between hook families.
+**Agent**: compliance-auditor
+**Success criterion**: Read all 4 Recall hook files. Compare termination patterns with masonry-context-monitor.js.
+
+---
+
+### V1.3: Does the session-start → build-state → pre-compact → session-start chain work with systemMessage?
+
+**Status**: PENDING
+**Mode**: validate
+**Priority**: HIGH
+**H0**: All three hooks use systemMessage consistently. The chain works: build-state auto-resume, pre-compact state save, session-start resume.
+**H1**: build-state process.exit(0) + systemMessage has a flush race that breaks the chain.
+**Agent**: design-reviewer
+**Success criterion**: Trace the full integration chain. Confirm each hook's output is consumed correctly.
+
+---
+
+### V1.4: Does session-scoped dirty check prevent false blocks from sibling sessions?
+
+**Status**: PENDING
+**Mode**: validate
+**Priority**: MEDIUM
+**H0**: Activity log keyed to sessionId correctly separates parallel sessions.
+**H1**: Snapshot fallback treats new files from parallel sessions as dirty, causing false blocks.
+**Agent**: design-reviewer
+**Success criterion**: Trace multi-session scenario. Confirm snapshot fallback handles parallel session files.
+
+---
+
+### D2.1: Does template/program.md step numbering (1-9) remain sequential after RETRO-H2 insertion?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: LOW
+**H0**: Steps 1-9 are sequential with no duplicates or gaps. Pre-flight runs after question bank generation.
+**H1**: Step numbering has duplicates or gaps from the insertion.
+**Agent**: diagnose-analyst
+**Success criterion**: Read setup steps 1-9. Confirm sequential numbering.
+
+---
+
+### D2.2: Does the finding format with new required fields parse correctly with existing tooling?
+
+**Status**: PENDING
+**Mode**: diagnose
+**Priority**: LOW
+**H0**: New fields (Confidence, Files to change, Peer Review) are additive. Existing parsers ignore or handle them.
+**H1**: New fields break analyze.py or Kiln parsing.
+**Agent**: diagnose-analyst
+**Success criterion**: Check if analyze.py reads findings. Verify new fields don't break parsing.
+
+---
+
+### R1.1: What is the correct output schema for each Claude Code hook event type?
+
+**Status**: PENDING
+**Mode**: research
+**Priority**: HIGH
+**H0**: All event types accept { systemMessage: "..." }. UserPromptSubmit also accepts { additionalContext: "..." }.
+**H1**: Different event types have different valid schemas. Wrong schema = silently discarded output.
+**Agent**: research-analyst
+**Success criterion**: Document valid output schema per event type. Flag any mismatch with current hooks.
+
+---
+
+### R1.2: Does prompt-router imperative hint conflict with CLAUDE.md escape hatch?
+
+**Status**: PENDING
+**Mode**: research
+**Priority**: MEDIUM
+**H0**: CLAUDE.md escape hatch and prompt router are complementary — no conflict.
+**H1**: Router fires on trivial queries that CLAUDE.md exempts from Mortar routing, creating contradictory instructions.
+**Agent**: research-analyst
+**Success criterion**: Analyze router skip conditions vs CLAUDE.md trivial definition. Identify conflicting prompts.
+
+---
+
+## Wave 1 Summary
+
+| ID | Question | Mode | Priority |
+|----|----------|------|----------|
+| V1.1 | Context-monitor timeout budget | validate | HIGH |
+| V1.2 | Prompt-router additionalContext schema | validate | HIGH |
+| D1.1 | Context-monitor empty stdin | diagnose | HIGH |
+| D1.2 | Context-monitor NDJSON parsing | diagnose | HIGH |
+| D1.3 | Session-start ppid correlation | diagnose | HIGH |
+| D1.4 | Pre-compact systemMessage | diagnose | MEDIUM |
+| D1.5 | Teammate-idle systemMessage | diagnose | MEDIUM |
+| D1.6 | Build-state stdout flush race | diagnose | MEDIUM |
+| A1.1 | hookSpecificOutput migration completeness | audit | HIGH |
+| A1.2 | Malformed JSON handling consistency | audit | MEDIUM |
+| A1.3 | process.exit → return consistency | audit | MEDIUM |
+| A1.4 | Recall hooks termination pattern | audit | LOW |
+| V1.3 | Integration chain correctness | validate | HIGH |
+| V1.4 | Session-scoped dirty check | validate | MEDIUM |
+| D2.1 | Template step numbering | diagnose | LOW |
+| D2.2 | Finding format parser compat | diagnose | LOW |
+| R1.1 | Hook output schema per event | research | HIGH |
+| R1.2 | Router hint vs escape hatch | research | MEDIUM |
+
+**Total**: 18 questions | 7 HIGH | 6 MEDIUM | 3 LOW | 2 INFO

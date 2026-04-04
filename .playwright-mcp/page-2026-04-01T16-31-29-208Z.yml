@@ -1,0 +1,116 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - button "Passive" [ref=e8] [cursor=pointer]:
+          - img "Passive" [ref=e9]
+        - button "Close menu" [ref=e10] [cursor=pointer]
+      - navigation [ref=e14]:
+        - button "INVESTMENTS" [ref=e15] [cursor=pointer]
+        - button "HOW IT WORKS" [ref=e16] [cursor=pointer]
+        - button "ABOUT" [ref=e17] [cursor=pointer]
+        - button "FAQ" [ref=e18] [cursor=pointer]
+        - button "LOGIN" [ref=e19] [cursor=pointer]
+    - banner [ref=e20]:
+      - button "Passive" [ref=e22] [cursor=pointer]:
+        - img "Passive" [ref=e23]
+      - navigation [ref=e24]:
+        - button "INVESTMENTS" [ref=e25] [cursor=pointer]
+        - button "HOW IT WORKS" [ref=e26] [cursor=pointer]
+        - button "ABOUT" [ref=e27] [cursor=pointer]
+        - button "FAQ" [ref=e28] [cursor=pointer]
+        - button "LOGIN" [ref=e29] [cursor=pointer]
+  - generic [ref=e30]:
+    - generic [ref=e31]:
+      - heading "MAKE YOUR MONEY WORK FOR YOU" [level=1] [ref=e32]:
+        - text: MAKE YOUR MONEY
+        - text: WORK FOR YOU
+      - paragraph [ref=e33]:
+        - text: A smarter way to earn passive income.
+        - text: No active trading, no market stress.
+      - paragraph [ref=e34]: Earn up to 10.24% per year. Invest confidently and watch your earnings grow every month. Passive is built for people who want their money to work harder without the guesswork.
+      - generic [ref=e35]:
+        - button "Get Started" [ref=e36] [cursor=pointer]
+        - link "Learn More" [ref=e37] [cursor=pointer]:
+          - /url: /how-it-works
+    - img "Growth Chart" [ref=e39]
+  - generic [ref=e40]:
+    - generic [ref=e41]:
+      - heading "WHY PASSIVE?" [level=2] [ref=e42]
+      - paragraph [ref=e43]: A smarter, more accessible way to grow your wealth.
+    - generic [ref=e45]:
+      - generic [ref=e46]:
+        - img "Steady" [ref=e47]
+        - generic [ref=e48]:
+          - heading "STEADY" [level=3] [ref=e49]
+          - paragraph [ref=e50]: Predictable, reliable returns
+      - generic [ref=e51]:
+        - img "Safe" [ref=e52]
+        - generic [ref=e53]:
+          - heading "SAFE" [level=3] [ref=e54]
+          - paragraph [ref=e55]: Backed by real assets, no unnecessary risks
+      - generic [ref=e56]:
+        - img "Simple" [ref=e57]
+        - generic [ref=e58]:
+          - heading "SIMPLE" [level=3] [ref=e59]
+          - paragraph [ref=e60]: No complex terms or confusing investments
+      - generic [ref=e61]:
+        - img "Seamless" [ref=e62]
+        - generic [ref=e63]:
+          - heading "SEAMLESS" [level=3] [ref=e64]
+          - paragraph [ref=e65]: Anyone can start with just a few clicks
+  - generic [ref=e66]:
+    - generic [ref=e67]:
+      - heading "HOW IT WORKS" [level=2] [ref=e68]
+      - paragraph [ref=e69]: Getting started is easy. Start earning passive income in three simple steps.
+    - generic [ref=e70]:
+      - generic [ref=e71]:
+        - img "Fund Your Account" [ref=e73]
+        - generic [ref=e74]: STEP 01
+        - heading "FUND YOUR ACCOUNT" [level=3] [ref=e75]
+        - paragraph [ref=e76]: Start with as little as $5,000.
+      - generic [ref=e77]:
+        - img "Choose Terms" [ref=e79]
+        - generic [ref=e80]: STEP 02
+        - heading "CHOOSE TERMS" [level=3] [ref=e81]
+        - paragraph [ref=e82]: Select the income plan that works best for you
+      - generic [ref=e83]:
+        - img "Collect Income" [ref=e85]
+        - generic [ref=e86]: STEP 03
+        - heading "COLLECT INCOME" [level=3] [ref=e87]
+        - paragraph [ref=e88]: Earn 8%-10.24% per year with monthly interest payouts or payment at the end of the term
+  - generic [ref=e89]:
+    - generic [ref=e90]:
+      - heading "START EARNING TODAY" [level=2] [ref=e91]:
+        - text: START
+        - text: EARNING
+        - text: TODAY
+      - paragraph [ref=e92]:
+        - text: No hidden fees, no complicated steps—
+        - text: just a smarter way to invest.
+      - generic [ref=e94]:
+        - textbox "Enter your email" [ref=e95]
+        - button "Get Started" [ref=e96] [cursor=pointer]:
+          - generic [ref=e97]: Get Started
+          - img [ref=e98]
+    - img "Phone showing Passive app" [ref=e101]
+  - contentinfo [ref=e102]:
+    - generic [ref=e103]:
+      - generic [ref=e104]:
+        - generic [ref=e105]:
+          - button "Passive" [ref=e106] [cursor=pointer]:
+            - img "Passive" [ref=e107]
+          - paragraph [ref=e108]: Copyright © 2025 Passive
+        - generic [ref=e109]:
+          - heading "QUICK LINKS" [level=3] [ref=e110]
+          - navigation [ref=e111]:
+            - button "PLANS" [ref=e112] [cursor=pointer]
+            - button "HOW IT WORKS" [ref=e113] [cursor=pointer]
+            - button "ABOUT" [ref=e114] [cursor=pointer]
+            - button "FAQ" [ref=e115] [cursor=pointer]
+            - button "TERMS" [ref=e116] [cursor=pointer]
+            - button "PRIVACY POLICY" [ref=e117] [cursor=pointer]
+        - generic [ref=e118]:
+          - heading "FOLLOW US" [level=3] [ref=e119]
+          - img "Social Media Links" [ref=e121]
+      - paragraph [ref=e123]: Passive is not a bank, broker-dealer, or investment advisor. Investments offered on this platform are not FDIC insured, not bank guaranteed, and may involve risk, including the potential loss of principal. Past performance is not indicative of future results. Before investing, carefully consider your financial situation and consult with a financial professional if needed. By using this platform, you acknowledge and accept all terms and conditions.

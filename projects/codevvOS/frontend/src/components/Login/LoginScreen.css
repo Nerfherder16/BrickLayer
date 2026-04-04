@@ -1,0 +1,357 @@
+/* LoginScreen — CSS animations and layout
+   Hex colors are allowed in CSS files (no-hex rule applies to .tsx/.ts only).
+   Tokens from global.css are used throughout.
+*/
+
+/* ── Keyframes ─────────────────────────────────────────────────────────────── */
+
+@keyframes gradient-drift {
+  0%   { transform: translate(0%, 0%) scale(1); }
+  25%  { transform: translate(20%, -10%) scale(1.1); }
+  50%  { transform: translate(-10%, 20%) scale(1); }
+  75%  { transform: translate(15%, 10%) scale(0.95); }
+  100% { transform: translate(0%, 0%) scale(1); }
+}
+
+@keyframes card-shake {
+  0%   { transform: translateX(0); }
+  15%  { transform: translateX(4px); }
+  30%  { transform: translateX(-4px); }
+  50%  { transform: translateX(3px); }
+  65%  { transform: translateX(-3px); }
+  80%  { transform: translateX(2px); }
+  90%  { transform: translateX(-2px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Outer shell ────────────────────────────────────────────────────────────── */
+
+.login-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  width: 100vw;
+  height: 100vh;
+  background: var(--color-base);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Animated radial gradient (accent at 25% opacity, #4F87B340) */
+.login-gradient {
+  position: absolute;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(ellipse 60% 60% at center, #4F87B340 0%, transparent 70%);
+  animation: gradient-drift 20s ease-in-out infinite;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* ── Center wrapper + card ──────────────────────────────────────────────────── */
+
+.login-center {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  width: 100%;
+}
+
+.login-card {
+  width: 480px;
+  background: var(--color-surface-1);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-5);
+  padding: 2.5rem 2rem;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.login-card.shake {
+  animation: card-shake 400ms ease-in-out;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────────── */
+
+.login-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-tertiary);
+  z-index: 1;
+}
+
+/* ── Spinner ─────────────────────────────────────────────────────────────────── */
+
+.login-spinner-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid transparent;
+  border-top-color: var(--color-accent);
+  border-radius: var(--radius-full);
+  animation: spin 600ms linear infinite;
+}
+
+/* ── Phase A — User picker ───────────────────────────────────────────────────── */
+
+.user-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.user-picker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  max-width: 440px;
+}
+
+.user-picker-grid.grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.user-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary);
+  transition: background var(--duration-fast) ease;
+  min-width: 96px;
+}
+
+.user-card:hover {
+  background: var(--color-surface-3);
+}
+
+.user-card:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ── Avatars ─────────────────────────────────────────────────────────────────── */
+
+.user-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.user-avatar-lg {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  margin: 0 auto 0.5rem;
+  flex-shrink: 0;
+}
+
+.user-name {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+/* ── Phase B — Password entry ────────────────────────────────────────────────── */
+
+.password-phase {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.password-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.password-input {
+  width: 100%;
+  height: 2rem;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-md);
+  padding: 0 0.75rem;
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color var(--duration-fast) ease;
+}
+
+.password-input:focus {
+  border-color: var(--input-focus);
+}
+
+.password-input.error {
+  border-color: var(--color-error);
+}
+
+.password-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────────── */
+
+.btn-primary {
+  width: 100%;
+  height: 2rem;
+  background: var(--color-accent);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-accent-fg);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity var(--duration-fast) ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-md);
+  transition: color var(--duration-fast) ease;
+  text-align: center;
+}
+
+.btn-ghost:hover {
+  color: var(--color-text-primary);
+}
+
+/* ── Messages ────────────────────────────────────────────────────────────────── */
+
+.error-message {
+  color: var(--color-error);
+  font-size: var(--text-sm);
+  text-align: center;
+  margin: 0;
+}
+
+.warning-message {
+  color: var(--color-warning);
+  font-size: var(--text-sm);
+  text-align: center;
+  margin: 0;
+}
+
+/* ── Network error state ────────────────────────────────────────────────────── */
+
+.network-error-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+/* ── Admin account creation ───────────────────────────────────────────────────── */
+
+.login-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: center;
+  margin: 0 0 1.5rem;
+}
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.admin-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.admin-form-label {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.admin-form-input {
+  width: 100%;
+  height: 2rem;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-md);
+  padding: 0 0.75rem;
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color var(--duration-fast) ease;
+}
+
+.admin-form-input:focus {
+  border-color: var(--input-focus);
+}
