@@ -9,7 +9,8 @@ const https = require('https');
 const http = require('http');
 
 const RECALL_HOST = process.env.RECALL_HOST || 'http://100.70.195.84:8200';
-const THRESHOLD = 0.6;
+const RECALL_API_KEY = process.env.RECALL_API_KEY || '';
+const THRESHOLD = 0.15;
 const MAX_RESULTS = 3;
 const TIMEOUT_MS = 4000;
 
@@ -18,13 +19,14 @@ function httpPost(url, body) {
     const parsed = new URL(url);
     const mod = parsed.protocol === 'https:' ? https : http;
     const data = JSON.stringify(body);
+    const authHeaders = RECALL_API_KEY ? { Authorization: `Bearer ${RECALL_API_KEY}` } : {};
     const req = mod.request(
       {
         hostname: parsed.hostname,
         port: parsed.port,
         path: parsed.pathname + parsed.search,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data), ...authHeaders },
         timeout: TIMEOUT_MS,
       },
       (res) => {
