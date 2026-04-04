@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "rough-in",
+    "agent": "Trowel (campaign conductor)",
     "effort": "medium",
-    "prompt_summary": "can you show me the last 10 memories from adbp3 from vs code server",
-    "timestamp": "2026-04-03T19:37:03.443Z",
+    "prompt_summary": "grep -E \"masonry|Bricklayer|BrickLayer\" ~/.claude/settings.json | head -10",
+    "timestamp": "2026-04-04T03:42:08.302Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
