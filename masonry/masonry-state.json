@@ -1,11 +1,11 @@
 {
   "last_route": {
-    "agent": "Trowel (campaign conductor)",
+    "agent": "karen",
     "effort": "medium",
-    "prompt_summary": "grep -E \"masonry|Bricklayer|BrickLayer\" ~/.claude/settings.json | head -10",
-    "timestamp": "2026-04-04T03:42:08.302Z",
+    "prompt_summary": "Masonry MCP Server                                                              ",
+    "timestamp": "2026-04-04T03:48:08.629Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
-  "mortar_session_id": "2026-04-03T18:49:01.339Z"
+  "mortar_session_id": "2026-04-04T03:40:49.827Z"
 }

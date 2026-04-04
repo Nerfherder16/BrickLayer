@@ -57,10 +57,10 @@ async function main() {
   if (!prompt.trim()) process.exit(0);
 
   try {
-    const result = await httpPost(`${RECALL_HOST}/search`, {
+    const result = await httpPost(`${RECALL_HOST}/search/browse`, {
       query: prompt.slice(0, 500),
       limit: MAX_RESULTS,
-      min_score: THRESHOLD,
+      min_importance: THRESHOLD,
     });
 
     const memories = Array.isArray(result?.results) ? result.results : [];

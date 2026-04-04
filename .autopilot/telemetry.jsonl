@@ -307,3 +307,16 @@
 {"task_id":"t-1775242109468","phase":"pre","timestamp":"2026-04-03T18:48:29.469Z","agent_type":"developer","task_type":"test","complexity":"high","strategy":"balanced"}
 {"task_id":"t-1775242133171","phase":"pre","timestamp":"2026-04-03T18:48:53.172Z","agent_type":"mortar","task_type":"frontend","complexity":"high","strategy":"balanced"}
 {"task_id":"t-1775242133171","phase":"post","timestamp":"2026-04-03T18:48:53.260Z","duration_ms":80,"success":true,"agent":"mortar"}
+{"task_id":"t-1775247897072","phase":"pre","timestamp":"2026-04-03T20:24:57.072Z","agent_type":"mortar","task_type":"data","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775247897072","phase":"post","timestamp":"2026-04-03T20:30:05.693Z","duration_ms":308617,"success":true,"agent":"mortar"}
+{"task_id":"t-1775249286018","phase":"pre","timestamp":"2026-04-03T20:48:06.018Z","agent_type":"rough-in","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775249286018","phase":"post","timestamp":"2026-04-03T20:55:52.639Z","duration_ms":466618,"success":true,"agent":"rough-in"}
+{"task_id":"t-1775264486759","phase":"pre","timestamp":"2026-04-04T01:01:26.760Z","agent_type":"health-monitor","task_type":"fix","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775264486759","phase":"post","timestamp":"2026-04-04T01:01:26.926Z","duration_ms":153,"success":true,"agent":"health-monitor"}
+{"task_id":"t-1775264497313","phase":"pre","timestamp":"2026-04-04T01:01:37.313Z","agent_type":"research-analyst","task_type":"test","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775264505897","phase":"pre","timestamp":"2026-04-04T01:01:45.897Z","agent_type":"quantitative-analyst","task_type":"test","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775264516124","phase":"pre","timestamp":"2026-04-04T01:01:56.125Z","agent_type":"diagnose-analyst","task_type":"fix","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775264536315","phase":"pre","timestamp":"2026-04-04T01:02:16.316Z","agent_type":"mortar","task_type":"fix","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775264536315","phase":"post","timestamp":"2026-04-04T01:02:16.395Z","duration_ms":68,"success":true,"agent":"mortar"}
+{"task_id":"t-1775274039282","phase":"pre","timestamp":"2026-04-04T03:40:39.282Z","agent_type":"mortar","task_type":"fix","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775274039282","phase":"post","timestamp":"2026-04-04T03:40:39.384Z","duration_ms":91,"success":true,"agent":"mortar"}

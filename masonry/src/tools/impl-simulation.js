@@ -153,11 +153,11 @@ async function toolRecall(args) {
   const { query, project, limit = 10 } = args;
   const cfg = loadConfig();
   const domain = `${project}-bricklayer`;
-  const payload = JSON.stringify({ query, domain, limit });
+  const payload = JSON.stringify({ query, domain_hint: domain, limit });
 
   try {
     const resp = await Promise.race([
-      httpRequest(`${cfg.recallHost}/search`, {
+      httpRequest(`${cfg.recallHost}/search/browse`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
