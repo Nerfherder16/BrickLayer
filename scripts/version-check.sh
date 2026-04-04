@@ -12,7 +12,7 @@ fi
 
 echo "$TODAY" > "$STAMP_FILE"
 
-BL_ROOT="/home/nerfherder/Dev/Bricklayer2.0"
+BL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BL_VERSION=$(cat "$BL_ROOT/VERSION" 2>/dev/null || echo "unknown")
 MASONRY_VERSION=$(cat "$BL_ROOT/masonry/VERSION" 2>/dev/null || echo "unknown")
 GIT_BRANCH=$(git -C "$BL_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
