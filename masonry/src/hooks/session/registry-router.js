@@ -82,7 +82,7 @@ const INTENT_RULES = [
   },
   {
     patterns: [
-      /\b(ui|ux|figma|component|layout|dashboard|dark.?mode|design.?system|tailwind|css)\b/i,
+      /\b(ui|ux|figma|layout|dashboard|dark.?mode|design.?system)\b/i,
       /\/ui-(init|compose|review|fix|tokens)\b/i,
     ],
     route: "uiux-master",
