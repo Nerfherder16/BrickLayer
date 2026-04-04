@@ -104,10 +104,37 @@ As of 2026-04-04, the mortar enforcer allows any recognized registry agent to be
 | `masonry-content-guard.js` | PreToolUse (Write/Edit) | Config protection + secret scanner |
 | `masonry-style-checker.js` | PostToolUse (Write/Edit) | Lint enforcement (ruff, prettier, eslint) |
 | `masonry-observe.js` | PostToolUse (Write/Edit) | Campaign state observation (async) |
+| `masonry-build-outcome.js` | PostToolUse (Write) | Watch `.autopilot/progress.json` for DONE/FAILED transitions; calls pattern promote/demote; infers agent type from `[mode:X]` annotations |
+| `masonry-tool-failure.js` | PostToolUseFailure | Error tracking + 3-strike escalation |
+| `masonry-subagent-tracker.js` | SubagentStart | Track active agent spawns (async) |
+| `masonry-agent-onboard.js` | PostToolUse (Write/Edit) | Auto-onboard new agents to registry (async) |
+| `masonry-context-safety.js` | PreToolUse (ExitPlanMode) | Block plan-mode exit during active build or high context |
 | `masonry-stop-guard.js` | Stop | Block Stop on uncommitted git changes |
 | `masonry-build-guard.js` | Stop | Block Stop if autopilot has pending tasks |
-| `masonry-context-monitor.js` | Stop | Warn on context > 150K tokens |
+| `masonry-ui-compose-guard.js` | Stop | Block Stop if `.ui/` compose has pending tasks |
+| `masonry-context-monitor.js` | Stop | Warn on context > 150K tokens; semantic degradation detection via Ollama |
 | `masonry-tdd-enforcer.js` | PostToolUse (Write/Edit) | Enforce TDD — block writes without corresponding test files |
+
+---
+
+## Masonry MCP Tools
+
+| Tool | Purpose |
+|------|---------|
+| `masonry_status` | Campaign status — state, question counts, wave for a project dir |
+| `masonry_questions` | List questions from questions.md, filtered by status |
+| `masonry_nl_generate` | Generate BL research questions from plain English |
+| `masonry_weights` | Question weight report — high priority, prunable, retry flags |
+| `masonry_git_hypothesis` | Analyze recent git diffs and generate targeted questions |
+| `masonry_run_question` | Run a single BL question by ID, return verdict envelope |
+| `masonry_fleet` | List fleet agents and performance scores from registry + agent_db |
+| `masonry_recall` | Search Recall for memories relevant to a query |
+| `masonry_route` | Route a request through the four-layer pipeline |
+| `masonry_onboard` | Trigger agent auto-onboarding for new .md files |
+| `masonry_drift_check` | Run drift detection across all registry agents |
+| `masonry_registry_list` | List agents from registry YAML, filtered by tier or mode |
+| `masonry_pattern_promote` | Promote an agent pattern +20% headroom in pattern confidence store |
+| `masonry_pattern_demote` | Demote an agent pattern -15% (floor 0.1) in pattern confidence store |
 
 ---
 

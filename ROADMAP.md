@@ -34,6 +34,9 @@ Last updated: 2026-04-04
 - [x] deploy-claude.sh: atomic write, mcpServers sync from ~/.claude.json
 - [x] secret redaction from mcp-servers.json
 - [x] tmux terminal profiles for Tim and Nick in VS Code
+- [x] Learning loop: `masonry_pattern_promote` / `masonry_pattern_demote` MCP tools
+- [x] `masonry-build-outcome.js` hook — auto-promotes/demotes patterns on DONE/FAILED transitions
+- [x] Session-start pattern decay + top-5 agent confidence hint in `context-data.js`
 - [ ] karen prompt optimization (E-mid.1) — pending manual run
 - [ ] improve_agent.py UnicodeDecodeError fix (E14.8)
 

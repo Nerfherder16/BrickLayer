@@ -12,6 +12,11 @@ Maintained automatically by BrickLayer post-commit hook and karen agent.
 ## [2026-04-04]
 
 ### Added
+- `[feat]` Learning loop: `toolPatternPromote` (+20% headroom) and `toolPatternDemote` (-15%, floor 0.1) in `masonry/src/tools/impl-patterns.js`
+- `[feat]` MCP tool definitions for `masonry_pattern_promote` and `masonry_pattern_demote` in `schema-advanced.js`; dispatch cases in `masonry-mcp.js`
+- `[feat]` `masonry-build-outcome.js` — PostToolUse:Write hook watches `.autopilot/progress.json` for DONE/FAILED transitions and calls promote/demote; infers agent type from `[mode:X]` annotations
+- `[feat]` Session-start pattern decay — `context-data.js` auto-runs `toolPatternDecay` at every session start; injects top-5 agents by confidence score as context hint
+- `[feat]` 108 new tests across 4 test files covering learning loop behavior
 - `[feat]` Add tmux terminal profiles for Tim and Nick in VS Code (`fd3a7a33`)
 - `[feat]` Add Proxmox skill; update homelab skill with ubuntu-claude; fix deploy-claude.sh atomic write (`aaecd2d7`)
 - `[feat]` Sync mcpServers from ~/.claude.json via deploy-claude.sh (`a3f54e53`)
