@@ -2,7 +2,7 @@ import { execFileSync } from "child_process";
 import { join } from "path";
 import { describe, it, expect } from "vitest";
 
-const HOOK = join(process.cwd(), "src", "hooks", "masonry-secret-scanner.js");
+const HOOK = join(process.cwd(), "src", "hooks", "masonry-content-guard.js");
 
 /**
  * Run the hook with a synthetic tool payload.

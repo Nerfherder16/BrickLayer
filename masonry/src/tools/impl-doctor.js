@@ -53,7 +53,7 @@ async function toolDoctor(args) {
   // 3. Core hook files
   const CORE_HOOKS = [
     'masonry-session-start.js', 'masonry-session-end.js', 'masonry-approver.js',
-    'masonry-lint-check.js', 'masonry-stop-guard.js', 'masonry-build-guard.js',
+    'masonry-style-checker.js', 'masonry-stop-guard.js', 'masonry-build-guard.js',
     'masonry-tdd-enforcer.js', 'masonry-mortar-enforcer.js', 'masonry-pre-compact.js',
   ];
   const missingHooks = CORE_HOOKS.filter(h => !fs.existsSync(path.join(hooksDir, h)));

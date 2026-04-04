@@ -54,16 +54,6 @@ function scanSecrets(content, filePath) {
   return findings;
 }
 
-// ─── Pass 1b: .env file protection (passive-frontend-v2) ────────────────────
-    const basename = path.basename(filePath);
-    if (/passive-frontend-v2/.test(filePath) && /^\.env(\..+)?$/.test(basename) && !/\.example$/.test(basename)) {
-      process.stdout.write(JSON.stringify({
-        decision: 'block',
-        reason: '[masonry-content-guard] BLOCKED: Direct edits to .env files in passive-frontend-v2 are prohibited. Edit .env.local.example instead, or use ENV_OVERRIDE in your message to proceed.',
-      }) + '\n');
-      process.exit(2);
-    }
-
 // ─── Pass 2: Lint config protection ─────────────────────────────────────────
 
 const LINT_CONFIG_PATTERNS = [
@@ -101,6 +91,16 @@ process.stdin.on('end', () => {
     if (!['Write', 'Edit'].includes(tool_name)) process.exit(0);
 
     const filePath = tool_input.file_path || tool_input.path || '';
+
+    // ── Pass 1b: .env file protection (passive-frontend-v2) ─────────────────
+    const basename = path.basename(filePath);
+    if (/passive-frontend-v2/.test(filePath) && /^\.env(\..+)?$/.test(basename) && !/\.example$/.test(basename)) {
+      process.stdout.write(JSON.stringify({
+        decision: 'block',
+        reason: '[masonry-content-guard] BLOCKED: Direct edits to .env files in passive-frontend-v2 are prohibited. Edit .env.local.example instead, or use ENV_OVERRIDE in your message to proceed.',
+      }) + '\n');
+      process.exit(2);
+    }
 
     // ── Pass 1: secrets ──────────────────────────────────────────────────────
     if (!isExempt(filePath)) {

@@ -16,10 +16,10 @@ const { spawn } = require('child_process');
 
 const MAX_STDIN = 512 * 1024;
 
-// Patterns in tool_response that indicate a failure worth logging
-const RESPONSE_ERROR_PATTERN = /ERROR|FAILED|error:|Error:|BLOCKED|DENIED|hook error/;
+// Patterns in tool_response that indicate an unambiguous failure worth logging
+const RESPONSE_ERROR_PATTERN = /\bBLOCKED\b|\bDENIED\b|hook error|\bcommand not found\b|Exit code [1-9]/i;
 
-// Patterns in the command itself that indicate a retry-worthy failure
+// Patterns in the tool_response that indicate a retry-worthy OS-level failure
 const COMMAND_RETRY_PATTERN = /Permission denied|ENOENT|command not found/;
 
 // Path to the count-tracking temp file

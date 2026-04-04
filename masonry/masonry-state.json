@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "git-nerd",
-    "effort": "low",
-    "prompt_summary": "ok issues found on pr",
-    "timestamp": "2026-04-04T18:03:42.341Z",
+    "agent": "rough-in → queen-coordinator → workers",
+    "effort": "medium",
+    "prompt_summary": "Cnerfherder@MSI:~/Dev/Bricklayer2.0 curl -s \"http://100.70.195.84:8200/api/v1/au",
+    "timestamp": "2026-04-04T19:17:02.839Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
