@@ -79,6 +79,18 @@ async function main() {
     }
   }
 
+  // Self-invoke bypass: @agent-name: <task> skips all routing
+  const selfInvokeMatch = prompt.match(/^@([\w-]+)\s*:/i);
+  if (selfInvokeMatch) {
+    const agentName = selfInvokeMatch[1].toLowerCase();
+    const taskText = prompt.slice(selfInvokeMatch[0].length).trim();
+    const escaped = taskText.slice(0, 200).replace(/"/g, '\\"').replace(/\n/g, " ");
+    process.stdout.write(JSON.stringify({
+      additionalContext: `[SELF-INVOKE] User explicitly requested agent: ${agentName}\n\nSpawn this agent directly — bypass all routing:\n\n  Task tool: subagent_type="${agentName}", prompt="${escaped}"\n\nDo NOT re-route through Mortar or rough-in. The user chose this agent intentionally.`
+    }));
+    return;
+  }
+
   if (!prompt || prompt.startsWith("/") || prompt.length < 20) return;
 
   const cwd = input.cwd || process.cwd();

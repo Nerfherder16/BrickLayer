@@ -179,13 +179,31 @@ For parallel dispatch (multiple agents at once), use `bl/tmux/wave.py:spawn_wave
 
 ### Delegation Rules
 
-**ALL tasks route through Mortar.** Do NOT bypass Mortar to spawn specialists directly.
+Three routing lanes — match the task type to the right entry point:
 
-1. **Any task**: Spawn `mortar`. It classifies the request and delegates:
-   - **Dev tasks** (build, fix, refactor, feature) → `rough-in`
-   - **Campaigns/research** (investigate, frontier, audit) → `trowel`
-   - **Documentation only** (changelog, docs, roadmap) → `karen`
-2. You do NOT spawn specialists (`planner`, `code-reviewer`, `diagnose-analyst`, etc.) directly. Mortar and its coordinators handle specialist selection via the routing system.
+| Task type | Spawn directly |
+|-----------|---------------|
+| **Dev tasks** (build, fix, refactor, feature, implement) | `rough-in` |
+| **Campaigns / research** (investigate, frontier, audit, BL run) | `mortar` (hands off to Trowel) |
+| **Documentation only** (changelog, docs, roadmap) | `karen` |
+| **All other tasks** (UI, security, git, architecture, etc.) | Named specialist directly |
+
+Mortar is the entry point for **campaigns and research**, not for dev work. Rough-in is the entry point for dev tasks — it decomposes, selects from 100+ specialists, and dispatches to Queen Coordinator. Do NOT route dev tasks through Mortar; it adds an unnecessary hop.
+
+You do NOT spawn sub-specialists (`planner`, `code-reviewer`, `diagnose-analyst`, etc.) directly — those are selected by rough-in or Mortar's coordinators.
+
+### Self-Invoke: Direct Agent Bypass
+
+**Tim can bypass routing entirely with the `@agent-name:` prefix:**
+
+```
+@rough-in: build the new auth endpoint
+@karen: update the changelog for this release
+@security: audit the new API routes
+@diagnose-analyst: why is the session lock failing
+```
+
+When a prompt starts with `@<agent-name>:`, skip all routing logic and spawn that agent directly. No hooks, no classification, no hints — just dispatch.
 
 ### When You May Work Directly (Exceptions)
 
@@ -197,14 +215,19 @@ For parallel dispatch (multiple agents at once), use `bl/tmux/wave.py:spawn_wave
 ### Agent Hierarchy
 
 ```
-mortar (coordinator)
-├── trowel (campaigns/research)
-│   └── Selects specialists via registry: quantitative-analyst, research-analyst, etc.
-├── rough-in (dev tasks)
-│   ├── Queen Coordinator → parallel dispatch: developer, test-writer, code-reviewer, security, etc.
-│   ├── diagnose-analyst → fix-implementer (fix cycles)
-│   └── git-nerd (on completion)
-└── karen (documentation)
+rough-in (dev tasks — direct entry point)
+├── Queen Coordinator → parallel dispatch: developer, test-writer, code-reviewer, security, etc.
+├── diagnose-analyst → fix-implementer (fix cycles)
+└── git-nerd (on completion)
+
+mortar (campaigns/research — entry point for BL loops)
+└── trowel (campaign conductor)
+    └── Selects specialists via registry: quantitative-analyst, research-analyst, etc.
+
+karen (documentation — direct entry point)
+
+specialists (invoked directly for single-purpose tasks)
+└── security, git-nerd, uiux-master, architect, refactorer, etc.
 ```
 
 **Authoritative agent source:** `masonry/agent_registry.yml` (100+ agents). Do NOT maintain a static agent list here — the registry and routing layers handle discovery.
@@ -218,7 +241,7 @@ mortar (coordinator)
 | 3. LLM | Claude Haiku picks from registry when layers 1-2 fail | Confidence 0.6 |
 | 4. Fallback | Escalates to user | — |
 
-Routing is handled automatically by Mortar. You never need to pick agents manually.
+Use `@agent-name:` prefix to bypass routing entirely and invoke any agent directly.
 
 ## What NOT to Assume
 
