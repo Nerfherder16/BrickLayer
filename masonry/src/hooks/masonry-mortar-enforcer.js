@@ -94,20 +94,14 @@ async function main() {
 
   if (!gate || !gate.chain || gate.chain.length === 0) {
     // No chain yet — main session context.
-    // Main session can only spawn mortar (or Claude Code built-ins).
-    const MAIN_SESSION_ALLOWED = new Set(["mortar", "explore", "general-purpose", "self-host"]);
-    if (!MAIN_SESSION_ALLOWED.has(subagentType)) {
-      block(subagentType, [
-        `⛔ Agent spawn blocked: main session cannot spawn "${subagentType}" directly.`,
-        "",
-        "The delegation hierarchy requires routing through Mortar first:",
-        "  Agent({ subagent_type: \"mortar\", prompt: \"...\" })",
-        "",
-        "Mortar will delegate to the right coordinator (rough-in, trowel, or karen),",
-        "which will then select the appropriate specialist.",
-      ].join("\n"), prompt);
-      return;
-    }
+    // Routing lanes (matches CLAUDE.md delegation rules + prompt-router):
+    //   - Dev tasks       → rough-in directly (skip Mortar)
+    //   - Campaigns       → mortar (hands to Trowel)
+    //   - Docs            → karen directly
+    //   - Single-purpose  → named specialist directly
+    //   - @agent-name:    → any recognized agent (self-invoke bypass)
+    // Only block empty subagent_type and truly unrecognized types (handled above).
+    // All recognized registry agents are allowed from main session.
     approve();
     return;
   }

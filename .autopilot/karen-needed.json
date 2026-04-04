@@ -8,6 +8,9 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    ".claude/skills/homelab/SKILL.md",
+    "CLAUDE.md",
+    "masonry/src/hooks/masonry-prompt-router.js",
     "masonry/src/hooks/masonry-mortar-enforcer.js",
     ".claude/skills/homelab/SKILL.md",
     ".claude/skills/proxmox/SKILL.md",
@@ -16,5 +19,5 @@
     "masonry/src/hooks/masonry-prompt-inject.js",
     "masonry/src/tools/impl-simulation.js"
   ],
-  "timestamp": "2026-04-04T06:00:40.831Z"
+  "timestamp": "2026-04-04T06:43:39.678Z"
 }

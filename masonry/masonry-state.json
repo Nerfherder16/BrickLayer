@@ -2,9 +2,9 @@
   "last_route": {
     "agent": "rough-in",
     "effort": "medium",
-    "prompt_summary": "the vps went down but now code.streamy.tube is still not up and running",
-    "timestamp": "2026-04-04T06:01:57.375Z",
-    "turn_count": 1
+    "prompt_summary": "ok most my mcps arent connecting in tmux on vs code server",
+    "timestamp": "2026-04-04T06:50:53.707Z",
+    "turn_count": 2
   },
   "mortar_consulted": true,
   "mortar_session_id": "2026-04-04T05:10:14.701Z"

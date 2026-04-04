@@ -326,3 +326,6 @@
 {"task_id":"t-1775279990684","phase":"pre","timestamp":"2026-04-04T05:19:50.685Z","agent_type":"rough-in","task_type":"test","complexity":"high","strategy":"balanced"}
 {"task_id":"t-1775280019601","phase":"pre","timestamp":"2026-04-04T05:20:19.601Z","agent_type":"self-host","task_type":"fix","complexity":"high","strategy":"balanced"}
 {"task_id":"t-1775280019601","phase":"post","timestamp":"2026-04-04T05:25:28.105Z","duration_ms":308501,"success":true,"agent":"self-host"}
+{"task_id":"t-1775285467898","phase":"pre","timestamp":"2026-04-04T06:51:07.899Z","agent_type":"karen","task_type":"backend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775285495093","phase":"pre","timestamp":"2026-04-04T06:51:35.093Z","agent_type":"karen","task_type":"test","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775285533656","phase":"pre","timestamp":"2026-04-04T06:52:13.657Z","agent_type":"claude-code-guide","task_type":"frontend","complexity":"medium","strategy":"balanced"}
