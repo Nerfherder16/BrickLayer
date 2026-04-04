@@ -4,10 +4,12 @@
  * Given an intent rule, effort level, and prompt text, produces the
  * additionalContext string that tells Claude which agent to spawn.
  *
- * Three routing lanes:
- *   1. Dev tasks → rough-in directly (skip Mortar)
- *   2. Campaigns → mortar (campaign state management)
- *   3. Specialists → named agent directly (security, git-nerd, karen, etc.)
+ * Four routing lanes:
+ *   1. Dev tasks → rough-in directly (full TDD pipeline)
+ *   2. Worker specialists → rough-in with specialist hint (registry keyword matched
+ *      an implementation agent — route through pipeline, not direct spawn)
+ *   3. Campaigns → mortar (campaign state management)
+ *   4. Advisory specialists → named agent directly (no decomposition needed)
  */
 "use strict";
 
@@ -17,8 +19,25 @@ const path = require("path");
 // Phrases that bypass the brainstorming gate
 const SKIP_GATE_PATTERNS = /skip\s*plan|just\s*build|no\s*spec\s*needed|just\s*do\s*it|skip\s*brainstorm/i;
 
-// Map route strings to direct subagent_type values for non-dev, non-campaign routes
+// Implementation specialists: primary output is code.
+// When a registry keyword routes here, go through rough-in's TDD pipeline
+// instead of spawning the specialist directly. rough-in will pick this
+// specialist as the implementation worker and wrap it in test-writer →
+// developer → code-reviewer → spec-reviewer.
+const WORKER_SPECIALISTS = new Set([
+  "python-specialist", "typescript-specialist", "database-specialist",
+  "devops", "rust-specialist", "rust-developer", "rust-analyst",
+  "go-specialist", "kotlin-specialist", "solana-specialist", "kiln-engineer",
+  "fastapi-specialist", "nextjs-specialist", "bash-specialist",
+  "docker-specialist", "embedded-developer", "game-developer",
+  "kafka-specialist", "neo4j-specialist", "vector-db-specialist",
+  "redis-specialist", "postgres-specialist", "opentelemetry-specialist",
+  "developer", "worker-specialist",
+]);
+
+// Map INTENT_RULE route strings → subagent_type for advisory/direct routes
 const ROUTE_TO_AGENT = {
+  "rough-in → queen-coordinator → workers": "rough-in",
   "security agent": "security",
   "architect + design-reviewer": "architect",
   "uiux-master": "uiux-master",
@@ -32,8 +51,11 @@ const ROUTE_TO_AGENT = {
 
 function getDirectAgentType(intent) {
   if (!intent) return "general-purpose";
-  // Registry matches use agent name directly as the route
-  if (intent.registryMatch) return intent.route;
+  if (intent.registryMatch) {
+    // Worker specialists always go through rough-in — never direct
+    if (WORKER_SPECIALISTS.has(intent.route)) return "rough-in";
+    return intent.route;
+  }
   return ROUTE_TO_AGENT[intent.route] || "general-purpose";
 }
 
@@ -47,9 +69,14 @@ function buildHintText(intent, effort, hintDetail, prompt) {
   const isDevTask =
     intent &&
     /rough-in|developer|diagnose|fix-implementer|refactorer|benchmark/.test(intent.route);
+
+  // Worker specialist via registry keyword — treat as dev task, pass specialist hint
+  const isWorkerSpecialist =
+    intent && intent.registryMatch && WORKER_SPECIALISTS.has(intent.route);
+
   const isCampaign = intent && /Trowel|campaign/.test(intent.route);
 
-  if (isDevTask) {
+  if (isDevTask || isWorkerSpecialist) {
     // Brainstorming gate: for complex tasks without a spec, suggest planning first
     if (effort === "high" && !SKIP_GATE_PATTERNS.test(prompt)) {
       const cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd();
@@ -68,12 +95,18 @@ function buildHintText(intent, effort, hintDetail, prompt) {
       }
     }
 
+    // Build the specialist hint line if a worker specialist was matched by keyword
+    const specialistHint = isWorkerSpecialist
+      ? `\nSuggested specialist: ${intent.route} (matched by keyword — pass this to rough-in so it picks the right worker without re-discovery)`
+      : "";
+
     return (
       `[MASONRY ROUTING — DO NOT SKIP]\n` +
       `${hintDetail}\n\n` +
       `You are an orchestrator. Do NOT read files and write code directly.\n` +
       `Spawn rough-in DIRECTLY for this dev task:\n\n` +
-      `  Task tool: subagent_type="rough-in", prompt="${escapedPrompt}"\n\n` +
+      `  Task tool: subagent_type="rough-in", prompt="${escapedPrompt}"\n` +
+      `${specialistHint}\n` +
       `WHY: Rough-in reads the codebase, selects from 100+ specialist agents, builds a wave plan, ` +
       `and hands parallel dispatch to Queen Coordinator (up to 8 workers). ` +
       `Direct inline work skips code review, skips TDD, and uses your main context for implementation ` +
@@ -105,7 +138,7 @@ function buildHintText(intent, effort, hintDetail, prompt) {
     );
   }
 
-  // Other specialist routes
+  // Advisory specialist — spawn directly, no decomposition needed
   const agentType = getDirectAgentType(intent);
   return (
     `[MASONRY ROUTING — DO NOT SKIP]\n` +

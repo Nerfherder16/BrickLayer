@@ -1,9 +1,9 @@
 question_id	verdict	failure_type	eval_score	summary	timestamp
-Q1_heal1_diag	DIAGNOSIS_COMPLETE			Found root cause	2026-04-04T15:29:04Z
-Q1_heal1_fix	FIXED			Applied fix	2026-04-04T15:29:04Z
-Q1	FIXED			Auto-healed in cycle 1: Applied fix	2026-04-04T15:29:04Z
-Q2_heal1_diag	DIAGNOSIS_COMPLETE			Diagnosed	2026-04-04T15:29:04Z
-Q2_heal1_fix	FIX_FAILED			Fix did not work	2026-04-04T15:29:04Z
-Q2_heal2_diag	DIAGNOSIS_COMPLETE			Diagnosed	2026-04-04T15:29:04Z
-Q2_heal2_fix	FIX_FAILED			Fix did not work	2026-04-04T15:29:04Z
-Q2	HEAL_EXHAUSTED			Self-healing exhausted 2 cycle(s) — human intervention required.	2026-04-04T15:29:04Z
+Q1_heal1_diag	DIAGNOSIS_COMPLETE			Found root cause	2026-04-04T15:46:42Z
+Q1_heal1_fix	FIXED			Applied fix	2026-04-04T15:46:42Z
+Q1	FIXED			Auto-healed in cycle 1: Applied fix	2026-04-04T15:46:42Z
+Q2_heal1_diag	DIAGNOSIS_COMPLETE			Diagnosed	2026-04-04T15:46:42Z
+Q2_heal1_fix	FIX_FAILED			Fix did not work	2026-04-04T15:46:42Z
+Q2_heal2_diag	DIAGNOSIS_COMPLETE			Diagnosed	2026-04-04T15:46:42Z
+Q2_heal2_fix	FIX_FAILED			Fix did not work	2026-04-04T15:46:42Z
+Q2	HEAL_EXHAUSTED			Self-healing exhausted 2 cycle(s) — human intervention required.	2026-04-04T15:46:42Z

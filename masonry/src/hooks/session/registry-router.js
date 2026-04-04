@@ -69,7 +69,8 @@ const INTENT_RULES = [
   },
   {
     patterns: [
-      /\b(security.?audit|penetration|owasp|vulnerability|cve|exploit|harden\w*)\b/i,
+            /\b(security.?audit|penetration|owasp|vulnerability|cve|exploit|harden\w*|security.?issue\w*)\b/i,
+      /\baudit\b.{0,30}\bsecurity\b/i,
       /\bsecurity\b.{0,25}\b(config|configuration|header|headers|policy|rules)\b/i,
       /\b(rate.?limit\w*|auth.?middleware)\b/i,
       /\/masonry-security-review\b/i,
