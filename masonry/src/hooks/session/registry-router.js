@@ -15,6 +15,7 @@ const yaml = require("js-yaml");
 
 const REGISTRY_PATH = path.resolve(__dirname, "../../../agent_registry.yml");
 const EMBED_CACHE_PATH = path.join(os.tmpdir(), "masonry-agent-embed-index.json");
+const ROUTING_LOG_PATH = path.resolve(__dirname, "../../../training_data/scored_routing.jsonl");
 function _parseOllamaHost(env) {
   const raw = env || "100.70.195.84";
   try {
@@ -56,8 +57,9 @@ function loadRegistryKeywords() {
 function detectRegistryIntent(prompt) {
   const entries = loadRegistryKeywords();
   for (const entry of entries) {
-    if (entry.pattern.test(prompt)) {
-      return { route: entry.name, note: "(registry keyword match)", registryMatch: true };
+    const m = prompt.match(entry.pattern);
+    if (m) {
+      return { route: entry.name, note: "(registry keyword match)", registryMatch: true, keyword: m[0] };
     }
   }
   return null;
@@ -252,11 +254,39 @@ async function detectSemanticIntent(prompt) {
   }
 }
 
+function logRoutingDecision(entry) {
+  try {
+    const dir = path.dirname(ROUTING_LOG_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const record = JSON.stringify(entry) + "\n";
+    fs.appendFileSync(ROUTING_LOG_PATH, record, "utf8");
+  } catch { /* non-fatal */ }
+}
+
 async function detectIntentAsync(prompt) {
   const l1 = detectIntent(prompt);
   if (l1 && l1.skip) return null;  // conversational — no hint, no Ollama
-  if (l1) return l1;
-  return detectSemanticIntent(prompt);
+  if (l1) {
+    logRoutingDecision({
+      timestamp: new Date().toISOString(),
+      prompt_snippet: prompt.slice(0, 120),
+      layer: l1.registryMatch ? "L1a_registry" : "L1b_intent_rules",
+      route: l1.route,
+      keyword: l1.keyword || null,
+    });
+    return l1;
+  }
+  const l2 = await detectSemanticIntent(prompt);
+  if (l2) {
+    logRoutingDecision({
+      timestamp: new Date().toISOString(),
+      prompt_snippet: prompt.slice(0, 120),
+      layer: "L2_semantic",
+      route: l2.route,
+      sim: parseFloat(l2.note.match(/sim=([\d.]+)/)?.[1] || "0"),
+    });
+  }
+  return l2;
 }
 
 module.exports = { detectIntent, detectIntentAsync, detectRegistryIntent, loadRegistryKeywords };

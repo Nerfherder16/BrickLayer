@@ -188,6 +188,47 @@ Use `mcp__masonry__masonry_registry_list` to find agents by capability:
 
 When the task involves a specific technology (Postgres migrations, Docker builds, Rust FFI, etc.), **always prefer the domain specialist over the generic developer**.
 
+### Extended Specialists (full fleet reference)
+
+| Domain | Agent | When to use |
+|--------|-------|-------------|
+| **Bash/shell scripting** | `bash-specialist` | Shell scripts, cron, portability, error trapping |
+| **Prompt engineering** | `prompt-engineer` | Refining agent prompts, vague-to-precise rewrites |
+| **Spec writing** | `spec-writer` | Complex feature needs `.autopilot/spec.md` before build |
+| **Spec review** | `spec-reviewer` | Post-build compliance check — COMPLIANT/OVER_BUILT/UNDER_BUILT |
+| **Architecture docs** | `architecture-writer` | SPARC phase — write `architecture.md` from spec |
+| **Pseudocode** | `pseudocode-writer` | SPARC phase — write `pseudocode.md` before build |
+| **Advanced TDD** | `tdd-orchestrator` | Mutation testing, property-based, chaos injection |
+| **London-school TDD** | `tdd-london-swarm` | Strict boundary isolation, mockist unit tests |
+| **Chaos / resilience** | `chaos-engineer` | Failure injection, blast radius, resilience testing |
+| **Pen testing** | `penetration-tester` | Authorized security testing — CVSS-scored findings |
+| **Security verification** | `verification-analyst` | 6-gate false-positive pipeline for security findings |
+| **Infrastructure / self-host** | `self-host` | Docker, CasaOS, Proxmox, nginx, SSL, Tailscale |
+| **Production readiness** | `production-validator` | Pre-merge validation — blocking I/O, env checks, Docker build |
+| **Pre-build gate** | `pre-flight` | Validates architectural + security requirements before coding |
+| **Migration planning** | `migration-strategist` | Safe incremental migrations without losing running functionality |
+| **Stack selection** | `stack-validator` | Language/runtime validation for multi-service architectures |
+| **Build process** | `build-bible` | Generates project-specific build bible before a major build |
+| **Kafka / streaming** | `kafka-specialist` | Kafka topic design, consumer groups, schema registry |
+| **Game development** | `game-developer` | Game loops, ECS, physics, Unity, Godot, Unreal |
+| **GIS / geospatial** | `geospatial-developer` | PostGIS, spatial queries, map tiles, coordinate systems |
+| **Scientific computing** | `scientific-computing-specialist` | NumPy, SciPy, HPC, numerical methods |
+| **RL / ML engineering** | `reinforcement-learning-engineer` | Policy gradient, reward shaping, environments |
+| **Rust analysis** | `rust-analyst` | Rust code quality, soundness, security, API design review |
+| **Python debugging** | `python-debugger` | Python runtime errors, tracebacks, import failures |
+| **Rust debugging** | `rust-debugger` | Borrow checker errors, lifetime issues, unsafe diagnostics |
+| **Parallel debugging** | `parallel-debugger` | Spawns 3 competing diagnose agents when escalation hits 3x |
+| **Dead code / efficiency** | `economizer` | Dead code, duplication, over-engineering, bloated deps |
+| **Hook health** | `bug-catcher` | Claude Code hook syntax, exit-code, and runtime audits |
+| **Repo research** | `repo-researcher` | Full analysis of a GitHub repo — patterns, gaps, recommendations |
+| **Research synthesis** | `research-analyst` | Evidence aggregation, stress-testing assumptions |
+| **Competitive analysis** | `competitive-analyst` | Market landscape, analogous system failures, benchmarks |
+| **Scientific literature** | `scientific-literature-researcher` | arXiv, Semantic Scholar, PubMed — grounds findings in papers |
+| **Compliance audit** | `compliance-auditor` | OWASP, WCAG, SOC2, legal/regulatory per-item checklists |
+| **Regulatory research** | `regulatory-researcher` | Legal, licensing, tax, compliance questions |
+| **Spreadsheet / data** | `spreadsheet-wizard` | Excel automation, P&L, dashboards, formula repair |
+| **PR description** | `pr-writer` | Generates PR title, summary, test plan at build completion |
+
 ### Agent Selection Rules
 
 1. Check if a domain specialist exists for the technology in the task
