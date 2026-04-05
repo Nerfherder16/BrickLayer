@@ -2,29 +2,19 @@
   "reason": "agent_complete",
   "agent": "developer",
   "files_changed": [
-    "M .autopilot/compact-state.json",
     "M .autopilot/current-task-id",
     "M .autopilot/git-nerd-needed.json",
     "M .autopilot/pattern-confidence.json",
     "M .autopilot/telemetry.jsonl",
+    "M .mas/errors.jsonl",
     "M .mas/history.jsonl",
     "M .mas/pulse.jsonl",
     "M .mas/session.json",
     "M .mas/system-status.json",
-    "M masonry/.mas/errors.jsonl",
-    "M masonry/.mas/system-status.json",
     "M masonry/masonry-state.json",
-    "M masonry/node_modules/.package-lock.json",
-    "M masonry/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json",
     "M masonry/routing_log.jsonl",
-    "M masonry/src/hooks/masonry-jcodemunch-nudge.js",
-    "M masonry/src/hooks/masonry-post-compact.js",
-    "M masonry/src/hooks/masonry-pre-compact.js",
-    "M masonry/src/hooks/session/context-data.js",
-    "M masonry/src/pre-compact-recall.js",
-    "M projects/passive-frontend-v2",
-    "M results.tsv",
-    "masonry/src/hooks/masonry-stop-runner.js"
+    "M masonry/src/hooks/session/registry-router.js",
+    "M projects/passive-frontend-v2"
   ],
-  "timestamp": "2026-04-04T19:07:42.532Z"
+  "timestamp": "2026-04-05T00:48:29.166Z"
 }

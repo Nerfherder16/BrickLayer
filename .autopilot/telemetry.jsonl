@@ -392,3 +392,15 @@
 {"task_id":"t-1775332448994","phase":"post","timestamp":"2026-04-04T19:54:09.011Z","duration_ms":1,"success":true,"agent":"unknown"}
 {"task_id":"t-1775332471647","phase":"pre","timestamp":"2026-04-04T19:54:31.648Z","agent_type":"general-purpose","task_type":"backend","complexity":"low","strategy":"balanced"}
 {"task_id":"t-1775332471647","phase":"post","timestamp":"2026-04-04T19:54:31.668Z","duration_ms":2,"success":true,"agent":"unknown"}
+{"task_id":"t-1775333107494","phase":"pre","timestamp":"2026-04-04T20:05:07.494Z","agent_type":"Explore","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775333107494","phase":"post","timestamp":"2026-04-04T20:08:46.250Z","duration_ms":218752,"success":true,"agent":"Explore"}
+{"task_id":"t-1775349145373","phase":"pre","timestamp":"2026-04-05T00:32:25.380Z","agent_type":"general-purpose","task_type":"backend","complexity":"low","strategy":"balanced"}
+{"task_id":"t-1775333107494","phase":"post","timestamp":"2026-04-05T00:32:25.419Z","duration_ms":16037888,"success":true,"agent":"unknown"}
+{"task_id":"t-1775349172585","phase":"pre","timestamp":"2026-04-05T00:32:52.586Z","agent_type":"developer","task_type":"backend","complexity":"medium","strategy":"balanced"}
+{"task_id":"t-1775349187477","phase":"pre","timestamp":"2026-04-05T00:33:07.478Z","agent_type":"general-purpose","task_type":"backend","complexity":"low","strategy":"balanced"}
+{"task_id":"t-1775349187477","phase":"post","timestamp":"2026-04-05T00:33:07.519Z","duration_ms":3,"success":true,"agent":"unknown"}
+{"task_id":"t-1775349187477","phase":"post","timestamp":"2026-04-05T00:33:09.800Z","duration_ms":2311,"success":true,"agent":"developer"}
+{"task_id":"t-1775349482090","phase":"pre","timestamp":"2026-04-05T00:38:02.090Z","agent_type":"developer","task_type":"test","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775349482090","phase":"post","timestamp":"2026-04-05T00:38:54.298Z","duration_ms":52200,"success":true,"agent":"developer"}
+{"task_id":"t-1775350043324","phase":"pre","timestamp":"2026-04-05T00:47:23.324Z","agent_type":"developer","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775350043324","phase":"post","timestamp":"2026-04-05T00:48:29.187Z","duration_ms":65859,"success":true,"agent":"developer"}

@@ -389,3 +389,8 @@
 {"timestamp":"2026-04-04T19:49:11.317Z","tool":"Bash","error":"failed","retries":2,"fingerprint":"Bash:failed"}
 {"timestamp":"2026-04-04T19:54:08.993Z","tool":"Bash","error":"failed","retries":1,"fingerprint":"Bash:failed"}
 {"timestamp":"2026-04-04T19:54:31.658Z","tool":"Bash","error":"failed","retries":2,"fingerprint":"Bash:failed"}
+{"timestamp":"2026-04-04T20:05:24.323Z","tool":"Read","error":"EISDIR: illegal operation on a directory, read '/home/nerfherder/Dev/Bricklayer2.0/.claude/settings.json'","retries":1,"fingerprint":"Read:EISDIR: illegal operation on a directory, read '/home/nerfherder/Dev/Bricklayer2"}
+{"timestamp":"2026-04-05T00:19:27.238Z","tool":"Bash","error":"Exit code 7","retries":1,"fingerprint":"Bash:Exit code 7"}
+{"timestamp":"2026-04-05T00:30:57.804Z","tool":"Bash","error":"Exit code 123 /home/nerfherder/.claude/settings.json","retries":1,"fingerprint":"Bash:Exit code 123 /home/nerfherder/.claude/settings.json"}
+{"timestamp":"2026-04-05T00:32:25.378Z","tool":"Bash","error":"failed","retries":1,"fingerprint":"Bash:failed"}
+{"timestamp":"2026-04-05T00:33:07.486Z","tool":"Bash","error":"failed","retries":2,"fingerprint":"Bash:failed"}
