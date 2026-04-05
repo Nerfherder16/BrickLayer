@@ -29,14 +29,16 @@ const EXEMPT_PATTERNS = [
   /setup\.py$/i,
 ];
 
-function readStdin() {
-  return new Promise((resolve) => {
-    let data = '';
+async function readStdin() {
+  let data = '';
+  let timer;
+  try {
     process.stdin.setEncoding('utf8');
-    process.stdin.on('data', c => (data += c));
-    process.stdin.on('end', () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
+    const readLoop = (async () => { for await (const chunk of process.stdin) data += chunk; })();
+    await Promise.race([readLoop, new Promise((r) => { timer = setTimeout(r, 2000); })]);
+  } catch {}
+  clearTimeout(timer);
+  return data;
 }
 
 async function main() {

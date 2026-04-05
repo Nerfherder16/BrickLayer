@@ -33,6 +33,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: candidate
+  routing_keywords:
+  - peer review
+  - review finding
+  - verify finding
+  - confirm finding
 - name: agent-auditor
   file: .claude/agents/agent-auditor.md
   model: sonnet
@@ -46,6 +51,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: candidate
+  routing_keywords:
+  - audit agents
+  - agent performance
+  - agent drift
+  - score agents
 - name: forge-check
   file: .claude/agents/forge-check.md
   model: haiku
@@ -59,6 +69,10 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: candidate
+  routing_keywords:
+  - pre-flight
+  - pre build check
+  - validate before forge
 - name: retrospective
   file: .claude/agents/retrospective.md
   model: sonnet
@@ -73,6 +87,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: candidate
+  routing_keywords:
+  - retrospective
+  - retro
+  - post campaign
+  - process improvement
 - name: test-writer
   file: ~/.claude/agents/test-writer.md
   model: sonnet
@@ -86,6 +105,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
+  routing_keywords:
+  - write tests
+  - failing tests
+  - TDD red phase
+  - write test suite
 - name: mortar
   file: ~/.claude/agents/mortar.md
   model: sonnet
@@ -100,9 +124,13 @@ agents:
   output_schema: FindingPayload
   tier: trusted
   routing_keywords:
-  - route this
   - dispatch agents
   - orchestrate
+  - research session
+  - route request
+  - route this
+  - run investigation
+  - start campaign
 - name: spec-writer
   file: ~/.claude/agents/spec-writer.md
   model: opus
@@ -117,9 +145,15 @@ agents:
   output_schema: FindingPayload
   tier: trusted
   routing_keywords:
-  - write a spec
-  - create a spec
   - /plan
+  - create a spec
+  - create spec
+  - feature spec
+  - plan feature
+  - spec.md
+  - task spec
+  - write a spec
+  - write spec
 - name: developer
   file: ~/.claude/agents/developer.md
   model: sonnet
@@ -134,7 +168,20 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
-  routing_keywords: []
+  routing_keywords:
+  - add feature
+  - add new route
+  - build API endpoint
+  - build endpoint
+  - code this
+  - connect UI to backend
+  - create service class
+  - database migration
+  - implement
+  - implement business logic
+  - scaffold CRUD
+  - wire up frontend
+  - write code
 - name: karen
   file: ~/.claude/agents/karen.md
   model: sonnet
@@ -277,6 +324,22 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: candidate
+  routing_keywords:
+  - CSRF protection
+  - OWASP
+  - OWASP top 10
+  - SQL injection
+  - XSS vulnerability
+  - harden API
+  - input sanitization
+  - insecure dependencies
+  - pentest
+  - secrets leaking
+  - secure authentication
+  - secure code
+  - security audit
+  - threat model
+  - vulnerability
 - name: spreadsheet-wizard
   file: ~/.claude/agents/spreadsheet-wizard.md
   model: sonnet
@@ -488,6 +551,21 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
+  routing_keywords:
+  - eliminate duplicate code
+  - highest ROI
+  - improve big-O
+  - improve performance
+  - loop is too slow
+  - make it better
+  - next level
+  - optimize
+  - profile endpoint
+  - query performance
+  - reduce bundle size
+  - reduce complexity
+  - reduce memory usage
+  - technical debt
 - name: health-monitor
   file: .claude/agents/health-monitor.md
   model: haiku
@@ -501,6 +579,18 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
+  routing_keywords:
+  - check health
+  - check metrics
+  - health check endpoint
+  - heartbeat monitoring
+  - is healthy
+  - live health
+  - liveness probe
+  - monitor endpoints
+  - monitor uptime
+  - readiness check
+  - services are up
 - name: cascade-analyst
   file: .claude/agents/cascade-analyst.md
   model: sonnet
@@ -514,6 +604,18 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: candidate
+  routing_keywords:
+  - blast radius outage
+  - dependency graph
+  - downstream failure
+  - failure cascade
+  - failure propagation
+  - impact of removing
+  - propagation risk
+  - single points of failure
+  - what breaks
+  - what calls this service
+  - which services depend on
 - name: frontier-analyst
   file: .claude/agents/frontier-analyst.md
   model: sonnet
@@ -576,9 +678,15 @@ agents:
   runs_since_optimization: 0
   registrySource: frontmatter
   routing_keywords:
+  - DIAGNOSIS_COMPLETE
+  - apply fix
   - apply the fix
-  - implement the fix
+  - fix after diagnosis
+  - fix bug
   - fix implementer
+  - implement fix
+  - implement repair
+  - implement the fix
 - name: git-nerd
   file: .claude/agents/git-nerd.md
   model: haiku
@@ -622,6 +730,11 @@ agents:
   last_score: null
   runs_since_optimization: 0
   registrySource: frontmatter
+  routing_keywords:
+  - generate questions
+  - new hypotheses
+  - research questions
+  - follow up questions
 - name: hypothesis-generator-bl2
   file: .claude/agents/hypothesis-generator-bl2.md
   model: sonnet
@@ -640,6 +753,10 @@ agents:
   last_score: null
   runs_since_optimization: 0
   registrySource: frontmatter
+  routing_keywords:
+  - BL2 questions
+  - BL2 hypotheses
+  - generate BL2 questions
 - name: kiln-engineer
   file: .claude/agents/kiln-engineer.md
   model: sonnet
@@ -681,6 +798,11 @@ agents:
   last_score: null
   runs_since_optimization: 0
   registrySource: frontmatter
+  routing_keywords:
+  - MCP recommendations
+  - missing MCP
+  - MCP server gaps
+  - MCP tools needed
 - name: overseer
   file: ~/.claude/agents/overseer.md
   model: sonnet
@@ -716,6 +838,11 @@ agents:
   last_score: null
   runs_since_optimization: 0
   registrySource: frontmatter
+  routing_keywords:
+  - campaign plan
+  - pre-campaign
+  - research domains
+  - planning brief
 - name: pointer
   file: .claude/agents/pointer.md
   model: sonnet
@@ -735,6 +862,11 @@ agents:
   last_score: null
   runs_since_optimization: 0
   registrySource: frontmatter
+  routing_keywords:
+  - mid-wave summary
+  - checkpoint summary
+  - wave checkpoint
+  - summarize findings
 - name: question-designer-bl2
   file: .claude/agents/question-designer-bl2.md
   model: opus
@@ -753,6 +885,11 @@ agents:
   last_score: null
   runs_since_optimization: 0
   registrySource: frontmatter
+  routing_keywords:
+  - design questions
+  - BL2 question bank
+  - initial questions
+  - question bank
 - name: skill-forge
   file: .claude/agents/skill-forge.md
   model: haiku
@@ -793,6 +930,11 @@ agents:
   last_score: null
   runs_since_optimization: 0
   registrySource: frontmatter
+  routing_keywords:
+  - synthesize findings
+  - integrate findings
+  - best way forward
+  - cross domain synthesis
 - name: synthesizer-bl2
   file: .claude/agents/synthesizer-bl2.md
   model: opus
@@ -813,6 +955,11 @@ agents:
   last_score: 69.3
   runs_since_optimization: 0
   registrySource: frontmatter
+  routing_keywords:
+  - BL2 synthesis
+  - wave synthesis
+  - wave end
+  - update CHANGELOG
 - name: tools-manifest
   file: .claude/agents/tools-manifest.md
   model: sonnet
@@ -829,6 +976,11 @@ agents:
   last_score: null
   runs_since_optimization: 0
   registrySource: frontmatter
+  routing_keywords:
+  - MCP tools list
+  - available tools
+  - tool catalog
+  - tool manifest
 - name: trowel
   file: .claude/agents/trowel.md
   model: sonnet
@@ -875,6 +1027,11 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
+  routing_keywords:
+  - audit hooks
+  - hook health
+  - syntax check hooks
+  - hook smoke test
 - name: solana-specialist
   file: C:/Users/trg16/.claude/agents/solana-specialist.md
   model: opus
@@ -944,29 +1101,6 @@ agents:
   - dark dashboard
   - ui component
   - ux flow
-- name: adbp-model-analyst
-  file: .claude/agents/adbp-model-analyst.md
-  model: sonnet
-  description: 'ADBP economic model analyst. Stress-tests the 40-year geographic hybrid simulation for ADBP benefit credit
-    economics: spend dynamics, vendor adoption, credit flywheel velocity, admin fee sustainability, and Token-2022 NonTransferable
-    invariant compliance.'
-  modes:
-  - quantitative
-  - research
-  capabilities:
-  - ADBP simulation scenario analysis
-  - Solana Token-2022 NonTransferable economics
-  - spend cap adequacy modeling (daily $500 / monthly $2000)
-  - vendor adoption dynamics and network effects
-  - credit flywheel velocity and churn modeling
-  - admin fee sustainability with C/M-ratio multiplier
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
 - name: economizer
   file: C:/Users/trg16/.claude/agents/economizer.md
   model: sonnet
@@ -1031,7 +1165,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - end to end verify
+  - e2e check
+  - full suite
+  - wiring check
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -1059,7 +1197,14 @@ agents:
   output_schema: FindingPayload
   tier: trusted
   routing_keywords:
+  - build task
+  - coordinate build
+  - decompose work
+  - dev task
   - develop
+  - dispatch specialists
+  - implement feature
+  - multi file implementation
   - refactor
   dspy_status: not_optimized
   drift_status: ok
@@ -1216,7 +1361,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
-  routing_keywords: []
+  routing_keywords:
+  - queen dispatch
+  - wave dispatch
+  - parallel workers
+  - dispatch tasks
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -1238,7 +1387,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
-  routing_keywords: []
+  routing_keywords:
+  - hive worker
+  - background worker
+  - pull task
+  - swarm worker
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -1261,7 +1414,10 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
-  routing_keywords: []
+  routing_keywords:
+  - adaptive swarm
+  - topology hint
+  - parallel coordination
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -1284,7 +1440,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
-  routing_keywords: []
+  routing_keywords:
+  - quorum
+  - destructive operation
+  - approve drop
+  - consensus gate
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -1308,7 +1468,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
-  routing_keywords: []
+  routing_keywords:
+  - london school TDD
+  - mockist TDD
+  - outside in TDD
+  - strict TDD
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -1351,7 +1515,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - verify build
+  - check claims
+  - VERIFIED
+  - SUSPICIOUS
+  - cross check
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -1366,7 +1535,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - senior escalate
+  - DEV_ESCALATE
+  - complex refactor
+  - architect fix
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -1387,7 +1560,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
-  routing_keywords: []
+  routing_keywords:
+  - write architecture
+  - architecture.md
+  - SPARC architecture
+  - component boundaries
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -1433,7 +1610,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
-  routing_keywords: []
+  routing_keywords:
+  - write pseudocode
+  - pseudocode.md
+  - SPARC pseudocode
+  - plain english logic
   dspy_status: not_optimized
   drift_status: ok
   last_score: null
@@ -1475,9 +1656,14 @@ agents:
   output_schema: FindingPayload
   tier: trusted
   routing_keywords:
-  - three hypotheses
   - competing diagnoses
+  - competing hypotheses
+  - debug swarm
+  - escalated debug
   - parallel debug
+  - root cause unknown
+  - three diagnoses
+  - three hypotheses
   triggers:
   - DEV_ESCALATE (3rd occurrence)
   - parallel debug
@@ -1637,7 +1823,19 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - GIS
+  - GeoJSON
+  - ST_DWithin
+  - geometry column
+  - geospatial
+  - map tiles
+  - nearest neighbors spatial
+  - postgis
+  - reproject coordinates
+  - reverse geocoding
+  - spatial query
+  - tile layer leaflet
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1654,7 +1852,19 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - CI pipeline
+  - automated tests pull request
+  - cache dependencies github actions
+  - deploy on merge
+  - docker image on tag
+  - github CI
+  - github actions
+  - matrix build
+  - publish npm workflow
+  - secrets github actions
+  - staging deployment workflow
+  - workflow yaml
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1970,7 +2180,19 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - PPO agent
+  - Q-learning
+  - RL policy
+  - actor-critic
+  - gym environment
+  - multi-agent RL
+  - policy gradient
+  - reinforcement learning
+  - reward function
+  - reward shaping
+  - stable-baselines
+  - train RL policy
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -1987,7 +2209,21 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - FFT signal
+  - HPC
+  - curve fitting
+  - eigenvalues
+  - finite difference
+  - interpolate data
+  - monte carlo simulation
+  - numerical integration
+  - numerical methods
+  - numpy
+  - scientific computing
+  - scipy
+  - solve ODE
+  - vectorize numpy
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -2035,6 +2271,12 @@ agents:
   drift_status: ok
   last_score: null
   runs_since_optimization: 0
+  routing_keywords:
+  - spec compliance
+  - check spec
+  - COMPLIANT
+  - OVER_BUILT
+  - scope drift
 - name: verification-analyst
   file: C:/Users/trg16/.claude/agents/verification-analyst.md
   model: sonnet
@@ -2049,7 +2291,12 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - verify finding
+  - false positive check
+  - 6 gate
+  - INCONCLUSIVE
+  - verify security finding
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -2153,234 +2400,11 @@ agents:
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: trusted
-  routing_keywords: []
-  triggers: []
-  tools: []
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: commit-reviewer
-  file: agents/commit-reviewer.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  routing_keywords: []
-  triggers: []
-  tools: []
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: crucible
-  file: agents/crucible.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  routing_keywords: []
-  triggers: []
-  tools: []
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: fix-agent
-  file: agents/fix-agent.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: candidate
-  routing_keywords: []
-  triggers: []
-  tools: []
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: forge
-  file: agents/forge.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  routing_keywords: []
-  triggers: []
-  tools: []
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: lint-guard
-  file: agents/lint-guard.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  routing_keywords: []
-  triggers: []
-  tools: []
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: perf-optimizer
-  file: agents/perf-optimizer.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: draft
-  routing_keywords: []
-  triggers: []
-  tools: []
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: probe-runner
-  file: agents/probe-runner.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  routing_keywords: []
-  triggers: []
-  tools: []
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: regression-guard
-  file: agents/regression-guard.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  routing_keywords: []
-  triggers: []
-  tools: []
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: scope-analyzer
-  file: agents/scope-analyzer.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  routing_keywords: []
-  triggers: []
-  tools: []
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: scout
-  file: agents/scout.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  routing_keywords: []
-  triggers: []
-  tools: []
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: security-hardener
-  file: agents/security-hardener.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: draft
   routing_keywords:
-  - security hardening
-  - harden server
-  - harden container
-  triggers: []
-  tools: []
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: triage
-  file: agents/triage.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: trusted
-  routing_keywords: []
-  triggers: []
-  tools: []
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: type-strictener
-  file: agents/type-strictener.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: draft
-  routing_keywords: []
-  triggers: []
-  tools: []
-  dspy_status: not_optimized
-  drift_status: ok
-  last_score: null
-  runs_since_optimization: 0
-- name: AUDIT_REPORT
-  file: C:/Users/trg16/.claude/agents/AUDIT_REPORT.md
-  model: sonnet
-  description: ''
-  modes: []
-  capabilities: []
-  input_schema: QuestionPayload
-  output_schema: FindingPayload
-  tier: draft
-  routing_keywords: []
+  - hierarchical swarm
+  - coordinate workers
+  - multi agent build
+  - dispatch workers
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -2390,13 +2414,34 @@ agents:
 - name: go-developer
   file: C:/Users/trg16/.claude/agents/go-developer.md
   model: sonnet
-  description: ''
+  description: Go/Golang specialist. Implements Go services, CLIs, HTTP handlers, gRPC endpoints, goroutines, channels, interfaces,
+    and idiomatic Go patterns. Uses testify for tests, sqlx/pgx for database access, and standard project layout.
   modes: []
-  capabilities: []
+  capabilities:
+  - Go HTTP services and REST APIs
+  - goroutines and channels
+  - Go interfaces and generics
+  - gRPC and protobuf
+  - testify and go test
+  - sqlx/pgx database access
+  - Go CLI tools with cobra/urfave
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - gRPC service in go
+  - go CLI
+  - go HTTP server
+  - go concurrency
+  - go handler
+  - go interface
+  - go microservice
+  - go middleware
+  - go module
+  - go service
+  - golang
+  - goroutine
+  - write go
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -2406,13 +2451,32 @@ agents:
 - name: kotlin-developer
   file: C:/Users/trg16/.claude/agents/kotlin-developer.md
   model: sonnet
-  description: ''
+  description: Kotlin and Android specialist. Implements Android apps with Jetpack Compose, ViewModel, Room, Retrofit, and
+    Hilt. Handles Kotlin coroutines, Flow, sealed classes, and Spring Boot with Kotlin. Writes idiomatic Kotlin.
   modes: []
-  capabilities: []
+  capabilities:
+  - Jetpack Compose UI
+  - Android ViewModel and LiveData
+  - Room database
+  - Retrofit HTTP client
+  - Kotlin coroutines and Flow
+  - Hilt dependency injection
+  - Spring Boot with Kotlin
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - MVVM android
+  - android
+  - android screen in compose
+  - hilt dependency injection
+  - jetpack compose
+  - kotlin
+  - kotlin coroutines
+  - kotlin data class
+  - kotlin flow
+  - room database android
+  - viewmodel stateflow
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -2422,13 +2486,31 @@ agents:
 - name: python-debugger
   file: C:/Users/trg16/.claude/agents/python-debugger.md
   model: sonnet
-  description: ''
+  description: Python debugging specialist. Diagnoses runtime errors, tracebacks, import failures, async bugs, type mismatches,
+    and dependency conflicts. Reads stack traces, instruments code, and proposes targeted fixes.
   modes: []
-  capabilities: []
+  capabilities:
+  - Python traceback analysis
+  - async/await debugging
+  - import and dependency errors
+  - type annotation failures
+  - memory and performance profiling
+  - pytest fixture debugging
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - debug python
+  - fix python bug
+  - pdb breakpoint
+  - python attributeerror
+  - python crashing
+  - python error
+  - python exception
+  - python import error
+  - python returns wrong value
+  - python traceback
+  - python typeerror
   triggers: []
   tools: []
   dspy_status: not_optimized
@@ -2438,13 +2520,32 @@ agents:
 - name: rust-debugger
   file: C:/Users/trg16/.claude/agents/rust-debugger.md
   model: sonnet
-  description: ''
+  description: Rust debugging specialist. Diagnoses borrow checker errors, lifetime issues, trait bound failures, panic sources,
+    and unsafe code bugs. Reads compiler output, traces ownership chains, and fixes soundness issues.
   modes: []
-  capabilities: []
+  capabilities:
+  - borrow checker error diagnosis
+  - lifetime annotation fixes
+  - trait bound resolution
+  - panic and unwrap tracing
+  - unsafe code auditing
+  - async Rust with tokio
   input_schema: QuestionPayload
   output_schema: FindingPayload
   tier: draft
-  routing_keywords: []
+  routing_keywords:
+  - borrow checker
+  - borrowed value does not live
+  - cannot move out of borrowed
+  - debug rust
+  - fix rust bug
+  - lifetime error
+  - rust compile error
+  - rust error
+  - rust ownership conflict
+  - rust panic
+  - rust type mismatch
+  - use after move rust
   triggers: []
   tools: []
   dspy_status: not_optimized

@@ -7,14 +7,16 @@ const fs = require('fs');
 const path = require('path');
 const { readJson, writeJson, appendJsonl } = require('../../core/mas');
 
-function readStdin(timeoutMs = 2000) {
-  return new Promise((resolve) => {
-    let data = '';
+async function readStdin(timeoutMs = 2000) {
+  let data = '';
+  let timer;
+  try {
     process.stdin.setEncoding('utf8');
-    process.stdin.on('data', (chunk) => (data += chunk));
-    process.stdin.on('end', () => resolve(data));
-    setTimeout(() => resolve(data), timeoutMs);
-  });
+    const readLoop = (async () => { for await (const chunk of process.stdin) data += chunk; })();
+    await Promise.race([readLoop, new Promise((r) => { timer = setTimeout(r, timeoutMs); })]);
+  } catch {}
+  clearTimeout(timer);
+  return data;
 }
 
 function normalizeCwd(p) {

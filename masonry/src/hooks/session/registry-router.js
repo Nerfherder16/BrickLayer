@@ -15,8 +15,14 @@ const yaml = require("js-yaml");
 
 const REGISTRY_PATH = path.resolve(__dirname, "../../../agent_registry.yml");
 const EMBED_CACHE_PATH = path.join(os.tmpdir(), "masonry-agent-embed-index.json");
-const EMBED_HOST = process.env.OLLAMA_HOST || "100.70.195.84";
-const EMBED_PORT = 11434;
+function _parseOllamaHost(env) {
+  const raw = env || "100.70.195.84";
+  try {
+    const u = new URL(raw.includes("://") ? raw : "http://" + raw);
+    return { hostname: u.hostname, port: parseInt(u.port || "11434", 10) };
+  } catch { return { hostname: raw, port: 11434 }; }
+}
+const { hostname: EMBED_HOST, port: EMBED_PORT } = _parseOllamaHost(process.env.OLLAMA_HOST);
 const EMBED_MODEL = "qwen3-embedding:0.6b";
 const EMBED_TIMEOUT_MS = 500;
 const SIM_THRESHOLD = 0.60;

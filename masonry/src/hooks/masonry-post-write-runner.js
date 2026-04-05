@@ -34,18 +34,21 @@ const BACKGROUND_HOOKS = [
 ];
 
 async function readStdin() {
-  return new Promise((resolve) => {
-    let data = '';
+  let data = '';
+  let timer;
+  try {
     process.stdin.setEncoding('utf8');
-    process.stdin.on('data', c => (data += c));
-    process.stdin.on('end', () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
+    const readLoop = (async () => { for await (const chunk of process.stdin) data += chunk; })();
+    await Promise.race([readLoop, new Promise((r) => { timer = setTimeout(r, 2000); })]);
+  } catch {}
+  clearTimeout(timer);
+  return data;
 }
 
 function runHook(label, cmd, args, stdinBuf, timeoutMs) {
   return new Promise((resolve) => {
     let child;
+    let timer;
     try {
       // Wrap with hook-timer.sh when available for consistent timing logs
       const finalCmd = TIMER;
@@ -53,13 +56,13 @@ function runHook(label, cmd, args, stdinBuf, timeoutMs) {
       child = spawn(finalCmd, finalArgs, { stdio: ['pipe', 'ignore', 'ignore'] });
       child.stdin.write(stdinBuf);
       child.stdin.end();
-      child.on('close', resolve);
-      child.on('error', resolve);
+      child.on('close', () => { clearTimeout(timer); resolve(); });
+      child.on('error', () => { clearTimeout(timer); resolve(); });
     } catch {
       resolve();
       return;
     }
-    setTimeout(() => {
+    timer = setTimeout(() => {
       try { child.kill(); } catch {}
       resolve();
     }, timeoutMs);

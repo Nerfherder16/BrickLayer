@@ -34,4 +34,4 @@ async function main() {
   } catch (_e) {}
 }
 
-main().catch(() => {});
+main().then(() => process.exit(0)).catch(() => process.exit(0));
