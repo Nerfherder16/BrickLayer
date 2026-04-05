@@ -30,6 +30,7 @@ const BACKGROUND_HOOKS = [
   ['masonry-build-patterns','node',[path.join(HOOKS_DIR, 'masonry-build-patterns.js')],                            8000],
   ['masonry-pulse',        'node', [path.join(HOOKS_DIR, 'masonry-pulse.js')],                                     5000],
   ['masonry-checkpoint',   'node', [path.join(HOOKS_DIR, 'masonry-checkpoint.js')],                                3000],
+  ['masonry-jcodemunch-index', 'node', [path.join(HOOKS_DIR, 'masonry-jcodemunch-index.js')],                    15000],
 ];
 
 async function readStdin() {
