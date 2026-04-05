@@ -15,10 +15,10 @@ const yaml = require("js-yaml");
 
 const REGISTRY_PATH = path.resolve(__dirname, "../../../agent_registry.yml");
 const EMBED_CACHE_PATH = path.join(os.tmpdir(), "masonry-agent-embed-index.json");
-const EMBED_HOST = "localhost";
+const EMBED_HOST = process.env.OLLAMA_HOST || "100.70.195.84";
 const EMBED_PORT = 11434;
 const EMBED_MODEL = "qwen3-embedding:0.6b";
-const EMBED_TIMEOUT_MS = 2000;
+const EMBED_TIMEOUT_MS = 500;
 const SIM_THRESHOLD = 0.60;
 const SIM_MARGIN = 0.05;
 
@@ -59,6 +59,16 @@ function detectRegistryIntent(prompt) {
 
 // ── Hardcoded fallback rules (agents without routing_keywords) ──────────────
 const INTENT_RULES = [
+  {
+    // Conversational questions and confirmations — no routing hint needed,
+    // skip Ollama entirely for these common patterns.
+    patterns: [
+      /^(how (do|can|would|should) (i|we|you)|what (is|are|does|do)|is there a way|can (i|we|you)|why (is|are|does)|when (should|do|does)|where (is|are|does))\b/i,
+      /^(yes|no|ok|sure|sounds good|go ahead|do it|looks good|that works|perfect|great|correct|right|agreed|yep|nope|yeah)\b[.!?]?$/i,
+      /^(show me|tell me|explain|describe|walk me through|give me)\b/i,
+    ],
+    skip: true,
+  },
   {
     patterns: [
       /\b(campaign|bricklayer|bl.?run|masonry.?run|research loop|wave|questions\.md)\b/i,
@@ -137,7 +147,7 @@ function detectIntent(prompt) {
 
   for (const rule of INTENT_RULES) {
     for (const pat of rule.patterns) {
-      if (pat.test(prompt)) return rule;
+      if (pat.test(prompt)) return rule.skip ? { skip: true } : rule;
     }
   }
   return null;
@@ -238,6 +248,7 @@ async function detectSemanticIntent(prompt) {
 
 async function detectIntentAsync(prompt) {
   const l1 = detectIntent(prompt);
+  if (l1 && l1.skip) return null;  // conversational — no hint, no Ollama
   if (l1) return l1;
   return detectSemanticIntent(prompt);
 }
