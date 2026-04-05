@@ -108,7 +108,7 @@ These hooks can **exit 2** and stop an operation entirely:
 ---
 
 ### PostToolUse — Write/Edit
-Fires in order. `masonry-post-write-runner` is a bundle that spawns 9 child hooks in parallel.
+Fires in order. `masonry-post-write-runner` is a bundle that spawns 10 child hooks in parallel.
 
 | Hook | Reads | Writes | External | Blocks |
 |------|-------|--------|----------|--------|
@@ -122,6 +122,7 @@ Fires in order. `masonry-post-write-runner` is a bundle that spawns 9 child hook
 | ↳ `masonry-build-patterns` | Build output | Recall pattern store | Recall API | No |
 | ↳ `masonry-pulse` | Session state | Pulse telemetry | — | No |
 | ↳ `masonry-checkpoint` | Progress state | Checkpoint file | — | No |
+| ↳ `masonry-jcodemunch-index` | File path, `.autopilot/cwd` | — | jcodemunch-mcp (`index_file` via MCP JSON-RPC) | No |
 | `masonry-hook-watch` | File path (hooks or settings.json) | Smoke test results to stderr | `masonry/scripts/hook-smoke.js` | No (async) |
 | `masonry-tdd-enforcer` | File path, `.autopilot/mode`, test file candidates | Warnings to stderr | — | **Yes** (in /build) |
 | `masonry-file-size-guard` | File size | Warnings | — | **Yes** (>600 lines) |
@@ -315,7 +316,8 @@ PostToolUse:Write/Edit
   │     ├── masonry-agent-onboard
   │     ├── masonry-build-patterns
   │     ├── masonry-pulse
-  │     └── masonry-checkpoint
+  │     ├── masonry-checkpoint
+│     └── masonry-jcodemunch-index → jcodemunch-mcp (index_file, MCP JSON-RPC)
   ├── masonry-hook-watch (async, fires on hooks/settings.json changes)
   ├── masonry-tdd-enforcer   [BLOCKS in /build]
   └── masonry-file-size-guard [BLOCKS >600 lines]
@@ -360,7 +362,7 @@ SessionEnd
 | `masonry-pre-task` | `masonry-post-task` (they share telemetry.jsonl format and current-task-id) |
 | `masonry-post-task` | `pattern-confidence.json` format (masonry-pre-task reads it), `masonry-training-export` |
 | `recall-retrieve` | Helper modules in `recall-hooks/`: `recall-retrieve-query.js`, `recall-retrieve-results.js`, `recall-retrieve-session.js` |
-| `masonry-post-write-runner` | All 9 child hook scripts it spawns |
+| `masonry-post-write-runner` | All 10 child hook scripts it spawns |
 | `masonry-hook-watch` | `masonry/scripts/hook-smoke.js` |
 | Any hook in `masonry/src/hooks/` | `masonry-hook-watch` will auto-fire smoke tests |
 | `settings.json` | `masonry-hook-watch` will auto-fire smoke tests; also verify event+matcher ordering |

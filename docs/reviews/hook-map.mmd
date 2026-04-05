@@ -27,6 +27,7 @@ flowchart TD
     PYTHON[(Python Scripts\ntraining/ reasoning/)]
     TMUX[(tmux)]
     LINTERS[(eslint / prettier\nrustc / vitest)]
+    JCMUNCH[(jcodemunch-mcp\nindex_file)]
 
     %% ── Shared State Files ──────────────────────────────────────
     SNAP["/tmp/masonry-snap-{id}.json"]
@@ -121,8 +122,10 @@ flowchart TD
         BP["masonry-build-patterns"]
         PU["masonry-pulse"]
         CP["masonry-checkpoint"]
+        JCI["masonry-jcodemunch-index\n(15s)"]
     end
     PWR --> POST_WRITE_BUNDLE
+    JCI --> JCMUNCH
 
     OE -->|file-change / file-visit| RECALL
     MO -->|findings + code facts| RECALL
@@ -232,5 +235,5 @@ flowchart TD
     class RG,CG,BNV,DC,JN,CS,TDD,FSG,SG,BG,UCG,SAT blocking
     class PAT,PT,POTA,AC,APR,MM,PWR,HW,SR,SSV,RSS,MSS,MHO,MSCT,MPT,MSY,MTE,EMAC async
     class PP,MA,DA,ME,CM,TF,MPI advisory
-    class RECALL,GIT,GITHUB,PYTHON,TMUX,LINTERS external
+    class RECALL,GIT,GITHUB,PYTHON,TMUX,LINTERS,JCMUNCH external
     class SNAP,GATE,ACTIVITY,AUTOPILOT,MASSTATE,MASLOG state
