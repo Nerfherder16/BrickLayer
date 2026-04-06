@@ -10,6 +10,7 @@ import re
 
 from bl.config import cfg
 from bl.frontmatter import read_frontmatter_model, strip_frontmatter
+from bl.healloop import run_heal_loop
 from bl.tmux import collect_wave, spawn_agent, spawn_wave, wait_for_agent
 
 
@@ -449,7 +450,14 @@ def run_agent(question: dict) -> dict:
             "details": "Agent loop exceeded time limit — check for infinite loops or missing iteration bounds",
         }
 
-    return parse_agent_raw(agent_name, agent_result.stdout)
+    result = parse_agent_raw(agent_name, agent_result.stdout)
+
+    # F5: self-healing loop — only active when BRICKLAYER_HEAL_LOOP=1
+    if result.get("verdict") in ("FAILURE", "DIAGNOSIS_COMPLETE"):
+        finding_path = cfg.findings_dir / f"{question.get('id', 'unknown')}.md"
+        result = run_heal_loop(question, result, finding_path)
+
+    return result
 
 
 # ---------------------------------------------------------------------------

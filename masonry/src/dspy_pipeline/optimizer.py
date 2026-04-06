@@ -11,7 +11,7 @@ from masonry.src.dspy_pipeline.signatures import KarenSig, ResearchAgentSig
 from masonry.src.schemas.payloads import AgentRegistryEntry
 
 _DEFAULT_MODEL = "anthropic/claude-haiku-4-5-20251001"
-_OLLAMA_MODEL = "ollama_chat/llama3"
+_OLLAMA_MODEL = "ollama_chat/qwen3:14b"
 _MIN_EXAMPLES = 5
 
 # Per-agent signature dispatch table — agents not listed fall back to ResearchAgentSig

@@ -329,3 +329,80 @@ class TestRunAgentWave:
         assert len(results) == 1
         assert results[0]["verdict"] == "INCONCLUSIVE"
         assert "not found" in results[0]["summary"].lower()
+
+
+# ---------------------------------------------------------------------------
+# F5: heal loop wiring tests
+# ---------------------------------------------------------------------------
+
+
+class TestHealLoopWiring:
+    """Verify run_agent invokes run_heal_loop on FAILURE/DIAGNOSIS_COMPLETE verdicts."""
+
+    def _make_cfg(self, tmp_path):
+        agent_md = MagicMock()
+        agent_md.exists.return_value = True
+        agent_md.read_text.return_value = "---\nmodel: sonnet\n---\nDo it."
+        mock_cfg = MagicMock()
+        mock_cfg.agents_dir = MagicMock()
+        mock_cfg.agents_dir.__truediv__ = MagicMock(return_value=agent_md)
+        mock_cfg.agents_dir.glob.return_value = []
+        mock_cfg.project_root = tmp_path
+        mock_cfg.recall_src = tmp_path
+        mock_cfg.findings_dir = MagicMock()
+        mock_cfg.findings_dir.__truediv__ = MagicMock(return_value=tmp_path / "q1.md")
+        return mock_cfg
+
+    @patch("bl.runners.agent.wait_for_agent")
+    @patch("bl.runners.agent.spawn_agent")
+    @patch("bl.runners.agent.cfg")
+    def test_failure_verdict_invokes_heal_loop(
+        self, mock_cfg, mock_spawn, mock_wait, tmp_path
+    ):
+        cfg = self._make_cfg(tmp_path)
+        mock_cfg.agents_dir = cfg.agents_dir
+        mock_cfg.project_root = cfg.project_root
+        mock_cfg.recall_src = cfg.recall_src
+        mock_cfg.findings_dir = cfg.findings_dir
+
+        mock_spawn.return_value = MagicMock()
+        mock_wait.return_value = MagicMock(
+            exit_code=0,
+            stdout=json.dumps({"result": '```json\n{"verdict": "FAILURE", "summary": "it broke"}\n```'}),
+        )
+
+        healed = {"verdict": "FIXED", "summary": "healed", "data": {}, "details": ""}
+        with patch("bl.runners.agent.run_heal_loop", return_value=healed) as mock_heal:
+            result = run_agent(
+                {"agent_name": "test-agent", "id": "q1", "finding": "F1", "source": ""}
+            )
+
+        mock_heal.assert_called_once()
+        assert mock_heal.call_args.args[1]["verdict"] == "FAILURE"
+        assert result["verdict"] == "FIXED"
+
+    @patch("bl.runners.agent.wait_for_agent")
+    @patch("bl.runners.agent.spawn_agent")
+    @patch("bl.runners.agent.cfg")
+    def test_healthy_verdict_skips_heal_loop(
+        self, mock_cfg, mock_spawn, mock_wait, tmp_path
+    ):
+        cfg = self._make_cfg(tmp_path)
+        mock_cfg.agents_dir = cfg.agents_dir
+        mock_cfg.project_root = cfg.project_root
+        mock_cfg.recall_src = cfg.recall_src
+        mock_cfg.findings_dir = cfg.findings_dir
+
+        mock_spawn.return_value = MagicMock()
+        mock_wait.return_value = MagicMock(
+            exit_code=0,
+            stdout=json.dumps({"result": '```json\n{"verdict": "HEALTHY", "summary": "ok"}\n```'}),
+        )
+
+        with patch("bl.runners.agent.run_heal_loop") as mock_heal:
+            result = run_agent(
+                {"agent_name": "test-agent", "id": "q1", "finding": "F1", "source": ""}
+            )
+
+        mock_heal.assert_not_called()
+        assert result["verdict"] == "HEALTHY"

@@ -107,6 +107,8 @@ function findTestFile(filePath) {
     candidates.push(
       path.join(dir, `test_${base}.py`),
       path.join(dir, `${base}_test.py`),
+      path.join(dir, 'tests', `test_${base}.py`),
+      path.join(dir, 'tests', `${base}_test.py`),
       path.join(dir, '..', 'tests', `test_${base}.py`),
       path.join(dir, '..', 'tests', `${base}_test.py`),
     );

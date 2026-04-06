@@ -89,39 +89,39 @@ Last updated: 2026-04-04
 
 ## Unwired Features (in-progress, from economizer audit 2026-04-05)
 
-### F2 — JS Engine Partial Migration (IN PROGRESS)
+### F2 — JS Engine Partial Migration (DONE — 2026-04-06)
 The `masonry/src/engine/` JS layer (55 files) is a deliberate Node.js port of `bl/`.
 Decision: **partial migration** — wire JS modules into MCP tools and hook fast-path only.
 Python stays for campaign runner, DSPy, scoring, crucible.
 
-- [ ] Wire `masonry/src/engine/` modules into MCP tools: `masonry_route`, `masonry_status`, `masonry_registry_list` (eliminates Python IPC hop for per-prompt calls)
-- [ ] Wire JS `healloop.js` into MCP `masonry_run_question` tool (JS engine already complete, just needs connection)
-- [ ] Document the dual-engine architecture in ARCHITECTURE.md — which layer owns what
-- [ ] Add `NOT_YET_WIRED` marker to JS engine README until connections are made
+- [x] Wire `masonry/src/engine/` modules into MCP tools: `masonry_route`, `masonry_status`, `masonry_registry_list` (eliminates Python IPC hop for per-prompt calls)
+- [x] Wire JS `healloop.js` into MCP `masonry_run_question` tool (JS engine already complete, just needs connection)
+- [x] Document the dual-engine architecture in ARCHITECTURE.md — which layer owns what
+- [x] Add `NOT_YET_WIRED` marker to JS engine README until connections are made
 
-### F3 — masonry-guard.js: wire + flush queue (IN PROGRESS)
+### F3 — masonry-guard.js: wire + flush queue (DONE — 2026-04-06)
 3-strike PostToolUse error pattern guard — well-written, complementary to tool-failure.js,
 but its warning queue (`/tmp/masonry-guard-{sessionId}.ndjson`) is never read.
 
-- [ ] Register `masonry-guard.js` in `settings.json` as PostToolUse (no matcher, async)
-- [ ] Add queue reader — flush guard warnings to stderr or inject into next prompt context
+- [x] Register `masonry-guard.js` in `settings.json` as PostToolUse (no matcher, async)
+- [x] Add queue reader — `masonry-guard-flush.js` on UserPromptSubmit flushes warnings as systemMessage
 - [ ] Add benchmark test case for masonry-guard.js
 
-### F5 — Heal loop wiring (IN PROGRESS)
+### F5 — Heal loop wiring (DONE — 2026-04-06)
 `bl/healloop.py` is complete (FAILURE → diagnose-analyst → fix-implementer → FIXED state machine,
 env-gated at `BRICKLAYER_HEAL_LOOP=1`, max 3 cycles). Never called from any runner.
 
-- [ ] Wire `run_heal_loop()` into `bl/runners/agent.py` at verdict evaluation point
-- [ ] Verify `diagnose-analyst.md` and `fix-implementer.md` existence check works
-- [ ] Add integration test: mock FAILURE verdict → confirm heal loop fires and cycles correctly
+- [x] Wire `run_heal_loop()` into `bl/runners/agent.py` at verdict evaluation point
+- [x] Verify `diagnose-analyst.md` and `fix-implementer.md` existence check works (built into healloop.py)
+- [x] Add integration test: mock FAILURE verdict → confirm heal loop fires and cycles correctly
 
-### F6 — DSPy pipeline: fix default model + create generated/ dir (IN PROGRESS)
+### F6 — DSPy pipeline: fix default model + create generated/ dir (DONE — 2026-04-06)
 `configure_dspy(backend="ollama")` defaults to `model="claude-sonnet-4-6"` which Ollama rejects.
 Full MIPROv2 deferred at wave 22 (R22.2 PENDING). `generated/` dir missing.
 
-- [ ] Fix `configure_dspy` default model to `qwen3:14b` when backend is `"ollama"`
-- [ ] Create `masonry/src/dspy_pipeline/generated/.gitkeep`
-- [ ] Delete empty `optimized/` root directory
+- [x] Fix `configure_dspy` default model to `qwen3:14b` when backend is `"ollama"`
+- [x] Create `masonry/src/dspy_pipeline/generated/.gitkeep`
+- [x] Delete empty `optimized/` root directory
 - [ ] Verify `masonry_onboard` MCP tool succeeds after dir creation
 - [ ] Resume R22.2: full MIPROv2 trial with `qwen3:14b` on routing agent
 
