@@ -13,6 +13,10 @@
 !**/.mas/kiln.json
 !**/.mas/context.md
 
+# Node.js
+node_modules/
+package-lock.json
+
 # Python build artifacts
 *.egg-info/
 __pycache__/
