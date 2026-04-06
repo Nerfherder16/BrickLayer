@@ -1,0 +1,46 @@
+# BrickLayer .claudeignore
+# Reduces startup token load by excluding large files Claude doesn't need to index.
+# https://docs.anthropic.com/en/docs/claude-code/configuration#ignoring-files
+
+# ── Python artifacts ─────────────────────────────────────────────────────────
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/.basedpyright/
+
+# ── Node artifacts ───────────────────────────────────────────────────────────
+**/node_modules/
+**/dist/
+**/build/
+**/.next/
+
+# ── Campaign telemetry and logs (high-volume, low-signal for most tasks) ─────
+.autopilot/telemetry.jsonl
+.autopilot/build.log
+.autopilot/results/
+masonry/routing_log.jsonl
+.mas/pulse.jsonl
+.mas/errors.jsonl
+.mas/system-status.json
+.mas/skill_discovery_last_run
+
+# ── Training data (large, only needed during training export) ────────────────
+training_data/
+masonry/training_data/
+
+# ── Large hero/asset images at repo root ────────────────────────────────────
+*.jpeg
+*.jpg
+*.png
+*.gif
+*.webp
+
+# ── Large campaign history (findings stay readable, raw bulk data excluded) ──
+recall-arch-frontier/findings/
+bricklayer-v2/findings/
+
+# ── Git internals ────────────────────────────────────────────────────────────
+.git/

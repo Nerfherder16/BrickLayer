@@ -20,42 +20,46 @@ const HOOKS_DIR = __dirname;
 // All background hooks — none of these block (exit 0 always).
 // Each entry: [command, [args], timeoutMs]
 const BACKGROUND_HOOKS = [
-  ['node', [`${HOME}/.claude/recall-hooks/session-save.js`], 10000],
-  ['node', [`${HOME}/.claude/recall-hooks/recall-session-summary.js`], 10000],
-  ['node', [path.join(HOOKS_DIR, 'masonry-session-summary.js')], 8000],
-  ['node', [path.join(HOOKS_DIR, 'masonry-handoff.js')], 8000],
-  ['node', [path.join(HOOKS_DIR, 'masonry-score-trigger.js')], 5000],
-  ['node', [path.join(HOOKS_DIR, 'masonry-pagerank-trigger.js')], 5000],
-  ['node', [path.join(HOOKS_DIR, 'masonry-system-status.js')], 8000],
-  ['node', [path.join(HOOKS_DIR, 'masonry-training-export.js')], 65000],
-  ['node', [path.join(HOOKS_DIR, 'masonry-ema-collector.js')], 5000],
+  ['node', [`${HOME}/.claude/recall-hooks/session-save.js`], 2500],
+  ['node', [`${HOME}/.claude/recall-hooks/recall-session-summary.js`], 3000],
+  ['node', [path.join(HOOKS_DIR, 'masonry-session-summary.js')], 2000],
+  ['node', [path.join(HOOKS_DIR, 'masonry-handoff.js')], 2000],
+  ['node', [path.join(HOOKS_DIR, 'masonry-score-trigger.js')], 2000],
+  ['node', [path.join(HOOKS_DIR, 'masonry-pagerank-trigger.js')], 2000],
+  ['node', [path.join(HOOKS_DIR, 'masonry-system-status.js')], 2000],
+  ['node', [path.join(HOOKS_DIR, 'masonry-training-export.js')], 2000],
+  ['node', [path.join(HOOKS_DIR, 'masonry-ema-collector.js')], 2000],
   ['bash', [`${HOME}/.tmux/plugins/tmux-agent-status/hooks/better-hook.sh`, 'Stop'], 3000],
+  ['node', [path.join(HOOKS_DIR, 'masonry-token-logger.js')], 5000],
 ];
 
 async function readStdin() {
-  return new Promise((resolve) => {
-    let data = '';
+  let data = '';
+  let timer;
+  try {
     process.stdin.setEncoding('utf8');
-    process.stdin.on('data', c => (data += c));
-    process.stdin.on('end', () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
-  });
+    const readLoop = (async () => { for await (const chunk of process.stdin) data += chunk; })();
+    await Promise.race([readLoop, new Promise((r) => { timer = setTimeout(r, 2000); })]);
+  } catch {}
+  clearTimeout(timer);
+  return data;
 }
 
 function runHook(cmd, args, stdinBuf, timeoutMs) {
   return new Promise((resolve) => {
     let child;
+    let timer;
     try {
       child = spawn(cmd, args, { stdio: ['pipe', 'ignore', 'ignore'] });
       child.stdin.write(stdinBuf);
       child.stdin.end();
-      child.on('close', resolve);
-      child.on('error', resolve);
+      child.on('close', () => { clearTimeout(timer); resolve(); });
+      child.on('error', () => { clearTimeout(timer); resolve(); });
     } catch {
       resolve();
       return;
     }
-    setTimeout(() => {
+    timer = setTimeout(() => {
       try { child.kill(); } catch {}
       resolve();
     }, timeoutMs);

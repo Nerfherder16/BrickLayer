@@ -1,38 +1,24 @@
 {
-  "project": "learning-loop-pattern-confidence-decay",
-  "status": "COMPLETE",
-  "strategy": "balanced",
+  "project": "context-diet-50pct-token-reduction",
+  "status": "BUILDING",
+  "strategy": "conservative",
   "branch": "bricklayer-v2/mar24-parallel",
   "tasks": [
-    {
-      "id": 1,
-      "status": "DONE",
-      "title": "Implement toolPatternPromote and toolPatternDemote",
-      "description": "Add promote/demote functions to impl-patterns.js and register in MCP dispatch [mode:javascript]",
-      "files": ["masonry/src/tools/impl-patterns.js", "masonry/bin/masonry-mcp.js"]
-    },
-    {
-      "id": 2,
-      "status": "DONE",
-      "title": "Create masonry-build-outcome.js hook",
-      "description": "PostToolUse:Write hook that watches progress.json for DONE/FAILED transitions and calls promote/demote [mode:javascript] [depends:1]",
-      "files": ["masonry/src/hooks/masonry-build-outcome.js", "/home/nerfherder/.claude/settings.json"]
-    },
-    {
-      "id": 3,
-      "status": "DONE",
-      "title": "Auto-run decay at session start",
-      "description": "Call toolPatternDecay in addContextData() at session open [mode:javascript] [depends:1]",
-      "files": ["masonry/src/hooks/session/context-data.js"]
-    },
-    {
-      "id": 4,
-      "status": "DONE",
-      "title": "Inject top-confidence agents at session start",
-      "description": "Surface top-5 agents by confidence score in session-start context [mode:javascript] [depends:3]",
-      "files": ["masonry/src/hooks/session/context-data.js"]
-    }
+    { "id": 1, "description": "Backup originals to rules/full/", "status": "PENDING", "depends_on": [] },
+    { "id": 2, "description": "Stub network-map.md", "status": "PENDING", "depends_on": [1] },
+    { "id": 3, "description": "Stub testing-strategies-coverage.md", "status": "PENDING", "depends_on": [1] },
+    { "id": 4, "description": "Stub golang-rules.md", "status": "PENDING", "depends_on": [1] },
+    { "id": 5, "description": "Stub standards-design.md", "status": "PENDING", "depends_on": [1] },
+    { "id": 6, "description": "Stub standards-accessibility.md", "status": "PENDING", "depends_on": [1] },
+    { "id": 7, "description": "Stub python/ts/gh/vault (4 files)", "status": "PENDING", "depends_on": [1] },
+    { "id": 8, "description": "Compress workflow-enforcement.md", "status": "PENDING", "depends_on": [1] },
+    { "id": 9, "description": "Compress 5 core rules (tdd, exec, git, debug, verify)", "status": "PENDING", "depends_on": [1] },
+    { "id": 10, "description": "Compress vexor-search.md + jcodemunch.md", "status": "PENDING", "depends_on": [1] },
+    { "id": 11, "description": "Deduplicate CLAUDE.md files", "status": "PENDING", "depends_on": [1,2,3,4,5,6,7,8,9,10] },
+    { "id": 12, "description": "Hook injection audit (read-only)", "status": "PENDING", "depends_on": [1] },
+    { "id": 13, "description": "Skill description audit (read-only)", "status": "PENDING", "depends_on": [1] },
+    { "id": 14, "description": "Measure and verify <20K tokens/turn", "status": "PENDING", "depends_on": [11,12,13] }
   ],
-  "tests": { "total": 715, "passing": 684, "failing": 31 },
-  "updated_at": "2026-04-04T08:10:00.000Z"
+  "tests": { "total": 0, "passing": 0, "failing": 0 },
+  "updated_at": "2026-04-06T19:10:00.000Z"
 }
