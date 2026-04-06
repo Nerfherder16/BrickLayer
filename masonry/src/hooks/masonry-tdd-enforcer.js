@@ -119,6 +119,15 @@ function findTestFile(filePath) {
       path.join(dir, `${base}.spec${ext}`),
       path.join(dir, '..', '__tests__', `${base}.test${ext}`),
       path.join(dir, '..', '__tests__', `${base}.spec${ext}`),
+      // Masonry CLI convention: masonry/tests/cli-<base>.test.js
+      // (file may be 1-4 levels below the tests/ sibling directory)
+      path.join(dir, '..', 'tests', `cli-${base}.test${ext}`),
+      path.join(dir, '..', '..', 'tests', `cli-${base}.test${ext}`),
+      path.join(dir, '..', '..', '..', 'tests', `cli-${base}.test${ext}`),
+      path.join(dir, '..', '..', '..', '..', 'tests', `cli-${base}.test${ext}`),
+      // Also check plain <base>.test.js at deeper levels
+      path.join(dir, '..', '..', 'tests', `${base}.test${ext}`),
+      path.join(dir, '..', '..', '..', 'tests', `${base}.test${ext}`),
     );
   }
 

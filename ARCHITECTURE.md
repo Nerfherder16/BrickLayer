@@ -92,6 +92,54 @@ As of 2026-04-04, the mortar enforcer allows any recognized registry agent to be
 
 ---
 
+## Dual-Engine Architecture
+
+BrickLayer uses two engines. The split is permanent — both engines have structural constraints that make migration impractical.
+
+### JS Engine (Hot Path)
+- `masonry/src/hooks/*.js` — Claude Code hooks (fire on every tool use)
+- `masonry/src/engine/cli/` — CLI wrappers callable via subprocess from Python
+- MCP fast-path tools: `masonry_route`, `masonry_status`, `masonry_registry_list`
+- Post-verdict: `masonry_run_question` calls `cli/healloop.js` for FAILURE/DIAGNOSIS_COMPLETE
+
+**Why JS:** Hooks fire on every tool use — 50-100ms cold-start vs 300-400ms for Python subprocess. Node.js has no cold-start when already running in the hook system.
+
+### Python Engine (Campaign Path)
+- `bl/runners/` — evidence-collection runners (15 types)
+- `bl/tmux/` — agent orchestration via tmux panes
+- `bl/crucible.py` — agent benchmarking + promotion/retirement
+- DSPy pipeline, scoring, training export
+
+**Why Python:** DSPy/ML, GPU inference via Ollama, tmux process spawning, SQLAlchemy — all require Python ecosystem.
+
+### Wiring Diagram
+
+```
+Claude Code → MCP server (Python/FastMCP)
+                ↓ subprocess.run(["node", "cli/X.js", ...], timeout=10-300s)
+              Node.js CLI wrapper (masonry/src/engine/cli/*.js)
+                ↓ require()
+              JS engine module (masonry/src/engine/*.js)
+                ↓ reads
+              YAML / JSON / MD files on disk
+
+              On subprocess failure → Python fallback (silent, returns same schema)
+```
+
+### Decision Criteria
+
+| Concern | Use Node.js | Use Python |
+|---------|-------------|------------|
+| Cold-start latency | 50-100ms | 300-400ms |
+| Claude Code hook system | Native | Not available |
+| MCP tool integration | Via CLI wrapper | Native FastMCP |
+| DSPy / ML optimization | Not available | Required |
+| tmux agent spawn | Not available | Required |
+| File I/O (YAML, JSON, MD) | Fast | Fine |
+| GPU / Ollama inference | Via HTTP only | Preferred |
+
+---
+
 ## Masonry Hooks
 
 | Hook | Event | Purpose |
