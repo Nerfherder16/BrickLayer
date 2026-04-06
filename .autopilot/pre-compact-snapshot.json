@@ -1,45 +1,101 @@
 {
-  "project": "learning-loop-pattern-confidence-decay",
+  "project": "bricklayer-2-0-partial-js-engine-migration",
   "status": "BUILDING",
   "strategy": "balanced",
   "branch": "bricklayer-v2/mar24-parallel",
   "tasks": [
     {
       "id": 1,
-      "status": "PENDING",
-      "title": "Implement toolPatternPromote and toolPatternDemote",
-      "description": "Add promote/demote functions to impl-patterns.js and register in MCP dispatch [mode:javascript]",
-      "files": [
-        "masonry/src/tools/impl-patterns.js",
-        "masonry/bin/masonry-mcp.js"
-      ]
+      "description": "JS CLI wrapper: registry-list",
+      "status": "IN_PROGRESS",
+      "depends_on": []
     },
     {
       "id": 2,
-      "status": "PENDING",
-      "title": "Create masonry-build-outcome.js hook",
-      "description": "PostToolUse:Write hook that watches progress.json for DONE/FAILED transitions and calls promote/demote [mode:javascript] [depends:1]",
-      "files": [
-        "masonry/src/hooks/masonry-build-outcome.js",
-        "/home/nerfherder/.claude/settings.json"
-      ]
+      "description": "JS CLI wrapper: route",
+      "status": "IN_PROGRESS",
+      "depends_on": []
     },
     {
       "id": 3,
-      "status": "PENDING",
-      "title": "Auto-run decay at session start",
-      "description": "Call toolPatternDecay in addContextData() at session open [mode:javascript] [depends:1]",
-      "files": [
-        "masonry/src/hooks/session/context-data.js"
-      ]
+      "description": "JS CLI wrapper: status",
+      "status": "IN_PROGRESS",
+      "depends_on": []
     },
     {
       "id": 4,
-      "status": "PENDING",
-      "title": "Inject top-confidence agents at session start",
-      "description": "Surface top-5 agents by confidence score in session-start context [mode:javascript] [depends:3]",
-      "files": [
-        "masonry/src/hooks/session/context-data.js"
+      "description": "JS CLI wrapper: healloop",
+      "status": "IN_PROGRESS",
+      "depends_on": []
+    },
+    {
+      "id": 5,
+      "description": "Wire masonry_registry_list into server.py",
+      "status": "IN_PROGRESS",
+      "depends_on": [
+        1
+      ]
+    },
+    {
+      "id": 6,
+      "description": "Wire masonry_route into server.py",
+      "status": "IN_PROGRESS",
+      "depends_on": [
+        2
+      ]
+    },
+    {
+      "id": 7,
+      "description": "Wire masonry_status into server.py",
+      "status": "IN_PROGRESS",
+      "depends_on": [
+        3
+      ]
+    },
+    {
+      "id": 8,
+      "description": "Wire healloop into masonry_run_question",
+      "status": "IN_PROGRESS",
+      "depends_on": [
+        4
+      ]
+    },
+    {
+      "id": 9,
+      "description": "Extend masonry-hook-watch.js with language-choice reminder",
+      "status": "IN_PROGRESS",
+      "depends_on": []
+    },
+    {
+      "id": 10,
+      "description": "Add dual-engine section to ARCHITECTURE.md",
+      "status": "IN_PROGRESS",
+      "depends_on": []
+    },
+    {
+      "id": 11,
+      "description": "Create hook language-choice guide",
+      "status": "IN_PROGRESS",
+      "depends_on": []
+    },
+    {
+      "id": 12,
+      "description": "Run full test suite",
+      "status": "IN_PROGRESS",
+      "depends_on": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    },
+    {
+      "id": 13,
+      "description": "Update docs/reviews/hook-map.md",
+      "status": "IN_PROGRESS",
+      "depends_on": [
+        12
       ]
     }
   ],
@@ -48,6 +104,6 @@
     "passing": 0,
     "failing": 0
   },
-  "updated_at": "2026-04-04T07:05:00.000Z",
-  "snapshot_at": "2026-04-04T07:08:51.041Z"
+  "updated_at": "2026-04-06T02:39:03.432Z",
+  "snapshot_at": "2026-04-06T13:01:27.313Z"
 }

@@ -1,0 +1,169 @@
+# Workflow Enforcement Rules
+
+## Task Complexity Triage
+
+**Default mode is quick mode (direct execution).**
+
+| Complexity   | Characteristics                                                              | Action                                           |
+| ------------ | ---------------------------------------------------------------------------- | ------------------------------------------------ |
+| **Trivial**  | Single file, obvious fix                                                     | Execute directly, no planning needed             |
+| **Moderate** | 2-5 files, clear scope, straightforward                                      | Use TaskCreate/TaskUpdate to track, then execute |
+| **High**     | Major architectural change, cross-cutting refactor, new subsystem, 10+ files | **Ask user** how they want to approach it        |
+
+---
+
+## MANDATORY: Task Management for ALL Work
+
+**ALWAYS use task management tools to track non-trivial work.**
+
+This prevents forgetting steps, manages dependencies, and shows the user real-time progress in their terminal (Ctrl+T).
+
+### When to Create Tasks (DO IT!)
+
+| Situation                    | Action                                              |
+| ---------------------------- | --------------------------------------------------- |
+| User asks for 2+ things      | Create a task for each                              |
+| Work has multiple steps      | Create tasks with dependencies                      |
+| Complex investigation        | Create tasks for each area to explore               |
+| Bug fix with verification    | Task for fix, task for test, task for verify        |
+| **Deferring a user request** | **TaskCreate IMMEDIATELY — never just say "noted"** |
+| Any non-trivial request      | Break it down into tasks FIRST                      |
+
+### Task Management Tools
+
+| Tool         | Purpose            | Use When                                             |
+| ------------ | ------------------ | ---------------------------------------------------- |
+| `TaskCreate` | Create new task    | Starting any piece of work                           |
+| `TaskList`   | See all tasks      | Check progress, find next task, resume after handoff |
+| `TaskGet`    | Full task details  | Need description/context                             |
+| `TaskUpdate` | Change status/deps | Starting, completing, or blocking tasks              |
+
+### Task Workflow
+
+```
+1. User makes request
+2. IMMEDIATELY create tasks (before any other work)
+3. Set up dependencies with addBlockedBy
+4. Mark task in_progress when starting
+5. Mark task completed when done
+6. Check TaskList for next task
+7. Repeat until all tasks completed
+```
+
+### Never "Note" Without a Task
+
+**When a user makes a request while you're busy with something else, NEVER just say "noted" or "I'll do that after."** You WILL forget.
+
+**Instead:** Call `TaskCreate` immediately with the user's request, then continue your current work.
+
+```
+"Noted, I'll handle that after the current task."        ← WRONG
+TaskCreate("Fix TDD rules per user request", "...") →
+  "Tracked as task #4, continuing current work."         ← RIGHT
+```
+
+### Session Start: Clean Up Stale Tasks
+
+**At the start of every session, clean up leftover tasks from previous sessions.**
+
+1. Run `TaskList` to see all existing tasks
+2. **Delete tasks that are no longer relevant** — use `TaskUpdate` with `status: "deleted"`
+3. Only keep tasks that are actively relevant to the current work
+4. Then create new tasks for the current request
+
+### Dependencies
+
+**Use `addBlockedBy` to ensure correct order:**
+
+```
+Task 1: Research existing code
+Task 2: Implement feature [blockedBy: 1]
+Task 3: Write tests [blockedBy: 2]
+Task 4: Update documentation [blockedBy: 2]
+```
+
+Tasks 3 and 4 won't show as ready until Task 2 completes.
+
+### Example: User asks "Fix the login bug and add password reset"
+
+```
+1. TaskCreate: "Fix login bug"
+2. TaskCreate: "Add password reset feature"
+3. TaskCreate: "Test both features" [blockedBy: 1, 2]
+4. Start task 1, mark in_progress
+5. Complete task 1, mark completed
+6. TaskList → see task 2 is ready
+7. Continue...
+```
+
+---
+
+## ABSOLUTE BANS
+
+### No Ad-Hoc Sub-Agents
+
+**NEVER use the Task tool to spawn sub-agents for exploration or ad-hoc implementation.**
+
+- Use `Read`, `Grep`, `Glob`, `Bash` directly for targeted lookups
+- Use `vexor search` for semantic/intent-based codebase exploration
+- Ad-hoc sub-agents lose context and make mistakes
+
+For codebase exploration:
+
+| Need                                           | Use                                | NOT          |
+| ---------------------------------------------- | ---------------------------------- | ------------ |
+| Semantic questions ("where is X implemented?") | `vexor search "query" --mode code` | Task/Explore |
+| Exact text/pattern match                       | `Grep` or `Glob`                   | Task/Explore |
+| Specific file content                          | `Read`                             | Task/Explore |
+
+### No Built-in Plan Mode
+
+**NEVER use `EnterPlanMode` or `ExitPlanMode` tools.**
+
+### Background Bash Tasks
+
+**Use `run_in_background=true` on Bash only for long-running processes** like dev servers, watchers, or builds that don't terminate on their own. Use `TaskOutput` to check results later.
+
+- **Prefer synchronous** for commands that complete quickly (tests, linting, git, installs)
+- **Use background** for servers (`npm run dev`, `uvicorn app:app`), watchers, and long builds
+- Use `timeout` parameter (up to 600000ms) as an alternative for commands that just need more time
+
+---
+
+## Deviation Handling During Implementation
+
+**When you discover unplanned work during implementation, apply these rules automatically.**
+
+| Type                 | Trigger                                                                                      | Action                                                           | User Input? |
+| -------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ----------- |
+| **Bug Found**        | Code doesn't work as intended (errors, wrong output, type errors)                            | Auto-fix inline, add/update tests, document as deviation         | No          |
+| **Missing Critical** | Feature won't work without this (missing validation, error handling, null checks)            | Auto-add to current task scope, implement, document              | No          |
+| **Blocking Issue**   | Can't proceed without fixing (broken import, missing dependency, wrong types)                | Auto-fix, document, continue task                                | No          |
+| **Architectural**    | Fix requires significant structural change (new DB table, switching libraries, breaking API) | **STOP** — use `AskUserQuestion` to present options              | **Yes**     |
+
+**Rules for auto-fix (Bug, Missing Critical, Blocking):**
+
+- Fix inline without asking permission
+- Add or update tests if applicable
+- Do NOT expand scope — only fix what's needed to make the current task work
+
+**Rules for Architectural deviations:**
+
+- STOP implementation immediately
+- Use `AskUserQuestion` with concrete options (not vague descriptions)
+- Wait for user decision before proceeding
+- If user says "skip it", document as deferred and continue
+
+**Priority order:** Architectural (stop) > Bug/Missing/Blocking (auto-fix) > Uncertain (treat as Architectural)
+
+---
+
+## Task Completion Tracking
+
+**Update task status after EACH task is done.** Mark `in_progress` when starting, `completed` when verified.
+
+## Quality Over Speed
+
+- Never skip tests or cut corners when context allows
+- A clean handoff beats rushed completion
+- **At 90%+ context: HANDOFF IS THE PRIORITY.** Do not start new fix cycles. Document remaining work and hand off immediately.

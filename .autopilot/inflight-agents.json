@@ -1,0 +1,83 @@
+{
+  "saved_at": "2026-04-06T13:01:27.316Z",
+  "tasks": [
+    {
+      "id": 1,
+      "description": "JS CLI wrapper: registry-list",
+      "claimed_by": null,
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 2,
+      "description": "JS CLI wrapper: route",
+      "claimed_by": null,
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 3,
+      "description": "JS CLI wrapper: status",
+      "claimed_by": null,
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 4,
+      "description": "JS CLI wrapper: healloop",
+      "claimed_by": null,
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 5,
+      "description": "Wire masonry_registry_list into server.py",
+      "claimed_by": null,
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 6,
+      "description": "Wire masonry_route into server.py",
+      "claimed_by": null,
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 7,
+      "description": "Wire masonry_status into server.py",
+      "claimed_by": null,
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 8,
+      "description": "Wire healloop into masonry_run_question",
+      "claimed_by": null,
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 9,
+      "description": "Extend masonry-hook-watch.js with language-choice reminder",
+      "claimed_by": null,
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 10,
+      "description": "Add dual-engine section to ARCHITECTURE.md",
+      "claimed_by": null,
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 11,
+      "description": "Create hook language-choice guide",
+      "claimed_by": null,
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 12,
+      "description": "Run full test suite",
+      "claimed_by": null,
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": 13,
+      "description": "Update docs/reviews/hook-map.md",
+      "claimed_by": null,
+      "status": "IN_PROGRESS"
+    }
+  ]
+}

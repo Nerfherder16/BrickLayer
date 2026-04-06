@@ -1,0 +1,339 @@
+# Standing Rules — Read First
+
+## Stop Hook Policy
+
+The stop guard auto-commits dirty session files before stopping — this is intentional and expected. Do NOT fight it or try to bypass it.
+
+- If auto-commit fires, it means you left uncommitted changes — that's fine, the hook handles it
+- The hook stages files individually (`git add -- <file>`) so one bad path never aborts the batch
+- If auto-commit fails (e.g. mid-task with IN_PROGRESS build), the hook blocks and explains why — read the message and fix the cause, never use `--no-verify`
+- Correct path is always `.autopilot/build.log` (with the dot) — never `autopilot/build.log`
+
+## Reviews & Audits
+
+**Before starting any architecture review, security audit, compliance check, or design review:**
+
+1. Commit all pending files: `git add -A && git commit -m "chore: pre-review commit"`
+2. Write the review output to a file (`docs/reviews/YYYY-MM-DD-<topic>.md`), not just to chat
+3. Commit the file after each major section so nothing is lost if the session ends
+4. Structure output with numbered sections so reviews can be resumed if interrupted
+
+## Remote Access
+
+When tasks require SSH/SCP to remote hosts:
+1. Test SSH connectivity before planning multi-step deployments: `ssh -o ConnectTimeout=5 user@host echo ok`
+2. If SSH fails, immediately switch to SCP-based file transfer rather than asking Tim to run commands manually
+3. Known working credentials and paths are in `~/.claude/rules/network-map.md`
+4. For WSL → VM: use Tailscale IPs (not LAN IPs) — LAN is unreachable from WSL
+
+## Never Modify State Files Without Explicit Permission
+
+The following files may be owned by another active Claude session (overnight runs, campaigns, long-running builds). **Never read-then-modify these files unless Tim explicitly asks:**
+
+- `masonry-state.json` — session token, campaign state, Mortar ownership
+- `masonry/masonry-state.json` — same
+- `.autopilot/mode`, `.autopilot/progress.json`, `.autopilot/compact-state.json`
+- `.ui/mode`, `.ui/progress.json`
+- `questions.md`, `findings/` (campaign files)
+
+If a value in one of these files looks wrong or inconsistent, **say so and ask** — do not fix it. It may be intentional (future timestamps, future-dated tokens, unusual flags).
+
+---
+
+# BrickLayer + Masonry + Mortar — Architecture
+
+## The Three-Layer Model
+
+```
+Claude Code
+     ↕
+  Masonry          ← the device/bridge (MCP server, hooks, routing engine, schemas)
+     ↕
+ BrickLayer        ← the layer alongside Claude Code (research loop, campaigns, sims, agent fleet)
+```
+
+**BrickLayer** lives alongside Claude Code. It is the full framework: research campaigns, simulations, agent fleet, findings, synthesis. It is NOT a subprocess — it's a parallel layer.
+
+**Masonry** is the device that communicates between BrickLayer and Claude Code. It is the bridge: MCP server, hooks, typed payload schemas, routing engine, DSPy optimization. When Claude Code needs BrickLayer or vice versa, Masonry carries the message.
+
+**Mortar** is the master executor. Every request — coding, research, git, docs, UI, campaigns, anything — lands at Mortar first. Mortar reads the request, decides the right agents, and dispatches in parallel. All agents report to Mortar.
+
+## Mortar Is the Entry Point for Everything
+
+**Every request goes through Mortar** (exception: single-sentence factual lookups — see Operating Principles). Mortar splits work to:
+
+| Work Type | Mortar dispatches to |
+|-----------|----------------------|
+| Coding task | rough-in → queen-coordinator → workers (parallel, up to 8) |
+| Research question | research-analyst + competitive-analyst + others (parallel) |
+| Campaign / simulation | Trowel (owns the full BL 2.0 loop) |
+| Git hygiene | git-nerd |
+| Folder organization / project structure | karen |
+| UI / design | uiux-master |
+| Architecture decisions | architect or design-reviewer |
+| Debugging unknown failure | diagnose-analyst |
+| Security review | security agent |
+| Spec + build | spec-writer → developer pipeline |
+
+**Never do complex work solo when Mortar can dispatch a team.**
+
+## Core Behavior Rules
+
+- **The prompt-router hook routes every request** — dev tasks → rough-in directly, campaigns → mortar, specialists → named agent
+- **Parallel by default** — independent tasks always dispatched simultaneously
+- **After any code changes** → git-nerd proactively handles commits and branch hygiene
+- **Messy project state** → karen audits and organizes without being asked
+- **Campaigns/sims** → Mortar hands to Trowel; Trowel owns that loop end-to-end
+- **Dev tasks** → Rough-in decomposes, Queen Coordinator dispatches up to 8 workers in parallel
+
+## Operating Principles
+
+- **Never resume an autopilot build** (`/build`, `/fix`, `/ultrawork`) from a prior session — surface the state and ask
+- Delegate specialist work to agents — multi-file implementations, debugging, reviews, planning
+- Prefer evidence over assumptions — verify outcomes before claiming completion
+- Lightest path that preserves quality — direct action ONLY for single-sentence factual lookups (e.g., "what port does X run on?") and clarification questions that require no tool use and no multi-step reasoning. All other work routes through the prompt-router hook which directs to the right specialist.
+- Consult docs (context7) before implementing with unfamiliar SDKs or APIs
+- Run independent tasks in parallel — use multiple Agent calls in a single message
+- **Use jcodemunch-mcp for all symbol-level code retrieval** — `get_symbol_source` instead of `Read` for individual functions/classes, `search_symbols` instead of grep+read, `get_blast_radius` before refactoring. Only use `Read` when the full file is genuinely needed.
+
+## Agent Routing
+
+Pass `model` to match complexity: `haiku` quick lookups · `sonnet` standard work · `opus` architecture/deep analysis
+
+For codebase exploration use `subagent_type: "Explore"`. **Never reference oh-my-claudecode — it is uninstalled.**
+
+> **Mortar uses four-layer routing** (deterministic → semantic → LLM → fallback). Deterministic handles 60%+ of routing with zero LLM calls. See `mortar.md` for details.
+
+### Autopilot Agents
+
+| Agent | Trigger | Model |
+|-------|---------|-------|
+| `spec-writer` | `/plan` — explores codebase, writes `.autopilot/spec.md` | opus |
+| `test-writer` | `/build` per-task — writes FAILING tests (context-isolated) | sonnet |
+| `developer` | `/build` per-task — implements code to pass tests (never sees spec) | sonnet |
+| `code-reviewer` | After every developer task, before commit | sonnet |
+| `diagnose-analyst` | When developer escalates (DEV_ESCALATE) | opus |
+| `fix-implementer` | After DIAGNOSIS_COMPLETE from diagnose-analyst | sonnet |
+
+### Masonry Specialist Agents
+
+| Agent | Trigger | Model |
+|-------|---------|-------|
+| `mortar` | Session router — detects campaign vs. dev context, delegates to Trowel or specialist | sonnet |
+| `trowel` | Campaign conductor — owns the BL 2.0 research loop from first question to synthesis | sonnet |
+| `uiux-master` | UI/UX design, component build, Figma token extraction, dark dashboard | sonnet |
+| `solana-specialist` | Solana programs, Anchor, DeFi integration, Token-2022, security audits | opus |
+| `kiln-engineer` | Changes to Kiln (BrickLayerHub Electron app) | sonnet |
+| `karen` | Roadmaps, changelogs, folder audits, docs organization | sonnet |
+| `frontier-analyst` | Blue-sky exploration, possibility mapping, ceiling estimation | sonnet |
+| `design-reviewer` | Validate design/architecture against project invariants | sonnet |
+| `refactorer` | Clean up code structure without changing behavior | sonnet |
+| `prompt-engineer` | Turn vague ideas into sharp, direct prompts | opus |
+
+## Masonry Skills
+
+| Skill | Trigger |
+|-------|---------|
+| `/masonry-run` | Start or resume a BrickLayer 2.0 research campaign |
+| `/masonry-init` | Create a new Masonry project (interactive wizard) |
+| `/masonry-status` | Show campaign progress, question counts, findings summary |
+| `/masonry-fleet` | Fleet health — agent scores, add/retire agents |
+| `/plan` | Plan a software task — writes `.autopilot/spec.md`, waits for approval |
+| `/build` | Agent-mode build — orchestrates worker agents, TDD, commits per task |
+| `/ultrawork` | High-throughput parallel build — all independent tasks simultaneously |
+| `/pipeline` | Chain agents/skills in a DAG — define in `.pipeline/{name}.yml` |
+| `/masonry-team` | Partition build across N coordinated Claude instances |
+| `/verify` | Independent verification — reads spec + code, never modifies source |
+| `/fix` | Targeted fix — reads verify-report, max 3 cycles, auto-re-verifies |
+| `/masonry-code-review` | Comprehensive code review with severity-tiered output |
+| `/masonry-security-review` | OWASP Top 10 security audit |
+| `/ui-init` | Initialize UI design system for the project |
+| `/ui-compose` | Agent-mode UI build from design brief |
+| `/ui-review` | Visual QA and design compliance |
+| `/ui-fix` | Fix design compliance issues from review |
+| `/retro-apply` | Convert `retro-actions.md` CODE/OUTPUT/DEPENDENCY items into a `/build` spec |
+
+## Masonry Hooks (active in settings.json)
+
+Two consolidator scripts reduce what would be 24+ separate settings.json entries to **2 entries per event**. Direct hooks (sync, can return exit 2 to block) are registered individually. Background hooks (async, never block) are batched into runners.
+
+### Direct registrations in settings.json
+
+| Hook | Event | Matcher | Sync/Async | Purpose |
+|------|-------|---------|-----------|---------|
+| `masonry-session-start.js` | SessionStart | — | sync | Restore autopilot/UI/campaign context; delegates to session/build-state.js, project-detect.js, context-data.js |
+| `recall-retrieve.js` | UserPromptSubmit | — | sync | Retrieve relevant Recall memories before each prompt |
+| `masonry-register.js` | UserPromptSubmit | — | sync | Inject Mortar routing directive + agent hint into context |
+| `masonry-prompt-router.js` | UserPromptSubmit | — | sync | Route prompt via 4-layer similarity system (registry keywords → rules → Ollama embeddings → LLM) |
+| `masonry-prompt-inject.js` | UserPromptSubmit | — | sync | Inject campaign state / agent hints into context |
+| `masonry-teammate-idle.js` | TeammateIdle + TaskCompleted | — | sync | Handle idle teammate and task completion events |
+| `masonry-routing-gate.js` | PreToolUse | Write\|Edit | sync | Block writes if mortar gate not satisfied |
+| `masonry-pre-protect.js` | PreToolUse | Write\|Edit | sync | Pre-edit protection + session lock |
+| `masonry-dep-audit.js` | PreToolUse | Write\|Edit | sync | Audit dependency changes before writes |
+| `masonry-content-guard.js` | PreToolUse | Write\|Edit | sync | Config protection + secret scanner |
+| `masonry-approver.js` | PreToolUse | Write\|Edit\|Bash | sync | Auto-approve writes in build/fix/compose mode |
+| `masonry-block-no-verify.js` | PreToolUse | Bash | sync | Block `--no-verify` and `--no-gpg-sign` git flags |
+| `masonry-dangerous-cmd.js` | PreToolUse | Bash | sync | Block destructive shell commands (rm -rf, force push, etc.) |
+| `masonry-context-safety.js` | PreToolUse | ExitPlanMode | sync | Block plan-mode exit during active build or high context |
+| `masonry-mortar-enforcer.js` | PreToolUse | Agent | sync | Enforce mortar gate — agent spawns must satisfy routing gate |
+| `masonry-preagent-tracker.js` | PreToolUse | Agent | async | Track agent spawns before they start |
+| `masonry-pre-task.js` | PreToolUse | Agent | async | Pre-task setup (state, context injection) |
+| `masonry-jcodemunch-nudge.js` | PreToolUse | Read | sync | Nudge toward `get_symbol_source` when reading large code files |
+| `masonry-hook-watch.js` | PostToolUse | Write\|Edit | async | Detect when hook files are modified; re-lint immediately |
+| `masonry-tdd-enforcer.js` | PostToolUse | Write\|Edit | **sync (blocking)** | Block writes that lack corresponding test files |
+| `masonry-file-size-guard.js` | PostToolUse | Write\|Edit | **sync (blocking)** | Block writes that push a file past 600-line hard limit |
+| `masonry-build-outcome.js` | PostToolUse | Write | async | Record build outcome to autopilot state |
+| `masonry-mistake-monitor.js` | PostToolUse | Bash | async | Monitor repeated mistake patterns from bash output |
+| `masonry-post-task.js` | PostToolUse | Agent | async | Post-task cleanup and state update |
+| `masonry-agent-complete.js` | PostToolUse + SubagentStop | Agent | async | Handle agent completion; update fleet scores |
+| `masonry-auto-pr.js` | PostToolUse + SubagentStop | Agent | async | Auto-create PR when build wave completes |
+| `masonry-tool-failure.js` | PostToolUseFailure | — | sync | Error tracking + 3-strike escalation |
+| `masonry-subagent-tracker.js` | SubagentStart | — | async | Track active agent spawns |
+| `masonry-session-end.js` | SessionEnd | — | sync | Session cleanup and state flush |
+| `masonry-pre-compact.js` | PreCompact | — | sync | Save state before context compaction |
+| `masonry-post-compact.js` | PostCompact | — | sync | Restore context after compaction |
+| `masonry-stop-checker.js` | Stop | — | **sync (blocking)** | Consolidator: runs 4 guards in sequence, blocks if any exit 2 |
+| `masonry-stop-runner.js` | Stop | — | async | Consolidator: runs 10 background stop hooks in parallel |
+| `better-hook.sh` | UserPromptSubmit + PreToolUse + Stop + Notification | — | sync/async | tmux agent-status pane updates |
+
+### masonry-stop-checker.js — 4 blocking guards (run in order)
+
+| Guard | Purpose |
+|-------|---------|
+| `masonry-stop-guard.js` | Block Stop on uncommitted git changes; auto-commits session files |
+| `masonry-build-guard.js` | Block Stop if `.autopilot/` has IN_PROGRESS or pending tasks |
+| `masonry-ui-compose-guard.js` | Block Stop if `.ui/` compose has pending tasks |
+| `masonry-context-monitor.js` | Warn when context exceeds 150K tokens; semantic degradation detection via Ollama |
+
+### masonry-post-write-runner.js — 10 background hooks (run in parallel, PostToolUse Write|Edit)
+
+| Hook | Purpose |
+|------|---------|
+| `observe-edit.js` (recall) | Record edit event to Recall memory |
+| `masonry-observe.js` | Campaign state observation |
+| `masonry-rust-check.js` | Run cargo clippy/check on Rust file edits |
+| `masonry-vitest.js` | Run vitest on relevant test files after edit |
+| `masonry-style-checker.js` | ruff + prettier + eslint + design token enforcement |
+| `masonry-agent-onboard.js` | Auto-onboard new .md agent files to registry |
+| `masonry-build-patterns.js` | Record build patterns for training data |
+| `masonry-pulse.js` | Update system pulse / heartbeat |
+| `masonry-checkpoint.js` | Write autopilot checkpoint |
+| `masonry-jcodemunch-index.js` | Trigger jcodemunch symbol index update |
+
+### masonry-stop-runner.js — 10 background hooks (run in parallel, Stop async)
+
+| Hook | Purpose |
+|------|---------|
+| `session-save.js` (recall) | Save session events to Recall |
+| `recall-session-summary.js` (recall) | Generate session summary for Recall memory |
+| `masonry-session-summary.js` | Write masonry session summary to `.mas/` |
+| `masonry-handoff.js` | Write handoff document for next session |
+| `masonry-score-trigger.js` | Trigger agent performance scoring |
+| `masonry-pagerank-trigger.js` | Trigger PageRank computation on agent graph |
+| `masonry-system-status.js` | Update `.mas/system-status.json` |
+| `masonry-training-export.js` | Export scored routing decisions to training data |
+| `masonry-ema-collector.js` | Collect EMA (exponential moving average) metrics |
+| `better-hook.sh Stop` | Update tmux agent-status pane on stop |
+
+### Masonry MCP Tools
+
+| Tool | Purpose |
+|------|---------|
+| `masonry_status` | Campaign status — state, question counts, wave for a project dir |
+| `masonry_questions` | List questions from questions.md, filtered by status |
+| `masonry_nl_generate` | Generate BL research questions from plain English description |
+| `masonry_weights` | Question weight report — high priority, prunable, retry flags |
+| `masonry_git_hypothesis` | Analyze recent git diffs and generate targeted questions |
+| `masonry_run_question` | Run a single BL question by ID, return verdict envelope |
+| `masonry_fleet` | List fleet agents and performance scores from registry + agent_db |
+| `masonry_recall` | Search Recall for memories relevant to a query |
+| `masonry_route` | Route a request through the four-layer pipeline |
+| `masonry_onboard` | Trigger agent auto-onboarding for new .md files |
+| `masonry_drift_check` | Run drift detection across all registry agents |
+| `masonry_registry_list` | List agents from registry YAML, filtered by tier or mode |
+
+---
+
+# Tim's Development Context
+
+Tim is a software developer and lifelong tinkerer. Methodical, analytical, privacy-first. Prefers self-hosted over cloud, defense in depth, understanding the "why" behind decisions.
+
+## Communication Style
+
+- Direct, no-nonsense — skip the fluff
+- Concrete examples over abstract explanations
+- Iterative development with checkpoints
+- Runs Claude Code on multiple machines simultaneously ("casaclaude", "proxyclaude")
+
+## Workflow Automation
+
+- **Auto-deploy** after UI or backend changes — build dashboard, SCP files, `docker compose restart` without being asked
+- **Auto-commit** when the stop-guard hook prompts — don't wait for explicit instructions
+- **Report linter loops** — if a linter hook blocks the same change 2+ times, stop and suggest a fix
+- **3-strike rule** — if any change fails 3 times, STOP and spawn research agents to investigate
+
+## Technical Preferences
+
+**Philosophy: pick the right tool for the job. Known proficiencies should not constrain new work, language choices, or architecture decisions.**
+
+- **Python** — FastAPI, data pipelines, AI/ML, agent frameworks
+- **JavaScript/Node.js** — MCP servers, hooks, Electron (Kiln), tooling
+- **TypeScript/React** — frontends
+- **Kotlin** — Android (JellyStream)
+- **Rust, Go** — systems work, performance-critical projects
+- **Bash** — automation, git hooks
+- **C#** — occasional
+- **ESPHome** — embedded firmware (Sadie satellite nodes)
+- Actively open to new languages when they're the right fit
+
+Stack defaults: FastAPI · Qdrant · Neo4j · Redis · PostgreSQL · Ollama · Docker Compose on CasaOS · Tailscale
+
+`docker compose` (not `docker-compose`)
+
+## Current Active Projects
+
+1. **System-Recall** — Self-hosted memory system. FastAPI + Qdrant + Neo4j + Ollama. Tailscale: `100.70.195.84:8200`. Local: `C:/Users/trg16/Dev/Recall`
+2. **Family Hub (Sadie)** — Voice AI assistant + ESPHome satellite nodes. CasaOS `192.168.50.19:7070`
+3. **JellyStream** — Jellyfin + *arr + Riven + Real-Debrid. Android client. Domain: streamy.tube
+4. **ADBP** — Solana discount-credit platform (employee utility tokens, 50% purchasing power amplification)
+5. **Relay AI Receptionist** — On hold (Twilio verification blocked)
+
+## Memory & MCP
+
+**Recall** handles memory automatically via hooks (retrieve on prompt, observe on edit, summarize on stop).
+API: `http://100.70.195.84:8200` · MCP tools: `recall_search`, `recall_search_full`, `recall_timeline`
+
+### Auto-Invoke Skills
+
+| Skill | Trigger |
+|-------|---------|
+| `/context7` | Unfamiliar npm/pip packages; need current API docs |
+| `/playwright` | Browser automation; UI testing; screenshots; scraping |
+| `/blender` | 3D modeling; designing cases for 3D printing |
+| `/docker-status` | Check Docker container health on CasaOS |
+| `/homelab` | Docker, Proxmox, CasaOS, VM issues, GPU passthrough |
+| `/api-review` | Reviewing FastAPI code for security/performance |
+| `/ui-design-system` | Any UI component work |
+
+### Recall Training Skills
+
+| Skill | When |
+|-------|------|
+| `/wrong` | Mistake was made |
+| `/learn` | User explicitly teaches a fact |
+| `/anchor` | Critical infrastructure/workflow fact — ground truth |
+| `/never` | Standing prohibition |
+| `/exists` | Something obvious was overlooked |
+| `/show` | Auditing what Recall knows about a topic |
+| `/boost` | Fact in Recall but not surfacing reliably |
+
+### MCP Servers
+
+| Server | Purpose |
+|--------|---------|
+| `recall` | Memory system |
+| `github` | GitHub operations |
+| `context7` | Library documentation |
+| `claude-flow` | Agent orchestration |
+| `figma` | Design extraction |
+| `proxmox` | VM/LXC management |

@@ -1,0 +1,10 @@
+Invoke the **spec-writer** agent to plan this task: $ARGUMENTS
+
+The spec-writer will:
+1. Explore the codebase and read all relevant files
+2. Consult Recall for prior findings and patterns
+3. Decompose the task into ordered, testable units
+4. Write a complete `.autopilot/spec.md` with TDD contracts per task
+5. Present the spec to you for approval before any code is written
+
+Project root is the current working directory. Do not start building — write the spec and wait for approval.

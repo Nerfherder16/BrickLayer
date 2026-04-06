@@ -41,8 +41,11 @@ async function main() {
       if (compactState.nextTask) {
         lines.push(`  Next task #${compactState.nextTask.id}: ${compactState.nextTask.description}`);
         lines.push(`  Run /masonry-build to continue.`);
+        // Imperative sentence triggers Claude to auto-invoke /build (same pattern as build-state.js SessionStart)
+        lines.push(`\nResume the interrupted build now. Invoke the /build skill to continue from where it left off.`);
       } else if (compactState.auto_build) {
-        lines.push(`  Spec approved — run /masonry-build to start the build.`);
+        lines.push(`  Spec approved — starting build now.`);
+        lines.push(`\nStart the build now. Invoke the /build skill to begin executing the spec.`);
       }
     }
   }

@@ -1,21 +1,12 @@
 {
-  "project": "kiln-token-insights-enhanced",
+  "project": "kiln-refresh-date-persist",
   "status": "BUILDING",
   "strategy": "balanced",
   "branch": "bricklayer-v2/mar24-parallel",
   "tasks": [
-    { "id": 1, "description": "Week-over-week + cache cliff data", "status": "PENDING", "depends_on": [] },
-    { "id": 2, "description": "Read-log reader", "status": "PENDING", "depends_on": [] },
-    { "id": 3, "description": "Hook timing reader", "status": "PENDING", "depends_on": [] },
-    { "id": 4, "description": "IPC + preload wiring", "status": "PENDING", "depends_on": [1,2,3] },
-    { "id": 5, "description": "Renderer hooks", "status": "PENDING", "depends_on": [4] },
-    { "id": 6, "description": "WhatChangedPanel widget", "status": "PENDING", "depends_on": [5] },
-    { "id": 7, "description": "ProjectBreakdown widget", "status": "PENDING", "depends_on": [5] },
-    { "id": 8, "description": "HookLatencyTable + TopFilesTable", "status": "PENDING", "depends_on": [5] },
-    { "id": 9, "description": "Cache cliff badges on CostTrendChart", "status": "PENDING", "depends_on": [1] },
-    { "id": 10, "description": "Compose into TokenInsights page", "status": "PENDING", "depends_on": [5,6,7,8,9] },
-    { "id": 11, "description": "Smoke test", "status": "PENDING", "depends_on": [10] }
+    { "id": 1, "description": "Settings persistence IPC + preload bridge", "status": "PENDING", "depends_on": [] },
+    { "id": 2, "description": "Auto-refresh, refresh button, persisted date picker", "status": "PENDING", "depends_on": [1] }
   ],
   "tests": { "total": 0, "passing": 0, "failing": 0 },
-  "updated_at": "2026-04-06T20:00:00.000Z"
+  "updated_at": "2026-04-06T21:00:00.000Z"
 }

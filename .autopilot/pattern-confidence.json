@@ -1,8 +1,8 @@
 {
   "developer": {
-    "confidence": 0.9999999999897472,
-    "last_used": "2026-04-05T00:48:29.183Z",
-    "uses": 108
+    "confidence": 0.9999999999999394,
+    "last_used": "2026-04-06T19:47:22.061Z",
+    "uses": 131
   },
   "bl-verifier": {
     "confidence": 0.808,
@@ -10,9 +10,9 @@
     "uses": 2
   },
   "Explore": {
-    "confidence": 0.9996286179882143,
-    "last_used": "2026-04-04T20:08:46.246Z",
-    "uses": 30
+    "confidence": 0.9998098524099658,
+    "last_used": "2026-04-06T21:08:22.005Z",
+    "uses": 33
   },
   "git-nerd": {
     "confidence": 0.8464,
@@ -20,9 +20,9 @@
     "uses": 3
   },
   "general-purpose": {
-    "confidence": 0.9999601231601265,
-    "last_used": "2026-04-03T05:04:11.246Z",
-    "uses": 40
+    "confidence": 0.9999680985281012,
+    "last_used": "2026-04-05T16:28:25.784Z",
+    "uses": 41
   },
   "statusline-setup": {
     "confidence": 0.76,
@@ -30,9 +30,9 @@
     "uses": 1
   },
   "python-specialist": {
-    "confidence": 0.808,
-    "last_used": "2026-03-29T14:29:29.309Z",
-    "uses": 2
+    "confidence": 0.8464,
+    "last_used": "2026-04-06T02:21:06.800Z",
+    "uses": 3
   },
   "e2e": {
     "confidence": 0.9213568000000001,
@@ -45,29 +45,29 @@
   "pattern-x": 0.999939064025999,
   "pattern-y": 0.999939064025999,
   "repo-researcher": {
-    "confidence": 0.949668352,
-    "last_used": "2026-03-29T03:25:52.433Z",
-    "uses": 8
+    "confidence": 0.96778774528,
+    "last_used": "2026-04-06T17:42:17.745Z",
+    "uses": 10
   },
   "architecture-writer": {
-    "confidence": 0.76,
-    "last_used": "2026-03-28T20:04:58.055Z",
-    "uses": 1
+    "confidence": 0.808,
+    "last_used": "2026-04-06T01:57:39.573Z",
+    "uses": 2
   },
   "pseudocode-writer": {
-    "confidence": 0.76,
-    "last_used": "2026-03-28T20:07:17.005Z",
-    "uses": 1
+    "confidence": 0.808,
+    "last_used": "2026-04-06T01:50:42.477Z",
+    "uses": 2
   },
   "economizer": {
-    "confidence": 0.76,
-    "last_used": "2026-03-28T20:43:10.761Z",
-    "uses": 1
+    "confidence": 0.808,
+    "last_used": "2026-04-06T00:30:55.659Z",
+    "uses": 2
   },
   "kiln-engineer": {
-    "confidence": 0.76,
-    "last_used": "2026-03-28T21:55:30.903Z",
-    "uses": 1
+    "confidence": 0.901696,
+    "last_used": "2026-04-06T20:37:26.279Z",
+    "uses": 5
   },
   "queen-coordinator": {
     "confidence": 0.8464,
@@ -100,9 +100,9 @@
     "uses": 1
   },
   "research-analyst": {
-    "confidence": 0.9793841569792,
-    "last_used": "2026-03-29T09:25:24.143Z",
-    "uses": 12
+    "confidence": 0.9894446883733503,
+    "last_used": "2026-04-06T16:53:38.761Z",
+    "uses": 15
   },
   "peer-reviewer": {
     "confidence": 0.949668352,
@@ -150,14 +150,14 @@
     "uses": 1
   },
   "unknown": {
-    "confidence": 0.9597346816,
-    "last_used": "2026-04-05T00:33:07.482Z",
-    "uses": 9
+    "confidence": 0.9999957182569219,
+    "last_used": "2026-04-06T20:18:29.532Z",
+    "uses": 50
   },
   "spec-writer": {
-    "confidence": 0.901696,
-    "last_used": "2026-04-04T16:56:53.341Z",
-    "uses": 5
+    "confidence": 0.974230196224,
+    "last_used": "2026-04-06T20:33:21.393Z",
+    "uses": 11
   },
   "rough-in": {
     "confidence": 0.76,
@@ -193,5 +193,10 @@
     "confidence": 0.808,
     "last_used": "2026-04-04T12:35:10.590Z",
     "uses": 2
+  },
+  "typescript-specialist": {
+    "confidence": 0.87712,
+    "last_used": "2026-04-06T20:08:01.510Z",
+    "uses": 4
   }
 }

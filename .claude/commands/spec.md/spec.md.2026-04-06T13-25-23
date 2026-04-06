@@ -1,0 +1,91 @@
+Invoke the **spec-writer** agent to plan this BrickLayer task: $ARGUMENTS
+
+Run the `/plan` skill now with the full SKILL.md guardrails (read-back verification, archive-on-fresh). Then apply the BrickLayer-specific context below so spec-writer produces a BL-aware spec — not a generic one.
+
+---
+
+## BrickLayer Context for spec-writer
+
+### Pre-flight (do before Phase 2 exploration)
+
+1. **Campaign state check** — read `masonry/masonry-state.json` if it exists. If `status` is `running` or there are active questions in `questions.md`, surface this to the user before planning new work. New dev tasks during an active campaign risk conflict.
+
+2. **Existing .autopilot/ artifacts** — check `.autopilot/` for prior `architecture.md`, `pseudocode.md`, and any `*-spec.md` files. If relevant prior specs exist, read them for constraints before designing tasks.
+
+### Project Structure (read CLAUDE.md for full detail)
+
+```
+bl/                    Python engine — runners, tmux dispatch, heal loop, campaign context
+  runners/             15 evidence runners (agent, swarm, benchmark, contract, browser...)
+  tmux/                Agent orchestration layer
+  healloop.py          Self-healing: diagnose → fix → verify
+  recall_bridge.py     Inter-agent memory
+masonry/
+  src/
+    hooks/             JS hooks — PreToolUse, PostToolUse, Stop, SessionStart guards
+    engine/            JS engine — registry-router.js, routing.js, healloop.js
+    engine/cli/        JS CLI wrappers (thin, stdout JSON)
+    schemas/           Python dataclasses — AgentRegistryEntry, RoutingDecision
+    routing/           Python routing — router.py uses load_registry()
+  mcp_server/
+    server.py          Python FastMCP server — MCP tools wired here
+    tools/             Python MCP tool modules (routing.py, campaign.py, etc.)
+    tests/             pytest test suite
+  agent_registry.yml   Authoritative agent list — read this before writing mode annotations
+projects/              Active BL-managed projects (each has questions.md, findings/, etc.)
+.autopilot/            Build state — spec.md, progress.json, architecture.md, pseudocode.md
+```
+
+### Dual-Engine Rule (critical for task mode annotations)
+
+| What you're building | Mode annotation | Language |
+|---------------------|-----------------|----------|
+| `bl/` engine code | `[mode:python]` | Python |
+| `masonry/mcp_server/` tools | `[mode:python]` | Python |
+| `masonry/src/schemas/` | `[mode:python]` | Python |
+| `masonry/src/routing/` | `[mode:python]` | Python |
+| `masonry/src/hooks/*.js` | no annotation (default developer) | JS |
+| `masonry/src/engine/*.js` | no annotation (default developer) | JS |
+| `masonry/src/engine/cli/*.js` | no annotation (default developer) | JS |
+| Frontend / Kiln Electron | `[mode:typescript]` | TypeScript |
+| Docker / infra | `[mode:devops]` | — |
+| Schema design / migrations | `[mode:database]` | — |
+| Security audit | `[mode:security]` | — |
+
+**Rule**: Hot-path work (hooks, routing, JS engine) stays JS. Campaign/ML/tmux/Recall work stays Python. Never cross the engine boundary in a single task.
+
+### Agent Registry
+
+Read `masonry/agent_registry.yml` before writing task mode annotations. Use `search_symbols` or `Grep` for the agent name to find its `routing_keywords` and `capabilities` — these tell you whether an agent is the right fit for a task.
+
+### Recall Queries (use these instead of generic ones)
+
+```
+recall_search(query="BrickLayer [component] patterns known issues", limit=3)
+recall_search(query="masonry hook [hook-name] failures fixes", limit=3)
+```
+
+Replace `[component]` with the primary module being changed (e.g., `routing`, `hooks`, `mcp_server`, `healloop`).
+
+### Architecture Constraint Injection
+
+If `.autopilot/architecture.md` exists and is relevant to this task, read it and surface any constraints in the spec's Notes section. Developer agents read `architecture.md` — spec constraints that contradict it will cause rework.
+
+### BL-Specific Test Commands
+
+Include these exact commands in the spec's Agent Hints:
+
+```
+Python MCP tests:   cd masonry && python -m pytest mcp_server/tests/ -q --tb=short
+JS engine tests:    cd masonry && npx vitest run src/engine/
+JS hook benchmarks: cd masonry && node src/hooks/benchmark-runner.js
+Full suite:         cd masonry && python -m pytest mcp_server/tests/ -q && npx vitest run
+bl/ engine tests:   cd bl && python -m pytest tests/ -q --tb=short  (if bl/tests/ exists)
+```
+
+### Spec Notes Section Must Include
+
+- Which engine layer is touched (JS hooks / JS engine / Python MCP / Python bl/)
+- Whether any task crosses the JS↔Python boundary (flag as high risk if so)
+- tmux dispatch note if the build involves agent orchestration: "All agent work goes through `bl/tmux/core.py`. Never use Claude Code's Task tool for agent dispatch."
+- Suggested strategy: `conservative` for hook changes (they run on every tool use), `balanced` for engine/MCP work, `aggressive` for docs/config only

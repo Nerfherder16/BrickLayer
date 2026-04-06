@@ -1,0 +1,62 @@
+## jCodeMunch — Symbol-Level Code Retrieval (MANDATORY)
+
+**IMPORTANT: Use `jcodemunch-mcp` tools for all symbol-level code access. Reading entire files to find one function is wasteful and slow.**
+
+### The Rule
+
+**If you know what symbol you're looking for, use jCodeMunch. Do NOT use Read.**
+
+| What you need | Use this | NOT this |
+|---------------|----------|----------|
+| A specific function / method / class | `get_symbol_source` | `Read` (whole file) |
+| File structure overview | `get_file_outline` | `Read` (whole file) |
+| Find a symbol by name | `search_symbols` | `Grep` + `Read` |
+| What breaks if I change X? | `get_blast_radius` | manual grep |
+| Who calls this function? | `get_call_hierarchy` | manual grep |
+| Text search in code | `search_text` | `Grep` then `Read` |
+| Find dead code | `find_dead_code` | — |
+
+### When to Use `Read`
+
+Only when you genuinely need the ENTIRE file:
+- Restructuring file-level logic (moving sections, reordering)
+- Reading a config file (usually short, no symbols)
+- Reading a markdown doc
+- The file is < ~50 lines and you need all of it
+
+If you're about to `Read` a `.py`, `.js`, `.ts`, or `.tsx` file to find a function — **stop and use `get_symbol_source` instead**.
+
+### Quick Examples
+
+```
+# BAD: reading 300-line file to find one function
+Read("/path/to/service.py")
+
+# GOOD: get exactly what you need
+get_symbol_source(symbol_name="calculate_discount", file_path="service.py")
+```
+
+```
+# BAD: grep + read to find a class
+Grep(pattern="class AuthService") → Read(file)
+
+# GOOD:
+search_symbols(query="AuthService")
+```
+
+```
+# BAD: reading whole file before refactoring
+Read("masonry-stop-guard.js")
+
+# GOOD: check blast radius first, then get only the function
+get_blast_radius(symbol_name="gitStatusSafe")
+get_symbol_source(symbol_name="gitStatusSafe")
+```
+
+### Before ANY Refactor
+
+Always call `get_blast_radius` or `get_impact_preview` before modifying a function. This catches callers you'd otherwise miss.
+
+### Index Builds Automatically
+
+jCodeMunch indexes on first use per folder. After that, all lookups are fast. If a symbol isn't found, fall back to `Grep` — don't fall back to `Read`.

@@ -1,0 +1,534 @@
+"""
+bl/runners/agent.py — Specialist agent runner and Scout.
+
+Invokes Claude CLI agents non-interactively and parses their JSON output
+contract into a BrickLayer verdict envelope.
+"""
+
+import json
+import re
+
+from bl.config import cfg
+from bl.frontmatter import read_frontmatter_model, strip_frontmatter
+from bl.tmux import collect_wave, spawn_agent, spawn_wave, wait_for_agent
+
+
+# ---------------------------------------------------------------------------
+# All recognised BL 2.0 verdict strings (used by _verdict_from_agent_output)
+# ---------------------------------------------------------------------------
+
+_ALL_VERDICTS: frozenset[str] = frozenset(
+    {
+        # Core / BL 1.x
+        "HEALTHY",
+        "WARNING",
+        "FAILURE",
+        "INCONCLUSIVE",
+        # Diagnose / Fix lifecycle
+        "DIAGNOSIS_COMPLETE",
+        "FIXED",
+        "FIX_FAILED",
+        # Audit mode
+        "COMPLIANT",
+        "NON_COMPLIANT",
+        "PARTIAL",
+        "NOT_APPLICABLE",
+        # Benchmark / Evolve
+        "CALIBRATED",
+        "UNCALIBRATED",
+        "NOT_MEASURABLE",
+        "IMPROVEMENT",
+        "REGRESSION",
+        # Predict mode
+        "IMMINENT",
+        "PROBABLE",
+        "POSSIBLE",
+        "UNLIKELY",
+        # Monitor mode
+        "OK",
+        "DEGRADED",
+        "DEGRADED_TRENDING",
+        "ALERT",
+        "UNKNOWN",
+        # Frontier / Research
+        "PROMISING",
+        "BLOCKED",
+        "WEAK",
+        "SUBJECTIVE",
+        # Campaign flow
+        "PENDING_EXTERNAL",
+    }
+)
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _verdict_from_agent_output(agent_name: str, output: dict) -> str:
+    """Map agent JSON output contract to a BrickLayer verdict."""
+    if not output:
+        return "INCONCLUSIVE"
+
+    if agent_name == "security-hardener":
+        if output.get("risks_fixed", 0) > 0 or output.get("changes_committed", 0) > 0:
+            return "HEALTHY"
+        if output.get("risks_reported", 0) > 0:
+            return "WARNING"
+
+    elif agent_name == "test-writer":
+        before = output.get("coverage_before", 0.0)
+        after = output.get("coverage_after", 0.0)
+        written = output.get("tests_written", 0)
+        if written > 0 and after > before:
+            return "HEALTHY"
+        if written > 0:
+            return "WARNING"
+
+    elif agent_name == "type-strictener":
+        before = output.get("errors_before", 0)
+        after = output.get("errors_after", 0)
+        committed = output.get("changes_committed", 0)
+        if committed > 0 and after < before:
+            return "HEALTHY"
+        if committed > 0:
+            return "WARNING"
+        if output.get("mitigation_required") is False:
+            return "HEALTHY"
+        if output.get("architectural_debt") and not committed:
+            return "WARNING"
+
+    elif agent_name == "perf-optimizer":
+        pct = output.get("improvement_pct", 0.0)
+        committed = output.get("changes_committed", 0)
+        if committed > 0 and pct >= 20:
+            return "HEALTHY"
+        if committed > 0 and pct >= 5:
+            return "WARNING"
+
+    else:
+        # F7.1: check self_verdict first — BL 2.0 agents report explicit verdicts
+        self_verdict_early = output.get("verdict", "").upper()
+        if self_verdict_early in _ALL_VERDICTS:
+            return self_verdict_early
+        # Legacy BL 1.x heuristic: changes_committed > 0 implies success
+        if output.get("changes_committed", 0) > 0:
+            return "HEALTHY"
+
+    self_verdict = output.get("verdict", "").upper()
+    if self_verdict in _ALL_VERDICTS:
+        return self_verdict
+
+    return "INCONCLUSIVE"
+
+
+def _parse_text_output(agent_name: str, text: str) -> dict:
+    """
+    Fallback parser when the agent produces plain text instead of a JSON block.
+    Extracts key metrics using regex patterns matched to each agent type.
+    """
+    out: dict = {}
+
+    commit_matches = re.findall(
+        r"commit[ted]*\s+[`']?([0-9a-f]{7,})[`']?", text, re.IGNORECASE
+    )
+    if commit_matches:
+        out["changes_committed"] = len(commit_matches)
+
+    if agent_name == "security-hardener":
+        for pattern in [
+            r"(\d+)\s+risks?\s+fixed",
+            r"(\d+)\s+\w[\w\s]+\s+fixed",
+        ]:
+            m = re.search(pattern, text, re.IGNORECASE)
+            if m and not out.get("risks_fixed"):
+                out["risks_fixed"] = int(m.group(1))
+        m = re.search(r"(\d+)\s+risks?\s+(?:found|identified)", text, re.IGNORECASE)
+        if m:
+            out["risks_found"] = int(m.group(1))
+        m = re.search(
+            r"(\d+)\s+(?:new\s+)?(?:security\s+)?tests?\s+written", text, re.IGNORECASE
+        )
+        if m:
+            out["tests_written"] = int(m.group(1))
+        m = re.search(r"(\d+)\s+risks?\s+reported", text, re.IGNORECASE)
+        if m:
+            out["risks_reported"] = int(m.group(1))
+
+    elif agent_name == "test-writer":
+        m = re.search(r"(\d+)\s+tests?\s+written", text, re.IGNORECASE)
+        if m:
+            out["tests_written"] = int(m.group(1))
+        m = re.search(
+            r"coverage[:\s]+(\d+(?:\.\d+)?)%\s*[→\-]+\s*(\d+(?:\.\d+)?)%", text
+        )
+        if m:
+            out["coverage_before"] = float(m.group(1)) / 100
+            out["coverage_after"] = float(m.group(2)) / 100
+
+    elif agent_name == "type-strictener":
+        m = re.search(r"(\d+)\s+errors?\s+[→\-]+\s*(\d+)", text)
+        if m:
+            out["errors_before"] = int(m.group(1))
+            out["errors_after"] = int(m.group(2))
+
+    elif agent_name == "perf-optimizer":
+        m = re.search(r"p99[:\s]+(\d+(?:\.\d+)?)ms\s*[→\-]+\s*(\d+(?:\.\d+)?)ms", text)
+        if m:
+            out["p99_before"] = float(m.group(1))
+            out["p99_after"] = float(m.group(2))
+            if out["p99_before"] > 0:
+                out["improvement_pct"] = round(
+                    (out["p99_before"] - out["p99_after"]) / out["p99_before"] * 100, 1
+                )
+
+    else:
+        # F-mid.3: universal BL 2.0 fallback — extract verdict and summary from plain text.
+        # Covers diagnose-analyst, fix-implementer, compliance-auditor, design-reviewer,
+        # and any future agent not in the BL 1.x name list above.
+        m = re.search(r"^verdict:\s*(\w+)", text, re.IGNORECASE | re.MULTILINE)
+        if m:
+            out["verdict"] = m.group(1).upper()
+        m = re.search(r"^summary:\s*(.+)", text, re.IGNORECASE | re.MULTILINE)
+        if m:
+            out["summary"] = m.group(1).strip()
+
+    return out
+
+
+def _summary_from_agent_output(agent_name: str, output: dict) -> str:
+    """Build a concise summary from agent output contract."""
+    if not output:
+        return f"{agent_name}: no structured output produced"
+
+    # D-mid.4: BL 2.0 agents and text-fallback path — return summary key directly if present,
+    # avoiding a messy JSON dump from the fallthrough at the bottom of this function.
+    if output.get("summary"):
+        return str(output["summary"])
+
+    if agent_name == "security-hardener":
+        return (
+            f"risks_found={output.get('risks_found', '?')} "
+            f"fixed={output.get('risks_fixed', '?')} "
+            f"committed={output.get('changes_committed', '?')} "
+            f"tests_written={output.get('tests_written', '?')}"
+        )
+    if agent_name == "test-writer":
+        before = output.get("coverage_before", 0.0)
+        after = output.get("coverage_after", 0.0)
+        return (
+            f"coverage {before * 100:.0f}% → {after * 100:.0f}% "
+            f"({output.get('tests_written', '?')} tests written)"
+        )
+    if agent_name == "type-strictener":
+        return (
+            f"mypy errors {output.get('errors_before', '?')} → "
+            f"{output.get('errors_after', '?')} "
+            f"({output.get('changes_committed', '?')} changes committed)"
+        )
+    if agent_name == "perf-optimizer":
+        return (
+            f"p99 {output.get('p99_before', '?')}ms → {output.get('p99_after', '?')}ms "
+            f"({output.get('improvement_pct', 0.0):.1f}% improvement)"
+        )
+    return f"{agent_name}: {json.dumps(output)[:200]}"
+
+
+# ---------------------------------------------------------------------------
+# Prompt building and output parsing — used by run_agent and run_agent_wave
+# ---------------------------------------------------------------------------
+
+_REMEDIATION_KEYWORDS = (
+    "amnesty",
+    "reconcile",
+    "backfill",
+    "rehabilitate",
+    "repair",
+    "boost",
+)
+
+
+def build_agent_prompt(question: dict) -> tuple[str, str | None]:
+    """Build the full prompt for an agent invocation.
+
+    Returns (full_prompt, agent_model).
+    Raises ValueError if agent_name is missing or agent file not found.
+    """
+    agent_name = question.get("agent_name", "").strip()
+    if not agent_name:
+        raise ValueError("No agent specified — add **Agent**: <name> to question")
+
+    agent_path = cfg.agents_dir / f"{agent_name}.md"
+    if not agent_path.exists():
+        raise ValueError(f"Agent file not found: {agent_name}.md")
+
+    agent_raw = agent_path.read_text(encoding="utf-8")
+    agent_model = read_frontmatter_model(agent_raw)
+    agent_prompt = strip_frontmatter(agent_raw)
+
+    finding_id = question.get("finding", "").strip()
+    source_file = question.get("source", "").strip()
+
+    # C-27: inject project doctrine if present
+    doctrine_prefix = ""
+    doctrine_path = cfg.project_root / "doctrine.md"
+    if doctrine_path.exists():
+        doctrine_content = doctrine_path.read_text(encoding="utf-8")
+        doctrine_prefix = (
+            f"## Campaign Doctrine\n\n"
+            f"{doctrine_content}\n\n"
+            f"---\n\n"
+            f"## Agent Instructions\n\n"
+        )
+
+    finding_context = "(no finding specified)"
+    if finding_id:
+        finding_path = cfg.findings_dir / f"{finding_id}.md"
+        if finding_path.exists():
+            finding_context = finding_path.read_text(encoding="utf-8")
+        else:
+            finding_context = (
+                f"(Finding {finding_id} not found — run that question first)"
+            )
+
+    source_line = (
+        f"\n**Source file**: `{cfg.recall_src / source_file}`" if source_file else ""
+    )
+
+    # C-29: inject REMEDIATION GUARD when the question involves a corrective action
+    question_text = (
+        question.get("hypothesis", "") + " " + question.get("test", "")
+    ).lower()
+    remediation_guard = ""
+    if question.get("mode") == "agent" and any(
+        kw in question_text for kw in _REMEDIATION_KEYWORDS
+    ):
+        remediation_guard = """
+---
+## REMEDIATION GUARD (C-29)
+
+Before executing ANY corrective action (calling amnesty, reconcile, backfill, rehabilitate,
+or any endpoint that modifies data), you MUST first:
+
+1. Measure the current metric (e.g. GET /admin/health/memory-quality → mean_quality)
+2. Calculate whether the proposed action can move that metric past the HEALTHY threshold
+   - If action floor < threshold: the action CANNOT move the mean past threshold — document
+     this as "structural fix required" and DO NOT apply the patch
+3. Only proceed if projected_outcome >= threshold
+
+If the action is infeasible, record: "remediation_infeasible: projected_delta={delta}, threshold={threshold}"
+This prevents applying ineffective patches that create false confidence.
+"""
+
+    mode_ctx = question.get("mode_context", "")
+    mode_ctx_block = (
+        f"## Operational Mode Program\n\n{mode_ctx}\n\n---\n\n" if mode_ctx else ""
+    )
+
+    session_ctx = question.get("session_context", "")
+    session_ctx_block = (
+        f"## Session Context (recent findings)\n\n{session_ctx}\n\n---\n\n"
+        if session_ctx
+        else ""
+    )
+
+    full_prompt = f"""{mode_ctx_block}{session_ctx_block}{doctrine_prefix}{agent_prompt}
+
+---
+
+## Your Assignment
+
+**Project root**: `{cfg.recall_src}`{source_line}
+**Test directory**: `{cfg.recall_src / "tests"}`
+
+**Finding to address**:
+
+{finding_context}{remediation_guard}
+
+Begin your agent loop now. Output your JSON result contract in a ```json ... ``` block when complete."""
+
+    return full_prompt, agent_model
+
+
+def parse_agent_raw(agent_name: str, raw: str) -> dict:
+    """Parse raw agent output (stdout) into a verdict envelope."""
+    agent_text = raw
+    try:
+        wrapper = json.loads(raw)
+        if isinstance(wrapper, dict):
+            agent_text = wrapper.get("result", raw)
+    except json.JSONDecodeError:
+        pass
+
+    agent_output: dict = {}
+    json_match = re.search(r"```json\s*(\{.*?\})\s*```", agent_text, re.DOTALL)
+    if json_match:
+        try:
+            agent_output = json.loads(json_match.group(1))
+        except json.JSONDecodeError:
+            pass
+
+    if not agent_output and agent_text:
+        agent_output = _parse_text_output(agent_name, agent_text)
+
+    verdict = _verdict_from_agent_output(agent_name, agent_output)
+    summary = _summary_from_agent_output(agent_name, agent_output)
+
+    return {
+        "verdict": verdict,
+        "summary": summary,
+        "data": agent_output,
+        "details": agent_text[:4000],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Agent runner
+# ---------------------------------------------------------------------------
+
+
+def run_agent(question: dict) -> dict:
+    """
+    Invoke a specialist agent against a BrickLayer finding via Claude CLI.
+
+    The agent's system prompt is read from agents/{agent_name}.md.
+    The finding context is injected from findings/{finding_id}.md.
+    The agent runs non-interactively via `claude -p` and its JSON output
+    contract is parsed from the response to produce the verdict envelope.
+    """
+    agent_name = question.get("agent_name", "").strip()
+
+    try:
+        full_prompt, agent_model = build_agent_prompt(question)
+    except ValueError as exc:
+        error_str = str(exc)
+        data: dict = {}
+        details = ""
+        if "not found" in error_str:
+            available = [
+                f.stem for f in cfg.agents_dir.glob("*.md") if f.stem != "SCHEMA"
+            ]
+            data = {"available_agents": available}
+            details = f"Expected at: {cfg.agents_dir / f'{agent_name}.md'}"
+        elif "No agent specified" in error_str:
+            details = (
+                f"Available: "
+                f"{[f.stem for f in cfg.agents_dir.glob('*.md') if f.stem != 'SCHEMA']}"
+            )
+        return {
+            "verdict": "INCONCLUSIVE",
+            "summary": error_str,
+            "data": data,
+            "details": details,
+        }
+
+    try:
+        spawn = spawn_agent(
+            agent_name=agent_name,
+            prompt=full_prompt,
+            model=agent_model,
+            allowed_tools=["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+            cwd=str(cfg.recall_src),
+        )
+    except FileNotFoundError:
+        return {
+            "verdict": "INCONCLUSIVE",
+            "summary": "claude CLI not found — ensure Claude Code is installed and on PATH",
+            "data": {},
+            "details": "Install: https://claude.ai/download",
+        }
+
+    agent_result = wait_for_agent(spawn, timeout=600)
+
+    if agent_result.exit_code == -1:
+        return {
+            "verdict": "INCONCLUSIVE",
+            "summary": f"{agent_name} timed out after 600s",
+            "data": {},
+            "details": "Agent loop exceeded time limit — check for infinite loops or missing iteration bounds",
+        }
+
+    result = parse_agent_raw(agent_name, agent_result.stdout)
+
+    # F5: self-healing loop — only active when BRICKLAYER_HEAL_LOOP=1
+    if result.get("verdict") in ("FAILURE", "DIAGNOSIS_COMPLETE"):
+        from bl.healloop import run_heal_loop  # noqa: PLC0415
+        finding_path = cfg.findings_dir / f"{question.get('id', 'unknown')}.md"
+        result = run_heal_loop(question, result, finding_path)
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Batch agent wave dispatch
+# ---------------------------------------------------------------------------
+
+
+def run_agent_wave(questions: list[dict], *, timeout: int = 600) -> list[dict]:
+    """Batch-dispatch agent questions via tmux wave for tiled layout.
+
+    Builds prompts for each question, spawns all agents at once via spawn_wave
+    (which applies tmux select-layout tiled), then collects all results.
+
+    Returns list of verdict envelopes, one per question, in input order.
+    """
+    results: list[dict | None] = [None] * len(questions)
+    spawn_specs: list[tuple[int, str, dict]] = []  # (index, agent_name, kwargs)
+
+    for i, question in enumerate(questions):
+        try:
+            prompt, model = build_agent_prompt(question)
+        except ValueError as exc:
+            results[i] = {
+                "verdict": "INCONCLUSIVE",
+                "summary": str(exc),
+                "data": {},
+                "details": "",
+            }
+            continue
+
+        agent_name = question.get("agent_name", "").strip()
+        spawn_specs.append(
+            (
+                i,
+                agent_name,
+                {
+                    "agent_name": agent_name,
+                    "prompt": prompt,
+                    "model": model,
+                    "allowed_tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+                    "cwd": str(cfg.recall_src),
+                },
+            )
+        )
+
+    if not spawn_specs:
+        return [r for r in results if r is not None]
+
+    try:
+        wave_args = [spec_kwargs for _, _, spec_kwargs in spawn_specs]
+        spawns = spawn_wave(wave_args)
+        agent_results = collect_wave(spawns, timeout=timeout)
+    except FileNotFoundError:
+        for idx, name, _ in spawn_specs:
+            results[idx] = {
+                "verdict": "INCONCLUSIVE",
+                "summary": f"claude CLI not found — cannot spawn {name}",
+                "data": {},
+                "details": "Install: https://claude.ai/download",
+            }
+        return [r for r in results if r is not None]
+
+    for (idx, agent_name, _), ar in zip(spawn_specs, agent_results):
+        if ar.exit_code == -1:
+            results[idx] = {
+                "verdict": "INCONCLUSIVE",
+                "summary": f"{agent_name} timed out after {timeout}s",
+                "data": {},
+                "details": f"Agent exceeded timeout ({timeout}s)",
+            }
+        else:
+            results[idx] = parse_agent_raw(agent_name, ar.stdout)
+
+    return [r for r in results if r is not None]
