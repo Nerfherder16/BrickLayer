@@ -23,109 +23,11 @@ ONGOING        Evolve + Predict + Monitor — continuous improvement
 
 Every phase is BrickLayer. There is no handoff to an external system.
 
-## Engine Architecture (`bl/`)
+## Engine & Structure
 
-The engine is Python, orchestrated via tmux for parallel agent dispatch.
+Engine: `bl/` (Python + tmux). Key dirs: `bl/runners/` (15 runner types), `bl/tmux/` (agent orchestration), `bl/healloop.py` (diagnose→fix→verify), `bl/crucible.py` (agent benchmarking). Projects under `projects/`. Campaigns under named subdirs. Module details: see `bl/` source directly.
 
-### Core Systems
-
-| Module | Purpose |
-|--------|---------|
-| `bl/tmux/` | Agent orchestration — pane spawn, wave dispatch, signal coordination |
-| `bl/runners/` | 15 evidence-collection runners (agent, swarm, benchmark, contract, browser, etc.) |
-| `bl/healloop.py` | Self-healing: diagnose → fix → verify, up to N cycles |
-| `bl/recall_bridge.py` | Inter-agent memory — agents share context through Recall |
-| `bl/recall_hook.py` | Recall event hooks for agent coordination |
-| `bl/crucible.py` | Agent benchmarking — promote/flag/retire based on eval scores |
-| `bl/nl_entry.py` | Natural language → research questions from plain English |
-| `bl/skill_forge.py` | Skill generation and management |
-| `bl/training_export.py` | Training data extraction from campaign runs |
-| `bl/git_hypothesis.py` | Hypothesis generation from git diffs |
-| `bl/campaign_context.py` | Campaign state and cross-question context |
-| `bl/findings.py` | Finding storage, verdict tracking, results.tsv management |
-| `bl/questions.py` | Question bank parsing, weighting, status sync |
-| `bl/synthesizer.py` | Cross-finding synthesis |
-| `bl/goal.py` | Goal tracking and decomposition |
-| `bl/sweep.py` | Sweep operations across question banks |
-| `bl/config.py` | Project configuration |
-
-### Runner Types
-
-| Runner | What It Does |
-|--------|-------------|
-| `agent` | Single-agent evidence collection via tmux |
-| `swarm` | Multi-agent parallel dispatch with verdict aggregation |
-| `benchmark` | Quantitative baseline measurement |
-| `contract` | Static analysis for smart contracts (Solana/Anchor) |
-| `browser` | Browser-based verification |
-| `performance` | Performance profiling and measurement |
-| `document` | Documentation generation and verification |
-| `scout` | Reconnaissance/exploration runner |
-| `simulate` | Simulation-based evidence collection |
-| `subprocess` | Shell command execution and output capture |
-| `http` | HTTP endpoint verification |
-| `correctness` | Correctness proof verification |
-| `quality` | Code quality assessment |
-| `baseline_check` | Baseline comparison |
-
-## Mode System (9 Modes)
-
-Each mode has its own `program.md`, agent roster, verdict vocabulary, and runner preferences.
-
-| Mode | Verdicts |
-|------|----------|
-| Frontier | PROMISING, WEAK, BLOCKED |
-| Research | HEALTHY, WARNING, FAILURE |
-| Validate | HEALTHY, WARNING, FAILURE |
-| Benchmark | CALIBRATED, UNCALIBRATED, NOT_MEASURABLE |
-| Diagnose | DIAGNOSIS_COMPLETE, HEALTHY, WARNING, FAILURE |
-| Fix | FIXED, FIX_FAILED |
-| Audit | COMPLIANT, NON_COMPLIANT, PARTIAL |
-| Evolve | IMPROVEMENT, REGRESSION, WARNING |
-| Predict | IMMINENT, PROBABLE, POSSIBLE, UNLIKELY |
-| Monitor | OK, DEGRADED, ALERT |
-
-## Project Structure
-
-```
-Bricklayer2.0/
-  bl/                    -- The engine (Python)
-    runners/             -- 15 evidence-collection runners
-    tmux/                -- Agent orchestration layer
-    cli/                 -- CLI commands
-    tests/               -- Engine tests
-    ci/                  -- CI integration
-  projects/              -- Active projects managed by BrickLayer
-    recall/              -- Recall 1.0
-    recall2/             -- Recall 2.0 (Rust rewrite, driven by frontier research)
-    ADBP/                -- ADBP project
-    adbp2/               -- ADBP v2
-    ADBP3/               -- ADBP v3
-    bl2/                 -- BrickLayer self-audit
-    bricklayer/          -- BrickLayer meta-campaign
-    agent-meta/          -- Agent fleet meta-analysis
-    kiln-os/             -- Kiln OS
-    MarchMadness/        -- March Madness project
-    passive-frontend-v2/ -- Passive Frontend v2
-  bricklayer-v2/         -- BL2 self-audit campaign (14+ waves)
-  bricklayer-meta/       -- Meta-analysis of BrickLayer itself
-  recall-arch-frontier/  -- 256-question frontier research → Recall 2.0 architecture
-  masonry/               -- Masonry orchestration system
-  template-frontier/     -- Template for new frontier projects
-  docs/                  -- Documentation and repo research
-  findings/              -- Cross-project findings
-```
-
-## Key Concepts
-
-- **Campaign**: A run of the BrickLayer loop against a question bank. Produces findings and verdicts.
-- **Wave**: A batch of questions processed in one campaign cycle. Waves accumulate over time.
-- **Finding**: Evidence-backed conclusion with a verdict. Stored in `findings/` per project.
-- **Verdict**: Classification of a finding (HEALTHY, WARNING, FAILURE, FIXED, etc.)
-- **Synthesis**: Cross-finding summary updated after each wave.
-- **Agent fleet**: Specialized agents (karen, research-analyst, git-nerd, etc.) with eval scores tracked in crucible.
-- **Heal loop**: Automated diagnose→fix→verify cycle without human intervention.
-- **Swarm**: Parallel multi-agent dispatch with configurable aggregation (worst/majority/any_failure).
+9 modes (each has its own `program.md` + verdict vocabulary): Frontier · Research · Validate · Benchmark · Diagnose · Fix · Audit · Evolve · Predict · Monitor.
 
 ## Code Retrieval — jCodeMunch First
 
@@ -142,14 +44,6 @@ BrickLayer agent swarms run up to 8 workers in parallel — each worker reading 
 **Only use `Read` when you genuinely need the full file** (e.g., file-level restructuring). For everything else, jCodeMunch first.
 
 ---
-
-## Authority Hierarchy
-
-| Tier | Source | Who Edits |
-|------|--------|-----------|
-| Tier 1 | `project-brief.md`, `ARCHITECTURE.md` | Human only — ground truth |
-| Tier 2 | `program.md`, `modes/*.md`, config | Human + agent |
-| Tier 3 | `bl/` engine code, `findings/`, agents | Agent — implementation |
 
 ## MANDATORY: Agent Delegation via BrickLayer tmux Dispatch
 
@@ -173,13 +67,9 @@ handle = spawn_agent(
 result = wait_for_agent(handle)
 ```
 
-This opens a tmux pane where the agent streams live. The user sees every step as it happens.
-
 For parallel dispatch (multiple agents at once), use `bl/tmux/wave.py:spawn_wave()`.
 
 ### Delegation Rules
-
-Three routing lanes — match the task type to the right entry point:
 
 | Task type | Spawn directly |
 |-----------|---------------|
@@ -188,9 +78,7 @@ Three routing lanes — match the task type to the right entry point:
 | **Documentation only** (changelog, docs, roadmap) | `karen` |
 | **All other tasks** (UI, security, git, architecture, etc.) | Named specialist directly |
 
-Mortar is the entry point for **campaigns and research**, not for dev work. Rough-in is the entry point for dev tasks — it decomposes, selects from 100+ specialists, and dispatches to Queen Coordinator. Do NOT route dev tasks through Mortar; it adds an unnecessary hop.
-
-You do NOT spawn sub-specialists (`planner`, `code-reviewer`, `diagnose-analyst`, etc.) directly — those are selected by rough-in or Mortar's coordinators.
+Do NOT route dev tasks through Mortar — it adds an unnecessary hop. You do NOT spawn sub-specialists directly; rough-in and Mortar's coordinators handle that.
 
 ### Self-Invoke: Direct Agent Bypass
 
@@ -199,11 +87,10 @@ You do NOT spawn sub-specialists (`planner`, `code-reviewer`, `diagnose-analyst`
 ```
 @rough-in: build the new auth endpoint
 @karen: update the changelog for this release
-@security: audit the new API routes
 @diagnose-analyst: why is the session lock failing
 ```
 
-When a prompt starts with `@<agent-name>:`, skip all routing logic and spawn that agent directly. No hooks, no classification, no hints — just dispatch.
+When a prompt starts with `@<agent-name>:`, skip all routing logic and spawn that agent directly.
 
 ### When You May Work Directly (Exceptions)
 
@@ -222,26 +109,11 @@ rough-in (dev tasks — direct entry point)
 
 mortar (campaigns/research — entry point for BL loops)
 └── trowel (campaign conductor)
-    └── Selects specialists via registry: quantitative-analyst, research-analyst, etc.
 
 karen (documentation — direct entry point)
-
-specialists (invoked directly for single-purpose tasks)
-└── security, git-nerd, uiux-master, architect, refactorer, etc.
 ```
 
-**Authoritative agent source:** `masonry/agent_registry.yml` (100+ agents). Do NOT maintain a static agent list here — the registry and routing layers handle discovery.
-
-### Agent Routing (4-Layer Similarity System)
-
-| Layer | Method | Details |
-|-------|--------|---------|
-| 1. Deterministic | Slash commands, regex, `routing_keywords` from registry | Confidence 1.0 |
-| 2. Semantic | Ollama embeddings (`qwen3-embedding:0.6b`), cosine similarity vs agent description + capabilities | Threshold 0.60, margin gap 0.05 |
-| 3. LLM | Claude Haiku picks from registry when layers 1-2 fail | Confidence 0.6 |
-| 4. Fallback | Escalates to user | — |
-
-Use `@agent-name:` prefix to bypass routing entirely and invoke any agent directly.
+**Authoritative agent source:** `masonry/agent_registry.yml` (100+ agents). Routing: 4-layer system (keywords → embeddings → LLM → fallback). Use `@agent-name:` to bypass.
 
 ## What NOT to Assume
 
