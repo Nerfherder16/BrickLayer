@@ -42,5 +42,24 @@ masonry/training_data/
 recall-arch-frontier/findings/
 bricklayer-v2/findings/
 
+# ── Autopilot archives and backups (15MB+, never needed in context) ──────────
+.autopilot/archive/
+.autopilot/backups/
+
+# ── Cross-project findings and results (bulk output, not source) ─────────────
+findings/
+results.tsv
+
+# ── Masonry runtime state (token log, history, skill candidates) ─────────────
+.mas/token-log.jsonl
+.mas/history.jsonl
+.mas/skill_candidates.json
+.mas/mistakes.jsonl
+
+# ── Campaign bulk data (large frontier/research dirs) ────────────────────────
+recall-arch-frontier/
+bricklayer-v2/
+bricklayer-meta/
+
 # ── Git internals ────────────────────────────────────────────────────────────
 .git/
