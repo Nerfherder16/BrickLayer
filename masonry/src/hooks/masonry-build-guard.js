@@ -4,7 +4,7 @@
  * Exit code 2 blocks the stop.
  */
 
-const { existsSync, readFileSync } = require("fs");
+const { existsSync, readFileSync, writeFileSync } = require("fs");
 const { execSync } = require("child_process");
 const path = require("path");
 const { getSessionId, readStdin } = require('./session/stop-utils');
@@ -71,8 +71,11 @@ async function main() {
     process.exit(0);
   }
 
-  // If the build already completed, don't warn about an interrupted build.
-  if (progress.status === "COMPLETE") process.exit(0);
+  // If the build already completed, auto-clear stale mode and exit.
+  if (progress.status === "COMPLETE") {
+    try { writeFileSync(modeFile, "", "utf8"); } catch {}
+    process.exit(0);
+  }
   const buildSessionId = progress.session_id || null;
   const currentSessionId = getSessionId(parsed);
 
