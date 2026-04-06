@@ -2,7 +2,7 @@
 
 > **Purpose:** Change-impact reference. Before modifying any hook, find it here to understand what it touches and what depends on it.
 >
-> **Last updated:** 2026-04-04
+> **Last updated:** 2026-04-06
 > **Total hooks:** 52 active (10 enforcing, 18+ async, 24 advisory)
 
 ---
@@ -123,7 +123,7 @@ Fires in order. `masonry-post-write-runner` is a bundle that spawns 10 child hoo
 | ↳ `masonry-pulse` | Session state | Pulse telemetry | — | No |
 | ↳ `masonry-checkpoint` | Progress state | Checkpoint file | — | No |
 | ↳ `masonry-jcodemunch-index` | File path, `.autopilot/cwd` | — | jcodemunch-mcp (`index_file` via MCP JSON-RPC) | No |
-| `masonry-hook-watch` | File path (hooks or settings.json) | Smoke test results to stderr | `masonry/scripts/hook-smoke.js` | No (async) |
+| `masonry-hook-watch` | File path (hooks/, engine/, or settings.json) | Smoke test results + lint errors to stderr (`.lint-errors` sidecar on failure); emits language-choice reminder on new .js/.py files in hooks/ or engine/ | `masonry/scripts/hook-smoke.js`, ESLint | No (async) |
 | `masonry-tdd-enforcer` | File path, `.autopilot/mode`, test file candidates | Warnings to stderr | — | **Yes** (in /build) |
 | `masonry-file-size-guard` | File size | Warnings | — | **Yes** (>600 lines) |
 
@@ -349,6 +349,23 @@ SessionEnd
 
 ---
 
+## JS Engine Integration (MCP Tool Wiring)
+
+As of 2026-04-06, four Masonry MCP tools call Node.js CLI wrappers first and fall back to Python if the JS engine is unavailable:
+
+| MCP Tool | JS CLI | Timeout | Python Fallback |
+|----------|--------|---------|-----------------|
+| `masonry_route` | `masonry/src/engine/cli/route.js` | 15s | `masonry.src.routing.router.route()` |
+| `masonry_registry_list` | `masonry/src/engine/cli/registry-list.js` | 10s | `masonry.src.schemas.registry_loader.load_registry()` |
+| `masonry_status` | `masonry/src/engine/cli/status.js` | 10s | `bl.questions.load_questions()` + `bl.findings` |
+| `masonry_run_question` | _(Python primary)_ + `healloop.js` on FAILURE | 300s | N/A — heal loop only |
+
+All JS CLI wrappers print a single JSON object to stdout and exit 0 on success. Non-zero exit or missing `node` causes the Python fallback to fire silently.
+
+**Change impact:** Modifying any CLI wrapper in `masonry/src/engine/cli/` also triggers `masonry-hook-watch` (language-choice reminder + ESLint). The corresponding test files are in `masonry/tests/` (vitest). The Python bridges are in `masonry/mcp_server/tools/` (pytest).
+
+---
+
 ## Change Impact Guide
 
 **Before modifying any hook, check this table:**
@@ -365,6 +382,7 @@ SessionEnd
 | `masonry-post-write-runner` | All 10 child hook scripts it spawns |
 | `masonry-hook-watch` | `masonry/scripts/hook-smoke.js` |
 | Any hook in `masonry/src/hooks/` | `masonry-hook-watch` will auto-fire smoke tests |
+| Any JS/Python file in `masonry/src/engine/` | `masonry-hook-watch` will auto-fire smoke tests + ESLint; emits language-choice reminder for new files |
 | `settings.json` | `masonry-hook-watch` will auto-fire smoke tests; also verify event+matcher ordering |
 | `.autopilot/mode` format | masonry-stop-guard, masonry-build-guard, masonry-tdd-enforcer, masonry-session-end |
 | `.autopilot/progress.json` format | masonry-stop-guard, masonry-build-guard, masonry-pre-task, masonry-post-task, masonry-agent-complete |
