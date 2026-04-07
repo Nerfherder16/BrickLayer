@@ -96,6 +96,7 @@ These hooks can **exit 2** and stop an operation entirely:
 ### PreToolUse — Read
 | Hook | Reads | Writes | External | Blocks |
 |------|-------|--------|----------|--------|
+| `masonry-read-dedup` | `/tmp/masonry-read-cache-{sessionId}.json` | Same cache file | — | **Yes** (repeated full-file reads) |
 | `masonry-jcodemunch-nudge` | File path, file size | — | — | **Yes** (large files) |
 
 ---

@@ -8,16 +8,16 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
-    ".claude/skills/homelab/SKILL.md",
-    "CLAUDE.md",
-    "masonry/src/hooks/masonry-prompt-router.js",
-    "masonry/src/hooks/masonry-mortar-enforcer.js",
-    ".claude/skills/homelab/SKILL.md",
-    ".claude/skills/proxmox/SKILL.md",
-    "projects/codevvOS/backend/app/services/recall_client.py",
-    "masonry/src/hooks/masonry-prompt-inject.js",
-    "masonry/src/hooks/masonry-prompt-inject.js",
-    "masonry/src/tools/impl-simulation.js"
+    ".autopilot/archive/spec-20260406-214105.md",
+    ".autopilot/archive/spec-20260406-223338.md",
+    ".autopilot/archive/spec-20260406-224428.md",
+    "docs/reviews/repo-research/autoagent.md",
+    "docs/roadmap-token-efficiency.md",
+    "masonry/src/hooks/masonry-context-safety.js",
+    "masonry/src/hooks/masonry-read-cache-clear.js",
+    "masonry/src/hooks/masonry-read-dedup.js",
+    "masonry/src/hooks/masonry-register.js",
+    "masonry/src/hooks/masonry-session-start.js"
   ],
-  "timestamp": "2026-04-04T06:43:39.678Z"
+  "timestamp": "2026-04-07T14:52:30.689Z"
 }
