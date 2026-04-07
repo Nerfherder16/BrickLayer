@@ -25,7 +25,9 @@ const os = require("os");
 const { readStdin } = require("./session/stop-utils");
 
 const GATE_FILE = path.join(os.tmpdir(), "masonry-mortar-gate.json");
+const BUILD_LOCK_FILE = path.join(os.tmpdir(), "bl-build-active.json");
 const GATE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
+const BUILD_LOCK_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
 const EXEMPT_PATH_PATTERNS = [
   /[/\\]\.autopilot[/\\]/,
@@ -121,6 +123,21 @@ async function main() {
   if (isBuildOrFixMode(cwd)) {
     process.exit(0);
   }
+
+  // Build-lock bypass: /build writes /tmp/bl-build-active.json before spawning agents.
+  // This allows sub-agents to write cross-project files (e.g. Kiln on Windows path)
+  // even when the sub-agent CWD doesn't contain a .autopilot/mode file.
+  try {
+    if (fs.existsSync(BUILD_LOCK_FILE)) {
+      const lock = JSON.parse(fs.readFileSync(BUILD_LOCK_FILE, "utf8"));
+      if (lock.active) {
+        const lockAge = Date.now() - new Date(lock.timestamp || 0).getTime();
+        if (lockAge < BUILD_LOCK_EXPIRY_MS) {
+          process.exit(0);
+        }
+      }
+    }
+  } catch { /* non-fatal */ }
 
   const toolInput = input.tool_input || {};
   const targetFile = toolInput.file_path || "";
