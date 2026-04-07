@@ -8,6 +8,8 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    ".autopilot/session-notes.md",
+    "docs/reviews/hook-map.md",
     ".autopilot/archive/spec-20260406-214105.md",
     ".autopilot/archive/spec-20260406-223338.md",
     ".autopilot/archive/spec-20260406-224428.md",
@@ -19,5 +21,5 @@
     "masonry/src/hooks/masonry-register.js",
     "masonry/src/hooks/masonry-session-start.js"
   ],
-  "timestamp": "2026-04-07T14:52:30.689Z"
+  "timestamp": "2026-04-07T14:54:28.935Z"
 }

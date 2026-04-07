@@ -51,3 +51,4 @@
 {"timestamp":"2026-04-07T02:43:55.680Z","prompt_snippet":"Task: Create hello_build.py script and its test.\n\nFiles to create:\n  - /home/nerfherder/Dev/Bricklayer2.0/scripts/hello_","layer":"L1a_registry","route":"test-writer","keyword":"Write tests"}
 {"timestamp":"2026-04-07T02:51:37.151Z","prompt_snippet":"send repo researcher agent to this repo https://github.com/hkuds/autoagent. give me the low down","layer":"L1a_registry","route":"repo-researcher","keyword":"github.com"}
 {"timestamp":"2026-04-07T12:16:35.557Z","prompt_snippet":"what agent would be the best agent to build currently for bricklayer?","layer":"L1b_intent_rules","route":"Trowel (campaign conductor)","keyword":null}
+{"timestamp":"2026-04-07T14:56:00.893Z","prompt_snippet":"npm install -g @anthropic-ai/claude-code                                                                                ","layer":"L1b_intent_rules","route":"diagnose-analyst → fix-implementer","keyword":null}
