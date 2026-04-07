@@ -2,8 +2,8 @@
   "last_route": {
     "agent": "diagnose-analyst → fix-implementer",
     "effort": "medium",
-    "prompt_summary": "npm install -g @anthropic-ai/claude-code                                        ",
-    "timestamp": "2026-04-07T14:56:00.895Z",
+    "prompt_summary": "nerfherder@ubuntuclaude:~/Dev/BrickLayer2.0$ npm cache clean --force && npm inst",
+    "timestamp": "2026-04-07T14:57:32.230Z",
     "turn_count": 1
   },
   "mortar_consulted": true,

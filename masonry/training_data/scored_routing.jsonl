@@ -52,3 +52,4 @@
 {"timestamp":"2026-04-07T02:51:37.151Z","prompt_snippet":"send repo researcher agent to this repo https://github.com/hkuds/autoagent. give me the low down","layer":"L1a_registry","route":"repo-researcher","keyword":"github.com"}
 {"timestamp":"2026-04-07T12:16:35.557Z","prompt_snippet":"what agent would be the best agent to build currently for bricklayer?","layer":"L1b_intent_rules","route":"Trowel (campaign conductor)","keyword":null}
 {"timestamp":"2026-04-07T14:56:00.893Z","prompt_snippet":"npm install -g @anthropic-ai/claude-code                                                                                ","layer":"L1b_intent_rules","route":"diagnose-analyst → fix-implementer","keyword":null}
+{"timestamp":"2026-04-07T14:57:32.229Z","prompt_snippet":"nerfherder@ubuntuclaude:~/Dev/BrickLayer2.0$ npm cache clean --force && npm install -g @anthropic-ai/claude-code@latest ","layer":"L1b_intent_rules","route":"diagnose-analyst → fix-implementer","keyword":null}
