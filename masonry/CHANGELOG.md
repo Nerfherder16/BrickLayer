@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [2026-04-06] — Token Efficiency Sprint
+
+Context window accuracy fix and static overhead reduction across Masonry hooks.
+
+### Fixed
+- **Statusline context %**: Rescaled `used_percentage × 0.2` to show real % against 1M window (CC hardcodes 200K as divisor). Display now accurate.
+- **Statusline token segment**: Switched from raw `input_tokens` to `effective_tokens` (input + cache_read×0.1); suppresses noise from sub-1K sessions.
+- **masonry-context-safety.js**: Applied same `× 0.2` rescale for ExitPlanMode context threshold check.
+- **masonry-register.js**: Subsequent-call guard now only re-emits when there's active campaign or build state (eliminates per-turn boilerplate injection on idle sessions).
+- **masonry-session-start.js**: `addContextData` gated behind active project state (autopilot mode, campaign, or ui mode).
+
+### Added
+- **masonry-read-dedup.js** (PreToolUse/Read): Blocks repeated full-file reads of the same path within a session turn; clears on new user prompt and on Write/Edit to that file. Redirects to jCodeMunch alternatives.
+- **masonry-read-cache-clear.js** (PostToolUse/Write|Edit): Invalidates per-file read-dedup cache entry so read→edit→verify flows work correctly.
+
+### Changed
+- **CLAUDE.md**: Trimmed 253→148 lines (41%); removed Engine Architecture table, Runner Types table, Project Structure tree, Key Concepts glossary, Authority Hierarchy table. Core routing rules and lifecycle intact.
+- **~/.claude/rules/**: Moved 3,828-line full rule content from `rules/full/` → `rules-ref/` (out of auto-injection path); stubs kept in `rules/`. Saves ~960K effective tokens over a long session.
+- **~/.claudeignore** (BL root): Added archives/backups (15MB+), bulk campaign dirs, token log, history, skill candidates.
+- **~/.claude/settings.json**: Removed 8 zero-usage MCP servers (bgpt, chrome-devtools, docker, figma-developer, repomix, sequential-thinking, supabase, uplink) — eliminates schema injection overhead and prompt cache busts (CC Bug #42647).
+- **Auto-compact threshold**: `DISABLE_AUTO_COMPACT_THRESHOLD` `85→95` (fires at 950K in 1M regime).
+
 ## [Wave 38] -- 2026-03-24
 
 5 questions answered (3 fix, 2 validate). Two of three interacting cascades (P2 corpus, P3 rubric) fully remediated. F12.1 drift scoring inversion confirmed NOT implemented -- single remaining blocker before MIPROv2 optimization is safe.

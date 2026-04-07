@@ -58,7 +58,11 @@ async function main() {
   addProjectContext(lines, cwd, input, state);
 
   // Phase 3: Recall patterns, codebase map, swarm resume, ReasoningBank, skills
-  await addContextData(lines, cwd, state);
+  // Gate behind active state — skip expensive HTTP/subprocess calls for plain sessions
+  const hasActiveProject = state.autopilotMode || state.campaign || state.uiMode;
+  if (hasActiveProject) {
+    await addContextData(lines, cwd, state);
+  }
 
   // Phase 4: Hot path context — most-edited files this project
   try {

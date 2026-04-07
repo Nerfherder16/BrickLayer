@@ -1,9 +1,9 @@
 {
   "last_route": {
     "agent": "Trowel (campaign conductor)",
-    "effort": "high",
-    "prompt_summary": "Starting fresh. Can you go through and see where we can stand to squeeze more to",
-    "timestamp": "2026-04-06T21:06:19.171Z",
+    "effort": "low",
+    "prompt_summary": "what agent would be the best agent to build currently for bricklayer?",
+    "timestamp": "2026-04-07T12:16:35.559Z",
     "turn_count": 1
   },
   "mortar_consulted": true,

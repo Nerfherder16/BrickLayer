@@ -1,109 +1,17 @@
 {
-  "project": "bricklayer-2-0-partial-js-engine-migration",
+  "project": "hello-build-smoke-test",
   "status": "BUILDING",
-  "strategy": "balanced",
+  "strategy": "aggressive",
   "branch": "bricklayer-v2/mar24-parallel",
   "tasks": [
     {
       "id": 1,
-      "description": "JS CLI wrapper: registry-list",
-      "status": "IN_PROGRESS",
-      "depends_on": []
-    },
-    {
-      "id": 2,
-      "description": "JS CLI wrapper: route",
-      "status": "IN_PROGRESS",
-      "depends_on": []
-    },
-    {
-      "id": 3,
-      "description": "JS CLI wrapper: status",
-      "status": "IN_PROGRESS",
-      "depends_on": []
-    },
-    {
-      "id": 4,
-      "description": "JS CLI wrapper: healloop",
-      "status": "IN_PROGRESS",
-      "depends_on": []
-    },
-    {
-      "id": 5,
-      "description": "Wire masonry_registry_list into server.py",
-      "status": "IN_PROGRESS",
-      "depends_on": [
-        1
-      ]
-    },
-    {
-      "id": 6,
-      "description": "Wire masonry_route into server.py",
-      "status": "IN_PROGRESS",
-      "depends_on": [
-        2
-      ]
-    },
-    {
-      "id": 7,
-      "description": "Wire masonry_status into server.py",
-      "status": "IN_PROGRESS",
-      "depends_on": [
-        3
-      ]
-    },
-    {
-      "id": 8,
-      "description": "Wire healloop into masonry_run_question",
-      "status": "IN_PROGRESS",
-      "depends_on": [
-        4
-      ]
-    },
-    {
-      "id": 9,
-      "description": "Extend masonry-hook-watch.js with language-choice reminder",
-      "status": "IN_PROGRESS",
-      "depends_on": []
-    },
-    {
-      "id": 10,
-      "description": "Add dual-engine section to ARCHITECTURE.md",
-      "status": "IN_PROGRESS",
-      "depends_on": []
-    },
-    {
-      "id": 11,
-      "description": "Create hook language-choice guide",
-      "status": "IN_PROGRESS",
-      "depends_on": []
-    },
-    {
-      "id": 12,
-      "description": "Run full test suite",
-      "status": "IN_PROGRESS",
-      "depends_on": [
-        5,
-        6,
-        7,
-        8,
-        9
-      ]
-    },
-    {
-      "id": 13,
-      "description": "Update docs/reviews/hook-map.md",
-      "status": "IN_PROGRESS",
-      "depends_on": [
-        12
-      ]
+      "description": "Create hello_build.py script and its test",
+      "status": "PENDING",
+      "depends_on": [],
+      "wave": 1
     }
   ],
-  "tests": {
-    "total": 0,
-    "passing": 0,
-    "failing": 0
-  },
-  "updated_at": "2026-04-06T02:39:03.432Z",
-  "snapshot_at": "2026-04-06T13:01:27.313Z"
+  "updated_at": "2026-04-07T01:00:00.000Z",
+  "snapshot_at": "2026-04-07T02:00:48.535Z"
 }

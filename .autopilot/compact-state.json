@@ -1,1 +1,16 @@
-{"cleared_at":"2026-04-06T17:16:50.091Z","reason":"build-complete"}
+{
+  "cleared_at": "2026-04-06T17:16:50.091Z",
+  "reason": "build-complete",
+  "mode": "build",
+  "project": "hello-build-smoke-test",
+  "done": 0,
+  "total": 1,
+  "nextTask": {
+    "id": 1,
+    "description": "Create hello_build.py script and its test",
+    "status": "PENDING",
+    "depends_on": [],
+    "wave": 1
+  },
+  "compactedAt": "2026-04-07T02:00:48.534Z"
+}

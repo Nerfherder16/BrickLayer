@@ -127,9 +127,14 @@ async function main() {
     }
   } catch (_err) { /* fresh session */ }
 
-  // --- Subsequent call: skip re-hydration, context already injected ---
+  // --- Subsequent call: only inject if there's active state to report ---
+  // Base routing directive is already in context from first turn — no need to repeat.
+  // Only re-emit when campaign or build state gives Claude something actionable.
   if (sessionState && sessionState.firstCall === false) {
-    emit(contextParts);
+    const hasActiveState = ctx.campaignState || (ctx.autopilotMode && ctx.autopilotMode !== '');
+    if (hasActiveState) {
+      emit(contextParts);
+    }
     return;
   }
 
