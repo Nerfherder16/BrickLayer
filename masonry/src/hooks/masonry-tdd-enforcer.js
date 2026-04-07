@@ -92,25 +92,63 @@ function isImplementationFile(filePath) {
 }
 
 /**
+ * Walk up the directory tree to find the project root.
+ * Stops at the first directory containing a known root marker.
+ */
+function findProjectRoot(startDir) {
+  const markers = [
+    'pyproject.toml', 'setup.py', 'setup.cfg',
+    'package.json', 'Cargo.toml', 'go.mod', 'Makefile',
+  ];
+  let dir = startDir;
+  for (let i = 0; i < 15; i++) {
+    if (markers.some((m) => existsSync(path.join(dir, m)))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return startDir;
+}
+
+/**
  * Find the corresponding test file for an implementation file.
- * Checks common test layout conventions for Python and JS/TS projects.
- * Returns the first existing test file path, or null if none found.
+ * Checks common test layout conventions for Python and JS/TS projects,
+ * including project-root tests/ with subpath mirroring:
+ *   src/workers/observer.py → tests/workers/test_observer.py
  */
 function findTestFile(filePath) {
   const dir = path.dirname(filePath);
   const ext = path.extname(filePath);
   const base = path.basename(filePath, ext);
+  const projectRoot = findProjectRoot(dir);
+
+  // Relative path from project root to file's dir (enables subpath mirroring)
+  let relDir = '';
+  try { relDir = path.relative(projectRoot, dir); } catch { /* ignore */ }
+  const relDirStripped = relDir.replace(/^src[/\\]/, '');
 
   const candidates = [];
 
   if (ext === '.py') {
     candidates.push(
+      // Adjacent
       path.join(dir, `test_${base}.py`),
       path.join(dir, `${base}_test.py`),
+      // Adjacent tests/ subdir
       path.join(dir, 'tests', `test_${base}.py`),
       path.join(dir, 'tests', `${base}_test.py`),
+      // One level up
       path.join(dir, '..', 'tests', `test_${base}.py`),
       path.join(dir, '..', 'tests', `${base}_test.py`),
+      // Project-root tests/ flat
+      path.join(projectRoot, 'tests', `test_${base}.py`),
+      path.join(projectRoot, 'tests', `${base}_test.py`),
+      // Project-root tests/ with full subpath mirror (src/workers/foo → tests/src/workers/test_foo)
+      path.join(projectRoot, 'tests', relDir, `test_${base}.py`),
+      path.join(projectRoot, 'tests', relDir, `${base}_test.py`),
+      // Strip leading src/ from mirror (src/workers/foo → tests/workers/test_foo)
+      path.join(projectRoot, 'tests', relDirStripped, `test_${base}.py`),
+      path.join(projectRoot, 'tests', relDirStripped, `${base}_test.py`),
     );
   } else {
     // JS / TS
@@ -122,14 +160,18 @@ function findTestFile(filePath) {
       path.join(dir, '..', '__tests__', `${base}.test${ext}`),
       path.join(dir, '..', '__tests__', `${base}.spec${ext}`),
       // Masonry CLI convention: masonry/tests/cli-<base>.test.js
-      // (file may be 1-4 levels below the tests/ sibling directory)
       path.join(dir, '..', 'tests', `cli-${base}.test${ext}`),
       path.join(dir, '..', '..', 'tests', `cli-${base}.test${ext}`),
       path.join(dir, '..', '..', '..', 'tests', `cli-${base}.test${ext}`),
       path.join(dir, '..', '..', '..', '..', 'tests', `cli-${base}.test${ext}`),
-      // Also check plain <base>.test.js at deeper levels
+      // Plain name at deeper levels
       path.join(dir, '..', '..', 'tests', `${base}.test${ext}`),
       path.join(dir, '..', '..', '..', 'tests', `${base}.test${ext}`),
+      // Project-root tests/ with subpath mirror
+      path.join(projectRoot, 'tests', relDir, `${base}.test${ext}`),
+      path.join(projectRoot, 'tests', relDir, `${base}.spec${ext}`),
+      path.join(projectRoot, 'tests', relDirStripped, `${base}.test${ext}`),
+      path.join(projectRoot, 'tests', relDirStripped, `${base}.spec${ext}`),
     );
   }
 
