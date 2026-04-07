@@ -76,7 +76,7 @@ async function main() {
           "eligible = db.execute('SELECT COUNT(*) FROM traces WHERE sft_eligible=1').fetchone()[0]",
           "print(json.dumps({'total': total, 'eligible': eligible}))",
         ].join(";"),
-      ], { encoding: "utf8", timeout: 5000 });
+      ], { encoding: "utf8", timeout: 1000 });
       if (result.status === 0) {
         const data = JSON.parse(result.stdout.trim());
         return {
@@ -165,4 +165,4 @@ async function main() {
   process.exit(0);
 }
 
-main().catch(() => process.exit(0));
+main().then(() => process.exit(0)).catch(() => process.exit(0));

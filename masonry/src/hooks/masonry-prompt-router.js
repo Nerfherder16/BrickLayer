@@ -157,4 +157,4 @@ async function main() {
   process.stdout.write(JSON.stringify({ additionalContext: hintText }));
 }
 
-main().catch(() => {});
+main().then(() => process.exit(0)).catch(() => process.exit(0));

@@ -210,7 +210,7 @@ async function main() {
         "n = db.execute('SELECT COUNT(*) FROM traces WHERE sft_eligible=1').fetchone()[0]",
         'print(n)',
       ].join(';'),
-    ], { encoding: 'utf8', timeout: 5000 });
+    ], { encoding: 'utf8', timeout: 1000 });
 
     if (check.status === 0) {
       const eligible = parseInt(check.stdout.trim(), 10);
@@ -233,4 +233,4 @@ async function main() {
   process.exit(0);
 }
 
-main().catch(() => process.exit(0));
+main().then(() => process.exit(0)).catch(() => process.exit(0));

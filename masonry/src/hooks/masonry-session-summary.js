@@ -277,4 +277,4 @@ async function main() {
 
 }
 
-main().catch(() => {});
+main().then(() => process.exit(0)).catch(() => process.exit(0));

@@ -30,13 +30,15 @@ const GUARDS = [
 ];
 
 async function readStdin() {
-  return new Promise((resolve) => {
-    let data = '';
+  let data = '';
+  let timer;
+  try {
     process.stdin.setEncoding('utf8');
-    process.stdin.on('data', c => (data += c));
-    process.stdin.on('end', () => resolve(data));
-    setTimeout(() => resolve(data), 3000);
-  });
+    const readLoop = (async () => { for await (const chunk of process.stdin) data += chunk; })();
+    await Promise.race([readLoop, new Promise((r) => { timer = setTimeout(r, 3000); })]);
+  } catch {}
+  clearTimeout(timer);
+  return data;
 }
 
 function runGuard(scriptPath, stdinBuf) {

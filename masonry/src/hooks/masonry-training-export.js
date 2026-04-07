@@ -130,26 +130,12 @@ if (confKeys.length > 0) {
   args.push("--pattern-confidence", JSON.stringify(patternConfidence));
 }
 
+// Spawn detached — exit immediately, let Python finish in background
 const child = spawn(python, args, {
   cwd: BL_ROOT,
-  encoding: "utf8",
+  detached: true,
+  stdio: "ignore",
   env: { ...process.env },
 });
-
-child.stdout.on("data", (data) => process.stderr.write(data));
-child.stderr.on("data", (data) => process.stderr.write(data));
-
-child.on("close", (code) => {
-  if (code !== 0) {
-    process.stderr.write(`[masonry-training-export] export failed: exit code ${code}\n`);
-    // Non-fatal — don't block session stop on export failure
-  } else {
-    process.stderr.write("[masonry-training-export] done\n");
-  }
-  process.exit(0);
-});
-
-child.on("error", (err) => {
-  process.stderr.write(`[masonry-training-export] export failed: ${err.message}\n`);
-  process.exit(0);
-});
+child.unref();
+process.exit(0);

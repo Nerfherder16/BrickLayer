@@ -140,4 +140,4 @@ async function main() {
   process.exit(0);
 }
 
-main().catch(() => process.exit(0));
+main().then(() => process.exit(0)).catch(() => process.exit(0));
