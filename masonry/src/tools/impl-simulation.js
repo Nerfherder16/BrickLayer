@@ -181,8 +181,12 @@ function toolRoute(args) {
 import sys, json
 sys.path.insert(0, ${JSON.stringify(REPO_ROOT)})
 try:
-    from masonry.src.routing.router import route_request
-    result = route_request(args["request"], project_path=args.get("project_path"))
+    import dataclasses
+    from masonry.src.routing.router import route
+    from pathlib import Path
+    project_path = args.get("project_path") or ${JSON.stringify(REPO_ROOT)}
+    result = route(args["request"], project_dir=Path(project_path))
+    result = dataclasses.asdict(result) if dataclasses.is_dataclass(result) else result._asdict()
     print(json.dumps(result))  # noqa: mcp-stdout
 except Exception as e:
     print(json.dumps({"error": str(e), "target_agent": "user", "layer": "fallback", "confidence": 0, "reason": "Router unavailable"}))  # noqa: mcp-stdout
