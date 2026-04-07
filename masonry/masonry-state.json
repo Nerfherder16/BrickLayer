@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "diagnose-analyst → fix-implementer",
+    "agent": "self-host",
     "effort": "medium",
-    "prompt_summary": "now when i try to authorize im getting im getting OAuth error: Request failed wi",
-    "timestamp": "2026-04-07T15:04:21.259Z",
+    "prompt_summary": "in my tailscale network i added a pc, labeled as marco. can we access it?",
+    "timestamp": "2026-04-07T21:47:28.551Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
