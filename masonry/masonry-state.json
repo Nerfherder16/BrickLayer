@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "self-host",
+    "agent": "diagnose-analyst",
     "effort": "medium",
-    "prompt_summary": "in my tailscale network i added a pc, labeled as marco. can we access it?",
-    "timestamp": "2026-04-07T21:47:28.551Z",
+    "prompt_summary": "i already have the extention running, it works in powershell but its not working",
+    "timestamp": "2026-04-08T01:11:39.258Z",
     "turn_count": 1
   },
   "mortar_consulted": true,

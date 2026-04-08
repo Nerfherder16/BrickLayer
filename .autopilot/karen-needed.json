@@ -8,6 +8,17 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    "projects/ADBP3/docs/results.md",
+    "masonry/src/core/config.js",
+    "masonry/src/hooks/masonry-ema-collector.js",
+    "masonry/src/hooks/masonry-handoff.js",
+    "masonry/src/hooks/masonry-pagerank-trigger.js",
+    "masonry/src/hooks/masonry-prompt-router.js",
+    "masonry/src/hooks/masonry-score-trigger.js",
+    "masonry/src/hooks/masonry-session-summary.js",
+    "masonry/src/hooks/masonry-stop-checker.js",
+    "masonry/src/hooks/masonry-system-status.js",
+    "masonry/src/hooks/masonry-training-export.js",
     ".autopilot/session-notes.md",
     "docs/reviews/hook-map.md",
     ".autopilot/archive/spec-20260406-214105.md",
@@ -21,5 +32,5 @@
     "masonry/src/hooks/masonry-register.js",
     "masonry/src/hooks/masonry-session-start.js"
   ],
-  "timestamp": "2026-04-07T15:20:17.402Z"
+  "timestamp": "2026-04-08T01:08:39.309Z"
 }
