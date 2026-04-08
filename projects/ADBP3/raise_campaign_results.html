@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAISE Financial Model — Campaign Results</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', -apple-system, sans-serif; padding: 24px; }
+  h1 { font-size: 1.4rem; color: #f8fafc; margin-bottom: 4px; }
+  .subtitle { color: #64748b; font-size: 0.85rem; margin-bottom: 28px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1200px; }
+  .grid-wide { display: grid; grid-template-columns: 1fr; gap: 20px; max-width: 1200px; margin-top: 20px; }
+  .card { background: #1e2130; border-radius: 12px; padding: 20px; border: 1px solid #2d3347; }
+  .card h2 { font-size: 0.95rem; color: #94a3b8; margin-bottom: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .chart-wrap { position: relative; height: 280px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.04em; padding: 8px 10px; text-align: right; border-bottom: 1px solid #2d3347; }
+  th:first-child { text-align: left; }
+  td { padding: 7px 10px; border-bottom: 1px solid #1a1e2c; text-align: right; color: #cbd5e1; }
+  td:first-child { text-align: left; color: #f1f5f9; }
+  tr:last-child td { border-bottom: none; }
+  .green { color: #4ade80; font-weight: 600; }
+  .yellow { color: #facc15; font-weight: 600; }
+  .orange { color: #fb923c; font-weight: 600; }
+  .red { color: #f87171; font-weight: 600; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; margin-left: 6px; }
+  .badge-green { background: #14532d; color: #4ade80; }
+  .badge-yellow { background: #713f12; color: #facc15; }
+  .badge-blue { background: #1e3a5f; color: #60a5fa; }
+  .highlight-row { background: #1a2540; }
+  .phase-divider td { background: #161b2e; color: #475569; font-size: 0.75rem; font-style: italic; }
+  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat { background: #161b2e; border-radius: 8px; padding: 14px 16px; border: 1px solid #2d3347; }
+  .stat-label { font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+  .stat-value { font-size: 1.5rem; font-weight: 700; }
+  .stat-sub { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+  .v4 { color: #60a5fa; }
+  .v9 { color: #34d399; }
+  .v12 { color: #f59e0b; }
+</style>
+</head>
+<body>
+<h1>RAISE Financial Model — Campaign Results</h1>
+<p class="subtitle">V4 April 7th · 3 Interest Rate Scenarios · Phase 1 (20yr accumulation) + Phase 2 (8yr wind-down)</p>
+
+<div class="summary-grid">
+  <div class="stat">
+    <div class="stat-label">Employees at Year 15</div>
+    <div class="stat-value" style="color:#60a5fa">814,500</div>
+    <div class="stat-sub">All scenarios (capacity-capped)</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Best L at Phase 2 Entry</div>
+    <div class="stat-value" style="color:#34d399">48.9%</div>
+    <div class="stat-sub">12% interest rate scenario</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Best Phase 2 Outcome</div>
+    <div class="stat-value" style="color:#f59e0b">127.1%</div>
+    <div class="stat-sub">12% · 8yr post-pause L → full shutdown capable</div>
+  </div>
+</div>
+
+<div class="grid">
+  <!-- L Trajectory Chart -->
+  <div class="card">
+    <h2>L Solvency — Phase 1 Trajectory (Years 1–20)</h2>
+    <div class="chart-wrap">
+      <canvas id="lChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Phase 2 Recovery Chart -->
+  <div class="card">
+    <h2>L Recovery — Phase 2 Post-Pause (Years 1–8)</h2>
+    <div class="chart-wrap">
+      <canvas id="p2Chart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="grid" style="margin-top:20px">
+  <!-- Interest Rate Scenarios Table -->
+  <div class="card">
+    <h2>Interest Rate Scenarios — Key Milestones</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Period</th>
+            <th class="v4">4% L</th><th class="v4">4% Escrow</th>
+            <th class="v9">9% L</th><th class="v9">9% Escrow</th>
+            <th style="color:#f59e0b">12% L</th><th style="color:#f59e0b">12% Escrow</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Year 1</td><td>45.7%</td><td>$0.1B</td><td>46.5%</td><td>$0.1B</td><td>47.0%</td><td>$0.1B</td></tr>
+          <tr><td>Year 5</td><td class="yellow">43.4%</td><td>$5.8B</td><td class="yellow">46.9%</td><td>$6.2B</td><td class="yellow">49.2%</td><td>$6.5B</td></tr>
+          <tr><td>Year 10</td><td class="yellow">37.2%</td><td>$27.9B</td><td class="yellow">44.1%</td><td>$33.2B</td><td class="yellow">49.2%</td><td>$37.0B</td></tr>
+          <tr class="highlight-row"><td>Year 15</td><td class="yellow">30.4%</td><td>$64.7B</td><td class="yellow">40.6%</td><td>$86.6B</td><td class="yellow">49.1%</td><td>$104.6B</td></tr>
+          <tr><td>Year 20 ← Pause</td><td class="red">24.0%</td><td>$115.7B</td><td class="yellow">36.8%</td><td>$177.5B</td><td class="green">48.9%</td><td>$235.5B</td></tr>
+          <tr class="phase-divider"><td colspan="7">── Phase 2: minting frozen, escrow earns interest only ──</td></tr>
+          <tr><td>P2 Year 1</td><td class="yellow">25.0%</td><td>$120.4B</td><td class="yellow">40.3%</td><td>$194.1B</td><td class="green">55.1%</td><td>$265.4B</td></tr>
+          <tr><td>P2 Year 3</td><td class="yellow">27.1%</td><td>$130.4B</td><td class="yellow">48.2%</td><td>$232.2B</td><td class="green">69.9%</td><td>$337.0B</td></tr>
+          <tr><td>P2 Year 5</td><td class="yellow">29.3%</td><td>$141.3B</td><td class="green">57.7%</td><td>$277.9B</td><td class="green">88.8%</td><td>$427.9B</td></tr>
+          <tr class="highlight-row"><td>P2 Year 6</td><td class="yellow">30.5%</td><td>$147.0B</td><td class="green">63.1%</td><td>$303.9B</td><td class="green">100.1% ✓</td><td>$482.1B</td></tr>
+          <tr class="highlight-row"><td>P2 Year 8 ← End</td><td class="orange">33.1%</td><td>$159.2B</td><td class="green">75.5%</td><td>$363.6B</td><td class="green">127.1%</td><td>$612.2B</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- L Gate Strategy Table -->
+  <div class="card">
+    <h2>L Gate Strategy — Participation vs Solvency (Baseline 4%)</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Year</th>
+            <th>Baseline Emp</th>
+            <th>No Gate L</th>
+            <th>Hard Gate L</th>
+            <th>Hard Gate Emp</th>
+            <th>Waitlist</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Year 1</td><td>8,000</td><td>45.7%</td><td>45.7%</td><td>2,500</td><td>33,000</td></tr>
+          <tr><td>Year 3</td><td>66,000</td><td>45.7%</td><td class="orange">42.7%</td><td>2,500</td><td>867,000</td></tr>
+          <tr><td>Year 7</td><td>220,500</td><td class="yellow">40.9%</td><td class="green">35.0%</td><td>5,845</td><td>7.3M</td></tr>
+          <tr class="highlight-row"><td>Year 10</td><td>399,500</td><td class="yellow">37.2%</td><td class="green">35.0%</td><td>14,953</td><td>18.2M</td></tr>
+          <tr><td>Year 15</td><td>814,500</td><td class="orange">30.4%</td><td class="green">35.0%</td><td>71,560</td><td>50.5M</td></tr>
+          <tr class="highlight-row"><td>Year 20</td><td>1,414,500</td><td class="red">24.0%</td><td class="green">35.0%</td><td>342,454</td><td>107M</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px; padding:12px; background:#161b2e; border-radius:8px; font-size:0.78rem; color:#94a3b8; line-height:1.6">
+      <strong style="color:#f1f5f9">Key Finding:</strong> A hard L≥35% gate maintains solvency but reduces Year 10 participation by 96% (399K → 15K). 
+      The tiered throttle (SS-3 to SS-6 cohort rules) preserves 98.6–99% of baseline participation through Year 12, diverging only at Year 20 (−7.1%).
+    </div>
+  </div>
+</div>
+
+<div class="grid-wide">
+  <div class="card">
+    <h2>Campaign Conclusions</h2>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; font-size:0.82rem; line-height:1.7">
+      <div>
+        <div style="color:#60a5fa; font-weight:700; margin-bottom:6px">Capacity Is the Hard Ceiling</div>
+        <p style="color:#94a3b8">Employee count is identical across all interest rate scenarios — capacity schedule, not interest rate, determines how many employees can enroll. D9 and D14/D15 don't move headcount; they only move L and TTF.</p>
+      </div>
+      <div>
+        <div style="color:#34d399; font-weight:700; margin-bottom:6px">9% Rate — Recommended Sweet Spot</div>
+        <p style="color:#94a3b8">At 9% escrow interest: L stays ≥35% Healthy zone through entire Phase 1. Phase 2 recovers to 75.5% L in 8 years — full shutdown achievable without hitting 100% during operations.</p>
+      </div>
+      <div>
+        <div style="color:#f59e0b; font-weight:700; margin-bottom:6px">12% Rate — Fastest Shutdown Path</div>
+        <p style="color:#94a3b8">At 12% escrow interest: L holds ~49% flat through all 20 years (interest income balances enrollment dilution). Phase 2 L crosses 100% at P2 Year 6, enabling full shutdown in just 6 years post-pause.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const years = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+const l4   = [45.7,46.0,45.7,44.7,43.4,42.2,40.9,39.7,38.5,37.2,35.9,34.5,33.0,31.6,30.4,29.2,28.0,26.7,25.4,24.0];
+const l9   = [46.5,47.3,47.7,47.4,46.9,46.4,45.9,45.3,44.7,44.1,43.5,42.8,42.0,41.3,40.6,39.9,39.2,38.5,37.7,36.8];
+const l12  = [47.0,48.1,48.9,49.1,49.2,49.2,49.2,49.2,49.2,49.2,49.2,49.2,49.1,49.1,49.1,49.0,49.0,49.0,48.9,48.9];
+
+const ctx1 = document.getElementById('lChart').getContext('2d');
+new Chart(ctx1, {
+  type: 'line',
+  data: {
+    labels: years.map(y => 'Yr ' + y),
+    datasets: [
+      { label: '4% (Baseline)', data: l4, borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.08)', tension: 0.3, borderWidth: 2, pointRadius: 3 },
+      { label: '9% (Recommended)', data: l9, borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.08)', tension: 0.3, borderWidth: 2.5, pointRadius: 3 },
+      { label: '12% (Stretch)', data: l12, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', tension: 0.3, borderWidth: 2, pointRadius: 3 },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#94a3b8', font: { size: 11 } } },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` } },
+      annotation: {}
+    },
+    scales: {
+      x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#1e2130' } },
+      y: {
+        min: 20, max: 55,
+        ticks: { color: '#64748b', font: { size: 10 }, callback: v => v + '%' },
+        grid: { color: '#1e2130' },
+      }
+    }
+  }
+});
+
+// Add reference line annotations manually
+const chart1 = Chart.getChart('lChart');
+
+// Phase 2 Recovery
+const p2Years = [0,1,2,3,4,5,6,7,8];
+const p2l4  = [24.0,25.0,26.0,27.1,28.2,29.3,30.5,31.8,33.1];
+const p2l9  = [36.8,40.3,44.1,48.2,52.7,57.7,63.1,69.0,75.5];
+const p2l12 = [48.9,55.1,62.1,69.9,78.8,88.8,100.1,112.8,127.1];
+
+const ctx2 = document.getElementById('p2Chart').getContext('2d');
+new Chart(ctx2, {
+  type: 'line',
+  data: {
+    labels: p2Years.map(y => y === 0 ? 'Pause' : 'P2 Yr ' + y),
+    datasets: [
+      { label: '4%', data: p2l4, borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.08)', tension: 0.3, borderWidth: 2, pointRadius: 4 },
+      { label: '9%', data: p2l9, borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.08)', tension: 0.3, borderWidth: 2.5, pointRadius: 4 },
+      { label: '12%', data: p2l12, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', tension: 0.3, borderWidth: 2, pointRadius: 4 },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#94a3b8', font: { size: 11 } } },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` } },
+    },
+    scales: {
+      x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#1e2130' } },
+      y: {
+        min: 15,
+        ticks: { color: '#64748b', font: { size: 10 }, callback: v => v + '%' },
+        grid: { color: '#1e2130' },
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>
