@@ -1,2 +1,3 @@
 {"timestamp":"2026-04-08T01:11:39.234Z","prompt_snippet":"i already have the extention running, it works in powershell but its not working in wsl:ubuntu. if i clickon live share ","layer":"L1a_registry","route":"diagnose-analyst","keyword":"not working"}
 {"timestamp":"2026-04-08T01:13:45.941Z","prompt_snippet":"live share. in the extension page it says Extension is enabled on 'WSL: Ubuntu' but i still get the error","layer":"L1b_intent_rules","route":"diagnose-analyst → fix-implementer","keyword":null}
+{"timestamp":"2026-04-08T01:18:15.119Z","prompt_snippet":"log.ts:460   ERR Error received from starting extension host (kind: Remote)\nlog.ts:460   ERR The remote extension host t","layer":"L1b_intent_rules","route":"diagnose-analyst → fix-implementer","keyword":null}
