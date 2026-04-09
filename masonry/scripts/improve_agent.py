@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -34,7 +33,6 @@ if str(_SCRIPT_ROOT) not in sys.path:
 
 from masonry.scripts.eval_agent import run_eval
 from masonry.scripts.optimize_with_claude import run as run_optimize
-from masonry.src.writeback import strip_optimized_instructions
 
 _DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 MIN_IMPROVEMENT = 0.02  # Minimum score delta required to keep new instructions
@@ -369,7 +367,7 @@ def run_loop(
         regressions = sum(1 for r in run_history if r["verdict"] == "reverted")
         print(f"[improve] Loops: {len(run_history)} total  |  {improvements} improved  |  {regressions} reverted")
     else:
-        print(f"[improve] Dry run — no changes made.")
+        print("[improve] Dry run — no changes made.")
     print(f"{'='*60}")
 
     return 0
