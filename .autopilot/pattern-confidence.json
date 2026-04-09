@@ -10,9 +10,9 @@
     "uses": 2
   },
   "Explore": {
-    "confidence": 0.9998783055423781,
-    "last_used": "2026-04-07T01:12:59.792Z",
-    "uses": 35
+    "confidence": 0.9999026444339025,
+    "last_used": "2026-04-08T02:37:52.640Z",
+    "uses": 36
   },
   "git-nerd": {
     "confidence": 0.8464,
@@ -100,9 +100,9 @@
     "uses": 1
   },
   "research-analyst": {
-    "confidence": 0.9915557506986803,
-    "last_used": "2026-04-06T21:14:36.398Z",
-    "uses": 16
+    "confidence": 0.9932446005589443,
+    "last_used": "2026-04-08T20:14:20.351Z",
+    "uses": 17
   },
   "peer-reviewer": {
     "confidence": 0.949668352,

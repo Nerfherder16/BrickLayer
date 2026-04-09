@@ -620,3 +620,7 @@
 {"task_id":"t-1775529046284","phase":"post","timestamp":"2026-04-07T02:30:56.475Z","duration_ms":10169,"success":true,"agent":"python-specialist"}
 {"task_id":"t-1775530306337","phase":"pre","timestamp":"2026-04-07T02:51:46.337Z","agent_type":"repo-researcher","task_type":"frontend","complexity":"high","strategy":"balanced"}
 {"task_id":"t-1775530306337","phase":"post","timestamp":"2026-04-07T02:58:48.510Z","duration_ms":422166,"success":true,"agent":"repo-researcher"}
+{"task_id":"t-1775615763251","phase":"pre","timestamp":"2026-04-08T02:36:03.251Z","agent_type":"Explore","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1775615763251","phase":"post","timestamp":"2026-04-08T02:37:52.644Z","duration_ms":109388,"success":true,"agent":"Explore"}
+{"task_id":"t-1775679204780","phase":"pre","timestamp":"2026-04-08T20:13:24.781Z","agent_type":"research-analyst","task_type":"config","complexity":"medium","strategy":"balanced"}
+{"task_id":"t-1775679204780","phase":"post","timestamp":"2026-04-08T20:14:20.361Z","duration_ms":55569,"success":true,"agent":"research-analyst"}

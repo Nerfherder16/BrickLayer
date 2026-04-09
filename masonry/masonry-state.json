@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "diagnose-analyst → fix-implementer",
+    "agent": "rough-in → queen-coordinator → workers",
     "effort": "medium",
-    "prompt_summary": "log.ts:460   ERR Error received from starting extension host (kind: Remote)\nlog.",
-    "timestamp": "2026-04-08T01:18:15.122Z",
+    "prompt_summary": "im a bit confused on this setup, im getting conflicting information. Should obsi",
+    "timestamp": "2026-04-09T13:52:44.761Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
