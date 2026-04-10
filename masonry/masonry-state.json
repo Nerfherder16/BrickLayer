@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "rough-in → queen-coordinator → workers",
+    "agent": "kiln-engineer",
     "effort": "medium",
-    "prompt_summary": "im a bit confused on this setup, im getting conflicting information. Should obsi",
-    "timestamp": "2026-04-09T13:52:44.761Z",
+    "prompt_summary": "we had made a token efficency tab in kiln. it doesnt look like its tracking all ",
+    "timestamp": "2026-04-10T14:09:42.840Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
