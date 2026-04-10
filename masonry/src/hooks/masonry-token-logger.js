@@ -102,13 +102,34 @@ function readTranscriptTokens(transcriptPath) {
   return totals;
 }
 
-function capFile(filePath, maxLines) {
+/**
+ * Write a session record, keeping exactly one entry per session_id.
+ * Replaces any previous entry for this session (earlier Stop events have
+ * lower turn counts). Caps the log at maxLines unique sessions.
+ *
+ * This prevents the log from filling up with 60-100 duplicate entries for
+ * the same long session, which would crowd out history from other days.
+ */
+function writeDeduplicatedRecord(filePath, record, maxLines) {
+  let lines = [];
   try {
     const content = fs.readFileSync(filePath, 'utf8');
-    const lines = content.split('\n').filter((l) => l.trim());
-    if (lines.length <= maxLines) return;
-    const trimmed = lines.slice(lines.length - maxLines).join('\n') + '\n';
-    fs.writeFileSync(filePath, trimmed, 'utf8');
+    lines = content.split('\n').filter((l) => l.trim());
+  } catch (_) {}
+
+  // Remove all previous entries for this session_id
+  const filtered = lines.filter((l) => {
+    try { return JSON.parse(l).session_id !== record.session_id; } catch { return true; }
+  });
+
+  // Append the latest snapshot for this session
+  filtered.push(JSON.stringify(record));
+
+  // Cap to maxLines unique sessions (keep most recent)
+  const capped = filtered.slice(-maxLines);
+
+  try {
+    fs.writeFileSync(filePath, capped.join('\n') + '\n', 'utf8');
   } catch (_) {}
 }
 
@@ -147,11 +168,7 @@ async function main() {
     tool_footprint: totals.tool_footprint,
   };
 
-  try {
-    fs.appendFileSync(LOG_PATH, JSON.stringify(record) + '\n', 'utf8');
-  } catch (_) {}
-
-  capFile(LOG_PATH, MAX_LINES);
+  writeDeduplicatedRecord(LOG_PATH, record, MAX_LINES);
   process.exit(0);
 }
 
