@@ -53,6 +53,7 @@ function readTranscriptTokens(transcriptPath) {
     cache_read_tokens: 0,
     cache_creation_tokens: 0,
     turns: 0,
+    tool_call_count: 0, // total tool invocations (not deduplicated by name)
     tool_footprint: {}, // {tool: {input, cache_read, cache_write}}
   };
 
@@ -85,6 +86,7 @@ function readTranscriptTokens(transcriptPath) {
       for (const item of contentArr) {
         if (item && item.type === 'tool_use' && typeof item.name === 'string') {
           toolNames.add(item.name);
+          totals.tool_call_count++; // count every invocation, not just distinct names
         }
       }
       // Attribute full turn cost to each tool called (not split — context pressure signal)
@@ -141,6 +143,7 @@ async function main() {
     cache_creation_tokens: totals.cache_creation_tokens,
     // Effective tokens = what you actually paid for (cache reads are ~10% cost)
     effective_tokens: totals.input_tokens + Math.round(totals.cache_read_tokens * 0.1),
+    tool_call_count: totals.tool_call_count,
     tool_footprint: totals.tool_footprint,
   };
 
