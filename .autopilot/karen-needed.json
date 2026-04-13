@@ -7,30 +7,6 @@
     "README.md",
     "PROJECT_STATUS.md"
   ],
-  "source_files_changed": [
-    "projects/ADBP3/docs/results.md",
-    "masonry/src/core/config.js",
-    "masonry/src/hooks/masonry-ema-collector.js",
-    "masonry/src/hooks/masonry-handoff.js",
-    "masonry/src/hooks/masonry-pagerank-trigger.js",
-    "masonry/src/hooks/masonry-prompt-router.js",
-    "masonry/src/hooks/masonry-score-trigger.js",
-    "masonry/src/hooks/masonry-session-summary.js",
-    "masonry/src/hooks/masonry-stop-checker.js",
-    "masonry/src/hooks/masonry-system-status.js",
-    "masonry/src/hooks/masonry-training-export.js",
-    ".autopilot/session-notes.md",
-    "docs/reviews/hook-map.md",
-    ".autopilot/archive/spec-20260406-214105.md",
-    ".autopilot/archive/spec-20260406-223338.md",
-    ".autopilot/archive/spec-20260406-224428.md",
-    "docs/reviews/repo-research/autoagent.md",
-    "docs/roadmap-token-efficiency.md",
-    "masonry/src/hooks/masonry-context-safety.js",
-    "masonry/src/hooks/masonry-read-cache-clear.js",
-    "masonry/src/hooks/masonry-read-dedup.js",
-    "masonry/src/hooks/masonry-register.js",
-    "masonry/src/hooks/masonry-session-start.js"
-  ],
-  "timestamp": "2026-04-08T01:18:24.138Z"
+  "source_files_changed": [],
+  "timestamp": "2026-04-13T13:34:48.178Z"
 }

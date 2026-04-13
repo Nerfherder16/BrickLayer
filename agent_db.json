@@ -30,6 +30,20 @@
         "score": 99.5093,
         "duration_ms": null,
         "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-10T14:18:05.026979+00:00",
+        "verdict": "HEALTHY",
+        "score": 99.5093,
+        "duration_ms": null,
+        "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-13T13:34:50.131535+00:00",
+        "verdict": "HEALTHY",
+        "score": 99.5093,
+        "duration_ms": null,
+        "quality_score": null
       }
     ]
   },
@@ -53,6 +67,20 @@
       },
       {
         "timestamp": "2026-04-09T13:53:04.779562+00:00",
+        "verdict": "HEALTHY",
+        "score": 60.0,
+        "duration_ms": null,
+        "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-10T14:18:05.024505+00:00",
+        "verdict": "HEALTHY",
+        "score": 60.0,
+        "duration_ms": null,
+        "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-13T13:34:50.129696+00:00",
         "verdict": "HEALTHY",
         "score": 60.0,
         "duration_ms": null,
@@ -84,6 +112,20 @@
         "score": 60.0,
         "duration_ms": null,
         "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-10T14:18:05.024837+00:00",
+        "verdict": "HEALTHY",
+        "score": 60.0,
+        "duration_ms": null,
+        "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-13T13:34:50.130090+00:00",
+        "verdict": "HEALTHY",
+        "score": 60.0,
+        "duration_ms": null,
+        "quality_score": null
       }
     ]
   },
@@ -107,6 +149,20 @@
       },
       {
         "timestamp": "2026-04-09T13:53:04.780407+00:00",
+        "verdict": "HEALTHY",
+        "score": 60.0,
+        "duration_ms": null,
+        "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-10T14:18:05.025367+00:00",
+        "verdict": "HEALTHY",
+        "score": 60.0,
+        "duration_ms": null,
+        "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-13T13:34:50.130311+00:00",
         "verdict": "HEALTHY",
         "score": 60.0,
         "duration_ms": null,
@@ -138,6 +194,20 @@
         "score": 60.0,
         "duration_ms": null,
         "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-10T14:18:05.025726+00:00",
+        "verdict": "HEALTHY",
+        "score": 60.0,
+        "duration_ms": null,
+        "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-13T13:34:50.130795+00:00",
+        "verdict": "HEALTHY",
+        "score": 60.0,
+        "duration_ms": null,
+        "quality_score": null
       }
     ]
   },
@@ -161,6 +231,20 @@
       },
       {
         "timestamp": "2026-04-09T13:53:04.780838+00:00",
+        "verdict": "HEALTHY",
+        "score": 100.0,
+        "duration_ms": null,
+        "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-10T14:18:05.026115+00:00",
+        "verdict": "HEALTHY",
+        "score": 100.0,
+        "duration_ms": null,
+        "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-13T13:34:50.131015+00:00",
         "verdict": "HEALTHY",
         "score": 100.0,
         "duration_ms": null,
@@ -192,6 +276,20 @@
         "score": 100.0,
         "duration_ms": null,
         "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-10T14:18:05.026419+00:00",
+        "verdict": "HEALTHY",
+        "score": 100.0,
+        "duration_ms": null,
+        "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-13T13:34:50.131198+00:00",
+        "verdict": "HEALTHY",
+        "score": 100.0,
+        "duration_ms": null,
+        "quality_score": null
       }
     ]
   },
@@ -215,6 +313,20 @@
       },
       {
         "timestamp": "2026-04-09T13:53:04.781252+00:00",
+        "verdict": "HEALTHY",
+        "score": 100.0,
+        "duration_ms": null,
+        "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-10T14:18:05.026668+00:00",
+        "verdict": "HEALTHY",
+        "score": 100.0,
+        "duration_ms": null,
+        "quality_score": null
+      },
+      {
+        "timestamp": "2026-04-13T13:34:50.131367+00:00",
         "verdict": "HEALTHY",
         "score": 100.0,
         "duration_ms": null,
