@@ -45,3 +45,4 @@
 {"timestamp":"2026-04-13T19:14:45.244Z","prompt_snippet":"gotcha, how can we perfect the hook then so we dont constantly get that error and waste tokens?","layer":"L1b_intent_rules","route":"diagnose-analyst → fix-implementer","keyword":null}
 {"timestamp":"2026-04-13T20:51:30.027Z","prompt_snippet":"ok not seeing changes made to the dashboard","layer":"L1b_intent_rules","route":"uiux-master","keyword":null}
 {"timestamp":"2026-04-14T12:42:14.306Z","prompt_snippet":"take this file \"C:\\Users\\trg16\\Downloads\\RAISE - REVISED CREDIT RECYCLE AND GAP MODEL APRIL 13th.xlsx\" and read it throu","layer":"L2_semantic","route":"spreadsheet-wizard","sim":0.653}
+{"timestamp":"2026-04-14T12:50:39.517Z","prompt_snippet":"there are a few things id like to better understand about this model pertaining to the tokenomics. Our \"credit\" or token","layer":"L1a_registry","route":"solana-specialist","keyword":"solana"}
