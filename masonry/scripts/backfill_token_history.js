@@ -17,8 +17,8 @@ const path = require('node:path');
 const os = require('node:os');
 
 const LOG_PATH = path.join(os.homedir(), '.mas', 'token-log.jsonl');
-const PROJECTS_DIR = path.join(os.homedir(), '.claude', 'projects');
-const MAX_LINES = 500;
+const PROJECTS_DIR = process.argv[2] || path.join(os.homedir(), '.claude', 'projects');
+const MAX_LINES = 5000;
 
 // ---------------------------------------------------------------------------
 // Transcript parsing (mirrors masonry-token-logger.js)

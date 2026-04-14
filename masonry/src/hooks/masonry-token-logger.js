@@ -16,7 +16,7 @@ const path = require('path');
 const os = require('os');
 
 const LOG_PATH = path.join(os.homedir(), '.mas', 'token-log.jsonl');
-const MAX_LINES = 500;
+const MAX_LINES = 5000;
 
 function ensureDir(p) {
   try { fs.mkdirSync(path.dirname(p), { recursive: true }); } catch (_) {}
