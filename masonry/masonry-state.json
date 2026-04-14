@@ -1,9 +1,9 @@
 {
   "last_route": {
     "agent": "solana-specialist",
-    "effort": "medium",
-    "prompt_summary": "there are a few things id like to better understand about this model pertaining ",
-    "timestamp": "2026-04-14T12:50:39.520Z",
+    "effort": "low",
+    "prompt_summary": "does solana itself have a staking protocol?",
+    "timestamp": "2026-04-14T13:44:12.233Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
