@@ -11,7 +11,8 @@ from masonry.src.schemas.payloads import AgentRegistryEntry
 
 _KNOWN_FIELDS = {
     "name", "file", "description", "capabilities", "modes", "tier",
-    "routing_keywords", "model", "input_schema", "output_schema", "optimized_prompt",
+    "routing_keywords", "triggers", "tools", "model", "input_schema", "output_schema",
+    "optimized_prompt",
 }
 
 

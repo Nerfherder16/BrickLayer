@@ -22,7 +22,6 @@ def _make_fallback(fallback_reason: str = "ambiguous") -> RoutingDecision:
         layer="fallback",
         confidence=0.0,
         reason="Ambiguous request -- asking user for clarification",
-        fallback_reason=fallback_reason,
     )
 
 
@@ -43,15 +42,6 @@ def _load_registry(project_dir: Path) -> list[AgentRegistryEntry]:
 def route(request_text: str, project_dir: Path) -> RoutingDecision:
     """Route a request through all four layers. Always returns a RoutingDecision."""
     registry = _load_registry(project_dir)
-
-    if not registry:
-        fallback = _make_fallback("registry_empty")
-        print(
-            f"[ROUTER] Layer fallback resolved: {fallback.target_agent} "
-            f"(registry empty, confidence {fallback.confidence})",
-            file=sys.stderr,
-        )
-        return fallback
 
     # Layer 1: Deterministic
     decision = route_deterministic(request_text, project_dir, registry)

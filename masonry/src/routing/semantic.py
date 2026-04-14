@@ -23,13 +23,8 @@ from masonry.src.schemas.payloads import AgentRegistryEntry, RoutingDecision
 # Module-level cache: corpus_key -> embedding vector
 _embedding_cache: dict[str, list[float]] = {}
 
-# Ollama URL — read OLLAMA_URL first, fall back to OLLAMA_HOST (set in settings.json),
-# then the hardcoded default. This ensures semantic routing works on all machines.
-_OLLAMA_URL = (
-    os.environ.get("OLLAMA_URL")
-    or os.environ.get("OLLAMA_HOST")
-    or os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-)
+# Ollama URL — read OLLAMA_URL env var, fall back to hardcoded default.
+_OLLAMA_URL = os.environ.get("OLLAMA_URL") or "http://192.168.50.62:11434"
 _DEFAULT_OLLAMA_URL = _OLLAMA_URL  # kept for backward-compat references
 _DEFAULT_MODEL = "qwen3-embedding:0.6b"
 _DEFAULT_THRESHOLD = 0.60  # lowered from 0.70 per R3.1 calibration (15% → ~40% coverage)

@@ -77,7 +77,7 @@ Apply `constants.py` thresholds explicitly:
 
 ## Output format
 
-Write findings to `findings/{question_id}.md`:
+Write findings to `findings/wave{wave_number}/{question_id}.md`:
 
 ```markdown
 # {question_id}: {question text}

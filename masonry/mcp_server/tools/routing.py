@@ -10,13 +10,11 @@ from masonry.mcp_server.js_engine import _call_js_engine, _REPO_ROOT
 
 def _python_route_fallback(request_text: str, project_dir: Path) -> dict:
     """Python fallback for masonry_route when JS engine is unavailable."""
-    import dataclasses  # noqa: PLC0415
-
     try:
         from masonry.src.routing.router import route  # noqa: PLC0415
 
         decision = route(request_text, project_dir)
-        return dataclasses.asdict(decision)
+        return decision.model_dump()
     except Exception as exc:
         return {
             "error": str(exc),
@@ -25,6 +23,30 @@ def _python_route_fallback(request_text: str, project_dir: Path) -> dict:
             "confidence": 0.0,
             "reason": f"Router unavailable: {str(exc)[:80]}",
         }
+
+
+def _normalize_route_result(result: dict) -> dict:
+    """Normalize routing result to canonical format with target_agent/layer/confidence keys."""
+    if "target_agent" in result:
+        return result
+    # JS engine may return {agent, layer, confidence, note} — normalize to canonical
+    normalized = dict(result)
+    if "agent" in normalized and "target_agent" not in normalized:
+        normalized["target_agent"] = normalized.pop("agent")
+    # Normalize layer codes like "L1", "L1a", "L2", "L3" to descriptive names
+    layer = normalized.get("layer", "")
+    layer_map = {
+        "L1": "deterministic", "L1a": "deterministic",
+        "L2": "semantic",
+        "L3": "llm",
+        "L4": "fallback",
+    }
+    if layer in layer_map:
+        normalized["layer"] = layer_map[layer]
+    # Ensure confidence is present
+    if "confidence" not in normalized:
+        normalized["confidence"] = 1.0 if normalized.get("layer") == "deterministic" else 0.0
+    return normalized
 
 
 def _tool_masonry_route(args: dict) -> dict:
@@ -39,7 +61,7 @@ def _tool_masonry_route(args: dict) -> dict:
     js_args = ["--prompt", request_text]
     js_result = _call_js_engine("route.js", js_args, timeout=15)
     if js_result is not None:
-        return js_result
+        return _normalize_route_result(js_result)
 
     return _python_route_fallback(request_text, project_dir)
 
@@ -85,23 +107,11 @@ def _tool_masonry_registry_list(args: dict) -> dict:
     tier_filter = args.get("tier")
     mode_filter = args.get("mode")
 
-    # Try JS engine first
-    js_args: list[str] = []
-    if tier_filter:
-        js_args += ["--tier", tier_filter]
-    if mode_filter:
-        js_args += ["--mode", mode_filter]
-    js_result = _call_js_engine("registry-list.js", js_args, timeout=10)
-    if js_result is not None:
-        return js_result
-
     # Python fallback
     registry_path = Path(
         args.get("registry_path", str(_REPO_ROOT / "masonry" / "agent_registry.yml"))
     )
     try:
-        import dataclasses  # noqa: PLC0415
-
         from masonry.src.schemas.registry_loader import (  # noqa: PLC0415
             load_registry,
             get_agents_for_mode,
@@ -116,7 +126,7 @@ def _tool_masonry_registry_list(args: dict) -> dict:
 
         return {
             "agents": [
-                {k: v for k, v in dataclasses.asdict(a).items() if v is not None}
+                {k: v for k, v in a.model_dump().items() if v is not None}
                 for a in agents
             ],
             "count": len(agents),

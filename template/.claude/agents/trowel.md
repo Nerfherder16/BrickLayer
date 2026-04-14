@@ -256,7 +256,7 @@ Prior agent context (pull from Recall before invoking):
 recall_search(query="{question text}", domain="{project}-bricklayer", tags=["agent:{agent_name}"])
 Include any returned memories as: "Prior findings by {agent_name}: {summary}"
 
-Write the finding to findings/{question_id}.md following the finding format in {agent_name}.md.
+Write the finding to findings/wave{wave_number}/{question_id}.md following the finding format in {agent_name}.md. Create the wave directory (e.g., findings/wave1/) if it does not exist.
 The finding MUST include `**Agent**: {agent_name}` on the line after `**Question**:` — required for DSPy training data attribution.
 ```
 

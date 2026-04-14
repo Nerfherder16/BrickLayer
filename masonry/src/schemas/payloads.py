@@ -33,6 +33,8 @@ class AgentRegistryEntry(BaseModel):
     modes: list[str] = Field(default_factory=list)
     tier: Literal["draft", "candidate", "trusted", "retired"] = "draft"
     routing_keywords: list[str] = Field(default_factory=list)
+    triggers: list[str] = Field(default_factory=list)
+    tools: list[str] = Field(default_factory=list)
     model: Literal["opus", "sonnet", "haiku"] = "sonnet"
     input_schema: str = "QuestionPayload"
     output_schema: str = "FindingPayload"

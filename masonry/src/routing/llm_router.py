@@ -105,6 +105,9 @@ def route_llm(
         if target not in agent_names:
             return None
 
+        if not reason:
+            reason = f"LLM selected {target}"
+
         return RoutingDecision(
             target_agent=target,
             layer="llm",

@@ -12,6 +12,7 @@
 **/.mas/
 !**/.mas/kiln.json
 !**/.mas/context.md
+**/.omc/
 
 # Node.js
 node_modules/

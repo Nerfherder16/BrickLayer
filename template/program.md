@@ -286,7 +286,7 @@ Use `N/A` for agent_name on manual runs if no agent was invoked.
 
 ## Finding Format
 
-Write each finding to `findings/<question_id>.md` (flat directory, no wave subdirectories):
+Write each finding to `findings/wave{N}/<question_id>.md` where N is the current wave number (e.g., `findings/wave1/Q-001.md`).
 
 ```markdown
 # Finding: <question_id> — <short title>

@@ -34,12 +34,34 @@ def configure_dspy(api_key: Optional[str] = None, backend: str = "anthropic") ->
 
 
 def build_metric(sig_cls: Any) -> Callable:
-    """Return a metric function appropriate for the given signature class."""
+    """Return a metric function appropriate for the given signature class.
+
+    Scoring breakdown (weights sum to 1.0):
+      - Verdict match:         0.4
+      - Evidence quality:      0.4  (based on evidence length >= 100 chars)
+      - Confidence calibration: 0.2 (how close prediction confidence is to example confidence)
+    """
     def metric(example: Any, prediction: Any, trace: Any = None) -> float:
         try:
+            # Verdict match (0.4 weight)
             verdict = getattr(prediction, "verdict", "").strip().upper()
             expected = getattr(example, "verdict", "").strip().upper()
-            return 1.0 if verdict == expected else 0.0
+            verdict_score = 0.4 if verdict == expected else 0.0
+
+            # Evidence quality (0.4 weight) — length-based, target 100+ chars
+            evidence = getattr(prediction, "evidence", "") or ""
+            ev_len = len(evidence)
+            ev_score = min(ev_len / 100.0, 1.0) * 0.4
+
+            # Confidence calibration (0.2 weight) — closeness to example confidence
+            try:
+                pred_conf = float(getattr(prediction, "confidence", 0.0))
+                ex_conf = float(getattr(example, "confidence", 0.75))
+                cal_score = max(0.0, 1.0 - abs(pred_conf - ex_conf)) * 0.2
+            except (TypeError, ValueError):
+                cal_score = 0.0
+
+            return verdict_score + ev_score + cal_score
         except Exception:
             return 0.0
     return metric
