@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "solana-specialist",
+    "agent": "frontier-analyst",
     "effort": "low",
-    "prompt_summary": "does solana itself have a staking protocol?",
-    "timestamp": "2026-04-14T13:44:12.233Z",
+    "prompt_summary": "what if we blended it and kept the 4.5% for escrow, being that its us treasuries",
+    "timestamp": "2026-04-14T14:36:03.912Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
