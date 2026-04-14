@@ -1,16 +1,1 @@
-{
-  "project": "hello-build-smoke-test",
-  "status": "BUILDING",
-  "strategy": "aggressive",
-  "branch": "bricklayer-v2/mar24-parallel",
-  "tasks": [
-    {
-      "id": 1,
-      "description": "Create hello_build.py script and its test",
-      "status": "IN_PROGRESS",
-      "depends_on": [],
-      "wave": 1
-    }
-  ],
-  "updated_at": "2026-04-07T02:44:16.463Z"
-}
+{"status": "idle"}
