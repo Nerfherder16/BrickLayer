@@ -14,12 +14,10 @@ def _tool_masonry_status(args: dict) -> dict:
     """Return current campaign status for a project directory."""
     project_dir = Path(args.get("project_dir", os.getcwd()))
 
-    # Try JS engine first
+    # Try JS engine first; augment with .mas/ telemetry before returning
     js_result = _call_js_engine("status.js", ["--project-dir", str(project_dir)], timeout=10)
-    if js_result is not None:
-        return js_result
 
-    # Python fallback
+    # Python fallback (also used to augment JS result with .mas/ data)
     state_file = project_dir / "masonry-state.json"
     questions_file = project_dir / "questions.md"
 
@@ -83,6 +81,12 @@ def _tool_masonry_status(args: dict) -> dict:
                 pass
         if mas_data:
             result["mas"] = mas_data
+
+    # If JS engine returned data, use it as base but inject .mas/ telemetry
+    if js_result is not None:
+        if "mas" in result:
+            js_result["mas"] = result["mas"]
+        return js_result
 
     return result
 
