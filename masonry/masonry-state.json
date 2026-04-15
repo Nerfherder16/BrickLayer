@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "Trowel (campaign conductor)",
-    "effort": "medium",
-    "prompt_summary": "just want to make sure it has the latest masonry/bricklayer build",
-    "timestamp": "2026-04-14T20:36:22.736Z",
+    "agent": "solana-specialist",
+    "effort": "low",
+    "prompt_summary": "we were working on tokenomics and staking",
+    "timestamp": "2026-04-15T16:33:47.989Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
