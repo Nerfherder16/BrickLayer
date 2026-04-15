@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "spec-writer",
-    "effort": "medium",
-    "prompt_summary": "Task: Enhance the plan skill with no-placeholder enforcement\n\nProject root: /hom",
-    "timestamp": "2026-04-15T19:47:26.667Z",
+    "agent": "developer",
+    "effort": "high",
+    "prompt_summary": "Task: Create the receiving-code-review skill\n\nProject root: /home/nerfherder/Dev",
+    "timestamp": "2026-04-15T19:47:50.985Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
