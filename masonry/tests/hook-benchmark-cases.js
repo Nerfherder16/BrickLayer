@@ -162,9 +162,9 @@ module.exports = async function runCases(ctx) {
 
   // ── masonry-jcodemunch-nudge ─────────────────────────────────────────────────
 
-  await test('masonry-jcodemunch-nudge: BLOCKS large source file (>8KB)', async () => {
+  await test('masonry-jcodemunch-nudge: BLOCKS large source file (>20KB)', async () => {
     const jsFile = path.join(os.tmpdir(), `nudge-big-${Date.now()}.js`);
-    fs.writeFileSync(jsFile, makeBigJs(9000));
+    fs.writeFileSync(jsFile, makeBigJs(22000));
     try {
       const r = await runHook(hook('masonry-jcodemunch-nudge.js'),
         { tool_name: 'Read', tool_input: { file_path: jsFile } }, {});
@@ -175,7 +175,7 @@ module.exports = async function runCases(ctx) {
     }
   });
 
-  await test('masonry-jcodemunch-nudge: NUDGES medium source file (3-8KB)', async () => {
+  await test('masonry-jcodemunch-nudge: NUDGES medium source file (3-20KB)', async () => {
     const jsFile = path.join(os.tmpdir(), `nudge-med-${Date.now()}.js`);
     fs.writeFileSync(jsFile, makeBigJs(4500));
     try {

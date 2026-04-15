@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "Trowel (campaign conductor)",
+    "agent": "spec-writer",
     "effort": "medium",
-    "prompt_summary": "would fixing any of these upset any other hooks currently running, within or out",
-    "timestamp": "2026-04-15T19:28:53.795Z",
+    "prompt_summary": "Task: Enhance the plan skill with no-placeholder enforcement\n\nProject root: /hom",
+    "timestamp": "2026-04-15T19:47:26.667Z",
     "turn_count": 1
   },
   "mortar_consulted": true,

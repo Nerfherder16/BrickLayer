@@ -47,8 +47,7 @@ function estimateContextPct(transcriptPath) {
         const obj = JSON.parse(lines[i]);
         // Claude Code encodes context window info in some event types
         if (obj.context_window?.used_percentage != null) {
-          // CC reports % against 200K; Sonnet/Opus 4.6 have 1M window — rescale
-          return Math.round(obj.context_window.used_percentage * 0.2);
+          return Math.round(obj.context_window.used_percentage);
         }
         if (obj.usage?.input_tokens != null && obj.usage?.context_window != null) {
           return Math.round((obj.usage.input_tokens / obj.usage.context_window) * 100);

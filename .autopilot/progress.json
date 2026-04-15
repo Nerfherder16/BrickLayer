@@ -1,1 +1,17 @@
-{"status": "idle"}
+{
+  "project": "superpowers-integration",
+  "status": "BUILDING",
+  "strategy": "balanced",
+  "tasks": [
+    { "id": 1, "description": "Description trap audit: rewrite all agent descriptions in agent_registry.yml", "status": "PENDING", "depends_on": [], "wave": 1 },
+    { "id": 2, "description": "Add 4-status output protocol and rationalization counter-table to worker-specialist", "status": "PENDING", "depends_on": [], "wave": 1 },
+    { "id": 3, "description": "Update queen-coordinator to enforce 2-stage sequential review", "status": "PENDING", "depends_on": [2], "wave": 2 },
+    { "id": 4, "description": "Enhance plan skill with no-placeholder enforcement", "status": "PENDING", "depends_on": [], "wave": 1 },
+    { "id": 5, "description": "Create receiving-code-review skill", "status": "PENDING", "depends_on": [], "wave": 1 },
+    { "id": 6, "description": "Create brainstorming skill (SKILL.md only, without visual server)", "status": "PENDING", "depends_on": [], "wave": 1 },
+    { "id": 7, "description": "Build visual brainstorming HTTP server", "status": "PENDING", "depends_on": [], "wave": 1 },
+    { "id": 8, "description": "Wire brainstorming skill to visual server start", "status": "PENDING", "depends_on": [6, 7], "wave": 2 },
+    { "id": 9, "description": "Add superpowers skill-check directive to masonry-session-start", "status": "PENDING", "depends_on": [], "wave": 1 }
+  ],
+  "updated_at": "2026-04-15T00:00:00.000Z"
+}

@@ -107,49 +107,6 @@ async function main() {
     }
   }
 
-  // ── Phase 1.5: Mortar routing soft gate ─────────────────────────────────
-  // Warn (not block) when Write/Edit fires without Mortar being consulted.
-  // The prompt-router writes mortar_consulted=false at turn start;
-  // subagent-tracker sets it to true when Mortar is spawned.
-  // Skip: state files, config files, build/fix mode (already orchestrated).
-  try {
-    const os = require('os');
-    const gateFile = process.env.BL_GATE_FILE || path.join(os.tmpdir(), 'masonry-mortar-gate.json');
-    if (existsSync(gateFile)) {
-      const gate = JSON.parse(readFileSync(gateFile, 'utf8'));
-      const gateAge = Date.now() - new Date(gate.timestamp || 0).getTime();
-      if (!gate.mortar_consulted && gateAge < 300_000) { // 5 min freshness
-        // Don't warn for state/config files or build-mode work
-        const skipPatterns = [
-          /\.(autopilot|mas|ui)[/\\]/,
-          /masonry-state\.json$/,
-          /\.claude[/\\]/,
-          /node_modules[/\\]/,
-          /package-lock\.json$/,
-        ];
-        const filePath = targetFile || '';
-        const isStateFile = skipPatterns.some(p => p.test(filePath));
-
-        // Don't warn during active build/fix mode
-        const buildMode = (() => {
-          try {
-            const ap = findAutopilotDir(cwd);
-            if (!ap) return false;
-            const m = readFileSync(path.join(ap.autopilotDir, 'mode'), 'utf8').trim();
-            return m === 'build' || m === 'fix';
-          } catch { return false; }
-        })();
-
-        if (!isStateFile && !buildMode) {
-          process.stderr.write(
-            `[Masonry] ⚠ Write/Edit without Mortar routing. ` +
-            `Route through Mortar first for code review and TDD.\n`
-          );
-        }
-      }
-    }
-  } catch {}
-
   // ── Phase 2: File backup (build/fix mode only) ────────────────────────────
   try {
     if (!targetFile) process.exit(0);

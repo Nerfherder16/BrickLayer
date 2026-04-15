@@ -68,9 +68,9 @@ describe("masonry-jcodemunch-nudge.js", () => {
     expect(result.stderr).toBe("");
   });
 
-  // ── Nudge zone (3–8KB) ──────────────────────────────────────────────────────
+  // ── Nudge zone (3–20KB) ─────────────────────────────────────────────────────
 
-  it("nudges but does NOT block medium-sized code files (3–8KB)", () => {
+  it("nudges but does NOT block medium-sized code files (3–20KB)", () => {
     const medium = makeTempFile(".py", 5000);
     const result = runHook({ file_path: medium });
     expect(result.exit).toBe(0); // non-blocking
@@ -79,10 +79,18 @@ describe("masonry-jcodemunch-nudge.js", () => {
     expect(result.stderr).not.toContain("BLOCKED");
   });
 
-  // ── Block zone (> 8KB) ──────────────────────────────────────────────────────
+  it("nudges but does NOT block 15KB code files (still in nudge zone)", () => {
+    const medium = makeTempFile(".ts", 15000);
+    const result = runHook({ file_path: medium });
+    expect(result.exit).toBe(0);
+    expect(result.stderr).toContain("consider symbol-level retrieval");
+    expect(result.stderr).not.toContain("BLOCKED");
+  });
 
-  it("BLOCKS large code files (> 8KB) with exit 2", () => {
-    const large = makeTempFile(".js", 10000);
+  // ── Block zone (> 20KB) ──────────────────────────────────────────────────────
+
+  it("BLOCKS large code files (> 20KB) with exit 2", () => {
+    const large = makeTempFile(".js", 22000);
     const result = runHook({ file_path: large });
     expect(result.exit).toBe(2);
     expect(result.stderr).toContain("BLOCKED");
@@ -93,35 +101,35 @@ describe("masonry-jcodemunch-nudge.js", () => {
   });
 
   it("BLOCKS large TypeScript files", () => {
-    const large = makeTempFile(".ts", 12000);
+    const large = makeTempFile(".ts", 22000);
     const result = runHook({ file_path: large });
     expect(result.exit).toBe(2);
     expect(result.stderr).toContain("BLOCKED");
   });
 
   it("BLOCKS large Python files", () => {
-    const large = makeTempFile(".py", 9000);
+    const large = makeTempFile(".py", 22000);
     const result = runHook({ file_path: large });
     expect(result.exit).toBe(2);
     expect(result.stderr).toContain("BLOCKED");
   });
 
   it("BLOCKS large Rust files", () => {
-    const large = makeTempFile(".rs", 15000);
+    const large = makeTempFile(".rs", 22000);
     const result = runHook({ file_path: large });
     expect(result.exit).toBe(2);
     expect(result.stderr).toContain("BLOCKED");
   });
 
   it("block message includes exact file_path for copy-paste convenience", () => {
-    const large = makeTempFile(".js", 10000);
+    const large = makeTempFile(".js", 22000);
     const result = runHook({ file_path: large });
     expect(result.exit).toBe(2);
     expect(result.stderr).toContain(large);
   });
 
   it("block message includes bypass instruction (offset=0)", () => {
-    const large = makeTempFile(".js", 10000);
+    const large = makeTempFile(".js", 22000);
     const result = runHook({ file_path: large });
     expect(result.exit).toBe(2);
     expect(result.stderr).toContain("offset=0");
@@ -130,7 +138,7 @@ describe("masonry-jcodemunch-nudge.js", () => {
   // ── Size display ─────────────────────────────────────────────────────────────
 
   it("shows KB size in the block message", () => {
-    const large = makeTempFile(".go", 10000);
+    const large = makeTempFile(".go", 22000);
     const result = runHook({ file_path: large });
     expect(result.exit).toBe(2);
     expect(result.stderr).toMatch(/\d+\.\d+KB/);

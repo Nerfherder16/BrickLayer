@@ -8,11 +8,12 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    ".autopilot/spec.md",
     "docs/reviews/2026-04-15-hooks-audit.md",
     "masonry/src/dspy_pipeline/generated/AUDIT_REPORT.py",
     "masonry/src/dspy_pipeline/generated/crucible.py",
     "masonry/src/dspy_pipeline/generated/fix-agent.py",
     "C:/Users/trg16/Dev/Bricklayer2.0/masonry/src/core/registry.js"
   ],
-  "timestamp": "2026-04-15T19:31:57.939Z"
+  "timestamp": "2026-04-15T19:41:36.452Z"
 }

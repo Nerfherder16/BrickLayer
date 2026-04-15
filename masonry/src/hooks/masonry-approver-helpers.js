@@ -11,11 +11,6 @@ const { readStdin } = require('./session/stop-utils');
 // A build is considered active if progress.json was written within this window.
 const BUILD_FRESHNESS_MS = 30 * 60 * 1000; // 30 minutes
 
-// Mortar session token must be this fresh to count as "current turn".
-const MORTAR_SESSION_FRESHNESS_MS = 4 * 60 * 60 * 1000; // 4 hours
-
-const MASONRY_STATE_PATH = join(dirname(dirname(__dirname)), "masonry-state.json");
-
 function isFresh(filePath) {
   try {
     const { mtimeMs } = statSync(filePath);
@@ -95,12 +90,12 @@ function isResearchProject(dir) {
 
 function isMortarConsulted() {
   try {
-    const state = JSON.parse(readFileSync(MASONRY_STATE_PATH, "utf8"));
-    if (!state.mortar_consulted) return false;
-    if (!state.mortar_session_id) return false;
-    const sessionTime = new Date(state.mortar_session_id).getTime();
-    if (isNaN(sessionTime)) return false;
-    return Date.now() - sessionTime < MORTAR_SESSION_FRESHNESS_MS;
+    const os = require('os');
+    const gateFile = process.env.BL_GATE_FILE || join(os.tmpdir(), 'masonry-mortar-gate.json');
+    const gate = JSON.parse(readFileSync(gateFile, 'utf8'));
+    if (!gate.mortar_consulted) return false;
+    const gateAge = Date.now() - new Date(gate.timestamp || 0).getTime();
+    return gateAge < 10 * 60 * 1000; // 10-minute window, matching masonry-routing-gate.js
   } catch {
     return false;
   }

@@ -16,7 +16,7 @@ const path = require('path');
 const CODE_EXTS = new Set(['.py', '.js', '.ts', '.tsx', '.jsx', '.mjs', '.cjs', '.rs', '.go', '.kt']);
 
 const NUDGE_THRESHOLD = 3 * 1024;  // 3 KB — below this, silent pass
-const BLOCK_THRESHOLD = 8 * 1024;  // 8 KB — above this, block with exit 2
+const BLOCK_THRESHOLD = 20 * 1024; // 20 KB — above this, block with exit 2
 
 // Files that are routinely read whole and should not be nudged
 const EXEMPT_PATTERNS = [
@@ -81,7 +81,7 @@ async function main() {
     process.exit(2);
   }
 
-  // Medium (3–8KB): nudge only, don't block
+  // Medium (3–20KB): nudge only, don't block
   process.stderr.write(
     `[jcodemunch] ${basename} is ${kb}KB — consider symbol-level retrieval to save tokens:\n` +
     `  → mcp__jcodemunch__get_file_outline  or  mcp__jcodemunch__get_symbol_source\n`
