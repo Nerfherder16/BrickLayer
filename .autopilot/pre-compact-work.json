@@ -1,19 +1,19 @@
 {
-  "saved_at": "2026-04-14T15:28:10.070Z",
+  "saved_at": "2026-04-14T20:38:14.966Z",
   "session_id": "9649206a-5d8e-4541-8204-423602fb1315",
   "recent_edits": [
-    "Edit → TokenInsightsWidgets.tsx",
-    "Edit → TokenInsightsWidgets.tsx",
-    "Edit → TokenInsights.tsx",
-    "Edit → TokenInsights.tsx",
-    "Edit → TokenInsights.tsx",
-    "Edit → TokenInsights.tsx",
-    "Edit → TokenInsights.tsx",
-    "Edit → TokenInsights.tsx",
-    "Edit → backfill_token_history.js",
-    "Edit → backfill_token_history.js",
-    "Edit → masonry-token-logger.js",
-    "Edit → tokenReader.ts"
+    "Edit → routing.py",
+    "Edit → registry_loader.py",
+    "Edit → routing.py",
+    "Edit → routing.py",
+    "Write → SKILL.md",
+    "Write → SKILL.md",
+    "Write → SKILL.md",
+    "Write → SKILL.md",
+    "Write → SKILL.md",
+    "Write → SKILL.md",
+    "Write → SKILL.md",
+    "Edit → research-analyst.md"
   ],
-  "total_edits": 13
+  "total_edits": 47
 }

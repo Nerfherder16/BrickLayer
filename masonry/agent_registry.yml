@@ -3,7 +3,8 @@ agents:
 - name: quantitative-analyst
   file: .claude/agents/quantitative-analyst.md
   model: sonnet
-  description: Runs simulations, parameter sweeps, and boundary-finding for BL2.0 campaigns
+  description: Runs simulations, parameter sweeps, and boundary-finding for BL2.0
+    campaigns
   modes:
   - simulate
   capabilities:
@@ -76,7 +77,8 @@ agents:
 - name: retrospective
   file: .claude/agents/retrospective.md
   model: sonnet
-  description: Analyzes campaign retrospectives for process improvements and pattern extraction
+  description: Analyzes campaign retrospectives for process improvements and pattern
+    extraction
   modes:
   - research
   - evolve
@@ -113,7 +115,8 @@ agents:
 - name: mortar
   file: ~/.claude/agents/mortar.md
   model: sonnet
-  description: Build orchestrator — manages state, spawns worker agents, validates results, commits
+  description: "Build orchestrator \u2014 manages state, spawns worker agents, validates\
+    \ results, commits"
   modes:
   - agent
   capabilities:
@@ -384,7 +387,8 @@ agents:
 - name: rust-developer
   file: ~/.claude/agents/rust-developer.md
   model: sonnet
-  description: 'Implements Rust code: systems utilities, CLI tools, performance-critical components'
+  description: 'Implements Rust code: systems utilities, CLI tools, performance-critical
+    components'
   modes:
   - fix
   - agent
@@ -541,7 +545,8 @@ agents:
 - name: evolve-optimizer
   file: .claude/agents/evolve-optimizer.md
   model: opus
-  description: Evolves agent prompts and strategies based on campaign performance data
+  description: Evolves agent prompts and strategies based on campaign performance
+    data
   modes:
   - evolve
   capabilities:
@@ -641,9 +646,10 @@ agents:
 - name: code-reviewer
   file: .claude/agents/code-reviewer.md
   model: sonnet
-  description: Pre-commit code quality gate. Runs after fix-implementer produces a fix — reviews the diff for correctness,
-    style, lint issues, and regression risk before the commit is made. Returns APPROVED, NEEDS_REVISION, or BLOCKED. Fix-implementer
-    must not commit until this agent returns APPROVED.
+  description: "Pre-commit code quality gate. Runs after fix-implementer produces\
+    \ a fix \u2014 reviews the diff for correctness, style, lint issues, and regression\
+    \ risk before the commit is made. Returns APPROVED, NEEDS_REVISION, or BLOCKED.\
+    \ Fix-implementer must not commit until this agent returns APPROVED."
   modes:
   - review
   capabilities: []
@@ -663,9 +669,11 @@ agents:
 - name: fix-implementer
   file: .claude/agents/fix-implementer.md
   model: sonnet
-  description: Activate when a root cause is known and a specific fix needs to be implemented and verified. Requires a DIAGNOSIS_COMPLETE
-    specification — will not attempt fixes without one. Use after diagnose-analyst has run, in campaign mode (F-prefix questions)
-    or directly in conversation when a diagnosis is already in hand.
+  description: "Activate when a root cause is known and a specific fix needs to be\
+    \ implemented and verified. Requires a DIAGNOSIS_COMPLETE specification \u2014\
+    \ will not attempt fixes without one. Use after diagnose-analyst has run, in campaign\
+    \ mode (F-prefix questions) or directly in conversation when a diagnosis is already\
+    \ in hand."
   modes:
   - diagnose
   capabilities: []
@@ -690,9 +698,11 @@ agents:
 - name: git-nerd
   file: .claude/agents/git-nerd.md
   model: haiku
-  description: 'Autonomous GitHub operations agent for BrickLayer 2.0 projects. Reads current repo state, executes appropriate
-    git/gh operations (branch, stage, commit, PR create/update), and writes GITHUB_HANDOFF.md with any remaining steps Tim
-    needs to take. Spawned automatically at wave end and invokable on demand for any GitHub task.
+  description: 'Autonomous GitHub operations agent for BrickLayer 2.0 projects. Reads
+    current repo state, executes appropriate git/gh operations (branch, stage, commit,
+    PR create/update), and writes GITHUB_HANDOFF.md with any remaining steps Tim needs
+    to take. Spawned automatically at wave end and invokable on demand for any GitHub
+    task.
 
     '
   modes:
@@ -716,8 +726,9 @@ agents:
 - name: hypothesis-generator
   file: .claude/agents/hypothesis-generator.md
   model: sonnet
-  description: Reads all completed findings and generates new falsifiable research questions. Invoke when questions.md has
-    no PENDING questions remaining, or when the main loop needs fresh questions derived from discovered failure modes. Keeps
+  description: Reads all completed findings and generates new falsifiable research
+    questions. Invoke when questions.md has no PENDING questions remaining, or when
+    the main loop needs fresh questions derived from discovered failure modes. Keeps
     the research loop alive without the orchestrator guessing.
   modes:
   - hypothesis-bl1
@@ -738,8 +749,9 @@ agents:
 - name: hypothesis-generator-bl2
   file: .claude/agents/hypothesis-generator-bl2.md
   model: sonnet
-  description: Generates follow-up questions after findings are complete. Use this instead of hypothesis-generator.md for
-    BL 2.0 projects. Reads recent findings, applies mode-transition rules, and generates questions with correct operational
+  description: Generates follow-up questions after findings are complete. Use this
+    instead of hypothesis-generator.md for BL 2.0 projects. Reads recent findings,
+    applies mode-transition rules, and generates questions with correct operational
     modes and ID prefixes based on what was found.
   modes:
   - hypothesis
@@ -760,9 +772,11 @@ agents:
 - name: kiln-engineer
   file: .claude/agents/kiln-engineer.md
   model: sonnet
-  description: Activate for any changes to Kiln — the BrickLayer Hub Electron desktop app. "Change this in the Hub", "add
-    this feature to Kiln", "fix this UI in the Hub". Knows the full file structure, IPC data flow, component conventions,
-    and build/deploy process. Works in campaign mode or directly in conversation.
+  description: "Activate for any changes to Kiln \u2014 the BrickLayer Hub Electron\
+    \ desktop app. \"Change this in the Hub\", \"add this feature to Kiln\", \"fix\
+    \ this UI in the Hub\". Knows the full file structure, IPC data flow, component\
+    \ conventions, and build/deploy process. Works in campaign mode or directly in\
+    \ conversation."
   modes:
   - agent
   capabilities: []
@@ -783,8 +797,9 @@ agents:
 - name: mcp-advisor
   file: .claude/agents/mcp-advisor.md
   model: sonnet
-  description: 'Post-campaign agent that analyzes failure patterns and INCONCLUSIVE verdicts to identify missing MCP server
-    capabilities. Maps failure signals to specific MCP servers with install instructions. Writes MCP_RECOMMENDATIONS.md.
+  description: 'Post-campaign agent that analyzes failure patterns and INCONCLUSIVE
+    verdicts to identify missing MCP server capabilities. Maps failure signals to
+    specific MCP servers with install instructions. Writes MCP_RECOMMENDATIONS.md.
 
     '
   modes:
@@ -806,7 +821,7 @@ agents:
 - name: overseer
   file: ~/.claude/agents/overseer.md
   model: sonnet
-  description: Agent health monitor — evaluates, improves, and rolls back agents
+  description: "Agent health monitor \u2014 evaluates, improves, and rolls back agents"
   modes:
   - agent
   - audit
@@ -824,9 +839,10 @@ agents:
 - name: planner
   file: .claude/agents/planner.md
   model: opus
-  description: Pre-campaign strategic planner. Runs once at campaign init — reads project-brief.md and docs/, ranks research
-    domains by risk, produces a campaign targeting brief for question-designer, and estimates wave count. Call before question-designer
-    on any new project.
+  description: "Pre-campaign strategic planner. Runs once at campaign init \u2014\
+    \ reads project-brief.md and docs/, ranks research domains by risk, produces a\
+    \ campaign targeting brief for question-designer, and estimates wave count. Call\
+    \ before question-designer on any new project."
   modes:
   - meta
   capabilities: []
@@ -846,8 +862,9 @@ agents:
 - name: pointer
   file: .claude/agents/pointer.md
   model: sonnet
-  description: 'Mid-wave summarizer. Reads findings since last checkpoint, produces a compact checkpoint file with verdicts
-    table, failure boundaries, cross-domain conflicts, and priorities for remaining questions. Fired by Trowel every 8 questions.
+  description: 'Mid-wave summarizer. Reads findings since last checkpoint, produces
+    a compact checkpoint file with verdicts table, failure boundaries, cross-domain
+    conflicts, and priorities for remaining questions. Fired by Trowel every 8 questions.
     Named after the masonry pointing tool that finishes mortar joints.
 
     '
@@ -870,8 +887,9 @@ agents:
 - name: question-designer-bl2
   file: .claude/agents/question-designer-bl2.md
   model: opus
-  description: Designs the initial question bank for a BrickLayer 2.0 campaign. Use this instead of question-designer.md for
-    BL 2.0 projects. Reads project-brief.md and docs/, selects the appropriate operational modes, and generates questions
+  description: Designs the initial question bank for a BrickLayer 2.0 campaign. Use
+    this instead of question-designer.md for BL 2.0 projects. Reads project-brief.md
+    and docs/, selects the appropriate operational modes, and generates questions
     with correct ID prefixes and Mode fields (lowercase, Trowel-compatible).
   modes:
   - question-design
@@ -893,8 +911,9 @@ agents:
 - name: skill-forge
   file: .claude/agents/skill-forge.md
   model: haiku
-  description: 'Post-campaign agent that distills synthesis findings into reusable Claude Code skills (~/.claude/skills/).
-    Identifies recurring patterns, encodes them as executable procedures, and registers them in skill_registry.json for overseer
+  description: 'Post-campaign agent that distills synthesis findings into reusable
+    Claude Code skills (~/.claude/skills/). Identifies recurring patterns, encodes
+    them as executable procedures, and registers them in skill_registry.json for overseer
     review. Also repairs existing skills that are stale or incorrect.
 
     '
@@ -916,8 +935,9 @@ agents:
 - name: synthesizer
   file: .claude/agents/synthesizer.md
   model: opus
-  description: Integrates findings from all domains into a coherent "best way forward" narrative. Invoke after the research
-    loop completes, before running analyze.py. Identifies cross-domain dependencies, conflicting constraints, and the minimum
+  description: Integrates findings from all domains into a coherent "best way forward"
+    narrative. Invoke after the research loop completes, before running analyze.py.
+    Identifies cross-domain dependencies, conflicting constraints, and the minimum
     viable set of changes.
   modes:
   - synthesis-bl1
@@ -938,9 +958,10 @@ agents:
 - name: synthesizer-bl2
   file: .claude/agents/synthesizer-bl2.md
   model: opus
-  description: 'BL 2.0 wave-end synthesizer. Reads all findings, writes synthesis.md, then maintains CHANGELOG.md, ARCHITECTURE.md,
-    and ROADMAP.md (creates them if absent). Stages and commits all three docs plus synthesis.md. Replaces the BL 1.x synthesizer
-    for BL 2.0 projects.
+  description: 'BL 2.0 wave-end synthesizer. Reads all findings, writes synthesis.md,
+    then maintains CHANGELOG.md, ARCHITECTURE.md, and ROADMAP.md (creates them if
+    absent). Stages and commits all three docs plus synthesis.md. Replaces the BL
+    1.x synthesizer for BL 2.0 projects.
 
     '
   modes:
@@ -963,8 +984,8 @@ agents:
 - name: tools-manifest
   file: .claude/agents/tools-manifest.md
   model: sonnet
-  description: Canonical catalog of all MCP tools available to BrickLayer agents. Reference when writing new agents or checking
-    tool coverage.
+  description: Canonical catalog of all MCP tools available to BrickLayer agents.
+    Reference when writing new agents or checking tool coverage.
   modes:
   - meta
   capabilities: []
@@ -984,9 +1005,10 @@ agents:
 - name: trowel
   file: .claude/agents/trowel.md
   model: sonnet
-  description: BrickLayer 2.0 campaign conductor. Owns the full research loop — question routing, finding validation, wave
-    sentinels, agent performance tracking, and wave-end synthesis. Invoked by Mortar when a campaign is active. Named after
-    the masonry tool that applies mortar.
+  description: "BrickLayer 2.0 campaign conductor. Owns the full research loop \u2014\
+    \ question routing, finding validation, wave sentinels, agent performance tracking,\
+    \ and wave-end synthesis. Invoked by Mortar when a campaign is active. Named after\
+    \ the masonry tool that applies mortar."
   modes:
   - campaign
   capabilities: []
@@ -1005,9 +1027,11 @@ agents:
 - name: bug-catcher
   file: .claude/agents/bug-catcher.md
   model: sonnet
-  description: Proactive hook and script health auditor. Runs syntax checks, exit-code tests, output-format validation, and
-    Windows-specific runtime probes against all Claude Code hook scripts registered in settings.json. Surfaces bugs BEFORE
-    they cause "hook error" banners. Activate when hooks behave unexpectedly or as a routine health sweep.
+  description: Proactive hook and script health auditor. Runs syntax checks, exit-code
+    tests, output-format validation, and Windows-specific runtime probes against all
+    Claude Code hook scripts registered in settings.json. Surfaces bugs BEFORE they
+    cause "hook error" banners. Activate when hooks behave unexpectedly or as a routine
+    health sweep.
   modes:
   - audit
   - diagnose
@@ -1035,15 +1059,17 @@ agents:
 - name: solana-specialist
   file: C:/Users/trg16/.claude/agents/solana-specialist.md
   model: opus
-  description: Solana blockchain specialist. Handles Anchor programs, DeFi integration, Token-2022, SPL tokens, Solana security
-    audits, and ADBP (employee utility token) development. Invoked by Mortar for all Solana/blockchain tasks.
+  description: Solana blockchain specialist. Handles Anchor programs, DeFi integration,
+    Token-2022, SPL tokens, Solana security audits, and ADBP (employee utility token)
+    development. Invoked by Mortar for all Solana/blockchain tasks.
   modes:
   - audit
   - research
   - fix
   capabilities:
   - Anchor framework program development and debugging
-  - Solana program security audits (reentrancy, integer overflow, signer checks, PDA validation)
+  - Solana program security audits (reentrancy, integer overflow, signer checks, PDA
+    validation)
   - Token-2022 and SPL token integration
   - DeFi protocol integration (Jupiter, Raydium, Orca swap routing)
   - ADBP discount-credit platform development
@@ -1071,9 +1097,10 @@ agents:
 - name: uiux-master
   file: C:/Users/trg16/.claude/agents/uiux-master.md
   model: sonnet
-  description: UI/UX design and implementation specialist. Handles dark dashboard design, component builds, Figma token extraction,
-    design system work, and the full /ui-* workflow (ui-init, ui-compose, ui-review, ui-fix). Invoked by Mortar for all UI
-    and design tasks.
+  description: UI/UX design and implementation specialist. Handles dark dashboard
+    design, component builds, Figma token extraction, design system work, and the
+    full /ui-* workflow (ui-init, ui-compose, ui-review, ui-fix). Invoked by Mortar
+    for all UI and design tasks.
   modes:
   - compose
   - review
@@ -1086,7 +1113,7 @@ agents:
   - ui-init / ui-compose / ui-review / ui-fix workflow orchestration
   - Lucide + Phosphor icon integration
   - Nivo chart implementation (line, area, bar, donut)
-  - responsive layout (mobile-first, breakpoints, icon sidebar → bottom tab)
+  - "responsive layout (mobile-first, breakpoints, icon sidebar \u2192 bottom tab)"
   - accessibility (WCAG AA contrast, focus management, touch targets)
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -1104,9 +1131,10 @@ agents:
 - name: economizer
   file: C:/Users/trg16/.claude/agents/economizer.md
   model: sonnet
-  description: Whole-codebase efficiency analyst. Scans for dead code, duplication, over-engineering, bloated dependencies,
-    and context overhead. Read-only — produces a prioritized reduction report with effort/impact estimates. Requires human
-    verification before handing off to refactorer or developer.
+  description: "Whole-codebase efficiency analyst. Scans for dead code, duplication,\
+    \ over-engineering, bloated dependencies, and context overhead. Read-only \u2014\
+    \ produces a prioritized reduction report with effort/impact estimates. Requires\
+    \ human verification before handing off to refactorer or developer."
   modes:
   - audit
   - research
@@ -1138,9 +1166,11 @@ agents:
 - name: bl-verifier
   file: C:/Users/trg16/.claude/agents/bl-verifier.md
   model: sonnet
-  description: BrickLayer installation verifier. Checks that all system components are properly wired and working — hooks
-    syntax + registration, MCP server tools, routing pipeline, session lock, agent registry file coverage, and training data.
-    Returns a PASS/FAIL table. Invoke after any major change to the BL infrastructure or to diagnose mysterious failures.
+  description: "BrickLayer installation verifier. Checks that all system components\
+    \ are properly wired and working \u2014 hooks syntax + registration, MCP server\
+    \ tools, routing pipeline, session lock, agent registry file coverage, and training\
+    \ data. Returns a PASS/FAIL table. Invoke after any major change to the BL infrastructure\
+    \ or to diagnose mysterious failures."
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -1157,9 +1187,10 @@ agents:
 - name: e2e
   file: C:/Users/trg16/.claude/agents/e2e.md
   model: sonnet
-  description: BrickLayer end-to-end verifier. Runs the full pytest suite for each component, then does live wiring checks
-    — hooks syntax, MCP server, routing pipeline, session lock, agent registry, training data. Returns a PASS/FAIL table.
-    Invoke after any infrastructure change to confirm nothing is broken.
+  description: "BrickLayer end-to-end verifier. Runs the full pytest suite for each\
+    \ component, then does live wiring checks \u2014 hooks syntax, MCP server, routing\
+    \ pipeline, session lock, agent registry, training data. Returns a PASS/FAIL table.\
+    \ Invoke after any infrastructure change to confirm nothing is broken."
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -1177,8 +1208,9 @@ agents:
 - name: rough-in
   file: .claude/agents/rough-in.md
   model: opus
-  description: Dev task conductor for BrickLayer 2.0. Reads codebase, decomposes work, selects specialists from the full 100+
-    agent fleet, builds wave plans, and hands dispatch to Queen Coordinator for parallel execution. Can invoke skills directly.
+  description: Dev task conductor for BrickLayer 2.0. Reads codebase, decomposes work,
+    selects specialists from the full 100+ agent fleet, builds wave plans, and hands
+    dispatch to Queen Coordinator for parallel execution. Can invoke skills directly.
     Does not write code itself.
   modes:
   - build
@@ -1213,10 +1245,12 @@ agents:
 - name: python-specialist
   file: C:/Users/trg16/.claude/agents/python-specialist.md
   model: sonnet
-  description: 'Deep Python domain expert. Invoked by Mortar for Python/FastAPI/Pydantic/asyncio tasks that require specialized
-    knowledge beyond what the general developer agent covers. Handles: async patterns, FastAPI router/middleware/dependency
-    injection, Pydantic v2 models, pytest fixtures, SQLAlchemy/asyncpg, subprocess/OS interaction, performance profiling.
-    Does NOT replace the TDD cycle — it extends the developer agent for Python-specific depth.'
+  description: "Deep Python domain expert. Invoked by Mortar for Python/FastAPI/Pydantic/asyncio\
+    \ tasks that require specialized knowledge beyond what the general developer agent\
+    \ covers. Handles: async patterns, FastAPI router/middleware/dependency injection,\
+    \ Pydantic v2 models, pytest fixtures, SQLAlchemy/asyncpg, subprocess/OS interaction,\
+    \ performance profiling. Does NOT replace the TDD cycle \u2014 it extends the\
+    \ developer agent for Python-specific depth."
   modes:
   - build
   - fix
@@ -1247,10 +1281,12 @@ agents:
 - name: typescript-specialist
   file: C:/Users/trg16/.claude/agents/typescript-specialist.md
   model: sonnet
-  description: 'Deep TypeScript/React domain expert. Invoked by Mortar for frontend tasks requiring React 19, Tailwind v4,
-    Vite, Vitest, and TypeScript strict-mode expertise. Handles: hooks design, context patterns, React Query, cva component
-    variants, animation with Framer Motion, Playwright tests, bundle optimization. Uses Tim''s dark dashboard aesthetic. Never
-    hardcodes hex values — always uses design tokens.'
+  description: "Deep TypeScript/React domain expert. Invoked by Mortar for frontend\
+    \ tasks requiring React 19, Tailwind v4, Vite, Vitest, and TypeScript strict-mode\
+    \ expertise. Handles: hooks design, context patterns, React Query, cva component\
+    \ variants, animation with Framer Motion, Playwright tests, bundle optimization.\
+    \ Uses Tim's dark dashboard aesthetic. Never hardcodes hex values \u2014 always\
+    \ uses design tokens."
   modes:
   - build
   - fix
@@ -1283,20 +1319,24 @@ agents:
 - name: database-specialist
   file: C:/Users/trg16/.claude/agents/database-specialist.md
   model: sonnet
-  description: 'Deep database expert for Tim''s stack: PostgreSQL (asyncpg/SQLAlchemy), Qdrant (vector search), Neo4j (graph
-    queries), Redis (caching/pub-sub). Invoked by Mortar for schema design, query optimization, migration writing, vector
-    embedding pipelines, graph traversal, and cache strategy. Does NOT replace the developer agent — it handles the data layer
-    with production-quality patterns.'
+  description: "Deep database expert for Tim's stack: PostgreSQL (asyncpg/SQLAlchemy),\
+    \ Qdrant (vector search), Neo4j (graph queries), Redis (caching/pub-sub). Invoked\
+    \ by Mortar for schema design, query optimization, migration writing, vector embedding\
+    \ pipelines, graph traversal, and cache strategy. Does NOT replace the developer\
+    \ agent \u2014 it handles the data layer with production-quality patterns."
   modes:
   - build
   - fix
   - code
   capabilities:
   - '{''PostgreSQL'': ''schema design, indexes, CTEs, window functions, JSONB, partitioning''}'
-  - '{''SQLAlchemy 2.x async'': ''mapped_column, relationship, select/scalars, migrations via Alembic''}'
-  - '{''Qdrant'': ''collection design, vector upsert, filter payload, HNSW tuning, hybrid search''}'
+  - '{''SQLAlchemy 2.x async'': ''mapped_column, relationship, select/scalars, migrations
+    via Alembic''}'
+  - '{''Qdrant'': ''collection design, vector upsert, filter payload, HNSW tuning,
+    hybrid search''}'
   - '{''Neo4j'': ''Cypher queries, MERGE patterns, relationship traversal, graph schema''}'
-  - '{''Redis'': ''key naming conventions, TTL strategy, pub/sub, sorted sets for leaderboards''}'
+  - '{''Redis'': ''key naming conventions, TTL strategy, pub/sub, sorted sets for
+    leaderboards''}'
   - '{''Migration safety'': ''zero-downtime patterns, nullable-first, backfill strategy''}'
   input_schema: QuestionPayload
   output_schema: FindingPayload
@@ -1317,10 +1357,12 @@ agents:
 - name: production-validator
   file: C:/Users/trg16/.claude/agents/production-validator.md
   model: sonnet
-  description: 'Production readiness validator. Invoked after /build completes, before merging to main. Validates that the
-    built code would survive production: runs tests in prod-like environment, checks for common production failure patterns
-    (blocking I/O in async, hardcoded localhost, missing env validation, Docker build success, migration safety). Returns
-    PROD_PASS or PROD_FAIL with a prioritized fix list.'
+  description: 'Production readiness validator. Invoked after /build completes, before
+    merging to main. Validates that the built code would survive production: runs
+    tests in prod-like environment, checks for common production failure patterns
+    (blocking I/O in async, hardcoded localhost, missing env validation, Docker build
+    success, migration safety). Returns PROD_PASS or PROD_FAIL with a prioritized
+    fix list.'
   modes:
   - verify
   capabilities:
@@ -1346,9 +1388,10 @@ agents:
 - name: queen-coordinator
   file: C:/Users/trg16/.claude/agents/queen-coordinator.md
   model: sonnet
-  description: Parallel dispatch engine for BrickLayer builds. Receives wave plans from Rough-In (via .autopilot/rough-in-state.json),
-    dispatches up to 8 workers per wave simultaneously, monitors heartbeats, re-queues stale tasks, and runs checkpoint tests
-    between waves. Does not plan or write code.
+  description: Parallel dispatch engine for BrickLayer builds. Receives wave plans
+    from Rough-In (via .autopilot/rough-in-state.json), dispatches up to 8 workers
+    per wave simultaneously, monitors heartbeats, re-queues stale tasks, and runs
+    checkpoint tests between waves. Does not plan or write code.
   modes:
   - build
   - orchestrate
@@ -1373,8 +1416,9 @@ agents:
 - name: worker-specialist
   file: C:/Users/trg16/.claude/agents/worker-specialist.md
   model: sonnet
-  description: 'Autonomous worker agent for hive builds. Pulls a single task from the queen or progress.json, implements it
-    with TDD, commits, and reports DONE. Never spawns sub-workers. Designed to run in background (run_in_background: true)
+  description: 'Autonomous worker agent for hive builds. Pulls a single task from
+    the queen or progress.json, implements it with TDD, commits, and reports DONE.
+    Never spawns sub-workers. Designed to run in background (run_in_background: true)
     as part of a swarm. Reports DEV_ESCALATE if blocked after 3 attempts.'
   modes:
   - build
@@ -1399,9 +1443,11 @@ agents:
 - name: adaptive-coordinator
   file: C:/Users/trg16/.claude/agents/adaptive-coordinator.md
   model: sonnet
-  description: 'Topology-switching coordinator. Analyzes the task list and selects the optimal agent topology: hierarchical
-    (coordinator→workers) for large independent task lists, mesh (peer review between workers) for quality-critical tasks,
-    ring (sequential pipeline) for dependent chains. Delegates to the appropriate coordinator after topology selection.'
+  description: "Topology-switching coordinator. Analyzes the task list and selects\
+    \ the optimal agent topology: hierarchical (coordinator\u2192workers) for large\
+    \ independent task lists, mesh (peer review between workers) for quality-critical\
+    \ tasks, ring (sequential pipeline) for dependent chains. Delegates to the appropriate\
+    \ coordinator after topology selection."
   modes:
   - build
   - orchestrate
@@ -1425,9 +1471,11 @@ agents:
 - name: quorum-manager
   file: C:/Users/trg16/.claude/agents/quorum-manager.md
   model: sonnet
-  description: Consensus gate for destructive operations. Before any agent executes a destructive action (drop table, force
-    push, delete branch, truncate data, remove migration), it must check with quorum-manager. Requires majority approval (2/3
-    agents or explicit human approval) before allowing the action. Stores approvals in .autopilot/consensus.json.
+  description: Consensus gate for destructive operations. Before any agent executes
+    a destructive action (drop table, force push, delete branch, truncate data, remove
+    migration), it must check with quorum-manager. Requires majority approval (2/3
+    agents or explicit human approval) before allowing the action. Stores approvals
+    in .autopilot/consensus.json.
   modes:
   - verify
   - build
@@ -1452,10 +1500,11 @@ agents:
 - name: tdd-london-swarm
   file: C:/Users/trg16/.claude/agents/tdd-london-swarm.md
   model: sonnet
-  description: 'Parallel TDD agents using London-school (outside-in, mockist) methodology. Invoked when [mode:tdd] tasks require
-    strict boundary isolation. Spawns: 1 interface-designer (defines contracts/mocks), N implementers (one per class/module),
-    1 integration-tester (end-to-end contract verification). All unit tests use mock objects — no real dependencies at unit
-    level.'
+  description: "Parallel TDD agents using London-school (outside-in, mockist) methodology.\
+    \ Invoked when [mode:tdd] tasks require strict boundary isolation. Spawns: 1 interface-designer\
+    \ (defines contracts/mocks), N implementers (one per class/module), 1 integration-tester\
+    \ (end-to-end contract verification). All unit tests use mock objects \u2014 no\
+    \ real dependencies at unit level."
   modes:
   - build
   - tdd
@@ -1480,10 +1529,11 @@ agents:
 - name: mutation-tester
   file: C:/Users/trg16/.claude/agents/mutation-tester.md
   model: sonnet
-  description: 'Test quality validator using mutation testing. After /build or /verify, runs mutation testing to verify tests
-    actually catch bugs (not just achieve coverage). Uses mutmut (Python) or stryker (TypeScript/JavaScript). Reports mutation
-    score: % of mutants killed. Score < 60% = test suite is weak. Identifies specific untested code paths and recommends concrete
-    tests to add.'
+  description: 'Test quality validator using mutation testing. After /build or /verify,
+    runs mutation testing to verify tests actually catch bugs (not just achieve coverage).
+    Uses mutmut (Python) or stryker (TypeScript/JavaScript). Reports mutation score:
+    % of mutants killed. Score < 60% = test suite is weak. Identifies specific untested
+    code paths and recommends concrete tests to add.'
   modes:
   - verify
   capabilities:
@@ -1507,8 +1557,9 @@ agents:
 - name: verification
   file: C:/Users/trg16/.claude/agents/verification.md
   model: sonnet
-  description: Build-time truth enforcement agent. Cross-checks developer agent claims against git state, test results, and
-    file existence after each /build task. Returns VERIFIED/SUSPICIOUS/REJECT verdict. Invoke after every developer task completes,
+  description: Build-time truth enforcement agent. Cross-checks developer agent claims
+    against git state, test results, and file existence after each /build task. Returns
+    VERIFIED/SUSPICIOUS/REJECT verdict. Invoke after every developer task completes,
     before marking DONE.
   modes: []
   capabilities: []
@@ -1528,8 +1579,9 @@ agents:
 - name: senior-developer
   file: C:/Users/trg16/.claude/agents/senior-developer.md
   model: opus
-  description: Senior escalation tier for failed developer tasks. Reads broader context, classifies failure type, attempts
-    fix with deeper analysis. Invoked after developer fails 3 times (DEV_ESCALATE). Returns SENIOR_DONE or SENIOR_ESCALATE.
+  description: Senior escalation tier for failed developer tasks. Reads broader context,
+    classifies failure type, attempts fix with deeper analysis. Invoked after developer
+    fails 3 times (DEV_ESCALATE). Returns SENIOR_DONE or SENIOR_ESCALATE.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -1547,8 +1599,9 @@ agents:
 - name: architecture-writer
   file: C:/Users/trg16/.claude/agents/architecture-writer.md
   model: sonnet
-  description: SPARC Phase 3 — writes architecture.md from spec.md + pseudocode.md before /build. Component boundaries, interface
-    contracts, data flows, out-of-scope list.
+  description: "SPARC Phase 3 \u2014 writes architecture.md from spec.md + pseudocode.md\
+    \ before /build. Component boundaries, interface contracts, data flows, out-of-scope\
+    \ list."
   modes:
   - agent
   capabilities:
@@ -1572,8 +1625,8 @@ agents:
 - name: consensus-builder
   file: C:/Users/trg16/.claude/agents/consensus-builder.md
   model: sonnet
-  description: Resolves conflicting review verdicts via weighted majority vote. Invoked when reviewers disagree. Returns final
-    APPROVED/BLOCKED verdict with vote breakdown.
+  description: Resolves conflicting review verdicts via weighted majority vote. Invoked
+    when reviewers disagree. Returns final APPROVED/BLOCKED verdict with vote breakdown.
   modes:
   - review
   capabilities:
@@ -1598,8 +1651,8 @@ agents:
 - name: pseudocode-writer
   file: C:/Users/trg16/.claude/agents/pseudocode-writer.md
   model: sonnet
-  description: SPARC Phase 2 — writes pseudocode.md from spec.md before /build. Per-task plain-English logic covering flow,
-    edge cases, and failure modes.
+  description: "SPARC Phase 2 \u2014 writes pseudocode.md from spec.md before /build.\
+    \ Per-task plain-English logic covering flow, edge cases, and failure modes."
   modes:
   - agent
   capabilities:
@@ -1622,10 +1675,13 @@ agents:
 - name: repo-researcher
   file: C:/Users/trg16/.claude/agents/repo-researcher.md
   model: sonnet
-  description: Deep GitHub repository analyst. Given a repo URL, reads the ENTIRE repo — every file, README section, component,
-    agent definition, hook, workflow, MCP config, and code path — then produces a full file inventory, architecture overview,
-    feature gap analysis vs BrickLayer 2.0, and prioritized recommendations. Saves output to docs/repo-research/{repo-name}.md
-    in the BrickLayer project directory. Use when Tim wants to research a GitHub repo for patterns to incorporate into BrickLayer.
+  description: "Deep GitHub repository analyst. Given a repo URL, reads the ENTIRE\
+    \ repo \u2014 every file, README section, component, agent definition, hook, workflow,\
+    \ MCP config, and code path \u2014 then produces a full file inventory, architecture\
+    \ overview, feature gap analysis vs BrickLayer 2.0, and prioritized recommendations.\
+    \ Saves output to docs/repo-research/{repo-name}.md in the BrickLayer project\
+    \ directory. Use when Tim wants to research a GitHub repo for patterns to incorporate\
+    \ into BrickLayer."
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -1646,8 +1702,9 @@ agents:
 - name: parallel-debugger
   file: C:/Users/trg16/.claude/agents/parallel-debugger.md
   model: sonnet
-  description: Parallel debugging orchestrator that spawns 3 competing diagnose-analyst subagents with different root cause
-    hypotheses when developer escalates 3 times. Synthesizes competing diagnoses into single highest-confidence fix specification.
+  description: Parallel debugging orchestrator that spawns 3 competing diagnose-analyst
+    subagents with different root cause hypotheses when developer escalates 3 times.
+    Synthesizes competing diagnoses into single highest-confidence fix specification.
   modes:
   - fix
   - debug
@@ -1679,8 +1736,8 @@ agents:
 - name: bash-specialist
   file: C:/Users/trg16/.claude/agents/bash-specialist.md
   model: sonnet
-  description: Bash/shell scripting expert. Writes robust scripts, handles portability, error trapping, and CLI tooling for
-    Linux/macOS/WSL environments.
+  description: Bash/shell scripting expert. Writes robust scripts, handles portability,
+    error trapping, and CLI tooling for Linux/macOS/WSL environments.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -1701,7 +1758,8 @@ agents:
 - name: chaos-engineer
   file: C:/Users/trg16/.claude/agents/chaos-engineer.md
   model: sonnet
-  description: Controlled failure injection for resilience testing — read-only default, execution requires approval
+  description: "Controlled failure injection for resilience testing \u2014 read-only\
+    \ default, execution requires approval"
   modes:
   - security
   - architect
@@ -1727,8 +1785,8 @@ agents:
 - name: docker-specialist
   file: C:/Users/trg16/.claude/agents/docker-specialist.md
   model: sonnet
-  description: Docker specialist. Writes optimized Dockerfiles, multi-stage builds, compose stacks, healthchecks, and debugging
-    container runtime issues.
+  description: Docker specialist. Writes optimized Dockerfiles, multi-stage builds,
+    compose stacks, healthchecks, and debugging container runtime issues.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -1748,8 +1806,8 @@ agents:
 - name: embedded-developer
   file: C:/Users/trg16/.claude/agents/embedded-developer.md
   model: sonnet
-  description: Embedded systems developer for microcontrollers, RTOS, ESPHome, firmware, and hardware-adjacent code. Low-level,
-    resource-constrained environments.
+  description: Embedded systems developer for microcontrollers, RTOS, ESPHome, firmware,
+    and hardware-adjacent code. Low-level, resource-constrained environments.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -1772,8 +1830,8 @@ agents:
 - name: fastapi-specialist
   file: C:/Users/trg16/.claude/agents/fastapi-specialist.md
   model: sonnet
-  description: FastAPI deep expert. Designs async endpoints, dependency injection, Pydantic v2 models, background tasks, OpenAPI
-    schemas, and middleware.
+  description: FastAPI deep expert. Designs async endpoints, dependency injection,
+    Pydantic v2 models, background tasks, OpenAPI schemas, and middleware.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -1793,8 +1851,8 @@ agents:
 - name: game-developer
   file: C:/Users/trg16/.claude/agents/game-developer.md
   model: sonnet
-  description: Game development specialist. Handles game loops, physics, ECS patterns, rendering pipelines, and engine-specific
-    tooling.
+  description: Game development specialist. Handles game loops, physics, ECS patterns,
+    rendering pipelines, and engine-specific tooling.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -1816,8 +1874,8 @@ agents:
 - name: geospatial-developer
   file: C:/Users/trg16/.claude/agents/geospatial-developer.md
   model: sonnet
-  description: Geospatial/GIS developer. PostGIS, spatial queries, coordinate systems, map tile pipelines, and location-based
-    data modeling.
+  description: Geospatial/GIS developer. PostGIS, spatial queries, coordinate systems,
+    map tile pipelines, and location-based data modeling.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -1845,8 +1903,8 @@ agents:
 - name: github-actions-specialist
   file: C:/Users/trg16/.claude/agents/github-actions-specialist.md
   model: sonnet
-  description: GitHub Actions CI/CD specialist. Workflow syntax, matrix builds, secrets management, reusable workflows, and
-    self-hosted runners.
+  description: GitHub Actions CI/CD specialist. Workflow syntax, matrix builds, secrets
+    management, reusable workflows, and self-hosted runners.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -1874,8 +1932,9 @@ agents:
 - name: go-specialist
   file: C:/Users/trg16/.claude/agents/go-specialist.md
   model: sonnet
-  description: Deep Go domain expert. Use for Go services, CLIs, goroutines, channels, interfaces, testing with testify, HTTP
-    handlers, gRPC, database access with sqlx/pgx, and idiomatic Go patterns. Applies standard project layout and Go's error-handling
+  description: Deep Go domain expert. Use for Go services, CLIs, goroutines, channels,
+    interfaces, testing with testify, HTTP handlers, gRPC, database access with sqlx/pgx,
+    and idiomatic Go patterns. Applies standard project layout and Go's error-handling
     philosophy.
   modes: []
   capabilities: []
@@ -1899,8 +1958,8 @@ agents:
 - name: kafka-specialist
   file: C:/Users/trg16/.claude/agents/kafka-specialist.md
   model: sonnet
-  description: Apache Kafka specialist. Topic design, consumer groups, schema registry, exactly-once semantics, stream processing
-    with Kafka Streams or Faust.
+  description: Apache Kafka specialist. Topic design, consumer groups, schema registry,
+    exactly-once semantics, stream processing with Kafka Streams or Faust.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -1921,8 +1980,9 @@ agents:
 - name: kotlin-specialist
   file: C:/Users/trg16/.claude/agents/kotlin-specialist.md
   model: sonnet
-  description: Deep Kotlin domain expert. Use for Android development (Jetpack Compose, ViewModel, Room, Retrofit), Kotlin
-    coroutines, Flow, Spring Boot with Kotlin, and idiomatic Kotlin patterns.
+  description: Deep Kotlin domain expert. Use for Android development (Jetpack Compose,
+    ViewModel, Room, Retrofit), Kotlin coroutines, Flow, Spring Boot with Kotlin,
+    and idiomatic Kotlin patterns.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -1945,8 +2005,8 @@ agents:
 - name: legacy-modernizer
   file: C:/Users/trg16/.claude/agents/legacy-modernizer.md
   model: sonnet
-  description: Legacy code modernization specialist. Safely refactors aged codebases — strangler fig, characterization tests,
-    incremental extraction.
+  description: "Legacy code modernization specialist. Safely refactors aged codebases\
+    \ \u2014 strangler fig, characterization tests, incremental extraction."
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -1967,8 +2027,8 @@ agents:
 - name: neo4j-specialist
   file: C:/Users/trg16/.claude/agents/neo4j-specialist.md
   model: sonnet
-  description: Neo4j graph database expert. Cypher queries, graph schema design, relationship traversal, APOC procedures,
-    and graph analytics.
+  description: Neo4j graph database expert. Cypher queries, graph schema design, relationship
+    traversal, APOC procedures, and graph analytics.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -1988,8 +2048,8 @@ agents:
 - name: nextjs-specialist
   file: C:/Users/trg16/.claude/agents/nextjs-specialist.md
   model: sonnet
-  description: Next.js specialist. App Router, RSC, streaming SSR, API routes, image optimization, ISR, and deployment on
-    Vercel or self-hosted.
+  description: Next.js specialist. App Router, RSC, streaming SSR, API routes, image
+    optimization, ISR, and deployment on Vercel or self-hosted.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -2010,8 +2070,8 @@ agents:
 - name: opentelemetry-specialist
   file: C:/Users/trg16/.claude/agents/opentelemetry-specialist.md
   model: sonnet
-  description: OpenTelemetry observability specialist. Traces, metrics, logs, OTLP exporters, instrumentation, and Grafana/Jaeger/Tempo
-    integration.
+  description: OpenTelemetry observability specialist. Traces, metrics, logs, OTLP
+    exporters, instrumentation, and Grafana/Jaeger/Tempo integration.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -2033,8 +2093,8 @@ agents:
 - name: postgres-specialist
   file: C:/Users/trg16/.claude/agents/postgres-specialist.md
   model: sonnet
-  description: PostgreSQL expert. Schema design, advanced queries, CTEs, window functions, JSONB, indexing strategy, VACUUM
-    tuning, and asyncpg patterns.
+  description: PostgreSQL expert. Schema design, advanced queries, CTEs, window functions,
+    JSONB, indexing strategy, VACUUM tuning, and asyncpg patterns.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -2055,7 +2115,8 @@ agents:
 - name: tdd-orchestrator
   file: C:/Users/trg16/.claude/agents/tdd-orchestrator.md
   model: sonnet
-  description: 'Deep TDD agent: mutation testing, property-based (Hypothesis/QuickCheck), chaos, ATDD/BDD. Triggered by [mode:tdd-deep].'
+  description: 'Deep TDD agent: mutation testing, property-based (Hypothesis/QuickCheck),
+    chaos, ATDD/BDD. Triggered by [mode:tdd-deep].'
   modes:
   - tdd-deep
   capabilities:
@@ -2081,7 +2142,8 @@ agents:
 - name: pr-writer
   file: C:/Users/trg16/.claude/agents/pr-writer.md
   model: sonnet
-  description: Writes PR description, review checklist, and linked issues at /build completion.
+  description: Writes PR description, review checklist, and linked issues at /build
+    completion.
   modes: []
   capabilities:
   - pr_description
@@ -2103,8 +2165,8 @@ agents:
 - name: verifier
   file: C:/Users/trg16/.claude/agents/verifier.md
   model: sonnet
-  description: Build-time truth enforcement agent. Cross-checks developer claims against git state, test results, and file
-    existence.
+  description: Build-time truth enforcement agent. Cross-checks developer claims against
+    git state, test results, and file existence.
   modes: []
   capabilities:
   - verification
@@ -2126,8 +2188,8 @@ agents:
 - name: rust-specialist
   file: C:/Users/trg16/.claude/agents/rust-specialist.md
   model: sonnet
-  description: Senior Rust developer. Implements Rust code, refactoring, tests and benchmarks. Understands ownership, async,
-    lifetimes, unsafe.
+  description: Senior Rust developer. Implements Rust code, refactoring, tests and
+    benchmarks. Understands ownership, async, lifetimes, unsafe.
   modes: []
   capabilities:
   - rust
@@ -2151,8 +2213,8 @@ agents:
 - name: redis-specialist
   file: C:/Users/trg16/.claude/agents/redis-specialist.md
   model: sonnet
-  description: Redis specialist. Data structure selection, caching patterns, pub/sub, Lua scripting, cluster mode, and Redis
-    Streams.
+  description: Redis specialist. Data structure selection, caching patterns, pub/sub,
+    Lua scripting, cluster mode, and Redis Streams.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -2173,8 +2235,8 @@ agents:
 - name: reinforcement-learning-engineer
   file: C:/Users/trg16/.claude/agents/reinforcement-learning-engineer.md
   model: sonnet
-  description: Reinforcement learning engineer. Policy gradient methods, reward shaping, environment design, PPO/SAC/DQN,
-    and simulation pipelines.
+  description: Reinforcement learning engineer. Policy gradient methods, reward shaping,
+    environment design, PPO/SAC/DQN, and simulation pipelines.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -2202,8 +2264,8 @@ agents:
 - name: scientific-computing-specialist
   file: C:/Users/trg16/.claude/agents/scientific-computing-specialist.md
   model: sonnet
-  description: Scientific computing specialist. NumPy, SciPy, numerical methods, HPC patterns, Jupyter workflows, and data
-    pipeline optimization.
+  description: Scientific computing specialist. NumPy, SciPy, numerical methods, HPC
+    patterns, Jupyter workflows, and data pipeline optimization.
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -2233,8 +2295,8 @@ agents:
 - name: vector-db-specialist
   file: C:/Users/trg16/.claude/agents/vector-db-specialist.md
   model: sonnet
-  description: Vector database specialist. Qdrant, Pinecone, Weaviate — embedding pipelines, ANN search, hybrid retrieval,
-    and RAG architecture.
+  description: "Vector database specialist. Qdrant, Pinecone, Weaviate \u2014 embedding\
+    \ pipelines, ANN search, hybrid retrieval, and RAG architecture."
   modes: []
   capabilities: []
   input_schema: QuestionPayload
@@ -2255,8 +2317,8 @@ agents:
 - name: spec-reviewer
   file: ~/.claude/agents/spec-reviewer.md
   model: sonnet
-  description: Read-only spec compliance reviewer — returns COMPLIANT/OVER_BUILT/UNDER_BUILT/SCOPE_DRIFT between developer
-    and code-reviewer in /build
+  description: "Read-only spec compliance reviewer \u2014 returns COMPLIANT/OVER_BUILT/UNDER_BUILT/SCOPE_DRIFT\
+    \ between developer and code-reviewer in /build"
   modes:
   - build
   capabilities:
@@ -2280,7 +2342,8 @@ agents:
 - name: verification-analyst
   file: C:/Users/trg16/.claude/agents/verification-analyst.md
   model: sonnet
-  description: 6-gate false positive verification pipeline for security and research findings
+  description: 6-gate false positive verification pipeline for security and research
+    findings
   modes:
   - research
   - security
@@ -2306,7 +2369,8 @@ agents:
 - name: mcp-developer
   file: C:/Users/trg16/.claude/agents/mcp-developer.md
   model: sonnet
-  description: MCP server specialist — scaffolds, adds tools, handles transport, writes tests
+  description: "MCP server specialist \u2014 scaffolds, adds tools, handles transport,\
+    \ writes tests"
   modes:
   - developer
   capabilities:
@@ -2332,7 +2396,8 @@ agents:
 - name: penetration-tester
   file: C:/Users/trg16/.claude/agents/penetration-tester.md
   model: sonnet
-  description: Authorized security pen testing — CVSS-scored findings, refuses without authorization context
+  description: "Authorized security pen testing \u2014 CVSS-scored findings, refuses\
+    \ without authorization context"
   modes:
   - security
   capabilities:
@@ -2358,7 +2423,8 @@ agents:
 - name: scientific-literature-researcher
   file: C:/Users/trg16/.claude/agents/scientific-literature-researcher.md
   model: sonnet
-  description: Grounds findings in peer-reviewed literature — extracts methodology, effect sizes, flags weak evidence
+  description: "Grounds findings in peer-reviewed literature \u2014 extracts methodology,\
+    \ effect sizes, flags weak evidence"
   modes:
   - research
   capabilities:
@@ -2384,10 +2450,11 @@ agents:
 - name: hierarchical-coordinator
   file: C:/Users/trg16/.claude/agents/hierarchical-coordinator.md
   model: sonnet
-  description: 'Swarm coordinator for complex multi-agent builds. Invoked by Mortar for tasks that require more than 3 independent
-    workers. Maintains coordinator→worker topology: assigns tasks from .autopilot/progress.json to worker agents, monitors
-    completion, handles escalations, and prevents drift. Uses run_in_background: true for non-blocking parallel worker dispatch.
-    Max 6 concurrent workers.'
+  description: "Swarm coordinator for complex multi-agent builds. Invoked by Mortar\
+    \ for tasks that require more than 3 independent workers. Maintains coordinator\u2192\
+    worker topology: assigns tasks from .autopilot/progress.json to worker agents,\
+    \ monitors completion, handles escalations, and prevents drift. Uses run_in_background:\
+    \ true for non-blocking parallel worker dispatch. Max 6 concurrent workers."
   modes:
   - build
   - orchestrate
@@ -2414,8 +2481,9 @@ agents:
 - name: go-developer
   file: C:/Users/trg16/.claude/agents/go-developer.md
   model: sonnet
-  description: Go/Golang specialist. Implements Go services, CLIs, HTTP handlers, gRPC endpoints, goroutines, channels, interfaces,
-    and idiomatic Go patterns. Uses testify for tests, sqlx/pgx for database access, and standard project layout.
+  description: Go/Golang specialist. Implements Go services, CLIs, HTTP handlers,
+    gRPC endpoints, goroutines, channels, interfaces, and idiomatic Go patterns. Uses
+    testify for tests, sqlx/pgx for database access, and standard project layout.
   modes: []
   capabilities:
   - Go HTTP services and REST APIs
@@ -2451,8 +2519,9 @@ agents:
 - name: kotlin-developer
   file: C:/Users/trg16/.claude/agents/kotlin-developer.md
   model: sonnet
-  description: Kotlin and Android specialist. Implements Android apps with Jetpack Compose, ViewModel, Room, Retrofit, and
-    Hilt. Handles Kotlin coroutines, Flow, sealed classes, and Spring Boot with Kotlin. Writes idiomatic Kotlin.
+  description: Kotlin and Android specialist. Implements Android apps with Jetpack
+    Compose, ViewModel, Room, Retrofit, and Hilt. Handles Kotlin coroutines, Flow,
+    sealed classes, and Spring Boot with Kotlin. Writes idiomatic Kotlin.
   modes: []
   capabilities:
   - Jetpack Compose UI
@@ -2486,8 +2555,9 @@ agents:
 - name: python-debugger
   file: C:/Users/trg16/.claude/agents/python-debugger.md
   model: sonnet
-  description: Python debugging specialist. Diagnoses runtime errors, tracebacks, import failures, async bugs, type mismatches,
-    and dependency conflicts. Reads stack traces, instruments code, and proposes targeted fixes.
+  description: Python debugging specialist. Diagnoses runtime errors, tracebacks,
+    import failures, async bugs, type mismatches, and dependency conflicts. Reads
+    stack traces, instruments code, and proposes targeted fixes.
   modes: []
   capabilities:
   - Python traceback analysis
@@ -2520,8 +2590,9 @@ agents:
 - name: rust-debugger
   file: C:/Users/trg16/.claude/agents/rust-debugger.md
   model: sonnet
-  description: Rust debugging specialist. Diagnoses borrow checker errors, lifetime issues, trait bound failures, panic sources,
-    and unsafe code bugs. Reads compiler output, traces ownership chains, and fixes soundness issues.
+  description: Rust debugging specialist. Diagnoses borrow checker errors, lifetime
+    issues, trait bound failures, panic sources, and unsafe code bugs. Reads compiler
+    output, traces ownership chains, and fixes soundness issues.
   modes: []
   capabilities:
   - borrow checker error diagnosis
@@ -2555,9 +2626,10 @@ agents:
 - name: stack-validator
   file: .claude/agents/stack-validator.md
   model: opus
-  description: Per-service language and runtime validation agent. Reviews a multi-service architecture and recommends the
-    optimal language, runtime, and framework for each service based on performance requirements, team constraints, ecosystem
-    maturity, and operational complexity.
+  description: Per-service language and runtime validation agent. Reviews a multi-service
+    architecture and recommends the optimal language, runtime, and framework for each
+    service based on performance requirements, team constraints, ecosystem maturity,
+    and operational complexity.
   modes:
   - validate
   - research
@@ -2587,9 +2659,10 @@ agents:
 - name: build-bible
   file: .claude/agents/build-bible.md
   model: opus
-  description: Definitive build process guide generator. Produces a comprehensive, project-specific build bible covering TDD
-    strategy per service type, testing pyramid, CI/CD pipeline design, performance budgets, branch strategy, and BrickLayer
-    orchestration guidance.
+  description: Definitive build process guide generator. Produces a comprehensive,
+    project-specific build bible covering TDD strategy per service type, testing pyramid,
+    CI/CD pipeline design, performance budgets, branch strategy, and BrickLayer orchestration
+    guidance.
   modes:
   - validate
   - research
@@ -2621,8 +2694,9 @@ agents:
 - name: migration-strategist
   file: .claude/agents/migration-strategist.md
   model: sonnet
-  description: Safe migration planning agent. Analyzes an existing codebase and produces a concrete migration strategy to
-    a new architecture — identifying what to keep, what to rewrite, what to port, and what order to do it in.
+  description: "Safe migration planning agent. Analyzes an existing codebase and produces\
+    \ a concrete migration strategy to a new architecture \u2014 identifying what\
+    \ to keep, what to rewrite, what to port, and what order to do it in."
   modes:
   - validate
   - research
@@ -2652,8 +2726,9 @@ agents:
 - name: pre-flight
   file: .claude/agents/pre-flight.md
   model: sonnet
-  description: Pre-build gate validation agent. Validates that all Phase 0 architectural and security requirements are actually
-    resolved before coding begins. Produces a pass/fail checklist with blocking items clearly flagged.
+  description: Pre-build gate validation agent. Validates that all Phase 0 architectural
+    and security requirements are actually resolved before coding begins. Produces
+    a pass/fail checklist with blocking items clearly flagged.
   modes:
   - validate
   - audit
@@ -2675,6 +2750,54 @@ agents:
   - architectural decisions
   triggers: []
   tools: []
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: AUDIT_REPORT
+  file: /home/nerfherder/.claude/agents/AUDIT_REPORT.md
+  description: ''
+  capabilities: []
+  modes: []
+  tier: draft
+  routing_keywords: []
+  triggers: []
+  tools: []
+  model: sonnet
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: crucible
+  file: agents/crucible.md
+  description: ''
+  capabilities: []
+  modes: []
+  tier: trusted
+  routing_keywords: []
+  triggers: []
+  tools: []
+  model: sonnet
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
+  dspy_status: not_optimized
+  drift_status: ok
+  last_score: null
+  runs_since_optimization: 0
+- name: fix-agent
+  file: agents/fix-agent.md
+  description: ''
+  capabilities: []
+  modes: []
+  tier: candidate
+  routing_keywords: []
+  triggers: []
+  tools: []
+  model: sonnet
+  input_schema: QuestionPayload
+  output_schema: FindingPayload
   dspy_status: not_optimized
   drift_status: ok
   last_score: null

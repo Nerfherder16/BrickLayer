@@ -8,8 +8,27 @@
     "PROJECT_STATUS.md"
   ],
   "source_files_changed": [
+    "bl/synthesizer.py",
+    "masonry/mcp_server/tools/routing.py",
+    "masonry/src/dspy_pipeline/optimizer.py",
+    "masonry/src/routing/llm_router.py",
+    "masonry/src/routing/router.py",
+    "masonry/src/routing/semantic.py",
+    "masonry/src/schemas/payloads.py",
+    "masonry/src/schemas/registry_loader.py",
+    "template/.claude/agents/research-analyst.md",
+    "template/.claude/agents/trowel.md",
+    "template/program.md",
+    "masonry/mcp_server/tools/campaign.py",
+    "masonry/scripts/optimize_and_prove.py",
+    "masonry/scripts/run_vigil.py",
+    "masonry/src/dspy_pipeline/signatures.py",
+    "template/onboard.py",
+    "masonry/src/schemas/__init__.py",
+    "masonry/src/schemas/payloads.py",
+    "masonry/src/schemas/registry_loader.py",
     "masonry/scripts/backfill_token_history.js",
     "masonry/src/hooks/masonry-token-logger.js"
   ],
-  "timestamp": "2026-04-14T17:47:28.241Z"
+  "timestamp": "2026-04-14T20:51:44.872Z"
 }

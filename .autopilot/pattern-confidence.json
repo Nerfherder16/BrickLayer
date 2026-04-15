@@ -1,8 +1,8 @@
 {
   "developer": {
-    "confidence": 0.9999999999999515,
-    "last_used": "2026-04-10T16:28:15.027Z",
-    "uses": 132
+    "confidence": 0.9999999999999611,
+    "last_used": "2026-04-14T20:13:52.625Z",
+    "uses": 133
   },
   "bl-verifier": {
     "confidence": 0.808,
@@ -198,5 +198,10 @@
     "confidence": 0.87712,
     "last_used": "2026-04-06T20:08:01.510Z",
     "uses": 4
+  },
+  "regulatory-researcher": {
+    "confidence": 0.76,
+    "last_used": "2026-04-14T19:24:43.276Z",
+    "uses": 1
   }
 }

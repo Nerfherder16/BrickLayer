@@ -2,8 +2,8 @@
   "last_route": {
     "agent": "Trowel (campaign conductor)",
     "effort": "medium",
-    "prompt_summary": "ok can audit masonry and bricklayer for me, whats working and whats not, what ne",
-    "timestamp": "2026-04-14T17:43:30.582Z",
+    "prompt_summary": "just want to make sure it has the latest masonry/bricklayer build",
+    "timestamp": "2026-04-14T20:36:22.736Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
