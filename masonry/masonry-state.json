@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "developer",
+    "agent": "typescript-specialist",
     "effort": "high",
-    "prompt_summary": "Task: Create the receiving-code-review skill\n\nProject root: /home/nerfherder/Dev",
-    "timestamp": "2026-04-15T19:47:50.985Z",
+    "prompt_summary": "Task: Add superpowers skill-check directive to masonry-session-start\n\nProject ro",
+    "timestamp": "2026-04-15T19:48:38.243Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
