@@ -655,3 +655,6 @@
 {"task_id":"t-1776194181568","phase":"post","timestamp":"2026-04-14T19:24:43.285Z","duration_ms":501708,"success":true,"agent":"regulatory-researcher"}
 {"task_id":"t-1776194181568","phase":"post","timestamp":"2026-04-14T20:13:52.629Z","duration_ms":3451055,"success":true,"agent":"developer"}
 {"task_id":"t-1776280074279","phase":"pre","timestamp":"2026-04-15T19:07:54.281Z","agent_type":"general-purpose","task_type":"data","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1776280074279","phase":"post","timestamp":"2026-04-15T19:11:45.397Z","duration_ms":231110,"success":true,"agent":"general-purpose"}
+{"task_id":"t-1776281225781","phase":"pre","timestamp":"2026-04-15T19:27:05.782Z","agent_type":"repo-researcher","task_type":"frontend","complexity":"high","strategy":"balanced"}
+{"task_id":"t-1776281225781","phase":"post","timestamp":"2026-04-15T19:33:08.053Z","duration_ms":362263,"success":true,"agent":"repo-researcher"}

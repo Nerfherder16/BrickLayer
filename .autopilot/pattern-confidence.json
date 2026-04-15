@@ -20,9 +20,9 @@
     "uses": 3
   },
   "general-purpose": {
-    "confidence": 0.9999680985281012,
-    "last_used": "2026-04-05T16:28:25.784Z",
-    "uses": 41
+    "confidence": 0.9999744788224809,
+    "last_used": "2026-04-15T19:11:45.391Z",
+    "uses": 42
   },
   "statusline-setup": {
     "confidence": 0.76,
@@ -45,9 +45,9 @@
   "pattern-x": 0.999939064025999,
   "pattern-y": 0.999939064025999,
   "repo-researcher": {
-    "confidence": 0.974230196224,
-    "last_used": "2026-04-07T02:58:48.504Z",
-    "uses": 11
+    "confidence": 0.9793841569792,
+    "last_used": "2026-04-15T19:33:08.046Z",
+    "uses": 12
   },
   "architecture-writer": {
     "confidence": 0.808,

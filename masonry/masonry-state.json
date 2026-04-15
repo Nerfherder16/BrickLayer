@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "spreadsheet-wizard",
+    "agent": "Trowel (campaign conductor)",
     "effort": "medium",
-    "prompt_summary": "\"C:\\Users\\trg16\\Downloads\\April 14th Raise Model.xlsx\" please do a deep dive ana",
-    "timestamp": "2026-04-15T19:07:13.317Z",
+    "prompt_summary": "would fixing any of these upset any other hooks currently running, within or out",
+    "timestamp": "2026-04-15T19:28:53.795Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
