@@ -1,217 +1,277 @@
-# Spec: Superpowers Integration
+# Spec: BrickLayer Dev Tools — HUD, Drift Detector, Project Chronicle
 
 ## Goal
-Overlay the obra/superpowers workflow discipline system onto BrickLayer 2.0, bringing structured brainstorming with a visual HTTP companion server, spec-compliance-first review ordering, rationalization-resistant discipline, and 4-status agent output protocol — without replacing any existing BrickLayer infrastructure.
+Add three developer experience tools to BrickLayer: a live Agent Performance HUD for monitoring agent confidence during builds, a Spec Drift Detector that compares what was built against what was specced, and a Project Chronicle that links brainstorm sessions → specs → builds → drift reports in a persistent SQLite timeline.
 
 ## Success Criteria
-- [ ] `masonry-session-start.js` injects a "check skill applicability before responding" directive, skipped on `--resume`
-- [ ] `/brainstorm` skill exists, walks a 9-step design flow, and can launch the visual companion server
-- [ ] Visual brainstorming HTTP server starts, accepts click events, streams JSONL, has PID lifecycle management
-- [ ] `brainstorming` skill writes a spec document to `docs/specs/YYYY-MM-DD-<name>-spec.md` and gates on user approval before handing off to `/plan`
-- [ ] `receiving-code-review` skill exists with YAGNI discipline and push-back protocol
-- [ ] `plan` skill enhanced with no-placeholder enforcement (specific forbidden patterns listed)
-- [ ] `worker-specialist.md` outputs DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED with per-status handling rules
-- [ ] `queen-coordinator.md` enforces spec-reviewer MUST pass before code-reviewer runs for each task
-- [ ] All 100+ agent `description` fields in `agent_registry.yml` audited: workflow summaries removed, replaced with triggering conditions only
-- [ ] Key discipline agents (worker-specialist, developer, queen-coordinator) contain rationalization counter-tables and "spirit vs letter" clause
-
----
+- [ ] `masonry/src/hud/` server starts on port 7824, serves a live agent table reading from `pattern-confidence.json` + `telemetry.jsonl`, updates every 2s
+- [ ] `masonry/src/hooks/drift-detector.js` runs after /build, computes matched/onlyInSpec/onlyInDiff sets, writes `.autopilot/drift-report.md` and `.autopilot/drift-summary.txt`, exits 0/1/2
+- [ ] `/drift` skill invokes drift-detector.js on demand
+- [ ] `masonry-session-start.js` injects last-build drift summary into fresh sessions
+- [ ] `masonry/src/brainstorm/chronicle-db.js` provides a `better-sqlite3` DB module with session/section/build tables
+- [ ] Brainstorm server gains `GET /chronicle` and `GET /chronicle/:id` endpoints
+- [ ] Brainstorm canvas gains a "Chronicle" tab that renders the timeline
+- [ ] All vitest tests pass: 0 failures across hud, drift-detector, chronicle-db
 
 ## Tasks
 
-- [ ] **Task 1** — Description trap audit: rewrite all agent descriptions in agent_registry.yml
-  **Files:** `masonry/agent_registry.yml`
-  **What to build:** Read every agent entry. Identify descriptions that contain workflow steps ("does X by doing Y then Z", "runs A then B", "takes X and produces Y via Z steps"). Rewrite each to only describe *when to invoke the agent* (triggering conditions). Example before: "Audits agent performance by scoring each agent against their finding history, identifying underperformers, detecting verdict drift, and writing AUDIT_REPORT.md." Example after: "Use when agent quality is degrading, verdicts are drifting, or you need a fleet health check." Every description must be a one-liner that answers "use this when..." — not "this does...". Do not change any other field. This is the highest-ROI task: description summaries cause agents to shortcut their full instructions.
-  **Tests required:** After edit, verify no description line contains the words "by reading", "by running", "by scanning", "then writes", "then dispatches", "produces a", "returns a structured" as these are workflow-summary patterns. Grep check: `grep -n "by reading\|by running\|by scanning\|then writes\|then dispatches\|produces a\|returns a structured" masonry/agent_registry.yml` should return 0 matches.
-
-- [ ] **Task 2** — Add 4-status output protocol and rationalization counter-table to worker-specialist
-  **Files:** `.claude/agents/worker-specialist.md`, `template/.claude/agents/worker-specialist.md` (if exists)
-  **What to build:**
-  1. Replace the current "WORKER_DONE / DEV_ESCALATE" binary with a 4-status output contract:
-     - `DONE` — task complete, all tests pass, no concerns
-     - `DONE_WITH_CONCERNS` — task complete but implementer has doubts (test coverage gap, design question, correctness uncertainty). Coordinator must read concern before proceeding to review.
-     - `NEEDS_CONTEXT` — cannot proceed without answer. List the specific question. Coordinator re-dispatches once answered.
-     - `BLOCKED` — 3 failed attempts. Trigger escalation to diagnose-analyst.
-  2. Add a "Rationalization Prevention" section listing common bypass attempts with rebuttals:
-     - "The tests are basically passing" → Iron Law: tests must pass, not basically pass
-     - "I'll add tests after" → TDD_RECOVERY required: write the test now
-     - "This part is obvious, no test needed" → All new functions require a test
-     - "I've already done half so I should finish" → Sunk cost fallacy. Stop if blocked.
-  3. Add: "Violating the letter of these rules is violating the spirit."
-  **Tests required:** No automated test. Verify the 4 status codes are documented with their exact output format string. Verify the rationalization table has ≥4 entries.
-
-- [ ] **Task 3** [depends:2] — Update queen-coordinator to enforce 2-stage sequential review
-  **Files:** `.claude/agents/queen-coordinator.md`, `template/.claude/agents/queen-coordinator.md` (if exists)
-  **What to build:**
-  After each worker completes and files are written, the Queen must enforce this sequence BEFORE marking a task done:
-  1. Dispatch `spec-reviewer` with: task description text + list of changed files. Wait for verdict.
-  2. If verdict is `COMPLIANT`: proceed to code-reviewer.
-  3. If verdict is `UNDER_BUILT` or `SCOPE_DRIFT`: re-dispatch the worker with the spec-reviewer's required action. Max 2 re-dispatch loops before escalating to human via claims board.
-  4. If verdict is `OVER_BUILT`: flag in output, ask coordinator to confirm or trim — do NOT block the build.
-  5. Only after spec-reviewer COMPLIANT: dispatch `code-reviewer`. Code quality review must never run on non-compliant code.
-  Add a "DONE_WITH_CONCERNS" handling section: when a worker outputs DONE_WITH_CONCERNS, the Queen must log the concern verbatim in the task entry in progress.json under a `concerns` key before dispatching spec-reviewer.
-  **Tests required:** No automated test. Verify the dispatch flow is documented as a numbered sequence, not prose. Verify spec-reviewer is named explicitly in the dispatch instructions.
-
-- [ ] **Task 4** — Enhance plan skill with no-placeholder enforcement
-  **Files:** `~/.claude/skills/plan/SKILL.md`
-  **What to build:**
-  Add a "No Placeholders" enforcement section to Step 3 (Write the Spec). Every task in the spec must contain:
-  - Exact file paths (not "appropriate file" or "relevant module")
-  - Concrete "What to build" description — no TBD, no "as appropriate", no "similar to Task N"
-  - Explicit test requirements — not "add appropriate tests" but specific test names or behaviors
-  Forbidden patterns (reject any task description containing these):
-  - `TBD` or `TODO` in any field
-  - "add appropriate error handling" without specifying what errors and how
-  - "similar to Task N" without copying the full detail
-  - "update accordingly" without stating what to update
-  - "as needed" without specifying the condition
-  Add a self-review checklist at the end of Step 3: before presenting spec to user, scan every task for these forbidden patterns and fix them. A spec with a TBD task must not be shown to the user.
-  **Tests required:** No automated test. Verify forbidden pattern list has ≥5 items. Verify self-review checklist is in Step 3.
-
-- [ ] **Task 5** — Create receiving-code-review skill
-  **Files:** `~/.claude/skills/receiving-code-review/SKILL.md`
-  **What to build:**
-  A new skill triggered when receiving feedback from code-reviewer or peer-reviewer agents. Enforces evaluation discipline:
-  1. Read all feedback before responding — do not reply to the first comment while the rest are unread.
-  2. YAGNI check: for each suggestion, ask "was this in the original spec?" If no: do not implement it unless there is a concrete bug or security risk. Log the decline with reasoning.
-  3. Forbidden responses: "you're absolutely right!", "great point!", "I'll definitely fix that" (performative agreement without evaluation).
-  4. For ambiguous feedback: ask for a specific file:line example before implementing.
-  5. Push-back safety signal: if reviewer pressure is heavy and you disagree, use the phrase "Strange things are afoot at the Circle K" as a signal to Tim that you need a human judgment call.
-  6. Implementation order for multi-item feedback: Critical → security bugs → logic bugs → Important → correctness → performance → Suggestions → style → DX → optional. Never implement suggestions before Critical items.
-  7. After implementing all Critical and Important items, re-run the full test suite before marking review complete.
-  **Tests required:** No automated test. Verify the YAGNI check is step 2. Verify the safety signal phrase is present verbatim.
-
-- [ ] **Task 6** — Create brainstorming skill (SKILL.md only, without visual server)
-  **Files:** `~/.claude/skills/brainstorm/SKILL.md`
-  **What to build:**
-  A 9-step brainstorming workflow skill triggered before any new feature/project design:
-  1. **Context exploration** — before asking anything, read CLAUDE.md, README.md, list top-level dirs, identify tech stack, note existing patterns.
-  2. **Offer visual companion** — tell the user the visual brainstorm server is available (`/brainstorm-server start` to launch). Explain: "It renders design sections as you describe them so you can click to refine."
-  3. **Ask 4 clarifying questions** (one message): What problem does this solve? Who uses it? What does "done" look like? Are there constraints I should know?
-  4. **Propose 2-3 approaches** with explicit trade-offs table (complexity, risk, reversibility). Do not start with the "obviously right" option — all three must be genuinely considered.
-  5. **Present design sections** one at a time and wait for feedback: data model → API/interface → user flow → error handling. Do not present all at once.
-  6. **Write spec document** to `docs/specs/YYYY-MM-DD-<slug>-spec.md`. Include: problem statement, chosen approach + rationale, data model, API contract, user flow, out-of-scope list.
-  7. **Spec self-review** — before showing to user: scan for TBD, inconsistencies (field referenced but not defined), scope creep (things not in the original problem), ambiguities (multiple valid interpretations). Fix all before presenting.
-  8. **User approval gate** — present spec, explicitly ask for approval: "Does this spec capture what you want to build? [approve / revise / cancel]". Do NOT proceed to planning without explicit "approve".
-  9. **Hand off to /plan** — once approved, invoke the `/plan` skill with the spec file path as context. Tell the user: "Spec approved and saved to {path}. Handing off to /plan to break it into buildable tasks."
-  Mandatory announcement at start: "I'm using the brainstorming skill to design this with you before any code is written."
-  **Tests required:** No automated test. Verify 9 numbered steps are present. Verify user approval gate is step 8 and blocks step 9. Verify spec file path pattern is `docs/specs/YYYY-MM-DD-<slug>-spec.md`.
-
-- [ ] **Task 7** — Build visual brainstorming HTTP server
+- [ ] **Task 1** — Build HUD server
   **Files:**
-  - `masonry/src/brainstorm/server.cjs`
-  - `masonry/src/brainstorm/frame-template.html`
-  - `masonry/src/brainstorm/helper.js`
-  - `masonry/src/brainstorm/start-server.sh`
-  - `masonry/src/brainstorm/stop-server.sh`
-  - `masonry/src/brainstorm/README.md`
-  **What to build:**
-  A zero-dependency Node.js HTTP server (uses only Node built-ins: `http`, `fs`, `path`, `os`) that provides a visual canvas for the brainstorming skill.
-  
-  **server.cjs:**
-  - Listens on port 7823 (configurable via `BRAINSTORM_PORT` env var)
-  - Routes:
-    - `GET /` — serves `frame-template.html` with `helper.js` inlined
-    - `GET /state` — returns current canvas state as JSON: `{ sections: [...], last_updated: ISO }`
-    - `POST /section` — adds/updates a design section. Body: `{ id, title, content, status: "draft"|"approved"|"flagged" }`
-    - `POST /click` — records a click event. Body: `{ section_id, action: "approve"|"flag"|"expand" }`
-    - `GET /events` — JSONL stream (newline-delimited JSON), each line is an event object `{ ts, type, section_id, action }`
-    - `GET /health` — returns `{ ok: true, port: 7823 }`
-  - State stored in memory (no persistence required — server is ephemeral per brainstorming session)
-  - CORS headers to allow localhost browser access
-  - Graceful shutdown on SIGTERM/SIGINT: write PID file to `/tmp/brainstorm-server.pid` on start, delete on exit
-  
-  **frame-template.html:**
-  - Clean dark-theme HTML (matches BrickLayer's dark dashboard aesthetic: `#0d1117` background, `#30363d` borders, `#58a6ff` accent)
-  - Three-column layout: left sidebar (section list with status dots), main canvas (current section content), right panel (click actions: approve ✓, flag ⚑, expand ↗)
-  - Auto-polls `GET /events` every 1500ms via `fetch`, updates canvas in real time
-  - Status dot colors: draft=`#8b949e` (gray), approved=`#3fb950` (green), flagged=`#f85149` (red)
-  - No external CDN dependencies — all CSS/JS inline
-  
-  **helper.js:**
-  - Client-side JS module, inlined into frame-template.html
-  - Functions: `pollEvents()`, `renderSection(section)`, `sendClick(sectionId, action)`, `updateStatus(sectionId, status)`
-  
-  **start-server.sh:**
-  - Check if already running (read `/tmp/brainstorm-server.pid`, `kill -0` check)
-  - If not running: start `node server.cjs` in background, wait up to 3s for `GET /health` to return 200
-  - Print: `Brainstorm server running at http://localhost:7823`
-  
-  **stop-server.sh:**
-  - Read PID from `/tmp/brainstorm-server.pid`, send SIGTERM, wait for process exit, delete PID file
-  - Print: `Brainstorm server stopped`
-  
-  **Tests required:**
-  - `masonry/src/brainstorm/server.test.cjs` — vitest tests:
-    - `GET /health` returns 200 with `{ ok: true }`
-    - `POST /section` then `GET /state` shows the new section
-    - `POST /click` then `GET /events` stream contains the click event
-    - Server starts and stops cleanly (PID file created/deleted)
-  - Run: `cd masonry && npm test -- brainstorm` — must show 0 failures
+  - `masonry/src/hud/server.cjs` (create)
+  - `masonry/src/hud/start-server.sh` (create)
+  - `masonry/src/hud/stop-server.sh` (create)
+  - `masonry/src/hud/server.test.cjs` (create)
 
-- [ ] **Task 8** [depends:6,7] — Wire brainstorming skill to visual server start
-  **Files:** `~/.claude/skills/brainstorm/SKILL.md`
   **What to build:**
-  Update step 2 of the brainstorming skill to include the actual start command:
-  ```
-  To launch: run this in a terminal:
-    cd /path/to/masonry/src/brainstorm && bash start-server.sh
-  Then open: http://localhost:7823
-  ```
-  The skill should also instruct Claude to call `POST /section` for each design section as it is drafted (sections 4-6 of the workflow). The user sees sections appear in the browser as Claude writes them.
-  Add the push-back signal: after each design section is posted, Claude should explicitly say "Section posted to canvas — approve, flag, or expand it in the browser before I continue."
-  The skill should NOT block waiting for browser interaction — if the user doesn't have the server running, the workflow continues without it.
-  **Tests required:** No automated test. Verify the start command and URL are present in step 2.
+  Zero-dependency Node.js HTTP server (only `http`, `fs`, `path`, `os` builtins). Port 7824, configurable via `HUD_PORT` env var. PID written to `/tmp/hud-server.pid` on start, deleted on SIGTERM/SIGINT.
 
-- [ ] **Task 9** — Add superpowers skill-check directive to masonry-session-start
-  **Files:** `masonry/src/hooks/masonry-session-start.js`, `masonry/src/hooks/session/context-data.js` (optional: extract to new module `session/skills-directive.js`)
+  Data sources (both paths relative to `process.cwd()` at server start — must be run from project root):
+  - `.autopilot/pattern-confidence.json` — shape: `{ "<agent>": { confidence: number, uses: number, last_used: string } }`
+  - `.autopilot/telemetry.jsonl` — one JSON per line, use only `phase: "post"` lines, shape: `{ agent: string, success: boolean, duration_ms: number, timestamp: string }`
+
+  In-memory AgentRecord (keyed by agent name, rebuilt every 2s):
+  ```
+  { name, confidence, uses, lastResult: "pass"|"fail"|"unknown", lastDurationMs, lastUsed }
+  ```
+  For each agent name, find the most recent `phase: "post"` telemetry line to get `lastResult` and `lastDurationMs`. If no telemetry line for that agent, set `lastResult: "unknown"`, `lastDurationMs: 0`.
+
+  Endpoints:
+  - `GET /health` → `{ ok: true, port: 7824, agentCount: N }`
+  - `GET /agents` → `AgentRecord[]` sorted by `confidence` descending
+  - `GET /events` → `text/plain` keep-alive JSONL stream; push `{ type: "update", agents: AgentRecord[] }` on each poll cycle where state changed (compare JSON.stringify of previous vs current)
+  - `GET /` → self-contained HUD HTML page (dark theme: `#0d1117` bg, `#30363d` border, `#58a6ff` accent). Table columns: Agent | Confidence % (with a colored bar: green ≥80%, yellow 50–79%, red <50%) | Result (pass=green badge, fail=red badge, unknown=gray) | Duration | Last Used. Page auto-subscribes to `/events`, re-renders rows on each update. No external CDN — all CSS/JS inline.
+
+  Error handling:
+  - `pattern-confidence.json` missing: skip file, keep last known values
+  - `telemetry.jsonl` missing: all agents show `lastResult: "unknown"`
+  - Malformed JSON line in telemetry: skip that line, log to stderr, continue
+  - `EADDRINUSE` on start: print `"port 7824 in use — is another HUD running?"` and exit 1
+
+  `start-server.sh`: check `/tmp/hud-server.pid` with `kill -0`; if stale, remove; start `node server.cjs` in background from `masonry/src/hud/`; poll `GET /health` up to 3s; print `"HUD running at http://localhost:7824"`.
+  `stop-server.sh`: read PID, SIGTERM, delete PID file, print `"HUD stopped"`.
+
+  **Tests required (`masonry/src/hud/server.test.cjs`):**
+  - `GET /health` returns `{ ok: true }` with status 200
+  - `POST` is not a valid route — returns 404
+  - `GET /agents` returns an array (may be empty when source files absent)
+  - `GET /events` returns a keep-alive response with `Content-Type: text/plain`
+  - AgentRecord merge: given mock `pattern-confidence.json` with `developer: { confidence: 0.9, uses: 10, last_used: "..." }` and mock `telemetry.jsonl` with one `phase: "post"` line for `developer` with `success: true, duration_ms: 5000`, `GET /agents` returns a record with `name: "developer"`, `confidence: 0.9`, `lastResult: "pass"`, `lastDurationMs: 5000`
+  - Run: `cd masonry && node node_modules/vitest/vitest.mjs run src/hud/server.test.cjs` — 0 failures
+
+- [ ] **Task 2** — Build Spec Drift Detector script
+  **Files:**
+  - `masonry/src/hooks/drift-detector.js` (create)
+  - `masonry/src/hooks/drift-detector.test.js` (create)
+  - `~/.claude/skills/drift/SKILL.md` (create)
+
   **What to build:**
-  Add a new phase to `masonry-session-start.js` (after Phase 0, before Phase 1) that:
-  1. Detects whether this is a fresh session vs a resume. Use the `input.session_type` or check if `input.startup_type === "resume"` — if resume, skip this phase entirely (prevents re-injection on resumed sessions).
-  2. If fresh session: inject this directive as the second line of `lines` (after the orchestrator priming):
-  ```
-  [Superpowers] Before responding to any request: check whether a skill applies.
-  If there is even a 1% chance a skill is relevant, invoke it with the Skill tool before writing any code or plans.
-  Skill priority order: brainstorm (design first) → plan (spec before code) → build (implementation) → debug (diagnosis before fix).
-  A skill relevant to this session: if the request involves designing something new, use /brainstorm first.
-  ```
-  3. Extract this logic to `session/skills-directive.js` (a new module) to keep masonry-session-start.js under 120 lines.
-  
-  **Resume detection**: Read the incoming JSON from stdin. If `input.startup_type` field equals `"resume"` OR if `input.is_resume` is truthy, skip injection. This prevents context inflation on long resumed sessions.
-  
-  **Tests required:**
-  - `masonry/src/hooks/session/skills-directive.test.js` — vitest:
-    - Fresh session (no startup_type) → returns directive string
-    - Resume session (startup_type: "resume") → returns null (no injection)
-    - Resume session (is_resume: true) → returns null
-  - Run: `cd masonry && npm test -- skills-directive` — must show 0 failures
+  Node.js script. Entry point: `node masonry/src/hooks/drift-detector.js [optional-spec-path]`.
 
----
+  Step-by-step logic:
+  1. Read optional CLI arg as spec path. If absent, read `.autopilot/spec-path`. If still absent, find most recently modified `*.md` file in `docs/specs/` using `fs.readdirSync` + `fs.statSync` sort. If no files found: print `"No spec file found — skipping drift check"` and exit 0.
+  2. Read `.autopilot/build-start-sha`. If missing: print `"No build baseline — run /build first"` and exit 2.
+  3. Read and parse the spec file. Extract file paths using these patterns (in order):
+     - Lines inside fenced code blocks (``` ``` ```) that contain `/` or `.` and look like file paths
+     - Bullet list items that start with `-` or `*` and contain a path-like token (contains `/` or starts with a known extension pattern: `.js`, `.ts`, `.py`, `.md`, `.json`, `.sh`, `.cjs`)
+     - Content under headings containing "Files", "Modified", "Changed", "Created"
+     Deduplicate extracted paths. Strip leading/trailing backticks and whitespace.
+  4. Run: `git diff --name-only <build-start-sha> HEAD` via `child_process.execSync`. Split on newlines, filter empty.
+  5. Compute:
+     - `matched` = intersection of claimedFiles and changedFiles
+     - `onlyInSpec` = claimedFiles not in changedFiles
+     - `onlyInDiff` = changedFiles not in claimedFiles
+  6. Verdict: `CLEAN` if `onlyInSpec.length === 0 && onlyInDiff.length === 0`, else `DRIFT_DETECTED`.
+  7. Write `.autopilot/drift-report.md`:
+     ```markdown
+     # Drift Report
+     Generated: <ISO timestamp>
+     Spec: <specFile>
+     Verdict: CLEAN | DRIFT_DETECTED
+
+     ## Matched (N files)
+     - file1
+     ...
+
+     ## Only in Spec — not touched (N files)
+     - file1
+     ...
+
+     ## Only in Diff — not in spec (N files)
+     - file1
+     ...
+     ```
+  8. Write `.autopilot/drift-summary.txt`: one line, e.g.:
+     - `"✓ CLEAN — 7 files matched, 0 drift"` (CLEAN)
+     - `"⚠ DRIFT: 2 unspecced files changed, 1 spec claim untouched"` (DRIFT_DETECTED)
+  9. Print the same line to stdout.
+  10. Exit 0 (CLEAN) or 1 (DRIFT_DETECTED).
+
+  Error handling:
+  - `git diff` exits non-zero: print git's stderr, exit 2
+  - Spec file unreadable: print path + error message, exit 2
+  - `.autopilot/drift-report.md` unwritable: warn to stderr, still print summary to stdout and exit normally
+
+  `~/.claude/skills/drift/SKILL.md`:
+  ```markdown
+  # /drift — Run Spec Drift Detector
+
+  Runs the drift detector against the most recent build.
+
+  Usage: /drift [spec-file]
+
+  Steps:
+  1. If a spec file path was provided as an argument, pass it to drift-detector.js
+  2. Run: node /home/nerfherder/Dev/Bricklayer2.0/masonry/src/hooks/drift-detector.js [spec-file]
+  3. Show the output to the user
+  4. If DRIFT_DETECTED: display the full contents of .autopilot/drift-report.md
+  5. If CLEAN: confirm "No drift detected — build matched spec"
+  ```
+
+  **Tests required (`masonry/src/hooks/drift-detector.test.js`):**
+  - Parses file paths from a spec string containing a fenced code block with file paths — returns correct array
+  - Parses file paths from a spec string with a "## Files" section containing bullet list paths — returns correct array
+  - Deduplicates repeated paths — result has no duplicates
+  - `computeDrift(claimed, changed)` with `claimed=["a.js","b.js"]`, `changed=["b.js","c.js"]` → `{ matched:["b.js"], onlyInSpec:["a.js"], onlyInDiff:["c.js"], verdict:"DRIFT_DETECTED" }`
+  - `computeDrift(claimed, changed)` with identical arrays → `{ verdict: "CLEAN" }`
+  - Run: `cd masonry && node node_modules/vitest/vitest.mjs run src/hooks/drift-detector.test.js` — 0 failures
+
+- [ ] **Task 3** — Wire drift summary into session start
+  **Files:**
+  - `masonry/src/hooks/masonry-session-start.js` (modify)
+  - `masonry/src/hooks/session/drift-inject.js` (create)
+  - `masonry/src/hooks/session/drift-inject.test.js` (create)
+
+  **What to build:**
+  New module `session/drift-inject.js` with a single export:
+  ```js
+  function getDriftSummary(projectRoot) {
+    // Returns string or null
+    // Reads <projectRoot>/.autopilot/drift-summary.txt
+    // If file exists and is non-empty: return its trimmed contents prefixed with "[Last build] "
+    // If file missing or empty: return null
+  }
+  module.exports = { getDriftSummary };
+  ```
+
+  In `masonry-session-start.js`: add `const { getDriftSummary } = require("./session/drift-inject");` with the other requires. After Phase 0.5 (skills directive), add Phase 0.6:
+  ```js
+  // Phase 0.6: Drift summary from last build
+  const driftSummary = getDriftSummary(process.cwd());
+  if (driftSummary) lines.push(driftSummary);
+  ```
+  This must only run on fresh sessions (same resume check as Phase 0.5 — skip if `input.startup_type === "resume"` or `input.is_resume === true`). Pass `input` to the check or gate both phases together.
+
+  `masonry-session-start.js` must remain under 120 lines after this change.
+
+  **Tests required (`masonry/src/hooks/session/drift-inject.test.js`):**
+  - File exists with content `"✓ CLEAN — 7 files matched"` → returns `"[Last build] ✓ CLEAN — 7 files matched"`
+  - File missing → returns null
+  - File exists but empty → returns null
+  - Run: `cd masonry && node node_modules/vitest/vitest.mjs run src/hooks/session/drift-inject.test.js` — 0 failures
+
+- [ ] **Task 4** [depends:1,2,3] — Build Project Chronicle DB module and extend brainstorm server
+  **Files:**
+  - `masonry/src/brainstorm/chronicle-db.js` (create)
+  - `masonry/src/brainstorm/server.cjs` (modify — add `/chronicle` endpoints, Chronicle tab, DB wiring)
+  - `masonry/src/brainstorm/chronicle-db.test.js` (create)
+
+  **What to build:**
+
+  `chronicle-db.js` — `better-sqlite3` wrapper module:
+  ```js
+  // DB path: <projectRoot>/.brainstorm/chronicle.db
+  // projectRoot determined by: path.resolve(__dirname, '../../../../') from masonry/src/brainstorm/
+  // Creates .brainstorm/ dir if missing (fs.mkdirSync with recursive: true)
+  // Opens DB with busyTimeout: 1000
+  // Creates tables on first open (CREATE TABLE IF NOT EXISTS)
+
+  // Exports:
+  function createSession(slug)                        // INSERT → returns id (integer)
+  function updateSessionSpec(sessionId, specPath)     // UPDATE sessions SET spec_path
+  function updateSessionStatus(sessionId, status)     // UPDATE sessions SET status
+  function addSection(sessionId, section)             // INSERT into sections; section = { section_id, title, content, status, posted_at }
+  function updateSectionStatus(sessionId, sectionId, status) // UPDATE sections SET status WHERE session_id AND section_id
+  function addBuild(sessionId, startedAt)             // INSERT into builds → returns id (integer)
+  function completeBuild(buildId, verdict, reportText) // UPDATE builds SET completed_at, drift_verdict, drift_report
+  function getSessions()                              // SELECT sessions with counts; returns SessionSummary[]
+  function getSession(id)                             // returns { session: SessionSummary, sections: Section[], builds: Build[] }
+  ```
+
+  All DB calls wrapped in try/catch — on error: log to stderr, return null (never throw to callers).
+
+  Schema:
+  ```sql
+  CREATE TABLE IF NOT EXISTS sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    spec_path TEXT,
+    status TEXT DEFAULT 'active'
+  );
+  CREATE TABLE IF NOT EXISTS sections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER REFERENCES sessions(id),
+    section_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    status TEXT DEFAULT 'draft',
+    posted_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS builds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER REFERENCES sessions(id),
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    drift_verdict TEXT,
+    drift_report TEXT
+  );
+  ```
+
+  `getSessions()` query:
+  ```sql
+  SELECT s.*,
+    (SELECT COUNT(*) FROM sections WHERE session_id = s.id) as section_count,
+    (SELECT COUNT(*) FROM builds WHERE session_id = s.id) as build_count,
+    (SELECT drift_verdict FROM builds WHERE session_id = s.id ORDER BY id DESC LIMIT 1) as last_drift
+  FROM sessions s ORDER BY s.id DESC
+  ```
+
+  **Modifications to `server.cjs`:**
+  1. At top: `const db = (() => { try { return require('./chronicle-db'); } catch(e) { console.error('chronicle-db unavailable:', e.message); return null; } })();`
+  2. `POST /section` handler: after updating in-memory state Map, also call `db?.addSection(state.sessionId, { section_id: body.id, title: body.title, content: body.content, status: body.status, posted_at: new Date().toISOString() })` — only if `state.sessionId` is set.
+  3. `POST /click` handler: also call `db?.updateSectionStatus(state.sessionId, body.section_id, body.action === 'approve' ? 'approved' : 'flagged')` — only if `state.sessionId` is set.
+  4. New `POST /session` endpoint: body `{ slug }` → calls `db?.createSession(slug)` → stores result in `state.sessionId` → writes session id to `.autopilot/current-session-id` → returns `{ ok: true, sessionId }`.
+  5. New `GET /chronicle` endpoint: calls `db?.getSessions()` → returns JSON array (or `[]` if db null).
+  6. New `GET /chronicle/:id` endpoint: calls `db?.getSession(id)` → returns JSON object (or 404 if not found).
+  7. `GET /` HTML page: add a "Chronicle" tab button in the sidebar. When clicked, calls `GET /chronicle`, renders a table: Slug | Status | Sections | Builds | Last Drift | Started. Clicking a row calls `GET /chronicle/:id` and renders the section history inline below the table. Tab switching is CSS/JS only — no page reload.
+
+  **Tests required (`masonry/src/brainstorm/chronicle-db.test.js`):**
+  - `createSession("test-slug")` returns a positive integer
+  - `getSessions()` after createSession returns array with matching slug
+  - `addSection(sessionId, {...})` then `getSession(id)` returns sections array with that section
+  - `addBuild(sessionId, now)` returns a positive integer; `completeBuild(buildId, "CLEAN", "report text")` then `getSession(id)` returns builds array with `drift_verdict: "CLEAN"`
+  - `updateSessionStatus(id, "built")` then `getSessions()` returns session with `status: "built"`
+  - DB calls do not throw when called with invalid sessionId — returns null gracefully
+  - Run: `cd masonry && node node_modules/vitest/vitest.mjs run src/brainstorm/chronicle-db.test.js` — 0 failures
 
 ## Out of Scope
-- Cross-platform packaging (Cursor, Gemini, Codex, OpenCode) — BrickLayer is Claude Code native
-- `using-git-worktrees` skill — git-nerd already handles worktree management
-- `executing-plans` skill — `/build` already handles this
-- `dispatching-parallel-agents` skill — Queen Coordinator already handles this
-- `systematic-debugging` skill — already covered by `~/.claude/rules/systematic-debugging.md`
-- `test-driven-development` skill — already enforced by masonry-tdd-enforcer hook
-- `verification-before-completion` skill — already covered by `~/.claude/rules/verification-before-completion.md`
-- `finishing-a-development-branch` skill — git-nerd already handles this
-- Adaptive model selection per task complexity — future work, depends on cost telemetry
-- Visual server persistence (localStorage / file-backed state) — ephemeral per session is sufficient
-
----
+- Historical graphs or trend lines in the HUD
+- Alerting or notifications when confidence drops
+- Semantic diff (comparing behavior, not file names) in drift detector
+- Blocking builds when drift is detected (report only)
+- Searching or filtering chronicle entries
+- Exporting chronicle to external formats
+- Chronicle entries for builds without a preceding brainstorm session
 
 ## Notes
 - Project root: `/home/nerfherder/Dev/Bricklayer2.0`
-- Source root: `masonry/src/` (Node.js hooks), `.claude/agents/` (agent definitions), `~/.claude/skills/` (skills)
-- Test root: `masonry/src/hooks/session/` (existing vitest tests), `masonry/tests/`
+- Source root: `masonry/src/` (hooks + brainstorm server), `masonry/src/hud/` (new HUD server)
+- Test root: vitest, run via `node node_modules/vitest/vitest.mjs run <file>` from `masonry/` dir
 - Suggested strategy: /build --strategy balanced
-- Oversized files (do not modify directly): `masonry/agent_registry.yml` (2804 lines — Task 1 must edit in place using targeted sed/grep edits, NOT read-then-full-rewrite)
-- Skills directory resolves to `~/.claude/skills/` (confirmed via `ls ~/.claude/skills/`). No `skillsDirectory` setting in settings.json — Claude Code discovers skills from this default path.
-- `CLAUDE_PLUGIN_ROOT` resolves to `/home/nerfherder/Dev/Bricklayer2.0/masonry` (confirmed from hooks.json `node ${CLAUDE_PLUGIN_ROOT}/src/hooks/...`)
-- Masonry hooks.json lives at `masonry/hooks/hooks.json` — this is NOT the active hooks file. Active hooks are in `~/.claude/settings.json` (global) and any project-level `.claude/settings.json`. No changes to hooks.json needed for this spec — session-start injection is in JS, not hooks.json.
-- The `spec-reviewer` agent already exists at `.claude/agents/spec-reviewer.md` — Task 3 wires it into Queen Coordinator dispatch, not rebuild it.
-- `template/.claude/agents/` mirrors the `.claude/agents/` directory for distribution. When editing agent files, check if a matching template copy exists and update it too.
-- brainstorm server port 7823 chosen to avoid conflicts with: Recall (8200), Ollama (11434), common dev servers (3000, 5173, 8080, 8000).
-- Task execution order: 1 → 2 → 4 → 5 → 6 → 7 → 3 (depends:2) → 8 (depends:6,7) → 9 (independent, can run in parallel with 1-8)
+- `better-sqlite3` is already in `masonry/package.json` — no new dependencies needed
+- `masonry/src/brainstorm/server.cjs` is currently 262 lines — Task 4 will push it over 400 lines. Split the Chronicle tab HTML into a helper or keep HTML minimal (table only, no inline styles beyond what fits). Hard limit: 600 lines.
+- `masonry/src/hooks/masonry-session-start.js` is currently 110 lines — Task 3 adds ~5 lines, stays well under 120
+- Test runner confirmed working: `node /home/nerfherder/Dev/Bricklayer2.0/masonry/node_modules/vitest/vitest.mjs run <file>`
+- Existing brainstorm tests: `server.test.cjs` (6 tests), `helper.test.js` (5 tests) — Task 4 must not break these
+- HUD server must be run from project root (not from `masonry/src/hud/`) so relative paths to `.autopilot/` resolve correctly. `start-server.sh` should `cd` to project root before starting node.
+- `.autopilot/current-session-id` is written by the brainstorm server's `POST /session` endpoint — drift-detector.js reads it to link builds to chronicle sessions
