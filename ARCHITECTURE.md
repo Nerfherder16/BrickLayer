@@ -165,6 +165,56 @@ Claude Code → MCP server (Python/FastMCP)
 
 ---
 
+## Developer Experience Tools (DX Layer)
+
+Three tools added 2026-04-15 that run alongside the main engine to give developers real-time visibility into agent performance, spec compliance, and session history.
+
+### Agent Performance HUD
+
+| Item | Detail |
+|------|--------|
+| Entry point | `masonry/src/hud/server.cjs` |
+| Port | 7824 |
+| Lifecycle | `start-server.sh` / `stop-server.sh` in the same directory |
+| Data sources | `.autopilot/pattern-confidence.json` (agent confidence scores), `.autopilot/telemetry.jsonl` (per-run telemetry) |
+| Output | Live HTML table of agent names, confidence scores, recent verdict distribution — refreshes on request |
+
+The HUD server is a standalone CJS HTTP server — no dependency on the main Masonry MCP process. Start it independently before a long campaign to monitor agent health in a browser tab.
+
+### Spec Drift Detector
+
+| Item | Detail |
+|------|--------|
+| Script | `masonry/src/hooks/drift-detector.js` |
+| Trigger | Manual via `/drift` skill, or called by `masonry-session-start.js` at session open |
+| Input | Spec file (claimed files list) + current `git diff --name-only` |
+| Output | `drift-report.md` (full diff table), `drift-summary.txt` (one-line summary for injection) |
+
+The detector compares the file list in a build spec against the files actually touched in the most recent git diff. Files present in the spec but not in the diff are flagged as `UNMODIFIED`; files in the diff but absent from the spec are flagged as `UNTRACKED`. Results are written to disk so the inject module can read them at session start.
+
+Drift inject pipeline:
+
+```
+masonry-session-start.js
+  └── drift-inject.js              reads drift-summary.txt
+        └── injects as systemMessage at session open
+```
+
+Session module: `masonry/src/hooks/session/drift-inject.js`
+
+### Project Chronicle
+
+| Item | Detail |
+|------|--------|
+| DB module | `masonry/src/brainstorm/chronicle-db.js` |
+| Storage | SQLite (path configurable via env, defaults to `masonry/chronicle.db`) |
+| API surface | `POST /session`, `GET /chronicle`, `GET /chronicle/:id` — added to `masonry/src/brainstorm/server.cjs` |
+| UI | Chronicle tab in `frame-template.html` / `helper.js` (brainstorm canvas) |
+
+Chronicle records session-level events (start, stop, build outcomes, agent spawns) into a local SQLite ledger. The brainstorm canvas Chronicle tab renders the ledger as a paginated timeline. Each session row links to its associated build spec and any drift report generated during that session.
+
+---
+
 ## Masonry MCP Tools
 
 | Tool | Purpose |

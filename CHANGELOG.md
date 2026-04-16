@@ -9,6 +9,22 @@ Maintained automatically by BrickLayer post-commit hook and karen agent.
 
 ---
 
+## [2026-04-15]
+
+### Added
+- `[feat]` HUD server (`masonry/src/hud/server.cjs`) on port 7824 — reads `pattern-confidence.json` + `telemetry.jsonl`, serves live agent performance table with start/stop scripts
+- `[feat]` Spec Drift Detector (`masonry/src/hooks/drift-detector.js`) — compares spec-claimed files against git diff, writes `drift-report.md` + `drift-summary.txt`
+- `[feat]` Drift inject module (`masonry/src/hooks/session/drift-inject.js`) — injects last build drift summary into fresh sessions via `masonry-session-start` hook
+- `[feat]` Project Chronicle — SQLite DB module (`masonry/src/brainstorm/chronicle-db.js`), `/chronicle` endpoints + `POST /session` on brainstorm server, Chronicle tab in canvas UI
+- `[feat]` Drift skill (`~/.claude/skills/drift/SKILL.md`) — `/drift` slash command for on-demand drift detection
+
+### Changed
+- `[feat]` `masonry/src/brainstorm/server.cjs` — added `/chronicle` endpoints, `POST /session`, Chronicle DB wiring
+- `[feat]` `masonry/src/brainstorm/frame-template.html` — added Chronicle tab
+- `[feat]` `masonry/src/brainstorm/helper.js` — added Chronicle tab JS
+
+---
+
 ## [2026-04-04]
 
 ### Added

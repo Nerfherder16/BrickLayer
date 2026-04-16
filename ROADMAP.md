@@ -1,6 +1,6 @@
 # BrickLayer 2.0 — Research Roadmap
 
-Last updated: 2026-04-04
+Last updated: 2026-04-15
 
 ---
 
@@ -75,6 +75,16 @@ Last updated: 2026-04-04
 - [ ] Employee utility token — 50% purchasing power amplification
 - [ ] Security audit via masonry-security-review
 - [ ] Mainnet deployment checklist
+
+---
+
+## DX Tooling (complete — 2026-04-15)
+
+- [x] Agent Performance HUD — live table of confidence scores + verdict distribution on port 7824 (`masonry/src/hud/`)
+- [x] Spec Drift Detector — compares spec file list vs git diff; outputs `drift-report.md` + `drift-summary.txt`
+- [x] Drift inject — surfaces last build drift summary at session open via `masonry-session-start` hook
+- [x] Project Chronicle — SQLite session ledger with REST API + Chronicle tab in brainstorm canvas
+- [x] `/drift` skill — on-demand drift detection from any session
 
 ---
 
