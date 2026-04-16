@@ -76,8 +76,13 @@ function postToRecall(url, body) {
         resolve(res.statusCode);
       }
     );
+    // Apply timeout at socket creation — fires during connect phase too, unlike
+    // req.setTimeout which only fires after the socket is connected and idle.
+    req.on("socket", (socket) => {
+      socket.setTimeout(2000);
+      socket.on("timeout", () => req.destroy());
+    });
     req.on("error", () => resolve(null));
-    req.setTimeout(3000, () => { req.destroy(); resolve(null); });
     req.write(body);
     req.end();
   });
