@@ -125,9 +125,12 @@ After each background worker finishes, use TaskOutput to get its response, then 
 
 ### Parsing the output
 
-Worker output follows this structure:
+Workers output one of four status codes: `DONE`, `DONE_WITH_CONCERNS`, `NEEDS_CONTEXT`, or `BLOCKED`.
+Parse the first line to determine routing before processing FILE_OUTPUT blocks.
+
+Worker output structure:
 ```
-WORKER_DONE
+DONE
 Task: #N — [description]
 Tests: N passing, 0 failing
 
@@ -143,9 +146,46 @@ FILE_OUTPUT_END
 Commit message: feat: task #N — [description]
 ```
 
-Extract each file path and content, write them, then verify tests pass before marking the task complete.
+Extract each file path and content, write them, then run the 2-stage review sequence before marking the task complete.
 
 **If a worker's output does NOT contain FILE_OUTPUT blocks** (e.g., review agents, security audits), skip the file-writing step — those agents produce reports, not code.
+
+---
+
+## 2-Stage Sequential Review (MANDATORY per task)
+
+After writing a worker's files, enforce this sequence BEFORE marking any task complete.
+**Never run the code-quality review on code that hasn't passed spec compliance first.**
+
+### Stage 1 — Spec Compliance (spec-reviewer)
+
+1. Dispatch `spec-reviewer` with:
+   - Original task description text (from the spec)
+   - List of all files changed by this task
+2. Wait for verdict (COMPLIANT / OVER_BUILT / UNDER_BUILT / SCOPE_DRIFT).
+
+**Handling verdicts:**
+- `COMPLIANT` → proceed to Stage 2.
+- `OVER_BUILT` → log concern in progress.json `concerns` key, proceed to Stage 2 (do NOT block build — flag for coordinator review).
+- `UNDER_BUILT` or `SCOPE_DRIFT` → re-dispatch the worker with the spec-reviewer's `Required action` text appended to the task description. Max 2 re-dispatch loops. If still not COMPLIANT after 2 loops: add a claim via `masonry_claim_add` and mark task BLOCKED.
+
+### Stage 2 — Code Quality Review (code-reviewer)
+
+Only reached after Stage 1 returns COMPLIANT or OVER_BUILT.
+
+Dispatch `code-reviewer` with the list of changed files. Wait for verdict.
+If code-reviewer returns NEEDS_REVISION: re-dispatch the worker with the code-reviewer's feedback. Max 1 re-dispatch. If still failing: mark BLOCKED.
+
+### DONE_WITH_CONCERNS Handling
+
+If a worker outputs `DONE_WITH_CONCERNS`:
+1. Extract the concern text from the worker's output.
+2. Write it to the task entry in progress.json under a `concerns` key:
+   ```json
+   { "id": "t3", "status": "in_progress", "concerns": "[worker's concern text]" }
+   ```
+3. Continue to Stage 1 (spec-reviewer) — concerns do NOT block the review sequence.
+4. After both stages complete, surface the concern in QUEEN_COMPLETE output so Rough-In can decide whether to act on it.
 
 ---
 
