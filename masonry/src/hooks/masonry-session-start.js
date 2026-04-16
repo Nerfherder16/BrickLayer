@@ -23,6 +23,8 @@ const { execSync } = require("child_process");
 const { addBuildState } = require("./session/build-state");
 const { addProjectContext } = require("./session/project-detect");
 const { addContextData } = require("./session/context-data");
+const { getSkillsDirective } = require("./session/skills-directive");
+const { getDriftSummary } = require("./session/drift-inject");
 
 function isResearchProject(dir) {
   return fs.existsSync(path.join(dir, "program.md")) &&
@@ -49,6 +51,17 @@ async function main() {
     "(developer, test-writer, code-reviewer) in parallel. Direct inline coding skips code review " +
     "and TDD enforcement. Exception: single-sentence factual lookups and clarification questions."
   );
+
+  // Phase 0.5: Superpowers skill-check directive (skipped on resume)
+  const isResume = input.startup_type === 'resume' || input.is_resume === true;
+  const skillsDirective = getSkillsDirective(input);
+  if (skillsDirective) lines.push(skillsDirective);
+
+  // Phase 0.6: Drift summary from last build (skipped on resume)
+  if (!isResume) {
+    const driftSummary = getDriftSummary(cwd);
+    if (driftSummary) lines.push(driftSummary);
+  }
 
   // Phase 1: Build / UI / campaign / Karen state (may set earlyExit for interrupted build)
   addBuildState(lines, cwd, state);
