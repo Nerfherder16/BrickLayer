@@ -1,9 +1,9 @@
 {
   "last_route": {
-    "agent": "rough-in → queen-coordinator → workers",
+    "agent": "research-analyst",
     "effort": "medium",
-    "prompt_summary": "we would like to create a chat ecosystem for humans to communicate with each and",
-    "timestamp": "2026-04-16T17:46:40.909Z",
+    "prompt_summary": "ok can you do a deep dive and more research into this to make the change as effe",
+    "timestamp": "2026-04-20T14:59:27.322Z",
     "turn_count": 1
   },
   "mortar_consulted": true,

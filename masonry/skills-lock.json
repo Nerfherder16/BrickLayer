@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "hermai": {
+      "source": "hermai-ai/hermai-skills",
+      "sourceType": "github",
+      "computedHash": "a0e28755f2caa2a0068ca7792a722231d10eff13e786b0e416312d87e0a2f9eb"
+    },
+    "hermai-contribute": {
+      "source": "hermai-ai/hermai-skills",
+      "sourceType": "github",
+      "computedHash": "e86ec827b2c0c1c25301043ee3c0e6503488c2452f87f199621626b968c5c2ba"
+    }
+  }
+}
