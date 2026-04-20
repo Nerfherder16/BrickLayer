@@ -175,14 +175,17 @@ module.exports = async function runCases(ctx) {
     }
   });
 
-  await test('masonry-jcodemunch-nudge: NUDGES medium source file (3-20KB)', async () => {
+  await test('masonry-jcodemunch-nudge: injects additionalContext for medium source file (3-20KB)', async () => {
     const jsFile = path.join(os.tmpdir(), `nudge-med-${Date.now()}.js`);
     fs.writeFileSync(jsFile, makeBigJs(4500));
     try {
       const r = await runHook(hook('masonry-jcodemunch-nudge.js'),
         { tool_name: 'Read', tool_input: { file_path: jsFile } }, {});
       assertExitCode(r, 0);
-      assertStderr(r, 'jcodemunch');
+      const parsed = JSON.parse(r.stdout || '{}');
+      if (!parsed.additionalContext || !parsed.additionalContext.includes('Iris Gate')) {
+        throw new Error(`Expected additionalContext with "Iris Gate", got: ${r.stdout}`);
+      }
     } finally {
       try { fs.unlinkSync(jsFile); } catch {}
     }

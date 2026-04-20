@@ -63,6 +63,14 @@ async function main() {
     if (driftSummary) lines.push(driftSummary);
   }
 
+  // Phase 0.7: Auto-start brainstorm server if not running (skipped on resume)
+  if (!isResume) {
+    try {
+      const { autoStartBrainstorm } = require('./session/brainstorm-autostart');
+      await autoStartBrainstorm(cwd);
+    } catch {}
+  }
+
   // Phase 1: Build / UI / campaign / Karen state (may set earlyExit for interrupted build)
   addBuildState(lines, cwd, state);
   if (state.earlyExit) return; // systemMessage already written by build-state

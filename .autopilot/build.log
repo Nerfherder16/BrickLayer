@@ -6,3 +6,5 @@
 [2026-04-07T01:58:50Z] COMPACT_HANDOFF: Spec approved. Resume with /build.
 [2026-04-07T02:00:48.536Z] PRE_COMPACT: Snapshot saved. Task 1 of 1 (PENDING). Resume with /build.
 [2026-04-07T02:43:31Z] BUILD_START: 1 task in 1 wave, strategy=aggressive
+[2026-04-15T00:00:00Z] BUILD_START: 9 tasks in 2 waves, strategy=balanced
+[2026-04-16T03:21:31Z] BUILD_START: 4 tasks in 2 waves, strategy=balanced

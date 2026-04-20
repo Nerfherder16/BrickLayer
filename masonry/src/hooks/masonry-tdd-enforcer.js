@@ -149,6 +149,9 @@ function findTestFile(filePath) {
       // Strip leading src/ from mirror (src/workers/foo → tests/workers/test_foo)
       path.join(projectRoot, 'tests', relDirStripped, `test_${base}.py`),
       path.join(projectRoot, 'tests', relDirStripped, `${base}_test.py`),
+      // Strip one more segment (src/api/routes/foo → tests/api/test_foo)
+      path.join(projectRoot, 'tests', path.dirname(relDirStripped), `test_${base}.py`),
+      path.join(projectRoot, 'tests', path.dirname(relDirStripped), `${base}_test.py`),
     );
   } else {
     // JS / TS

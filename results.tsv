@@ -1,33 +1,33 @@
 question_id	verdict	failure_type	eval_score	summary	timestamp
-Q1_heal1_diag	DIAGNOSIS_COMPLETE			Found root cause	2026-04-06T02:12:00Z
-Q1_heal1_fix	FIXED			Applied fix	2026-04-06T02:12:00Z
-Q1	FIXED			Auto-healed in cycle 1: Applied fix	2026-04-06T02:12:00Z
-Q2_heal1_diag	DIAGNOSIS_COMPLETE			Diagnosed	2026-04-06T02:12:00Z
-Q2_heal1_fix	FIX_FAILED			Fix did not work	2026-04-06T02:12:00Z
-Q2_heal2_diag	DIAGNOSIS_COMPLETE			Diagnosed	2026-04-06T02:12:00Z
-Q2_heal2_fix	FIX_FAILED			Fix did not work	2026-04-06T02:12:00Z
-Q2	HEAL_EXHAUSTED			Self-healing exhausted 2 cycle(s) — human intervention required.	2026-04-06T02:12:00Z
-q-fail-1_heal1_diag	DIAGNOSIS_COMPLETE			stub result for q-fail-1_heal1_diag	2026-04-06T02:37:24Z
-q-fail-1_heal1_fix	FIXED			stub result for q-fail-1_heal1_fix	2026-04-06T02:37:24Z
-q-fail-1	FIXED			Auto-healed in cycle 1: stub result for q-fail-1_heal1_fix	2026-04-06T02:37:24Z
-q-fix-1_heal1_diag	DIAGNOSIS_COMPLETE			stub result for q-fix-1_heal1_diag	2026-04-06T02:37:24Z
-q-fix-1_heal1_fix	FIXED			stub result for q-fix-1_heal1_fix	2026-04-06T02:37:24Z
-q-fix-1	FIXED			Auto-healed in cycle 1: stub result for q-fix-1_heal1_fix	2026-04-06T02:37:24Z
-q-exhaust-1_heal1_diag	DIAGNOSIS_COMPLETE			stub result for q-exhaust-1_heal1_diag	2026-04-06T02:37:24Z
-q-exhaust-1_heal1_fix	FIX_FAILED			stub result for q-exhaust-1_heal1_fix	2026-04-06T02:37:24Z
-q-exhaust-1_heal2_diag	DIAGNOSIS_COMPLETE			stub result for q-exhaust-1_heal2_diag	2026-04-06T02:37:24Z
-q-exhaust-1_heal2_fix	FIX_FAILED			stub result for q-exhaust-1_heal2_fix	2026-04-06T02:37:24Z
-q-exhaust-1	HEAL_EXHAUSTED			Self-healing exhausted 2 cycle(s) — human intervention required.	2026-04-06T02:37:24Z
-q-exhaust-2_heal1_diag	DIAGNOSIS_COMPLETE			stub result for q-exhaust-2_heal1_diag	2026-04-06T02:37:24Z
-q-exhaust-2_heal1_fix	FIX_FAILED			stub result for q-exhaust-2_heal1_fix	2026-04-06T02:37:24Z
-q-exhaust-2	HEAL_EXHAUSTED			Self-healing exhausted 1 cycle(s) — human intervention required.	2026-04-06T02:37:24Z
-q-diag-1_heal1_fix	FIXED			stub result for q-diag-1_heal1_fix	2026-04-06T02:37:24Z
-q-diag-1	FIXED			Auto-healed in cycle 1: stub result for q-diag-1_heal1_fix	2026-04-06T02:37:24Z
-q-diag-2_heal1_fix	FIXED			stub result for q-diag-2_heal1_fix	2026-04-06T02:37:24Z
-q-diag-2	FIXED			Auto-healed in cycle 1: stub result for q-diag-2_heal1_fix	2026-04-06T02:37:24Z
-q1_heal1_diag	DIAGNOSIS_COMPLETE			stub result for q1_heal1_diag	2026-04-06T02:37:24Z
-q1_heal1_fix	FIXED			stub result for q1_heal1_fix	2026-04-06T02:37:24Z
-q1	FIXED			Auto-healed in cycle 1: stub result for q1_heal1_fix	2026-04-06T02:37:24Z
-q-mc-1_heal1_diag	DIAGNOSIS_COMPLETE			stub result for q-mc-1_heal1_diag	2026-04-06T02:37:24Z
-q-mc-1_heal1_fix	FIX_FAILED			stub result for q-mc-1_heal1_fix	2026-04-06T02:37:24Z
-q-mc-1	HEAL_EXHAUSTED			Self-healing exhausted 1 cycle(s) — human intervention required.	2026-04-06T02:37:24Z
+Q1_heal1_diag	DIAGNOSIS_COMPLETE			Found root cause	2026-04-16T03:30:44Z
+Q1_heal1_fix	FIXED			Applied fix	2026-04-16T03:30:44Z
+Q1	FIXED			Auto-healed in cycle 1: Applied fix	2026-04-16T03:30:44Z
+Q2_heal1_diag	DIAGNOSIS_COMPLETE			Diagnosed	2026-04-16T03:30:44Z
+Q2_heal1_fix	FIX_FAILED			Fix did not work	2026-04-16T03:30:44Z
+Q2_heal2_diag	DIAGNOSIS_COMPLETE			Diagnosed	2026-04-16T03:30:44Z
+Q2_heal2_fix	FIX_FAILED			Fix did not work	2026-04-16T03:30:44Z
+Q2	HEAL_EXHAUSTED			Self-healing exhausted 2 cycle(s) — human intervention required.	2026-04-16T03:30:44Z
+q-fail-1_heal1_diag	DIAGNOSIS_COMPLETE			stub result for q-fail-1_heal1_diag	2026-04-16T03:30:41Z
+q-fail-1_heal1_fix	FIXED			stub result for q-fail-1_heal1_fix	2026-04-16T03:30:41Z
+q-fail-1	FIXED			Auto-healed in cycle 1: stub result for q-fail-1_heal1_fix	2026-04-16T03:30:41Z
+q-fix-1_heal1_diag	DIAGNOSIS_COMPLETE			stub result for q-fix-1_heal1_diag	2026-04-16T03:30:41Z
+q-fix-1_heal1_fix	FIXED			stub result for q-fix-1_heal1_fix	2026-04-16T03:30:41Z
+q-fix-1	FIXED			Auto-healed in cycle 1: stub result for q-fix-1_heal1_fix	2026-04-16T03:30:41Z
+q-exhaust-1_heal1_diag	DIAGNOSIS_COMPLETE			stub result for q-exhaust-1_heal1_diag	2026-04-16T03:30:41Z
+q-exhaust-1_heal1_fix	FIX_FAILED			stub result for q-exhaust-1_heal1_fix	2026-04-16T03:30:41Z
+q-exhaust-1_heal2_diag	DIAGNOSIS_COMPLETE			stub result for q-exhaust-1_heal2_diag	2026-04-16T03:30:41Z
+q-exhaust-1_heal2_fix	FIX_FAILED			stub result for q-exhaust-1_heal2_fix	2026-04-16T03:30:41Z
+q-exhaust-1	HEAL_EXHAUSTED			Self-healing exhausted 2 cycle(s) — human intervention required.	2026-04-16T03:30:41Z
+q-exhaust-2_heal1_diag	DIAGNOSIS_COMPLETE			stub result for q-exhaust-2_heal1_diag	2026-04-16T03:30:41Z
+q-exhaust-2_heal1_fix	FIX_FAILED			stub result for q-exhaust-2_heal1_fix	2026-04-16T03:30:41Z
+q-exhaust-2	HEAL_EXHAUSTED			Self-healing exhausted 1 cycle(s) — human intervention required.	2026-04-16T03:30:41Z
+q-diag-1_heal1_fix	FIXED			stub result for q-diag-1_heal1_fix	2026-04-16T03:30:41Z
+q-diag-1	FIXED			Auto-healed in cycle 1: stub result for q-diag-1_heal1_fix	2026-04-16T03:30:41Z
+q-diag-2_heal1_fix	FIXED			stub result for q-diag-2_heal1_fix	2026-04-16T03:30:42Z
+q-diag-2	FIXED			Auto-healed in cycle 1: stub result for q-diag-2_heal1_fix	2026-04-16T03:30:42Z
+q1_heal1_diag	DIAGNOSIS_COMPLETE			stub result for q1_heal1_diag	2026-04-16T03:30:42Z
+q1_heal1_fix	FIXED			stub result for q1_heal1_fix	2026-04-16T03:30:42Z
+q1	FIXED			Auto-healed in cycle 1: stub result for q1_heal1_fix	2026-04-16T03:30:42Z
+q-mc-1_heal1_diag	DIAGNOSIS_COMPLETE			stub result for q-mc-1_heal1_diag	2026-04-16T03:30:42Z
+q-mc-1_heal1_fix	FIX_FAILED			stub result for q-mc-1_heal1_fix	2026-04-16T03:30:42Z
+q-mc-1	HEAL_EXHAUSTED			Self-healing exhausted 1 cycle(s) — human intervention required.	2026-04-16T03:30:42Z

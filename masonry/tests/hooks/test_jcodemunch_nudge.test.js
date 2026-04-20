@@ -70,21 +70,23 @@ describe("masonry-jcodemunch-nudge.js", () => {
 
   // ── Nudge zone (3–20KB) ─────────────────────────────────────────────────────
 
-  it("nudges but does NOT block medium-sized code files (3–20KB)", () => {
+  it("injects additionalContext for medium-sized code files (3–20KB)", () => {
     const medium = makeTempFile(".py", 5000);
     const result = runHook({ file_path: medium });
     expect(result.exit).toBe(0); // non-blocking
-    expect(result.stderr).toContain("consider symbol-level retrieval");
-    expect(result.stderr).toContain("get_file_outline");
-    expect(result.stderr).not.toContain("BLOCKED");
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed.additionalContext).toContain("Iris Gate");
+    expect(parsed.additionalContext).toContain("get_file_outline");
+    expect(parsed.additionalContext).not.toContain("BLOCKED");
   });
 
-  it("nudges but does NOT block 15KB code files (still in nudge zone)", () => {
+  it("injects additionalContext for 15KB code files (still in nudge zone)", () => {
     const medium = makeTempFile(".ts", 15000);
     const result = runHook({ file_path: medium });
     expect(result.exit).toBe(0);
-    expect(result.stderr).toContain("consider symbol-level retrieval");
-    expect(result.stderr).not.toContain("BLOCKED");
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed.additionalContext).toContain("Iris Gate");
+    expect(parsed.additionalContext).not.toContain("BLOCKED");
   });
 
   // ── Block zone (> 20KB) ──────────────────────────────────────────────────────
@@ -95,6 +97,7 @@ describe("masonry-jcodemunch-nudge.js", () => {
     expect(result.exit).toBe(2);
     expect(result.stderr).toContain("BLOCKED");
     expect(result.stderr).toContain("wastes tokens");
+    expect(result.stderr).toContain("Iris Gate Ladder");
     expect(result.stderr).toContain("get_file_outline");
     expect(result.stderr).toContain("get_symbol_source");
     expect(result.stderr).toContain("search_symbols");

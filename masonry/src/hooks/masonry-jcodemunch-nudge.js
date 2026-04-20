@@ -71,21 +71,22 @@ async function main() {
   if (fileSize >= BLOCK_THRESHOLD) {
     process.stderr.write(
       `\n[jcodemunch] BLOCKED: ${basename} is ${kb}KB — reading whole file wastes tokens.\n` +
-      `Use symbol-level retrieval instead:\n` +
-      `  → Get file structure:    mcp__jcodemunch__get_file_outline  (file_path="${filePath}")\n` +
-      `  → Get a specific symbol: mcp__jcodemunch__get_symbol_source (symbol_name="<name>", file_path="${filePath}")\n` +
-      `  → Find by name:          mcp__jcodemunch__search_symbols    (query="<name>")\n` +
-      `  → Search code text:      mcp__jcodemunch__search_text       (query="<pattern>")\n` +
-      `\nIf you genuinely need the entire file, add offset=0 to your Read call to bypass this check.\n`
+      `Follow the Iris Gate Ladder:\n` +
+      `  1. Get file structure:   mcp__jcodemunch__get_file_outline  (file_path="${filePath}")\n` +
+      `  2. Get a specific symbol: mcp__jcodemunch__get_symbol_source (symbol_name="<name>", file_path="${filePath}")\n` +
+      `  3. Find by name:          mcp__jcodemunch__search_symbols    (query="<name>")\n` +
+      `  4. Search code text:      mcp__jcodemunch__search_text       (query="<pattern>")\n` +
+      `\nStart with step 1. Only escalate if the outline is insufficient.\n` +
+      `If you genuinely need the entire file, add offset=0 to your Read call to bypass this check.\n`
     );
     process.exit(2);
   }
 
-  // Medium (3–20KB): nudge only, don't block
-  process.stderr.write(
-    `[jcodemunch] ${basename} is ${kb}KB — consider symbol-level retrieval to save tokens:\n` +
-    `  → mcp__jcodemunch__get_file_outline  or  mcp__jcodemunch__get_symbol_source\n`
-  );
+  // Medium (3–20KB): inject context reminder via stdout, not just stderr
+  const hint = `[Iris Gate] ${basename} is ${kb}KB. ` +
+    `Start with mcp__jcodemunch__get_file_outline before reading the full file. ` +
+    `Only escalate to get_symbol_source if the outline is insufficient.`;
+  process.stdout.write(JSON.stringify({ additionalContext: hint }));
   process.exit(0);
 }
 

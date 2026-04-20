@@ -1,13 +1,13 @@
 {
   "last_route": {
-    "agent": "rough-in",
-    "effort": "high",
-    "prompt_summary": "I was working on the ADBP3 Raise Discount Network project in projects/ADBP3/. Pl",
-    "timestamp": "2026-04-06T18:04:41.577Z",
+    "agent": "rough-in → queen-coordinator → workers",
+    "effort": "medium",
+    "prompt_summary": "we would like to create a chat ecosystem for humans to communicate with each and",
+    "timestamp": "2026-04-16T17:46:40.909Z",
     "turn_count": 1
   },
   "mortar_consulted": true,
   "mortar_session_id": "2026-04-04T13:59:40.275Z",
-  "active_agent": "karen",
-  "active_agent_count": 2
+  "active_agent": "research-analyst",
+  "active_agent_count": 3
 }

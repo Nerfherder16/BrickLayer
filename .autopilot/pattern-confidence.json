@@ -1,8 +1,8 @@
 {
   "developer": {
-    "confidence": 0.9999999999999611,
-    "last_used": "2026-04-14T20:13:52.625Z",
-    "uses": 133
+    "confidence": 0.9999999999999949,
+    "last_used": "2026-04-15T19:54:54.156Z",
+    "uses": 142
   },
   "bl-verifier": {
     "confidence": 0.808,
@@ -20,9 +20,9 @@
     "uses": 3
   },
   "general-purpose": {
-    "confidence": 0.9999744788224809,
-    "last_used": "2026-04-15T19:11:45.391Z",
-    "uses": 42
+    "confidence": 0.9999795830579847,
+    "last_used": "2026-04-16T02:08:43.756Z",
+    "uses": 43
   },
   "statusline-setup": {
     "confidence": 0.76,
@@ -45,9 +45,9 @@
   "pattern-x": 0.999939064025999,
   "pattern-y": 0.999939064025999,
   "repo-researcher": {
-    "confidence": 0.9793841569792,
-    "last_used": "2026-04-15T19:33:08.046Z",
-    "uses": 12
+    "confidence": 0.986805860466688,
+    "last_used": "2026-04-16T05:12:17.640Z",
+    "uses": 14
   },
   "architecture-writer": {
     "confidence": 0.808,
@@ -100,9 +100,9 @@
     "uses": 1
   },
   "research-analyst": {
-    "confidence": 0.9932446005589443,
-    "last_used": "2026-04-08T20:14:20.351Z",
-    "uses": 17
+    "confidence": 0.9956765443577243,
+    "last_used": "2026-04-16T05:18:14.757Z",
+    "uses": 19
   },
   "peer-reviewer": {
     "confidence": 0.949668352,
@@ -150,9 +150,9 @@
     "uses": 1
   },
   "unknown": {
-    "confidence": 0.9999999035837173,
-    "last_used": "2026-04-15T19:38:47.439Z",
-    "uses": 67
+    "confidence": 0.9999999838240321,
+    "last_used": "2026-04-16T05:53:36.510Z",
+    "uses": 75
   },
   "spec-writer": {
     "confidence": 0.974230196224,
