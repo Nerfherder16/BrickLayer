@@ -1,0 +1,232 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: Raise · System Rules
+    - heading "How credits and dollars move through the closed loop" [level=1] [ref=e5]
+    - paragraph [ref=e6]: A voluntary, employer-sponsored benefits platform. Employees convert $13.70 of after-tax income into 1 credit worth $20 at essential vendors — and the system recirculates indefinitely without leakage.
+    - generic [ref=e7]: Confidential · April 2026 · Latest system mechanics
+  - generic [ref=e8]:
+    - generic [ref=e9]:
+      - generic [ref=e10]: "1"
+      - heading "Master flywheel" [level=2] [ref=e11]
+    - paragraph [ref=e12]: Spatial view — every actor, wallet, and flow on one canvas. Thick lines carry credits; thin lines carry USD; dotted lines are triggered events.
+    - document [ref=e14]:
+      - generic [ref=e15]:
+        - paragraph [ref=e22]:
+          - text: EMPLOYEE
+          - generic [ref=e23]:
+            - text: post-tax buyer
+            - text: max 175 / mo
+        - paragraph [ref=e30]:
+          - text: EMPLOYER
+          - generic [ref=e31]:
+            - text: mandated buyer
+            - text: system drain
+        - paragraph [ref=e38]:
+          - text: VENDOR
+          - generic [ref=e39]:
+            - text: essential business
+            - text: 9 categories
+        - paragraph [ref=e46]:
+          - text: SOLANA CONTRACT
+          - text: mint & burn
+        - paragraph [ref=e53]:
+          - text: TREASURY
+          - text: $0.20 / credit
+        - paragraph [ref=e60]:
+          - text: ESCROW
+          - generic [ref=e61]:
+            - text: $13.50 / credit
+            - text: reserves + admin pool
+        - paragraph [ref=e68]:
+          - text: INVESTMENTS
+          - text: Treasuries & Real Estate
+        - paragraph [ref=e77]:
+          - text: BURN
+          - text: at 7.5B cap
+      - generic [ref=e95]:
+        - paragraph [ref=e101]: $13.70
+        - paragraph [ref=e107]: $13.70 mandated
+        - paragraph [ref=e113]: $0.20
+        - paragraph [ref=e119]: $13.50
+        - paragraph [ref=e125]: 1 credit · $20 face
+        - paragraph [ref=e131]: 1 credit
+        - paragraph [ref=e137]: spend at POS
+        - paragraph [ref=e143]:
+          - text: month-end recirc
+          - text: not payroll / tax
+        - paragraph [ref=e149]: month-end recirc
+        - paragraph [ref=e155]:
+          - text: over-cap same-day
+          - text: or unallocated month-end
+        - paragraph [ref=e161]: $20 USD per credit
+        - paragraph [ref=e167]: admin fees pro-rata
+        - paragraph [ref=e173]: admin fees pro-rata
+        - paragraph [ref=e179]: burn at 7.5B cap
+        - paragraph [ref=e185]: $20 per burned credit
+        - paragraph [ref=e191]: $20 per burned credit
+        - paragraph [ref=e197]: invest · interest
+    - generic [ref=e198]:
+      - generic [ref=e199]: credit flow
+      - generic [ref=e201]: USD flow
+      - generic [ref=e203]: triggered event — buyout, admin fee, or burn
+  - generic [ref=e205]:
+    - generic [ref=e206]:
+      - generic [ref=e207]: "2"
+      - heading "Credit lifecycle" [level=2] [ref=e208]
+    - paragraph [ref=e209]: Temporal view — every state a single credit passes through from mint to burn, including the branches for over-capacity buyout and month-end sweep.
+    - document [ref=e211]:
+      - generic [ref=e213]:
+        - paragraph [ref=e222]: Monthly Recirculation
+        - generic [ref=e233]:
+          - paragraph [ref=e239]: buyer pays $13.70
+          - paragraph [ref=e245]: employee purchase
+          - paragraph [ref=e251]: employer mandated purchase
+          - paragraph [ref=e257]:
+            - text: spend at POS
+            - text: $20 purchasing power
+          - paragraph [ref=e263]:
+            - text: vendor pays expense
+            - text: with credits
+          - paragraph [ref=e269]:
+            - text: employer pays expense
+            - text: with credits
+          - paragraph [ref=e275]:
+            - text: over-cap same-day buyout
+            - text: employer pays $20 USD
+          - paragraph [ref=e281]:
+            - text: month-end unallocated sweep
+            - text: employer pays $20 USD
+          - paragraph [ref=e287]: at 7.5B cap
+          - paragraph [ref=e293]: at 7.5B cap
+          - paragraph [ref=e299]:
+            - text: escrow pays $20 USD
+            - text: to last holder
+        - generic [ref=e300]:
+          - paragraph [ref=e309]: Minted
+          - paragraph [ref=e316]: HeldByEmployee
+          - paragraph [ref=e323]: HeldByEmployer
+          - paragraph [ref=e330]: HeldByVendor
+          - paragraph [ref=e337]: Burned
+  - generic [ref=e345]:
+    - generic [ref=e346]:
+      - generic [ref=e347]: "3"
+      - heading "Month-end settlement sequence" [level=2] [ref=e348]
+    - paragraph [ref=e349]: Time-ordered view — mint, spend, over-cap buyout, auto-recirc, unallocated sweep, admin fees, and the 7.5B-cap burn.
+    - document [ref=e351]:
+      - generic [ref=e354]: Treasury Wallet
+      - generic [ref=e357]: Escrow Wallet
+      - generic [ref=e360]: Solana Contract
+      - generic [ref=e363]: Employer
+      - generic [ref=e366]: Vendor
+      - generic [ref=e369]: Employee
+      - generic [ref=e373]: Treasury Wallet
+      - generic [ref=e377]: Escrow Wallet
+      - generic [ref=e381]: Solana Contract
+      - generic [ref=e385]: Employer
+      - generic [ref=e389]: Vendor
+      - generic [ref=e393]: Employee
+      - generic [ref=e396]: MINT · any time during month
+      - generic [ref=e399]: SPEND · daily
+      - generic [ref=e402]: OVER-CAP · triggered same-day at EoD
+      - generic [ref=e405]: MONTH-END CLOSE
+      - generic [ref=e408]: BURN · only once supply reaches 7.5B cap
+      - generic [ref=e409]: pay $13.70
+      - generic [ref=e410]: "1"
+      - generic [ref=e411]: route $0.20 per credit
+      - generic [ref=e412]: "2"
+      - generic [ref=e413]: route $13.50 per credit
+      - generic [ref=e414]: "3"
+      - generic [ref=e415]: mint 1 credit · $20 face
+      - generic [ref=e416]: "4"
+      - generic [ref=e417]: mandated purchase $13.70
+      - generic [ref=e418]: "5"
+      - generic [ref=e419]: route $0.20
+      - generic [ref=e420]: "6"
+      - generic [ref=e421]: route $13.50
+      - generic [ref=e422]: "7"
+      - generic [ref=e423]: mint 1 credit
+      - generic [ref=e424]: "8"
+      - generic [ref=e425]: spend credits at POS
+      - generic [ref=e426]: "9"
+      - generic [ref=e427]: route over-cap credits
+      - generic [ref=e428]: "10"
+      - generic [ref=e429]: $20 USD per over-cap credit
+      - generic [ref=e430]: "11"
+      - generic [ref=e431]: auto-recirc credits to pay expenses
+      - generic [ref=e432]: "12"
+      - generic [ref=e433]: auto-recirc credits
+      - generic [ref=e434]: "13"
+      - generic [ref=e435]: sweep unallocated credits
+      - generic [ref=e436]: "14"
+      - generic [ref=e437]: $20 USD per unallocated credit
+      - generic [ref=e438]: "15"
+      - generic [ref=e439]: admin fee pro-rata by recirc share
+      - generic [ref=e440]: "16"
+      - generic [ref=e441]: admin fee pro-rata
+      - generic [ref=e442]: "17"
+      - generic [ref=e443]: burn to maintain equilibrium + growth headroom
+      - generic [ref=e445]: "18"
+      - generic [ref=e446]: $20 USD reimbursement per burned credit
+      - generic [ref=e447]: "19"
+      - generic [ref=e448]: $20 USD reimbursement per burned credit
+      - generic [ref=e449]: "20"
+  - generic [ref=e450]:
+    - generic [ref=e451]:
+      - heading "Core constants" [level=3] [ref=e452]
+      - list [ref=e453]:
+        - listitem [ref=e454]:
+          - code [ref=e455]: $13.70
+          - text: buys 1 credit worth
+          - code [ref=e456]: $20
+          - text: — a 31.5% discount
+        - listitem [ref=e457]:
+          - text: "Mint split:"
+          - code [ref=e458]: $0.20
+          - text: to treasury,
+          - code [ref=e459]: $13.50
+          - text: to escrow
+        - listitem [ref=e460]:
+          - text: "Employee cap:"
+          - code [ref=e461]: 175 credits / month
+        - listitem [ref=e462]:
+          - text: "System ceiling:"
+          - code [ref=e463]: 7.5B credits
+          - text: — burn begins here
+        - listitem [ref=e464]:
+          - text: "System-wide minimum ratio:"
+          - code [ref=e465]: 2:1
+          - text: recirc capacity to mint
+        - listitem [ref=e466]:
+          - text: "Vendor / employer capacity reduction: max"
+          - code [ref=e467]: 25% per quarter
+    - generic [ref=e468]:
+      - heading "Invariants" [level=3] [ref=e469]
+      - list [ref=e470]:
+        - listitem [ref=e471]: No cash redemption — credits never exit the loop for fiat
+        - listitem [ref=e472]: No payroll and no taxes are eligible for recirculation
+        - listitem [ref=e473]: Employers are mandated to buy credits — they are the system drain
+        - listitem [ref=e474]: Over-capacity vendors are made whole same-day in USD by employers
+        - listitem [ref=e475]: Unallocated credits at month-end sweep to employers at $20 face
+        - listitem [ref=e476]: Admin fees pay monthly, pro-rata by recirculation share
+    - generic [ref=e477]:
+      - heading "Triggered events" [level=3] [ref=e478]
+      - list [ref=e479]:
+        - listitem [ref=e480]:
+          - strong [ref=e481]: Daily
+          - text: — over-capacity credit buyout at end of business
+        - listitem [ref=e482]:
+          - strong [ref=e483]: Month-end
+          - text: — auto-recirc, then unallocated sweep, then admin fees
+        - listitem [ref=e484]:
+          - strong [ref=e485]: At 7.5B cap
+          - text: — equilibrium burn plus growth-headroom burn
+        - listitem [ref=e486]:
+          - strong [ref=e487]: Continuous
+          - text: — escrow yield from US Treasuries and real estate
+    - generic [ref=e488]:
+      - heading "Essential vendor categories · 9" [level=3] [ref=e489]
+      - list [ref=e490]:
+        - listitem [ref=e491]: Health insurance · gas stations · grocery stores
+        - listitem [ref=e492]: Rental housing · internet service · electric & gas utilities
+        - listitem [ref=e493]: Water utilities · childcare · auto repair
+  - contentinfo [ref=e494]: Raise · Confidential · April 2026
