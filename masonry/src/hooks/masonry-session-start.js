@@ -80,6 +80,9 @@ async function main() {
 
   // Capture real Claude Code session ID for Recall MCP utilization tracking
   state.sessionId = input.session_id || input.sessionId || ("session-" + (process.ppid || "unknown"));
+  if (state.sessionId && !state.sessionId.startsWith('session-')) {
+    lines.push(`[Recall] session_id=${state.sessionId} — pass this as session_id to recall_search/recall_timeline/recall_rehydrate for utilization tracking.`);
+  }
 
   // Phase 3: Recall patterns, codebase map, swarm resume, ReasoningBank, skills
   // Gate behind active state — skip expensive HTTP/subprocess calls for plain sessions

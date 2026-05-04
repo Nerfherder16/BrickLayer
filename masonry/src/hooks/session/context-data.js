@@ -12,12 +12,6 @@ const { execSync } = require("child_process");
 async function addContextData(lines, cwd, state) {
   const { autopilotMode, uiMode, sessionId } = state;
 
-  // Inject session_id hint for Recall MCP utilization tracking
-  if (sessionId && !sessionId.startsWith('session-')) {
-    lines.push(`[Recall] Your Claude Code session_id is: ${sessionId}. Pass this as the session_id parameter when calling recall_search, recall_timeline, or recall_rehydrate tools to enable retrieval utilization tracking and working memory boosts.`);
-  }
-
-
   // --- Pattern decay: prune stale tool-use patterns at session start ---
   try {
     const { toolPatternDecay } = require('../../tools/impl-patterns');
