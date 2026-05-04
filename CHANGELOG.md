@@ -8,6 +8,7 @@ Maintained automatically by BrickLayer post-commit hook and karen agent.
 ## [Unreleased]
 
 ---
+- `34b04fe7` feat(recall): inject Claude Code session_id into Recall MCP tools (2026-05-04)
 
 ## [2026-04-15]
 
