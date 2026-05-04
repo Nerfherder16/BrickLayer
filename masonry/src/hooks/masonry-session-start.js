@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 /**
  * SessionStart hook (Masonry): Restore workflow context at session start.
  *
@@ -77,6 +77,9 @@ async function main() {
 
   // Phase 2: BL project detection, session init, lock, daemon
   addProjectContext(lines, cwd, input, state);
+
+  // Capture real Claude Code session ID for Recall MCP utilization tracking
+  state.sessionId = input.session_id || input.sessionId || ("session-" + (process.ppid || "unknown"));
 
   // Phase 3: Recall patterns, codebase map, swarm resume, ReasoningBank, skills
   // Gate behind active state — skip expensive HTTP/subprocess calls for plain sessions

@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 // session/context-data.js — Recall patterns, codebase map, swarm resume, ReasoningBank, skills
 
 const fs = require("fs");
@@ -10,7 +10,13 @@ const { execSync } = require("child_process");
  * ReasoningBank patterns, and relevant skills to lines.
  */
 async function addContextData(lines, cwd, state) {
-  const { autopilotMode, uiMode } = state;
+  const { autopilotMode, uiMode, sessionId } = state;
+
+  // Inject session_id hint for Recall MCP utilization tracking
+  if (sessionId && !sessionId.startsWith('session-')) {
+    lines.push(`[Recall] Your Claude Code session_id is: ${sessionId}. Pass this as the session_id parameter when calling recall_search, recall_timeline, or recall_rehydrate tools to enable retrieval utilization tracking and working memory boosts.`);
+  }
+
 
   // --- Pattern decay: prune stale tool-use patterns at session start ---
   try {
