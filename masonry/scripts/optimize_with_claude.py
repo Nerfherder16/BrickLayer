@@ -406,7 +406,7 @@ def run(
     records = _load_records(scored_all_path, agent_name)
     if not records:
         print(f"[error] No records found for {agent_name} in scored_all.jsonl")
-        print(f"[error] Run 'Score All' in Kiln first to generate training data.")
+        print("[error] Run 'Score All' in Kiln first to generate training data.")
         return 1
 
     print(f"[data] Found {len(records)} records.")
@@ -556,7 +556,7 @@ def run(
             for f in updated_files:
                 print(f"[writeback] Injected instructions into: {f}")
         else:
-            print(f"[writeback] No agent .md files found — skipping writeback.")
+            print("[writeback] No agent .md files found — skipping writeback.")
     except Exception as exc:
         print(f"[warn] Writeback failed: {exc}")
 
@@ -586,7 +586,7 @@ def run(
     if registry_path.exists():
         try:
             update_registry_dspy_status(registry_path, agent_name, optimized_at)
-            print(f"[registry] Updated agent_registry.yml — dspy_status: optimized")
+            print("[registry] Updated agent_registry.yml — dspy_status: optimized")
         except Exception as exc:
             print(f"[warn] Could not update registry: {exc}")
 

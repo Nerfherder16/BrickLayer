@@ -11,7 +11,6 @@ Usage: python3 safeguard_forge.py [path-to-mistakes.jsonl]
 """
 
 import json
-import os
 import sys
 from collections import Counter
 from datetime import datetime, timezone
